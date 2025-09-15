@@ -1,0 +1,472 @@
+"""
+DICOM Fuzzer Mutation Engine
+
+LEARNING OBJECTIVE: This module demonstrates advanced object-oriented programming
+concepts including the Strategy Pattern, Command Pattern, and composition.
+
+CONCEPT: The mutator is the "conductor" that orchestrates different mutation
+strategies to systematically test DICOM files.
+"""
+
+# LEARNING: Import necessary modules
+import random
+import copy
+from typing import List, Dict, Any, Optional, Protocol, Union
+from pathlib import Path
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import Enum
+import uuid
+
+# LEARNING: Import our logging system with fallback for direct execution
+try:
+    # Try relative import first (when imported as a module)
+    from ..utils.logger import get_default_logger, log_security_event
+except ImportError:
+    # Fall back to absolute import (when running directly)
+    import sys
+    from pathlib import Path
+    # Add the parent directory to the path so we can import utils
+    sys.path.append(str(Path(__file__).parent.parent))
+    from utils.logger import get_default_logger, log_security_event
+
+# LEARNING: Import DICOM libraries
+from pydicom.dataset import Dataset
+
+# Get a logger for this module
+logger = get_default_logger(__name__)
+
+
+# LEARNING: This is an Enum - a way to define a set of named constants
+class MutationSeverity(Enum):
+    """
+    CONCEPT: Enums are like a list of predefined choices that can't be changed.
+    They're useful when you have a fixed set of options.
+
+    WHY: We want to control how aggressive our mutations are.
+    """
+    MINIMAL = "minimal"      # Very small changes, unlikely to break anything
+    MODERATE = "moderate"    # Medium changes, might cause some issues
+    AGGRESSIVE = "aggressive" # Large changes, likely to break things
+    EXTREME = "extreme"      # Maximum changes, definitely will break things
+
+
+# LEARNING: This is a Protocol - it defines what methods a class must have
+class MutationStrategy(Protocol):
+    """
+    LEARNING: A Protocol is like a contract that classes must follow.
+
+    CONCEPT: Any class that wants to be a "mutation strategy" must have
+    these methods. This is called "duck typing" - if it walks like a duck
+    and quacks like a duck, it's a duck!
+
+    WHY: This ensures all our fuzzing strategies work the same way.
+    """
+
+    def mutate(self, dataset: Dataset, severity: MutationSeverity) -> Dataset:
+        """Apply mutation to the dataset"""
+        ...
+
+    def get_strategy_name(self) -> str:
+        """Get the name of this strategy"""
+        ...
+
+    def can_mutate(self, dataset: Dataset) -> bool:
+        """Check if this strategy can be applied to this dataset"""
+        ...
+
+
+# LEARNING: This is a dataclass - a special type of class for storing data
+@dataclass
+class MutationRecord:
+    """
+    LEARNING: @dataclass automatically creates __init__, __repr__, and other methods
+
+    CONCEPT: This is like a structured record that tracks what we did to a file.
+    Think of it like a medical chart that records what treatments were applied.
+
+    WHY: We need to track mutations for debugging, analysis, and compliance.
+    """
+    mutation_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    strategy_name: str = ""
+    severity: MutationSeverity = MutationSeverity.MINIMAL
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    description: str = ""
+    parameters: Dict[str, Any] = field(default_factory=dict)
+    success: bool = True
+    error_message: Optional[str] = None
+
+
+# LEARNING: This is a dataclass for tracking the overall mutation session
+@dataclass
+class MutationSession:
+    """
+    CONCEPT: A session tracks all the mutations applied to one original file.
+    Like a medical procedure where multiple treatments are applied.
+    """
+    session_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    original_file_info: Dict[str, Any] = field(default_factory=dict)
+    mutations: List[MutationRecord] = field(default_factory=list)
+    start_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    end_time: Optional[datetime] = None
+    total_mutations: int = 0
+    successful_mutations: int = 0
+
+
+class DicomMutator:
+    """
+    LEARNING: This is the main mutator class - the "conductor" of our orchestra
+
+    CONCEPT: This class coordinates different mutation strategies and tracks
+    what changes are made to DICOM files.
+
+    ARCHITECTURE: Uses the Strategy Pattern to manage different fuzzing approaches
+    """
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        """
+        LEARNING: __init__ is the constructor - sets up the object when created
+
+        Args:
+            config: Optional configuration dictionary for customizing behavior
+        """
+        # LEARNING: Set up instance variables with default values
+        self.config = config or {}
+        self.strategies: List[MutationStrategy] = []
+        self.current_session: Optional[MutationSession] = None
+
+        # LEARNING: Load default configuration
+        self._load_default_config()
+
+        # LEARNING: Log that we've created a new mutator
+        logger.info(f"DicomMutator initialized with config: {self.config}")
+
+    def _load_default_config(self) -> None:
+        """
+        LEARNING: Private method (starts with _) for internal setup
+
+        CONCEPT: We set up reasonable defaults but allow them to be overridden
+        """
+        # LEARNING: The .get() method returns a default value if key doesn't exist
+        default_config = {
+            'max_mutations_per_file': 3,
+            'mutation_probability': 0.7,
+            'default_severity': MutationSeverity.MODERATE,
+            'preserve_critical_elements': True,
+            'enable_mutation_tracking': True,
+            'safety_checks': True
+        }
+
+        # LEARNING: Update our config with defaults for any missing keys
+        for key, value in default_config.items():
+            if key not in self.config:
+                self.config[key] = value
+
+    def register_strategy(self, strategy: MutationStrategy) -> None:
+        """
+        LEARNING: This method adds a new fuzzing strategy to our collection
+
+        CONCEPT: This is the "registration" pattern - strategies register
+        themselves with the mutator.
+
+        Args:
+            strategy: A fuzzing strategy that follows our MutationStrategy protocol
+        """
+        # LEARNING: Check if strategy follows our protocol
+        if not hasattr(strategy, 'mutate') or not hasattr(strategy, 'get_strategy_name'):
+            raise ValueError(f"Strategy {strategy} does not implement MutationStrategy protocol")
+
+        self.strategies.append(strategy)
+        logger.debug(f"Registered mutation strategy: {strategy.get_strategy_name()}")
+
+    def start_session(self, original_dataset: Dataset, file_info: Dict[str, Any] = None) -> str:
+        """
+        LEARNING: Start a new mutation session for tracking purposes
+
+        CONCEPT: A session groups all mutations applied to one source file.
+        Like starting a new medical procedure.
+
+        Args:
+            original_dataset: The original DICOM dataset to mutate
+            file_info: Optional information about the source file
+
+        Returns:
+            str: Session ID for tracking
+        """
+        # LEARNING: Create a new session object
+        self.current_session = MutationSession(
+            original_file_info=file_info or {},
+        )
+
+        # LEARNING: Log security event for audit trail
+        # Convert config to JSON-safe format
+        safe_config = {}
+        for key, value in self.config.items():
+            if isinstance(value, MutationSeverity):
+                safe_config[key] = value.value  # Convert enum to string
+            else:
+                safe_config[key] = value
+
+        log_security_event(
+            logger,
+            "MUTATION_SESSION_STARTED",
+            "New DICOM mutation session initiated",
+            {
+                "session_id": self.current_session.session_id,
+                "file_info": file_info,
+                "config": safe_config
+            }
+        )
+
+        logger.info(f"Started mutation session: {self.current_session.session_id}")
+        return self.current_session.session_id
+
+    def apply_mutations(
+        self,
+        dataset: Dataset,
+        num_mutations: Optional[int] = None,
+        severity: Optional[MutationSeverity] = None,
+        strategy_names: Optional[List[str]] = None
+    ) -> Dataset:
+        """
+        LEARNING: This is the main method that applies mutations to a DICOM dataset
+
+        CONCEPT: This method orchestrates the mutation process using the
+        Strategy Pattern to apply different types of corruptions.
+
+        Args:
+            dataset: The DICOM dataset to mutate
+            num_mutations: How many mutations to apply (optional)
+            severity: How aggressive the mutations should be (optional)
+            strategy_names: Specific strategies to use (optional)
+
+        Returns:
+            Dataset: The mutated DICOM dataset
+        """
+        # LEARNING: Use defaults from config if not specified
+        num_mutations = num_mutations or self.config.get('max_mutations_per_file', 3)
+        severity = severity or self.config.get('default_severity', MutationSeverity.MODERATE)
+
+        logger.info(f"Applying {num_mutations} mutations with {severity.value} severity")
+
+        # LEARNING: Create a deep copy so we don't modify the original
+        mutated_dataset = copy.deepcopy(dataset)
+
+        # LEARNING: Get available strategies
+        available_strategies = self._get_applicable_strategies(mutated_dataset, strategy_names)
+
+        if not available_strategies:
+            logger.warning("No applicable mutation strategies found")
+            return mutated_dataset
+
+        # LEARNING: Apply the requested number of mutations
+        mutations_applied = 0
+        for i in range(num_mutations):
+            # LEARNING: Check probability to see if we should apply this mutation
+            if random.random() > self.config.get('mutation_probability', 0.7):
+                logger.debug(f"Skipping mutation {i+1} due to probability")
+                continue
+
+            # LEARNING: Choose a random strategy
+            strategy = random.choice(available_strategies)
+
+            try:
+                # LEARNING: Apply the mutation and track it
+                mutated_dataset = self._apply_single_mutation(
+                    mutated_dataset, strategy, severity
+                )
+                mutations_applied += 1
+
+            except Exception as e:
+                logger.error(f"Mutation failed: {e}")
+                # LEARNING: Record the failed mutation
+                self._record_mutation(strategy, severity, success=False, error=str(e))
+
+        logger.info(f"Successfully applied {mutations_applied} mutations")
+        return mutated_dataset
+
+    def _get_applicable_strategies(
+        self,
+        dataset: Dataset,
+        strategy_names: Optional[List[str]] = None
+    ) -> List[MutationStrategy]:
+        """
+        LEARNING: Private method to filter strategies that can work with this dataset
+
+        CONCEPT: Not every strategy can be applied to every file. For example,
+        pixel fuzzing only works on files that have image data.
+        """
+        applicable = []
+
+        for strategy in self.strategies:
+            # LEARNING: Check if specific strategies were requested
+            if strategy_names and strategy.get_strategy_name() not in strategy_names:
+                continue
+
+            # LEARNING: Check if strategy can handle this dataset
+            try:
+                if strategy.can_mutate(dataset):
+                    applicable.append(strategy)
+                else:
+                    logger.debug(f"Strategy {strategy.get_strategy_name()} not applicable")
+            except Exception as e:
+                logger.warning(f"Error checking strategy {strategy.get_strategy_name()}: {e}")
+
+        return applicable
+
+    def _apply_single_mutation(
+        self,
+        dataset: Dataset,
+        strategy: MutationStrategy,
+        severity: MutationSeverity
+    ) -> Dataset:
+        """
+        LEARNING: Apply a single mutation and track the results
+
+        CONCEPT: This method wraps the actual mutation with safety checks
+        and logging.
+        """
+        logger.debug(f"Applying {strategy.get_strategy_name()} mutation")
+
+        # LEARNING: Perform safety checks if enabled
+        if self.config.get('safety_checks', True):
+            if not self._is_safe_to_mutate(dataset, strategy):
+                raise ValueError(f"Safety check failed for {strategy.get_strategy_name()}")
+
+        # LEARNING: Apply the mutation
+        mutated_dataset = strategy.mutate(dataset, severity)
+
+        # LEARNING: Record what we did
+        self._record_mutation(strategy, severity, success=True)
+
+        return mutated_dataset
+
+    def _is_safe_to_mutate(self, dataset: Dataset, strategy: MutationStrategy) -> bool:
+        """
+        LEARNING: Safety check to prevent dangerous mutations
+
+        CONCEPT: Some mutations could completely break files or expose
+        sensitive data. This method checks for those conditions.
+        """
+        # LEARNING: Check if we should preserve critical elements
+        if self.config.get('preserve_critical_elements', True):
+            # This would check for critical DICOM tags that shouldn't be modified
+            pass
+
+        # LEARNING: For now, always return True (we'll enhance this later)
+        return True
+
+    def _record_mutation(
+        self,
+        strategy: MutationStrategy,
+        severity: MutationSeverity,
+        success: bool = True,
+        error: Optional[str] = None
+    ) -> None:
+        """
+        LEARNING: Record details of a mutation for tracking and analysis
+
+        CONCEPT: This is like writing in a medical chart - we record
+        everything we do for later analysis.
+        """
+        if not self.current_session:
+            logger.warning("No active session - cannot record mutation")
+            return
+
+        # LEARNING: Create a mutation record
+        mutation_record = MutationRecord(
+            strategy_name=strategy.get_strategy_name(),
+            severity=severity,
+            description=f"Applied {strategy.get_strategy_name()} with {severity.value} severity",
+            success=success,
+            error_message=error
+        )
+
+        # LEARNING: Add to current session
+        self.current_session.mutations.append(mutation_record)
+        self.current_session.total_mutations += 1
+        if success:
+            self.current_session.successful_mutations += 1
+
+        # LEARNING: Log for debugging
+        logger.debug(f"Recorded mutation: {mutation_record.mutation_id}")
+
+    def end_session(self) -> Optional[MutationSession]:
+        """
+        LEARNING: End the current mutation session and return statistics
+
+        Returns:
+            Optional[MutationSession]: The completed session with all records
+        """
+        if not self.current_session:
+            logger.warning("No active session to end")
+            return None
+
+        # LEARNING: Mark the end time
+        self.current_session.end_time = datetime.now(timezone.utc)
+
+        # LEARNING: Log session summary
+        session = self.current_session
+        log_security_event(
+            logger,
+            "MUTATION_SESSION_COMPLETED",
+            "DICOM mutation session completed",
+            {
+                "session_id": session.session_id,
+                "total_mutations": session.total_mutations,
+                "successful_mutations": session.successful_mutations,
+                "duration_seconds": (session.end_time - session.start_time).total_seconds(),
+                "success_rate": session.successful_mutations / max(session.total_mutations, 1)
+            }
+        )
+
+        # LEARNING: Return the session and clear current
+        completed_session = self.current_session
+        self.current_session = None
+
+        return completed_session
+
+    def get_session_summary(self) -> Optional[Dict[str, Any]]:
+        """
+        LEARNING: Get a summary of the current session
+
+        Returns:
+            Optional[Dict]: Summary information about the session
+        """
+        if not self.current_session:
+            return None
+
+        session = self.current_session
+        return {
+            "session_id": session.session_id,
+            "start_time": session.start_time.isoformat(),
+            "mutations_applied": len(session.mutations),
+            "successful_mutations": session.successful_mutations,
+            "strategies_used": list(set(m.strategy_name for m in session.mutations))
+        }
+
+
+# LEARNING: This code runs when the module is imported for testing
+if __name__ == "__main__":
+    """
+    LEARNING: Basic testing of the mutator functionality
+    """
+    print("Testing DICOM Mutator...")
+
+    # Create a test mutator
+    mutator = DicomMutator()
+
+    # Test configuration
+    print(f"Default config: {mutator.config}")
+
+    # Test session management
+    session_id = mutator.start_session(None, {"test": True})
+    print(f"Started session: {session_id}")
+
+    summary = mutator.get_session_summary()
+    print(f"Session summary: {summary}")
+
+    completed = mutator.end_session()
+    print(f"Completed session: {completed.session_id if completed else 'None'}")
+
+    print("Mutator testing complete!")
