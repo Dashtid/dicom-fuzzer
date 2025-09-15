@@ -1,6 +1,14 @@
 # DICOM Fuzzer
 
-A specialized fuzzing tool for DICOM (Digital Imaging and Communications in Medicine) files, designed to generate realistic but mutated test data for medical imaging applications.
+A specialized security testing tool for comprehensive fuzzing of DICOM (Digital Imaging and Communications in Medicine) implementations, designed to enhance healthcare IT security through automated vulnerability discovery.
+
+## 📋 Project Documentation
+
+- **[📈 PROJECT PLAN](PROJECT_PLAN.md)** - Comprehensive 8-week implementation roadmap
+- **[📋 TASK BREAKDOWN](TASK_BREAKDOWN.md)** - Detailed task structure and dependencies
+- **[🔧 DEVELOPMENT GUIDELINES](.claude/CLAUDE.md)** - Technical standards and best practices
+
+**Current Status**: Phase 1 (Foundation) - 35% Complete | Next Milestone: Week 2 Core Implementation
 
 ## Overview
 
@@ -168,15 +176,32 @@ def test_application_with_fuzzed_files(original_file, app_endpoint):
 4. Push to the branch (`git push origin feature/new-mutation-strategy`)
 5. Create a Pull Request
 
-## Future Enhancements
+## Implementation Roadmap
 
-- [ ] Coverage-guided fuzzing (track code paths triggered by mutations)
-- [ ] Grammar-based mutations (deeper DICOM structure understanding)
-- [ ] Performance monitoring during testing
-- [ ] Automatic crash analysis and reporting
-- [ ] Web dashboard for results visualization
-- [ ] Support for DICOM-RT (Radiotherapy) specific structures
-- [ ] Integration with CI/CD pipelines
+See **[PROJECT_PLAN.md](PROJECT_PLAN.md)** for detailed implementation phases:
+
+### 🏗️ Phase 1: Foundation (Weeks 1-2) - 35% Complete
+- ✅ Core DICOM protocol handling
+- ✅ Basic fuzzing engine structure
+- 🔨 Core mutation framework (In Progress)
+- 🔨 Comprehensive test suite (Target: 95% coverage)
+
+### 🚀 Phase 2: Advanced Fuzzing (Weeks 3-4)
+- ⏳ Coverage-guided fuzzing
+- ⏳ Grammar-based mutations
+- ⏳ Network protocol fuzzing
+- ⏳ Automatic crash analysis and reporting
+
+### 🔗 Phase 3: Integration & Scalability (Weeks 5-6)
+- ⏳ Web dashboard for results visualization
+- ⏳ Support for DICOM-RT (Radiotherapy) structures
+- ⏳ Integration with CI/CD pipelines
+- ⏳ Performance monitoring during testing
+
+### 🛡️ Phase 4: Production Readiness (Weeks 7-8)
+- ⏳ Security hardening and compliance validation
+- ⏳ Field testing and user interface
+- ⏳ Complete documentation and training materials
 
 ## License
 

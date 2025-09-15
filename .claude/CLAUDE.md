@@ -41,6 +41,63 @@ To enhance the security posture of healthcare IT infrastructure by providing aut
 
 ## Development Guidelines for Claude Code
 
+### 🎓 Educational Programming Approach
+
+**IMPORTANT**: This project serves as a learning experience for programming concepts. Claude must provide detailed explanations for:
+
+#### Code Explanation Requirements
+1. **Concept Introduction**: Explain what we're building and why
+2. **Step-by-Step Breakdown**: Break down complex code into understandable pieces
+3. **Programming Concepts**: Explain classes, functions, modules, imports, etc.
+4. **Python-Specific Features**: Explain decorators, context managers, type hints, etc.
+5. **Security Implications**: Explain why certain security measures are implemented
+6. **Testing Logic**: Explain why we test certain things and how tests work
+
+#### Educational Code Comment Style
+```python
+# LEARNING: This is a class - a blueprint for creating objects
+class DicomParser:
+    """
+    CONCEPT: A class groups related data and functions together.
+    This class handles reading and validating DICOM medical files.
+    """
+
+    # LEARNING: __init__ is a special method called when creating a new object
+    def __init__(self, file_path: str):
+        """
+        CONCEPT: This is the constructor - it sets up our object when created.
+
+        Args:
+            file_path: String containing the path to our DICOM file
+
+        LEARNING: Type hints (like ': str') help us know what type of data expected
+        """
+        # LEARNING: self.variable stores data that belongs to this specific object
+        self.file_path = file_path
+
+    # LEARNING: Methods are functions that belong to a class
+    def validate_file(self) -> bool:
+        """
+        CONCEPT: This method checks if the file is safe to process.
+
+        Returns:
+            bool: True if file is valid, False otherwise
+
+        LEARNING: The -> bool tells us this function returns a True/False value
+        """
+        # LEARNING: We check file exists before trying to open it (defensive programming)
+        if not os.path.exists(self.file_path):
+            return False
+        return True
+```
+
+#### When Implementing Features
+1. **Start with the "Why"**: Explain the purpose and context
+2. **Break Down the "How"**: Explain the implementation approach
+3. **Highlight Key Concepts**: Point out important programming patterns
+4. **Show Alternatives**: Mention other ways this could be implemented
+5. **Connect to Bigger Picture**: How this fits into the overall architecture
+
 ### 1. Code Quality Standards
 
 #### Security-First Development
