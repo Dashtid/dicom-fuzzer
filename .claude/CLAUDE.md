@@ -7,6 +7,17 @@
 ### Mission Statement
 To enhance the security posture of healthcare IT infrastructure by providing automated vulnerability discovery capabilities for DICOM-based systems, ensuring patient data protection and system reliability.
 
+## Development Environment
+
+**Operating System**: Windows 11
+**Shell**: Git Bash / PowerShell / Command Prompt
+**Important**: Always use Windows-compatible commands:
+- Use `dir` instead of `ls` for Command Prompt
+- Use PowerShell commands when appropriate
+- File paths use backslashes (`\`) in Windows
+- Use `python -m http.server` for local development server
+- Git Bash provides Unix-like commands but context should be Windows-aware
+
 ## Technical Context & Domain Knowledge
 
 ### DICOM Standard Overview
