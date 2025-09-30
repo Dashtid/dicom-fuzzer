@@ -40,6 +40,7 @@ dependencies = [
     "rich>=13.0.0",
     "aiofiles>=23.0.0",
     "asyncio-mqtt>=0.11.0",
+    "cryptography>=41.0.0",
 ]
 
 [project.optional-dependencies]
@@ -72,12 +73,12 @@ Repository = "https://github.com/Dashtid/DICOM-Fuzzer.git"
 "Bug Tracker" = "https://github.com/Dashtid/DICOM-Fuzzer/issues"
 
 [project.scripts]
-dicom-fuzzer = "dicom_fuzzer.cli:main"
+dicom-fuzzer = "main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["dicom_fuzzer*"]
-exclude = ["tests*"]
+include = ["core*", "strategies*", "utils*"]
+exclude = ["tests*", ".venv*"]
 
 [tool.black]
 line-length = 88

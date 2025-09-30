@@ -1,271 +1,353 @@
 """
-DICOM Fuzzer Logging Utility
+DICOM Fuzzer Structured Logging System
 
-LEARNING OBJECTIVE: This module teaches how to create a structured logging system
-that can be used throughout our application.
-
-CONCEPT: We're building a "logger factory" - a function that creates customized
-loggers for different parts of our application.
+Provides structured logging with security event tracking and performance metrics.
+Uses structlog for consistent, analyzable log output.
 """
 
-# LEARNING: Import statements bring in code from other modules
 import logging
 import sys
 from pathlib import Path
-from typing import Optional, Dict, Any
-import json
+from typing import Any, Dict, Optional
 from datetime import datetime, timezone
 
-# LEARNING: These are "type hints" - they help us know what type of data to expect
-LogLevel = str  # This creates an alias - LogLevel is just a string, but more descriptive
+import structlog
+from structlog.types import EventDict, WrappedLogger
 
 
-class SecurityAwareFormatter(logging.Formatter):
+SENSITIVE_FIELDS = {
+    'patient_id', 'patient_name', 'patient_birth_date',
+    'password', 'token', 'key', 'secret', 'api_key'
+}
+
+
+def redact_sensitive_data(logger: WrappedLogger, method_name: str, event_dict: EventDict) -> EventDict:
+    """Processor to redact sensitive data from log entries.
+
+    Args:
+        logger: The wrapped logger instance
+        method_name: The name of the method being called
+        event_dict: The event dictionary to process
+
+    Returns:
+        Processed event dictionary with sensitive data redacted
     """
-    LEARNING: This is a custom class that inherits from logging.Formatter
+    for key, value in event_dict.items():
+        if key.lower() in SENSITIVE_FIELDS:
+            event_dict[key] = "***REDACTED***"
+        elif isinstance(value, str):
+            for sensitive_field in SENSITIVE_FIELDS:
+                if sensitive_field in value.lower():
+                    event_dict[key] = "***REDACTED***"
+                    break
 
-    CONCEPT: Inheritance means our class gets all the features of logging.Formatter,
-    but we can customize how it behaves. Think of it like inheriting traits from
-    your parents, but you can also develop your own unique characteristics.
+    return event_dict
 
-    WHY: We need custom formatting for security applications to ensure sensitive
-    data doesn't accidentally get logged.
+
+def add_timestamp(logger: WrappedLogger, method_name: str, event_dict: EventDict) -> EventDict:
+    """Processor to add ISO-formatted timestamp to log entries.
+
+    Args:
+        logger: The wrapped logger instance
+        method_name: The name of the method being called
+        event_dict: The event dictionary to process
+
+    Returns:
+        Event dictionary with timestamp added
     """
+    event_dict['timestamp'] = datetime.now(timezone.utc).isoformat()
+    return event_dict
 
-    # LEARNING: Class variables are shared by all instances of the class
-    SENSITIVE_FIELDS = {
-        'patient_id', 'patient_name', 'patient_birth_date',
-        'password', 'token', 'key', 'secret'
-    }
 
-    def format(self, record: logging.LogRecord) -> str:
-        """
-        LEARNING: This method overrides the parent class's format method
+def add_security_context(logger: WrappedLogger, method_name: str, event_dict: EventDict) -> EventDict:
+    """Processor to mark and enhance security-related events.
 
-        CONCEPT: When we "override" a method, we're saying "I want to do this
-        differently than my parent class does it."
+    Args:
+        logger: The wrapped logger instance
+        method_name: The name of the method being called
+        event_dict: The event dictionary to process
+
+    Returns:
+        Event dictionary with security context added
+    """
+    if event_dict.get('security_event'):
+        event_dict['event_category'] = 'SECURITY'
+        event_dict['requires_attention'] = True
+
+    return event_dict
+
+
+def configure_logging(
+    log_level: str = "INFO",
+    json_format: bool = True,
+    log_file: Optional[Path] = None
+) -> None:
+    """Configure structlog for the application.
+
+    Args:
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        json_format: Whether to output JSON format (True) or human-readable (False)
+        log_file: Optional file path to write logs to
+
+    Example:
+        >>> configure_logging(log_level="DEBUG", json_format=True)
+        >>> logger = structlog.get_logger("dicom_fuzzer")
+        >>> logger.info("fuzzing_started", target="example.dcm")
+    """
+    logging.basicConfig(
+        format="%(message)s",
+        stream=sys.stdout,
+        level=getattr(logging, log_level.upper())
+    )
+
+    processors = [
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.add_logger_name,
+        add_timestamp,
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        redact_sensitive_data,
+        add_security_context,
+    ]
+
+    if json_format:
+        processors.append(structlog.processors.JSONRenderer())
+    else:
+        processors.append(structlog.dev.ConsoleRenderer())
+
+    structlog.configure(
+        processors=processors,
+        wrapper_class=structlog.make_filtering_bound_logger(
+            getattr(logging, log_level.upper())
+        ),
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        cache_logger_on_first_use=True,
+    )
+
+    if log_file:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(getattr(logging, log_level.upper()))
+        logging.root.addHandler(file_handler)
+
+
+def get_logger(name: str) -> structlog.stdlib.BoundLogger:
+    """Get a configured structlog logger.
+
+    Args:
+        name: Logger name (typically module name using __name__)
+
+    Returns:
+        Configured structlog BoundLogger instance
+
+    Example:
+        >>> logger = get_logger(__name__)
+        >>> logger.info("operation_complete", duration_ms=123, status="success")
+    """
+    return structlog.get_logger(name)
+
+
+class SecurityEventLogger:
+    """Specialized logger for security-related events."""
+
+    def __init__(self, logger: structlog.stdlib.BoundLogger):
+        """Initialize security event logger.
 
         Args:
-            record: A LogRecord object containing the message and metadata
-
-        Returns:
-            str: The formatted log message as a string
+            logger: Base structlog logger to use
         """
-        # LEARNING: We call the parent's format method first to get basic formatting
-        formatted_message = super().format(record)
+        self.logger = logger
 
-        # LEARNING: Then we add our own security filtering
-        return self._sanitize_sensitive_data(formatted_message)
+    def log_validation_failure(
+        self,
+        file_path: str,
+        reason: str,
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Log DICOM validation failure.
 
-    def _sanitize_sensitive_data(self, message: str) -> str:
+        Args:
+            file_path: Path to the file that failed validation
+            reason: Reason for validation failure
+            details: Additional details about the failure
         """
-        LEARNING: Methods starting with _ are "private" - meant for internal use only
-
-        CONCEPT: This is like having a private helper function that only this class uses.
-
-        WHY: We don't want to accidentally log patient names or other sensitive data
-        """
-        # LEARNING: This is a simple implementation - in real apps, you'd use regex
-        for sensitive_field in self.SENSITIVE_FIELDS:
-            if sensitive_field.lower() in message.lower():
-                # LEARNING: We replace sensitive data with asterisks
-                message = message.replace(sensitive_field, "***REDACTED***")
-
-        return message
-
-
-def setup_logger(
-    name: str,
-    level: LogLevel = "INFO",
-    log_file: Optional[Path] = None,
-    include_console: bool = True,
-    json_format: bool = False
-) -> logging.Logger:
-    """
-    LEARNING: This is a "factory function" - it creates and configures logger objects
-
-    CONCEPT: Instead of manually setting up loggers everywhere in our code,
-    we have one function that does it consistently. This is called the
-    "Factory Pattern" in programming.
-
-    Args:
-        name: The name for this logger (usually the module name)
-        level: How verbose the logging should be (DEBUG, INFO, WARNING, ERROR)
-        log_file: Optional file to write logs to
-        include_console: Whether to also print logs to the console
-        json_format: Whether to format logs as JSON (useful for automated analysis)
-
-    Returns:
-        logging.Logger: A configured logger ready to use
-
-    EXAMPLE:
-        # Create a logger for the parser module
-        logger = setup_logger("dicom_fuzzer.parser", level="DEBUG")
-        logger.info("Starting to parse DICOM file")
-    """
-
-    # LEARNING: logging.getLogger() gets or creates a logger with the given name
-    logger = logging.getLogger(name)
-
-    # LEARNING: Clear any existing handlers (in case this function is called multiple times)
-    logger.handlers.clear()
-
-    # LEARNING: Set the logging level - this controls which messages get through
-    logger.setLevel(getattr(logging, level.upper()))
-
-    # LEARNING: Create a formatter - this controls how log messages look
-    if json_format:
-        # LEARNING: JSON format is good for automated log analysis tools
-        formatter = JsonFormatter()
-    else:
-        # LEARNING: Human-readable format is good for development and debugging
-        formatter = SecurityAwareFormatter(
-            fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+        self.logger.warning(
+            "validation_failure",
+            security_event=True,
+            event_type="VALIDATION_FAILURE",
+            file_path=file_path,
+            reason=reason,
+            details=details or {}
         )
 
-    # LEARNING: Set up console output (if requested)
-    if include_console:
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+    def log_suspicious_pattern(
+        self,
+        pattern_type: str,
+        description: str,
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Log detection of suspicious pattern.
 
-    # LEARNING: Set up file output (if requested)
-    if log_file:
-        # LEARNING: Make sure the directory exists before trying to create the file
-        log_file.parent.mkdir(parents=True, exist_ok=True)
-
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-    # LEARNING: Return the configured logger
-    return logger
-
-
-class JsonFormatter(logging.Formatter):
-    """
-    LEARNING: Another custom formatter, this one outputs JSON format
-
-    CONCEPT: JSON (JavaScript Object Notation) is a standard way to structure data
-    that both humans and computers can easily read.
-
-    WHY: JSON logs can be automatically analyzed by security tools to detect patterns
-    """
-
-    def format(self, record: logging.LogRecord) -> str:
+        Args:
+            pattern_type: Type of suspicious pattern detected
+            description: Human-readable description
+            details: Additional details about the pattern
         """
-        Convert a log record to JSON format
+        self.logger.warning(
+            "suspicious_pattern_detected",
+            security_event=True,
+            event_type="SUSPICIOUS_PATTERN",
+            pattern_type=pattern_type,
+            description=description,
+            details=details or {}
+        )
 
-        LEARNING: We're building a dictionary (key-value pairs) and then
-        converting it to JSON format.
+    def log_fuzzing_campaign(
+        self,
+        campaign_id: str,
+        status: str,
+        stats: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Log fuzzing campaign status.
+
+        Args:
+            campaign_id: Unique identifier for the campaign
+            status: Campaign status (started, completed, failed)
+            stats: Campaign statistics
         """
-        # LEARNING: Create a dictionary with the information we want to log
-        log_entry = {
-            'timestamp': datetime.now(timezone.utc).isoformat(),  # ISO format is standard
-            'level': record.levelname,
-            'logger': record.name,
-            'message': record.getMessage(),
-            'module': record.module,
-            'function': record.funcName,
-            'line': record.lineno
-        }
-
-        # LEARNING: Add extra fields if they exist
-        if hasattr(record, 'extra_data'):
-            log_entry['extra'] = record.extra_data
-
-        # LEARNING: Convert dictionary to JSON string
-        return json.dumps(log_entry)
+        self.logger.info(
+            "fuzzing_campaign",
+            security_event=True,
+            event_type="FUZZING_CAMPAIGN",
+            campaign_id=campaign_id,
+            status=status,
+            stats=stats or {}
+        )
 
 
-def get_default_logger(module_name: str) -> logging.Logger:
-    """
-    LEARNING: This is a convenience function for getting a standard logger
+class PerformanceLogger:
+    """Specialized logger for performance metrics."""
 
-    CONCEPT: We create a simple function that applies our most common settings.
-    This reduces repetitive code throughout our application.
+    def __init__(self, logger: structlog.stdlib.BoundLogger):
+        """Initialize performance logger.
 
-    Args:
-        module_name: Usually __name__ (the current module's name)
+        Args:
+            logger: Base structlog logger to use
+        """
+        self.logger = logger
 
-    Returns:
-        logging.Logger: A logger with standard settings
+    def log_operation(
+        self,
+        operation: str,
+        duration_ms: float,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Log performance of an operation.
 
-    EXAMPLE:
-        # At the top of any module:
-        logger = get_default_logger(__name__)
-    """
-    return setup_logger(
-        name=module_name,
-        level="INFO",
-        include_console=True,
-        json_format=False
-    )
+        Args:
+            operation: Name of the operation
+            duration_ms: Duration in milliseconds
+            metadata: Additional operation metadata
+        """
+        self.logger.info(
+            "operation_performance",
+            metric_type="PERFORMANCE",
+            operation=operation,
+            duration_ms=round(duration_ms, 2),
+            metadata=metadata or {}
+        )
+
+    def log_mutation_stats(
+        self,
+        strategy: str,
+        mutations_count: int,
+        duration_ms: float,
+        file_size_bytes: int
+    ) -> None:
+        """Log mutation operation statistics.
+
+        Args:
+            strategy: Mutation strategy used
+            mutations_count: Number of mutations applied
+            duration_ms: Total duration in milliseconds
+            file_size_bytes: Resulting file size in bytes
+        """
+        self.logger.info(
+            "mutation_statistics",
+            metric_type="PERFORMANCE",
+            strategy=strategy,
+            mutations_count=mutations_count,
+            duration_ms=round(duration_ms, 2),
+            file_size_bytes=file_size_bytes,
+            avg_mutation_time_ms=round(duration_ms / max(mutations_count, 1), 2)
+        )
+
+    def log_resource_usage(
+        self,
+        memory_mb: float,
+        cpu_percent: float,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Log resource usage metrics.
+
+        Args:
+            memory_mb: Memory usage in megabytes
+            cpu_percent: CPU usage percentage
+            metadata: Additional resource metadata
+        """
+        self.logger.info(
+            "resource_usage",
+            metric_type="RESOURCE",
+            memory_mb=round(memory_mb, 2),
+            cpu_percent=round(cpu_percent, 2),
+            metadata=metadata or {}
+        )
 
 
-def log_security_event(
-    logger: logging.Logger,
-    event_type: str,
-    description: str,
-    extra_data: Optional[Dict[str, Any]] = None
-) -> None:
-    """
-    LEARNING: This is a specialized function for logging security-related events
-
-    CONCEPT: In cybersecurity, certain events are so important that we want to
-    make sure they're logged in a consistent format.
-
-    Args:
-        logger: The logger to use
-        event_type: Type of security event (e.g., "SUSPICIOUS_FILE", "FUZZING_STARTED")
-        description: Human-readable description
-        extra_data: Additional data to include in the log
-
-    WHY: Security teams need consistent, searchable logs to detect threats
-    """
-    # LEARNING: Create a structured message
-    security_log_entry = {
-        'security_event': True,  # Flag to identify security events
-        'event_type': event_type,
-        'description': description,
-        'timestamp': datetime.now(timezone.utc).isoformat()
-    }
-
-    # LEARNING: Add any extra data provided
-    if extra_data:
-        security_log_entry['details'] = extra_data
-
-    # LEARNING: Log at WARNING level so it gets attention
-    logger.warning(f"SECURITY_EVENT: {json.dumps(security_log_entry)}")
-
-
-# LEARNING: This code runs when the module is imported
 if __name__ == "__main__":
-    """
-    LEARNING: This is a common Python pattern for testing modules
+    """Test the logging system."""
+    print("Testing DICOM Fuzzer Structured Logger...\n")
 
-    CONCEPT: When you run "python logger.py" directly, this code will execute.
-    But when you import this module, this code will NOT execute.
-    """
-    # Demo the logger functionality
-    print("Testing DICOM Fuzzer Logger...")
+    configure_logging(log_level="DEBUG", json_format=False)
 
-    # Create a test logger
-    test_logger = setup_logger("test_logger", level="DEBUG")
+    logger = get_logger("test_logger")
 
-    # Test different log levels
-    test_logger.debug("This is a debug message")
-    test_logger.info("This is an info message")
-    test_logger.warning("This is a warning message")
-    test_logger.error("This is an error message")
+    print("Testing basic logging:")
+    logger.debug("debug_message", detail="This is a debug message")
+    logger.info("info_message", detail="This is an info message")
+    logger.warning("warning_message", detail="This is a warning message")
+    logger.error("error_message", detail="This is an error message")
 
-    # Test security logging
-    log_security_event(
-        test_logger,
-        "FUZZING_STARTED",
-        "Beginning DICOM file fuzzing campaign",
-        {"target_file": "example.dcm", "mutation_count": 100}
+    print("\nTesting security event logging:")
+    security_logger = SecurityEventLogger(logger)
+    security_logger.log_validation_failure(
+        file_path="test.dcm",
+        reason="Invalid header",
+        details={"expected": "DICM", "actual": "XXXX"}
+    )
+    security_logger.log_fuzzing_campaign(
+        campaign_id="fc-2025-001",
+        status="started",
+        stats={"target_files": 5, "strategies": 3}
     )
 
-    print("Logger testing complete!")
+    print("\nTesting performance logging:")
+    perf_logger = PerformanceLogger(logger)
+    perf_logger.log_operation(
+        operation="file_parsing",
+        duration_ms=45.23,
+        metadata={"file_size": "2.3MB"}
+    )
+    perf_logger.log_mutation_stats(
+        strategy="metadata_fuzzer",
+        mutations_count=15,
+        duration_ms=123.45,
+        file_size_bytes=2048
+    )
+
+    print("\nTesting sensitive data redaction:")
+    logger.info("user_data", patient_name="John Doe", file_count=5)
+
+    print("\nLogger testing complete!")
