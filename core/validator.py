@@ -326,15 +326,22 @@ class DicomValidator:
             if elem.value is None or elem.value == "":
                 continue
 
+            # Convert pydicom value types to string for checking
+            # (pydicom uses PersonName, etc. which are not str instances)
+            str_value = str(elem.value) if not isinstance(elem.value, bytes) else None
+
+            if str_value is None:
+                continue
+
             # Check for extremely long strings (potential attack)
-            if isinstance(elem.value, str) and len(elem.value) > 10000:
+            if len(str_value) > 10000:
                 result.add_warning(
-                    f"Tag {elem.tag} has extremely long value: {len(elem.value)} chars",
-                    context={"tag": str(elem.tag), "length": len(elem.value)},
+                    f"Tag {elem.tag} has extremely long value: {len(str_value)} chars",
+                    context={"tag": str(elem.tag), "length": len(str_value)},
                 )
 
             # Check for null bytes in strings (potential attack)
-            if isinstance(elem.value, str) and "\x00" in elem.value[:-1]:
+            if "\x00" in str_value[:-1]:
                 # Allow single trailing null (DICOM padding)
                 result.add_error(
                     f"Tag {elem.tag} contains null bytes (potential attack)",
