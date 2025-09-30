@@ -453,6 +453,10 @@ def truncate_string(s: str, max_length: int, suffix: str = "...") -> str:
     if len(s) <= max_length:
         return s
 
+    # If max_length is smaller than suffix, just truncate without suffix
+    if max_length < len(suffix):
+        return s[:max_length]
+
     truncate_at = max_length - len(suffix)
     return s[:truncate_at] + suffix
 
