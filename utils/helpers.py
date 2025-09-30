@@ -127,8 +127,10 @@ def hex_to_tag(hex_string: str) -> Tag:
     """
     hex_string = hex_string.strip()
 
-    # Remove parentheses and comma if present
-    hex_string = hex_string.replace("(", "").replace(")", "").replace(",", "")
+    # Remove parentheses, comma, and spaces if present
+    hex_string = (
+        hex_string.replace("(", "").replace(")", "").replace(",", "").replace(" ", "")
+    )
 
     if len(hex_string) != 8:
         raise ValueError(f"Invalid hex string length: {hex_string}")
