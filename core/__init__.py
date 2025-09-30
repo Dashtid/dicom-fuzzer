@@ -5,7 +5,7 @@ generation, and validation.
 """
 
 from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
-from .generator import DicomGenerator
+from .generator import DICOMGenerator
 from .mutator import DicomMutator
 from .parser import DicomParser
 from .validator import DicomValidator
@@ -16,6 +16,6 @@ __all__ = [
     "ValidationError",
     "DicomParser",
     "DicomMutator",
-    "DicomGenerator",
+    "DICOMGenerator",
     "DicomValidator",
 ]
