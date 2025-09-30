@@ -1,3 +1,107 @@
+# ============================================================================
+# SECURITY: Sensitive Data & Credentials
+# ============================================================================
+# CRITICAL: Never commit real patient data or credentials
+
+# Credentials & API Keys
+*.key
+*.pem
+*.p12
+*.pfx
+*.cer
+*.crt
+*_rsa
+*_rsa.pub
+*_dsa
+*_dsa.pub
+*_ecdsa
+*_ecdsa.pub
+*_ed25519
+*_ed25519.pub
+*.gpg
+*.asc
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+
+# Environment & Configuration
+.env
+.env.*
+!.env.example
+!.env.template
+.envrc
+secrets.yml
+secrets.yaml
+config.local.*
+credentials.json
+credentials.yml
+credentials.yaml
+auth.json
+auth.yml
+auth.yaml
+*.secret
+*.secrets
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-shm
+*.db-wal
+
+# API Keys & Tokens
+*apikey*
+*api_key*
+*api-key*
+*token*
+*secret*
+.token
+.apikey
+
+# DICOM Files (may contain PHI/PII)
+*.dcm
+*.dicom
+*.DCM
+*.DICOM
+/samples/*.dcm
+/test_data/*.dcm
+/fixtures/*.dcm
+/patient_data/
+/real_data/
+
+# Medical/Healthcare Specific
+*patient*
+*phi*
+*pii*
+*hipaa*
+
+# Backup Files
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
+*~
+.*.swp
+.*.swo
+*.lock~
+
+# OS-Specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ============================================================================
+# Python
+# ============================================================================
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
