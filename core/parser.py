@@ -5,17 +5,16 @@ with extensive validation, error handling, and security considerations.
 """
 
 import logging
-import re
-from pathlib import Path
-from typing import Dict, Optional, Any, List, Union
 from contextlib import contextmanager
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
 
-import pydicom
 import numpy as np
+import pydicom
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
-from .exceptions import ParsingError, ValidationError, SecurityViolationError
+from .exceptions import ParsingError, SecurityViolationError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +47,7 @@ class DicomParser:
         self,
         file_path: Union[str, Path],
         security_checks: bool = True,
-        max_file_size: Optional[int] = None
+        max_file_size: Optional[int] = None,
     ) -> None:
         """Initialize DICOM parser with security validation.
 
@@ -79,7 +78,7 @@ class DicomParser:
             raise ParsingError(
                 f"Failed to parse DICOM file: {e}",
                 error_code="PARSE_FAILED",
-                context={"file_path": str(self.file_path)}
+                context={"file_path": str(self.file_path)},
             )
 
     def _perform_security_checks(self) -> None:
@@ -91,14 +90,13 @@ class DicomParser:
         # Check file existence and permissions
         if not self.file_path.exists():
             raise SecurityViolationError(
-                f"File does not exist: {self.file_path}",
-                error_code="FILE_NOT_FOUND"
+                f"File does not exist: {self.file_path}", error_code="FILE_NOT_FOUND"
             )
 
         if not self.file_path.is_file():
             raise SecurityViolationError(
                 f"Path is not a regular file: {self.file_path}",
-                error_code="INVALID_FILE_TYPE"
+                error_code="INVALID_FILE_TYPE",
             )
 
         # Check file size
@@ -107,11 +105,11 @@ class DicomParser:
             raise SecurityViolationError(
                 f"File size {file_size} exceeds maximum {self.max_file_size}",
                 error_code="FILE_TOO_LARGE",
-                context={"file_size": file_size, "max_size": self.max_file_size}
+                context={"file_size": file_size, "max_size": self.max_file_size},
             )
 
         # Check for suspicious file extensions
-        if self.file_path.suffix.lower() not in {'.dcm', '.dicom', ''}:
+        if self.file_path.suffix.lower() not in {".dcm", ".dicom", ""}:
             logger.warning(f"Unusual file extension: {self.file_path.suffix}")
 
     def _parse_dicom_file(self) -> None:
@@ -119,9 +117,7 @@ class DicomParser:
         try:
             # Use force=True to handle non-standard DICOM files
             self._dataset = pydicom.dcmread(
-                str(self.file_path),
-                force=True,
-                stop_before_pixels=False
+                str(self.file_path), force=True, stop_before_pixels=False
             )
 
             # Validate dataset structure
@@ -129,8 +125,7 @@ class DicomParser:
 
         except (pydicom.errors.InvalidDicomError, IOError) as e:
             raise ParsingError(
-                f"Invalid DICOM file format: {e}",
-                error_code="INVALID_DICOM_FORMAT"
+                f"Invalid DICOM file format: {e}", error_code="INVALID_DICOM_FORMAT"
             )
 
     def _validate_dataset(self) -> None:
@@ -157,7 +152,7 @@ class DicomParser:
             raise ValidationError(
                 f"Missing required DICOM elements: {missing_elements}",
                 error_code="MISSING_REQUIRED_ELEMENTS",
-                context={"missing_elements": missing_elements}
+                context={"missing_elements": missing_elements},
             )
 
     @property
@@ -194,22 +189,22 @@ class DicomParser:
 
         # Standard metadata extraction with error handling
         metadata_fields = {
-            'patient_id': (Tag(0x0010, 0x0020), 'PatientID'),
-            'patient_name': (Tag(0x0010, 0x0010), 'PatientName'),
-            'patient_birth_date': (Tag(0x0010, 0x0030), 'PatientBirthDate'),
-            'patient_sex': (Tag(0x0010, 0x0040), 'PatientSex'),
-            'study_date': (Tag(0x0008, 0x0020), 'StudyDate'),
-            'study_time': (Tag(0x0008, 0x0030), 'StudyTime'),
-            'study_description': (Tag(0x0008, 0x1030), 'StudyDescription'),
-            'modality': (Tag(0x0008, 0x0060), 'Modality'),
-            'institution_name': (Tag(0x0008, 0x0080), 'InstitutionName'),
-            'manufacturer': (Tag(0x0008, 0x0070), 'Manufacturer'),
-            'manufacturer_model': (Tag(0x0008, 0x1090), 'ManufacturerModelName'),
-            'software_version': (Tag(0x0018, 0x1020), 'SoftwareVersions'),
-            'sop_class_uid': (Tag(0x0008, 0x0016), 'SOPClassUID'),
-            'sop_instance_uid': (Tag(0x0008, 0x0018), 'SOPInstanceUID'),
-            'study_instance_uid': (Tag(0x0020, 0x000D), 'StudyInstanceUID'),
-            'series_instance_uid': (Tag(0x0020, 0x000E), 'SeriesInstanceUID'),
+            "patient_id": (Tag(0x0010, 0x0020), "PatientID"),
+            "patient_name": (Tag(0x0010, 0x0010), "PatientName"),
+            "patient_birth_date": (Tag(0x0010, 0x0030), "PatientBirthDate"),
+            "patient_sex": (Tag(0x0010, 0x0040), "PatientSex"),
+            "study_date": (Tag(0x0008, 0x0020), "StudyDate"),
+            "study_time": (Tag(0x0008, 0x0030), "StudyTime"),
+            "study_description": (Tag(0x0008, 0x1030), "StudyDescription"),
+            "modality": (Tag(0x0008, 0x0060), "Modality"),
+            "institution_name": (Tag(0x0008, 0x0080), "InstitutionName"),
+            "manufacturer": (Tag(0x0008, 0x0070), "Manufacturer"),
+            "manufacturer_model": (Tag(0x0008, 0x1090), "ManufacturerModelName"),
+            "software_version": (Tag(0x0018, 0x1020), "SoftwareVersions"),
+            "sop_class_uid": (Tag(0x0008, 0x0016), "SOPClassUID"),
+            "sop_instance_uid": (Tag(0x0008, 0x0018), "SOPInstanceUID"),
+            "study_instance_uid": (Tag(0x0020, 0x000D), "StudyInstanceUID"),
+            "series_instance_uid": (Tag(0x0020, 0x000E), "SeriesInstanceUID"),
         }
 
         for field_name, (tag, keyword) in metadata_fields.items():
@@ -226,27 +221,31 @@ class DicomParser:
 
         # Add image-specific metadata if present
         try:
-            if hasattr(self.dataset, 'pixel_array'):
+            if hasattr(self.dataset, "pixel_array"):
                 pixel_array = self.dataset.pixel_array
-                metadata.update({
-                    'has_pixel_data': True,
-                    'image_shape': pixel_array.shape,
-                    'image_dtype': str(pixel_array.dtype),
-                    'rows': getattr(self.dataset, 'Rows', None),
-                    'columns': getattr(self.dataset, 'Columns', None),
-                    'bits_allocated': getattr(self.dataset, 'BitsAllocated', None),
-                    'bits_stored': getattr(self.dataset, 'BitsStored', None),
-                    'samples_per_pixel': getattr(self.dataset, 'SamplesPerPixel', None),
-                })
+                metadata.update(
+                    {
+                        "has_pixel_data": True,
+                        "image_shape": pixel_array.shape,
+                        "image_dtype": str(pixel_array.dtype),
+                        "rows": getattr(self.dataset, "Rows", None),
+                        "columns": getattr(self.dataset, "Columns", None),
+                        "bits_allocated": getattr(self.dataset, "BitsAllocated", None),
+                        "bits_stored": getattr(self.dataset, "BitsStored", None),
+                        "samples_per_pixel": getattr(
+                            self.dataset, "SamplesPerPixel", None
+                        ),
+                    }
+                )
             else:
-                metadata['has_pixel_data'] = False
+                metadata["has_pixel_data"] = False
         except Exception as e:
             logger.warning(f"Failed to extract pixel metadata: {e}")
-            metadata['has_pixel_data'] = False
+            metadata["has_pixel_data"] = False
 
         # Include private tags if requested
         if include_private:
-            metadata['private_tags'] = self._extract_private_tags()
+            metadata["private_tags"] = self._extract_private_tags()
 
         self._metadata_cache = metadata
         return metadata
@@ -266,9 +265,11 @@ class DicomParser:
             if tag.is_private:
                 try:
                     private_tags[str(tag)] = {
-                        'value': str(element.value) if element.value else "",
-                        'vr': element.VR if hasattr(element, 'VR') else "UN",
-                        'keyword': element.keyword if hasattr(element, 'keyword') else "",
+                        "value": str(element.value) if element.value else "",
+                        "vr": element.VR if hasattr(element, "VR") else "UN",
+                        "keyword": element.keyword
+                        if hasattr(element, "keyword")
+                        else "",
                     }
                 except Exception as e:
                     logger.warning(f"Failed to extract private tag {tag}: {e}")
@@ -288,7 +289,7 @@ class DicomParser:
             ValidationError: If pixel data validation fails
         """
         try:
-            if not hasattr(self.dataset, 'pixel_array'):
+            if not hasattr(self.dataset, "pixel_array"):
                 return None
 
             pixel_array = self.dataset.pixel_array
@@ -303,7 +304,7 @@ class DicomParser:
             if validate:
                 raise ValidationError(
                     f"Pixel data validation failed: {e}",
-                    error_code="PIXEL_DATA_INVALID"
+                    error_code="PIXEL_DATA_INVALID",
                 )
             return None
 
@@ -330,7 +331,7 @@ class DicomParser:
         if memory_size > max_memory:
             raise ValidationError(
                 f"Pixel data too large: {memory_size} bytes",
-                error_code="PIXEL_DATA_TOO_LARGE"
+                error_code="PIXEL_DATA_TOO_LARGE",
             )
 
     def get_transfer_syntax(self) -> Optional[str]:
@@ -340,7 +341,7 @@ class DicomParser:
             Transfer syntax UID or None if not available
         """
         try:
-            return getattr(self.dataset, 'file_meta', {}).get('TransferSyntaxUID', None)
+            return getattr(self.dataset, "file_meta", {}).get("TransferSyntaxUID", None)
         except Exception as e:
             logger.warning(f"Failed to get transfer syntax: {e}")
             return None
@@ -357,15 +358,15 @@ class DicomParser:
 
         # Common compressed transfer syntaxes
         compressed_syntaxes = {
-            '1.2.840.10008.1.2.4.50',  # JPEG Baseline
-            '1.2.840.10008.1.2.4.51',  # JPEG Extended
-            '1.2.840.10008.1.2.4.57',  # JPEG Lossless
-            '1.2.840.10008.1.2.4.70',  # JPEG Lossless SV1
-            '1.2.840.10008.1.2.4.80',  # JPEG-LS Lossless
-            '1.2.840.10008.1.2.4.81',  # JPEG-LS Lossy
-            '1.2.840.10008.1.2.4.90',  # JPEG 2000 Lossless
-            '1.2.840.10008.1.2.4.91',  # JPEG 2000
-            '1.2.840.10008.1.2.5',     # RLE Lossless
+            "1.2.840.10008.1.2.4.50",  # JPEG Baseline
+            "1.2.840.10008.1.2.4.51",  # JPEG Extended
+            "1.2.840.10008.1.2.4.57",  # JPEG Lossless
+            "1.2.840.10008.1.2.4.70",  # JPEG Lossless SV1
+            "1.2.840.10008.1.2.4.80",  # JPEG-LS Lossless
+            "1.2.840.10008.1.2.4.81",  # JPEG-LS Lossy
+            "1.2.840.10008.1.2.4.90",  # JPEG 2000 Lossless
+            "1.2.840.10008.1.2.4.91",  # JPEG 2000
+            "1.2.840.10008.1.2.5",  # RLE Lossless
         }
 
         return transfer_syntax in compressed_syntaxes

@@ -20,5 +20,5 @@ warnings.warn(
     "DICOM-Fuzzer generates potentially malicious DICOM data for security testing. "
     "Only use in isolated testing environments with proper authorization.",
     UserWarning,
-    stacklevel=2
+    stacklevel=2,
 )

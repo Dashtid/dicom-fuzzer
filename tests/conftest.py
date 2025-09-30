@@ -6,8 +6,8 @@ import tempfile
 from pathlib import Path
 from typing import Generator
 
-import pytest
 import pydicom
+import pytest
 from pydicom.dataset import Dataset, FileDataset
 from pydicom.uid import generate_uid
 
@@ -43,10 +43,7 @@ def sample_dicom_file(temp_dir: Path) -> Path:
     file_meta.ImplementationClassUID = generate_uid()
 
     dataset = FileDataset(
-        str(file_path),
-        {},
-        file_meta=file_meta,
-        preamble=b"\x00" * 128
+        str(file_path), {}, file_meta=file_meta, preamble=b"\x00" * 128
     )
 
     # Add required DICOM elements
@@ -103,8 +100,8 @@ def large_file(temp_dir: Path) -> Path:
 
     # Create 10 MB file
     size_mb = 10
-    with open(file_path, 'wb') as f:
-        f.write(b'\x00' * (size_mb * 1024 * 1024))
+    with open(file_path, "wb") as f:
+        f.write(b"\x00" * (size_mb * 1024 * 1024))
 
     return file_path
 
@@ -121,7 +118,7 @@ def small_file(temp_dir: Path) -> Path:
     """
     file_path = temp_dir / "small_file.txt"
 
-    with open(file_path, 'w') as f:
+    with open(file_path, "w") as f:
         f.write("Test content\n" * 50)
 
     return file_path
@@ -148,8 +145,9 @@ def capture_logs(reset_structlog):
     Returns:
         List that will contain captured log entries
     """
-    import structlog
     import logging
+
+    import structlog
 
     captured = []
 
@@ -167,7 +165,7 @@ def capture_logs(reset_structlog):
             structlog.stdlib.add_log_level,
             structlog.stdlib.add_logger_name,
             capture_processor,
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,

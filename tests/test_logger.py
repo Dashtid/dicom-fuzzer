@@ -2,22 +2,17 @@
 Comprehensive tests for structured logging system.
 """
 
-import json
-import tempfile
-from pathlib import Path
-
 import pytest
 import structlog
 
 from utils.logger import (
+    PerformanceLogger,
+    SecurityEventLogger,
+    add_security_context,
+    add_timestamp,
     configure_logging,
     get_logger,
-    SecurityEventLogger,
-    PerformanceLogger,
     redact_sensitive_data,
-    add_timestamp,
-    add_security_context,
-    SENSITIVE_FIELDS
 )
 
 
@@ -61,10 +56,7 @@ class TestSensitiveDataRedaction:
 
     def test_redact_patient_name(self):
         """Test patient name is redacted."""
-        event_dict = {
-            "event": "test",
-            "patient_name": "John Doe"
-        }
+        event_dict = {"event": "test", "patient_name": "John Doe"}
 
         result = redact_sensitive_data(None, None, event_dict)
 
@@ -77,7 +69,7 @@ class TestSensitiveDataRedaction:
             "patient_id": "PAT123",
             "patient_birth_date": "19800101",
             "password": "secret123",
-            "normal_field": "keep_this"
+            "normal_field": "keep_this",
         }
 
         result = redact_sensitive_data(None, None, event_dict)
@@ -89,10 +81,7 @@ class TestSensitiveDataRedaction:
 
     def test_redact_sensitive_in_string_values(self):
         """Test sensitive data in string values is redacted."""
-        event_dict = {
-            "event": "test",
-            "message": "Processing patient_name: John Doe"
-        }
+        event_dict = {"event": "test", "message": "Processing patient_name: John Doe"}
 
         result = redact_sensitive_data(None, None, event_dict)
 
@@ -103,7 +92,7 @@ class TestSensitiveDataRedaction:
         event_dict = {
             "event": "test",
             "Patient_Name": "John Doe",
-            "PATIENT_ID": "PAT123"
+            "PATIENT_ID": "PAT123",
         }
 
         result = redact_sensitive_data(None, None, event_dict)
@@ -124,7 +113,8 @@ class TestTimestampProcessor:
         assert "timestamp" in result
         # Verify it's ISO format by parsing it
         from datetime import datetime
-        datetime.fromisoformat(result["timestamp"].replace('Z', '+00:00'))
+
+        datetime.fromisoformat(result["timestamp"].replace("Z", "+00:00"))
 
 
 class TestSecurityContextProcessor:
@@ -132,10 +122,7 @@ class TestSecurityContextProcessor:
 
     def test_marks_security_events(self):
         """Test security events are properly marked."""
-        event_dict = {
-            "event": "test",
-            "security_event": True
-        }
+        event_dict = {"event": "test", "security_event": True}
 
         result = add_security_context(None, None, event_dict)
 
@@ -165,7 +152,7 @@ class TestSecurityEventLogger:
         sec_logger.log_validation_failure(
             file_path="test.dcm",
             reason="Invalid header",
-            details={"expected": "DICM", "actual": "XXXX"}
+            details={"expected": "DICM", "actual": "XXXX"},
         )
 
         assert log_file.exists()
@@ -184,7 +171,7 @@ class TestSecurityEventLogger:
         sec_logger.log_suspicious_pattern(
             pattern_type="BUFFER_OVERFLOW",
             description="Extremely large tag length",
-            details={"tag": "(0008,0016)", "length": 999999}
+            details={"tag": "(0008,0016)", "length": 999999},
         )
 
         assert log_file.exists()
@@ -202,7 +189,7 @@ class TestSecurityEventLogger:
         sec_logger.log_fuzzing_campaign(
             campaign_id="fc-2025-001",
             status="started",
-            stats={"files": 100, "strategies": 4}
+            stats={"files": 100, "strategies": 4},
         )
 
         assert log_file.exists()
@@ -222,9 +209,7 @@ class TestPerformanceLogger:
         perf_logger = PerformanceLogger(logger)
 
         perf_logger.log_operation(
-            operation="file_parsing",
-            duration_ms=123.45,
-            metadata={"file_size": "2MB"}
+            operation="file_parsing", duration_ms=123.45, metadata={"file_size": "2MB"}
         )
 
         assert log_file.exists()
@@ -244,7 +229,7 @@ class TestPerformanceLogger:
             strategy="metadata_fuzzer",
             mutations_count=15,
             duration_ms=200.0,
-            file_size_bytes=2048
+            file_size_bytes=2048,
         )
 
         assert log_file.exists()
@@ -260,9 +245,7 @@ class TestPerformanceLogger:
         perf_logger = PerformanceLogger(logger)
 
         perf_logger.log_resource_usage(
-            memory_mb=256.5,
-            cpu_percent=45.2,
-            metadata={"process": "fuzzer"}
+            memory_mb=256.5, cpu_percent=45.2, metadata={"process": "fuzzer"}
         )
 
         assert log_file.exists()
@@ -278,11 +261,7 @@ class TestIntegration:
     def test_full_logging_workflow(self, tmp_path, reset_structlog):
         """Test complete logging workflow with file output."""
         log_file = tmp_path / "integration.log"
-        configure_logging(
-            log_level="INFO",
-            json_format=True,
-            log_file=log_file
-        )
+        configure_logging(log_level="INFO", json_format=True, log_file=log_file)
 
         logger = get_logger("integration_test")
         sec_logger = SecurityEventLogger(logger)
@@ -313,7 +292,7 @@ class TestIntegration:
             "patient_record",
             patient_name="John Doe",
             patient_id="PAT12345",
-            file_count=5
+            file_count=5,
         )
 
         assert log_file.exists()

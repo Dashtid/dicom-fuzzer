@@ -7,21 +7,28 @@ Uses structlog for consistent, analyzable log output.
 
 import logging
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
-from datetime import datetime, timezone
 
 import structlog
 from structlog.types import EventDict, WrappedLogger
 
-
 SENSITIVE_FIELDS = {
-    'patient_id', 'patient_name', 'patient_birth_date',
-    'password', 'token', 'key', 'secret', 'api_key'
+    "patient_id",
+    "patient_name",
+    "patient_birth_date",
+    "password",
+    "token",
+    "key",
+    "secret",
+    "api_key",
 }
 
 
-def redact_sensitive_data(logger: WrappedLogger, method_name: str, event_dict: EventDict) -> EventDict:
+def redact_sensitive_data(
+    logger: WrappedLogger, method_name: str, event_dict: EventDict
+) -> EventDict:
     """Processor to redact sensitive data from log entries.
 
     Args:
@@ -44,7 +51,9 @@ def redact_sensitive_data(logger: WrappedLogger, method_name: str, event_dict: E
     return event_dict
 
 
-def add_timestamp(logger: WrappedLogger, method_name: str, event_dict: EventDict) -> EventDict:
+def add_timestamp(
+    logger: WrappedLogger, method_name: str, event_dict: EventDict
+) -> EventDict:
     """Processor to add ISO-formatted timestamp to log entries.
 
     Args:
@@ -55,11 +64,13 @@ def add_timestamp(logger: WrappedLogger, method_name: str, event_dict: EventDict
     Returns:
         Event dictionary with timestamp added
     """
-    event_dict['timestamp'] = datetime.now(timezone.utc).isoformat()
+    event_dict["timestamp"] = datetime.now(timezone.utc).isoformat()
     return event_dict
 
 
-def add_security_context(logger: WrappedLogger, method_name: str, event_dict: EventDict) -> EventDict:
+def add_security_context(
+    logger: WrappedLogger, method_name: str, event_dict: EventDict
+) -> EventDict:
     """Processor to mark and enhance security-related events.
 
     Args:
@@ -70,17 +81,15 @@ def add_security_context(logger: WrappedLogger, method_name: str, event_dict: Ev
     Returns:
         Event dictionary with security context added
     """
-    if event_dict.get('security_event'):
-        event_dict['event_category'] = 'SECURITY'
-        event_dict['requires_attention'] = True
+    if event_dict.get("security_event"):
+        event_dict["event_category"] = "SECURITY"
+        event_dict["requires_attention"] = True
 
     return event_dict
 
 
 def configure_logging(
-    log_level: str = "INFO",
-    json_format: bool = True,
-    log_file: Optional[Path] = None
+    log_level: str = "INFO", json_format: bool = True, log_file: Optional[Path] = None
 ) -> None:
     """Configure structlog for the application.
 
@@ -97,7 +106,7 @@ def configure_logging(
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,
-        level=getattr(logging, log_level.upper())
+        level=getattr(logging, log_level.upper()),
     )
 
     processors = [
@@ -161,10 +170,7 @@ class SecurityEventLogger:
         self.logger = logger
 
     def log_validation_failure(
-        self,
-        file_path: str,
-        reason: str,
-        details: Optional[Dict[str, Any]] = None
+        self, file_path: str, reason: str, details: Optional[Dict[str, Any]] = None
     ) -> None:
         """Log DICOM validation failure.
 
@@ -179,14 +185,14 @@ class SecurityEventLogger:
             event_type="VALIDATION_FAILURE",
             file_path=file_path,
             reason=reason,
-            details=details or {}
+            details=details or {},
         )
 
     def log_suspicious_pattern(
         self,
         pattern_type: str,
         description: str,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Log detection of suspicious pattern.
 
@@ -201,14 +207,11 @@ class SecurityEventLogger:
             event_type="SUSPICIOUS_PATTERN",
             pattern_type=pattern_type,
             description=description,
-            details=details or {}
+            details=details or {},
         )
 
     def log_fuzzing_campaign(
-        self,
-        campaign_id: str,
-        status: str,
-        stats: Optional[Dict[str, Any]] = None
+        self, campaign_id: str, status: str, stats: Optional[Dict[str, Any]] = None
     ) -> None:
         """Log fuzzing campaign status.
 
@@ -223,7 +226,7 @@ class SecurityEventLogger:
             event_type="FUZZING_CAMPAIGN",
             campaign_id=campaign_id,
             status=status,
-            stats=stats or {}
+            stats=stats or {},
         )
 
 
@@ -242,7 +245,7 @@ class PerformanceLogger:
         self,
         operation: str,
         duration_ms: float,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Log performance of an operation.
 
@@ -256,7 +259,7 @@ class PerformanceLogger:
             metric_type="PERFORMANCE",
             operation=operation,
             duration_ms=round(duration_ms, 2),
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
     def log_mutation_stats(
@@ -264,7 +267,7 @@ class PerformanceLogger:
         strategy: str,
         mutations_count: int,
         duration_ms: float,
-        file_size_bytes: int
+        file_size_bytes: int,
     ) -> None:
         """Log mutation operation statistics.
 
@@ -281,14 +284,14 @@ class PerformanceLogger:
             mutations_count=mutations_count,
             duration_ms=round(duration_ms, 2),
             file_size_bytes=file_size_bytes,
-            avg_mutation_time_ms=round(duration_ms / max(mutations_count, 1), 2)
+            avg_mutation_time_ms=round(duration_ms / max(mutations_count, 1), 2),
         )
 
     def log_resource_usage(
         self,
         memory_mb: float,
         cpu_percent: float,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Log resource usage metrics.
 
@@ -302,7 +305,7 @@ class PerformanceLogger:
             metric_type="RESOURCE",
             memory_mb=round(memory_mb, 2),
             cpu_percent=round(cpu_percent, 2),
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
 
@@ -325,26 +328,24 @@ if __name__ == "__main__":
     security_logger.log_validation_failure(
         file_path="test.dcm",
         reason="Invalid header",
-        details={"expected": "DICM", "actual": "XXXX"}
+        details={"expected": "DICM", "actual": "XXXX"},
     )
     security_logger.log_fuzzing_campaign(
         campaign_id="fc-2025-001",
         status="started",
-        stats={"target_files": 5, "strategies": 3}
+        stats={"target_files": 5, "strategies": 3},
     )
 
     print("\nTesting performance logging:")
     perf_logger = PerformanceLogger(logger)
     perf_logger.log_operation(
-        operation="file_parsing",
-        duration_ms=45.23,
-        metadata={"file_size": "2.3MB"}
+        operation="file_parsing", duration_ms=45.23, metadata={"file_size": "2.3MB"}
     )
     perf_logger.log_mutation_stats(
         strategy="metadata_fuzzer",
         mutations_count=15,
         duration_ms=123.45,
-        file_size_bytes=2048
+        file_size_bytes=2048,
     )
 
     print("\nTesting sensitive data redaction:")
