@@ -20,3 +20,18 @@ class HeaderFuzzer:
         if hasattr(dataset, "InstitutionName"):
             dataset.InstitutionName = "A" * 1024  # Way over normal limit
         return dataset
+
+    def _missing_required_tags(self, dataset):
+        """Remove required tags (placeholder)."""
+        # Placeholder implementation
+        return dataset
+
+    def _invalid_vr_values(self, dataset):
+        """Insert invalid VR values (placeholder)."""
+        # Placeholder implementation
+        return dataset
+
+    def _boundary_values(self, dataset):
+        """Insert boundary values (placeholder)."""
+        # Placeholder implementation
+        return dataset
