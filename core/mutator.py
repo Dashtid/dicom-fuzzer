@@ -22,20 +22,21 @@ from typing import Any, Dict, List, Optional, Protocol
 # LEARNING: Import our logging system with fallback for direct execution
 try:
     # Try relative import first (when imported as a module)
-    from ..utils.logger import get_default_logger, log_security_event
+    from ..utils.logger import SecurityEventLogger, get_logger
 except ImportError:
     # Fall back to absolute import (when running directly)
     import sys
 
     # Add the parent directory to the path so we can import utils
     sys.path.append(str(Path(__file__).parent.parent))
-    from utils.logger import get_default_logger, log_security_event
+    from utils.logger import SecurityEventLogger, get_logger
 
 # LEARNING: Import DICOM libraries
 from pydicom.dataset import Dataset
 
 # Get a logger for this module
-logger = get_default_logger(__name__)
+logger = get_logger(__name__)
+security_logger = SecurityEventLogger(logger)
 
 
 # LEARNING: This is an Enum - a way to define a set of named constants
@@ -217,15 +218,12 @@ class DicomMutator:
             else:
                 safe_config[key] = value
 
-        log_security_event(
-            logger,
-            "MUTATION_SESSION_STARTED",
-            "New DICOM mutation session initiated",
-            {
-                "session_id": self.current_session.session_id,
-                "file_info": file_info,
-                "config": safe_config,
-            },
+        logger.info(
+            "mutation_session_started",
+            security_event=True,
+            session_id=self.current_session.session_id,
+            file_info=file_info,
+            config=safe_config,
         )
 
         logger.info(f"Started mutation session: {self.current_session.session_id}")
@@ -424,20 +422,14 @@ class DicomMutator:
 
         # LEARNING: Log session summary
         session = self.current_session
-        log_security_event(
-            logger,
-            "MUTATION_SESSION_COMPLETED",
-            "DICOM mutation session completed",
-            {
-                "session_id": session.session_id,
-                "total_mutations": session.total_mutations,
-                "successful_mutations": session.successful_mutations,
-                "duration_seconds": (
-                    session.end_time - session.start_time
-                ).total_seconds(),
-                "success_rate": session.successful_mutations
-                / max(session.total_mutations, 1),
-            },
+        logger.info(
+            "mutation_session_completed",
+            security_event=True,
+            session_id=session.session_id,
+            total_mutations=session.total_mutations,
+            successful_mutations=session.successful_mutations,
+            duration_seconds=(session.end_time - session.start_time).total_seconds(),
+            success_rate=session.successful_mutations / max(session.total_mutations, 1),
         )
 
         # LEARNING: Return the session and clear current

@@ -2,7 +2,7 @@ import random
 import uuid
 from pathlib import Path
 
-from core.parser import DICOMParser
+from core.parser import DicomParser
 from strategies.header_fuzzer import HeaderFuzzer
 from strategies.metadata_fuzzer import MetadataFuzzer
 from strategies.pixel_fuzzer import PixelFuzzer
@@ -15,7 +15,7 @@ class DICOMGenerator:
 
     def generate_batch(self, original_file, count=100):
         """Generate a batch of mutated DICOM files"""
-        parser = DICOMParser(original_file)
+        parser = DicomParser(original_file)
         base_dataset = parser.dataset
 
         fuzzers = [MetadataFuzzer(), HeaderFuzzer(), PixelFuzzer()]

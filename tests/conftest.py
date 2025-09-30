@@ -177,3 +177,112 @@ def capture_logs(reset_structlog):
 
     # Clear captured logs
     captured.clear()
+
+
+@pytest.fixture
+def minimal_dicom_file(temp_dir: Path) -> Path:
+    """Create an absolutely minimal valid DICOM file.
+
+    Args:
+        temp_dir: Temporary directory fixture
+
+    Returns:
+        Path to minimal DICOM file
+    """
+    file_path = temp_dir / "minimal.dcm"
+
+    file_meta = pydicom.dataset.FileMetaDataset()
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.TransferSyntaxUID = "1.2.840.10008.1.2.1"
+
+    dataset = FileDataset(
+        str(file_path), {}, file_meta=file_meta, preamble=b"\x00" * 128
+    )
+
+    # Absolute minimum required tags
+    dataset.SOPClassUID = file_meta.MediaStorageSOPClassUID
+    dataset.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+
+    dataset.save_as(str(file_path), write_like_original=False)
+    return file_path
+
+
+@pytest.fixture
+def dicom_empty_patient_name(temp_dir: Path) -> Path:
+    """Create DICOM file with empty patient name.
+
+    Args:
+        temp_dir: Temporary directory fixture
+
+    Returns:
+        Path to DICOM file with empty patient name
+    """
+    file_path = temp_dir / "empty_name.dcm"
+
+    file_meta = pydicom.dataset.FileMetaDataset()
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.TransferSyntaxUID = "1.2.840.10008.1.2.1"
+
+    dataset = FileDataset(
+        str(file_path), {}, file_meta=file_meta, preamble=b"\x00" * 128
+    )
+
+    dataset.PatientName = ""  # Empty patient name
+    dataset.PatientID = "TEST002"
+    dataset.SOPClassUID = file_meta.MediaStorageSOPClassUID
+    dataset.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+
+    dataset.save_as(str(file_path), write_like_original=False)
+    return file_path
+
+
+@pytest.fixture
+def dicom_with_pixels(temp_dir: Path) -> Path:
+    """Create DICOM file with pixel data.
+
+    Args:
+        temp_dir: Temporary directory fixture
+
+    Returns:
+        Path to DICOM file with pixel data
+    """
+    import numpy as np
+
+    file_path = temp_dir / "with_pixels.dcm"
+
+    file_meta = pydicom.dataset.FileMetaDataset()
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.TransferSyntaxUID = "1.2.840.10008.1.2.1"
+
+    dataset = FileDataset(
+        str(file_path), {}, file_meta=file_meta, preamble=b"\x00" * 128
+    )
+
+    # Add required tags
+    dataset.PatientName = "Test^Patient"
+    dataset.PatientID = "TEST003"
+    dataset.SOPClassUID = file_meta.MediaStorageSOPClassUID
+    dataset.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+    dataset.Modality = "CT"
+    dataset.StudyInstanceUID = generate_uid()
+    dataset.SeriesInstanceUID = generate_uid()
+
+    # Add image-specific tags
+    dataset.SamplesPerPixel = 1
+    dataset.PhotometricInterpretation = "MONOCHROME2"
+    dataset.Rows = 64
+    dataset.Columns = 64
+    dataset.BitsAllocated = 16
+    dataset.BitsStored = 16
+    dataset.HighBit = 15
+    dataset.PixelRepresentation = 0
+
+    # Create pixel data (64x64 image)
+    pixel_array = np.random.randint(0, 4096, (64, 64), dtype=np.uint16)
+    dataset.PixelData = pixel_array.tobytes()
+
+    dataset.save_as(str(file_path), write_like_original=False)
+    return file_path
