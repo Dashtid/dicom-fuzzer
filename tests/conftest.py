@@ -130,9 +130,17 @@ def reset_structlog():
 
     This ensures tests don't interfere with each other's logging configuration.
     """
+    import logging
+
     import structlog
 
     yield
+
+    # Flush and close all logging handlers before resetting
+    for handler in logging.root.handlers[:]:
+        handler.flush()
+        handler.close()
+        logging.root.removeHandler(handler)
 
     # Reset to original after test
     structlog.reset_defaults()

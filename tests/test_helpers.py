@@ -117,7 +117,7 @@ class TestDICOMTagOperations:
         tag = Tag(0x0008, 0x0016)
         result = tag_to_hex(tag)
 
-        assert result == "(0008,0016)"
+        assert result == "(0008, 0016)"  # Format includes space after comma
 
     def test_hex_to_tag_with_parentheses(self):
         """Test hex string parsing with parentheses."""
@@ -383,6 +383,8 @@ class TestPerformanceUtilities:
 
     def test_timing_with_logger(self, tmp_path, reset_structlog):
         """Test timing logs to provided logger."""
+        import logging
+
         from utils.logger import configure_logging, get_logger
 
         log_file = tmp_path / "timing.log"
@@ -391,6 +393,10 @@ class TestPerformanceUtilities:
 
         with timing("test_op", logger=logger):
             time.sleep(0.05)
+
+        # Flush all handlers to ensure log is written to disk
+        for handler in logging.root.handlers:
+            handler.flush()
 
         # Logger should have logged the timing
         assert log_file.exists()

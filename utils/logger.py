@@ -103,10 +103,15 @@ def configure_logging(
         >>> logger = structlog.get_logger("dicom_fuzzer")
         >>> logger.info("fuzzing_started", target="example.dcm")
     """
+    # Clear existing handlers to allow reconfiguration
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,
         level=getattr(logging, log_level.upper()),
+        force=True,  # Force reconfiguration even if handlers exist
     )
 
     processors = [
@@ -139,6 +144,7 @@ def configure_logging(
         log_file.parent.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(getattr(logging, log_level.upper()))
+        file_handler.setFormatter(logging.Formatter("%(message)s"))
         logging.root.addHandler(file_handler)
 
 
