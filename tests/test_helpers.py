@@ -6,33 +6,35 @@ import time
 from pathlib import Path
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 from pydicom.tag import Tag
 
 from utils.helpers import (
-    validate_file_path,
-    ensure_directory,
-    safe_file_read,
-    tag_to_hex,
-    hex_to_tag,
-    is_private_tag,
-    random_string,
-    random_bytes,
-    random_dicom_date,
-    random_dicom_time,
-    random_dicom_datetime,
-    random_person_name,
-    random_patient_id,
-    random_accession_number,
+    GB,
+    MB,
+    chunk_list,
     clamp,
-    in_range,
+    ensure_directory,
     format_bytes,
     format_duration,
-    timing,
-    chunk_list,
+    hex_to_tag,
+    in_range,
+    is_private_tag,
+    random_accession_number,
+    random_bytes,
+    random_dicom_date,
+    random_dicom_datetime,
+    random_dicom_time,
+    random_patient_id,
+    random_person_name,
+    random_string,
     safe_divide,
+    safe_file_read,
+    tag_to_hex,
+    timing,
     truncate_string,
-    KB, MB, GB
+    validate_file_path,
 )
 
 
@@ -242,8 +244,8 @@ class TestRandomDataGeneration:
         result = random_person_name()
 
         # Should contain at least last^first
-        assert '^' in result
-        parts = result.split('^')
+        assert "^" in result
+        parts = result.split("^")
         assert len(parts) >= 2
         assert all(part.isalpha() for part in parts)
 
@@ -282,7 +284,7 @@ class TestValidationHelpers:
     @given(
         st.floats(allow_nan=False, allow_infinity=False),
         st.floats(allow_nan=False, allow_infinity=False),
-        st.floats(allow_nan=False, allow_infinity=False)
+        st.floats(allow_nan=False, allow_infinity=False),
     )
     def test_clamp_property(self, value, min_val, max_val):
         """Property test: clamped value is always within bounds."""
@@ -377,7 +379,7 @@ class TestPerformanceUtilities:
         assert "duration_ms" in t
         assert "duration_s" in t
         assert t["duration_ms"] >= 100  # At least 100ms
-        assert t["duration_s"] >= 0.1   # At least 0.1s
+        assert t["duration_s"] >= 0.1  # At least 0.1s
 
     def test_timing_with_logger(self, tmp_path, reset_structlog):
         """Test timing logs to provided logger."""
@@ -483,7 +485,7 @@ class TestIntegration:
         accession = random_accession_number()
 
         # Verify all are valid
-        assert '^' in patient_name
+        assert "^" in patient_name
         assert patient_id.startswith("PAT")
         assert len(birth_date) == 8
         assert accession.startswith("ACC")

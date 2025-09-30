@@ -8,15 +8,16 @@ CONCEPT: The mutator is the "conductor" that orchestrates different mutation
 strategies to systematically test DICOM files.
 """
 
+import copy
+
 # LEARNING: Import necessary modules
 import random
-import copy
-from typing import List, Dict, Any, Optional, Protocol, Union
-from pathlib import Path
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-import uuid
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Protocol
 
 # LEARNING: Import our logging system with fallback for direct execution
 try:
@@ -25,7 +26,7 @@ try:
 except ImportError:
     # Fall back to absolute import (when running directly)
     import sys
-    from pathlib import Path
+
     # Add the parent directory to the path so we can import utils
     sys.path.append(str(Path(__file__).parent.parent))
     from utils.logger import get_default_logger, log_security_event
@@ -45,10 +46,11 @@ class MutationSeverity(Enum):
 
     WHY: We want to control how aggressive our mutations are.
     """
-    MINIMAL = "minimal"      # Very small changes, unlikely to break anything
-    MODERATE = "moderate"    # Medium changes, might cause some issues
-    AGGRESSIVE = "aggressive" # Large changes, likely to break things
-    EXTREME = "extreme"      # Maximum changes, definitely will break things
+
+    MINIMAL = "minimal"  # Very small changes, unlikely to break anything
+    MODERATE = "moderate"  # Medium changes, might cause some issues
+    AGGRESSIVE = "aggressive"  # Large changes, likely to break things
+    EXTREME = "extreme"  # Maximum changes, definitely will break things
 
 
 # LEARNING: This is a Protocol - it defines what methods a class must have
@@ -87,6 +89,7 @@ class MutationRecord:
 
     WHY: We need to track mutations for debugging, analysis, and compliance.
     """
+
     mutation_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     strategy_name: str = ""
     severity: MutationSeverity = MutationSeverity.MINIMAL
@@ -104,6 +107,7 @@ class MutationSession:
     CONCEPT: A session tracks all the mutations applied to one original file.
     Like a medical procedure where multiple treatments are applied.
     """
+
     session_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     original_file_info: Dict[str, Any] = field(default_factory=dict)
     mutations: List[MutationRecord] = field(default_factory=list)
@@ -149,12 +153,12 @@ class DicomMutator:
         """
         # LEARNING: The .get() method returns a default value if key doesn't exist
         default_config = {
-            'max_mutations_per_file': 3,
-            'mutation_probability': 0.7,
-            'default_severity': MutationSeverity.MODERATE,
-            'preserve_critical_elements': True,
-            'enable_mutation_tracking': True,
-            'safety_checks': True
+            "max_mutations_per_file": 3,
+            "mutation_probability": 0.7,
+            "default_severity": MutationSeverity.MODERATE,
+            "preserve_critical_elements": True,
+            "enable_mutation_tracking": True,
+            "safety_checks": True,
         }
 
         # LEARNING: Update our config with defaults for any missing keys
@@ -173,13 +177,19 @@ class DicomMutator:
             strategy: A fuzzing strategy that follows our MutationStrategy protocol
         """
         # LEARNING: Check if strategy follows our protocol
-        if not hasattr(strategy, 'mutate') or not hasattr(strategy, 'get_strategy_name'):
-            raise ValueError(f"Strategy {strategy} does not implement MutationStrategy protocol")
+        if not hasattr(strategy, "mutate") or not hasattr(
+            strategy, "get_strategy_name"
+        ):
+            raise ValueError(
+                f"Strategy {strategy} does not implement MutationStrategy protocol"
+            )
 
         self.strategies.append(strategy)
         logger.debug(f"Registered mutation strategy: {strategy.get_strategy_name()}")
 
-    def start_session(self, original_dataset: Dataset, file_info: Dict[str, Any] = None) -> str:
+    def start_session(
+        self, original_dataset: Dataset, file_info: Dict[str, Any] = None
+    ) -> str:
         """
         LEARNING: Start a new mutation session for tracking purposes
 
@@ -214,8 +224,8 @@ class DicomMutator:
             {
                 "session_id": self.current_session.session_id,
                 "file_info": file_info,
-                "config": safe_config
-            }
+                "config": safe_config,
+            },
         )
 
         logger.info(f"Started mutation session: {self.current_session.session_id}")
@@ -226,7 +236,7 @@ class DicomMutator:
         dataset: Dataset,
         num_mutations: Optional[int] = None,
         severity: Optional[MutationSeverity] = None,
-        strategy_names: Optional[List[str]] = None
+        strategy_names: Optional[List[str]] = None,
     ) -> Dataset:
         """
         LEARNING: This is the main method that applies mutations to a DICOM dataset
@@ -244,16 +254,22 @@ class DicomMutator:
             Dataset: The mutated DICOM dataset
         """
         # LEARNING: Use defaults from config if not specified
-        num_mutations = num_mutations or self.config.get('max_mutations_per_file', 3)
-        severity = severity or self.config.get('default_severity', MutationSeverity.MODERATE)
+        num_mutations = num_mutations or self.config.get("max_mutations_per_file", 3)
+        severity = severity or self.config.get(
+            "default_severity", MutationSeverity.MODERATE
+        )
 
-        logger.info(f"Applying {num_mutations} mutations with {severity.value} severity")
+        logger.info(
+            f"Applying {num_mutations} mutations with {severity.value} severity"
+        )
 
         # LEARNING: Create a deep copy so we don't modify the original
         mutated_dataset = copy.deepcopy(dataset)
 
         # LEARNING: Get available strategies
-        available_strategies = self._get_applicable_strategies(mutated_dataset, strategy_names)
+        available_strategies = self._get_applicable_strategies(
+            mutated_dataset, strategy_names
+        )
 
         if not available_strategies:
             logger.warning("No applicable mutation strategies found")
@@ -263,7 +279,7 @@ class DicomMutator:
         mutations_applied = 0
         for i in range(num_mutations):
             # LEARNING: Check probability to see if we should apply this mutation
-            if random.random() > self.config.get('mutation_probability', 0.7):
+            if random.random() > self.config.get("mutation_probability", 0.7):
                 logger.debug(f"Skipping mutation {i+1} due to probability")
                 continue
 
@@ -286,9 +302,7 @@ class DicomMutator:
         return mutated_dataset
 
     def _get_applicable_strategies(
-        self,
-        dataset: Dataset,
-        strategy_names: Optional[List[str]] = None
+        self, dataset: Dataset, strategy_names: Optional[List[str]] = None
     ) -> List[MutationStrategy]:
         """
         LEARNING: Private method to filter strategies that can work with this dataset
@@ -308,17 +322,18 @@ class DicomMutator:
                 if strategy.can_mutate(dataset):
                     applicable.append(strategy)
                 else:
-                    logger.debug(f"Strategy {strategy.get_strategy_name()} not applicable")
+                    logger.debug(
+                        f"Strategy {strategy.get_strategy_name()} not applicable"
+                    )
             except Exception as e:
-                logger.warning(f"Error checking strategy {strategy.get_strategy_name()}: {e}")
+                logger.warning(
+                    f"Error checking strategy {strategy.get_strategy_name()}: {e}"
+                )
 
         return applicable
 
     def _apply_single_mutation(
-        self,
-        dataset: Dataset,
-        strategy: MutationStrategy,
-        severity: MutationSeverity
+        self, dataset: Dataset, strategy: MutationStrategy, severity: MutationSeverity
     ) -> Dataset:
         """
         LEARNING: Apply a single mutation and track the results
@@ -329,9 +344,11 @@ class DicomMutator:
         logger.debug(f"Applying {strategy.get_strategy_name()} mutation")
 
         # LEARNING: Perform safety checks if enabled
-        if self.config.get('safety_checks', True):
+        if self.config.get("safety_checks", True):
             if not self._is_safe_to_mutate(dataset, strategy):
-                raise ValueError(f"Safety check failed for {strategy.get_strategy_name()}")
+                raise ValueError(
+                    f"Safety check failed for {strategy.get_strategy_name()}"
+                )
 
         # LEARNING: Apply the mutation
         mutated_dataset = strategy.mutate(dataset, severity)
@@ -349,7 +366,7 @@ class DicomMutator:
         sensitive data. This method checks for those conditions.
         """
         # LEARNING: Check if we should preserve critical elements
-        if self.config.get('preserve_critical_elements', True):
+        if self.config.get("preserve_critical_elements", True):
             # This would check for critical DICOM tags that shouldn't be modified
             pass
 
@@ -361,7 +378,7 @@ class DicomMutator:
         strategy: MutationStrategy,
         severity: MutationSeverity,
         success: bool = True,
-        error: Optional[str] = None
+        error: Optional[str] = None,
     ) -> None:
         """
         LEARNING: Record details of a mutation for tracking and analysis
@@ -379,7 +396,7 @@ class DicomMutator:
             severity=severity,
             description=f"Applied {strategy.get_strategy_name()} with {severity.value} severity",
             success=success,
-            error_message=error
+            error_message=error,
         )
 
         # LEARNING: Add to current session
@@ -415,9 +432,12 @@ class DicomMutator:
                 "session_id": session.session_id,
                 "total_mutations": session.total_mutations,
                 "successful_mutations": session.successful_mutations,
-                "duration_seconds": (session.end_time - session.start_time).total_seconds(),
-                "success_rate": session.successful_mutations / max(session.total_mutations, 1)
-            }
+                "duration_seconds": (
+                    session.end_time - session.start_time
+                ).total_seconds(),
+                "success_rate": session.successful_mutations
+                / max(session.total_mutations, 1),
+            },
         )
 
         # LEARNING: Return the session and clear current
@@ -442,7 +462,7 @@ class DicomMutator:
             "start_time": session.start_time.isoformat(),
             "mutations_applied": len(session.mutations),
             "successful_mutations": session.successful_mutations,
-            "strategies_used": list(set(m.strategy_name for m in session.mutations))
+            "strategies_used": list(set(m.strategy_name for m in session.mutations)),
         }
 
 

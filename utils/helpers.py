@@ -5,17 +5,15 @@ Common utility functions for file operations, DICOM manipulation,
 random data generation, and validation.
 """
 
-import os
 import random
 import string
 import time
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Union
-from contextlib import contextmanager
+from typing import Any, List, Optional, Union
 
 from pydicom.tag import Tag
-
 
 # File size constants
 KB = 1024
@@ -29,9 +27,7 @@ DICOM_DATETIME_FORMAT = "%Y%m%d%H%M%S"
 
 
 def validate_file_path(
-    file_path: Union[str, Path],
-    must_exist: bool = True,
-    max_size: Optional[int] = None
+    file_path: Union[str, Path], must_exist: bool = True, max_size: Optional[int] = None
 ) -> Path:
     """Validate and normalize file path.
 
@@ -58,9 +54,7 @@ def validate_file_path(
     if max_size is not None and path.exists():
         file_size = path.stat().st_size
         if file_size > max_size:
-            raise ValueError(
-                f"File size {file_size} exceeds maximum {max_size} bytes"
-            )
+            raise ValueError(f"File size {file_size} exceeds maximum {max_size} bytes")
 
     return path
 
@@ -80,9 +74,7 @@ def ensure_directory(dir_path: Union[str, Path]) -> Path:
 
 
 def safe_file_read(
-    file_path: Union[str, Path],
-    max_size: int = 100 * MB,
-    binary: bool = True
+    file_path: Union[str, Path], max_size: int = 100 * MB, binary: bool = True
 ) -> Union[bytes, str]:
     """Safely read file with size validation.
 
@@ -99,7 +91,7 @@ def safe_file_read(
     """
     path = validate_file_path(file_path, must_exist=True, max_size=max_size)
 
-    mode = 'rb' if binary else 'r'
+    mode = "rb" if binary else "r"
     with open(path, mode) as f:
         return f.read()
 
@@ -118,7 +110,7 @@ def tag_to_hex(tag: Tag) -> str:
         >>> tag_to_hex(tag)
         '(0008,0016)'
     """
-    return f"({tag.group:04X},{tag.element:04X})"
+    return f"({tag.group:04X}, {tag.element:04X})"
 
 
 def hex_to_tag(hex_string: str) -> Tag:
@@ -162,8 +154,7 @@ def is_private_tag(tag: Tag) -> bool:
 
 
 def random_string(
-    length: int,
-    charset: str = string.ascii_letters + string.digits
+    length: int, charset: str = string.ascii_letters + string.digits
 ) -> str:
     """Generate random string.
 
@@ -174,7 +165,7 @@ def random_string(
     Returns:
         Random string
     """
-    return ''.join(random.choices(charset, k=length))
+    return "".join(random.choices(charset, k=length))
 
 
 def random_bytes(length: int) -> bytes:
@@ -189,10 +180,7 @@ def random_bytes(length: int) -> bytes:
     return bytes(random.randint(0, 255) for _ in range(length))
 
 
-def random_dicom_date(
-    start_year: int = 1950,
-    end_year: Optional[int] = None
-) -> str:
+def random_dicom_date(start_year: int = 1950, end_year: Optional[int] = None) -> str:
     """Generate random DICOM date string.
 
     Args:
@@ -234,8 +222,7 @@ def random_dicom_time() -> str:
 
 
 def random_dicom_datetime(
-    start_year: int = 1950,
-    end_year: Optional[int] = None
+    start_year: int = 1950, end_year: Optional[int] = None
 ) -> str:
     """Generate random DICOM datetime string.
 
@@ -258,12 +245,28 @@ def random_person_name() -> str:
         Person name in DICOM format (LastName^FirstName^Middle^Prefix^Suffix)
     """
     first_names = [
-        "John", "Jane", "Michael", "Sarah", "David", "Emma",
-        "James", "Mary", "Robert", "Patricia"
+        "John",
+        "Jane",
+        "Michael",
+        "Sarah",
+        "David",
+        "Emma",
+        "James",
+        "Mary",
+        "Robert",
+        "Patricia",
     ]
     last_names = [
-        "Smith", "Johnson", "Williams", "Brown", "Jones",
-        "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"
+        "Smith",
+        "Johnson",
+        "Williams",
+        "Brown",
+        "Jones",
+        "Garcia",
+        "Miller",
+        "Davis",
+        "Rodriguez",
+        "Martinez",
     ]
 
     first = random.choice(first_names)
@@ -295,7 +298,9 @@ def random_accession_number() -> str:
     return f"ACC{random.randint(1000000, 9999999)}"
 
 
-def clamp(value: Union[int, float], min_val: Union[int, float], max_val: Union[int, float]) -> Union[int, float]:
+def clamp(
+    value: Union[int, float], min_val: Union[int, float], max_val: Union[int, float]
+) -> Union[int, float]:
     """Clamp value between min and max.
 
     Args:
@@ -313,7 +318,7 @@ def in_range(
     value: Union[int, float],
     min_val: Union[int, float],
     max_val: Union[int, float],
-    inclusive: bool = True
+    inclusive: bool = True,
 ) -> bool:
     """Check if value is in range.
 
@@ -396,14 +401,11 @@ def timing(operation: str = "Operation", logger=None):
     finally:
         end_time = time.perf_counter()
         duration_ms = (end_time - start_time) * 1000
-        result['duration_ms'] = duration_ms
-        result['duration_s'] = end_time - start_time
+        result["duration_ms"] = duration_ms
+        result["duration_s"] = end_time - start_time
 
         if logger:
-            logger.info(
-                f"{operation} completed",
-                duration_ms=round(duration_ms, 2)
-            )
+            logger.info(f"{operation} completed", duration_ms=round(duration_ms, 2))
 
 
 def chunk_list(lst: List[Any], chunk_size: int) -> List[List[Any]]:
@@ -420,7 +422,7 @@ def chunk_list(lst: List[Any], chunk_size: int) -> List[List[Any]]:
         >>> chunk_list([1, 2, 3, 4, 5], 2)
         [[1, 2], [3, 4], [5]]
     """
-    return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
+    return [lst[i : i + chunk_size] for i in range(0, len(lst), chunk_size)]
 
 
 def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:

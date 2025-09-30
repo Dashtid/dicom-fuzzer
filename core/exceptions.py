@@ -4,7 +4,7 @@ This module defines the exception hierarchy for the DICOM fuzzer,
 providing detailed error information and categorization.
 """
 
-from typing import Optional, Any, Dict
+from typing import Any, Dict, Optional
 
 
 class DicomFuzzingError(Exception):
@@ -23,7 +23,7 @@ class DicomFuzzingError(Exception):
         self,
         message: str,
         error_code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(message)
         self.message = message
@@ -37,6 +37,7 @@ class ValidationError(DicomFuzzingError):
     This exception is raised when DICOM data doesn't conform to expected
     standards or when validation rules are violated.
     """
+
     pass
 
 
@@ -46,6 +47,7 @@ class ParsingError(DicomFuzzingError):
     This exception indicates issues with reading or interpreting DICOM data,
     including malformed files or unsupported formats.
     """
+
     pass
 
 
@@ -55,6 +57,7 @@ class MutationError(DicomFuzzingError):
     This exception occurs when mutation operations cannot be completed,
     either due to invalid parameters or data constraints.
     """
+
     pass
 
 
@@ -64,6 +67,7 @@ class NetworkTimeoutError(DicomFuzzingError):
     This exception is specific to DICOM network operations that exceed
     configured timeout limits.
     """
+
     pass
 
 
@@ -73,6 +77,7 @@ class SecurityViolationError(DicomFuzzingError):
     This exception indicates attempts to perform operations that violate
     security policies or constraints.
     """
+
     pass
 
 
@@ -82,4 +87,5 @@ class ConfigurationError(DicomFuzzingError):
     This exception occurs when required configuration is missing or
     contains invalid values.
     """
+
     pass

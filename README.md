@@ -118,7 +118,7 @@ Edit `utils/config.py` to customize mutation behavior:
 ```python
 MUTATION_STRATEGIES = {
     'metadata_probability': 0.8,
-    'header_probability': 0.6, 
+    'header_probability': 0.6,
     'pixel_probability': 0.3,
     'max_mutations_per_file': 3
 }
