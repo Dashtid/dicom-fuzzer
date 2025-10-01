@@ -3,13 +3,25 @@ import numpy as np
 
 class PixelFuzzer:
     def mutate_pixels(self, dataset):
-        """Introduce subtle pixel corruptions"""
-        if hasattr(dataset, "pixel_array"):
-            pixels = dataset.pixel_array.copy()
+        """Introduce subtle pixel corruptions.
 
-            # Random noise injection
-            noise_mask = np.random.random(pixels.shape) < 0.01  # 1% corruption
-            pixels[noise_mask] = np.random.randint(0, 255, np.sum(noise_mask))
+        NOTE: If the dataset has been mutated by header_fuzzer with invalid
+        dimension values (e.g., Columns=0, Rows=2147483647), accessing
+        pixel_array will fail validation. We check for PixelData tag instead
+        of using hasattr() which triggers the property getter.
+        """
+        # Check if PixelData tag exists without triggering validation
+        if "PixelData" in dataset:
+            try:
+                pixels = dataset.pixel_array.copy()
 
-            dataset.PixelData = pixels.tobytes()
+                # Random noise injection
+                noise_mask = np.random.random(pixels.shape) < 0.01  # 1% corruption
+                pixels[noise_mask] = np.random.randint(0, 255, np.sum(noise_mask))
+
+                dataset.PixelData = pixels.tobytes()
+            except (ValueError, AttributeError, TypeError):
+                # Pixel data access failed (e.g., invalid dimensions from header fuzzing)
+                # This is expected when testing with corrupted headers - skip pixel mutations
+                pass
         return dataset
