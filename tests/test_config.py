@@ -336,3 +336,63 @@ class TestConfigurationUsage:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestPydanticConfiguration:
+    """Test new Pydantic-based configuration system."""
+
+    def test_settings_imports(self):
+        """Test that new config module can be imported."""
+        from core.config import Settings, get_settings
+
+        assert Settings is not None
+        assert get_settings is not None
+
+    def test_settings_default_values(self):
+        """Test settings with default values."""
+        from core.config import Settings
+
+        settings = Settings()
+        assert settings.app_name == "DICOM-Fuzzer"
+        assert settings.fuzzing.metadata_probability == 0.8
+        assert settings.security.max_file_size_mb == 100
+
+    def test_environment_helpers(self):
+        """Test environment helper methods."""
+        from core.config import Environment, Settings
+
+        settings = Settings(environment=Environment.DEVELOPMENT)
+        assert settings.is_development() is True
+        assert settings.is_testing() is False
+        assert settings.is_production() is False
+
+    def test_get_settings_singleton(self):
+        """Test settings singleton behavior."""
+        from core.config import get_settings
+
+        settings1 = get_settings(force_reload=True)
+        settings2 = get_settings()
+
+        assert settings1 is settings2
+
+    def test_config_validation(self):
+        """Test configuration validation."""
+        from core.config import FuzzingConfig
+
+        with pytest.raises(Exception):
+            # Probability out of range
+            FuzzingConfig(metadata_probability=1.5)
+
+    def test_path_autocreation(self):
+        """Test paths are created automatically."""
+        import tempfile
+        from pathlib import Path
+
+        from core.config import PathConfig
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_path = Path(tmpdir) / "test_dir"
+            PathConfig(input_dir=test_path)
+
+            assert test_path.exists()
+            assert test_path.is_dir()
