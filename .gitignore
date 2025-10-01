@@ -312,3 +312,30 @@ __marimo__/
 
 # Claude Code configuration
 .claude/
+
+# ============================================================================
+# Project-Specific Temporary Files & Outputs
+# ============================================================================
+
+# Fuzzing Output Directories
+/fuzzed_dicoms/
+/test_output/
+/test_crashes/
+/test_cli/
+/test_cli2/
+/test_all/
+/test_structure/
+/output/
+/crashes/
+
+# Temporary Files
+nul
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+
+# Sample/Test DICOM Files (keep structure but ignore files)
+/samples/*.dcm
+!/samples/.gitkeep
