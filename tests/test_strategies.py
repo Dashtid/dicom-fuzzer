@@ -13,6 +13,7 @@ import pytest
 from strategies.header_fuzzer import HeaderFuzzer
 from strategies.metadata_fuzzer import MetadataFuzzer
 from strategies.pixel_fuzzer import PixelFuzzer
+from strategies.structure_fuzzer import StructureFuzzer
 
 
 class TestMetadataFuzzer:
@@ -236,6 +237,154 @@ class TestPixelFuzzer:
         assert mutated.PixelData is not None
 
 
+class TestStructureFuzzer:
+    """Test structure fuzzing strategy."""
+
+    def test_initialization(self):
+        """Test StructureFuzzer initializes correctly."""
+        fuzzer = StructureFuzzer()
+
+        assert hasattr(fuzzer, "corruption_strategies")
+        assert len(fuzzer.corruption_strategies) > 0
+
+    def test_mutate_structure(self, sample_dicom_dataset):
+        """Test structure mutation."""
+        fuzzer = StructureFuzzer()
+
+        mutated = fuzzer.mutate_structure(sample_dicom_dataset)
+
+        assert mutated is not None
+        # Dataset should still be valid
+        assert len(list(mutated.keys())) > 0
+
+    def test_corrupt_tag_ordering(self, sample_dicom_dataset):
+        """Test tag ordering corruption."""
+        fuzzer = StructureFuzzer()
+
+        # Apply tag ordering corruption multiple times
+        original_tags = list(sample_dicom_dataset.keys())
+        mutated = fuzzer._corrupt_tag_ordering(sample_dicom_dataset)
+
+        # Dataset should still be valid
+        assert mutated is not None
+        # Should have same number of tags
+        assert len(list(mutated.keys())) == len(original_tags)
+
+    def test_corrupt_length_fields(self, sample_dicom_dataset):
+        """Test length field corruption."""
+        fuzzer = StructureFuzzer()
+
+        mutated = fuzzer._corrupt_length_fields(sample_dicom_dataset)
+
+        assert mutated is not None
+        # Dataset should still exist
+        assert len(list(mutated.keys())) > 0
+
+    def test_insert_unexpected_tags(self, sample_dicom_dataset):
+        """Test insertion of unexpected tags."""
+        fuzzer = StructureFuzzer()
+
+        original_count = len(list(sample_dicom_dataset.keys()))
+        mutated = fuzzer._insert_unexpected_tags(sample_dicom_dataset)
+
+        assert mutated is not None
+        # May have more tags now
+        assert len(list(mutated.keys())) >= original_count
+
+    def test_duplicate_tags(self, sample_dicom_dataset):
+        """Test tag duplication."""
+        fuzzer = StructureFuzzer()
+
+        mutated = fuzzer._duplicate_tags(sample_dicom_dataset)
+
+        assert mutated is not None
+        # Dataset should still be processable
+        assert len(list(mutated.keys())) > 0
+
+    def test_multiple_structure_mutations(self, sample_dicom_dataset):
+        """Test applying multiple structure mutations."""
+        fuzzer = StructureFuzzer()
+
+        # Apply mutations multiple times
+        dataset = sample_dicom_dataset
+        for _ in range(3):
+            dataset = fuzzer.mutate_structure(dataset)
+
+        assert dataset is not None
+
+
+class TestEnhancedHeaderFuzzer:
+    """Test enhanced header fuzzer functionality."""
+
+    def test_missing_required_tags_mutation(self, sample_dicom_dataset):
+        """Test removal of required tags."""
+        fuzzer = HeaderFuzzer()
+
+        mutated = fuzzer._missing_required_tags(sample_dicom_dataset)
+
+        assert mutated is not None
+        # Some required tag might have been removed
+        # (test is probabilistic, so we just check it doesn't crash)
+
+    def test_invalid_vr_values_dates(self, sample_dicom_dataset):
+        """Test invalid date VR values."""
+        fuzzer = HeaderFuzzer()
+
+        mutated = fuzzer._invalid_vr_values(sample_dicom_dataset)
+
+        assert mutated is not None
+        # If StudyDate exists, it might now be invalid
+        if hasattr(mutated, "StudyDate"):
+            # Check that some invalid format might be present
+            study_date = str(mutated.StudyDate)
+            # Should be a string (might be invalid format)
+            assert isinstance(study_date, str)
+
+    def test_invalid_vr_values_times(self, sample_dicom_dataset):
+        """Test invalid time VR values."""
+        fuzzer = HeaderFuzzer()
+
+        # Add StudyTime if not present
+        if not hasattr(sample_dicom_dataset, "StudyTime"):
+            sample_dicom_dataset.StudyTime = "120000"
+
+        mutated = fuzzer._invalid_vr_values(sample_dicom_dataset)
+
+        assert mutated is not None
+
+    def test_boundary_values_numeric(self, sample_dicom_dataset):
+        """Test numeric boundary values."""
+        fuzzer = HeaderFuzzer()
+
+        mutated = fuzzer._boundary_values(sample_dicom_dataset)
+
+        assert mutated is not None
+        # Rows/Columns might have boundary values now
+        if hasattr(mutated, "Rows"):
+            # Should be set to some value (might be extreme)
+            assert mutated.Rows is not None
+
+    def test_boundary_values_strings(self, sample_dicom_dataset):
+        """Test string boundary values."""
+        fuzzer = HeaderFuzzer()
+
+        mutated = fuzzer._boundary_values(sample_dicom_dataset)
+
+        assert mutated is not None
+        # PatientName might be at boundary length
+        if hasattr(mutated, "PatientName"):
+            # Should exist (might be at limit)
+            assert mutated.PatientName is not None
+
+    def test_header_fuzzer_preserves_critical_tags(self, sample_dicom_dataset):
+        """Test that critical tags are preserved."""
+        fuzzer = HeaderFuzzer()
+
+        # SOPInstanceUID should never be in the removable list
+        assert "SOPInstanceUID" not in fuzzer.required_tags
+        assert "SOPClassUID" not in fuzzer.required_tags
+
+
 class TestIntegration:
     """Integration tests for strategy combinations."""
 
@@ -277,6 +426,38 @@ class TestIntegration:
         # Both should complete without error
         assert ds1 is not None
         assert ds2 is not None
+
+    def test_structure_fuzzer_integration(self, sample_dicom_dataset):
+        """Test structure fuzzer integrates with other fuzzers."""
+        metadata_fuzzer = MetadataFuzzer()
+        structure_fuzzer = StructureFuzzer()
+
+        dataset = sample_dicom_dataset.copy()
+        dataset = metadata_fuzzer.mutate_patient_info(dataset)
+        dataset = structure_fuzzer.mutate_structure(dataset)
+
+        assert dataset is not None
+
+    def test_all_fuzzers_together(self, dicom_with_pixels):
+        """Test all 4 fuzzing strategies together."""
+        from core.parser import DicomParser
+
+        parser = DicomParser(dicom_with_pixels)
+        dataset = parser.dataset
+
+        # Apply all 4 fuzzers
+        metadata_fuzzer = MetadataFuzzer()
+        header_fuzzer = HeaderFuzzer()
+        pixel_fuzzer = PixelFuzzer()
+        structure_fuzzer = StructureFuzzer()
+
+        dataset = metadata_fuzzer.mutate_patient_info(dataset)
+        dataset = header_fuzzer.mutate_tags(dataset)
+        dataset = pixel_fuzzer.mutate_pixels(dataset)
+        dataset = structure_fuzzer.mutate_structure(dataset)
+
+        # All mutations should complete
+        assert dataset is not None
 
 
 if __name__ == "__main__":
