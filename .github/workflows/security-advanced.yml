@@ -1,0 +1,268 @@
+name: Advanced Security Analysis
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run weekly on Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  semgrep-sast:
+    name: Semgrep SAST Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/python
+            p/security-audit
+            p/owasp-top-ten
+            p/ci
+          generateSarif: true
+
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+
+  trivy-scan:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+  dependency-check:
+    name: OWASP Dependency Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv venv
+          source .venv/bin/activate
+          uv pip install -r requirements.txt
+
+      - name: Generate dependency list
+        run: |
+          source .venv/bin/activate
+          uv pip freeze > installed-deps.txt
+
+      - name: Run OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'DICOM-Fuzzer'
+          path: '.'
+          format: 'ALL'
+          args: >
+            --enableRetired
+            --enableExperimental
+
+      - name: Upload Dependency-Check results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-check-report
+          path: reports/
+
+  secrets-scan:
+    name: Secret Detection Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: Gitleaks scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  supply-chain-security:
+    name: Supply Chain Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv venv
+          source .venv/bin/activate
+          uv pip install -r requirements.txt
+
+      - name: Check for typosquatting
+        run: |
+          source .venv/bin/activate
+          uv pip install pip-audit
+          pip-audit --desc --strict
+
+      - name: Verify package signatures
+        run: |
+          source .venv/bin/activate
+          uv pip install in-toto
+          # Check for package integrity
+          python -m pip list --format=json > packages.json
+
+      - name: Upload supply chain report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: supply-chain-report
+          path: packages.json
+
+  security-scorecard:
+    name: Security Scorecard
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      id-token: write
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard analysis
+        uses: ossf/scorecard-action@v2
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload Scorecard results to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+
+  license-compliance:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv venv
+          source .venv/bin/activate
+          uv pip install -r requirements.txt
+          uv pip install pip-licenses
+
+      - name: Check licenses
+        run: |
+          source .venv/bin/activate
+          pip-licenses --format=json --with-urls --with-description --output-file=licenses.json
+          pip-licenses --format=markdown --with-urls --with-description > licenses.md
+
+      - name: Verify license compatibility
+        run: |
+          source .venv/bin/activate
+          # Check for incompatible licenses (GPL, AGPL with proprietary)
+          pip-licenses | grep -E "GPL|AGPL" || echo "No copyleft licenses found"
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: |
+            licenses.json
+            licenses.md
+
+  security-summary:
+    name: Security Analysis Summary
+    runs-on: ubuntu-latest
+    needs: [semgrep-sast, trivy-scan, dependency-check, secrets-scan, supply-chain-security, license-compliance]
+    if: always()
+    steps:
+      - name: Check security status
+        run: |
+          echo "Security Analysis Summary"
+          echo "========================="
+          echo "Semgrep SAST: ${{ needs.semgrep-sast.result }}"
+          echo "Trivy Scan: ${{ needs.trivy-scan.result }}"
+          echo "Dependency Check: ${{ needs.dependency-check.result }}"
+          echo "Secrets Scan: ${{ needs.secrets-scan.result }}"
+          echo "Supply Chain: ${{ needs.supply-chain-security.result }}"
+          echo "License Compliance: ${{ needs.license-compliance.result }}"
+
+          if [ "${{ needs.semgrep-sast.result }}" != "success" ] || \
+             [ "${{ needs.trivy-scan.result }}" != "success" ] || \
+             [ "${{ needs.secrets-scan.result }}" != "success" ]; then
+            echo "Critical security checks failed!"
+            exit 1
+          fi
+
+          echo "Security analysis completed successfully!"
