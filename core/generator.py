@@ -78,8 +78,20 @@ class DICOMGenerator:
         """
         parser = DicomParser(original_file)
         base_dataset = parser.dataset
+        active_fuzzers = self._select_fuzzers(strategies)
 
-        # Create all available fuzzers
+        generated_files = []
+        self.stats = GenerationStats()
+
+        for i in range(count):
+            result = self._generate_single_file(base_dataset, active_fuzzers)
+            if result is not None:
+                generated_files.append(result)
+
+        return generated_files
+
+    def _select_fuzzers(self, strategies: Optional[List[str]]) -> dict:
+        """Select fuzzers based on strategy names."""
         all_fuzzers = {
             "metadata": MetadataFuzzer(),
             "header": HeaderFuzzer(),
@@ -87,95 +99,101 @@ class DICOMGenerator:
             "structure": StructureFuzzer(),
         }
 
-        # Select fuzzers based on strategies parameter
         if strategies is None:
             # Use all fuzzers (except structure by default for compatibility)
-            active_fuzzers = {
+            return {
                 "metadata": all_fuzzers["metadata"],
                 "header": all_fuzzers["header"],
                 "pixel": all_fuzzers["pixel"],
             }
-        else:
-            # Use only specified strategies
-            active_fuzzers = {
-                name: fuzzer
-                for name, fuzzer in all_fuzzers.items()
-                if name in strategies
-            }
 
-        generated_files = []
-        self.stats = GenerationStats()
+        # Use only specified strategies
+        return {
+            name: fuzzer for name, fuzzer in all_fuzzers.items() if name in strategies
+        }
 
-        for i in range(count):
-            self.stats.total_attempted += 1
+    def _generate_single_file(self, base_dataset, active_fuzzers) -> Optional[Path]:
+        """Generate a single fuzzed file. Returns None if generation fails."""
+        self.stats.total_attempted += 1
 
-            # Create a copy for mutation
-            mutated_dataset = base_dataset.copy()
+        # Create mutated dataset
+        mutated_dataset, strategies_applied = self._apply_mutations(
+            base_dataset, active_fuzzers
+        )
+        if mutated_dataset is None:
+            return None
 
-            # Randomly select which fuzzers to apply (70% chance each)
-            fuzzers_to_apply = []
-            for name, fuzzer in active_fuzzers.items():
-                if random.random() > 0.3:
-                    fuzzers_to_apply.append((name, fuzzer))
+        # Save to file
+        return self._save_mutated_file(mutated_dataset, strategies_applied)
 
-            # Track which strategies were used
-            strategies_applied = [name for name, _ in fuzzers_to_apply]
+    def _apply_mutations(self, base_dataset, active_fuzzers):
+        """Apply random mutations to dataset.
 
-            # Apply selected mutations (with error handling for extreme mutations)
-            mutation_failed = False
-            try:
-                for fuzzer_type, fuzzer in fuzzers_to_apply:
-                    if fuzzer_type == "metadata":
-                        mutated_dataset = fuzzer.mutate_patient_info(mutated_dataset)
-                    elif fuzzer_type == "header":
-                        mutated_dataset = fuzzer.mutate_tags(mutated_dataset)
-                    elif fuzzer_type == "pixel":
-                        mutated_dataset = fuzzer.mutate_pixels(mutated_dataset)
-                    elif fuzzer_type == "structure":
-                        mutated_dataset = fuzzer.mutate_structure(mutated_dataset)
-            except (ValueError, TypeError, AttributeError) as e:
-                # Mutation created invalid values that can't even be assigned
-                if self.skip_write_errors:
-                    self.stats.skipped_due_to_write_errors += 1
-                    mutation_failed = True
-                else:
-                    self.stats.record_failure(type(e).__name__)
-                    raise
+        Returns (dataset, strategies) or (None, []).
+        """
+        mutated_dataset = base_dataset.copy()
 
-            # Skip file generation if mutation failed
-            if mutation_failed:
-                continue
+        # Randomly select fuzzers (70% chance each)
+        fuzzers_to_apply = [
+            (name, fuzzer)
+            for name, fuzzer in active_fuzzers.items()
+            if random.random() > 0.3
+        ]
 
-            # Generate unique filename
-            filename = f"fuzzed_{uuid.uuid4().hex[:8]}.dcm"
-            output_path = self.output_dir / filename
+        strategies_applied = [name for name, _ in fuzzers_to_apply]
 
-            # Save mutated file with error handling
-            try:
-                # Use enforce_file_format (new parameter)
-                mutated_dataset.save_as(output_path, enforce_file_format=False)
-                generated_files.append(output_path)
-                self.stats.record_success(strategies_applied)
-            except (
-                OSError,
-                struct.error,
-                ValueError,
-                TypeError,
-                AttributeError,
-            ) as e:
-                # These errors indicate the mutation created values
-                # pydicom can't write - desired fuzzing behavior!
-                if self.skip_write_errors:
-                    self.stats.skipped_due_to_write_errors += 1
-                    # Continue to next iteration to reach desired count
-                    continue
-                else:
-                    # Re-raise if we want to see these errors
-                    self.stats.record_failure(type(e).__name__)
-                    raise
-            except Exception as e:
-                # Unexpected errors should always be raised
-                self.stats.record_failure(type(e).__name__)
-                raise
+        # Apply mutations
+        try:
+            for fuzzer_type, fuzzer in fuzzers_to_apply:
+                mutated_dataset = self._apply_single_fuzzer(
+                    fuzzer_type, fuzzer, mutated_dataset
+                )
+        except (ValueError, TypeError, AttributeError) as e:
+            return self._handle_mutation_error(e)
 
-        return generated_files
+        return mutated_dataset, strategies_applied
+
+    def _apply_single_fuzzer(self, fuzzer_type: str, fuzzer, dataset):
+        """Apply a single fuzzer to the dataset."""
+        fuzzer_methods = {
+            "metadata": lambda: fuzzer.mutate_patient_info(dataset),
+            "header": lambda: fuzzer.mutate_tags(dataset),
+            "pixel": lambda: fuzzer.mutate_pixels(dataset),
+            "structure": lambda: fuzzer.mutate_structure(dataset),
+        }
+        return fuzzer_methods.get(fuzzer_type, lambda: dataset)()
+
+    def _handle_mutation_error(self, error):
+        """Handle errors during mutation."""
+        if self.skip_write_errors:
+            self.stats.skipped_due_to_write_errors += 1
+            return None, []
+
+        self.stats.record_failure(type(error).__name__)
+        raise
+
+    def _save_mutated_file(
+        self, mutated_dataset, strategies_applied: List[str]
+    ) -> Optional[Path]:
+        """Save mutated dataset to file. Returns path or None on error."""
+        filename = f"fuzzed_{uuid.uuid4().hex[:8]}.dcm"
+        output_path = self.output_dir / filename
+
+        try:
+            mutated_dataset.save_as(output_path, enforce_file_format=False)
+            self.stats.record_success(strategies_applied)
+            return output_path
+        except (OSError, struct.error, ValueError, TypeError, AttributeError) as e:
+            return self._handle_save_error(e)
+        except Exception as e:
+            self.stats.record_failure(type(e).__name__)
+            raise
+
+    def _handle_save_error(self, error):
+        """Handle errors when saving files."""
+        if self.skip_write_errors:
+            self.stats.skipped_due_to_write_errors += 1
+            return None
+
+        self.stats.record_failure(type(error).__name__)
+        raise
