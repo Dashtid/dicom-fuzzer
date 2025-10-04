@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from core.generator import DICOMGenerator
+from core.target_runner import TargetRunner
 
 try:
     from tqdm import tqdm
@@ -117,6 +118,27 @@ def main():
     )
     parser.add_argument("--version", action="version", version="DICOM Fuzzer v1.0.0")
 
+    # Target testing options
+    parser.add_argument(
+        "-t",
+        "--target",
+        type=str,
+        metavar="EXE",
+        help="Path to target application to test with fuzzed files",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=5.0,
+        metavar="SEC",
+        help="Timeout in seconds for target execution (default: 5.0)",
+    )
+    parser.add_argument(
+        "--stop-on-crash",
+        action="store_true",
+        help="Stop testing on first crash detected",
+    )
+
     args = parser.parse_args()
 
     # Setup logging
@@ -219,6 +241,54 @@ def main():
             if len(files) > 10:
                 print(f"  ... and {len(files) - 10} more")
             print()
+
+        # Target testing if --target specified
+        if args.target:
+            print("\n" + "=" * 70)
+            print("  Target Application Testing")
+            print("=" * 70)
+            print(f"  Target:     {args.target}")
+            print(f"  Timeout:    {args.timeout}s")
+            print(f"  Test files: {len(files)}")
+            print("=" * 70 + "\n")
+
+            try:
+                runner = TargetRunner(
+                    target_executable=args.target,
+                    timeout=args.timeout,
+                    crash_dir=output_path / "crashes",
+                )
+
+                logger.info("Starting target testing campaign...")
+                test_start = time.time()
+
+                results = runner.run_campaign(
+                    test_files=files, stop_on_crash=args.stop_on_crash
+                )
+
+                test_elapsed = time.time() - test_start
+
+                # Display results
+                summary = runner.get_summary(results)
+                print(summary)
+                print(
+                    f"\nTarget testing completed in {test_elapsed:.2f}s "
+                    f"({len(files)/test_elapsed:.1f} tests/sec)\n"
+                )
+
+            except FileNotFoundError as e:
+                logger.error(f"Target executable not found: {e}")
+                print(f"\n[ERROR] Target executable not found: {args.target}")
+                print("Please verify the path and try again.")
+                sys.exit(1)
+            except Exception as e:
+                logger.error(f"Target testing failed: {e}", exc_info=args.verbose)
+                print(f"\n[ERROR] Target testing failed: {e}")
+                if args.verbose:
+                    import traceback
+
+                    traceback.print_exc()
+                sys.exit(1)
 
     except KeyboardInterrupt:
         print("\n\n[INTERRUPTED] Campaign stopped by user")

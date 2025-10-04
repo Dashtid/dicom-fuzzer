@@ -413,7 +413,7 @@ class DicomValidator:
                 if hasattr(elem, "value") and isinstance(elem.value, bytes):
                     if len(elem.value) > 1024 * 1024:  # > 1MB
                         result.add_warning(
-                            f"Private tag {elem.tag} contains large data: {len(elem.value)} bytes",
+                            f"Private tag {elem.tag} contains large data: {len(elem.value)} bytes",  # noqa: E501
                             context={"tag": str(elem.tag), "size": len(elem.value)},
                         )
 
