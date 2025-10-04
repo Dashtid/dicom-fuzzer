@@ -8,9 +8,17 @@ Generates mutated DICOM files to test parser robustness and security.
 import argparse
 import logging
 import sys
+import time
 from pathlib import Path
 
 from core.generator import DICOMGenerator
+
+try:
+    from tqdm import tqdm
+
+    HAS_TQDM = True
+except ImportError:
+    HAS_TQDM = False
 
 
 def setup_logging(verbose: bool = False):
@@ -99,7 +107,10 @@ def main():
         "--strategies",
         type=str,
         metavar="STRAT",
-        help="Comma-separated list of fuzzing strategies: metadata,header,pixel,structure (default: all)",
+        help=(
+            "Comma-separated list of fuzzing strategies: "
+            "metadata,header,pixel,structure (default: all)"
+        ),
     )
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging output"
@@ -133,28 +144,92 @@ def main():
     logger.info(f"Output directory: {output_path}")
 
     # Generate fuzzed files
+    print("\n" + "=" * 70)
+    print("  DICOM Fuzzer v1.0.0 - Fuzzing Campaign")
+    print("=" * 70)
+    print(f"  Input:      {input_path.name}")
+    print(f"  Output:     {args.output}")
+    print(f"  Target:     {args.count} files")
+    if selected_strategies:
+        print(f"  Strategies: {', '.join(selected_strategies)}")
+    else:
+        print("  Strategies: all (metadata, header, pixel)")
+    print("=" * 70 + "\n")
+
     logger.info(f"Generating {args.count} fuzzed files...")
+    start_time = time.time()
+
     try:
-        generator = DICOMGenerator(args.output)
-        files = generator.generate_batch(
-            str(input_path), count=args.count, strategies=selected_strategies
+        generator = DICOMGenerator(args.output, skip_write_errors=True)
+
+        # Use progress bar if available
+        if HAS_TQDM and not args.verbose:
+            print("Generating fuzzed files...")
+            with tqdm(total=args.count, unit="file", ncols=70) as pbar:
+                # Generate in smaller batches to update progress
+                batch_size = max(1, args.count // 20)  # 20 updates
+                remaining = args.count
+                all_files = []
+
+                while remaining > 0:
+                    current_batch = min(batch_size, remaining)
+                    files = generator.generate_batch(
+                        str(input_path),
+                        count=current_batch,
+                        strategies=selected_strategies,
+                    )
+                    all_files.extend(files)
+                    pbar.update(len(files))
+                    remaining -= current_batch
+
+                files = all_files
+        else:
+            # No progress bar, generate all at once
+            files = generator.generate_batch(
+                str(input_path), count=args.count, strategies=selected_strategies
+            )
+
+        elapsed_time = time.time() - start_time
+
+        # Display results (using ASCII for Windows compatibility)
+        print("\n" + "=" * 70)
+        print("  Campaign Results")
+        print("=" * 70)
+        print(f"  [+] Successfully generated: {len(files)} files")
+        skipped = generator.stats.skipped_due_to_write_errors
+        print(f"  [!] Skipped (write errors): {skipped}")
+        files_per_sec = len(files) / elapsed_time
+        print(
+            f"  [T] Time elapsed: {elapsed_time:.2f}s "
+            f"({files_per_sec:.1f} files/sec)"
         )
 
-        print(f"\n[SUCCESS] Generated {len(files)} fuzzed DICOM files")
-        print(f"  Output directory: {args.output}")
-        if selected_strategies:
-            print(f"  Strategies used: {', '.join(selected_strategies)}")
+        if generator.stats.strategies_used:
+            print("\n  Strategy Usage:")
+            for strategy, count in sorted(generator.stats.strategies_used.items()):
+                print(f"    - {strategy}: {count} times")  # noqa: E221
+
+        print(f"\n  Output: {args.output}")
+        print("=" * 70 + "\n")
 
         if args.verbose:
-            print("\nGenerated files:")
-            for f in files[:10]:  # Show first 10
+            print("Sample generated files:")
+            for f in files[:10]:
                 print(f"  - {f.name}")  # noqa: E221
             if len(files) > 10:
                 print(f"  ... and {len(files) - 10} more")
+            print()
 
+    except KeyboardInterrupt:
+        print("\n\n[INTERRUPTED] Campaign stopped by user")
+        sys.exit(130)
     except Exception as e:
         logger.error(f"Fuzzing failed: {e}", exc_info=args.verbose)
         print(f"\n[ERROR] Fuzzing failed: {e}")
+        if args.verbose:
+            import traceback
+
+            traceback.print_exc()
         sys.exit(1)
 
 
