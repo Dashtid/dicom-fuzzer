@@ -161,7 +161,8 @@ class TestDicomMutatorInit:
 
     def test_mutator_creation_no_config(self):
         """Test creating mutator without configuration."""
-        mutator = DicomMutator()
+        # Create mutator without auto-registering strategies
+        mutator = DicomMutator(config={"auto_register_strategies": False})
 
         assert mutator.config is not None
         assert mutator.strategies == []
@@ -214,7 +215,8 @@ class TestStrategyRegistration:
 
     def test_register_valid_strategy(self):
         """Test registering a valid strategy."""
-        mutator = DicomMutator()
+        # Disable auto-registration for this test
+        mutator = DicomMutator(config={"auto_register_strategies": False})
 
         # Create a mock strategy
         strategy = Mock()
@@ -229,7 +231,8 @@ class TestStrategyRegistration:
 
     def test_register_multiple_strategies(self):
         """Test registering multiple strategies."""
-        mutator = DicomMutator()
+        # Disable auto-registration for this test
+        mutator = DicomMutator(config={"auto_register_strategies": False})
 
         strategy1 = Mock()
         strategy1.mutate = Mock()
@@ -372,7 +375,8 @@ class TestMutationApplication:
 
     def test_apply_mutations_with_strategy(self, sample_dicom_dataset):
         """Test applying mutations with registered strategy."""
-        mutator = DicomMutator()
+        # Disable auto-registration for this test
+        mutator = DicomMutator(config={"auto_register_strategies": False})
 
         # Create mock strategy
         strategy = Mock()
@@ -390,7 +394,10 @@ class TestMutationApplication:
 
     def test_apply_mutations_respects_num_mutations(self, sample_dicom_dataset):
         """Test that num_mutations parameter is respected."""
-        mutator = DicomMutator(config={"mutation_probability": 1.0})
+        # Disable auto-registration and set mutation probability to 1.0
+        mutator = DicomMutator(
+            config={"mutation_probability": 1.0, "auto_register_strategies": False}
+        )
 
         strategy = Mock()
         strategy.get_strategy_name = Mock(return_value="test")
@@ -407,7 +414,9 @@ class TestMutationApplication:
 
     def test_apply_mutations_with_severity(self, sample_dicom_dataset):
         """Test that severity parameter is passed to strategy."""
-        mutator = DicomMutator(config={"mutation_probability": 1.0})
+        mutator = DicomMutator(
+            config={"mutation_probability": 1.0, "auto_register_strategies": False}
+        )
 
         strategy = Mock()
         strategy.get_strategy_name = Mock(return_value="test")
@@ -642,7 +651,10 @@ class TestIntegration:
 
     def test_multiple_strategies_workflow(self, sample_dicom_dataset):
         """Test workflow with multiple strategies."""
-        mutator = DicomMutator(config={"mutation_probability": 1.0})
+        # Disable auto-registration and set mutation probability to 1.0
+        mutator = DicomMutator(
+            config={"mutation_probability": 1.0, "auto_register_strategies": False}
+        )
 
         # Register multiple strategies
         for i in range(3):
