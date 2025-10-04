@@ -154,10 +154,12 @@ class ViewerFuzzer:
             try:
                 pydicom.dcmwrite(str(output_path), mutated, write_like_original=False)
                 self.stats["files_fuzzed"] += 1
+                self.stats["files_generated"] += 1
                 logger.info(f"Generated fuzzed file: {output_path}")
                 return output_path
             except Exception as write_error:
                 # Some mutations may be too corrupt to write - that's okay
+                self.stats["files_fuzzed"] += 1  # Still count as fuzzed
                 logger.warning(f"Could not write fuzzed file: {write_error}")
                 return None
 
