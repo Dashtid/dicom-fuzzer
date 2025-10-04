@@ -339,6 +339,12 @@ nul
 *.jpeg
 *.gif
 *.bmp
+temp_*.dcm
+test_*.dcm
+minimal*.dcm
+corrupted*.dcm
+fuzzed_*.dcm
+truncated*.dcm
 
 # Sample/Test DICOM Files (keep structure but ignore files)
 /samples/*.dcm
