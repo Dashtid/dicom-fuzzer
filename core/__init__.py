@@ -8,6 +8,7 @@ from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
 from .generator import DICOMGenerator
 from .mutator import DicomMutator
 from .parser import DicomParser
+from .types import MutationSeverity
 from .validator import DicomValidator
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "DicomMutator",
     "DICOMGenerator",
     "DicomValidator",
+    "MutationSeverity",
 ]
