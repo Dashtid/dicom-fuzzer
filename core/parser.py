@@ -267,9 +267,9 @@ class DicomParser:
                     private_tags[str(tag)] = {
                         "value": str(element.value) if element.value else "",
                         "vr": element.VR if hasattr(element, "VR") else "UN",
-                        "keyword": element.keyword
-                        if hasattr(element, "keyword")
-                        else "",
+                        "keyword": (
+                            element.keyword if hasattr(element, "keyword") else ""
+                        ),
                     }
                 except Exception as e:
                     logger.warning(f"Failed to extract private tag {tag}: {e}")
