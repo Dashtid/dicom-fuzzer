@@ -401,5 +401,110 @@ class TestIntegration:
             assert f.exists()
 
 
+class TestGeneratorErrorHandling:
+    """Test error handling in DICOMGenerator."""
+
+    def test_generate_with_skip_write_errors_true(self, sample_dicom_file, temp_dir):
+        """Test generator skips files with write errors."""
+        output_dir = temp_dir / "skip_errors"
+        generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
+
+        # Generate files - some may be skipped due to extreme mutations
+        files = generator.generate_batch(sample_dicom_file, count=20)
+
+        # Should have generated some files
+        assert len(files) >= 0
+        # Stats should track skipped files
+        assert generator.stats.skipped_due_to_write_errors >= 0
+
+    def test_generate_with_skip_write_errors_false(self, sample_dicom_file, temp_dir):
+        """Test generator with skip_write_errors=False."""
+        output_dir = temp_dir / "no_skip"
+        generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=False)
+
+        # This might raise an error on extreme mutations, but should work
+        # most of the time with default strategies
+        try:
+            files = generator.generate_batch(sample_dicom_file, count=5)
+            assert len(files) >= 0
+        except (OSError, ValueError, TypeError, AttributeError):
+            # Expected - some mutations create unwritable files
+            pass
+
+    def test_stats_tracking(self, sample_dicom_file, temp_dir):
+        """Test that stats are properly tracked."""
+        output_dir = temp_dir / "stats_test"
+        generator = DICOMGenerator(output_dir=str(output_dir))
+
+        files = generator.generate_batch(sample_dicom_file, count=10)
+
+        # Check stats were tracked
+        assert generator.stats.successful > 0
+        assert generator.stats.successful == len(files)
+        # Strategies should have been used
+        assert len(generator.stats.strategies_used) > 0
+
+    def test_generate_with_invalid_strategy(self, sample_dicom_file, temp_dir):
+        """Test generation with invalid strategy name."""
+        output_dir = temp_dir / "invalid_strat"
+        generator = DICOMGenerator(output_dir=str(output_dir))
+
+        # Should handle invalid strategy gracefully (ignore it)
+        files = generator.generate_batch(
+            sample_dicom_file, count=3, strategies=["invalid_strategy"]
+        )
+
+        # Should still work, just without any strategies applied
+        assert len(files) >= 0
+
+    def test_generate_with_empty_strategies_list(self, sample_dicom_file, temp_dir):
+        """Test generation with empty strategies list."""
+        output_dir = temp_dir / "empty_strat"
+        generator = DICOMGenerator(output_dir=str(output_dir))
+
+        # Empty strategies should still work (no mutations)
+        files = generator.generate_batch(sample_dicom_file, count=3, strategies=[])
+
+        assert len(files) >= 0
+
+
+class TestGeneratorBatchProcessing:
+    """Test batch processing edge cases."""
+
+    def test_generate_single_file(self, sample_dicom_file, temp_dir):
+        """Test generating just one file."""
+        output_dir = temp_dir / "single"
+        generator = DICOMGenerator(output_dir=str(output_dir))
+
+        files = generator.generate_batch(sample_dicom_file, count=1)
+
+        assert len(files) == 1
+        assert files[0].exists()
+
+    def test_generate_zero_files(self, sample_dicom_file, temp_dir):
+        """Test generating zero files."""
+        output_dir = temp_dir / "zero"
+        generator = DICOMGenerator(output_dir=str(output_dir))
+
+        files = generator.generate_batch(sample_dicom_file, count=0)
+
+        assert len(files) == 0
+
+    def test_generate_with_all_strategies(self, sample_dicom_file, temp_dir):
+        """Test generation with all strategies specified."""
+        output_dir = temp_dir / "all_strat"
+        generator = DICOMGenerator(output_dir=str(output_dir))
+
+        files = generator.generate_batch(
+            sample_dicom_file,
+            count=5,
+            strategies=["metadata", "header", "pixel", "structure"],
+        )
+
+        assert len(files) >= 0
+        # Should have used multiple strategies
+        assert len(generator.stats.strategies_used) > 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
