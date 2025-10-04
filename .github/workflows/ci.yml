@@ -82,12 +82,40 @@ jobs:
           safety check --json || true
           safety check
 
+      - name: Check dependencies with pip-audit
+        run: |
+          source .venv/bin/activate
+          uv pip install pip-audit
+          pip-audit --desc --format json -o pip-audit-report.json || true
+          pip-audit --desc
+
+      - name: Run semgrep security analysis
+        run: |
+          uv pip install semgrep
+          source .venv/bin/activate
+          semgrep --config=auto --json --output=semgrep-report.json . || true
+          semgrep --config=auto .
+
       - name: Upload bandit results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: bandit-report
           path: bandit-report.json
+
+      - name: Upload pip-audit results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.json
+
+      - name: Upload semgrep results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: semgrep-report
+          path: semgrep-report.json
 
   test:
     name: Test Suite (Python ${{ matrix.python-version }})
@@ -167,10 +195,128 @@ jobs:
           source .venv/bin/activate
           coverage report --fail-under=95
 
+  performance-benchmark:
+    name: Performance Benchmarking
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv venv
+          source .venv/bin/activate
+          uv pip install -r requirements.txt
+          uv pip install pytest-benchmark
+
+      - name: Run performance benchmarks
+        run: |
+          source .venv/bin/activate
+          pytest tests/ -v --benchmark-only --benchmark-json=benchmark-report.json || true
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-report
+          path: benchmark-report.json
+
+  mutation-testing:
+    name: Mutation Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv venv
+          source .venv/bin/activate
+          uv pip install -r requirements.txt
+          uv pip install mutmut
+
+      - name: Run mutation testing
+        run: |
+          source .venv/bin/activate
+          mutmut run --paths-to-mutate=core/,strategies/,utils/ --tests-dir=tests/ || true
+          mutmut results
+          mutmut html
+
+      - name: Upload mutation testing results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: html/
+
+  documentation-build:
+    name: Documentation Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv venv
+          source .venv/bin/activate
+          uv pip install -r requirements.txt
+          cd docs && uv pip install -r requirements.txt
+
+      - name: Build Sphinx documentation
+        run: |
+          source .venv/bin/activate
+          cd docs
+          make clean
+          make html SPHINXOPTS="-W --keep-going"
+
+      - name: Check documentation links
+        run: |
+          source .venv/bin/activate
+          cd docs
+          make linkcheck
+
+      - name: Upload documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: docs/_build/html/
+
   build-status:
     name: Build Status Summary
     runs-on: ubuntu-latest
-    needs: [code-quality, security-scan, test]
+    needs: [code-quality, security-scan, test, performance-benchmark, documentation-build]
     if: always()
     steps:
       - name: Check build status
@@ -185,6 +331,14 @@ jobs:
           fi
           if [ "${{ needs.test.result }}" != "success" ]; then
             echo "Tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.performance-benchmark.result }}" != "success" ]; then
+            echo "Performance benchmarks failed"
+            exit 1
+          fi
+          if [ "${{ needs.documentation-build.result }}" != "success" ]; then
+            echo "Documentation build failed"
             exit 1
           fi
           echo "All checks passed successfully!"
