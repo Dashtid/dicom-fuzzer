@@ -37,9 +37,8 @@ def main():
     )
     if not sample_files:
         print(f"[ERROR] No DICOM files found in {settings.paths.input_dir}")
-        print(
-            f"   Please add sample DICOM files matching {settings.paths.dicom_file_pattern}"
-        )
+        pattern = settings.paths.dicom_file_pattern
+        print(f"   Please add sample DICOM files matching {pattern}")
         return 1
 
     sample_file = sample_files[0]
@@ -65,9 +64,8 @@ def main():
 
     # Run fuzzing campaign
     print("[START] Starting fuzzing campaign...")
-    print(
-        f"   Generating {min(10, settings.fuzzing.max_files_per_campaign)} test files..."
-    )
+    num_files = min(10, settings.fuzzing.max_files_per_campaign)
+    print(f"   Generating {num_files} test files...")
     print()
 
     with PerformanceProfiler() as profiler:
