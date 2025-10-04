@@ -6,6 +6,8 @@ concepts including the Strategy Pattern, Command Pattern, and composition.
 
 CONCEPT: The mutator is the "conductor" that orchestrates different mutation
 strategies to systematically test DICOM files.
+
+UPDATED: Now includes dictionary-based fuzzing for intelligent, domain-aware mutations.
 """
 
 import copy
@@ -15,7 +17,6 @@ import random
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol
 
@@ -34,24 +35,18 @@ except ImportError:
 # LEARNING: Import DICOM libraries
 from pydicom.dataset import Dataset
 
+# LEARNING: Import shared types
+try:
+    from .types import MutationSeverity
+except ImportError:
+    import sys
+
+    sys.path.append(str(Path(__file__).parent.parent))
+    from core.types import MutationSeverity
+
 # Get a logger for this module
 logger = get_logger(__name__)
 security_logger = SecurityEventLogger(logger)
-
-
-# LEARNING: This is an Enum - a way to define a set of named constants
-class MutationSeverity(Enum):
-    """
-    CONCEPT: Enums are like a list of predefined choices that can't be changed.
-    They're useful when you have a fixed set of options.
-
-    WHY: We want to control how aggressive our mutations are.
-    """
-
-    MINIMAL = "minimal"  # Very small changes, unlikely to break anything
-    MODERATE = "moderate"  # Medium changes, might cause some issues
-    AGGRESSIVE = "aggressive"  # Large changes, likely to break things
-    EXTREME = "extreme"  # Maximum changes, definitely will break things
 
 
 # LEARNING: This is a Protocol - it defines what methods a class must have
@@ -143,6 +138,10 @@ class DicomMutator:
         # LEARNING: Load default configuration
         self._load_default_config()
 
+        # LEARNING: Register default strategies if enabled
+        if self.config.get("auto_register_strategies", True):
+            self._register_default_strategies()
+
         # LEARNING: Log that we've created a new mutator
         logger.info(f"DicomMutator initialized with config: {self.config}")
 
@@ -166,6 +165,26 @@ class DicomMutator:
         for key, value in default_config.items():
             if key not in self.config:
                 self.config[key] = value
+
+    def _register_default_strategies(self) -> None:
+        """
+        LEARNING: Register default fuzzing strategies
+
+        CONCEPT: Automatically register dictionary-based and other default
+        fuzzing strategies for immediate use.
+
+        WHY: We import strategies here (lazy import) to avoid circular imports
+        """
+        try:
+            # Lazy import to avoid circular dependency
+            from strategies.dictionary_fuzzer import DictionaryFuzzer
+
+            # Register dictionary fuzzer for intelligent mutations
+            dict_fuzzer = DictionaryFuzzer()
+            self.register_strategy(dict_fuzzer)
+            logger.info("Registered dictionary fuzzer strategy")
+        except Exception as e:
+            logger.warning(f"Could not register dictionary fuzzer: {e}")
 
     def register_strategy(self, strategy: MutationStrategy) -> None:
         """

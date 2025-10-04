@@ -74,6 +74,10 @@ auth.yaml
 /patient_data/
 /real_data/
 
+# CRITICAL: Local test data (NEVER commit)
+# Use pattern matching for local data directories
+fuzzed_*/
+
 # Medical/Healthcare Specific
 *patient*
 *phi*
