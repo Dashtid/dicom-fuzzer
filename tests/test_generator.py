@@ -404,6 +404,24 @@ class TestIntegration:
 class TestGeneratorErrorHandling:
     """Test error handling in DICOMGenerator."""
 
+    def test_generation_stats_record_failure(self):
+        """Test GenerationStats.record_failure method (lines 33-34)."""
+        from core.generator import GenerationStats
+
+        stats = GenerationStats()
+
+        # Record some failures
+        stats.record_failure("ValueError")
+        stats.record_failure("TypeError")
+        stats.record_failure("ValueError")  # Duplicate error type
+
+        # Check that failures are tracked
+        assert stats.failed == 3
+        assert "ValueError" in stats.error_types
+        assert stats.error_types["ValueError"] == 2
+        assert "TypeError" in stats.error_types
+        assert stats.error_types["TypeError"] == 1
+
     def test_generate_with_skip_write_errors_true(self, sample_dicom_file, temp_dir):
         """Test generator skips files with write errors."""
         output_dir = temp_dir / "skip_errors"

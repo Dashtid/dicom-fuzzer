@@ -599,6 +599,104 @@ class TestHeaderFuzzerEdgeCases:
             mutated = fuzzer._invalid_vr_values(sample_dicom_dataset.copy())
             assert mutated is not None
 
+    def test_overlong_strings_with_study_description(self, sample_dicom_dataset):
+        """Test overlong strings mutation with StudyDescription field (line 74)."""
+        fuzzer = HeaderFuzzer()
+
+        # Add StudyDescription field
+        sample_dicom_dataset.StudyDescription = "Normal Study"
+
+        mutated = fuzzer._overlong_strings(sample_dicom_dataset)
+
+        # Should be mutated to very long string
+        assert len(mutated.StudyDescription) > 1000
+
+    def test_overlong_strings_with_manufacturer(self, sample_dicom_dataset):
+        """Test overlong strings mutation with Manufacturer field (line 77)."""
+        fuzzer = HeaderFuzzer()
+
+        # Add Manufacturer field
+        sample_dicom_dataset.Manufacturer = "Siemens"
+
+        mutated = fuzzer._overlong_strings(sample_dicom_dataset)
+
+        # Should be mutated to very long string
+        assert len(mutated.Manufacturer) > 500
+
+    def test_missing_required_tags_exception_handling(self, sample_dicom_dataset):
+        """Test exception handling when deleting tags (lines 100-102)."""
+        fuzzer = HeaderFuzzer()
+
+        # Create dataset with tags that might raise exceptions on deletion
+        sample_dicom_dataset.PatientName = "Test^Patient"
+        sample_dicom_dataset.PatientID = "12345"
+        sample_dicom_dataset.StudyInstanceUID = "1.2.3.4"
+        sample_dicom_dataset.SeriesInstanceUID = "1.2.3.4.5"
+
+        # Run multiple times to hit the exception path
+        for _ in range(10):
+            mutated = fuzzer._missing_required_tags(sample_dicom_dataset.copy())
+            assert mutated is not None
+
+    def test_invalid_vr_with_series_number(self, sample_dicom_dataset):
+        """Test invalid VR with SeriesNumber field (lines 145-152)."""
+        fuzzer = HeaderFuzzer()
+
+        # Add SeriesNumber field (IS VR - Integer String)
+        sample_dicom_dataset.SeriesNumber = "1"
+
+        # Run multiple times to hit different invalid values
+        # Some values may raise ValueError during assignment
+        success_count = 0
+        for _ in range(20):
+            try:
+                mutated = fuzzer._invalid_vr_values(sample_dicom_dataset.copy())
+                assert mutated is not None
+                success_count += 1
+            except ValueError:
+                # Some invalid values raise exceptions
+                pass
+        # At least some mutations should succeed
+        assert success_count > 0
+
+    def test_invalid_vr_with_slice_thickness(self, sample_dicom_dataset):
+        """Test invalid VR with SliceThickness field (lines 156-163)."""
+        fuzzer = HeaderFuzzer()
+
+        # Add SliceThickness field (DS VR - Decimal String)
+        sample_dicom_dataset.SliceThickness = "5.0"
+
+        # Run multiple times to hit different invalid values
+        # Some values may raise ValueError during assignment
+        success_count = 0
+        for _ in range(20):
+            try:
+                mutated = fuzzer._invalid_vr_values(sample_dicom_dataset.copy())
+                assert mutated is not None
+                success_count += 1
+            except ValueError:
+                # Some invalid values raise exceptions
+                pass
+        # At least some mutations should succeed
+        assert success_count > 0
+
+    def test_boundary_values_with_patient_age(self, sample_dicom_dataset):
+        """Test boundary values with PatientAge field (lines 195-202)."""
+        fuzzer = HeaderFuzzer()
+
+        # Add PatientAge field
+        sample_dicom_dataset.PatientAge = "050Y"
+
+        # Run multiple times to hit different boundary ages
+        for _ in range(10):
+            mutated = fuzzer._boundary_values(sample_dicom_dataset.copy())
+            assert mutated is not None
+            # PatientAge should be mutated to boundary value
+            if hasattr(mutated, "PatientAge"):
+                assert isinstance(mutated.PatientAge, str)
+                # Check format: ###X where X is Y, M, W, or D
+                assert len(mutated.PatientAge) == 4
+
     def test_missing_required_tags_all_types(self, sample_dicom_dataset):
         """Test removal of different required tag types."""
         fuzzer = HeaderFuzzer()
