@@ -392,7 +392,7 @@ class DicomMutator:
         mutation_record = MutationRecord(
             strategy_name=strategy.get_strategy_name(),
             severity=severity,
-            description=f"Applied {strategy.get_strategy_name()} with {severity.value} severity",
+            description=f"Applied {strategy.get_strategy_name()} with {severity.value} severity",  # noqa: E501
             success=success,
             error_message=error,
         )
