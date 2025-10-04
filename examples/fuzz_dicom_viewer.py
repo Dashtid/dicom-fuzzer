@@ -40,7 +40,8 @@ from core.generator import DICOMGenerator
 from core.mutator import DicomMutator
 from core.types import MutationSeverity
 from core.validator import DicomValidator
-from strategies.dictionary_fuzzer import DictionaryFuzzer
+
+# from strategies.dictionary_fuzzer import DictionaryFuzzer  # noqa: F401
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -93,6 +94,16 @@ class ViewerFuzzer:
             "viewer_crashes": 0,
             "viewer_hangs": 0,
             "viewer_success": 0,
+            "write_failures": 0,
+            "validation_failures": 0,
+        }
+
+        # Detailed failure tracking
+        self.failures = {
+            "write_failures": [],  # Files that failed to write after mutation
+            "validation_failures": [],  # Files that failed validation
+            "viewer_crashes": [],  # Files that crashed the viewer
+            "viewer_hangs": [],  # Files that hung the viewer
         }
 
     def find_dicom_files(self, limit: Optional[int] = None) -> List[Path]:
@@ -160,6 +171,15 @@ class ViewerFuzzer:
             except Exception as write_error:
                 # Some mutations may be too corrupt to write - that's okay
                 self.stats["files_fuzzed"] += 1  # Still count as fuzzed
+                self.stats["write_failures"] += 1
+                self.failures["write_failures"].append(
+                    {
+                        "source_file": str(source_file),
+                        "severity": severity.value,
+                        "error": str(write_error),
+                        "timestamp": timestamp,
+                    }
+                )
                 logger.warning(f"Could not write fuzzed file: {write_error}")
                 return None
 
@@ -217,6 +237,15 @@ class ViewerFuzzer:
                         f.write(f"STDOUT:\n{stdout.decode(errors='ignore')}\n")
                         f.write(f"STDERR:\n{stderr.decode(errors='ignore')}\n")
 
+                    # Track crash details
+                    self.failures["viewer_crashes"].append(
+                        {
+                            "file": str(dicom_file),
+                            "return_code": proc.returncode,
+                            "crash_log": str(crash_log),
+                        }
+                    )
+
                     logger.warning(f"CRASH detected: {dicom_file}")
                 else:
                     result["status"] = "success"
@@ -233,6 +262,15 @@ class ViewerFuzzer:
                 with open(hang_log, "w") as f:
                     f.write(f"File: {dicom_file}\n")
                     f.write(f"Viewer hung after {self.timeout}s timeout\n")
+
+                # Track hang details
+                self.failures["viewer_hangs"].append(
+                    {
+                        "file": str(dicom_file),
+                        "timeout": self.timeout,
+                        "hang_log": str(hang_log),
+                    }
+                )
 
                 logger.warning(f"HANG detected: {dicom_file}")
 
@@ -275,7 +313,7 @@ class ViewerFuzzer:
             # Generate fuzzed file
             fuzzed_file = self.generate_fuzzed_file(source_file, severity)
             if not fuzzed_file:
-                logger.warning(f"  Skipping - failed to generate fuzzed file")
+                logger.warning("  Skipping - failed to generate fuzzed file")
                 continue
 
             # Test viewer if specified
@@ -294,9 +332,10 @@ class ViewerFuzzer:
         logger.info(f"Files Processed: {self.stats['files_processed']}")
         logger.info(f"Files Fuzzed: {self.stats['files_fuzzed']}")
         logger.info(f"Files Generated: {self.stats['files_generated']}")
+        logger.info(f"Write Failures: {self.stats['write_failures']}")
 
         if self.viewer_path:
-            logger.info(f"\nViewer Testing Results:")
+            logger.info("\nViewer Testing Results:")
             logger.info(f"  Success: {self.stats['viewer_success']}")
             logger.info(f"  Crashes: {self.stats['viewer_crashes']}")
             logger.info(f"  Hangs: {self.stats['viewer_hangs']}")
@@ -312,8 +351,124 @@ class ViewerFuzzer:
                 logger.info(f"  Crash Rate: {crash_rate:.1f}%")
                 logger.info(f"  Hang Rate: {hang_rate:.1f}%")
 
+        # Print detailed failure information
+        if self.stats["write_failures"] > 0:
+            logger.info(
+                f"\nWrite Failures Details ({self.stats['write_failures']} files):"
+            )
+            for i, failure in enumerate(self.failures["write_failures"][:10], 1):
+                logger.info(f"  {i}. {Path(failure['source_file']).name}")
+                logger.info(f"     Severity: {failure['severity']}")
+                logger.info(f"     Error: {failure['error'][:100]}...")
+
+        if self.stats["viewer_crashes"] > 0:
+            logger.info(f"\nViewer Crashes ({self.stats['viewer_crashes']} files):")
+            for i, crash in enumerate(self.failures["viewer_crashes"][:10], 1):
+                logger.info(f"  {i}. {Path(crash['file']).name}")
+                logger.info(f"     Return Code: {crash['return_code']}")
+                logger.info(f"     Log: {crash['crash_log']}")
+
+        if self.stats["viewer_hangs"] > 0:
+            logger.info(f"\nViewer Hangs ({self.stats['viewer_hangs']} files):")
+            for i, hang in enumerate(self.failures["viewer_hangs"][:10], 1):
+                logger.info(f"  {i}. {Path(hang['file']).name}")
+                logger.info(f"     Timeout: {hang['timeout']}s")
+                logger.info(f"     Log: {hang['hang_log']}")
+
         logger.info(f"\nOutput Directory: {self.output_dir}")
         logger.info("=" * 70)
+
+        # Save JSON report
+        self.save_json_report()
+
+    def save_json_report(self):
+        """Save fuzzing results to JSON report."""
+        import json
+        from datetime import datetime
+
+        # Create report data
+        report = {
+            "timestamp": datetime.now().isoformat(),
+            "configuration": {
+                "input_dir": str(self.input_dir),
+                "output_dir": str(self.output_dir),
+                "viewer_path": str(self.viewer_path) if self.viewer_path else None,
+                "timeout": self.timeout,
+            },
+            "statistics": self.stats.copy(),
+            "failures": {
+                "write_failures": self.failures["write_failures"],
+                "viewer_crashes": self.failures["viewer_crashes"],
+                "viewer_hangs": self.failures["viewer_hangs"],
+            },
+        }
+
+        # Calculate rates if viewer was used
+        if self.viewer_path:
+            total_tests = (
+                self.stats["viewer_success"]
+                + self.stats["viewer_crashes"]
+                + self.stats["viewer_hangs"]
+            )
+            if total_tests > 0:
+                report["statistics"]["crash_rate"] = (
+                    self.stats["viewer_crashes"] / total_tests
+                ) * 100
+                report["statistics"]["hang_rate"] = (
+                    self.stats["viewer_hangs"] / total_tests
+                ) * 100
+
+        # Save to reports directory with organized structure
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Create reports subdirectories
+        reports_dir = Path("reports")
+        json_dir = reports_dir / "json"
+        html_dir = reports_dir / "html"
+        json_dir.mkdir(parents=True, exist_ok=True)
+        html_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save JSON report
+        json_path = json_dir / f"fuzzing_report_{timestamp}.json"
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2)
+
+        # Generate HTML report
+        html_path = html_dir / f"fuzzing_report_{timestamp}.html"
+        self._generate_html_report(report, html_path)
+
+        logger.info(f"\nJSON report: {json_path}")
+        logger.info(f"HTML report: {html_path}")
+
+    def _generate_html_report(self, report: dict, output_path: Path):
+        """Generate HTML report from fuzzing results."""
+        import json
+        import subprocess
+        import sys
+
+        # Use the HTML report generator tool
+        tools_dir = Path(__file__).parent.parent / "tools"
+        generator = tools_dir / "create_html_report.py"
+
+        if generator.exists():
+            # Create temp JSON for the generator
+            temp_json = (
+                output_path.parent.parent / "json" / f"temp_{output_path.stem}.json"
+            )
+            with open(temp_json, "w", encoding="utf-8") as f:
+                json.dump(report, f, indent=2)
+
+            try:
+                subprocess.run(
+                    [sys.executable, str(generator), str(temp_json), str(output_path)],
+                    check=True,
+                    capture_output=True,
+                )
+                temp_json.unlink()  # Clean up temp file
+            except Exception as e:
+                logger.warning(f"Could not generate HTML report: {e}")
+        else:
+            logger.warning(f"HTML generator not found at {generator}")
 
 
 def main():
