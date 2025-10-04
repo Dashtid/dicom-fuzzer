@@ -340,6 +340,19 @@ class TestTagValuesValidation:
         assert result.is_valid is False
         assert any("null" in e.lower() for e in result.errors)
 
+    def test_validate_empty_tag_values(self):
+        """Test validation with empty tag values (line 327)."""
+        validator = DicomValidator()
+        dataset = Dataset()
+        dataset.PatientName = ""  # Empty string
+        dataset.PatientID = None  # None value
+
+        result = validator.validate(dataset, check_values=True)
+
+        # Should handle empty values gracefully (skip them)
+        # No warnings or errors about the empty values themselves
+        assert result is not None
+
     def test_validate_trailing_null_allowed(self):
         """Test that trailing null byte is allowed (DICOM padding)."""
         validator = DicomValidator()
@@ -526,6 +539,25 @@ class TestFileValidation:
         )
         assert has_error
         assert has_parse_or_structure_error
+
+    def test_validate_file_parse_exception(self, temp_dir):
+        """Test file validation with parse exception (lines 257-261)."""
+        from unittest.mock import patch
+
+        validator = DicomValidator()
+        test_file = temp_dir / "test.dcm"
+        test_file.write_bytes(b"dummy")
+
+        # Mock dcmread to raise an exception
+        with patch("pydicom.dcmread") as mock_dcmread:
+            mock_dcmread.side_effect = Exception("Parse error")
+
+            result, dataset = validator.validate_file(test_file, parse_dataset=True)
+
+            # Should catch exception and return error
+            assert result.is_valid is False
+            assert any("Failed to parse DICOM file" in e for e in result.errors)
+            assert dataset is None
 
     def test_validate_valid_dicom_file(self, sample_dicom_file):
         """Test validation with valid DICOM file."""

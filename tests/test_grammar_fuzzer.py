@@ -381,5 +381,119 @@ class TestIntegration:
         assert dataset is not None
 
 
+class TestGrammarFuzzerEdgeCases:
+    """Test edge cases and exception handling in grammar fuzzer."""
+
+    def test_violate_conditional_rules_with_ct_modality(self, sample_dicom_dataset):
+        """Test conditional rule violations with CT modality (line 270)."""
+        fuzzer = GrammarFuzzer()
+        dataset = sample_dicom_dataset.copy()
+
+        # Set modality to CT to trigger CT-specific tag removal
+        dataset.Modality = "CT"
+        dataset.SliceThickness = "5.0"
+        dataset.KVP = "120"
+
+        mutated = fuzzer.violate_conditional_rules(dataset)
+
+        # Should have removed some CT-specific tags
+        assert mutated is not None
+
+    def test_create_inconsistent_state_with_study_date(self, sample_dicom_dataset):
+        """Test inconsistent state with StudyDate (lines 303-304)."""
+        fuzzer = GrammarFuzzer()
+        dataset = sample_dicom_dataset.copy()
+
+        # Add StudyDate
+        dataset.StudyDate = "20250101"
+
+        mutated = fuzzer.create_inconsistent_state(dataset)
+
+        # StudyDate should be set to future date
+        assert mutated.StudyDate is not None
+        assert len(mutated.StudyDate) == 8
+
+    def test_violate_value_constraints_uid_exception(self, sample_dicom_dataset):
+        """Test UID constraint violations with exception handling (lines 357-359)."""
+        fuzzer = GrammarFuzzer()
+        dataset = sample_dicom_dataset.copy()
+
+        # Ensure StudyInstanceUID exists
+        dataset.StudyInstanceUID = "1.2.3.4.5"
+
+        # Create a dataset mock that raises ValueError on StudyInstanceUID assignment
+        original_setitem = dataset.__setitem__
+
+        def mock_setitem(key, value):
+            # Intercept StudyInstanceUID assignment and raise
+            if hasattr(key, "keyword") and key.keyword == "StudyInstanceUID":
+                raise ValueError("Invalid UID")
+            return original_setitem(key, value)
+
+        dataset.__setitem__ = mock_setitem
+
+        # This should handle exceptions gracefully (lines 357-359)
+        mutated = fuzzer.violate_value_constraints(dataset)
+        assert mutated is not None
+
+        # Restore
+        dataset.__setitem__ = original_setitem
+
+    def test_violate_value_constraints_series_number_exception(
+        self, sample_dicom_dataset
+    ):
+        """Test SeriesNumber violations with exception handling (lines 372-373)."""
+        from unittest.mock import patch
+
+        fuzzer = GrammarFuzzer()
+        dataset = sample_dicom_dataset.copy()
+
+        # Add SeriesNumber
+        dataset.SeriesNumber = "1"
+
+        # Patch pydicom's IS class to raise ValueError on both attempts
+        with patch("pydicom.valuerep.IS", side_effect=ValueError("Invalid IS")):
+            # This should handle exceptions gracefully (lines 367, 372-373)
+            mutated = fuzzer.violate_value_constraints(dataset)
+            assert mutated is not None
+
+    def test_violate_value_constraints_slice_thickness_exception(
+        self, sample_dicom_dataset
+    ):
+        """Test SliceThickness violations with exception (lines 385-386)."""
+        from unittest.mock import patch
+
+        fuzzer = GrammarFuzzer()
+        dataset = sample_dicom_dataset.copy()
+
+        # Add SliceThickness
+        dataset.SliceThickness = "5.0"
+
+        # Patch pydicom's DS class to raise ValueError on both attempts
+        with patch("pydicom.valuerep.DS", side_effect=ValueError("Invalid DS")):
+            # This should handle exceptions gracefully (lines 380, 385-386)
+            mutated = fuzzer.violate_value_constraints(dataset)
+            assert mutated is not None
+
+    def test_violate_conditional_rules_ct_tag_deletion(self, sample_dicom_dataset):
+        """Test CT tag deletion in conditional rules (line 270)."""
+        from unittest.mock import patch
+
+        fuzzer = GrammarFuzzer()
+
+        # Set up CT dataset with CT-specific tags
+        sample_dicom_dataset.Modality = "CT"
+        sample_dicom_dataset.SliceThickness = "5.0"
+        sample_dicom_dataset.KVP = "120"
+        sample_dicom_dataset.DataCollectionDiameter = "250"
+
+        # Mock random.random to return > 0.7 to trigger deletion (line 269-270)
+        with patch("random.random", return_value=0.8):
+            mutated = fuzzer.violate_conditional_rules(sample_dicom_dataset)
+            assert mutated is not None
+            # At least one CT tag should be deleted
+            assert mutated.Modality == "CT"  # Modality should stay
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

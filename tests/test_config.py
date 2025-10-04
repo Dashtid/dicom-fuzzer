@@ -396,3 +396,38 @@ class TestPydanticConfiguration:
 
             assert test_path.exists()
             assert test_path.is_dir()
+
+    def test_settings_get_summary(self):
+        """Test Settings.get_summary method (line 257)."""
+        from core.config import Settings
+
+        settings = Settings()
+        summary = settings.get_summary()
+
+        # Check that summary contains expected sections
+        assert "DICOM-Fuzzer Configuration" in summary
+        assert "Environment:" in summary
+        assert "Debug Mode:" in summary
+        assert "Fuzzing:" in summary
+
+    def test_load_profile(self):
+        """Test load_profile function (lines 328-329)."""
+        import os
+
+        from core.config import load_profile
+
+        # Save original environment
+        original_env = os.environ.get("ENVIRONMENT")
+
+        try:
+            # Test loading development profile
+            settings = load_profile("development")
+
+            assert settings is not None
+            assert os.environ["ENVIRONMENT"] == "development"
+        finally:
+            # Restore original environment
+            if original_env:
+                os.environ["ENVIRONMENT"] = original_env
+            elif "ENVIRONMENT" in os.environ:
+                del os.environ["ENVIRONMENT"]

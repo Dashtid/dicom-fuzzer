@@ -315,5 +315,76 @@ class TestIntegration:
             assert field in summary
 
 
+class TestFuzzingMetricsEdgeCases:
+    """Test edge cases for FuzzingMetrics."""
+
+    def test_estimated_time_remaining_zero_files(self):
+        """Test estimation with zero files generated (line 79)."""
+        metrics = FuzzingMetrics()
+        metrics.files_generated = 0
+        metrics.total_duration = 0.0
+
+        # Should return 0 when no files generated
+        remaining = metrics.estimated_time_remaining(target=100)
+        assert remaining == 0.0
+
+
+class TestProfileFunctionDecorator:
+    """Test profile_function decorator."""
+
+    def test_profile_function_decorator(self):
+        """Test profile_function decorator execution (lines 309-322)."""
+        # Capture printed output
+        import io
+        import sys
+
+        from core.profiler import profile_function
+
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+
+        @profile_function("test_strategy")
+        def sample_function(x, y):
+            time.sleep(0.01)
+            return x + y
+
+        result = sample_function(2, 3)
+
+        # Restore stdout
+        sys.stdout = sys.__stdout__
+
+        # Check result is correct
+        assert result == 5
+
+        # Check profiling output was printed
+        output = captured_output.getvalue()
+        assert "[PROFILE]" in output
+        assert "test_strategy" in output
+        assert "sample_function" in output
+
+    def test_profile_function_with_exception(self):
+        """Test profile_function decorator with exception (lines 309-322)."""
+        from core.profiler import profile_function
+
+        @profile_function("error_strategy")
+        def failing_function():
+            raise ValueError("Test error")
+
+        # Should still raise the exception
+        with pytest.raises(ValueError, match="Test error"):
+            failing_function()
+
+    def test_profile_function_return_value(self):
+        """Test profile_function preserves return value (lines 309-322)."""
+        from core.profiler import profile_function
+
+        @profile_function("return_test")
+        def return_dict():
+            return {"key": "value", "number": 42}
+
+        result = return_dict()
+        assert result == {"key": "value", "number": 42}
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

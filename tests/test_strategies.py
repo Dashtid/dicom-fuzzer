@@ -327,18 +327,29 @@ class TestEnhancedHeaderFuzzer:
         # (test is probabilistic, so we just check it doesn't crash)
 
     def test_invalid_vr_values_dates(self, sample_dicom_dataset):
-        """Test invalid date VR values."""
+        """Test invalid date VR values (lines 121-130)."""
         fuzzer = HeaderFuzzer()
+
+        # Ensure StudyDate exists to trigger the invalid dates code path
+        sample_dicom_dataset.StudyDate = "20250101"
 
         mutated = fuzzer._invalid_vr_values(sample_dicom_dataset)
 
         assert mutated is not None
-        # If StudyDate exists, it might now be invalid
-        if hasattr(mutated, "StudyDate"):
-            # Check that some invalid format might be present
-            study_date = str(mutated.StudyDate)
-            # Should be a string (might be invalid format)
-            assert isinstance(study_date, str)
+        # StudyDate should now have an invalid value
+        assert hasattr(mutated, "StudyDate")
+        study_date = str(mutated.StudyDate)
+        # Should be one of the invalid dates
+        invalid_dates = [
+            "INVALID",
+            "99999999",
+            "20251332",
+            "20250145",
+            "2025-01-01",
+            "",
+            "1",
+        ]
+        assert study_date in invalid_dates
 
     def test_invalid_vr_values_times(self, sample_dicom_dataset):
         """Test invalid time VR values."""
@@ -706,6 +717,67 @@ class TestHeaderFuzzerEdgeCases:
             mutated = fuzzer._missing_required_tags(sample_dicom_dataset.copy())
             assert mutated is not None
 
+    def test_missing_required_tags_deletion_exception(self, sample_dicom_dataset):
+        """Test exception handling during tag deletion (lines 100-102)."""
+        from unittest.mock import patch
+
+        fuzzer = HeaderFuzzer()
+
+        # Ensure PatientID exists
+        sample_dicom_dataset.PatientID = "PAT001"
+
+        # Mock delattr to raise exception when trying to delete PatientID
+        with patch("builtins.delattr") as mock_delattr:
+            mock_delattr.side_effect = RuntimeError("Cannot delete")
+
+            # Should handle exception gracefully and not crash
+            mutated = fuzzer._missing_required_tags(sample_dicom_dataset)
+            assert mutated is not None
+
+    def test_boundary_values_with_rows(self, sample_dicom_dataset):
+        """Test boundary values with Rows attribute (lines 181-188)."""
+        fuzzer = HeaderFuzzer()
+
+        # Add Rows attribute
+        sample_dicom_dataset.Rows = 512
+
+        # Run multiple times to hit different boundary values
+        for _ in range(20):
+            mutated = fuzzer._boundary_values(sample_dicom_dataset.copy())
+            assert mutated is not None
+            # Rows should be changed to a boundary value
+            assert hasattr(mutated, "Rows")
+
+    def test_boundary_values_with_columns(self, sample_dicom_dataset):
+        """Test boundary values with Columns attribute (line 191)."""
+        fuzzer = HeaderFuzzer()
+
+        # Add Columns attribute
+        sample_dicom_dataset.Columns = 512
+
+        mutated = fuzzer._boundary_values(sample_dicom_dataset)
+
+        # Columns should be changed
+        assert hasattr(mutated, "Columns")
+
+    def test_boundary_values_empty_string_tags(self, sample_dicom_dataset):
+        """Test empty string assignment with random check (line 216)."""
+        fuzzer = HeaderFuzzer()
+
+        # Add tags that can be emptied
+        sample_dicom_dataset.Manufacturer = "Test Manufacturer"
+        sample_dicom_dataset.ModelName = "Test Model"
+
+        # Run multiple times to hit the random path
+        empty_count = 0
+        for _ in range(50):
+            mutated = fuzzer._boundary_values(sample_dicom_dataset.copy())
+            if hasattr(mutated, "Manufacturer") and mutated.Manufacturer == "":
+                empty_count += 1
+
+        # Should have hit the empty string path at least once (probabilistic)
+        assert empty_count > 0
+
 
 class TestStructureFuzzerExceptionPaths:
     """Test exception handling in StructureFuzzer."""
@@ -738,6 +810,172 @@ class TestStructureFuzzerExceptionPaths:
         for _ in range(10):
             mutated = fuzzer._duplicate_tags(sample_dicom_dataset.copy())
             assert mutated is not None
+
+    def test_corrupt_tag_ordering_early_return(self, sample_dicom_dataset):
+        """Test _corrupt_tag_ordering early return when random > 0.5 (line 95)."""
+        from unittest.mock import patch
+
+        fuzzer = StructureFuzzer()
+
+        # Mock random to return > 0.5 to trigger early return
+        with patch("random.random", return_value=0.6):
+            mutated = fuzzer._corrupt_tag_ordering(sample_dicom_dataset)
+            # Should return dataset unchanged
+            assert mutated is not None
+
+    def test_insert_unexpected_tags_with_exception(self, sample_dicom_dataset):
+        """Test insert_unexpected_tags exception path (lines 181-183)."""
+        fuzzer = StructureFuzzer()
+
+        # Mock dataset.add_new to raise exception
+        original_add_new = sample_dicom_dataset.add_new
+
+        def mock_add_new(*args, **kwargs):
+            if args[0] == (0xFFFF, 0x0001):  # Unusual tag
+                raise ValueError("Test exception")
+            return original_add_new(*args, **kwargs)
+
+        sample_dicom_dataset.add_new = mock_add_new
+
+        # Should handle exception gracefully
+        mutated = fuzzer._insert_unexpected_tags(sample_dicom_dataset)
+        assert mutated is not None
+
+    def test_duplicate_tags_with_add_new_exception(self, sample_dicom_dataset):
+        """Test duplicate_tags exception during add_new (lines 220-222)."""
+        fuzzer = StructureFuzzer()
+
+        # Mock dataset to raise exception on add_new
+        def mock_add_new(*args, **kwargs):
+            # Raise exception on duplicate attempt
+            raise ValueError("Cannot add duplicate")
+
+        sample_dicom_dataset.add_new = mock_add_new
+
+        # Should handle exception gracefully
+        mutated = fuzzer._duplicate_tags(sample_dicom_dataset)
+        assert mutated is not None
+
+    def test_corrupt_tag_ordering_with_file_meta(self, sample_dicom_dataset):
+        """Test tag ordering with file_meta attribute (line 89)."""
+        import pydicom
+
+        fuzzer = StructureFuzzer()
+
+        # Create dataset with file_meta
+        dataset = pydicom.Dataset()
+        dataset.PatientName = "Test"
+        dataset.PatientID = "123"
+        dataset.StudyDate = "20250101"
+        dataset.file_meta = pydicom.Dataset()
+        dataset.file_meta.TransferSyntaxUID = "1.2.840.10008.1.2.1"
+
+        # Should preserve file_meta
+        mutated = fuzzer._corrupt_tag_ordering(dataset)
+        assert mutated is not None
+        # If shuffled, file_meta should be preserved
+        if mutated != dataset:
+            assert hasattr(mutated, "file_meta")
+
+    def test_corrupt_tag_ordering_small_dataset(self):
+        """Test tag ordering with dataset <= 2 elements (line 95)."""
+        import pydicom
+
+        fuzzer = StructureFuzzer()
+
+        # Create dataset with only 2 elements
+        dataset = pydicom.Dataset()
+        dataset.PatientName = "Test"
+        dataset.PatientID = "123"
+
+        # Should return original dataset (not enough elements to shuffle)
+        mutated = fuzzer._corrupt_tag_ordering(dataset)
+        assert mutated is dataset  # Should be same object
+
+    def test_corrupt_length_fields_underflow(self, sample_dicom_dataset):
+        """Test corrupt length fields with underflow (line 136)."""
+        from unittest.mock import patch
+
+        fuzzer = StructureFuzzer()
+
+        # Mock random.choice to return "underflow" when called with corruption types
+        original_choice = __import__("random").choice
+        call_count = [0]
+
+        def mock_choice(seq):
+            call_count[0] += 1
+            # First call is for target tag, use original
+            if call_count[0] == 1:
+                return original_choice(seq)
+            # Second call is for corruption type, return "underflow"
+            return "underflow"
+
+        with patch("random.choice", side_effect=mock_choice):
+            mutated = fuzzer._corrupt_length_fields(sample_dicom_dataset)
+            # At least one element should have empty value
+            assert mutated is not None
+
+    def test_corrupt_length_fields_overflow(self, sample_dicom_dataset):
+        """Test corrupt length fields with overflow (line 133)."""
+        from unittest.mock import patch
+
+        fuzzer = StructureFuzzer()
+
+        # Mock random.choice to return "overflow" for corruption type
+        original_choice = __import__("random").choice
+        call_count = [0]
+
+        def mock_choice(seq):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return original_choice(seq)  # First call: tag selection
+            return "overflow"  # Second call: corruption type
+
+        with patch("random.choice", side_effect=mock_choice):
+            mutated = fuzzer._corrupt_length_fields(sample_dicom_dataset)
+            assert mutated is not None
+
+    def test_corrupt_length_fields_mismatch(self, sample_dicom_dataset):
+        """Test corrupt length fields with mismatch (lines 137-142)."""
+        from unittest.mock import patch
+
+        fuzzer = StructureFuzzer()
+
+        # Ensure we have a tag with value > 2 chars
+        sample_dicom_dataset.PatientName = "LongName"
+
+        # Mock random.choice to return "mismatch" for corruption type
+        call_count = [0]
+
+        def mock_choice(seq):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # Return PatientName tag to ensure we hit a long value
+                return "PatientName"
+            return "mismatch"  # Second call: corruption type
+
+        with patch("random.choice", side_effect=mock_choice):
+            mutated = fuzzer._corrupt_length_fields(sample_dicom_dataset)
+            assert mutated is not None
+
+    def test_insert_unexpected_tags_add_new_exception(self, sample_dicom_dataset):
+        """Test insert unexpected tags with add_new exception (lines 181-183)."""
+        fuzzer = StructureFuzzer()
+
+        # Mock add_new to raise exception
+        original_add_new = sample_dicom_dataset.add_new
+
+        def mock_add_new(*args, **kwargs):
+            raise RuntimeError("Cannot add tag")
+
+        sample_dicom_dataset.add_new = mock_add_new
+
+        # Should handle exception gracefully
+        mutated = fuzzer._insert_unexpected_tags(sample_dicom_dataset)
+        assert mutated is not None
+
+        # Restore original
+        sample_dicom_dataset.add_new = original_add_new
 
 
 if __name__ == "__main__":

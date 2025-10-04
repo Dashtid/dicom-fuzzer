@@ -119,6 +119,14 @@ class TestSeverityDetermination:
             severity = analyzer._determine_severity(crash_type, e)
             assert severity == CrashSeverity.CRITICAL
 
+    def test_segfault_severity(self):
+        """Test SEGFAULT crash type is CRITICAL (line 219)."""
+        analyzer = CrashAnalyzer(crash_dir=tempfile.mkdtemp())
+
+        # Directly test _determine_severity with SEGFAULT type
+        severity = analyzer._determine_severity(CrashType.SEGFAULT, ValueError("test"))
+        assert severity == CrashSeverity.CRITICAL
+
 
 class TestCrashDeduplication:
     """Test crash deduplication via hashing."""
@@ -278,7 +286,7 @@ class TestCrashRecording:
                 assert len(analyzer.crash_hashes) == 1
 
     def test_record_crash_duplicate(self):
-        """Test recording duplicate crash returns None."""
+        """Test recording duplicate crash returns None (line 346)."""
         with tempfile.TemporaryDirectory() as tmpdir:
             analyzer = CrashAnalyzer(crash_dir=tmpdir)
 
@@ -289,14 +297,28 @@ class TestCrashRecording:
                 report1 = analyzer.record_crash(e, "test1.dcm")
                 assert report1 is not None
 
-            # Record same crash again (same stack trace)
+            # Manually add crash hash to ensure duplicate detection
+            first_hash = report1.crash_hash
+            analyzer.crash_hashes.add(first_hash)
+
+            # Mock is_unique_crash to return False
+            original_is_unique = analyzer.is_unique_crash
+
+            def mock_is_unique(crash_hash):
+                return False  # Force duplicate
+
+            analyzer.is_unique_crash = mock_is_unique
+
+            # Record same crash again (will be detected as duplicate)
             try:
                 raise ValueError("Error")
             except Exception as e:
-                analyzer.record_crash(e, "test2.dcm")
+                report2 = analyzer.record_crash(e, "test2.dcm")
                 # Should be None (duplicate)
-                # Note: May not be None due to different stack traces in test
-                # This is probabilistic based on execution context
+                assert report2 is None
+
+            # Restore original method
+            analyzer.is_unique_crash = original_is_unique
 
     def test_record_multiple_unique_crashes(self):
         """Test recording multiple unique crashes."""

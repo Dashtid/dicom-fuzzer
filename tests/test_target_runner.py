@@ -390,6 +390,55 @@ class TestGetSummary:
 
         assert "... and 10 more" in summary  # Only shows first 10
 
+    def test_get_summary_with_hangs(self, target_runner, tmp_path):
+        """Test summary with hangs detected (lines 294-298)."""
+        results = {result_type: [] for result_type in ExecutionStatus}
+
+        # Add some hangs
+        for i in range(5):
+            test_file = tmp_path / f"hang_{i}.dcm"
+            test_file.write_text("hang")
+            results[ExecutionStatus.HANG].append(
+                ExecutionResult(
+                    test_file=test_file,
+                    result=ExecutionStatus.HANG,
+                    exit_code=None,
+                    execution_time=30.0,
+                    stdout="",
+                    stderr="Timeout",
+                )
+            )
+
+        summary = target_runner.get_summary(results)
+
+        assert "Hangs/Timeouts:   5" in summary
+        assert "HANGS DETECTED:" in summary
+        assert "hang_0.dcm" in summary
+
+    def test_get_summary_with_many_hangs(self, target_runner, tmp_path):
+        """Test summary truncates long hang lists (lines 297-300)."""
+        results = {result_type: [] for result_type in ExecutionStatus}
+
+        # Add many hangs (more than 10)
+        for i in range(15):
+            test_file = tmp_path / f"hang_{i}.dcm"
+            test_file.write_text("hang")
+            results[ExecutionStatus.HANG].append(
+                ExecutionResult(
+                    test_file=test_file,
+                    result=ExecutionStatus.HANG,
+                    exit_code=None,
+                    execution_time=30.0,
+                    stdout="",
+                    stderr="",
+                )
+            )
+
+        summary = target_runner.get_summary(results)
+
+        assert "HANGS DETECTED:" in summary
+        assert "... and 5 more" in summary  # Shows first 10, mentions 5 more
+
 
 class TestIntegration:
     """Integration tests."""

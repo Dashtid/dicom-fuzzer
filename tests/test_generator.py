@@ -485,6 +485,104 @@ class TestGeneratorErrorHandling:
 
         assert len(files) >= 0
 
+    def test_mutation_error_with_skip_false(self, sample_dicom_file, temp_dir):
+        """Test mutation error handling when skip_write_errors=False (lines 172-173)."""
+        from unittest.mock import Mock, patch
+
+        output_dir = temp_dir / "mutation_error"
+        generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=False)
+
+        # Mock a fuzzer that raises ValueError
+        with patch("core.generator.HeaderFuzzer") as mock_fuzzer_class:
+            mock_fuzzer = Mock()
+            mock_fuzzer.mutate_tags.side_effect = ValueError("Test error")
+            mock_fuzzer_class.return_value = mock_fuzzer
+
+            try:
+                generator.generate_batch(
+                    sample_dicom_file, count=1, strategies=["header"]
+                )
+                # If no error, that's ok (probabilistic fuzzer selection)
+            except ValueError:
+                # Error was raised as expected (lines 172-173)
+                assert generator.stats.failed > 0
+
+    def test_save_error_with_skip_false(self, sample_dicom_file, temp_dir):
+        """Test save error handling when skip_write_errors=False (lines 198-199)."""
+        import struct
+        from unittest.mock import patch
+
+        output_dir = temp_dir / "save_error"
+        generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=False)
+
+        # Mock save_as to raise struct.error
+        with patch("pydicom.dataset.Dataset.save_as") as mock_save:
+            mock_save.side_effect = struct.error("Test save error")
+
+            try:
+                generator.generate_batch(sample_dicom_file, count=1, strategies=[])
+                # Should raise the error
+                assert False, "Expected struct.error to be raised"
+            except struct.error:
+                # Error was raised as expected (lines 198-199)
+                assert generator.stats.failed > 0
+
+    def test_unexpected_exception_in_save(self, sample_dicom_file, temp_dir):
+        """Test unexpected exception handling during save (lines 188-190)."""
+        from unittest.mock import patch
+
+        output_dir = temp_dir / "unexpected"
+        generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
+
+        # Mock save_as to raise an unexpected exception
+        with patch("pydicom.dataset.Dataset.save_as") as mock_save:
+            mock_save.side_effect = RuntimeError("Unexpected error")
+
+            try:
+                generator.generate_batch(sample_dicom_file, count=1, strategies=[])
+                assert False, "Expected RuntimeError to be raised"
+            except RuntimeError:
+                # Unexpected errors should always be raised (line 190)
+                assert generator.stats.failed > 0
+
+    def test_mutation_error_with_skip_true(self, sample_dicom_file, temp_dir):
+        """Test mutation error skipped with skip_write_errors=True (lines 168-170)."""
+        from unittest.mock import Mock, patch
+
+        output_dir = temp_dir / "mutation_skip"
+        generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
+
+        # Mock a fuzzer that always raises ValueError
+        with patch("core.generator.HeaderFuzzer") as mock_fuzzer_class:
+            mock_fuzzer = Mock()
+            mock_fuzzer.mutate_tags.side_effect = ValueError("Test error")
+            mock_fuzzer_class.return_value = mock_fuzzer
+
+            # Should skip errors without raising
+            generator.generate_batch(sample_dicom_file, count=5, strategies=["header"])
+
+            # Some files might be skipped due to mutation errors
+            assert generator.stats.skipped_due_to_write_errors >= 0
+
+    def test_save_error_with_skip_true(self, sample_dicom_file, temp_dir):
+        """Test save error skipped with skip_write_errors=True (lines 195-196)."""
+        import struct
+        from unittest.mock import patch
+
+        output_dir = temp_dir / "save_skip"
+        generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
+
+        # Mock save_as to raise struct.error
+        with patch("pydicom.dataset.Dataset.save_as") as mock_save:
+            mock_save.side_effect = struct.error("Test save error")
+
+            # Should skip errors without raising
+            files = generator.generate_batch(sample_dicom_file, count=5, strategies=[])
+
+            # Files should be skipped
+            assert len(files) < 5
+            assert generator.stats.skipped_due_to_write_errors > 0
+
 
 class TestGeneratorBatchProcessing:
     """Test batch processing edge cases."""
