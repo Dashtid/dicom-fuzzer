@@ -16,7 +16,7 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from pydicom.dataset import Dataset
 
-from core.exceptions import SecurityViolationError
+from core.exceptions import ParsingError, SecurityViolationError
 from core.parser import DicomParser
 
 
@@ -315,6 +315,162 @@ class TestIntegration:
         assert parser2.dataset is not None
         # Should be independent instances
         assert parser1 is not parser2
+
+
+class TestParserErrorPaths:
+    """Test error handling paths in DicomParser."""
+
+    def test_parse_with_invalid_dicom_data(self, tmp_path):
+        """Test parsing completely invalid DICOM data."""
+        invalid_file = tmp_path / "invalid.dcm"
+        invalid_file.write_bytes(b"This is not DICOM data at all!")
+
+        with pytest.raises(ParsingError):
+            DicomParser(invalid_file)
+
+    def test_parse_with_corrupted_header(self, tmp_path):
+        """Test parsing file with corrupted DICOM header."""
+        corrupted_file = tmp_path / "corrupted.dcm"
+        # Write partial DICOM preamble
+        corrupted_file.write_bytes(b"\x00" * 100 + b"DICM" + b"\x00" * 50)
+
+        with pytest.raises(ParsingError):
+            DicomParser(corrupted_file)
+
+    def test_get_critical_tags_with_missing_tags(self, tmp_path):
+        """Test get_critical_tags when some tags are missing."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        # Create a file with minimal tags
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "12345"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        # Missing: StudyInstanceUID, SeriesInstanceUID
+
+        minimal_file = tmp_path / "minimal_tags.dcm"
+        ds.save_as(minimal_file, write_like_original=False)
+
+        parser = DicomParser(minimal_file)
+        critical_tags = parser.get_critical_tags()
+
+        # critical_tags uses tag notation like "(0008,0018)" (no spaces after comma)
+        assert len(critical_tags) > 0
+        # Check that some critical tags are present (note: no space after comma)
+        assert "(0008,0018)" in critical_tags  # SOPInstanceUID
+        assert "(0008,0016)" in critical_tags  # SOPClassUID
+
+    def test_extract_metadata_with_minimal_dataset(self, tmp_path):
+        """Test extract_metadata with minimal dataset."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        # Create minimal valid DICOM file
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "TEST123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        minimal_file = tmp_path / "minimal_metadata.dcm"
+        ds.save_as(minimal_file, write_like_original=False)
+
+        parser = DicomParser(minimal_file)
+        metadata = parser.extract_metadata()
+
+        assert metadata is not None
+        # extract_metadata uses lowercase keys with underscores
+        # Note: str(DataElement) includes tag notation
+        assert "TEST123" in metadata["patient_id"]
+
+    def test_init_with_very_small_file(self, tmp_path):
+        """Test initialization with file smaller than preamble."""
+        tiny_file = tmp_path / "tiny.dcm"
+        tiny_file.write_bytes(b"tiny")
+
+        with pytest.raises(ParsingError):
+            DicomParser(tiny_file)
+
+    def test_validate_dicom_structure_empty_dataset(self, tmp_path):
+        """Test _validate_dicom_structure with empty/minimal dataset."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        # Create a minimal but invalid DICOM file (no required tags)
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        # Don't add any required tags - this should fail validation
+
+        minimal_file = tmp_path / "minimal_invalid.dcm"
+        ds.save_as(minimal_file, write_like_original=False)
+
+        # Should raise error for empty dataset
+        with pytest.raises(ParsingError):
+            DicomParser(minimal_file)
+
+    def test_parse_with_security_checks_on_invalid_file(self, tmp_path):
+        """Test parsing invalid file with security checks enabled."""
+        invalid_file = tmp_path / "not_dicom.txt"
+        invalid_file.write_text("Hello World")
+
+        with pytest.raises(ParsingError):
+            DicomParser(invalid_file, security_checks=True)
+
+
+class TestParserEdgeCases:
+    """Test edge cases and boundary conditions in parser."""
+
+    def test_parse_minimal_valid_dicom(self, tmp_path):
+        """Test parsing minimal valid DICOM file."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        # Create minimal DICOM file with proper file_meta
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "TEST001"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.StudyInstanceUID = "1.2.3.4"
+        ds.SeriesInstanceUID = "1.2.3.4.5.6"
+
+        minimal_file = tmp_path / "minimal.dcm"
+        ds.save_as(minimal_file, write_like_original=False)
+
+        parser = DicomParser(minimal_file)
+        assert parser.dataset is not None
+        assert parser.dataset.PatientID == "TEST001"
+
+    def test_get_transfer_syntax_with_explicit_vr(self, sample_dicom_file):
+        """Test transfer syntax detection for explicit VR."""
+        parser = DicomParser(sample_dicom_file)
+
+        transfer_syntax = parser.get_transfer_syntax()
+        # Should return some transfer syntax
+        assert transfer_syntax is not None
+        assert isinstance(transfer_syntax, str)
 
 
 if __name__ == "__main__":
