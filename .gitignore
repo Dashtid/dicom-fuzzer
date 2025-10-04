@@ -325,7 +325,7 @@ __marimo__/
 # Project-Specific Temporary Files & Outputs
 # ============================================================================
 
-# Fuzzing Output Directories
+# Fuzzing Output Directories (keep structure, ignore generated content)
 /fuzzed_dicoms/
 /test_output/
 /test_crashes/
@@ -333,9 +333,22 @@ __marimo__/
 /test_cli2/
 /test_all/
 /test_structure/
-/output/
-/crashes/
-/reports/
+
+# Output directory structure (keep structure, ignore content)
+/output/crashes/*
+/output/fuzzed/*
+/output/corpus/*
+!/output/crashes/.gitkeep
+!/output/fuzzed/.gitkeep
+!/output/corpus/.gitkeep
+
+# Reports directory structure (keep structure, ignore generated reports)
+/reports/json/*
+/reports/html/*
+/reports/logs/*
+!/reports/json/.gitkeep
+!/reports/html/.gitkeep
+!/reports/logs/.gitkeep
 
 # Temporary Files
 nul
