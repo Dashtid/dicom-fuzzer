@@ -663,5 +663,77 @@ class TestIntegration:
         assert completed.total_mutations > 0
 
 
+class TestMutatorExceptionHandling:
+    """Test exception handling in mutator."""
+
+    def test_apply_mutations_with_mutation_failure(self, sample_dicom_dataset):
+        """Test mutation failure exception handling (lines 294-297)."""
+        from unittest.mock import Mock
+
+        mutator = DicomMutator()
+        mutator.start_session(sample_dicom_dataset)
+
+        # Create a mock strategy that raises an exception
+        mock_strategy = Mock()
+        mock_strategy.get_strategy_name.return_value = "failing_strategy"
+        mock_strategy.can_mutate.return_value = True
+        mock_strategy.mutate.side_effect = ValueError("Test mutation error")
+
+        # Add to strategies list
+        mutator.strategies.append(mock_strategy)
+
+        # Should handle the exception gracefully
+        result = mutator.apply_mutations(
+            sample_dicom_dataset,
+            strategy_names=["failing_strategy"],
+            num_mutations=1,
+        )
+
+        # Should return dataset even if mutation failed
+        assert result is not None
+
+    def test_get_applicable_strategies_with_exception(self, sample_dicom_dataset):
+        """Test strategy checking exception handling (lines 326-327)."""
+        from unittest.mock import Mock
+
+        mutator = DicomMutator()
+
+        # Create a mock strategy that raises exception during can_mutate
+        mock_strategy = Mock()
+        mock_strategy.get_strategy_name.return_value = "error_strategy"
+        mock_strategy.can_mutate.side_effect = RuntimeError("Check error")
+
+        # Add to strategies list
+        mutator.strategies.append(mock_strategy)
+
+        # Should handle exception and log warning
+        # The function will catch the exception but continue
+        applicable = mutator._get_applicable_strategies(sample_dicom_dataset)
+
+        # Test passes if no crash occurred
+        assert isinstance(applicable, list)
+
+    def test_apply_single_mutation_safety_check_failure(self, sample_dicom_dataset):
+        """Test safety check failure (line 347)."""
+        from unittest.mock import Mock
+
+        # Create mutator with safety checks enabled
+        config = {"safety_checks": True}
+        mutator = DicomMutator(config=config)
+
+        # Create a mock strategy
+        mock_strategy = Mock()
+        mock_strategy.get_strategy_name.return_value = "unsafe_strategy"
+
+        # Mock _is_safe_to_mutate to return False
+        mutator._is_safe_to_mutate = Mock(return_value=False)
+
+        # Should raise ValueError due to failed safety check
+        with pytest.raises(ValueError, match="Safety check failed"):
+            mutator._apply_single_mutation(
+                sample_dicom_dataset, mock_strategy, MutationSeverity.MINIMAL
+            )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

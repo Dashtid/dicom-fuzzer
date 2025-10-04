@@ -331,6 +331,7 @@ __marimo__/
 /test_structure/
 /output/
 /crashes/
+/reports/
 
 # Temporary Files
 nul

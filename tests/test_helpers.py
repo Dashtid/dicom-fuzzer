@@ -496,6 +496,32 @@ class TestIntegration:
         assert len(birth_date) == 8
         assert accession.startswith("ACC")
 
+    def test_random_dicom_date_no_end_year(self):
+        """Test random_dicom_date with no end_year parameter (line 201)."""
+        # Should default to current year
+        date = random_dicom_date(2020)
+        assert len(date) == 8
+        assert date.isdigit()
+        # Year should be between 2020 and current year
+        year = int(date[:4])
+        from datetime import datetime
+
+        assert 2020 <= year <= datetime.now().year
+
+    def test_random_person_name_with_middle_initial(self):
+        """Test random_person_name with middle initial (lines 279-280)."""
+        # Run multiple times to hit the 30% chance path
+        names_with_middle = []
+        for _ in range(100):
+            name = random_person_name()
+            # Middle initial format: LAST^FIRST^M
+            parts = name.split("^")
+            if len(parts) == 3:
+                names_with_middle.append(name)
+
+        # Should have at least some names with middle initials (probabilistic)
+        assert len(names_with_middle) > 0
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

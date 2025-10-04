@@ -361,6 +361,23 @@ class TestIntegration:
         captured = capsys.readouterr()
         assert "STATISTICS" in captured.out
 
+    def test_print_summary_with_mutated_tags(self, capsys):
+        """Test print summary with mutated tags (line 275)."""
+        collector = StatisticsCollector()
+
+        # Record some tag mutations
+        collector.record_tag_mutated("PatientName")
+        collector.record_tag_mutated("StudyDate")
+        collector.record_tag_mutated("PatientName")  # Duplicate to test counting
+
+        collector.print_summary()
+
+        # Verify mutated tags are printed
+        captured = capsys.readouterr()
+        assert "Top Mutated Tags" in captured.out
+        assert "PatientName" in captured.out
+        assert "StudyDate" in captured.out
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

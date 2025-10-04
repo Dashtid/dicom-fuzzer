@@ -31,6 +31,14 @@ class TestBasicLogging:
         assert "test_message" in content
         assert "data" in content
 
+    def test_configure_logging_console_format(self, reset_structlog):
+        """Test logging configuration with console format (line 131)."""
+        configure_logging(log_level="INFO", json_format=False)
+
+        logger = get_logger("test")
+        # Should not raise any errors
+        logger.info("test_message", data="value")
+
     def test_get_logger_returns_bound_logger(self, reset_structlog):
         """Test get_logger returns proper structlog BoundLogger."""
         configure_logging()
