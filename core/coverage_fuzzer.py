@@ -162,7 +162,7 @@ class CoverageGuidedFuzzer:
             crash_triggered=False,
         )
 
-        logger.info(f"Added seed to corpus", seed_id=seed_id)
+        logger.info("Added seed to corpus", seed_id=seed_id)
         return seed_id
 
     def fuzz_iteration(self) -> Optional[CorpusEntry]:
@@ -250,7 +250,7 @@ class CoverageGuidedFuzzer:
             Campaign statistics
         """
         logger.info(
-            f"Starting fuzzing campaign",
+            "Starting fuzzing campaign",
             iterations=iterations,
             corpus_size=len(self.corpus_manager.corpus),
         )
@@ -262,7 +262,7 @@ class CoverageGuidedFuzzer:
             # Check for crashes
             if new_entry and new_entry.crash_triggered and stop_on_crash:
                 logger.warning(
-                    f"Stopping campaign due to crash",
+                    "Stopping campaign due to crash",
                     iteration=i + 1,
                     entry_id=new_entry.entry_id,
                 )
@@ -272,7 +272,7 @@ class CoverageGuidedFuzzer:
             if show_progress and (i + 1) % 100 == 0:
                 self.stats.update_from_campaign(self)
                 logger.info(
-                    f"Fuzzing progress",
+                    "Fuzzing progress",
                     iteration=i + 1,
                     corpus_size=self.stats.corpus_size,
                     crashes=self.stats.unique_crashes,
