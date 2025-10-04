@@ -15,14 +15,11 @@ This dramatically increases the effectiveness of fuzzing.
 
 import hashlib
 import sys
-from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
-
-from pydicom.dataset import Dataset
 
 from utils.logger import get_logger
 
