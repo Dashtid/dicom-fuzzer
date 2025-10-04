@@ -30,6 +30,7 @@ jobs:
           uv venv
           source .venv/bin/activate
           uv pip install -r requirements.txt
+          uv pip install -e .
 
       - name: Check code formatting with black
         run: |
@@ -68,6 +69,7 @@ jobs:
           uv venv
           source .venv/bin/activate
           uv pip install -r requirements.txt
+          uv pip install -e .
           uv pip install bandit[toml] safety
 
       - name: Run bandit security scanner
@@ -155,6 +157,7 @@ jobs:
           uv venv
           source .venv/bin/activate
           uv pip install -r requirements.txt
+          uv pip install -e .
 
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
@@ -162,6 +165,7 @@ jobs:
           uv venv
           .venv\Scripts\activate
           uv pip install -r requirements.txt
+          uv pip install -e .
 
       - name: Run tests with coverage (Linux/macOS)
         if: runner.os != 'Windows'
@@ -219,6 +223,7 @@ jobs:
           uv venv
           source .venv/bin/activate
           uv pip install -r requirements.txt
+          uv pip install -e .
           uv pip install pytest-benchmark
 
       - name: Run performance benchmarks
@@ -256,6 +261,7 @@ jobs:
           uv venv
           source .venv/bin/activate
           uv pip install -r requirements.txt
+          uv pip install -e .
           uv pip install mutmut
 
       - name: Run mutation testing
@@ -295,6 +301,7 @@ jobs:
           uv venv
           source .venv/bin/activate
           uv pip install -r requirements.txt
+          uv pip install -e .
           cd docs && uv pip install -r requirements.txt
 
       - name: Build Sphinx documentation
