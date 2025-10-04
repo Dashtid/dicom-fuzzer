@@ -268,18 +268,18 @@ class ViewerFuzzer:
         # Fuzz each file
         for i, source_file in enumerate(source_files, 1):
             logger.info(f"\n[{i}/{len(source_files)}] Processing {source_file.name}")
+            self.stats["files_processed"] += 1
 
             # Generate fuzzed file
             fuzzed_file = self.generate_fuzzed_file(source_file, severity)
             if not fuzzed_file:
+                logger.warning(f"  Skipping - failed to generate fuzzed file")
                 continue
 
             # Test viewer if specified
             if self.viewer_path:
                 result = self.test_viewer(fuzzed_file)
                 logger.info(f"  Viewer result: {result['status']}")
-
-            self.stats["files_processed"] += 1
 
         # Print summary
         self.print_summary()
