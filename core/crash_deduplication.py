@@ -356,15 +356,15 @@ class CrashDeduplicator:
         """
         import re
 
-        # Remove specific file paths
-        normalized = re.sub(r"[A-Za-z]:\\[^:]+", "PATH", message)
-        normalized = re.sub(r"/[^:]+", "PATH", normalized)
-
-        # Remove specific numbers
-        normalized = re.sub(r"\b\d+\b", "NUM", normalized)
+        # Remove specific numbers first (before paths that might contain numbers)
+        normalized = re.sub(r"\b\d+\b", "NUM", message)
 
         # Remove hex values
         normalized = re.sub(r"0x[0-9a-fA-F]+", "HEX", normalized)
+
+        # Remove specific file paths (after numbers so we preserve NUM)
+        normalized = re.sub(r"[A-Za-z]:\\[^\s]+", "PATH", normalized)
+        normalized = re.sub(r"/[^\s]+", "PATH", normalized)
 
         return normalized
 

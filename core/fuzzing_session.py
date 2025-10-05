@@ -222,6 +222,9 @@ class FuzzingSession:
             source_metadata=source_metadata,
         )
 
+        # Add to fuzzed files immediately so it's available for mutations
+        self.fuzzed_files[file_id] = self.current_file_record
+
         self.stats["files_fuzzed"] += 1
         return file_id
 
