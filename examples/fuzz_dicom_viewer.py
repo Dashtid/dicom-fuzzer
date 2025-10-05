@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Fuzz DICOM Viewer Applications
 
 This script fuzzes DICOM viewer applications (like Hermes.exe) by:
@@ -28,6 +28,7 @@ import os
 import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
@@ -36,13 +37,15 @@ import pydicom
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.generator import DICOMGenerator
-from core.mutator import DicomMutator
-from core.types import MutationSeverity
-from core.validator import DicomValidator
+from core.enhanced_reporter import EnhancedReportGenerator  # noqa: E402
+from core.fuzzing_session import FuzzingSession  # noqa: E402
+from core.generator import DICOMGenerator  # noqa: E402
+from core.mutator import DicomMutator  # noqa: E402
+from core.types import MutationSeverity  # noqa: E402
+from core.validator import DicomValidator  # noqa: E402
 
 # from strategies.dictionary_fuzzer import DictionaryFuzzer  # noqa: F401
-from utils.logger import get_logger
+from utils.logger import get_logger  # noqa: E402
 
 logger = get_logger(__name__)
 
@@ -56,6 +59,7 @@ class ViewerFuzzer:
         output_dir: str,
         viewer_path: Optional[str] = None,
         timeout: int = 5,
+        use_enhanced_reporting: bool = True,
     ):
         """
         Initialize viewer fuzzer.
@@ -65,11 +69,13 @@ class ViewerFuzzer:
             output_dir: Directory to save fuzzed files
             viewer_path: Path to DICOM viewer executable (optional)
             timeout: Timeout in seconds for viewer execution
+            use_enhanced_reporting: Use new FuzzingSession tracking (recommended)
         """
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
         self.viewer_path = Path(viewer_path) if viewer_path else None
         self.timeout = timeout
+        self.use_enhanced_reporting = use_enhanced_reporting
 
         # Validate paths
         if not self.input_dir.exists():
@@ -86,6 +92,19 @@ class ViewerFuzzer:
         self.generator = DICOMGenerator()
         self.validator = DicomValidator(strict_mode=False)
 
+        # Initialize enhanced reporting if enabled
+        self.fuzzing_session: Optional[FuzzingSession] = None
+        self.current_file_id: Optional[str] = None
+
+        if self.use_enhanced_reporting:
+            session_name = f"viewer_fuzzing_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            self.fuzzing_session = FuzzingSession(
+                session_name=session_name,
+                output_dir=str(self.output_dir),
+                reports_dir="./reports",
+            )
+            logger.info("Enhanced reporting enabled - full traceability active")
+
         # Statistics
         self.stats = {
             "files_processed": 0,
@@ -98,7 +117,7 @@ class ViewerFuzzer:
             "validation_failures": 0,
         }
 
-        # Detailed failure tracking
+        # Detailed failure tracking (legacy support)
         self.failures = {
             "write_failures": [],  # Files that failed to write after mutation
             "validation_failures": [],  # Files that failed validation
@@ -141,11 +160,25 @@ class ViewerFuzzer:
         Returns:
             Path to fuzzed file, or None if failed
         """
+        # Generate output filename first
+        severity_name = severity.value
+        timestamp = int(time.time() * 1000)
+        output_name = f"fuzzed_{severity_name}_{source_file.stem}_{timestamp}.dcm"
+        output_path = self.output_dir / output_name
+
+        # Start enhanced session tracking if enabled
+        if self.fuzzing_session:
+            self.current_file_id = self.fuzzing_session.start_file_fuzzing(
+                source_file=source_file, output_file=output_path, severity=severity_name
+            )
+
         try:
             # Parse source file using pydicom
             dataset = pydicom.dcmread(str(source_file), force=True)
             if not dataset:
                 logger.warning(f"Failed to parse {source_file}")
+                if self.fuzzing_session:
+                    self.fuzzing_session.end_file_fuzzing(output_path, success=False)
                 return None
 
             # Apply mutations
@@ -153,19 +186,31 @@ class ViewerFuzzer:
             mutated = self.mutator.apply_mutations(
                 dataset, num_mutations=3, severity=severity
             )
-            self.mutator.end_session()
 
-            # Generate output filename
-            severity_name = severity.value
-            timestamp = int(time.time() * 1000)
-            output_name = f"fuzzed_{severity_name}_{source_file.stem}_{timestamp}.dcm"
-            output_path = self.output_dir / output_name
+            # Record mutations in session if enabled
+            if self.fuzzing_session and self.mutator.current_session:
+                for mutation_record in self.mutator.current_session.mutations:
+                    self.fuzzing_session.record_mutation(
+                        strategy_name=mutation_record.strategy_name,
+                        mutation_type=mutation_record.description or "mutation",
+                        parameters={
+                            "severity": mutation_record.severity.value,
+                            **mutation_record.parameters,
+                        },
+                    )
+
+            self.mutator.end_session()
 
             # Save fuzzed file (disable validation to allow malformed data)
             try:
                 pydicom.dcmwrite(str(output_path), mutated, write_like_original=False)
                 self.stats["files_fuzzed"] += 1
                 self.stats["files_generated"] += 1
+
+                # End session tracking
+                if self.fuzzing_session:
+                    self.fuzzing_session.end_file_fuzzing(output_path, success=True)
+
                 logger.info(f"Generated fuzzed file: {output_path}")
                 return output_path
             except Exception as write_error:
@@ -229,7 +274,7 @@ class ViewerFuzzer:
                     result["status"] = "crashed"
                     self.stats["viewer_crashes"] += 1
 
-                    # Log crash
+                    # Log crash (legacy)
                     crash_log = self.output_dir / f"crash_{dicom_file.stem}.txt"
                     with open(crash_log, "w") as f:
                         f.write(f"File: {dicom_file}\n")
@@ -237,7 +282,7 @@ class ViewerFuzzer:
                         f.write(f"STDOUT:\n{stdout.decode(errors='ignore')}\n")
                         f.write(f"STDERR:\n{stderr.decode(errors='ignore')}\n")
 
-                    # Track crash details
+                    # Track crash details (legacy)
                     self.failures["viewer_crashes"].append(
                         {
                             "file": str(dicom_file),
@@ -246,10 +291,32 @@ class ViewerFuzzer:
                         }
                     )
 
+                    # Enhanced crash recording
+                    if self.fuzzing_session and self.current_file_id:
+                        stderr_str = stderr.decode(errors="ignore")
+                        self.fuzzing_session.record_test_result(
+                            self.current_file_id, "crash", return_code=proc.returncode
+                        )
+                        self.fuzzing_session.record_crash(
+                            file_id=self.current_file_id,
+                            crash_type="crash",
+                            severity="high",
+                            return_code=proc.returncode,
+                            exception_message=f"Viewer crashed with exit code {proc.returncode}",
+                            stack_trace=stderr_str if stderr_str else None,
+                            viewer_path=str(self.viewer_path),
+                        )
+
                     logger.warning(f"CRASH detected: {dicom_file}")
                 else:
                     result["status"] = "success"
                     self.stats["viewer_success"] += 1
+
+                    # Record success in enhanced tracking
+                    if self.fuzzing_session and self.current_file_id:
+                        self.fuzzing_session.record_test_result(
+                            self.current_file_id, "success"
+                        )
 
             except subprocess.TimeoutExpired:
                 proc.kill()
@@ -257,13 +324,13 @@ class ViewerFuzzer:
                 result["status"] = "timeout"
                 self.stats["viewer_hangs"] += 1
 
-                # Log hang
+                # Log hang (legacy)
                 hang_log = self.output_dir / f"hang_{dicom_file.stem}.txt"
                 with open(hang_log, "w") as f:
                     f.write(f"File: {dicom_file}\n")
                     f.write(f"Viewer hung after {self.timeout}s timeout\n")
 
-                # Track hang details
+                # Track hang details (legacy)
                 self.failures["viewer_hangs"].append(
                     {
                         "file": str(dicom_file),
@@ -271,6 +338,19 @@ class ViewerFuzzer:
                         "hang_log": str(hang_log),
                     }
                 )
+
+                # Enhanced hang recording
+                if self.fuzzing_session and self.current_file_id:
+                    self.fuzzing_session.record_test_result(
+                        self.current_file_id, "hang", timeout=self.timeout
+                    )
+                    self.fuzzing_session.record_crash(
+                        file_id=self.current_file_id,
+                        crash_type="hang",
+                        severity="high",
+                        exception_message=f"Viewer hung after {self.timeout}s timeout (DoS vulnerability)",
+                        viewer_path=str(self.viewer_path),
+                    )
 
                 logger.warning(f"HANG detected: {dicom_file}")
 
@@ -321,11 +401,11 @@ class ViewerFuzzer:
                 result = self.test_viewer(fuzzed_file)
                 logger.info(f"  Viewer result: {result['status']}")
 
-        # Print summary
+        # Print summary and generate reports
         self.print_summary()
 
     def print_summary(self):
-        """Print fuzzing campaign summary."""
+        """Print fuzzing campaign summary and generate enhanced reports."""
         logger.info("\n" + "=" * 70)
         logger.info("FUZZING CAMPAIGN SUMMARY")
         logger.info("=" * 70)
@@ -378,8 +458,46 @@ class ViewerFuzzer:
         logger.info(f"\nOutput Directory: {self.output_dir}")
         logger.info("=" * 70)
 
-        # Save JSON report
+        # Save legacy JSON report
         self.save_json_report()
+
+        # Generate enhanced reports if enabled
+        if self.fuzzing_session:
+            logger.info("\n" + "=" * 70)
+            logger.info("GENERATING ENHANCED REPORTS")
+            logger.info("=" * 70)
+
+            # Save session JSON
+            json_path = self.fuzzing_session.save_session_report()
+            logger.info(f"Session JSON: {json_path}")
+
+            # Generate interactive HTML report
+            import json as json_module
+
+            with open(json_path, "r", encoding="utf-8") as f:
+                session_data = json_module.load(f)
+
+            reporter = EnhancedReportGenerator()
+            html_path = reporter.generate_html_report(session_data)
+            logger.info(f"HTML Report: {html_path}")
+
+            # Print crash summary
+            crashes = session_data.get("crashes", [])
+            if crashes:
+                logger.info(f"\n⚠️  {len(crashes)} CRASHES DETECTED")
+                logger.info("\nCrash Artifacts:")
+                for crash in crashes:
+                    logger.info(f"  • {crash['crash_id']}")
+                    logger.info(
+                        f"    Type: {crash['crash_type']} | Severity: {crash['severity']}"
+                    )
+                    logger.info(f"    Sample: {crash.get('preserved_sample_path')}")
+                    logger.info(f"    Log: {crash.get('crash_log_path')}")
+                    if crash.get("reproduction_command"):
+                        logger.info(f"    Repro: {crash['reproduction_command']}")
+                    logger.info("")
+
+            logger.info("=" * 70)
 
     def save_json_report(self):
         """Save fuzzing results to JSON report."""
@@ -472,7 +590,7 @@ class ViewerFuzzer:
 
 
 def main():
-    """Main entry point."""
+    """Parse arguments and run fuzzing campaign."""
     parser = argparse.ArgumentParser(
         description="Fuzz DICOM viewer applications for security testing",
         formatter_class=argparse.RawDescriptionHelpFormatter,
