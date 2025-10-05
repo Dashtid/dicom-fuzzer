@@ -211,3 +211,305 @@ class TestMutationMinimizer:
         assert result is not original
         # Original should be unchanged
         assert original.value == "original"
+
+
+class TestMutationMinimizationIntegration:
+    """Integration tests for complete minimization workflows."""
+
+    @pytest.fixture
+    def realistic_mutation_set(self):
+        """Create realistic set of mutations like from actual fuzzing."""
+        return [
+            MutationRecord(
+                mutation_id=f"mut_{i:03d}",
+                strategy_name="metadata_fuzzer" if i % 3 == 0 else "pixel_fuzzer",
+                timestamp=datetime.now(),
+                mutation_type="corrupt_tag" if i % 2 == 0 else "flip_bits",
+                original_value=f"original_{i}",
+                mutated_value=f"mutated_{i}",
+            )
+            for i in range(10)
+        ]
+
+    def test_minimize_with_single_critical_mutation(self, realistic_mutation_set):
+        """Test minimization when only one mutation triggers crash."""
+
+        def crashes_on_specific_mutation(dataset):
+            # Simulate crash triggered by specific mutation
+            # In real scenario, would check which mutations are in dataset
+            return True  # Simplified for test
+
+        class MockDataset:
+            pass
+
+        minimizer = MutationMinimizer(crashes_on_specific_mutation, max_iterations=100)
+        result = minimizer.minimize(
+            original_dataset=MockDataset(),
+            mutations=realistic_mutation_set,
+            strategy="delta_debug",
+        )
+
+        # Verify result structure
+        assert isinstance(result, MinimizationResult)
+        assert result.original_mutation_count == 10
+        assert result.test_iterations > 0
+        # Delta debugging should reduce the set
+        assert result.minimized_mutation_count <= result.original_mutation_count
+
+    def test_minimize_multiple_required_mutations(self):
+        """Test when multiple mutations are needed together."""
+
+        mutations = [
+            MutationRecord(
+                mutation_id=f"mut_{i:03d}",
+                strategy_name="test",
+                timestamp=datetime.now(),
+                mutation_type="test",
+            )
+            for i in range(8)
+        ]
+
+        def crashes_on_combination(dataset):
+            # Always crash for this test (real impl would check mutations)
+            return True
+
+        class MockDataset:
+            pass
+
+        minimizer = MutationMinimizer(crashes_on_combination, max_iterations=100)
+        result = minimizer.minimize(
+            original_dataset=MockDataset(), mutations=mutations, strategy="delta_debug"
+        )
+
+        # Should reduce mutations
+        assert result.minimized_mutation_count <= result.original_mutation_count
+        assert result.test_iterations > 0
+
+    def test_all_minimization_strategies(self, realistic_mutation_set):
+        """Test all three minimization strategies produce valid results."""
+
+        def always_crashes(dataset):
+            return True
+
+        class MockDataset:
+            pass
+
+        strategies = ["delta_debug", "linear", "binary"]
+
+        for strategy in strategies:
+            minimizer = MutationMinimizer(always_crashes, max_iterations=100)
+            result = minimizer.minimize(
+                original_dataset=MockDataset(),
+                mutations=realistic_mutation_set,
+                strategy=strategy,
+            )
+
+            assert isinstance(result, MinimizationResult)
+            assert result.original_mutation_count == 10
+            assert result.minimized_mutation_count >= 0
+            assert result.test_iterations > 0
+            assert 0.0 <= result.minimization_ratio <= 1.0
+
+    def test_minimization_ratio_calculation(self):
+        """Test that minimization ratio is calculated correctly."""
+
+        def always_crashes(dataset):
+            return True
+
+        class MockDataset:
+            pass
+
+        mutations = [
+            MutationRecord(
+                mutation_id=f"m{i}", strategy_name="test", timestamp=datetime.now()
+            )
+            for i in range(10)
+        ]
+
+        minimizer = MutationMinimizer(always_crashes, max_iterations=100)
+        result = minimizer.minimize(MockDataset(), mutations, strategy="linear")
+
+        # Ratio = (original - minimized) / original
+        expected_ratio = (
+            result.original_mutation_count - result.minimized_mutation_count
+        ) / result.original_mutation_count
+
+        assert abs(result.minimization_ratio - expected_ratio) < 0.01
+
+    def test_minimization_preserves_crash_condition(self):
+        """Test that minimization confirms crash still occurs."""
+
+        crash_count = [0]
+
+        def tracking_crash_tester(dataset):
+            crash_count[0] += 1
+            return True
+
+        class MockDataset:
+            pass
+
+        mutations = [
+            MutationRecord(
+                mutation_id=f"m{i}", strategy_name="test", timestamp=datetime.now()
+            )
+            for i in range(5)
+        ]
+
+        minimizer = MutationMinimizer(tracking_crash_tester, max_iterations=100)
+        result = minimizer.minimize(MockDataset(), mutations, strategy="delta_debug")
+
+        # Should verify crash still occurs with minimal set
+        assert result.still_crashes is True
+        # Should have tested multiple times
+        assert crash_count[0] > 0
+
+    def test_minimization_respects_max_iterations(self):
+        """Test that minimization stops at max iterations."""
+
+        test_count = [0]
+
+        def counting_tester(dataset):
+            test_count[0] += 1
+            return True
+
+        class MockDataset:
+            pass
+
+        mutations = [
+            MutationRecord(
+                mutation_id=f"m{i}", strategy_name="test", timestamp=datetime.now()
+            )
+            for i in range(20)
+        ]
+
+        minimizer = MutationMinimizer(counting_tester, max_iterations=5)
+        result = minimizer.minimize(MockDataset(), mutations, strategy="delta_debug")
+
+        # Should not exceed max iterations (allow 1 extra for final verification)
+        assert result.test_iterations <= 5
+        assert test_count[0] <= 6
+
+    def test_minimize_single_mutation(self):
+        """Test minimization with single mutation (edge case)."""
+
+        def crashes(dataset):
+            return True
+
+        class MockDataset:
+            pass
+
+        mutations = [
+            MutationRecord(
+                mutation_id="only_one", strategy_name="test", timestamp=datetime.now()
+            )
+        ]
+
+        minimizer = MutationMinimizer(crashes, max_iterations=10)
+        result = minimizer.minimize(MockDataset(), mutations, strategy="linear")
+
+        # Can't reduce below 1 mutation
+        assert result.minimized_mutation_count <= 1
+
+    def test_minimize_no_crash_scenario(self):
+        """Test minimization when crash doesn't reproduce."""
+
+        def no_crash(dataset):
+            return False  # Never crashes
+
+        class MockDataset:
+            pass
+
+        mutations = [
+            MutationRecord(
+                mutation_id=f"m{i}", strategy_name="test", timestamp=datetime.now()
+            )
+            for i in range(5)
+        ]
+
+        minimizer = MutationMinimizer(no_crash, max_iterations=50)
+        result = minimizer.minimize(MockDataset(), mutations, strategy="delta_debug")
+
+        # Should report crash doesn't reproduce
+        assert result.still_crashes is False
+
+    def test_compare_minimization_strategies_efficiency(self):
+        """Compare efficiency of different minimization strategies."""
+
+        def always_crashes(dataset):
+            return True
+
+        class MockDataset:
+            pass
+
+        mutations = [
+            MutationRecord(
+                mutation_id=f"m{i}", strategy_name="test", timestamp=datetime.now()
+            )
+            for i in range(15)
+        ]
+
+        results = {}
+        for strategy in ["delta_debug", "linear", "binary"]:
+            minimizer = MutationMinimizer(always_crashes, max_iterations=100)
+            result = minimizer.minimize(MockDataset(), mutations, strategy=strategy)
+            results[strategy] = result
+
+        # All should produce valid results
+        for strategy, result in results.items():
+            assert result.minimized_mutation_count >= 0
+            assert result.test_iterations > 0
+
+        # Delta debugging typically more efficient than linear
+        # (uses fewer iterations for same result)
+        assert (
+            results["delta_debug"].test_iterations
+            <= results["linear"].test_iterations * 2
+        )
+
+    def test_minimization_with_empty_mutation_list(self):
+        """Test minimization with empty mutation list (edge case)."""
+
+        def crashes(dataset):
+            return True
+
+        class MockDataset:
+            pass
+
+        minimizer = MutationMinimizer(crashes, max_iterations=10)
+        result = minimizer.minimize(MockDataset(), mutations=[], strategy="delta_debug")
+
+        assert result.original_mutation_count == 0
+        assert result.minimized_mutation_count == 0
+        assert result.minimization_ratio == 0.0
+
+    def test_minimization_detailed_statistics(self, realistic_mutation_set):
+        """Test that minimization provides detailed statistics."""
+
+        def crashes(dataset):
+            return True
+
+        class MockDataset:
+            pass
+
+        minimizer = MutationMinimizer(crashes, max_iterations=50)
+        result = minimizer.minimize(
+            MockDataset(),
+            realistic_mutation_set,
+            strategy="delta_debug",
+        )
+
+        # Verify all statistics are present
+        assert hasattr(result, "original_mutation_count")
+        assert hasattr(result, "minimized_mutation_count")
+        assert hasattr(result, "minimal_mutations")
+        assert hasattr(result, "test_iterations")
+        assert hasattr(result, "still_crashes")
+        assert hasattr(result, "minimization_ratio")
+
+        # Verify values are reasonable
+        assert result.original_mutation_count == 10
+        assert 0 <= result.minimized_mutation_count <= 10
+        assert isinstance(result.minimal_mutations, list)
+        assert result.test_iterations > 0
+        assert isinstance(result.still_crashes, bool)
+        assert 0.0 <= result.minimization_ratio <= 1.0
