@@ -156,6 +156,7 @@ markers = [
 
 [tool.coverage.run]
 source = ["dicom_fuzzer"]
+data_file = "reports/coverage/.coverage"
 omit = [
     "*/tests/*",
     "*/test_*",
@@ -175,6 +176,12 @@ exclude_lines = [
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
 ]
+
+[tool.coverage.html]
+directory = "reports/coverage/htmlcov"
+
+[tool.coverage.xml]
+output = "reports/coverage/coverage.xml"
 
 [tool.bandit]
 exclude_dirs = ["tests"]
