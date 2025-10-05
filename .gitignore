@@ -375,3 +375,4 @@ truncated*.dcm
 # Sample/Test DICOM Files (keep structure but ignore files)
 /samples/*.dcm
 !/samples/.gitkeep
+.vscode/
