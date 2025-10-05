@@ -373,9 +373,12 @@ class TestMutationApplication:
         # Should return unchanged dataset
         assert result is not None
 
-    def test_apply_mutations_with_strategy(self, sample_dicom_dataset):
+    @patch("core.mutator.random.random", return_value=0.0)
+    @patch("core.mutator.random.choice")
+    def test_apply_mutations_with_strategy(
+        self, mock_choice, mock_random, sample_dicom_dataset
+    ):
         """Test applying mutations with registered strategy."""
-        # Disable auto-registration and set mutation probability to 1.0 for deterministic test
         mutator = DicomMutator(
             config={
                 "auto_register_strategies": False,
@@ -388,6 +391,9 @@ class TestMutationApplication:
         strategy.get_strategy_name = Mock(return_value="test_strategy")
         strategy.can_mutate = Mock(return_value=True)
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
+
+        # Configure random.choice to return our strategy
+        mock_choice.return_value = strategy
 
         mutator.register_strategy(strategy)
         mutator.start_session(sample_dicom_dataset)
