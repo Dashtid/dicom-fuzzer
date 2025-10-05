@@ -375,8 +375,13 @@ class TestMutationApplication:
 
     def test_apply_mutations_with_strategy(self, sample_dicom_dataset):
         """Test applying mutations with registered strategy."""
-        # Disable auto-registration for this test
-        mutator = DicomMutator(config={"auto_register_strategies": False})
+        # Disable auto-registration and set mutation probability to 1.0 for deterministic test
+        mutator = DicomMutator(
+            config={
+                "auto_register_strategies": False,
+                "mutation_probability": 1.0,
+            }
+        )
 
         # Create mock strategy
         strategy = Mock()
