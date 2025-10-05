@@ -156,6 +156,8 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+coverage_report.txt
+test_results.txt
 *.cover
 *.py.cover
 .hypothesis/
@@ -346,9 +348,13 @@ __marimo__/
 /reports/json/*
 /reports/html/*
 /reports/logs/*
+/reports/coverage/*
 !/reports/json/.gitkeep
 !/reports/html/.gitkeep
 !/reports/logs/.gitkeep
+!/reports/coverage/.gitkeep
+!/reports/quality_report.txt
+!/reports/test_results.txt
 
 # Temporary Files
 nul
