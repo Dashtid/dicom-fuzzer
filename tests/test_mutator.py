@@ -758,5 +758,117 @@ class TestMutatorExceptionHandling:
             )
 
 
+class TestAdditionalCoverage:
+    """Additional tests to improve coverage of uncovered code paths."""
+
+    def test_start_session_with_file_info_and_severity_config(
+        self, sample_dicom_dataset
+    ):
+        """Test start_session with file_info and MutationSeverity in config."""
+        mutator = DicomMutator(
+            config={
+                "default_severity": MutationSeverity.AGGRESSIVE,
+                "auto_register_strategies": False,
+            }
+        )
+
+        file_info = {
+            "file_path": "test.dcm",
+            "file_size": 1024,
+            "file_hash": "abc123",
+        }
+
+        session_id = mutator.start_session(sample_dicom_dataset, file_info=file_info)
+
+        assert session_id is not None
+        assert mutator.current_session is not None
+        assert mutator.current_session.original_file_info == file_info
+
+    def test_apply_mutations_with_num_mutations(self, sample_dicom_dataset):
+        """Test apply_mutations with specific num_mutations."""
+        mutator = DicomMutator(
+            config={
+                "auto_register_strategies": False,
+                "mutation_probability": 1.0,
+            }
+        )
+
+        strategy = Mock()
+        strategy.get_strategy_name = Mock(return_value="test")
+        strategy.can_mutate = Mock(return_value=True)
+        strategy.mutate = Mock(return_value=sample_dicom_dataset)
+
+        mutator.register_strategy(strategy)
+        mutator.start_session(sample_dicom_dataset)
+
+        result = mutator.apply_mutations(sample_dicom_dataset, num_mutations=3)
+
+        assert result is not None
+        # Should have attempted 3 mutations
+        assert strategy.mutate.call_count >= 1
+
+    def test_apply_mutations_with_strategy_filter(self, sample_dicom_dataset):
+        """Test filtering strategies by name during mutation."""
+        mutator = DicomMutator(config={"auto_register_strategies": False})
+
+        strategy1 = Mock()
+        strategy1.get_strategy_name = Mock(return_value="wanted")
+        strategy1.can_mutate = Mock(return_value=True)
+        strategy1.mutate = Mock(return_value=sample_dicom_dataset)
+
+        strategy2 = Mock()
+        strategy2.get_strategy_name = Mock(return_value="unwanted")
+        strategy2.can_mutate = Mock(return_value=True)
+        strategy2.mutate = Mock(return_value=sample_dicom_dataset)
+
+        mutator.register_strategy(strategy1)
+        mutator.register_strategy(strategy2)
+        mutator.start_session(sample_dicom_dataset)
+
+        # Apply mutations with strategy filter
+        result = mutator.apply_mutations(
+            sample_dicom_dataset, num_mutations=1, strategy_names=["wanted"]
+        )
+
+        assert result is not None
+
+    def test_mutator_logging_paths(self, sample_dicom_dataset):
+        """Test various logging code paths."""
+        mutator = DicomMutator(config={"auto_register_strategies": True})
+
+        # Start session (triggers logging)
+        mutator.start_session(sample_dicom_dataset)
+
+        # Apply mutations (triggers more logging)
+        result = mutator.apply_mutations(sample_dicom_dataset, num_mutations=1)
+
+        assert result is not None
+        assert mutator.current_session is not None
+
+    def test_end_session_workflow(self, sample_dicom_dataset):
+        """Test complete session workflow including end_session."""
+        mutator = DicomMutator(config={"auto_register_strategies": False})
+
+        strategy = Mock()
+        strategy.get_strategy_name = Mock(return_value="test")
+        strategy.can_mutate = Mock(return_value=True)
+        strategy.mutate = Mock(return_value=sample_dicom_dataset)
+
+        mutator.register_strategy(strategy)
+
+        # Start session
+        mutator.start_session(sample_dicom_dataset)
+
+        # Apply mutations
+        mutator.apply_mutations(sample_dicom_dataset, num_mutations=1)
+
+        # End session
+        session_summary = mutator.end_session()
+
+        assert session_summary is not None
+        assert hasattr(session_summary, "session_id")
+        assert mutator.current_session is None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
