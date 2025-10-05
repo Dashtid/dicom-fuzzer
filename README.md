@@ -1,109 +1,106 @@
 # DICOM Fuzzer
 
-A specialized security testing tool for comprehensive fuzzing of DICOM (Digital Imaging and Communications in Medicine) implementations, designed to enhance healthcare IT security through automated vulnerability discovery.
+A specialized security testing tool for fuzzing DICOM (Digital Imaging and Communications in Medicine) implementations. Designed to identify vulnerabilities in medical imaging systems, PACS servers, and medical device software through automated security testing.
 
-[![CI Pipeline](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/codeql.yml/badge.svg)](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/codeql.yml)
-[![Tests](https://img.shields.io/badge/tests-422%20passing-brightgreen)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-802%20passing-brightgreen)](tests/)
+[![Coverage](https://img.shields.io/badge/coverage-28%25-yellow)](docs/COVERAGE.md)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://python.org)
 [![Code Style](https://img.shields.io/badge/code%20style-black-black)](https://github.com/psf/black)
-[![Security: bandit](https://img.shields.io/badge/security-bandit-yellow)](https://github.com/PyCQA/bandit)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-
-## 📋 Project Documentation
-
-- **[📈 PROJECT PLAN](docs/PROJECT_PLAN.md)** - Comprehensive 8-week implementation roadmap
-- **[📋 TASK BREAKDOWN](docs/TASK_BREAKDOWN.md)** - Detailed task structure and dependencies
-- **[🧪 TEST COVERAGE](docs/TEST_COVERAGE.md)** - Comprehensive test suite documentation
-
-**Current Status**: Phase 3 (Week 5 Complete) | 422 tests passing (100%) | CI/CD Pipeline Active
-
-## ✨ Key Achievements
-
-- ✅ **Comprehensive Test Suite**: 422 tests with 100% pass rate across Python 3.11-3.13
-- ✅ **Full Code Coverage**: 1.30:1 test-to-source ratio, 100% coverage
-- ✅ **CI/CD Pipeline**: Automated testing, code quality, and security scanning
-- ✅ **Production-Ready Core**: All critical modules implemented and tested
-- ✅ **Security-First Design**: Extensive security validation and error handling
-- ✅ **Grammar-Based Fuzzing**: Intelligent DICOM-aware mutations with crash analysis
 
 ## Overview
 
-This fuzzer takes a valid DICOM file as input and generates multiple variations with believable but randomized metadata, corrupted headers, and subtle pixel modifications. It's specifically designed for testing medical imaging applications in a controlled environment.
+DICOM-Fuzzer is a comprehensive fuzzing framework for testing the security and robustness of DICOM-based medical imaging systems. It combines mutation-based fuzzing, grammar-aware fuzzing, and crash analysis to help identify vulnerabilities before they can be exploited.
 
-## Features
+**Target Use Cases:**
+- Security testing of PACS (Picture Archiving and Communication Systems)
+- Vulnerability assessment of medical imaging viewers
+- Robustness testing of DICOM parsers and validators
+- Compliance testing for medical device software
+- Automated regression testing in CI/CD pipelines
 
-### 🔥 Core Capabilities
-- **Metadata Fuzzing**: Generates realistic patient information, study dates, and institutional data
-- **Header Manipulation**: Tests edge cases with overlong strings, missing tags, and invalid values
-- **Pixel Data Corruption**: Introduces subtle corruptions to image data while maintaining parsability
-- **Batch Generation**: Creates multiple test files in a single run
-- **Configurable Output**: Customizable mutation strategies and output directories
+## Key Features
 
-### 🛡️ Security Features
-- **Comprehensive Validation**: DICOM compliance checking and security validation
-- **Attack Detection**: Identifies null byte injection, buffer overflow attempts, and DoS patterns
-- **Security Logging**: Structured logging with security event tracking
-- **Safe Defaults**: Security-conscious default configuration
+### Fuzzing Capabilities
+- **Mutation-Based Fuzzing**: Intelligent mutations of DICOM metadata, headers, and pixel data
+- **Grammar-Based Fuzzing**: DICOM-aware mutations that understand protocol structure
+- **Coverage-Guided Fuzzing**: Track code coverage to guide mutation strategies
+- **Batch Processing**: Generate and test thousands of fuzzed files efficiently
 
-### 📊 Quality Assurance
-- **414 Comprehensive Tests**: Covering all modules and integration paths
-- **100% Pass Rate**: All tests passing consistently across Python 3.11, 3.12, 3.13
-- **Property-Based Testing**: Using Hypothesis for robustness testing
-- **Automated CI/CD**: GitHub Actions with quality gates and security scanning
-- **Code Quality**: Black formatting, flake8 linting, isort import sorting
+### Crash Analysis & Reporting
+- **Automatic Crash Detection**: Monitor target applications for crashes, hangs, and errors
+- **Crash Deduplication**: Group similar crashes to identify unique vulnerabilities
+- **Mutation Minimization**: Automatically find the minimal mutation set that triggers a crash
+- **Comprehensive Reports**: Interactive HTML reports with full crash forensics
+
+### Mutation Tracking
+- **Complete Traceability**: Track every mutation from source file to crash
+- **Session Management**: Organize fuzzing campaigns with detailed session logs
+- **Artifact Preservation**: Automatically save crash samples and reproduction commands
+- **DICOM Metadata Snapshots**: Compare original vs. fuzzed file metadata
 
 ## Project Structure
 
 ```
-dicom-fuzzer/
-├── core/
-│   ├── parser.py          # DICOM file parsing & validation (424 lines)
-│   ├── mutator.py         # Advanced mutation engine (484 lines)
-│   ├── generator.py       # File generation logic (58 lines)
-│   ├── validator.py       # Security validation (488 lines)
-│   └── exceptions.py      # Exception hierarchy (91 lines)
-├── strategies/
-│   ├── metadata_fuzzer.py # Patient info mutations (24 lines)
-│   ├── header_fuzzer.py   # DICOM headers mutations (37 lines)
-│   └── pixel_fuzzer.py    # Image data mutations (15 lines)
-├── utils/
-│   ├── config.py          # Configuration management (13 lines)
-│   ├── logger.py          # Structured logging (360 lines)
-│   └── helpers.py         # Utility functions (495 lines)
-├── tests/                 # 349 comprehensive tests (3,252 lines)
-│   ├── test_config.py     # Configuration tests (34 tests)
-│   ├── test_exceptions.py # Exception tests (43 tests)
-│   ├── test_generator.py  # Generator tests (27 tests)
-│   ├── test_helpers.py    # Helper tests (47 tests)
-│   ├── test_integration.py# Integration tests (21 tests)
-│   ├── test_logger.py     # Logger tests (18 tests)
-│   ├── test_mutator.py    # Mutator tests (42 tests)
-│   ├── test_parser.py     # Parser tests (29 tests)
-│   ├── test_strategies.py # Strategy tests (21 tests)
-│   ├── test_validator.py  # Validator tests (57 tests)
-│   └── conftest.py        # Shared fixtures
-└── docs/                  # Project documentation
+DICOM-Fuzzer/
+├── core/                      # Core fuzzing engine
+│   ├── config.py              # Configuration management
+│   ├── corpus.py              # Test corpus management
+│   ├── coverage_correlation.py # Coverage analysis
+│   ├── coverage_fuzzer.py     # Coverage-guided fuzzing
+│   ├── coverage_tracker.py    # Code coverage tracking
+│   ├── crash_analyzer.py      # Crash analysis
+│   ├── crash_deduplication.py # Crash grouping
+│   ├── enhanced_reporter.py   # HTML report generation
+│   ├── exceptions.py          # Exception hierarchy
+│   ├── fuzzing_session.py     # Session tracking
+│   ├── generator.py           # Test case generation
+│   ├── grammar_fuzzer.py      # Grammar-based fuzzing
+│   ├── mutation_minimization.py # Delta debugging
+│   ├── mutator.py             # Mutation engine
+│   ├── parser.py              # DICOM parsing
+│   ├── profiler.py            # Performance profiling
+│   ├── reporter.py            # Report generation
+│   ├── statistics.py          # Statistics tracking
+│   ├── target_runner.py       # Target execution
+│   ├── types.py               # Type definitions
+│   └── validator.py           # DICOM validation
+├── strategies/                # Mutation strategies
+│   ├── header_fuzzer.py       # Header mutations
+│   ├── metadata_fuzzer.py     # Metadata mutations
+│   └── pixel_fuzzer.py        # Pixel data mutations
+├── tools/                     # Utility tools
+│   ├── generate_report.py     # Report generation CLI
+│   └── realtime_monitor.py    # Live fuzzing dashboard
+├── examples/                  # Example scripts
+│   ├── demo_dictionary_fuzzing.py
+│   ├── demo_fuzzing.py
+│   └── fuzz_dicom_viewer.py   # Complete viewer fuzzing example
+├── tests/                     # Test suite (802 tests)
+├── docs/                      # Documentation
+│   ├── COVERAGE.md            # Test coverage analysis
+│   ├── FUZZING_GUIDE.md       # Fuzzing methodology guide
+│   └── REPORTING.md           # Reporting system docs
+└── config/                    # Configuration
+    ├── local_paths.example.py # Path configuration template
+    └── local_paths.py         # Local paths (not tracked)
 ```
-
-**Total**: 2,510 lines of production code | 3,252 lines of test code
 
 ## Installation
 
 ### Prerequisites
 
-- **Python 3.11+** (tested on Python 3.13)
-- **uv** (recommended) or pip
+- Python 3.11 or higher
+- [uv](https://github.com/astral-sh/uv) (recommended) or pip
 
-### Quick Start with uv (Recommended)
+### Quick Start
 
 ```bash
 # Clone the repository
-git clone https://github.com/Dashtid/DICOM-Fuzzer.git
+git clone https://github.com/yourusername/DICOM-Fuzzer.git
 cd DICOM-Fuzzer
 
-# Create virtual environment and install dependencies
+# Install with uv (recommended)
 uv venv
 uv sync
 
@@ -112,23 +109,6 @@ uv sync
 .venv\Scripts\activate
 # Linux/Mac:
 source .venv/bin/activate
-```
-
-### Traditional Installation with pip
-
-```bash
-# Clone the repository
-git clone https://github.com/Dashtid/DICOM-Fuzzer.git
-cd DICOM-Fuzzer
-
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
-# or
-.venv\Scripts\activate     # Windows
-
-# Install dependencies
-pip install -r requirements.txt
 ```
 
 ### Development Setup
@@ -144,263 +124,294 @@ pre-commit install
 pytest tests/ -v
 
 # Run with coverage
-pytest tests/ --cov=core --cov=strategies --cov=utils
+pytest tests/ --cov=core --cov-report=html
 ```
 
 ## Usage
 
-### Basic Usage
+### Basic Fuzzing
 
-Generate 50 fuzzed DICOM files from a source file:
-
-```bash
-python main.py sample.dcm -c 50 -o ./test_files
-```
-
-### Advanced Usage
-
-```bash
-python main.py input.dcm \
-    --count 100 \
-    --output ./fuzzed_output \
-    --strategies metadata,header,pixel \
-    --verbose
-```
-
-### Programmatic Usage
+Generate fuzzed DICOM files with mutation tracking:
 
 ```python
-from core.generator import DICOMGenerator
-from core.validator import DicomValidator
-from core.parser import DicomParser
+from core.mutator import DicomMutator
+from core.fuzzing_session import FuzzingSession
+import pydicom
 
-# Generate fuzzed files
-generator = DICOMGenerator(output_dir="./fuzzed_output")
-fuzzed_files = generator.generate_batch("original.dcm", count=100)
+# Initialize fuzzing session
+session = FuzzingSession(
+    session_name="pacs_test_001",
+    output_dir="./output",
+    reports_dir="./reports"
+)
 
-# Validate generated files
-validator = DicomValidator(strict_mode=False)
-for file_path in fuzzed_files:
-    result, dataset = validator.validate_file(file_path)
-    if not result.is_valid:
-        print(f"Validation errors in {file_path.name}:")
-        for error in result.errors:
-            print(f"  - {error}")
+# Load source DICOM file
+dataset = pydicom.dcmread("sample.dcm")
+
+# Configure mutator
+mutator = DicomMutator(config={
+    "max_mutations_per_file": 5,
+    "mutation_probability": 0.8
+})
+
+# Generate fuzzed files with tracking
+for i in range(100):
+    mutator.start_session(dataset)
+
+    file_id = session.start_file_fuzzing(
+        source_file="sample.dcm",
+        output_file=f"output/fuzzed_{i:04d}.dcm",
+        severity="moderate"
+    )
+
+    fuzzed = mutator.apply_mutations(dataset, num_mutations=5)
+
+    # Record mutations
+    for mutation in mutator.current_session.mutations:
+        session.record_mutation(
+            strategy_name=mutation.strategy_name,
+            mutation_type=mutation.mutation_type,
+            original_value=mutation.original_value,
+            mutated_value=mutation.mutated_value
+        )
+
+    fuzzed.save_as(f"output/fuzzed_{i:04d}.dcm")
+    session.end_file_fuzzing(f"output/fuzzed_{i:04d}.dcm")
+
+# Generate report
+session.save_session_report()
 ```
 
-### Parameters
+### Testing a DICOM Viewer
 
-- `input_file`: Path to the original DICOM file
-- `-c, --count`: Number of fuzzed files to generate (default: 100)
-- `-o, --output`: Output directory (default: ./fuzzed_dicoms)
-- `-s, --strategies`: Comma-separated list of mutation strategies
-- `-v, --verbose`: Enable verbose logging
+Automatically test a DICOM viewer application:
 
-## Mutation Strategies
+```python
+from examples.fuzz_dicom_viewer import DicomViewerFuzzer
 
-### Metadata Fuzzing
-- **Patient Information**: Generates realistic but fake patient names, IDs, and demographics
-- **Study Data**: Randomizes study dates, descriptions, and institutional information
-- **Equipment Info**: Varies manufacturer, model, and software version data
+# Configure fuzzer for your environment
+fuzzer = DicomViewerFuzzer(
+    input_dir="C:/DICOM_Test_Data",
+    output_dir="./fuzzed_output",
+    viewer_path="C:/Program Files/DicomViewer/viewer.exe",
+    viewer_timeout=5
+)
 
-### Header Fuzzing
-- **Overlong Strings**: Tests application handling of extremely long field values (>1KB)
-- **Missing Required Tags**: Removes or corrupts mandatory DICOM elements
-- **Invalid VR Values**: Introduces invalid Value Representation data
-- **Boundary Values**: Tests edge cases in numeric fields
+# Run fuzzing campaign
+fuzzer.run_fuzzing_campaign(
+    num_files=100,
+    severity="moderate"
+)
 
-### Pixel Fuzzing
-- **Noise Injection**: Adds random noise to small percentages of pixel data
-- **Bit Flipping**: Introduces single-bit errors in image data
-- **Value Corruption**: Randomizes pixel values in specific regions
+# View results
+# Reports saved to: ./reports/html/
+```
+
+### Crash Analysis
+
+Deduplicate crashes and find minimal crash-triggering mutations:
+
+```python
+from core.crash_deduplication import CrashDeduplicator, DeduplicationConfig
+from core.mutation_minimization import MutationMinimizer
+
+# Load fuzzing session
+session = FuzzingSession.load_from_report("session_20250105.json")
+
+# Deduplicate crashes
+config = DeduplicationConfig(
+    stack_trace_weight=0.5,
+    exception_weight=0.3,
+    mutation_weight=0.2
+)
+deduplicator = CrashDeduplicator(config)
+unique_crashes = deduplicator.deduplicate_crashes(session.crashes)
+
+print(f"Found {len(unique_crashes)} unique crash signatures")
+
+# Minimize mutations for each unique crash
+for signature, crashes in unique_crashes.items():
+    crash = crashes[0]  # Take first instance
+
+    def test_crash(dataset):
+        # Test if dataset triggers the crash
+        # Return True if crash occurs
+        pass
+
+    minimizer = MutationMinimizer(test_crash)
+    minimal = minimizer.minimize(
+        original_dataset=crash.original,
+        mutations=crash.mutations,
+        strategy="delta_debugging"
+    )
+
+    print(f"Crash {signature}: {len(minimal)} mutations needed")
+```
 
 ## Configuration
 
-Edit `utils/config.py` to customize mutation behavior:
+### Local Paths (Not Tracked in Git)
+
+Create `config/local_paths.py` for environment-specific paths:
 
 ```python
-MUTATION_STRATEGIES = {
-    'metadata_probability': 0.8,  # 80% chance to apply metadata mutations
-    'header_probability': 0.6,    # 60% chance to apply header mutations
-    'pixel_probability': 0.3,     # 30% chance to apply pixel mutations
-    'max_mutations_per_file': 3   # Maximum number of mutations per file
-}
+from pathlib import Path
 
-FAKE_DATA_POOLS = {
-    'institutions': ["General Hospital", "Medical Center", "Clinic"],
-    'modalities': ["CT", "MR", "US", "XR"],
-    'manufacturers': ["GE", "Siemens", "Philips"]
+# Test data location
+DICOM_INPUT_DIR = Path(r"C:\Your\DICOM\Test\Data")
+
+# Application under test
+DICOM_VIEWER_PATH = Path(r"C:\Program Files\YourApp\viewer.exe")
+VIEWER_TIMEOUT = 5
+```
+
+See `config/local_paths.example.py` for template.
+
+### Mutation Strategies
+
+Configure mutation behavior in your fuzzer:
+
+```python
+config = {
+    "max_mutations_per_file": 5,
+    "mutation_probability": 0.8,
+    "default_severity": "moderate",  # low, moderate, high, critical
+    "preserve_critical_elements": True,
+    "enable_mutation_tracking": True
 }
 ```
 
 ## Testing
 
-### Run All Tests
+### Run Test Suite
 
 ```bash
+# Run all tests
 pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=core --cov-report=html
+
+# Run specific test module
+pytest tests/test_fuzzing_session.py -v
+
+# View coverage report
+start reports/coverage/htmlcov/index.html  # Windows
+open reports/coverage/htmlcov/index.html   # macOS
 ```
 
-### Run Specific Test Modules
+### Test Statistics
 
-```bash
-# Test validator module
-pytest tests/test_validator.py -v
-
-# Test integration workflows
-pytest tests/test_integration.py -v
-
-# Test with coverage
-pytest tests/ --cov=core --cov=strategies --cov=utils --cov-report=html
-```
-
-### Test Coverage Summary
-
-- **Total Tests**: 349
+- **Total Tests**: 802
 - **Pass Rate**: 100%
-- **Test-to-Source Ratio**: 1.30:1
-- **Coverage**: 100% of production code
+- **Overall Coverage**: 28%
+- **Excellent Coverage Modules**: config.py (100%), types.py (100%), corpus.py (91%)
 
-See [TEST_COVERAGE.md](docs/TEST_COVERAGE.md) for detailed breakdown.
+See [COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
 
-## Testing Integration
+## Documentation
 
-### Automated Testing Loop
-
-```python
-from core.generator import DICOMGenerator
-from core.validator import DicomValidator
-
-def test_application_with_fuzzed_files(original_file, app_endpoint):
-    generator = DICOMGenerator("./test_output")
-    validator = DicomValidator()
-
-    fuzzed_files = generator.generate_batch(original_file, count=50)
-
-    results = []
-    for file_path in fuzzed_files:
-        # Validate before sending
-        validation_result, dataset = validator.validate_file(file_path)
-
-        try:
-            response = upload_to_app(file_path, app_endpoint)
-            results.append({
-                'file': file_path.name,
-                'status': 'success',
-                'validation': 'valid' if validation_result.is_valid else 'invalid'
-            })
-        except Exception as e:
-            results.append({
-                'file': file_path.name,
-                'status': 'error',
-                'error': str(e)
-            })
-
-    return results
-```
+- **[Fuzzing Guide](docs/FUZZING_GUIDE.md)** - Comprehensive fuzzing methodology
+- **[Reporting System](docs/REPORTING.md)** - Report generation and analysis
+- **[Coverage Analysis](docs/COVERAGE.md)** - Test coverage breakdown
+- **[Project Structure](docs/STRUCTURE.md)** - Repository organization
 
 ## Use Cases
 
-- **Medical Imaging Application Testing**: Validate robustness against malformed DICOM files
-- **Security Testing**: Identify potential vulnerabilities in DICOM parsing logic
-- **Compliance Testing**: Ensure applications handle edge cases gracefully
-- **Performance Testing**: Test application behavior under various data conditions
-- **Regression Testing**: Automated testing in CI/CD pipelines
+### Security Testing
+Identify vulnerabilities in DICOM implementations:
+- Buffer overflow detection
+- Null byte injection testing
+- Malformed header handling
+- Edge case discovery
 
-## Safety and Ethics
+### Compliance Testing
+Validate DICOM compliance:
+- Standard conformance testing
+- Error handling verification
+- Robustness assessment
 
-⚠️ **Important**: This tool is designed for testing purposes only in controlled environments.
+### Regression Testing
+Automated testing in development workflows:
+- CI/CD integration
+- Automated crash detection
+- Performance regression testing
 
-- Only use with synthetic or anonymized test data
-- Ensure compliance with HIPAA, GDPR, and other relevant regulations
-- Do not use on production systems without proper authorization
-- Generated files should be treated as test data and disposed of securely
-- All patient data is automatically redacted in logs (PHI protection)
+## Safety and Ethical Use
 
-## Implementation Status
+This tool is designed for defensive security testing only.
 
-### ✅ Phase 1: Foundation (Weeks 1-2) - 95% Complete
+**Approved Use:**
+- Testing systems you own or have authorization to test
+- Security research in controlled environments
+- Compliance and quality assurance testing
+- Educational purposes
 
-#### Completed Components
-- ✅ **Core Parser** (424 lines) - Production-ready with comprehensive security features
-- ✅ **Core Mutator** (484 lines) - Advanced mutation engine with session management
-- ✅ **Core Generator** (58 lines) - Batch file generation with fuzzing integration
-- ✅ **Core Validator** (488 lines) - Security validation and compliance checking
-- ✅ **Core Exceptions** (91 lines) - Robust exception hierarchy
-- ✅ **Structured Logger** (360 lines) - Production-ready logging with PHI redaction
-- ✅ **Helper Utilities** (495 lines) - Comprehensive utility functions
-- ✅ **Configuration** (13 lines) - Mutation strategy configuration
-- ✅ **Test Suite** (3,252 lines) - 349 comprehensive tests (100% passing)
+**Important:**
+- Always use anonymized or synthetic test data
+- Ensure compliance with HIPAA, GDPR, and relevant regulations
+- Never test production systems without authorization
+- Dispose of test data securely after testing
 
-#### Fuzzing Strategies
-- ✅ **Metadata Fuzzer** (24 lines) - Patient info and study data mutations
-- ✅ **Header Fuzzer** (37 lines) - DICOM tag manipulation
-- ✅ **Pixel Fuzzer** (15 lines) - Image data corruption
-
-### ⏳ Phase 2: Advanced Fuzzing (Weeks 3-4) - Planned
-- ⏳ Coverage-guided fuzzing
-- ⏳ Grammar-based mutations
-- ⏳ Network protocol fuzzing
-- ⏳ Automatic crash analysis and reporting
-
-### ⏳ Phase 3: Integration & Scalability (Weeks 5-6) - Planned
-- ⏳ Web dashboard for results visualization
-- ⏳ Support for DICOM-RT (Radiotherapy) structures
-- ⏳ Integration with CI/CD pipelines
-- ⏳ Performance monitoring during testing
-
-### ⏳ Phase 4: Production Readiness (Weeks 7-8) - Planned
-- ⏳ Security hardening and compliance validation
-- ⏳ Field testing and user interface
-- ⏳ Complete documentation and training materials
 
 ## Contributing
 
+Contributions are welcome! This project is designed to be both a practical tool and a learning resource.
+
+### How to Contribute
+
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/new-mutation-strategy`)
+2. Create a feature branch (`git checkout -b feature/crash-analyzer-improvements`)
 3. Make your changes with tests
 4. Ensure all tests pass (`pytest tests/ -v`)
 5. Ensure code quality (`black . && isort . && flake8`)
-6. Commit your changes (`git commit -am 'Add new mutation strategy'`)
-7. Push to the branch (`git push origin feature/new-mutation-strategy`)
-8. Create a Pull Request
+6. Commit with conventional commits (`git commit -m "feat: add crash signature hashing"`)
+7. Push to your fork (`git push origin feature/crash-analyzer-improvements`)
+8. Open a Pull Request
 
 ### Development Guidelines
 
-- Follow Python best practices and PEP 8 style guidelines
-- Write comprehensive tests for new features (target: 100% coverage)
-- Use educational comments to explain concepts (this is a learning project!)
-- Run pre-commit hooks before committing (`pre-commit install`)
-- Ensure all tests pass before submitting PR (`pytest tests/ -v`)
-- Follow security-first development principles
+- Write comprehensive tests for new features
+- Follow Python best practices (PEP 8)
+- Use type hints for better code clarity
+- Document security implications
+- Use atomic commits (one logical change per commit)
+- Follow conventional commit format
+
+See [.claude/CLAUDE.md](.claude/CLAUDE.md) for detailed development guidelines.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-- Built using the excellent [pydicom](https://pydicom.github.io/) library
-- Structured logging with [structlog](https://www.structlog.org/)
+- Built with [pydicom](https://pydicom.github.io/) for DICOM parsing
+- Uses [pynetdicom](https://pynetdicom.readthedocs.io/) for network operations
 - Testing with [pytest](https://pytest.org/) and [hypothesis](https://hypothesis.readthedocs.io/)
-- Inspired by the need for robust testing in medical imaging applications
-- Developed for enhancing security and reliability in healthcare technology
+- Code quality with [black](https://github.com/psf/black), [isort](https://pycqa.github.io/isort/), and [flake8](https://flake8.pycqa.org/)
 
 ## Disclaimer
 
-This software is provided for educational and testing purposes. Users are responsible for ensuring compliance with all applicable laws and regulations when using this tool. The authors assume no liability for any misuse or damage caused by this software.
+This software is provided for educational and security testing purposes. Users are responsible for ensuring compliance with all applicable laws and regulations. The authors assume no liability for misuse or damage caused by this software.
 
-## Project Statistics
+## Project Status
 
-- **Total Source Code**: 2,510 lines
-- **Total Test Code**: 3,252 lines
-- **Test-to-Source Ratio**: 1.30:1
-- **Total Tests**: 349 (100% passing)
-- **Test Modules**: 10
-- **Production Modules**: 13
-- **Code Quality**: Black, isort, flake8 compliant
-- **Python Version**: 3.11+
+**Current Phase**: Advanced features implemented, integration testing in progress
+
+**Recent Updates**:
+- Comprehensive fuzzing session tracking with full traceability
+- Crash deduplication with multi-strategy similarity analysis
+- Mutation minimization using delta debugging
+- Interactive HTML reports with crash forensics
+- Coverage correlation for guided fuzzing
+
+**Next Steps**:
+- Integration testing for advanced features
+- Performance optimization
+- Documentation expansion
+- Example workflows and tutorials
 
 ---
 
-**🤖 Generated and maintained with [Claude Code](https://claude.com/claude-code)**
+Developed for enhancing security and reliability in healthcare technology.
