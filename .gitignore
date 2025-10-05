@@ -37,6 +37,8 @@ id_ed25519*
 secrets.yml
 secrets.yaml
 config.local.*
+config/local_paths.py
+!config/local_paths.example.py
 credentials.json
 credentials.yml
 credentials.yaml
