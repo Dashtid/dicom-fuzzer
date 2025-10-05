@@ -656,9 +656,9 @@ ____________ TestDicomMutatorInit.test_mutator_creation_no_config _____________
 tests\test_mutator.py:167: in test_mutator_creation_no_config
     assert mutator.strategies == []
 E   assert [<strategies....01E7C34EEED0>] == []
-E     
+E
 E     Left contains one more item: <strategies.dictionary_fuzzer.DictionaryFuzzer object at 0x000001E7C34EEED0>
-E     
+E
 E     Full diff:
 E     - []
 E     + [
