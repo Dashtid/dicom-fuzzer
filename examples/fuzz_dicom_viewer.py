@@ -37,6 +37,21 @@ import pydicom
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Try to load local configuration (never committed to git)
+try:
+    from config import local_paths
+
+    DEFAULT_INPUT = str(local_paths.DICOM_INPUT_DIR)
+    DEFAULT_VIEWER = str(local_paths.DICOM_VIEWER_PATH)
+    DEFAULT_TIMEOUT = local_paths.VIEWER_TIMEOUT
+except ImportError:
+    # Fallback to environment variables if local_paths.py doesn't exist
+    DEFAULT_INPUT = os.getenv(
+        "DICOM_INPUT_DIR", "C:/Data/Kiwi - Example Data - 20210423"
+    )
+    DEFAULT_VIEWER = os.getenv("DICOM_VIEWER_PATH")
+    DEFAULT_TIMEOUT = int(os.getenv("DICOM_VIEWER_TIMEOUT", "5"))
+
 from core.enhanced_reporter import EnhancedReportGenerator  # noqa: E402
 from core.fuzzing_session import FuzzingSession  # noqa: E402
 from core.generator import DICOMGenerator  # noqa: E402
@@ -617,8 +632,8 @@ Examples:
     parser.add_argument(
         "--input",
         "-i",
-        default=os.getenv("DICOM_INPUT", "C:/Data/Kiwi - Example Data - 20210423"),
-        help="Input directory with DICOM files (default: DICOM_INPUT env var)",
+        default=DEFAULT_INPUT,
+        help=f"Input directory with DICOM files (default: {DEFAULT_INPUT})",
     )
 
     parser.add_argument(
@@ -631,8 +646,8 @@ Examples:
     parser.add_argument(
         "--viewer",
         "-v",
-        default=os.getenv("DICOM_VIEWER"),
-        help="Path to DICOM viewer executable (default: DICOM_VIEWER env var)",
+        default=DEFAULT_VIEWER,
+        help=f"Path to DICOM viewer executable (default: {DEFAULT_VIEWER or 'Not configured'})",
     )
 
     parser.add_argument(
@@ -647,8 +662,8 @@ Examples:
         "--timeout",
         "-t",
         type=int,
-        default=5,
-        help="Viewer execution timeout in seconds (default: 5)",
+        default=DEFAULT_TIMEOUT,
+        help=f"Viewer execution timeout in seconds (default: {DEFAULT_TIMEOUT})",
     )
 
     parser.add_argument(
