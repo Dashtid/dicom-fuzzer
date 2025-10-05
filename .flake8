@@ -7,3 +7,4 @@ per-file-ignores =
     core/config.py:E221,E222
     core/profiler.py:D401
     tests/test_reporter.py:F841
+    tests/test_mutation_minimization.py:D202
