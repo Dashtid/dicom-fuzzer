@@ -396,6 +396,46 @@ class TestFuzzingSession:
         assert isinstance(hash_val, str)
         assert len(hash_val) == 64  # SHA256 hex digest length
 
+    def test_record_mutation_without_active_file(self, temp_dirs):
+        """Test recording mutation without starting file fuzzing first."""
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(temp_dirs["output"]),
+            reports_dir=str(temp_dirs["reports"]),
+        )
+
+        # Try to record mutation without starting file fuzzing
+        with pytest.raises(RuntimeError, match="No active file fuzzing session"):
+            session.record_mutation(strategy_name="Test", mutation_type="test")
+
+    def test_end_file_fuzzing_without_active_file(self, temp_dirs):
+        """Test ending file fuzzing without starting it first."""
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(temp_dirs["output"]),
+            reports_dir=str(temp_dirs["reports"]),
+        )
+
+        # Try to end file fuzzing without starting
+        with pytest.raises(RuntimeError, match="No active file fuzzing session"):
+            session.end_file_fuzzing(Path("test.dcm"), success=True)
+
+    def test_record_crash_without_file_id(self, temp_dirs):
+        """Test recording crash with invalid file_id."""
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(temp_dirs["output"]),
+            reports_dir=str(temp_dirs["reports"]),
+        )
+
+        # Try to record crash with non-existent file_id
+        with pytest.raises(KeyError):
+            session.record_crash(
+                file_id="nonexistent_id",
+                crash_type="crash",
+                severity="high",
+            )
+
     def test_crash_log_creation(self, temp_dirs):
         """Test crash log file creation."""
         session = FuzzingSession(
