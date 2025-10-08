@@ -88,13 +88,13 @@ jobs:
           from memory_profiler import profile
           import pydicom
           from core.parser import DicomParser
-          from core.generator import DicomGenerator
+          from core.generator import DICOMGenerator
           from core.mutator import DicomMutator
 
           @profile
           def test_parser_memory():
               """Profile DICOM parser memory usage."""
-              gen = DicomGenerator()
+              gen = DICOMGenerator()
               dataset = gen.generate_random_dicom()
               parser = DicomParser(dataset)
               metadata = parser.extract_metadata()
@@ -103,7 +103,7 @@ jobs:
           @profile
           def test_mutator_memory():
               """Profile DICOM mutator memory usage."""
-              gen = DicomGenerator()
+              gen = DICOMGenerator()
               dataset = gen.generate_random_dicom()
               mutator = DicomMutator()
               mutator.start_session(dataset)
@@ -154,7 +154,7 @@ jobs:
         run: |
           cat > locustfile.py << 'EOF'
           from locust import User, task, between
-          from core.generator import DicomGenerator
+          from core.generator import DICOMGenerator
           from core.mutator import DicomMutator
           from core.validator import DicomValidator
 
@@ -163,7 +163,7 @@ jobs:
 
               def on_start(self):
                   """Initialize fuzzer components."""
-                  self.generator = DicomGenerator()
+                  self.generator = DICOMGenerator()
                   self.mutator = DicomMutator()
                   self.validator = DicomValidator()
 
