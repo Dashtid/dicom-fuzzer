@@ -76,11 +76,11 @@ Repository = "https://github.com/Dashtid/DICOM-Fuzzer.git"
 "Bug Tracker" = "https://github.com/Dashtid/DICOM-Fuzzer/issues"
 
 [project.scripts]
-dicom-fuzzer = "main:main"
+dicom-fuzzer = "tools.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["core*", "strategies*", "utils*"]
+include = ["core*", "strategies*", "utils*", "tools*"]
 exclude = ["tests*", ".venv*"]
 
 [tool.black]
