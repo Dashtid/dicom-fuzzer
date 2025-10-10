@@ -1,58 +1,112 @@
+# Pre-commit hooks for DICOM-Fuzzer
+# Modern 2025 approach: Ruff (replaces Black, isort, flake8, bandit) + mypy
+# See https://pre-commit.com for more information
+#
+# Run manually: pre-commit run --all-files
+# Install: pre-commit install
+
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+  # Ruff - Fast Python linter and formatter (replaces Black, isort, flake8)
+  # https://github.com/astral-sh/ruff-pre-commit
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.1
     hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
+      # Run the linter with automatic fixes
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
+      # Run the formatter (replaces Black)
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  # Type checking with mypy
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - pydantic>=2.0.0
+          - pydicom>=2.4.0
+          - types-aiofiles
+        args:
+          - --config-file=pyproject.toml
+          - --ignore-missing-imports
+        exclude: ^(tests/|examples/|demo/|scripts/)
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Prevent commits to protected branches
+      - id: no-commit-to-branch
+        args: [--branch, main]
+      # File size and format checks
       - id: check-added-large-files
+        args: [--maxkb=1000]
       - id: check-case-conflict
       - id: check-merge-conflict
-      - id: debug-statements
+      - id: check-toml
+      - id: check-yaml
+        args: [--unsafe]  # Allow custom tags in GitHub Actions
+      - id: check-json
+      - id: end-of-file-fixer
+        exclude: ^(artifacts/|data/|\.hypothesis/|\.pytest_cache/)
+      - id: trailing-whitespace
+        exclude: ^(artifacts/|data/|\.hypothesis/|\.pytest_cache/)
+        args: [--markdown-linebreak-ext=md]
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      # Python-specific checks
+      - id: check-ast
+      - id: check-builtin-literals
       - id: check-docstring-first
+      - id: debug-statements
+      - id: name-tests-test
+        args: [--pytest-test-first]
+      # Security
+      - id: detect-private-key
 
-  - repo: https://github.com/psf/black
-    rev: 23.7.0
+  # Security scanning with bandit
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.0
     hooks:
-      - id: black
-        language_version: python3
+      - id: bandit
+        args: [-c, pyproject.toml, -r, dicom_fuzzer/]
+        additional_dependencies: ["bandit[toml]"]
+        exclude: ^tests/
 
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+  # Markdown and YAML formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
     hooks:
-      - id: isort
-        args: ["--profile", "black"]
+      - id: prettier
+        types_or: [markdown, yaml, json]
+        exclude: ^(CHANGELOG\.md|\.github/|artifacts/|data/)
 
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
-    hooks:
-      - id: flake8
-        additional_dependencies: [flake8-docstrings]
-        args: [--max-line-length=88, "--extend-ignore=E203,W503,E231,E501,F811,D100,D101,D103,D104,D107,D200,D400,D205"]
-
-  # Mypy - temporarily disabled due to environment issues
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: v1.5.1
-  #   hooks:
-  #     - id: mypy
-  #       args: [--ignore-missing-imports, --no-strict-optional]
-  #       additional_dependencies: [types-pydicom]
-
-  # Bandit - temporarily disabled due to dependency issues
-  # - repo: https://github.com/PyCQA/bandit
-  #   rev: 1.7.5
-  #   hooks:
-  #     - id: bandit
-  #       args: ["-c", "pyproject.toml"]
-  #       additional_dependencies: ["bandit[toml]"]
-  #       exclude: ^tests/
-
+  # Local pytest check (run on push only to avoid slowing down commits)
   - repo: local
     hooks:
-      - id: pytest-check
-        name: pytest-check
+      - id: pytest-quick
+        name: pytest-quick
         entry: pytest
         language: system
         pass_filenames: false
         stages: [push]
-        args: ["tests/", "--tb=short", "-q", "--no-cov"]
+        args: [tests/, --tb=short, -q, --no-cov, -x]
+
+# Configuration
+default_language_version:
+  python: python3.11
+
+# CI settings
+ci:
+  autofix_commit_msg: |
+    style: auto-fix pre-commit hooks
+
+    [pre-commit.ci] auto fixes from pre-commit hooks
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: 'chore: pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: [pytest-quick]  # Skip pytest in CI (covered by GitHub Actions)
+  submodules: false
