@@ -376,3 +376,9 @@ truncated*.dcm
 /samples/*.dcm
 !/samples/.gitkeep
 .vscode/
+
+# Analysis and summary reports
+*COVERAGE*.md
+*SUMMARY*.md
+*STATUS*.md
+analyze_*.py
