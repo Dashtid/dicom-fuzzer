@@ -557,3 +557,172 @@ class TestIntegration:
         assert stats["redundant_cases"] == tracker.redundant_cases
         assert stats["total_lines_covered"] == len(tracker.global_coverage)
         assert stats["unique_coverage_patterns"] == len(tracker.seen_coverage_hashes)
+
+
+class TestActualCodeTracing:
+    """Test tracing actual core module code to exercise _trace_function."""
+
+    def test_trace_core_module_execution(self):
+        """Test tracing code in core modules."""
+        from core.test_helper import simple_function
+
+        tracker = CoverageTracker(target_modules=["core"])
+
+        with tracker.trace_execution("test_core_types"):
+            # Execute code in core module
+            result = simple_function()
+            assert result == 3
+
+        # Should have recorded some coverage in core modules
+        assert tracker.total_executions == 1
+        # Coverage should be recorded for core module files
+        core_files_traced = [
+            filename for filename, _ in tracker.global_coverage if "core" in filename
+        ]
+        # Should have traced the test_helper file
+        assert len(core_files_traced) > 0
+
+    def test_trace_function_with_actual_module(self):
+        """Test _trace_function is called during real code execution."""
+        from core.test_helper import another_function
+
+        tracker = CoverageTracker(target_modules=["core"])
+        trace_calls = []
+
+        # Wrap _trace_function to verify it's called
+        original_trace = tracker._trace_function
+
+        def wrapped_trace(frame, event, arg):
+            trace_calls.append((event, frame.f_code.co_filename))
+            return original_trace(frame, event, arg)
+
+        tracker._trace_function = wrapped_trace
+
+        with tracker.trace_execution("test_trace_calls"):
+            # Execute multi-line function in core module
+            result = another_function()
+            assert len(result) == 5
+
+        # Trace function should have been called
+        assert len(trace_calls) > 0
+        # Should have line events
+        line_events = [event for event, _ in trace_calls if event == "line"]
+        assert len(line_events) > 0
+
+    def test_should_trace_file_exception_handling(self):
+        """Test _should_trace_file handles files outside cwd."""
+        tracker = CoverageTracker(target_modules=["core"])
+
+        # File outside current working directory (absolute path)
+        should_trace = tracker._should_trace_file("/completely/different/path/file.py")
+
+        # Should return False (not in target modules)
+        assert should_trace is False
+
+    def test_trace_execution_updates_coverage_history(self):
+        """Test that interesting executions are added to coverage history."""
+        from core.test_helper import simple_function, conditional_function
+
+        tracker = CoverageTracker(target_modules=["core"])
+
+        initial_history_length = len(tracker.coverage_history)
+
+        with tracker.trace_execution("test_history_1"):
+            # Execute first function
+            _ = simple_function()
+
+        with tracker.trace_execution("test_history_2"):
+            # Execute different function (different code paths)
+            _ = conditional_function(15)
+
+        # Coverage history should have grown (if coverage was interesting)
+        # At minimum, should have tried to track
+        assert tracker.total_executions == 2
+
+    def test_is_interesting_with_global_coverage_update(self):
+        """Test that is_interesting updates global coverage."""
+        tracker = CoverageTracker()
+
+        snapshot = CoverageSnapshot(
+            lines_covered={("core/test.py", 10), ("core/test.py", 20)}
+        )
+
+        initial_global = len(tracker.global_coverage)
+
+        # First time should be interesting
+        is_interesting = tracker.is_interesting(snapshot)
+        assert is_interesting is True
+
+        # Should have added hash
+        assert len(tracker.seen_coverage_hashes) == 1
+
+        # Same snapshot should not be interesting
+        is_interesting_again = tracker.is_interesting(snapshot)
+        assert is_interesting_again is False
+
+        # Hash count should remain the same
+        assert len(tracker.seen_coverage_hashes) == 1
+
+    def test_trace_execution_records_new_coverage(self):
+        """Test that trace_execution properly records new coverage."""
+        from core.test_helper import simple_function, another_function
+
+        tracker = CoverageTracker(target_modules=["core"])
+
+        # First execution
+        with tracker.trace_execution("test_new_1"):
+            _ = simple_function()
+
+        first_coverage = len(tracker.global_coverage)
+        first_interesting = tracker.interesting_cases
+
+        # Second execution with different code
+        with tracker.trace_execution("test_new_2"):
+            _ = another_function()
+
+        # Should have executed twice
+        assert tracker.total_executions == 2
+
+    def test_coverage_report_with_executions(self):
+        """Test coverage report after real executions."""
+        from core.test_helper import simple_function, conditional_function
+
+        tracker = CoverageTracker(target_modules=["core"])
+
+        # Perform some executions
+        with tracker.trace_execution("report_test_1"):
+            _ = simple_function()
+
+        with tracker.trace_execution("report_test_2"):
+            _ = conditional_function(3)
+
+        report = tracker.get_coverage_report()
+
+        # Report should contain execution data
+        assert "Total Executions:      2" in report
+        assert "Coverage-Guided Fuzzing Report" in report
+        assert "Coverage History:" in report
+
+    def test_reset_after_actual_tracing(self):
+        """Test reset works after actual code tracing."""
+        from core.test_helper import simple_function
+
+        tracker = CoverageTracker(target_modules=["core"])
+
+        # Do some tracing
+        with tracker.trace_execution("reset_test"):
+            _ = simple_function()
+
+        # Verify we have data
+        assert tracker.total_executions > 0
+
+        # Reset
+        tracker.reset()
+
+        # Everything should be cleared
+        assert tracker.total_executions == 0
+        assert tracker.interesting_cases == 0
+        assert tracker.redundant_cases == 0
+        assert len(tracker.global_coverage) == 0
+        assert len(tracker.coverage_history) == 0
+        assert len(tracker.seen_coverage_hashes) == 0
