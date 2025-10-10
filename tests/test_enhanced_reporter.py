@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from core.enhanced_reporter import EnhancedReportGenerator
+from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
 
 
 class TestEnhancedReportGenerator:

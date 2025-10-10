@@ -16,20 +16,20 @@ class TestMutationStrategiesConfig:
 
     def test_mutation_strategies_exists(self):
         """Test that MUTATION_STRATEGIES is defined."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         assert MUTATION_STRATEGIES is not None
         assert isinstance(MUTATION_STRATEGIES, dict)
 
     def test_metadata_probability_exists(self):
         """Test that metadata_probability is defined."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         assert "metadata_probability" in MUTATION_STRATEGIES
 
     def test_metadata_probability_valid_range(self):
         """Test that metadata_probability is in valid range [0, 1]."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         prob = MUTATION_STRATEGIES["metadata_probability"]
         assert isinstance(prob, (int, float))
@@ -37,13 +37,13 @@ class TestMutationStrategiesConfig:
 
     def test_header_probability_exists(self):
         """Test that header_probability is defined."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         assert "header_probability" in MUTATION_STRATEGIES
 
     def test_header_probability_valid_range(self):
         """Test that header_probability is in valid range [0, 1]."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         prob = MUTATION_STRATEGIES["header_probability"]
         assert isinstance(prob, (int, float))
@@ -51,13 +51,13 @@ class TestMutationStrategiesConfig:
 
     def test_pixel_probability_exists(self):
         """Test that pixel_probability is defined."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         assert "pixel_probability" in MUTATION_STRATEGIES
 
     def test_pixel_probability_valid_range(self):
         """Test that pixel_probability is in valid range [0, 1]."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         prob = MUTATION_STRATEGIES["pixel_probability"]
         assert isinstance(prob, (int, float))
@@ -65,13 +65,13 @@ class TestMutationStrategiesConfig:
 
     def test_max_mutations_per_file_exists(self):
         """Test that max_mutations_per_file is defined."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         assert "max_mutations_per_file" in MUTATION_STRATEGIES
 
     def test_max_mutations_per_file_valid_value(self):
         """Test that max_mutations_per_file is a positive integer."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         max_mut = MUTATION_STRATEGIES["max_mutations_per_file"]
         assert isinstance(max_mut, int)
@@ -79,7 +79,7 @@ class TestMutationStrategiesConfig:
 
     def test_all_required_keys_present(self):
         """Test that all required keys are present."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         required_keys = [
             "metadata_probability",
@@ -93,7 +93,7 @@ class TestMutationStrategiesConfig:
 
     def test_configuration_values(self):
         """Test specific configuration values are as expected."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         # Test documented values
         assert MUTATION_STRATEGIES["metadata_probability"] == 0.8
@@ -107,32 +107,32 @@ class TestFakeDataPoolsConfig:
 
     def test_fake_data_pools_exists(self):
         """Test that FAKE_DATA_POOLS is defined."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         assert FAKE_DATA_POOLS is not None
         assert isinstance(FAKE_DATA_POOLS, dict)
 
     def test_institutions_exists(self):
         """Test that institutions pool is defined."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         assert "institutions" in FAKE_DATA_POOLS
 
     def test_institutions_is_list(self):
         """Test that institutions is a list."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         assert isinstance(FAKE_DATA_POOLS["institutions"], list)
 
     def test_institutions_not_empty(self):
         """Test that institutions list is not empty."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         assert len(FAKE_DATA_POOLS["institutions"]) > 0
 
     def test_institutions_contains_strings(self):
         """Test that institutions contains string values."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         for institution in FAKE_DATA_POOLS["institutions"]:
             assert isinstance(institution, str)
@@ -140,25 +140,25 @@ class TestFakeDataPoolsConfig:
 
     def test_modalities_exists(self):
         """Test that modalities pool is defined."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         assert "modalities" in FAKE_DATA_POOLS
 
     def test_modalities_is_list(self):
         """Test that modalities is a list."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         assert isinstance(FAKE_DATA_POOLS["modalities"], list)
 
     def test_modalities_not_empty(self):
         """Test that modalities list is not empty."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         assert len(FAKE_DATA_POOLS["modalities"]) > 0
 
     def test_modalities_contains_valid_strings(self):
         """Test that modalities contains valid string values."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         for modality in FAKE_DATA_POOLS["modalities"]:
             assert isinstance(modality, str)
@@ -168,25 +168,25 @@ class TestFakeDataPoolsConfig:
 
     def test_manufacturers_exists(self):
         """Test that manufacturers pool is defined."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         assert "manufacturers" in FAKE_DATA_POOLS
 
     def test_manufacturers_is_list(self):
         """Test that manufacturers is a list."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         assert isinstance(FAKE_DATA_POOLS["manufacturers"], list)
 
     def test_manufacturers_not_empty(self):
         """Test that manufacturers list is not empty."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         assert len(FAKE_DATA_POOLS["manufacturers"]) > 0
 
     def test_manufacturers_contains_strings(self):
         """Test that manufacturers contains string values."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         for manufacturer in FAKE_DATA_POOLS["manufacturers"]:
             assert isinstance(manufacturer, str)
@@ -194,7 +194,7 @@ class TestFakeDataPoolsConfig:
 
     def test_all_required_pools_present(self):
         """Test that all required pools are present."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         required_pools = ["institutions", "modalities", "manufacturers"]
 
@@ -203,7 +203,7 @@ class TestFakeDataPoolsConfig:
 
     def test_configuration_values(self):
         """Test specific configuration values are as expected."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         # Test documented values
         assert "General Hospital" in FAKE_DATA_POOLS["institutions"]
@@ -225,7 +225,7 @@ class TestConfigurationIntegrity:
 
     def test_no_conflicting_probabilities(self):
         """Test that probabilities don't conflict with max_mutations."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         # All probabilities sum should make sense with max mutations
         total_prob = (
@@ -239,7 +239,7 @@ class TestConfigurationIntegrity:
 
     def test_probability_ordering_is_sensible(self):
         """Test that probability ordering makes sense for fuzzing."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         # Metadata mutations should be most common (safest)
         # Pixel mutations should be least common (most likely to break files)
@@ -256,7 +256,7 @@ class TestConfigurationIntegrity:
 
     def test_data_pools_have_variety(self):
         """Test that data pools have sufficient variety."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         # Each pool should have multiple options for good randomization
         assert len(FAKE_DATA_POOLS["institutions"]) >= 2
@@ -265,7 +265,7 @@ class TestConfigurationIntegrity:
 
     def test_no_duplicate_values_in_pools(self):
         """Test that pools don't contain duplicate values."""
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         for pool_name, pool_values in FAKE_DATA_POOLS.items():
             assert len(pool_values) == len(
@@ -284,8 +284,8 @@ class TestConfigurationIntegrity:
 
     def test_configuration_can_be_imported_multiple_times(self):
         """Test that configuration can be imported multiple times."""
-        from utils.config import MUTATION_STRATEGIES as ms1
-        from utils.config import MUTATION_STRATEGIES as ms2
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES as ms1
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES as ms2
 
         # Should be the same object
         assert ms1 is ms2
@@ -296,7 +296,7 @@ class TestConfigurationUsage:
 
     def test_accessing_mutation_probabilities(self):
         """Test accessing mutation probabilities in realistic way."""
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         # Simulate strategy selection based on config
         metadata_enabled = MUTATION_STRATEGIES["metadata_probability"] > 0
@@ -309,7 +309,7 @@ class TestConfigurationUsage:
         """Test accessing fake data pools in realistic way."""
         import random
 
-        from utils.config import FAKE_DATA_POOLS
+        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         # Simulate selecting random values from pools
         institution = random.choice(FAKE_DATA_POOLS["institutions"])
@@ -324,7 +324,7 @@ class TestConfigurationUsage:
         """Test using max_mutations_per_file as a range limit."""
         import random
 
-        from utils.config import MUTATION_STRATEGIES
+        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
         max_mutations = MUTATION_STRATEGIES["max_mutations_per_file"]
 
@@ -343,14 +343,14 @@ class TestPydanticConfiguration:
 
     def test_settings_imports(self):
         """Test that new config module can be imported."""
-        from core.config import Settings, get_settings
+        from dicom_fuzzer.core.config import Settings, get_settings
 
         assert Settings is not None
         assert get_settings is not None
 
     def test_settings_default_values(self):
         """Test settings with default values."""
-        from core.config import Settings
+        from dicom_fuzzer.core.config import Settings
 
         settings = Settings()
         assert settings.app_name == "DICOM-Fuzzer"
@@ -359,7 +359,7 @@ class TestPydanticConfiguration:
 
     def test_environment_helpers(self):
         """Test environment helper methods."""
-        from core.config import Environment, Settings
+        from dicom_fuzzer.core.config import Environment, Settings
 
         settings = Settings(environment=Environment.DEVELOPMENT)
         assert settings.is_development() is True
@@ -368,7 +368,7 @@ class TestPydanticConfiguration:
 
     def test_get_settings_singleton(self):
         """Test settings singleton behavior."""
-        from core.config import get_settings
+        from dicom_fuzzer.core.config import get_settings
 
         settings1 = get_settings(force_reload=True)
         settings2 = get_settings()
@@ -377,7 +377,7 @@ class TestPydanticConfiguration:
 
     def test_config_validation(self):
         """Test configuration validation."""
-        from core.config import FuzzingConfig
+        from dicom_fuzzer.core.config import FuzzingConfig
 
         with pytest.raises(Exception):
             # Probability out of range
@@ -388,7 +388,7 @@ class TestPydanticConfiguration:
         import tempfile
         from pathlib import Path
 
-        from core.config import PathConfig
+        from dicom_fuzzer.core.config import PathConfig
 
         with tempfile.TemporaryDirectory() as tmpdir:
             test_path = Path(tmpdir) / "test_dir"
@@ -399,7 +399,7 @@ class TestPydanticConfiguration:
 
     def test_settings_get_summary(self):
         """Test Settings.get_summary method (line 257)."""
-        from core.config import Settings
+        from dicom_fuzzer.core.config import Settings
 
         settings = Settings()
         summary = settings.get_summary()
@@ -414,7 +414,7 @@ class TestPydanticConfiguration:
         """Test load_profile function (lines 328-329)."""
         import os
 
-        from core.config import load_profile
+        from dicom_fuzzer.core.config import load_profile
 
         # Save original environment
         original_env = os.environ.get("ENVIRONMENT")

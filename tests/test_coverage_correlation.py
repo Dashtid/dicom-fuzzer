@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from core.coverage_correlation import CoverageCorrelator
+from dicom_fuzzer.core.coverage_correlation import CoverageCorrelator
 
 
 class TestCoverageCorrelator:

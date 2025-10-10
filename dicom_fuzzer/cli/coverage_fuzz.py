@@ -16,7 +16,7 @@ from typing import Optional
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
+from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table

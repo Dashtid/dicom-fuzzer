@@ -10,7 +10,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from pydicom.tag import Tag
 
-from utils.helpers import (
+from dicom_fuzzer.utils.helpers import (
     GB,
     MB,
     chunk_list,
@@ -385,7 +385,7 @@ class TestPerformanceUtilities:
         """Test timing logs to provided logger."""
         import logging
 
-        from utils.logger import configure_logging, get_logger
+        from dicom_fuzzer.utils.logger import configure_logging, get_logger
 
         log_file = tmp_path / "timing.log"
         configure_logging(json_format=True, log_file=log_file)

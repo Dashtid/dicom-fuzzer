@@ -18,7 +18,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from core.coverage_tracker import CoverageSnapshot, CoverageTracker
+from dicom_fuzzer.core.coverage_tracker import CoverageSnapshot, CoverageTracker
 
 
 class TestCoverageSnapshot:
@@ -564,7 +564,7 @@ class TestActualCodeTracing:
 
     def test_trace_core_module_execution(self):
         """Test tracing code in core modules."""
-        from core.test_helper import simple_function
+        from dicom_fuzzer.core.test_helper import simple_function
 
         tracker = CoverageTracker(target_modules=["core"])
 
@@ -584,7 +584,7 @@ class TestActualCodeTracing:
 
     def test_trace_function_with_actual_module(self):
         """Test _trace_function is called during real code execution."""
-        from core.test_helper import another_function
+        from dicom_fuzzer.core.test_helper import another_function
 
         tracker = CoverageTracker(target_modules=["core"])
         trace_calls = []
@@ -621,7 +621,7 @@ class TestActualCodeTracing:
 
     def test_trace_execution_updates_coverage_history(self):
         """Test that interesting executions are added to coverage history."""
-        from core.test_helper import simple_function, conditional_function
+        from dicom_fuzzer.core.test_helper import simple_function, conditional_function
 
         tracker = CoverageTracker(target_modules=["core"])
 
@@ -665,7 +665,7 @@ class TestActualCodeTracing:
 
     def test_trace_execution_records_new_coverage(self):
         """Test that trace_execution properly records new coverage."""
-        from core.test_helper import simple_function, another_function
+        from dicom_fuzzer.core.test_helper import simple_function, another_function
 
         tracker = CoverageTracker(target_modules=["core"])
 
@@ -685,7 +685,7 @@ class TestActualCodeTracing:
 
     def test_coverage_report_with_executions(self):
         """Test coverage report after real executions."""
-        from core.test_helper import simple_function, conditional_function
+        from dicom_fuzzer.core.test_helper import simple_function, conditional_function
 
         tracker = CoverageTracker(target_modules=["core"])
 
@@ -705,7 +705,7 @@ class TestActualCodeTracing:
 
     def test_reset_after_actual_tracing(self):
         """Test reset works after actual code tracing."""
-        from core.test_helper import simple_function
+        from dicom_fuzzer.core.test_helper import simple_function
 
         tracker = CoverageTracker(target_modules=["core"])
 

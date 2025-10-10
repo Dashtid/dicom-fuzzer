@@ -15,12 +15,12 @@ import shutil
 import pytest
 from pydicom.dataset import Dataset
 
-from core.generator import DICOMGenerator
-from core.parser import DicomParser
-from core.validator import DicomValidator
-from strategies.header_fuzzer import HeaderFuzzer
-from strategies.metadata_fuzzer import MetadataFuzzer
-from strategies.pixel_fuzzer import PixelFuzzer
+from dicom_fuzzer.core.generator import DICOMGenerator
+from dicom_fuzzer.core.parser import DicomParser
+from dicom_fuzzer.core.validator import DicomValidator
+from dicom_fuzzer.strategies.header_fuzzer import HeaderFuzzer
+from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
+from dicom_fuzzer.strategies.pixel_fuzzer import PixelFuzzer
 
 
 class TestEndToEndFuzzingWorkflow:

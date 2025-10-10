@@ -11,8 +11,8 @@ import sys
 import time
 from pathlib import Path
 
-from core.generator import DICOMGenerator
-from core.target_runner import TargetRunner
+from dicom_fuzzer.core.generator import DICOMGenerator
+from dicom_fuzzer.core.target_runner import TargetRunner
 
 try:
     from tqdm import tqdm

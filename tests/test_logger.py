@@ -4,7 +4,7 @@ Comprehensive tests for structured logging system.
 
 import pytest
 
-from utils.logger import (
+from dicom_fuzzer.utils.logger import (
     PerformanceLogger,
     SecurityEventLogger,
     add_security_context,

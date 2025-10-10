@@ -19,7 +19,7 @@ import pydicom
 import pytest
 from pydicom.dataset import Dataset
 
-from core.fuzzing_session import (
+from dicom_fuzzer.core.fuzzing_session import (
     CrashRecord,
     FuzzedFileRecord,
     FuzzingSession,

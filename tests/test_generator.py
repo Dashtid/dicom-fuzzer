@@ -18,7 +18,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from core.generator import DICOMGenerator
+from dicom_fuzzer.core.generator import DICOMGenerator
 
 
 class TestDICOMGeneratorInit:
@@ -244,7 +244,7 @@ class TestFileSaving:
 
     def test_files_are_valid_dicom(self, sample_dicom_file, temp_dir):
         """Test that generated files are valid DICOM files."""
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
@@ -363,7 +363,7 @@ class TestIntegration:
         assert len(set(f.name for f in all_files)) == 8  # All unique
 
         # Verify all files are valid DICOM
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         for file_path in all_files:
             parser = DicomParser(file_path)
@@ -406,7 +406,7 @@ class TestGeneratorErrorHandling:
 
     def test_generation_stats_record_failure(self):
         """Test GenerationStats.record_failure method (lines 33-34)."""
-        from core.generator import GenerationStats
+        from dicom_fuzzer.core.generator import GenerationStats
 
         stats = GenerationStats()
 

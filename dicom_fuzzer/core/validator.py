@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
-from utils.logger import SecurityEventLogger, get_logger
+from dicom_fuzzer.utils.logger import SecurityEventLogger, get_logger
 
 # Get logger for this module
 logger = get_logger(__name__)

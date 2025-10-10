@@ -30,7 +30,7 @@ except ImportError:
 
     # Add the parent directory to the path so we can import utils
     sys.path.append(str(Path(__file__).parent.parent))
-    from utils.logger import SecurityEventLogger, get_logger
+    from dicom_fuzzer.utils.logger import SecurityEventLogger, get_logger
 
 # LEARNING: Import DICOM libraries
 from pydicom.dataset import Dataset
@@ -42,7 +42,7 @@ except ImportError:
     import sys
 
     sys.path.append(str(Path(__file__).parent.parent))
-    from core.types import MutationSeverity
+    from dicom_fuzzer.core.types import MutationSeverity
 
 # Get a logger for this module
 logger = get_logger(__name__)
@@ -177,7 +177,7 @@ class DicomMutator:
         """
         try:
             # Lazy import to avoid circular dependency
-            from strategies.dictionary_fuzzer import DictionaryFuzzer
+            from dicom_fuzzer.strategies.dictionary_fuzzer import DictionaryFuzzer
 
             # Register dictionary fuzzer for intelligent mutations
             dict_fuzzer = DictionaryFuzzer()

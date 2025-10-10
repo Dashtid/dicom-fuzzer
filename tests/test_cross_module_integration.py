@@ -12,15 +12,15 @@ import pydicom
 import pytest
 from pydicom.dataset import Dataset
 
-from core.corpus import CorpusManager
-from core.coverage_fuzzer import CoverageGuidedFuzzer
-from core.coverage_tracker import CoverageSnapshot, CoverageTracker
-from core.fuzzing_session import FuzzingSession
-from core.mutator import DicomMutator, MutationSeverity
-from core.parser import DicomParser
-from core.profiler import FuzzingMetrics, PerformanceProfiler
-from core.reporter import ReportGenerator
-from core.validator import DicomValidator
+from dicom_fuzzer.core.corpus import CorpusManager
+from dicom_fuzzer.core.coverage_fuzzer import CoverageGuidedFuzzer
+from dicom_fuzzer.core.coverage_tracker import CoverageSnapshot, CoverageTracker
+from dicom_fuzzer.core.fuzzing_session import FuzzingSession
+from dicom_fuzzer.core.mutator import DicomMutator, MutationSeverity
+from dicom_fuzzer.core.parser import DicomParser
+from dicom_fuzzer.core.profiler import FuzzingMetrics, PerformanceProfiler
+from dicom_fuzzer.core.reporter import ReportGenerator
+from dicom_fuzzer.core.validator import DicomValidator
 
 
 class TestCrossModuleIntegration:

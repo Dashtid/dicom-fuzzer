@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from core.crash_analyzer import CrashAnalyzer, CrashReport, CrashSeverity, CrashType
+from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer, CrashReport, CrashSeverity, CrashType
 
 
 class TestCrashClassification:

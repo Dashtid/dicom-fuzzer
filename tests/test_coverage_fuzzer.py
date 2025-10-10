@@ -22,8 +22,8 @@ import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian
 
-from core.coverage_fuzzer import CoverageGuidedFuzzer, FuzzingCampaignStats
-from core.mutator import MutationSeverity
+from dicom_fuzzer.core.coverage_fuzzer import CoverageGuidedFuzzer, FuzzingCampaignStats
+from dicom_fuzzer.core.mutator import MutationSeverity
 
 
 @pytest.fixture

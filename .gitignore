@@ -329,7 +329,11 @@ __marimo__/
 # Project-Specific Temporary Files & Outputs
 # ============================================================================
 
-# Fuzzing Output Directories (keep structure, ignore generated content)
+# Artifacts directory (all fuzzing outputs - gitignored entirely)
+/artifacts/
+!/artifacts/.gitkeep
+
+# Legacy output directories (cleanup)
 /fuzzed_dicoms/
 /test_output/
 /test_crashes/
@@ -337,14 +341,11 @@ __marimo__/
 /test_cli2/
 /test_all/
 /test_structure/
+/output/
+/demo_output/
 
-# Output directory structure (keep structure, ignore content)
-/output/crashes/*
-/output/fuzzed/*
-/output/corpus/*
-!/output/crashes/.gitkeep
-!/output/fuzzed/.gitkeep
-!/output/corpus/.gitkeep
+# Demo folder (keep scripts, ignore generated output)
+/demo/output/
 
 # Reports directory structure (keep structure, ignore generated reports)
 /reports/json/*
@@ -372,10 +373,19 @@ corrupted*.dcm
 fuzzed_*.dcm
 truncated*.dcm
 
+# Data directory - ignore actual DICOM files but keep structure
+/data/seeds/*.dcm
+/data/seeds/*.dicom
+!/data/seeds/.gitkeep
+!/data/dictionaries/.gitkeep
+
 # Sample/Test DICOM Files (keep structure but ignore files)
 /samples/*.dcm
 !/samples/.gitkeep
+
+# IDE Settings
 .vscode/
+.idea/
 
 # Analysis and summary reports
 *COVERAGE*.md

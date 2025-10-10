@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from core.profiler import FuzzingMetrics, PerformanceProfiler, StrategyTimer
+from dicom_fuzzer.core.profiler import FuzzingMetrics, PerformanceProfiler, StrategyTimer
 
 
 class TestFuzzingMetrics:
@@ -338,7 +338,7 @@ class TestProfileFunctionDecorator:
         import io
         import sys
 
-        from core.profiler import profile_function
+        from dicom_fuzzer.core.profiler import profile_function
 
         captured_output = io.StringIO()
         sys.stdout = captured_output
@@ -364,7 +364,7 @@ class TestProfileFunctionDecorator:
 
     def test_profile_function_with_exception(self):
         """Test profile_function decorator with exception (lines 309-322)."""
-        from core.profiler import profile_function
+        from dicom_fuzzer.core.profiler import profile_function
 
         @profile_function("error_strategy")
         def failing_function():
@@ -376,7 +376,7 @@ class TestProfileFunctionDecorator:
 
     def test_profile_function_return_value(self):
         """Test profile_function preserves return value (lines 309-322)."""
-        from core.profiler import profile_function
+        from dicom_fuzzer.core.profiler import profile_function
 
         @profile_function("return_test")
         def return_dict():

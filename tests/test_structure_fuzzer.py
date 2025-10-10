@@ -8,7 +8,7 @@ unexpected tags, duplicates, and binary header corruption.
 import pytest
 from pydicom.dataset import Dataset
 
-from strategies.structure_fuzzer import StructureFuzzer
+from dicom_fuzzer.strategies.structure_fuzzer import StructureFuzzer
 
 
 class TestStructureFuzzerInitialization:

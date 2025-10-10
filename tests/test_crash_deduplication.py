@@ -8,12 +8,12 @@ from datetime import datetime
 
 import pytest
 
-from core.crash_deduplication import (
+from dicom_fuzzer.core.crash_deduplication import (
     CrashDeduplicator,
     DeduplicationConfig,
     deduplicate_session_crashes,
 )
-from core.fuzzing_session import CrashRecord
+from dicom_fuzzer.core.fuzzing_session import CrashRecord
 
 
 class TestDeduplicationConfig:

@@ -21,10 +21,10 @@ from typing import Any, Callable, Dict, List, Optional
 
 from pydicom.dataset import Dataset
 
-from core.corpus import CorpusEntry, CorpusManager
-from core.coverage_tracker import CoverageSnapshot, CoverageTracker
-from core.mutator import DicomMutator, MutationSeverity
-from utils.logger import get_logger
+from dicom_fuzzer.core.corpus import CorpusEntry, CorpusManager
+from dicom_fuzzer.core.coverage_tracker import CoverageSnapshot, CoverageTracker
+from dicom_fuzzer.core.mutator import DicomMutator, MutationSeverity
+from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

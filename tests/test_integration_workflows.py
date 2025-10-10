@@ -12,15 +12,15 @@ import pydicom
 import pytest
 from pydicom.dataset import Dataset
 
-from core.corpus import CorpusManager
-from core.coverage_fuzzer import CoverageGuidedFuzzer
-from core.crash_deduplication import CrashDeduplicator, DeduplicationConfig
-from core.fuzzing_session import FuzzingSession
+from dicom_fuzzer.core.corpus import CorpusManager
+from dicom_fuzzer.core.coverage_fuzzer import CoverageGuidedFuzzer
+from dicom_fuzzer.core.crash_deduplication import CrashDeduplicator, DeduplicationConfig
+from dicom_fuzzer.core.fuzzing_session import FuzzingSession
 
-# from core.generator import DICOMGenerator  # Not used in current tests
-from core.grammar_fuzzer import GrammarFuzzer
-from core.mutation_minimization import MutationMinimizer
-from core.mutator import DicomMutator, MutationSeverity
+# from dicom_fuzzer.core.generator import DICOMGenerator  # Not used in current tests
+from dicom_fuzzer.core.grammar_fuzzer import GrammarFuzzer
+from dicom_fuzzer.core.mutation_minimization import MutationMinimizer
+from dicom_fuzzer.core.mutator import DicomMutator, MutationSeverity
 
 
 class TestCompleteFuzzingWorkflows:
@@ -146,7 +146,7 @@ class TestCompleteFuzzingWorkflows:
 
     def test_crash_deduplication_workflow(self):
         """Test crash deduplication in fuzzing campaign."""
-        from core.fuzzing_session import CrashRecord
+        from dicom_fuzzer.core.fuzzing_session import CrashRecord
 
         crashes = []
         for i in range(10):
@@ -175,7 +175,7 @@ class TestCompleteFuzzingWorkflows:
 
     def test_minimization_workflow(self, sample_dicom_dataset):
         """Test mutation minimization workflow."""
-        from core.fuzzing_session import MutationRecord
+        from dicom_fuzzer.core.fuzzing_session import MutationRecord
 
         mutations = [
             MutationRecord(

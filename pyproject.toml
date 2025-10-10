@@ -76,12 +76,12 @@ Repository = "https://github.com/Dashtid/DICOM-Fuzzer.git"
 "Bug Tracker" = "https://github.com/Dashtid/DICOM-Fuzzer/issues"
 
 [project.scripts]
-dicom-fuzzer = "tools.main:main"
+dicom-fuzzer = "dicom_fuzzer.cli.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["core*", "strategies*", "utils*", "tools*"]
-exclude = ["tests*", ".venv*"]
+include = ["dicom_fuzzer*"]
+exclude = ["tests*", ".venv*", "artifacts*", "demo*", "docs*", "scripts*"]
 
 [tool.black]
 line-length = 88
@@ -136,7 +136,7 @@ minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=core",
+    "--cov=dicom_fuzzer",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
@@ -157,24 +157,24 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["core"]
+source = ["dicom_fuzzer"]
 data_file = "reports/coverage/.coverage"
 omit = [
     "*/tests/*",
     "*/test_*",
     "*/__main__.py",
     # Framework modules not yet integrated (complete but unused)
-    "core/coverage_fuzzer.py",
-    "core/coverage_guided_fuzzer.py",
-    "core/coverage_guided_mutator.py",
-    "core/coverage_instrumentation.py",
-    "core/corpus_manager.py",
-    "core/coverage_correlation.py",
-    "core/grammar_fuzzer.py",
-    "core/mutation_minimization.py",
-    "core/profiler.py",
-    "core/target_runner.py",
-    "core/enhanced_reporter.py",
+    "dicom_fuzzer/core/coverage_fuzzer.py",
+    "dicom_fuzzer/core/coverage_guided_fuzzer.py",
+    "dicom_fuzzer/core/coverage_guided_mutator.py",
+    "dicom_fuzzer/core/coverage_instrumentation.py",
+    "dicom_fuzzer/core/corpus_manager.py",
+    "dicom_fuzzer/core/coverage_correlation.py",
+    "dicom_fuzzer/core/grammar_fuzzer.py",
+    "dicom_fuzzer/core/mutation_minimization.py",
+    "dicom_fuzzer/core/profiler.py",
+    "dicom_fuzzer/core/target_runner.py",
+    "dicom_fuzzer/core/enhanced_reporter.py",
 ]
 
 [tool.coverage.report]

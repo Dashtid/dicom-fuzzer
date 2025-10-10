@@ -23,7 +23,7 @@ from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 from pydicom.tag import Tag
 
-from core.validator import DicomValidator, ValidationResult
+from dicom_fuzzer.core.validator import DicomValidator, ValidationResult
 
 
 class TestValidationResult:
@@ -218,7 +218,7 @@ class TestStructureValidation:
 
     def test_validate_minimal_valid_dataset(self, sample_dicom_file):
         """Test validation with minimal valid dataset."""
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         validator = DicomValidator(strict_mode=False)
         parser = DicomParser(sample_dicom_file)
@@ -246,7 +246,7 @@ class TestRequiredTagsValidation:
 
     def test_validate_with_all_required_tags(self, sample_dicom_file):
         """Test validation with all required tags present."""
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         validator = DicomValidator(strict_mode=False)
         parser = DicomParser(sample_dicom_file)
@@ -605,7 +605,7 @@ class TestBatchValidation:
 
     def test_validate_batch_multiple_datasets(self, sample_dicom_file):
         """Test batch validation with multiple datasets."""
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         validator = DicomValidator(strict_mode=False)
         parser = DicomParser(sample_dicom_file)
@@ -731,7 +731,7 @@ class TestIntegration:
 
     def test_validator_with_mutated_dataset(self, sample_dicom_file):
         """Test validator with mutated DICOM dataset."""
-        from core.generator import DICOMGenerator
+        from dicom_fuzzer.core.generator import DICOMGenerator
 
         validator = DicomValidator(strict_mode=False)
 
@@ -754,7 +754,7 @@ class TestIntegration:
 
     def test_batch_validation_workflow(self, sample_dicom_file):
         """Test batch validation with multiple datasets."""
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         validator = DicomValidator(strict_mode=False)
         parser = DicomParser(sample_dicom_file)
@@ -772,7 +772,7 @@ class TestIntegration:
         self, sample_dicom_file, tmp_path
     ):
         """Test validator integration with security logging."""
-        from utils.logger import configure_logging
+        from dicom_fuzzer.utils.logger import configure_logging
 
         # Configure logging
         log_file = tmp_path / "validator_test.log"

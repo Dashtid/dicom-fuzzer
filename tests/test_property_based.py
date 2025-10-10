@@ -18,9 +18,9 @@ from hypothesis import given, strategies as st, settings, assume, HealthCheck
 from hypothesis.strategies import composite
 from pydicom.dataset import Dataset, FileDataset
 
-from core.fuzzing_session import FuzzingSession, MutationRecord
-from core.mutator import DicomMutator
-from core.types import MutationSeverity
+from dicom_fuzzer.core.fuzzing_session import FuzzingSession, MutationRecord
+from dicom_fuzzer.core.mutator import DicomMutator
+from dicom_fuzzer.core.types import MutationSeverity
 
 
 # Custom strategies for DICOM-specific data
@@ -234,7 +234,7 @@ class TestFuzzingSessionProperties:
             for i in range(num_crashes):
                 file_id = f"crash_file_{i}"
                 # Create a proper file record structure
-                from core.fuzzing_session import FuzzedFileRecord
+                from dicom_fuzzer.core.fuzzing_session import FuzzedFileRecord
                 file_record = FuzzedFileRecord(
                     file_id=file_id,
                     source_file=str(Path(f"source_{i}.dcm")),
@@ -255,7 +255,7 @@ class TestFuzzingSessionProperties:
             for i in range(num_hangs):
                 file_id = f"hang_file_{i}"
                 # Create a proper file record structure
-                from core.fuzzing_session import FuzzedFileRecord
+                from dicom_fuzzer.core.fuzzing_session import FuzzedFileRecord
                 file_record = FuzzedFileRecord(
                     file_id=file_id,
                     source_file=str(Path(f"source_hang_{i}.dcm")),

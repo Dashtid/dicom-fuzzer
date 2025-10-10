@@ -9,14 +9,14 @@ performance profiling, crash analysis, and reporting.
 import sys
 from pathlib import Path
 
-from core.config import get_settings
-from core.crash_analyzer import CrashAnalyzer
-from core.generator import DICOMGenerator
-from core.parser import DicomParser
-from core.profiler import PerformanceProfiler
-from core.reporter import ReportGenerator
-from core.statistics import StatisticsCollector
-from core.validator import DicomValidator
+from dicom_fuzzer.core.config import get_settings
+from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
+from dicom_fuzzer.core.generator import DICOMGenerator
+from dicom_fuzzer.core.parser import DicomParser
+from dicom_fuzzer.core.profiler import PerformanceProfiler
+from dicom_fuzzer.core.reporter import ReportGenerator
+from dicom_fuzzer.core.statistics import StatisticsCollector
+from dicom_fuzzer.core.validator import DicomValidator
 
 
 def main():

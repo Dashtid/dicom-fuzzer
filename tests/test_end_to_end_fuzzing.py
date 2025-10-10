@@ -12,14 +12,14 @@ import pytest
 import pydicom
 from pydicom.dataset import Dataset
 
-from core.fuzzing_session import FuzzingSession
-from core.generator import DICOMGenerator
-from core.mutator import DicomMutator
-from core.parser import DicomParser
-from core.validator import DicomValidator
-from core.crash_analyzer import CrashAnalyzer
-from core.reporter import ReportGenerator
-from core.statistics import StatisticsCollector
+from dicom_fuzzer.core.fuzzing_session import FuzzingSession
+from dicom_fuzzer.core.generator import DICOMGenerator
+from dicom_fuzzer.core.mutator import DicomMutator
+from dicom_fuzzer.core.parser import DicomParser
+from dicom_fuzzer.core.validator import DicomValidator
+from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
+from dicom_fuzzer.core.reporter import ReportGenerator
+from dicom_fuzzer.core.statistics import StatisticsCollector
 
 
 class TestEndToEndFuzzingWorkflow:

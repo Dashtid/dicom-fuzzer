@@ -17,8 +17,8 @@ import pydicom
 from pydicom.errors import InvalidDicomError
 from io import BytesIO
 
-from core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
-from core.coverage_instrumentation import configure_global_tracker
+from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
+from dicom_fuzzer.core.coverage_instrumentation import configure_global_tracker
 
 
 def vulnerable_dicom_parser(data: bytes) -> bool:
