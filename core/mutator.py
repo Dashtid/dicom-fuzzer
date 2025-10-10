@@ -296,6 +296,8 @@ class DicomMutator:
         mutations_applied = 0
         for i in range(num_mutations):
             # LEARNING: Check probability to see if we should apply this mutation
+            # Skip mutation if random value is greater than probability threshold
+            # e.g., if probability=0.7, skip when random() > 0.7 (30% skip rate)
             if random.random() > self.config.get("mutation_probability", 0.7):
                 logger.debug(f"Skipping mutation {i+1} due to probability")
                 continue
