@@ -49,6 +49,30 @@ class TestDeduplicationConfig:
                 mutation_weight=0.3,  # Sum = 0.9, not 1.0
             )
 
+    def test_disabled_exception_type(self):
+        """Test config with exception type disabled."""
+        config = DeduplicationConfig(
+            use_exception_type=False,
+            stack_trace_weight=0.7,
+            exception_weight=0.0,
+            mutation_weight=0.3,
+        )
+
+        assert config.use_exception_type is False
+        assert config.exception_weight == 0.0
+
+    def test_disabled_mutation_pattern(self):
+        """Test config with mutation pattern disabled."""
+        config = DeduplicationConfig(
+            use_mutation_pattern=False,
+            stack_trace_weight=0.7,
+            exception_weight=0.3,
+            mutation_weight=0.0,
+        )
+
+        assert config.use_mutation_pattern is False
+        assert config.mutation_weight == 0.0
+
 
 class TestCrashDeduplicator:
     """Test crash deduplication functionality."""
@@ -142,6 +166,18 @@ class TestCrashDeduplicator:
         assert stats["unique_groups"] > 0
         assert "largest_group" in stats
         assert "deduplication_ratio" in stats
+
+    def test_empty_deduplication_stats(self):
+        """Test statistics for empty deduplicator."""
+        deduplicator = CrashDeduplicator()
+
+        # Get stats without deduplicating any crashes
+        stats = deduplicator.get_deduplication_stats()
+
+        assert stats["total_crashes"] == 0
+        assert stats["unique_groups"] == 0
+        assert stats["largest_group"] == 0
+        assert stats["deduplication_ratio"] == 0.0
 
     def test_stack_trace_normalization(self):
         """Test stack trace normalization."""
@@ -640,3 +676,55 @@ class TestCrashDeduplicationIntegration:
         stack_stats = stack_dedup.get_deduplication_stats()
         exc_stats = exc_dedup.get_deduplication_stats()
         assert stack_stats["total_crashes"] == exc_stats["total_crashes"]
+
+    def test_disabled_strategies(self):
+        """Test deduplication with specific strategies disabled."""
+        # Create test crashes
+        crashes = [
+            CrashRecord(
+                crash_id="crash_001",
+                timestamp=datetime.now(),
+                crash_type="crash",
+                severity="high",
+                fuzzed_file_id="file_001",
+                fuzzed_file_path="test1.dcm",
+                exception_type="ValueError",
+                exception_message="Invalid value",
+                stack_trace="File test.py, line 10",
+            ),
+            CrashRecord(
+                crash_id="crash_002",
+                timestamp=datetime.now(),
+                crash_type="crash",
+                severity="high",
+                fuzzed_file_id="file_002",
+                fuzzed_file_path="test2.dcm",
+                exception_type="ValueError",
+                exception_message="Different message",
+                stack_trace="File test.py, line 10",
+            ),
+        ]
+
+        # Config with exception type disabled
+        config_no_exc = DeduplicationConfig(
+            use_exception_type=False,
+            stack_trace_weight=0.7,
+            exception_weight=0.0,
+            mutation_weight=0.3,
+        )
+        dedup_no_exc = CrashDeduplicator(config_no_exc)
+        groups_no_exc = dedup_no_exc.deduplicate_crashes(crashes)
+
+        # Config with mutation pattern disabled
+        config_no_mut = DeduplicationConfig(
+            use_mutation_pattern=False,
+            stack_trace_weight=0.7,
+            exception_weight=0.3,
+            mutation_weight=0.0,
+        )
+        dedup_no_mut = CrashDeduplicator(config_no_mut)
+        groups_no_mut = dedup_no_mut.deduplicate_crashes(crashes)
+
+        # Should still work with disabled strategies
+        assert len(groups_no_exc) >= 1
+        assert len(groups_no_mut) >= 1
