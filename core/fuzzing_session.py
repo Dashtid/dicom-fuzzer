@@ -412,6 +412,16 @@ class FuzzingSession:
         )
 
         self.crashes.append(crash)
+
+        # Update statistics only if test_result hasn't been set yet
+        # (to avoid double-counting when record_test_result is also called)
+        file_record = self.fuzzed_files[file_id]
+        if file_record.test_result is None:
+            if crash_type == "crash":
+                self.stats["crashes"] += 1
+            elif crash_type == "hang":
+                self.stats["hangs"] += 1
+
         return crash
 
     def generate_session_report(self) -> Dict:

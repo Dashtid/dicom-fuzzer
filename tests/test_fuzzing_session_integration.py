@@ -274,7 +274,7 @@ class TestFuzzingSessionIntegration:
         with open(report_path, "r") as f:
             report = json.load(f)
 
-        assert report["session_name"] == "test_session"
+        assert report["session_info"]["session_name"] == "test_session"
         assert report["statistics"]["files_fuzzed"] == 3
         assert report["statistics"]["mutations_applied"] == 3
         assert report["statistics"]["crashes"] == 1
