@@ -11,9 +11,9 @@ to create valid-looking but malicious test cases.
 
 from pydicom.dataset import Dataset
 
-from core.mutator import DicomMutator
-from core.types import MutationSeverity
-from strategies.dictionary_fuzzer import DictionaryFuzzer
+from dicom_fuzzer.core.mutator import DicomMutator
+from dicom_fuzzer.core.types import MutationSeverity
+from dicom_fuzzer.strategies.dictionary_fuzzer import DictionaryFuzzer
 
 
 def create_sample_dataset() -> Dataset:

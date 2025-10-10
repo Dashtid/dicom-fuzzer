@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from core.target_runner import ExecutionResult, ExecutionStatus, TargetRunner
+from dicom_fuzzer.core.target_runner import ExecutionResult, ExecutionStatus, TargetRunner
 
 
 @pytest.fixture

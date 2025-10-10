@@ -14,7 +14,7 @@ from datetime import datetime
 
 import pytest
 
-from core.grammar_fuzzer import DicomGrammarRule, GrammarFuzzer
+from dicom_fuzzer.core.grammar_fuzzer import DicomGrammarRule, GrammarFuzzer
 
 
 class TestGrammarRuleStructure:
@@ -105,7 +105,7 @@ class TestConditionalRuleViolations:
 
     def test_violate_pixel_data_dependencies(self, dicom_with_pixels):
         """Test violation of PixelData dependencies."""
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         parser = DicomParser(dicom_with_pixels)
         dataset = parser.dataset
@@ -348,7 +348,7 @@ class TestIntegration:
 
     def test_grammar_fuzzer_with_parser(self, dicom_with_pixels):
         """Test grammar fuzzer works with parsed DICOM files."""
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         parser = DicomParser(dicom_with_pixels)
         dataset = parser.dataset

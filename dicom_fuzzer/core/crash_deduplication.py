@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 from typing import Dict, List, Optional
 
-from core.fuzzing_session import CrashRecord
+from dicom_fuzzer.core.fuzzing_session import CrashRecord
 
 
 @dataclass

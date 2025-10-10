@@ -12,7 +12,7 @@ Tests cover:
 
 import pytest
 
-from core.exceptions import (
+from dicom_fuzzer.core.exceptions import (
     ConfigurationError,
     DicomFuzzingError,
     MutationError,

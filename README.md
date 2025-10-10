@@ -44,47 +44,65 @@ DICOM-Fuzzer is a comprehensive fuzzing framework for testing the security and r
 
 ```
 DICOM-Fuzzer/
-├── core/                      # Core fuzzing engine
-│   ├── config.py              # Configuration management
-│   ├── corpus.py              # Test corpus management
-│   ├── coverage_correlation.py # Coverage analysis
-│   ├── coverage_fuzzer.py     # Coverage-guided fuzzing
-│   ├── coverage_tracker.py    # Code coverage tracking
-│   ├── crash_analyzer.py      # Crash analysis
-│   ├── crash_deduplication.py # Crash grouping
-│   ├── enhanced_reporter.py   # HTML report generation
-│   ├── exceptions.py          # Exception hierarchy
-│   ├── fuzzing_session.py     # Session tracking
-│   ├── generator.py           # Test case generation
-│   ├── grammar_fuzzer.py      # Grammar-based fuzzing
-│   ├── mutation_minimization.py # Delta debugging
-│   ├── mutator.py             # Mutation engine
-│   ├── parser.py              # DICOM parsing
-│   ├── profiler.py            # Performance profiling
-│   ├── reporter.py            # Report generation
-│   ├── statistics.py          # Statistics tracking
-│   ├── target_runner.py       # Target execution
-│   ├── types.py               # Type definitions
-│   └── validator.py           # DICOM validation
-├── strategies/                # Mutation strategies
-│   ├── header_fuzzer.py       # Header mutations
-│   ├── metadata_fuzzer.py     # Metadata mutations
-│   └── pixel_fuzzer.py        # Pixel data mutations
-├── tools/                     # Utility tools
-│   ├── generate_report.py     # Report generation CLI
-│   └── realtime_monitor.py    # Live fuzzing dashboard
+├── dicom_fuzzer/              # Main package
+│   ├── __init__.py            # Package exports
+│   ├── __main__.py            # CLI entry point
+│   ├── core/                  # Core fuzzing engine
+│   │   ├── config.py          # Configuration management
+│   │   ├── parser.py          # DICOM parsing
+│   │   ├── generator.py       # Test case generation
+│   │   ├── mutator.py         # Mutation engine
+│   │   ├── validator.py       # DICOM validation
+│   │   ├── fuzzing_session.py # Session tracking
+│   │   ├── crash_analyzer.py  # Crash analysis
+│   │   ├── crash_deduplication.py # Crash grouping
+│   │   ├── reporter.py        # Report generation
+│   │   ├── statistics.py      # Statistics tracking
+│   │   ├── coverage_tracker.py # Code coverage
+│   │   └── exceptions.py      # Exception hierarchy
+│   ├── strategies/            # Mutation strategies
+│   │   ├── header_fuzzer.py   # Header mutations
+│   │   ├── metadata_fuzzer.py # Metadata mutations
+│   │   └── pixel_fuzzer.py    # Pixel data mutations
+│   ├── utils/                 # Utilities
+│   │   ├── helpers.py         # Helper functions
+│   │   ├── logger.py          # Logging utilities
+│   │   └── dicom_dictionaries.py # DICOM dictionaries
+│   └── cli/                   # CLI tools
+│       ├── main.py            # Main CLI
+│       ├── generate_report.py # Report generation
+│       └── realtime_monitor.py # Live dashboard
+├── tests/                     # Test suite (930+ tests)
 ├── examples/                  # Example scripts
-│   ├── demo_dictionary_fuzzing.py
-│   ├── demo_fuzzing.py
-│   └── fuzz_dicom_viewer.py   # Complete viewer fuzzing example
-├── tests/                     # Test suite (802 tests)
+│   ├── demo_fuzzing.py        # Basic fuzzing demo
+│   ├── fuzz_dicom_viewer.py   # Viewer fuzzing example
+│   └── coverage_guided_fuzzing_demo.py
+├── demo/                      # Demonstration scripts
+│   ├── README.md              # Demo documentation
+│   ├── demo_simple.py         # Simple workflow demo
+│   └── demo_workflow.py       # Full framework demo
+├── artifacts/                 # Fuzzing outputs (gitignored)
+│   ├── crashes/               # Crash files
+│   ├── fuzzed/                # Fuzzed DICOM files
+│   ├── corpus/                # Test corpus
+│   └── reports/               # Generated reports
+├── data/                      # Seed files & dictionaries
+│   ├── seeds/                 # Seed DICOM files
+│   └── dictionaries/          # Fuzzing dictionaries
 ├── docs/                      # Documentation
 │   ├── COVERAGE.md            # Test coverage analysis
-│   ├── FUZZING_GUIDE.md       # Fuzzing methodology guide
-│   └── REPORTING.md           # Reporting system docs
-└── config/                    # Configuration
-    ├── local_paths.example.py # Path configuration template
-    └── local_paths.py         # Local paths (not tracked)
+│   ├── FUZZING_GUIDE.md       # Fuzzing methodology
+│   ├── TESTING.md             # Testing guide
+│   └── REPORTING.md           # Reporting system
+├── config/                    # Configuration
+│   ├── local_paths.example.py # Path template
+│   └── local_paths.py         # Local paths (gitignored)
+├── scripts/                   # Build/deployment scripts
+├── pyproject.toml             # Project configuration
+├── requirements.txt           # Dependencies
+├── CHANGELOG.md               # Version history
+├── LICENSE                    # MIT License
+└── README.md                  # This file
 ```
 
 ## Installation
@@ -125,7 +143,7 @@ pre-commit install
 pytest tests/ -v
 
 # Run with coverage
-pytest tests/ --cov=core --cov-report=html
+pytest tests/ --cov=dicom_fuzzer --cov-report=html
 ```
 
 ## Usage
@@ -135,8 +153,8 @@ pytest tests/ --cov=core --cov-report=html
 Generate fuzzed DICOM files with mutation tracking:
 
 ```python
-from core.mutator import DicomMutator
-from core.fuzzing_session import FuzzingSession
+from dicom_fuzzer.core.mutator import DicomMutator
+from dicom_fuzzer.core.fuzzing_session import FuzzingSession
 import pydicom
 
 # Initialize fuzzing session
@@ -188,7 +206,7 @@ session.save_session_report()
 Automatically test a DICOM viewer application:
 
 ```python
-from examples.fuzz_dicom_viewer import DicomViewerFuzzer
+from dicom_fuzzer.examples.fuzz_dicom_viewer import DicomViewerFuzzer
 
 # Configure fuzzer for your environment
 fuzzer = DicomViewerFuzzer(
@@ -213,8 +231,8 @@ fuzzer.run_fuzzing_campaign(
 Deduplicate crashes and find minimal crash-triggering mutations:
 
 ```python
-from core.crash_deduplication import CrashDeduplicator, DeduplicationConfig
-from core.mutation_minimization import MutationMinimizer
+from dicom_fuzzer.core.crash_deduplication import CrashDeduplicator, DeduplicationConfig
+from dicom_fuzzer.core.mutation_minimization import MutationMinimizer
 
 # Load fuzzing session
 session = FuzzingSession.load_from_report("session_20250105.json")
@@ -291,7 +309,7 @@ config = {
 pytest tests/ -v
 
 # Run with coverage
-pytest tests/ --cov=core --cov-report=html
+pytest tests/ --cov=dicom_fuzzer --cov-report=html
 
 # Run specific test module
 pytest tests/test_fuzzing_session.py -v

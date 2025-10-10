@@ -17,8 +17,8 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.grammar_fuzzer import GrammarFuzzer
-from core.parser import DicomParser
+from dicom_fuzzer.core.grammar_fuzzer import GrammarFuzzer
+from dicom_fuzzer.core.parser import DicomParser
 
 
 def main():

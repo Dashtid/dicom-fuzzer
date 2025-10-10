@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from core.fuzzing_session import (
+from dicom_fuzzer.core.fuzzing_session import (
     CrashRecord,
     FuzzedFileRecord,
     FuzzingSession,

@@ -18,9 +18,9 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
-from core.parser import DicomParser
-from core.validator import DICOMValidator
+from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
+from dicom_fuzzer.core.parser import DicomParser
+from dicom_fuzzer.core.validator import DICOMValidator
 
 
 def target_function(dicom_data: bytes) -> bool:

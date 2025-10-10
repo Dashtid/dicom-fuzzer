@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from core.fuzzing_session import FuzzingSession
+from dicom_fuzzer.core.fuzzing_session import FuzzingSession
 
 
 class TestFuzzingSessionEdgeCases:

@@ -16,8 +16,8 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from pydicom.dataset import Dataset
 
-from core.exceptions import ParsingError, SecurityViolationError
-from core.parser import DicomParser
+from dicom_fuzzer.core.exceptions import ParsingError, SecurityViolationError
+from dicom_fuzzer.core.parser import DicomParser
 
 
 class TestDicomParserInit:
@@ -575,7 +575,7 @@ class TestParserEdgeCases:
             new_callable=PropertyMock,
             return_value=np.array([]),
         ):
-            from core.exceptions import ValidationError
+            from dicom_fuzzer.core.exceptions import ValidationError
 
             with pytest.raises(ValidationError, match="empty"):
                 parser.get_pixel_data(validate=True)
@@ -612,7 +612,7 @@ class TestParserEdgeCases:
             new_callable=PropertyMock,
             return_value=np.zeros((2, 2, 2, 2, 2)),
         ):
-            from core.exceptions import ValidationError
+            from dicom_fuzzer.core.exceptions import ValidationError
 
             with pytest.raises(ValidationError, match="Invalid pixel array dimensions"):
                 parser.get_pixel_data(validate=True)

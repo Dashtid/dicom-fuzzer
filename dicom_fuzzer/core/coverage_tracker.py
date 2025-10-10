@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from utils.logger import get_logger
+from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -9,7 +9,7 @@ Tests shared type definitions including:
 
 import pytest
 
-from core.types import MutationSeverity
+from dicom_fuzzer.core.types import MutationSeverity
 
 
 class TestMutationSeverity:

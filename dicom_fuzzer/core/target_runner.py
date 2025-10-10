@@ -21,7 +21,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from core.crash_analyzer import CrashAnalyzer
+from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
 
 logger = logging.getLogger(__name__)
 

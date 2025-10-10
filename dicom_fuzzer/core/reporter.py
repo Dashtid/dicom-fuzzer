@@ -18,7 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
 
-from core.crash_analyzer import CrashAnalyzer, CrashReport
+from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer, CrashReport
 
 
 class ReportGenerator:

@@ -18,7 +18,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import pydicom
 from pydicom.dataset import Dataset
 
-from core.fuzzing_session import MutationRecord
+from dicom_fuzzer.core.fuzzing_session import MutationRecord
 
 
 @dataclass

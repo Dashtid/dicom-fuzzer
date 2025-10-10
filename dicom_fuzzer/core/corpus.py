@@ -22,8 +22,8 @@ from typing import Any, Dict, List, Optional, Set
 import pydicom
 from pydicom.dataset import Dataset
 
-from core.coverage_tracker import CoverageSnapshot
-from utils.logger import get_logger
+from dicom_fuzzer.core.coverage_tracker import CoverageSnapshot
+from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

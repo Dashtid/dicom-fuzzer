@@ -14,10 +14,10 @@ import sys
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.coverage_instrumentation import CoverageTracker, CoverageInfo
-from core.corpus_manager import CorpusManager, Seed, SeedPriority
-from core.coverage_guided_mutator import CoverageGuidedMutator, MutationType
-from core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
+from dicom_fuzzer.core.coverage_instrumentation import CoverageTracker, CoverageInfo
+from dicom_fuzzer.core.corpus_manager import CorpusManager, Seed, SeedPriority
+from dicom_fuzzer.core.coverage_guided_mutator import CoverageGuidedMutator, MutationType
+from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
 
 
 class TestCoverageInstrumentation:
@@ -407,7 +407,7 @@ class TestIntegration:
             )
 
             # Configure coverage tracking
-            from core.coverage_instrumentation import configure_global_tracker
+            from dicom_fuzzer.core.coverage_instrumentation import configure_global_tracker
             configure_global_tracker({'__main__'})
 
             fuzzer = CoverageGuidedFuzzer(config)

@@ -10,10 +10,10 @@ Tests cover:
 import numpy as np
 import pytest
 
-from strategies.header_fuzzer import HeaderFuzzer
-from strategies.metadata_fuzzer import MetadataFuzzer
-from strategies.pixel_fuzzer import PixelFuzzer
-from strategies.structure_fuzzer import StructureFuzzer
+from dicom_fuzzer.strategies.header_fuzzer import HeaderFuzzer
+from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
+from dicom_fuzzer.strategies.pixel_fuzzer import PixelFuzzer
+from dicom_fuzzer.strategies.structure_fuzzer import StructureFuzzer
 
 
 class TestMetadataFuzzer:
@@ -171,7 +171,7 @@ class TestPixelFuzzer:
 
     def test_mutate_pixels_with_pixel_data(self, dicom_with_pixels):
         """Test pixel mutation with actual pixel data."""
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         parser = DicomParser(dicom_with_pixels)
         fuzzer = PixelFuzzer()
@@ -183,7 +183,7 @@ class TestPixelFuzzer:
 
     def test_pixel_corruption_introduces_changes(self, dicom_with_pixels):
         """Test that pixel corruption actually modifies pixels."""
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         parser = DicomParser(dicom_with_pixels)
         fuzzer = PixelFuzzer()
@@ -213,7 +213,7 @@ class TestPixelFuzzer:
 
     def test_pixel_shape_preserved(self, dicom_with_pixels):
         """Test that pixel array shape is preserved."""
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         parser = DicomParser(dicom_with_pixels)
         fuzzer = PixelFuzzer()
@@ -226,7 +226,7 @@ class TestPixelFuzzer:
 
     def test_pixel_dtype_preserved(self, dicom_with_pixels):
         """Test that pixel array dtype is preserved."""
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         parser = DicomParser(dicom_with_pixels)
         fuzzer = PixelFuzzer()
@@ -401,7 +401,7 @@ class TestIntegration:
 
     def test_combined_fuzzing_workflow(self, dicom_with_pixels):
         """Test using multiple fuzzers together."""
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         parser = DicomParser(dicom_with_pixels)
         dataset = parser.dataset
@@ -452,7 +452,7 @@ class TestIntegration:
 
     def test_all_fuzzers_together(self, dicom_with_pixels):
         """Test all 4 fuzzing strategies together."""
-        from core.parser import DicomParser
+        from dicom_fuzzer.core.parser import DicomParser
 
         parser = DicomParser(dicom_with_pixels)
         dataset = parser.dataset

@@ -22,7 +22,7 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from pydicom.dataset import Dataset
 
-from core.mutator import DicomMutator, MutationRecord, MutationSession, MutationSeverity
+from dicom_fuzzer.core.mutator import DicomMutator, MutationRecord, MutationSession, MutationSeverity
 
 
 class TestMutationSeverity:

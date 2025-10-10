@@ -194,7 +194,7 @@ class Settings(BaseSettings):
     Loads from environment variables and .env file.
 
     USAGE:
-        from core.config import get_settings
+        from dicom_fuzzer.core.config import get_settings
         settings = get_settings()
         print(settings.environment)
     """

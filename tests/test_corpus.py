@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 import pytest
 from pydicom.dataset import Dataset
 
-from core.corpus import CorpusEntry, CorpusManager
+from dicom_fuzzer.core.corpus import CorpusEntry, CorpusManager
 
 
 @pytest.fixture

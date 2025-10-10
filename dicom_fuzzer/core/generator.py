@@ -4,11 +4,11 @@ import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from core.parser import DicomParser
-from strategies.header_fuzzer import HeaderFuzzer
-from strategies.metadata_fuzzer import MetadataFuzzer
-from strategies.pixel_fuzzer import PixelFuzzer
-from strategies.structure_fuzzer import StructureFuzzer
+from dicom_fuzzer.core.parser import DicomParser
+from dicom_fuzzer.strategies.header_fuzzer import HeaderFuzzer
+from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
+from dicom_fuzzer.strategies.pixel_fuzzer import PixelFuzzer
+from dicom_fuzzer.strategies.structure_fuzzer import StructureFuzzer
 
 
 class GenerationStats:
