@@ -247,12 +247,12 @@ class TestConfigurationIntegrity:
         header_prob = MUTATION_STRATEGIES["header_probability"]
         pixel_prob = MUTATION_STRATEGIES["pixel_probability"]
 
-        assert (
-            metadata_prob >= header_prob
-        ), "Metadata should have highest or equal probability"
-        assert (
-            pixel_prob <= header_prob
-        ), "Pixel should have lowest or equal probability"
+        assert metadata_prob >= header_prob, (
+            "Metadata should have highest or equal probability"
+        )
+        assert pixel_prob <= header_prob, (
+            "Pixel should have lowest or equal probability"
+        )
 
     def test_data_pools_have_variety(self):
         """Test that data pools have sufficient variety."""
@@ -268,14 +268,14 @@ class TestConfigurationIntegrity:
         from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         for pool_name, pool_values in FAKE_DATA_POOLS.items():
-            assert len(pool_values) == len(
-                set(pool_values)
-            ), f"Duplicate values found in {pool_name}"
+            assert len(pool_values) == len(set(pool_values)), (
+                f"Duplicate values found in {pool_name}"
+            )
 
     def test_configuration_is_importable(self):
         """Test that configuration can be imported without errors."""
         try:
-            from utils import config
+            from dicom_fuzzer.utils import config
 
             assert hasattr(config, "MUTATION_STRATEGIES")
             assert hasattr(config, "FAKE_DATA_POOLS")
