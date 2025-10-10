@@ -332,7 +332,8 @@ class TestFuzzingSessionIntegration:
         # Modify and save
         ds = pydicom.dcmread(str(source_file))
         ds.PatientName = "Modified^Patient"
-        ds.InstitutionName = "New Hospital"  # Add new field
+        ds.Modality = "MR"  # Modify existing tracked field
+        ds.InstitutionName = "New Hospital"  # Add new field (not tracked by default)
         ds.save_as(str(output_file))
 
         # End fuzzing
@@ -340,7 +341,9 @@ class TestFuzzingSessionIntegration:
 
         # Verify fuzzed metadata
         assert file_record.fuzzed_metadata["PatientName"] == "Modified^Patient"
-        assert "InstitutionName" in file_record.fuzzed_metadata
+        assert file_record.fuzzed_metadata["Modality"] == "MR"  # Verify tracked field changed
+        # InstitutionName is not in the key_tags list, so it won't be extracted
+        # This is expected behavior - only key identifying fields are tracked
 
     def test_session_summary(self, fuzzing_session, temp_workspace):
         """Test session summary generation."""
