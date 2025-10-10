@@ -2,11 +2,14 @@
 Tests for Enhanced HTML Reporter
 
 Tests comprehensive HTML report generation with crash forensics.
+Full coverage for HTML generation, template rendering, and data handling.
 """
 
+import json
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
