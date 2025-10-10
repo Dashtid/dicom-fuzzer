@@ -119,6 +119,9 @@ class CrashRecord:
     # Reproducibility
     reproduction_command: Optional[str] = None
 
+    # Mutation tracking for deduplication
+    mutation_sequence: List[tuple] = field(default_factory=list)
+
     def to_dict(self) -> Dict:
         """Convert to dictionary for JSON serialization."""
         return {
@@ -135,6 +138,7 @@ class CrashRecord:
             "crash_log_path": self.crash_log_path,
             "preserved_sample_path": self.preserved_sample_path,
             "reproduction_command": self.reproduction_command,
+            "mutation_sequence": self.mutation_sequence,
         }
 
 
@@ -384,6 +388,11 @@ class FuzzingSession:
         if viewer_path:
             repro_cmd = f'"{viewer_path}" "{preserved_path}"'
 
+        # Extract mutation sequence for deduplication
+        mutation_sequence = []
+        for mutation in file_record.mutations:
+            mutation_sequence.append((mutation.strategy_name, mutation.mutation_type))
+
         # Create crash record
         crash = CrashRecord(
             crash_id=crash_id,
@@ -399,6 +408,7 @@ class FuzzingSession:
             crash_log_path=str(crash_log_path),
             preserved_sample_path=str(preserved_path),
             reproduction_command=repro_cmd,
+            mutation_sequence=mutation_sequence,
         )
 
         self.crashes.append(crash)
@@ -454,6 +464,43 @@ class FuzzingSession:
             json.dump(report, f, indent=2)
 
         return json_path
+
+    def get_session_summary(self) -> Dict:
+        """
+        Get a summary of the current session.
+
+        Returns:
+            Dictionary with session summary statistics
+        """
+        end_time = datetime.now()
+        duration = (end_time - self.start_time).total_seconds()
+
+        # Calculate files per minute
+        files_per_minute = 0
+        if duration > 0:
+            files_per_minute = (self.stats["files_fuzzed"] / duration) * 60
+
+        return {
+            "session_id": self.session_id,
+            "session_name": self.session_name,
+            "duration": duration,
+            "files_per_minute": files_per_minute,
+            "total_files": self.stats["files_fuzzed"],
+            "total_mutations": self.stats["mutations_applied"],
+            "crashes": self.stats["crashes"],
+            "hangs": self.stats["hangs"],
+            "successes": self.stats["successes"],
+        }
+
+    def mark_test_result(self, file_id: str, result: str):
+        """
+        Mark the test result for a file (alias for record_test_result).
+
+        Args:
+            file_id: ID of the fuzzed file
+            result: Test result (success, crash, hang, error)
+        """
+        self.record_test_result(file_id, result)
 
     def _extract_metadata(self, dicom_file: Path) -> Dict[str, str]:
         """Extract key DICOM metadata from file."""

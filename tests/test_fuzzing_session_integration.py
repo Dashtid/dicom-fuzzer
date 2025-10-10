@@ -37,8 +37,17 @@ def temp_workspace():
         (workspace / "reports").mkdir()
         (workspace / "crashes").mkdir()
 
-        # Create a sample DICOM file
-        ds = Dataset()
+        # Create a sample DICOM file with proper file meta information
+        from pydicom.dataset import FileDataset, FileMetaDataset
+        import pydicom.uid
+
+        file_meta = FileMetaDataset()
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+        file_meta.ImplementationClassUID = "1.2.3.4"
+        file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
+
+        ds = FileDataset(None, {}, file_meta=file_meta, preamble=b"\0" * 128)
         ds.PatientName = "Test^Patient"
         ds.PatientID = "12345"
         ds.StudyDate = "20240101"
@@ -47,14 +56,8 @@ def temp_workspace():
         ds.StudyInstanceUID = "1.2.3.4.5.6"
         ds.SeriesInstanceUID = "1.2.3.4.5.6.7"
 
-        # Set file meta information for proper DICOM file
-        ds.file_meta = pydicom.dataset.FileMetaDataset()
-        ds.file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
-        ds.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
-        ds.file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
-
         sample_file = workspace / "input" / "sample.dcm"
-        pydicom.dcmwrite(str(sample_file), ds)
+        ds.save_as(str(sample_file))
 
         yield workspace
 
@@ -166,23 +169,15 @@ class TestFuzzingSessionIntegration:
         fuzzing_session.end_file_fuzzing(output_file)
 
         # Simulate a crash
-        crash_info = {
-            "exception_type": "SegmentationFault",
-            "exception_message": "Access violation at 0x00000000",
-            "stack_trace": [
-                "at DicomParser.ParseHeader()",
-                "at DicomViewer.LoadFile()",
-                "at main()",
-            ],
-            "viewer_output": "Error: Invalid DICOM file",
-        }
-
-        crash_id = fuzzing_session.record_crash(
+        crash_record = fuzzing_session.record_crash(
             file_id=file_id,
-            exception_info=crash_info,
-            command="dicom_viewer.exe crash_trigger.dcm",
-            preserve_artifacts=True,
+            crash_type="crash",
+            exception_type="SegmentationFault",
+            exception_message="Access violation at 0x00000000",
+            stack_trace="at DicomParser.ParseHeader()\nat DicomViewer.LoadFile()\nat main()",
+            viewer_path="dicom_viewer.exe",
         )
+        crash_id = crash_record.crash_id
 
         # Verify crash was recorded
         assert len(fuzzing_session.crashes) == 1
@@ -190,14 +185,14 @@ class TestFuzzingSessionIntegration:
 
         crash_record = fuzzing_session.crashes[0]
         assert crash_record.crash_id == crash_id
-        assert crash_record.file_id == file_id
+        assert crash_record.fuzzed_file_id == file_id
         assert crash_record.exception_type == "SegmentationFault"
 
         # Verify artifact preservation
-        crash_dir = fuzzing_session.crashes_dir / crash_id
-        assert crash_dir.exists()
-        assert (crash_dir / "crashed_file.dcm").exists()
-        assert (crash_dir / "crash_info.json").exists()
+        # The crash log should exist
+        assert Path(crash_record.crash_log_path).exists()
+        # The preserved sample should exist
+        assert Path(crash_record.preserved_sample_path).exists()
 
     def test_multiple_file_sessions(self, fuzzing_session, temp_workspace):
         """Test handling multiple file fuzzing sessions."""
@@ -265,8 +260,9 @@ class TestFuzzingSessionIntegration:
             if i == 0:
                 fuzzing_session.record_crash(
                     file_id=file_id,
-                    exception_info={"type": "TestCrash"},
-                    command="test_command",
+                    crash_type="crash",
+                    exception_type="TestCrash",
+                    exception_message="Test crash message",
                 )
 
         # Generate session report
@@ -368,8 +364,8 @@ class TestFuzzingSessionIntegration:
             if result == "crash":
                 fuzzing_session.record_crash(
                     file_id=file_id,
-                    exception_info={"type": "TestCrash"},
-                    command="test",
+                    crash_type="crash",
+                    exception_type="TestCrash",
                 )
 
         # Get summary
@@ -419,11 +415,14 @@ class TestFuzzingSessionIntegration:
             ],
         }
 
-        crash_id = fuzzing_session.record_crash(
+        crash_record = fuzzing_session.record_crash(
             file_id=file_id,
-            exception_info=crash_info,
-            command="viewer.exe dedup_test.dcm",
+            crash_type="crash",
+            exception_type=crash_info["exception_type"],
+            exception_message=crash_info["exception_message"],
+            stack_trace="\n".join(crash_info["stack_trace"]),
         )
+        crash_id = crash_record.crash_id
 
         crash_record = fuzzing_session.crashes[0]
 
@@ -502,9 +501,8 @@ class TestFuzzingSessionIntegration:
             if i % 20 == 0:
                 fuzzing_session.record_crash(
                     file_id=file_id,
-                    exception_info={"type": f"Crash{i}"},
-                    command=f"test {i}",
-                    preserve_artifacts=False,  # Don't preserve to save time
+                    crash_type="crash",
+                    exception_type=f"Crash{i}",
                 )
 
         # Verify statistics
