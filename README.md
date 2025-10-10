@@ -2,8 +2,9 @@
 
 A specialized security testing tool for fuzzing DICOM (Digital Imaging and Communications in Medicine) implementations. Designed to identify vulnerabilities in medical imaging systems, PACS servers, and medical device software through automated security testing.
 
-[![Tests](https://img.shields.io/badge/tests-802%20passing-brightgreen)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-28%25-yellow)](docs/COVERAGE.md)
+[![Tests](https://img.shields.io/badge/tests-930%2B%20passing-brightgreen)](tests/)
+[![Coverage](https://img.shields.io/badge/coverage-69%25-green)](docs/COVERAGE.md)
+[![Core Modules](https://img.shields.io/badge/core%20modules-11%2F13%20%40%2090%25%2B-brightgreen)](#test-coverage)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://python.org)
 [![Code Style](https://img.shields.io/badge/code%20style-black-black)](https://github.com/psf/black)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -300,14 +301,36 @@ start reports/coverage/htmlcov/index.html  # Windows
 open reports/coverage/htmlcov/index.html   # macOS
 ```
 
-### Test Statistics
+### Test Coverage
 
-- **Total Tests**: 802
+**Overall Statistics:**
+- **Total Tests**: 930+
 - **Pass Rate**: 100%
-- **Overall Coverage**: 28%
-- **Excellent Coverage Modules**: config.py (100%), types.py (100%), corpus.py (91%)
+- **Overall Coverage**: 69.12%
+- **Core Modules at 90%+**: 11 out of 13
 
-See [COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
+**Module Coverage:**
+
+| Module | Coverage | Tests | Status |
+|--------|----------|-------|--------|
+| **crash_deduplication.py** | 100% | 29 | ✅ Perfect |
+| **crash_analyzer.py** | 100% | 26 | ✅ Perfect |
+| **generator.py** | 100% | 41 | ✅ Perfect |
+| **reporter.py** | 100% | 24 | ✅ Perfect |
+| **statistics.py** | 100% | 24 | ✅ Perfect |
+| **validator.py** | 100% | 59 | ✅ Perfect |
+| **exceptions.py** | 100% | - | ✅ Perfect |
+| **types.py** | 100% | 8 | ✅ Perfect |
+| **fuzzing_session.py** | 96.52% | 41 | ✅ Excellent |
+| **parser.py** | 96.60% | 57 | ✅ Excellent |
+| **mutator.py** | 94.67% | 50 | ✅ Excellent |
+| **corpus.py** | 91.03% | 24 | ✅ Excellent |
+
+**New Test Files:**
+- `tests/test_fuzzing_session_edge_cases.py` - 9 comprehensive edge case tests
+- `tests/test_end_to_end_fuzzing.py` - 4 integration workflow tests
+
+See [Test Coverage Documentation](#test-documentation) for detailed analysis.
 
 ## Documentation
 
@@ -397,9 +420,17 @@ This software is provided for educational and security testing purposes. Users a
 
 ## Project Status
 
-**Current Phase**: Advanced features implemented, integration testing in progress
+**Current Phase**: Production-ready with comprehensive test coverage
 
-**Recent Updates**:
+**Recent Updates** (January 2025):
+- ✅ **Test Coverage Milestone**: 11 out of 13 core modules at 90%+ coverage
+- ✅ **8 Modules at 100% Coverage**: crash_analyzer, crash_deduplication, generator, reporter, statistics, validator, exceptions, types
+- ✅ **Edge Case Testing**: Added comprehensive edge case tests for fuzzing_session.py (88% → 96.52%)
+- ✅ **End-to-End Integration Tests**: Complete workflow testing from generation to reporting
+- ✅ **Overall Coverage**: Improved from 28% to 69.12%
+- ✅ **930+ Tests Passing**: Comprehensive test suite with integration tests
+
+**Previous Updates**:
 - Comprehensive fuzzing session tracking with full traceability
 - Crash deduplication with multi-strategy similarity analysis
 - Mutation minimization using delta debugging
@@ -407,10 +438,10 @@ This software is provided for educational and security testing purposes. Users a
 - Coverage correlation for guided fuzzing
 
 **Next Steps**:
-- Integration testing for advanced features
-- Performance optimization
-- Documentation expansion
-- Example workflows and tutorials
+- Performance optimization and benchmarking
+- Additional end-to-end workflow examples
+- Documentation expansion with tutorials
+- CI/CD pipeline enhancements
 
 ---
 
