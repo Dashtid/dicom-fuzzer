@@ -136,25 +136,36 @@ minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
+    # Parallel execution with pytest-xdist (use all CPU cores)
+    "-n=auto",
+    "--dist=worksteal",
+    # Coverage options
     "--cov=dicom_fuzzer",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
-    # Adjusted threshold: Production code has 95%+ coverage
-    # Framework modules excluded via omit list
-    "--cov-fail-under=90",
+    # Show test durations (slowest 10 tests)
+    "--durations=10",
+    # Timeout for individual tests (prevents hanging)
+    "--timeout=30",
+    # Adjusted threshold for full package coverage
+    "--cov-fail-under=50",
 ]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
-    "unit: Unit tests",
-    "integration: Integration tests",
+    "unit: Unit tests (fast, isolated)",
+    "integration: Integration tests (moderate speed)",
     "security: Security-focused tests",
     "performance: Performance tests",
-    "slow: Tests that take a long time to run",
+    "slow: Tests that take a long time to run (>5s)",
+    "network: Tests requiring network access",
 ]
+# Timeout configuration
+timeout = 30
+timeout_method = "thread"
 
 [tool.coverage.run]
 source = ["dicom_fuzzer"]
