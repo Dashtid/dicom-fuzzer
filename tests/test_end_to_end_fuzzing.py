@@ -5,12 +5,10 @@ These tests exercise the entire fuzzing pipeline from start to finish,
 ensuring all modules work together correctly in real-world scenarios.
 """
 
-import shutil
 from pathlib import Path
 
 import pytest
 import pydicom
-from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.fuzzing_session import FuzzingSession
 from dicom_fuzzer.core.generator import DICOMGenerator
@@ -55,17 +53,19 @@ class TestEndToEndFuzzingWorkflow:
         """
         # Step 1: Generate mutated files from seed
         generator = DICOMGenerator(
-            output_dir=fuzzing_workspace["inputs"],
-            skip_write_errors=True
+            output_dir=fuzzing_workspace["inputs"], skip_write_errors=True
         )
 
-        seed_files = generator.generate_batch(original_file=str(sample_dicom_file), count=3)
+        seed_files = generator.generate_batch(
+            original_file=str(sample_dicom_file), count=3
+        )
         assert len(seed_files) >= 1  # At least some files generated
         assert all(f.exists() for f in seed_files)
 
         # Step 2: Start fuzzing session
         session = FuzzingSession(
-            session_name="e2e_test_campaign", output_dir=str(fuzzing_workspace["outputs"])
+            session_name="e2e_test_campaign",
+            output_dir=str(fuzzing_workspace["outputs"]),
         )
 
         # Step 3: Fuzz each seed file
@@ -163,7 +163,7 @@ class TestEndToEndFuzzingWorkflow:
                 except ValueError as e:
                     crash_report = crash_analyzer.analyze_exception(
                         exception=e,
-                        test_case_file=str(output_file),
+                        test_case_path=str(output_file),
                         metadata={"iteration": i},
                     )
 
@@ -193,7 +193,9 @@ class TestEndToEndFuzzingWorkflow:
         assert crash_summary["total_crashes"] >= 3
         assert crash_summary["unique_crashes"] >= 1
 
-    def test_multi_file_fuzzing_with_statistics(self, fuzzing_workspace, sample_dicom_file):
+    def test_multi_file_fuzzing_with_statistics(
+        self, fuzzing_workspace, sample_dicom_file
+    ):
         """
         Test fuzzing multiple files with statistics tracking:
         1. Generate diverse seed files
@@ -202,8 +204,12 @@ class TestEndToEndFuzzingWorkflow:
         4. Generate comprehensive report
         """
         # Step 1: Generate diverse seed files from sample
-        generator = DICOMGenerator(output_dir=fuzzing_workspace["inputs"], skip_write_errors=True)
-        seed_files = generator.generate_batch(original_file=str(sample_dicom_file), count=10)
+        generator = DICOMGenerator(
+            output_dir=fuzzing_workspace["inputs"], skip_write_errors=True
+        )
+        seed_files = generator.generate_batch(
+            original_file=str(sample_dicom_file), count=10
+        )
 
         # Step 2: Create session and statistics
         session = FuzzingSession(
@@ -256,7 +262,9 @@ class TestEndToEndFuzzingWorkflow:
         # Step 4: Generate reports
         session_summary = session.get_session_summary()
 
-        assert session_summary["total_files"] == len(seed_files)  # All generated files processed
+        assert session_summary["total_files"] == len(
+            seed_files
+        )  # All generated files processed
         assert session_summary["total_mutations"] > 0
         assert session_summary["files_per_minute"] > 0
 
@@ -293,7 +301,9 @@ class TestEndToEndFuzzingWorkflow:
                 mutation_type="flip_bits",
             )
 
-            session.record_test_result(file_id=file_id, result="pass", execution_time=0.1)
+            session.record_test_result(
+                file_id=file_id, result="pass", execution_time=0.1
+            )
             session.end_file_fuzzing(output_file)
 
         # Step 2: Generate text report
