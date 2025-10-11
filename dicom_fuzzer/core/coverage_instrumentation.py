@@ -11,7 +11,6 @@ import time
 from typing import Set, Dict, Optional, Tuple, Any, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from collections import defaultdict
 import threading
 from contextlib import contextmanager
 
@@ -28,7 +27,7 @@ class CoverageInfo:
     input_hash: Optional[str] = None
     new_coverage: bool = False
 
-    def merge(self, other: 'CoverageInfo') -> None:
+    def merge(self, other: "CoverageInfo") -> None:
         """Merge another coverage info into this one."""
         self.edges.update(other.edges)
         self.branches.update(other.branches)
@@ -62,7 +61,7 @@ class CoverageTracker:
         self.coverage_history: Dict[str, CoverageInfo] = {}
         self.last_location: Optional[Tuple[str, int]] = None
         self.trace_enabled = False
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()  # Use RLock to allow re-entrant locking
 
         # Performance optimization: cache module checks
         self._module_cache: Dict[str, bool] = {}
@@ -104,13 +103,13 @@ class CoverageTracker:
         lineno = frame.f_lineno
         func_name = frame.f_code.co_name
 
-        if event == 'call':
+        if event == "call":
             # Track function entry
             self.current_coverage.functions.add(f"{filename}:{func_name}")
             self.last_location = (filename, lineno)
             return self._trace_function
 
-        elif event == 'line':
+        elif event == "line":
             # Track line coverage
             self.current_coverage.lines.add((filename, lineno))
 
@@ -121,10 +120,14 @@ class CoverageTracker:
 
             self.last_location = (filename, lineno)
 
-        elif event == 'return':
+        elif event == "return":
             # Track function exit
             if self.last_location:
-                edge = (*self.last_location, filename, -lineno)  # Negative line for returns
+                edge = (
+                    *self.last_location,
+                    filename,
+                    -lineno,
+                )  # Negative line for returns
                 self.current_coverage.edges.add(edge)
             self.last_location = None
 
@@ -145,7 +148,9 @@ class CoverageTracker:
         self.current_coverage = CoverageInfo()
 
         if input_data:
-            self.current_coverage.input_hash = hashlib.sha256(input_data).hexdigest()[:16]
+            self.current_coverage.input_hash = hashlib.sha256(input_data).hexdigest()[
+                :16
+            ]
 
         # Start tracing
         start_time = time.time()
@@ -167,7 +172,9 @@ class CoverageTracker:
 
                 # Check for new coverage
                 new_edges = self.current_coverage.edges - self.global_coverage.edges
-                new_branches = self.current_coverage.branches - self.global_coverage.branches
+                new_branches = (
+                    self.current_coverage.branches - self.global_coverage.branches
+                )
 
                 if new_edges or new_branches:
                     self.current_coverage.new_coverage = True
@@ -176,23 +183,26 @@ class CoverageTracker:
 
                 # Store in history if input hash exists
                 if self.current_coverage.input_hash:
-                    self.coverage_history[self.current_coverage.input_hash] = self.current_coverage
+                    self.coverage_history[self.current_coverage.input_hash] = (
+                        self.current_coverage
+                    )
 
     def get_coverage_stats(self) -> Dict[str, Any]:
         """Get current coverage statistics."""
         with self._lock:
             return {
-                'total_edges': len(self.global_coverage.edges),
-                'total_branches': len(self.global_coverage.branches),
-                'total_functions': len(self.global_coverage.functions),
-                'total_lines': len(self.global_coverage.lines),
-                'total_executions': self.total_executions,
-                'coverage_increases': self.coverage_increases,
-                'unique_inputs': len(self.coverage_history),
-                'coverage_rate': (
+                "total_edges": len(self.global_coverage.edges),
+                "total_branches": len(self.global_coverage.branches),
+                "total_functions": len(self.global_coverage.functions),
+                "total_lines": len(self.global_coverage.lines),
+                "total_executions": self.total_executions,
+                "coverage_increases": self.coverage_increases,
+                "unique_inputs": len(self.coverage_history),
+                "coverage_rate": (
                     self.coverage_increases / self.total_executions
-                    if self.total_executions > 0 else 0
-                )
+                    if self.total_executions > 0
+                    else 0
+                ),
             }
 
     def get_uncovered_edges(self, recent_coverage: CoverageInfo) -> Set[Tuple]:
@@ -220,14 +230,16 @@ class CoverageTracker:
 
         with self._lock:
             coverage_data = {
-                'stats': self.get_coverage_stats(),
-                'edges': list(self.global_coverage.edges),
-                'functions': list(self.global_coverage.functions),
-                'lines': [f"{file}:{line}" for file, line in self.global_coverage.lines],
-                'history_size': len(self.coverage_history)
+                "stats": self.get_coverage_stats(),
+                "edges": list(self.global_coverage.edges),
+                "functions": list(self.global_coverage.functions),
+                "lines": [
+                    f"{file}:{line}" for file, line in self.global_coverage.lines
+                ],
+                "history_size": len(self.coverage_history),
             }
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(coverage_data, f, indent=2, default=str)
 
     def reset(self) -> None:
@@ -249,7 +261,9 @@ class HybridCoverageTracker(CoverageTracker):
     Falls back to pure Python tracking if Atheris is not available.
     """
 
-    def __init__(self, target_modules: Optional[Set[str]] = None, use_atheris: bool = False):
+    def __init__(
+        self, target_modules: Optional[Set[str]] = None, use_atheris: bool = False
+    ):
         """
         Initialize hybrid coverage tracker.
 
@@ -264,6 +278,7 @@ class HybridCoverageTracker(CoverageTracker):
         if use_atheris:
             try:
                 import atheris
+
                 self.atheris_available = True
                 self.atheris = atheris
             except ImportError:
