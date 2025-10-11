@@ -64,9 +64,12 @@ class CoverageSnapshot:
             SHA-256 hash of the coverage pattern
         """
         # Sort for consistency
-        lines_str = ",".join(f"{f}:{l}" for f, l in sorted(self.lines_covered))
+        lines_str = ",".join(
+            f"{filename}:{line}" for filename, line in sorted(self.lines_covered)
+        )
         branches_str = ",".join(
-            f"{f}:{l}:{b}" for f, l, b in sorted(self.branches_covered)
+            f"{filename}:{line}:{branch}"
+            for filename, line, branch in sorted(self.branches_covered)
         )
         combined = f"{lines_str}|{branches_str}"
         return hashlib.sha256(combined.encode()).hexdigest()
@@ -169,8 +172,14 @@ class CoverageTracker:
         path = Path(filename)
         try:
             relative_path = str(path.relative_to(Path.cwd()))
+            # Normalize path separators to forward slashes for consistent matching
+            normalized_path = relative_path.replace("\\", "/")
             for module in self.target_modules:
-                if relative_path.startswith(module):
+                # Check if module is in the path (e.g., "core" matches "dicom_fuzzer/core/parser.py")
+                if (
+                    f"/{module}/" in f"/{normalized_path}/"
+                    or normalized_path.startswith(f"{module}/")
+                ):
                     return True
         except ValueError:
             # File is not relative to cwd
@@ -327,14 +336,14 @@ class CoverageTracker:
 
         report = f"""
 Coverage-Guided Fuzzing Report
-{'=' * 50}
+{"=" * 50}
 
-Total Executions:      {stats['total_executions']}
-Interesting Cases:     {stats['interesting_cases']}
-Redundant Cases:       {stats['redundant_cases']}
-Total Lines Covered:   {stats['total_lines_covered']}
-Unique Patterns:       {stats['unique_coverage_patterns']}
-Efficiency:            {stats['efficiency']:.1%}
+Total Executions:      {stats["total_executions"]}
+Interesting Cases:     {stats["interesting_cases"]}
+Redundant Cases:       {stats["redundant_cases"]}
+Total Lines Covered:   {stats["total_lines_covered"]}
+Unique Patterns:       {stats["unique_coverage_patterns"]}
+Efficiency:            {stats["efficiency"]:.1%}
 
 Coverage History: {len(self.coverage_history)} snapshots
         """
