@@ -857,7 +857,7 @@ class TestCoverageMissingLines:
         parser = DicomParser(sample_dicom_file)
 
         # Mock getattr to raise exception
-        with patch("core.parser.getattr", side_effect=RuntimeError("Mock error")):
+        with patch("builtins.getattr", side_effect=RuntimeError("Mock error")):
             result = parser.get_transfer_syntax()
             assert result is None  # Line 347
 
