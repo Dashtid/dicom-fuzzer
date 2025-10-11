@@ -493,7 +493,7 @@ class TestGeneratorErrorHandling:
         generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=False)
 
         # Mock a fuzzer that raises ValueError
-        with patch("core.generator.HeaderFuzzer") as mock_fuzzer_class:
+        with patch("dicom_fuzzer.core.generator.HeaderFuzzer") as mock_fuzzer_class:
             mock_fuzzer = Mock()
             mock_fuzzer.mutate_tags.side_effect = ValueError("Test error")
             mock_fuzzer_class.return_value = mock_fuzzer
@@ -553,7 +553,7 @@ class TestGeneratorErrorHandling:
         generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
 
         # Mock a fuzzer that always raises ValueError
-        with patch("core.generator.HeaderFuzzer") as mock_fuzzer_class:
+        with patch("dicom_fuzzer.core.generator.HeaderFuzzer") as mock_fuzzer_class:
             mock_fuzzer = Mock()
             mock_fuzzer.mutate_tags.side_effect = ValueError("Test error")
             mock_fuzzer_class.return_value = mock_fuzzer
