@@ -276,9 +276,12 @@ class DicomMutator:
             "default_severity", MutationSeverity.MODERATE
         )
 
-        logger.info(
-            f"Applying {num_mutations} mutations with {severity.value} severity"
+        # LEARNING: Handle both enum and string severity values
+        severity_str = (
+            severity.value if isinstance(severity, MutationSeverity) else severity
         )
+
+        logger.info(f"Applying {num_mutations} mutations with {severity_str} severity")
 
         # LEARNING: Create a deep copy so we don't modify the original
         mutated_dataset = copy.deepcopy(dataset)
@@ -299,7 +302,7 @@ class DicomMutator:
             # Skip mutation if random value is greater than probability threshold
             # e.g., if probability=0.7, skip when random() > 0.7 (30% skip rate)
             if random.random() > self.config.get("mutation_probability", 0.7):
-                logger.debug(f"Skipping mutation {i+1} due to probability")
+                logger.debug(f"Skipping mutation {i + 1} due to probability")
                 continue
 
             # LEARNING: Choose a random strategy
@@ -410,10 +413,15 @@ class DicomMutator:
             return
 
         # LEARNING: Create a mutation record
+        # Handle both enum and string severity values
+        severity_str = (
+            severity.value if isinstance(severity, MutationSeverity) else severity
+        )
+
         mutation_record = MutationRecord(
             strategy_name=strategy.get_strategy_name(),
             severity=severity,
-            description=f"Applied {strategy.get_strategy_name()} with {severity.value} severity",  # noqa: E501
+            description=f"Applied {strategy.get_strategy_name()} with {severity_str} severity",  # noqa: E501
             success=success,
             error_message=error,
         )
