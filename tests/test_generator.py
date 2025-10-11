@@ -175,9 +175,9 @@ class TestFilenameGeneration:
 class TestFuzzerIntegration:
     """Test integration with fuzzing strategies."""
 
-    @patch("core.generator.MetadataFuzzer")
-    @patch("core.generator.HeaderFuzzer")
-    @patch("core.generator.PixelFuzzer")
+    @patch("dicom_fuzzer.core.generator.MetadataFuzzer")
+    @patch("dicom_fuzzer.core.generator.HeaderFuzzer")
+    @patch("dicom_fuzzer.core.generator.PixelFuzzer")
     def test_fuzzers_instantiated(
         self,
         mock_pixel_fuzzer,
