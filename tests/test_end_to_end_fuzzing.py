@@ -17,6 +17,7 @@ from dicom_fuzzer.core.parser import DicomParser
 from dicom_fuzzer.core.validator import DicomValidator
 from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
 from dicom_fuzzer.core.reporter import ReportGenerator
+from dicom_fuzzer.core.statistics import StatisticsCollector
 
 
 class TestEndToEndFuzzingWorkflow:
@@ -219,10 +220,11 @@ class TestEndToEndFuzzingWorkflow:
             original_file=str(sample_dicom_file), count=10
         )
 
-        # Step 2: Create session
+        # Step 2: Create session and statistics collector
         session = FuzzingSession(
             session_name="multi_file_test", output_dir=str(fuzzing_workspace["outputs"])
         )
+        statistics = StatisticsCollector()
 
         # Step 3: Fuzz with different severities
         severities = ["low", "moderate", "high"]
@@ -239,10 +241,10 @@ class TestEndToEndFuzzingWorkflow:
                 source_file=seed_file, output_file=output_file, severity=severity
             )
 
-            # TODO: StatisticsCollector doesn't yet implement track_iteration
-            # statistics.track_iteration(
-            #     file_path=str(output_file), mutations_applied=i + 1, severity=severity
-            # )
+            # Track this iteration
+            statistics.track_iteration(
+                file_path=str(output_file), mutations_applied=i + 1, severity=severity
+            )
 
             # Apply mutations
             mutator.start_session(dataset)
@@ -276,9 +278,14 @@ class TestEndToEndFuzzingWorkflow:
         assert session_summary["files_per_minute"] > 0
 
         # Statistics should track all files
-        # TODO: StatisticsCollector doesn't implement track_iteration yet
-        # stats_summary = statistics.get_summary()
-        # assert stats_summary["total_iterations"] == len(seed_files)
+        stats_summary = statistics.get_summary()
+        assert stats_summary["total_iterations"] == len(seed_files)
+        assert stats_summary["executions_per_second"] >= 0
+        assert len(stats_summary["severity_statistics"]) > 0
+
+        # Verify severity distribution
+        for severity in ["low", "moderate", "high"]:
+            assert severity in stats_summary["severity_statistics"]
 
     def test_reporter_integration(self, fuzzing_workspace):
         """
