@@ -485,29 +485,21 @@ class TestIntegration:
 
     def test_complete_coverage_workflow(self):
         """Test a complete coverage-guided fuzzing workflow."""
-        tracker = CoverageTracker()
+        from dicom_fuzzer.core.test_helper import simple_function, another_function
 
-        def target_function_1():
-            x = 1
-            y = 2
-            return x + y
-
-        def target_function_2():
-            a = 10
-            b = 20
-            return a * b
+        tracker = CoverageTracker(target_modules=["core"])
 
         # Track first execution
         with tracker.trace_execution("case_1"):
-            target_function_1()
+            simple_function()
 
         # Track second execution (different code)
         with tracker.trace_execution("case_2"):
-            target_function_2()
+            another_function()
 
         # Track third execution (same as first)
         with tracker.trace_execution("case_3"):
-            target_function_1()
+            simple_function()
 
         # Should have executed 3 times
         assert tracker.total_executions == 3
@@ -625,8 +617,6 @@ class TestActualCodeTracing:
 
         tracker = CoverageTracker(target_modules=["core"])
 
-        initial_history_length = len(tracker.coverage_history)
-
         with tracker.trace_execution("test_history_1"):
             # Execute first function
             _ = simple_function()
@@ -646,8 +636,6 @@ class TestActualCodeTracing:
         snapshot = CoverageSnapshot(
             lines_covered={("core/test.py", 10), ("core/test.py", 20)}
         )
-
-        initial_global = len(tracker.global_coverage)
 
         # First time should be interesting
         is_interesting = tracker.is_interesting(snapshot)
@@ -672,9 +660,6 @@ class TestActualCodeTracing:
         # First execution
         with tracker.trace_execution("test_new_1"):
             _ = simple_function()
-
-        first_coverage = len(tracker.global_coverage)
-        first_interesting = tracker.interesting_cases
 
         # Second execution with different code
         with tracker.trace_execution("test_new_2"):
