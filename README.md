@@ -2,11 +2,14 @@
 
 A specialized security testing tool for fuzzing DICOM (Digital Imaging and Communications in Medicine) implementations. Designed to identify vulnerabilities in medical imaging systems, PACS servers, and medical device software through automated security testing.
 
-[![Tests](https://img.shields.io/badge/tests-930%2B%20passing-brightgreen)](tests/)
+[![CI/CD Pipeline](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Dashtid/DICOM-Fuzzer/branch/main/graph/badge.svg)](https://codecov.io/gh/Dashtid/DICOM-Fuzzer)
+[![Tests](https://img.shields.io/badge/tests-1000%2B%20passing-brightgreen)](tests/)
 [![Coverage](https://img.shields.io/badge/coverage-69%25-green)](docs/COVERAGE.md)
 [![Core Modules](https://img.shields.io/badge/core%20modules-11%2F13%20%40%2090%25%2B-brightgreen)](#test-coverage)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://python.org)
-[![Code Style](https://img.shields.io/badge/code%20style-black-black)](https://github.com/psf/black)
+[![Code Style](https://img.shields.io/badge/code%20style-ruff-black)](https://github.com/astral-sh/ruff)
+[![Security](https://img.shields.io/badge/security-bandit-yellow)](https://github.com/PyCQA/bandit)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Overview
@@ -14,6 +17,7 @@ A specialized security testing tool for fuzzing DICOM (Digital Imaging and Commu
 DICOM-Fuzzer is a comprehensive fuzzing framework for testing the security and robustness of DICOM-based medical imaging systems. It combines mutation-based fuzzing, grammar-aware fuzzing, and crash analysis to help identify vulnerabilities before they can be exploited.
 
 **Target Use Cases:**
+
 - Security testing of PACS (Picture Archiving and Communication Systems)
 - Vulnerability assessment of medical imaging viewers
 - Robustness testing of DICOM parsers and validators
@@ -23,18 +27,21 @@ DICOM-Fuzzer is a comprehensive fuzzing framework for testing the security and r
 ## Key Features
 
 ### Fuzzing Capabilities
+
 - **Mutation-Based Fuzzing**: Intelligent mutations of DICOM metadata, headers, and pixel data
 - **Grammar-Based Fuzzing**: DICOM-aware mutations that understand protocol structure
 - **Coverage-Guided Fuzzing**: Track code coverage to guide mutation strategies
 - **Batch Processing**: Generate and test thousands of fuzzed files efficiently
 
 ### Crash Analysis & Reporting
+
 - **Automatic Crash Detection**: Monitor target applications for crashes, hangs, and errors
 - **Crash Deduplication**: Group similar crashes to identify unique vulnerabilities
 - **Mutation Minimization**: Automatically find the minimal mutation set that triggers a crash
 - **Comprehensive Reports**: Interactive HTML reports with full crash forensics
 
 ### Mutation Tracking
+
 - **Complete Traceability**: Track every mutation from source file to crash
 - **Session Management**: Organize fuzzing campaigns with detailed session logs
 - **Artifact Preservation**: Automatically save crash samples and reproduction commands
@@ -322,6 +329,7 @@ open reports/coverage/htmlcov/index.html   # macOS
 ### Test Coverage
 
 **Overall Statistics:**
+
 - **Total Tests**: 930+
 - **Pass Rate**: 100%
 - **Overall Coverage**: 69.12%
@@ -329,22 +337,23 @@ open reports/coverage/htmlcov/index.html   # macOS
 
 **Module Coverage:**
 
-| Module | Coverage | Tests | Status |
-|--------|----------|-------|--------|
-| **crash_deduplication.py** | 100% | 29 | ✅ Perfect |
-| **crash_analyzer.py** | 100% | 26 | ✅ Perfect |
-| **generator.py** | 100% | 41 | ✅ Perfect |
-| **reporter.py** | 100% | 24 | ✅ Perfect |
-| **statistics.py** | 100% | 24 | ✅ Perfect |
-| **validator.py** | 100% | 59 | ✅ Perfect |
-| **exceptions.py** | 100% | - | ✅ Perfect |
-| **types.py** | 100% | 8 | ✅ Perfect |
-| **fuzzing_session.py** | 96.52% | 41 | ✅ Excellent |
-| **parser.py** | 96.60% | 57 | ✅ Excellent |
-| **mutator.py** | 94.67% | 50 | ✅ Excellent |
-| **corpus.py** | 91.03% | 24 | ✅ Excellent |
+| Module                     | Coverage | Tests | Status       |
+| -------------------------- | -------- | ----- | ------------ |
+| **crash_deduplication.py** | 100%     | 29    | ✅ Perfect   |
+| **crash_analyzer.py**      | 100%     | 26    | ✅ Perfect   |
+| **generator.py**           | 100%     | 41    | ✅ Perfect   |
+| **reporter.py**            | 100%     | 24    | ✅ Perfect   |
+| **statistics.py**          | 100%     | 24    | ✅ Perfect   |
+| **validator.py**           | 100%     | 59    | ✅ Perfect   |
+| **exceptions.py**          | 100%     | -     | ✅ Perfect   |
+| **types.py**               | 100%     | 8     | ✅ Perfect   |
+| **fuzzing_session.py**     | 96.52%   | 41    | ✅ Excellent |
+| **parser.py**              | 96.60%   | 57    | ✅ Excellent |
+| **mutator.py**             | 94.67%   | 50    | ✅ Excellent |
+| **corpus.py**              | 91.03%   | 24    | ✅ Excellent |
 
 **New Test Files:**
+
 - `tests/test_fuzzing_session_edge_cases.py` - 9 comprehensive edge case tests
 - `tests/test_end_to_end_fuzzing.py` - 4 integration workflow tests
 
@@ -360,20 +369,26 @@ See [Test Coverage Documentation](#test-documentation) for detailed analysis.
 ## Use Cases
 
 ### Security Testing
+
 Identify vulnerabilities in DICOM implementations:
+
 - Buffer overflow detection
 - Null byte injection testing
 - Malformed header handling
 - Edge case discovery
 
 ### Compliance Testing
+
 Validate DICOM compliance:
+
 - Standard conformance testing
 - Error handling verification
 - Robustness assessment
 
 ### Regression Testing
+
 Automated testing in development workflows:
+
 - CI/CD integration
 - Automated crash detection
 - Performance regression testing
@@ -383,17 +398,18 @@ Automated testing in development workflows:
 This tool is designed for defensive security testing only.
 
 **Approved Use:**
+
 - Testing systems you own or have authorization to test
 - Security research in controlled environments
 - Compliance and quality assurance testing
 - Educational purposes
 
 **Important:**
+
 - Always use anonymized or synthetic test data
 - Ensure compliance with HIPAA, GDPR, and relevant regulations
 - Never test production systems without authorization
 - Dispose of test data securely after testing
-
 
 ## Contributing
 
@@ -441,6 +457,7 @@ This software is provided for educational and security testing purposes. Users a
 **Current Phase**: Production-ready with comprehensive test coverage
 
 **Recent Updates** (January 2025):
+
 - ✅ **Test Coverage Milestone**: 11 out of 13 core modules at 90%+ coverage
 - ✅ **8 Modules at 100% Coverage**: crash_analyzer, crash_deduplication, generator, reporter, statistics, validator, exceptions, types
 - ✅ **Edge Case Testing**: Added comprehensive edge case tests for fuzzing_session.py (88% → 96.52%)
@@ -449,6 +466,7 @@ This software is provided for educational and security testing purposes. Users a
 - ✅ **930+ Tests Passing**: Comprehensive test suite with integration tests
 
 **Previous Updates**:
+
 - Comprehensive fuzzing session tracking with full traceability
 - Crash deduplication with multi-strategy similarity analysis
 - Mutation minimization using delta debugging
@@ -456,6 +474,7 @@ This software is provided for educational and security testing purposes. Users a
 - Coverage correlation for guided fuzzing
 
 **Next Steps**:
+
 - Performance optimization and benchmarking
 - Additional end-to-end workflow examples
 - Documentation expansion with tutorials
