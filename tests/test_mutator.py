@@ -22,7 +22,12 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.mutator import DicomMutator, MutationRecord, MutationSession, MutationSeverity
+from dicom_fuzzer.core.mutator import (
+    DicomMutator,
+    MutationRecord,
+    MutationSession,
+    MutationSeverity,
+)
 
 
 class TestMutationSeverity:
@@ -373,8 +378,8 @@ class TestMutationApplication:
         # Should return unchanged dataset
         assert result is not None
 
-    @patch("core.mutator.random.random", return_value=0.0)
-    @patch("core.mutator.random.choice")
+    @patch("dicom_fuzzer.core.mutator.random.random", return_value=0.0)
+    @patch("dicom_fuzzer.core.mutator.random.choice")
     def test_apply_mutations_with_strategy(
         self, mock_choice, mock_random, sample_dicom_dataset
     ):
