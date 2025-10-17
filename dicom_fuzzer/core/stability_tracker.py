@@ -205,7 +205,7 @@ class StabilityTracker:
         """
         return self.metrics.stability_percentage >= threshold
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset all tracking data."""
         self.execution_history.clear()
         self.metrics = StabilityMetrics()
