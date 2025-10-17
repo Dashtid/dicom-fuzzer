@@ -7,7 +7,7 @@ A specialized security testing tool for fuzzing DICOM (Digital Imaging and Commu
 [![Tests](https://img.shields.io/badge/tests-1000%2B%20passing-brightgreen)](tests/)
 [![Coverage](https://img.shields.io/badge/coverage-69%25-green)](docs/COVERAGE.md)
 [![Core Modules](https://img.shields.io/badge/core%20modules-11%2F13%20%40%2090%25%2B-brightgreen)](#test-coverage)
-[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://python.org)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://python.org)
 [![Code Style](https://img.shields.io/badge/code%20style-ruff-black)](https://github.com/astral-sh/ruff)
 [![Security](https://img.shields.io/badge/security-bandit-yellow)](https://github.com/PyCQA/bandit)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -46,6 +46,16 @@ DICOM-Fuzzer is a comprehensive fuzzing framework for testing the security and r
 - **Session Management**: Organize fuzzing campaigns with detailed session logs
 - **Artifact Preservation**: Automatically save crash samples and reproduction commands
 - **DICOM Metadata Snapshots**: Compare original vs. fuzzed file metadata
+
+### Production-Ready Stability (v1.1.0+)
+
+- **Resource Management**: Configurable memory, CPU, and disk space limits (Unix/Linux/macOS)
+- **Error Recovery**: Checkpoint/resume for long-running campaigns with progress preservation
+- **Retry Logic**: Automatic retry with exponential backoff for transient failures
+- **Circuit Breaker**: Prevent resource waste on consistently failing targets
+- **Pre-flight Validation**: Comprehensive checks before campaign start (Python version, dependencies, disk space)
+- **Graceful Shutdown**: SIGINT/SIGTERM handling with state preservation
+- **Platform-Aware**: Full support on Unix/Linux/macOS, graceful degradation on Windows
 
 ## Project Structure
 
@@ -155,7 +165,39 @@ pytest tests/ --cov=dicom_fuzzer --cov-report=html
 
 ## Usage
 
-### Basic Fuzzing
+### Command-Line Interface
+
+Generate fuzzed DICOM files with stability features:
+
+```bash
+# Basic fuzzing with 100 files
+dicom-fuzzer input.dcm -c 100 -o ./fuzzed_output
+
+# Fuzzing with target testing and resource limits
+dicom-fuzzer input.dcm \
+  -c 1000 \
+  -o ./fuzzed_output \
+  -t ./target_app \
+  --timeout 10 \
+  --max-memory 1024 \
+  --max-cpu-time 30 \
+  --min-disk-space 2048
+
+# Verbose logging with crash-on-first
+dicom-fuzzer input.dcm \
+  -c 500 \
+  -t ./viewer.exe \
+  --stop-on-crash \
+  --verbose
+```
+
+**Resource Limit Options** (v1.1.0+):
+- `--max-memory MB`: Soft memory limit (Unix/Linux/macOS only)
+- `--max-memory-hard MB`: Hard memory limit (Unix/Linux/macOS only)
+- `--max-cpu-time SEC`: CPU time limit per operation (Unix/Linux/macOS only)
+- `--min-disk-space MB`: Minimum required free disk space (all platforms)
+
+### Basic Fuzzing (Python API)
 
 Generate fuzzed DICOM files with mutation tracking:
 
@@ -362,6 +404,8 @@ See [Test Coverage Documentation](#test-documentation) for detailed analysis.
 ## Documentation
 
 - **[Fuzzing Guide](docs/FUZZING_GUIDE.md)** - Comprehensive fuzzing methodology
+- **[Stability Guide](docs/STABILITY.md)** - Production stability features (v1.1.0+)
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Reporting System](docs/REPORTING.md)** - Report generation and analysis
 - **[Coverage Analysis](docs/COVERAGE.md)** - Test coverage breakdown
 - **[Project Structure](docs/STRUCTURE.md)** - Repository organization
@@ -454,18 +498,31 @@ This software is provided for educational and security testing purposes. Users a
 
 ## Project Status
 
-**Current Phase**: Production-ready with comprehensive test coverage
+**Current Phase**: Production-ready with enterprise-grade stability
 
-**Recent Updates** (January 2025):
+**Latest Updates** - v1.1.0 Stability Release (January 2025):
+
+- ✅ **Resource Management**: Memory, CPU, and disk space limits with platform-aware enforcement
+- ✅ **Error Recovery**: Checkpoint/resume for campaign resumption after interruption
+- ✅ **Retry Logic & Circuit Breaker**: Automatic retry with intelligent failure handling
+- ✅ **Pre-flight Validation**: Comprehensive configuration checks before campaign start
+- ✅ **CLI Integration**: Resource limits configurable via command-line flags
+- ✅ **Test Coverage Improvements**: validator.py (100%), helpers.py (100%), logger.py (100%)
+- ✅ **Stress Testing**: New test suites for 1000+ files, memory leaks, and concurrency
+- ✅ **Error Scenarios**: Comprehensive testing of corrupted files and resource exhaustion
+- ✅ **Property-Based Testing**: 9 hypothesis tests for target runner edge cases
+- ✅ **Documentation**: STABILITY.md and TROUBLESHOOTING.md guides added
+
+**Previous Updates** - v1.0.0 (January 2025):
 
 - ✅ **Test Coverage Milestone**: 11 out of 13 core modules at 90%+ coverage
 - ✅ **8 Modules at 100% Coverage**: crash_analyzer, crash_deduplication, generator, reporter, statistics, validator, exceptions, types
-- ✅ **Edge Case Testing**: Added comprehensive edge case tests for fuzzing_session.py (88% → 96.52%)
+- ✅ **Edge Case Testing**: Comprehensive edge case tests for fuzzing_session.py (88% → 96.52%)
 - ✅ **End-to-End Integration Tests**: Complete workflow testing from generation to reporting
 - ✅ **Overall Coverage**: Improved from 28% to 69.12%
-- ✅ **930+ Tests Passing**: Comprehensive test suite with integration tests
+- ✅ **1000+ Tests Passing**: Comprehensive test suite with integration tests
 
-**Previous Updates**:
+**Earlier Updates**:
 
 - Comprehensive fuzzing session tracking with full traceability
 - Crash deduplication with multi-strategy similarity analysis
@@ -475,10 +532,11 @@ This software is provided for educational and security testing purposes. Users a
 
 **Next Steps**:
 
-- Performance optimization and benchmarking
-- Additional end-to-end workflow examples
-- Documentation expansion with tutorials
-- CI/CD pipeline enhancements
+- CI/CD pipeline integration with stability tests
+- Distributed fuzzing across multiple machines
+- Real-time monitoring dashboard
+- Network fuzzing support (DICOM C-STORE, C-FIND)
+- Performance benchmarking suite
 
 ---
 

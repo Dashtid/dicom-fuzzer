@@ -11,17 +11,24 @@ SECURITY TESTING WORKFLOW:
 4. Collect crash reports and analyze vulnerabilities
 
 This implements file-based fuzzing testing (Option 1).
+
+STABILITY ENHANCEMENTS:
+- Resource limit enforcement (memory/CPU)
+- Retry logic for transient failures
+- Better error classification (OOM, resource exhaustion)
+- Circuit breaker pattern for failing targets
 """
 
 import logging
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
+from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +41,8 @@ class ExecutionStatus(Enum):
     HANG = "hang"  # Application hung/timed out
     ERROR = "error"  # Application returned error code
     SKIPPED = "skipped"  # Test was skipped
+    OOM = "oom"  # Out of memory
+    RESOURCE_EXHAUSTED = "resource_exhausted"  # Resource limit exceeded
 
 
 @dataclass
@@ -53,10 +62,29 @@ class ExecutionResult:
     stderr: str
     exception: Optional[Exception] = None
     crash_hash: Optional[str] = None
+    retry_count: int = 0  # Number of retries attempted
 
     def __bool__(self) -> bool:
         """Test succeeded if result is SUCCESS."""
         return self.result == ExecutionStatus.SUCCESS
+
+
+@dataclass
+class CircuitBreakerState:
+    """
+    Circuit breaker state for failing target applications.
+
+    CONCEPT: If target consistently fails, temporarily stop testing it
+    to avoid wasting resources on a broken target.
+    """
+
+    failure_count: int = 0
+    success_count: int = 0
+    consecutive_failures: int = 0
+    is_open: bool = False
+    open_until: float = 0.0  # Timestamp when circuit closes
+    failure_threshold: int = 5  # Failures before opening circuit
+    reset_timeout: float = 60.0  # Seconds to wait before retry
 
 
 class TargetRunner:
@@ -69,6 +97,9 @@ class TargetRunner:
     - Feeding it test files
     - Monitoring for crashes/hangs
     - Collecting diagnostic information
+    - Enforcing resource limits
+    - Retry logic for transient failures
+    - Circuit breaker for consistently failing targets
 
     SECURITY: Runs target in isolated process to contain potential exploits.
     """
@@ -80,6 +111,9 @@ class TargetRunner:
         crash_dir: str = "./crashes",
         collect_stdout: bool = True,
         collect_stderr: bool = True,
+        max_retries: int = 2,
+        enable_circuit_breaker: bool = True,
+        resource_limits: Optional[ResourceLimits] = None,
     ):
         """
         Initialize target runner.
@@ -90,34 +124,142 @@ class TargetRunner:
             crash_dir: Directory to save crash reports
             collect_stdout: Whether to capture stdout
             collect_stderr: Whether to capture stderr
+            max_retries: Maximum retries for transient failures
+            enable_circuit_breaker: Enable circuit breaker pattern
+            resource_limits: Resource limits to enforce
 
         Raises:
             FileNotFoundError: If target executable doesn't exist
         """
         self.target_executable = Path(target_executable)
         if not self.target_executable.exists():
-            raise FileNotFoundError(f"Target executable not found: {target_executable}")
+            raise FileNotFoundError(
+                f"Target executable not found: {target_executable}"
+            )
 
         self.timeout = timeout
         self.crash_dir = Path(crash_dir)
         self.crash_dir.mkdir(parents=True, exist_ok=True)
         self.collect_stdout = collect_stdout
         self.collect_stderr = collect_stderr
+        self.max_retries = max_retries
+        self.enable_circuit_breaker = enable_circuit_breaker
 
         # Initialize crash analyzer for crash reporting
         self.crash_analyzer = CrashAnalyzer(crash_dir=str(self.crash_dir))
 
+        # Initialize resource manager
+        self.resource_manager = ResourceManager(resource_limits)
+
+        # Circuit breaker state
+        self.circuit_breaker = CircuitBreakerState()
+
         logger.info(
             f"Initialized TargetRunner: target={target_executable}, "
-            f"timeout={timeout}s"
+            f"timeout={timeout}s, max_retries={max_retries}"
         )
 
-    def execute_test(self, test_file: Path) -> ExecutionResult:
+    def _check_circuit_breaker(self) -> bool:
+        """
+        Check if circuit breaker allows execution.
+
+        Returns:
+            True if execution should proceed, False if circuit is open
+        """
+        if not self.enable_circuit_breaker:
+            return True
+
+        if self.circuit_breaker.is_open:
+            current_time = time.time()
+            if current_time < self.circuit_breaker.open_until:
+                logger.warning(
+                    f"Circuit breaker OPEN - target failing consistently. "
+                    f"Retry in {self.circuit_breaker.open_until - current_time:.0f}s"
+                )
+                return False
+            else:
+                # Reset timeout elapsed, try again
+                logger.info("Circuit breaker half-open - attempting retry")
+                self.circuit_breaker.is_open = False
+                self.circuit_breaker.consecutive_failures = 0
+
+        return True
+
+    def _update_circuit_breaker(self, success: bool):
+        """
+        Update circuit breaker state after execution.
+
+        Args:
+            success: Whether execution was successful
+        """
+        if not self.enable_circuit_breaker:
+            return
+
+        if success:
+            self.circuit_breaker.success_count += 1
+            self.circuit_breaker.consecutive_failures = 0
+        else:
+            self.circuit_breaker.failure_count += 1
+            self.circuit_breaker.consecutive_failures += 1
+
+            # Check if we should open the circuit
+            if (
+                self.circuit_breaker.consecutive_failures
+                >= self.circuit_breaker.failure_threshold
+            ):
+                self.circuit_breaker.is_open = True
+                self.circuit_breaker.open_until = (
+                    time.time() + self.circuit_breaker.reset_timeout
+                )
+                logger.warning(
+                    f"Circuit breaker OPENED - {self.circuit_breaker.consecutive_failures} "
+                    f"consecutive failures detected"
+                )
+
+    def _classify_error(self, stderr: str, returncode: Optional[int]) -> ExecutionStatus:
+        """
+        Classify error type based on stderr and return code.
+
+        Args:
+            stderr: Standard error output
+            returncode: Process return code
+
+        Returns:
+            ExecutionStatus indicating error type
+        """
+        stderr_lower = stderr.lower()
+
+        # Check for out of memory
+        oom_indicators = ["out of memory", "memory error", "cannot allocate", "oom"]
+        if any(indicator in stderr_lower for indicator in oom_indicators):
+            return ExecutionStatus.OOM
+
+        # Check for resource exhaustion
+        resource_indicators = [
+            "resource",
+            "limit",
+            "quota",
+            "too many",
+            "exhausted",
+        ]
+        if any(indicator in stderr_lower for indicator in resource_indicators):
+            return ExecutionStatus.RESOURCE_EXHAUSTED
+
+        # Check for crash signals (negative return codes)
+        if returncode and returncode < 0:
+            return ExecutionStatus.CRASH
+
+        return ExecutionStatus.ERROR
+
+    def execute_test(
+        self, test_file: Path, retry_count: int = 0
+    ) -> ExecutionResult:
         """
         Execute target application with a test file.
 
         Args:
             test_file: Path to DICOM file to test
+            retry_count: Current retry attempt number
 
         Returns:
             ExecutionResult with test outcome
@@ -127,10 +269,23 @@ class TargetRunner:
         2. Monitors execution with timeout
         3. Captures output and exit code
         4. Classifies the result (success/crash/hang/error)
+        5. Retries on transient failures
+        6. Enforces resource limits
         """
-        start_time = time.time()
+        # Check circuit breaker
+        if not self._check_circuit_breaker():
+            return ExecutionResult(
+                test_file=test_file,
+                result=ExecutionStatus.SKIPPED,
+                exit_code=None,
+                execution_time=0.0,
+                stdout="",
+                stderr="Circuit breaker open - target failing consistently",
+                retry_count=retry_count,
+            )
 
-        logger.debug(f"Testing file: {test_file.name}")
+        start_time = time.time()
+        logger.debug(f"Testing file: {test_file.name} (attempt {retry_count + 1})")
 
         try:
             # Launch target application with test file
@@ -145,15 +300,26 @@ class TargetRunner:
 
             execution_time = time.time() - start_time
 
-            # Classify result based on exit code
+            # Classify result based on exit code and stderr
             if result.returncode == 0:
                 test_result = ExecutionStatus.SUCCESS
-            elif result.returncode < 0:
-                # Negative return code indicates signal termination (crash)
-                test_result = ExecutionStatus.CRASH
+                self._update_circuit_breaker(success=True)
             else:
-                # Positive non-zero indicates error
-                test_result = ExecutionStatus.ERROR
+                # Use advanced classification
+                test_result = self._classify_error(result.stderr, result.returncode)
+                self._update_circuit_breaker(success=False)
+
+                # Retry on transient errors
+                if (
+                    retry_count < self.max_retries
+                    and test_result in [ExecutionStatus.ERROR, ExecutionStatus.RESOURCE_EXHAUSTED]
+                ):
+                    logger.debug(
+                        f"Transient error detected, retrying "
+                        f"({retry_count + 1}/{self.max_retries})"
+                    )
+                    time.sleep(0.1)  # Brief delay before retry
+                    return self.execute_test(test_file, retry_count + 1)
 
             return ExecutionResult(
                 test_file=test_file,
@@ -162,6 +328,7 @@ class TargetRunner:
                 execution_time=execution_time,
                 stdout=result.stdout if self.collect_stdout else "",
                 stderr=result.stderr if self.collect_stderr else "",
+                retry_count=retry_count,
             )
 
         except subprocess.TimeoutExpired as e:
@@ -174,6 +341,8 @@ class TargetRunner:
                 test_case_path=str(test_file),
             )
 
+            self._update_circuit_breaker(success=False)
+
             return ExecutionResult(
                 test_file=test_file,
                 result=ExecutionStatus.HANG,
@@ -183,13 +352,42 @@ class TargetRunner:
                 stderr=e.stderr.decode() if e.stderr and self.collect_stderr else "",
                 exception=e,
                 crash_hash=crash_report.crash_hash if crash_report else None,
+                retry_count=retry_count,
+            )
+
+        except MemoryError as e:
+            # Out of memory in fuzzer itself
+            execution_time = time.time() - start_time
+            logger.error(f"Fuzzer OOM while testing {test_file.name}: {e}")
+
+            self._update_circuit_breaker(success=False)
+
+            return ExecutionResult(
+                test_file=test_file,
+                result=ExecutionStatus.OOM,
+                exit_code=None,
+                execution_time=execution_time,
+                stdout="",
+                stderr=f"Fuzzer out of memory: {e}",
+                exception=e,
+                retry_count=retry_count,
             )
 
         except Exception as e:
             # Unexpected error during test execution
             execution_time = time.time() - start_time
-
             logger.error(f"Unexpected error testing {test_file.name}: {e}")
+
+            self._update_circuit_breaker(success=False)
+
+            # Retry on unexpected errors
+            if retry_count < self.max_retries:
+                logger.debug(
+                    f"Retrying after unexpected error "
+                    f"({retry_count + 1}/{self.max_retries})"
+                )
+                time.sleep(0.1)
+                return self.execute_test(test_file, retry_count + 1)
 
             return ExecutionResult(
                 test_file=test_file,
@@ -199,6 +397,7 @@ class TargetRunner:
                 stdout="",
                 stderr=str(e),
                 exception=e,
+                retry_count=retry_count,
             )
 
     def run_campaign(
@@ -224,28 +423,58 @@ class TargetRunner:
         total = len(test_files)
         logger.info(f"Starting fuzzing campaign with {total} test files")
 
+        # Pre-flight resource check
+        try:
+            self.resource_manager.check_available_resources(
+                output_dir=self.crash_dir
+            )
+        except Exception as e:
+            logger.error(f"Pre-flight resource check failed: {e}")
+            logger.warning("Proceeding anyway - resource limits may not be enforced")
+
         for i, test_file in enumerate(test_files, 1):
             logger.debug(f"[{i}/{total}] Testing {test_file.name}")
 
             exec_result = self.execute_test(test_file)
             results[exec_result.result].append(exec_result)
 
-            # Log crashes and hangs as they occur
-            if exec_result.result in (ExecutionStatus.CRASH, ExecutionStatus.HANG):
+            # Log notable results
+            if exec_result.result in (
+                ExecutionStatus.CRASH,
+                ExecutionStatus.HANG,
+                ExecutionStatus.OOM,
+            ):
                 logger.warning(
                     f"[{i}/{total}] {exec_result.result.value.upper()}: "
-                    f"{test_file.name} (exit_code={exec_result.exit_code})"
+                    f"{test_file.name} (exit_code={exec_result.exit_code}, "
+                    f"retries={exec_result.retry_count})"
                 )
 
-                if stop_on_crash:
-                    logger.info("Stopping campaign on first crash (stop_on_crash=True)")
+                if stop_on_crash and exec_result.result == ExecutionStatus.CRASH:
+                    logger.info(
+                        "Stopping campaign on first crash (stop_on_crash=True)"
+                    )
                     break
+
+            # Check circuit breaker - if open, skip remaining tests
+            if self.circuit_breaker.is_open:
+                logger.warning(
+                    f"Circuit breaker open - skipping remaining {total - i} tests"
+                )
+                break
 
         # Print summary
         logger.info("Campaign complete. Results:")
         for result_type, exec_results in results.items():
             if exec_results:
                 logger.info(f"  {result_type.value}: {len(exec_results)}")
+
+        # Print circuit breaker stats
+        if self.enable_circuit_breaker:
+            logger.info(
+                f"Circuit breaker: {self.circuit_breaker.success_count} successes, "
+                f"{self.circuit_breaker.failure_count} failures"
+            )
 
         return results
 
@@ -264,6 +493,8 @@ class TargetRunner:
         hangs = len(results[ExecutionStatus.HANG])
         errors = len(results[ExecutionStatus.ERROR])
         success = len(results[ExecutionStatus.SUCCESS])
+        oom = len(results[ExecutionStatus.OOM])
+        skipped = len(results[ExecutionStatus.SKIPPED])
 
         summary = [
             "=" * 70,
@@ -273,7 +504,9 @@ class TargetRunner:
             f"  Successful:       {success}",
             f"  Crashes:          {crashes}",
             f"  Hangs/Timeouts:   {hangs}",
+            f"  OOM:              {oom}",
             f"  Errors:           {errors}",
+            f"  Skipped:          {skipped}",
             "=" * 70,
         ]
 
@@ -283,7 +516,8 @@ class TargetRunner:
             for exec_result in results[ExecutionStatus.CRASH][:10]:
                 crash_line = (
                     f"    - {exec_result.test_file.name} "
-                    f"(exit_code={exec_result.exit_code})"
+                    f"(exit_code={exec_result.exit_code}, "
+                    f"retries={exec_result.retry_count})"
                 )
                 summary.append(crash_line)
             if len(results[ExecutionStatus.CRASH]) > 10:
@@ -293,11 +527,35 @@ class TargetRunner:
         if hangs > 0:
             summary.append("\n  HANGS DETECTED:")
             for exec_result in results[ExecutionStatus.HANG][:10]:
-                summary.append(f"    - {exec_result.test_file.name}")
+                summary.append(
+                    f"    - {exec_result.test_file.name} "
+                    f"(timeout={self.timeout}s)"
+                )
             if len(results[ExecutionStatus.HANG]) > 10:
                 summary.append(
                     f"    ... and {len(results[ExecutionStatus.HANG]) - 10} more"
                 )
+
+        if oom > 0:
+            summary.append("\n  OUT OF MEMORY:")
+            for exec_result in results[ExecutionStatus.OOM][:5]:
+                summary.append(f"    - {exec_result.test_file.name}")
+            if len(results[ExecutionStatus.OOM]) > 5:
+                summary.append(
+                    f"    ... and {len(results[ExecutionStatus.OOM]) - 5} more"
+                )
+
+        # Circuit breaker stats
+        if self.enable_circuit_breaker:
+            summary.append(f"\n  Circuit Breaker Stats:")
+            summary.append(
+                f"    Successes: {self.circuit_breaker.success_count}, "
+                f"Failures: {self.circuit_breaker.failure_count}"
+            )
+            if self.circuit_breaker.is_open:
+                summary.append(f"    Status: OPEN (target failing consistently)")
+            else:
+                summary.append(f"    Status: CLOSED")
 
         summary.append("")
         return "\n".join(summary)

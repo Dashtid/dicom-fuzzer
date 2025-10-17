@@ -26,7 +26,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install Ruff
         run: pip install ruff
@@ -46,7 +46,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install Bandit
         run: pip install bandit[toml]
@@ -63,7 +63,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install dependencies
         run: |
@@ -80,17 +80,21 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.11', '3.12', '3.13']
+        python-version: ['3.11', '3.12', '3.13', '3.14']
         exclude:
           # Test all Python versions on Linux, but only latest on macOS/Windows to reduce CI time
           - os: macos-latest
             python-version: '3.11'
           - os: macos-latest
             python-version: '3.12'
+          - os: macos-latest
+            python-version: '3.13'
           - os: windows-latest
             python-version: '3.11'
           - os: windows-latest
             python-version: '3.12'
+          - os: windows-latest
+            python-version: '3.13'
 
     steps:
       - uses: actions/checkout@v4
@@ -112,7 +116,7 @@ jobs:
           pytest tests/ --cov=dicom_fuzzer --cov-report=xml --cov-report=term-missing --cov-report=html --junitxml=junit.xml -v -n auto --dist=worksteal --timeout=30
 
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.14'
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
@@ -121,7 +125,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Archive coverage HTML report
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.14'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-html-report
@@ -149,7 +153,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.14'
           cache: 'pip'
 
       - name: Install dependencies
@@ -183,7 +187,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.14'
 
       - name: Install build tools
         run: pip install build twine
