@@ -111,6 +111,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **logger.py**: 100% coverage (was 40.98%)
 - Overall project coverage maintained at ~20%
 
+## [1.2.0] - 2025-10-17 - Crash Intelligence Release
+
+### Added - Crash Intelligence & Stability Tracking
+- **Crash Triaging** (`crash_triage.py`): Automated crash analysis and prioritization
+  - 5 severity levels: CRITICAL, HIGH, MEDIUM, LOW, INFO
+  - 4 exploitability ratings: EXPLOITABLE, PROBABLY_EXPLOITABLE, PROBABLY_NOT_EXPLOITABLE, UNKNOWN
+  - Priority scoring (0-100) for investigation order
+  - Automatic indicator extraction (heap corruption, use-after-free, buffer overflows)
+  - Write vs read access violation differentiation
+  - Tag generation and recommendation system
+  - 97.53% test coverage with 17 comprehensive tests
+- **Test Case Minimization** (`test_minimizer.py`): Delta debugging for crash reduction
+  - DDMIN (delta debugging minimization) algorithm implementation
+  - 4 minimization strategies: DDMIN, binary search, linear, block removal
+  - Reduces crashing inputs to smallest reproducible form
+  - Preserves crash behavior while minimizing file size
+  - Configurable iteration and timeout limits
+  - 23 comprehensive tests covering all strategies
+- **Stability Tracking** (`stability_tracker.py`): AFL++-style stability metrics
+  - Execution consistency tracking (same input → same path → same coverage)
+  - Non-deterministic behavior detection
+  - Stability percentage calculation (ideal: 100%)
+  - Detects uninitialized memory, race conditions, entropy sources
+  - Unstable input reporting with detailed variance analysis
+  - Retest frequency and stability window configuration
+  - 96.94% test coverage with 22 comprehensive tests
+
+### Changed
+- **Core exports**: Added crash intelligence features to `dicom_fuzzer.core.__init__.py`
+  - `CrashTriageEngine`, `CrashTriage`, `Severity`, `ExploitabilityRating`
+  - `TestMinimizer`, `MinimizationStrategy`
+  - `StabilityTracker`, `StabilityMetrics`
+- **Test Suite**: Added 62 new tests for crash intelligence modules
+  - `test_crash_triage.py`: 17 tests (97.53% coverage)
+  - `test_stability_tracker.py`: 22 tests (96.94% coverage)
+  - `test_test_minimizer.py`: 23 tests for minimization strategies
+
+### Test Coverage
+- **crash_triage.py**: 97.53% coverage
+- **stability_tracker.py**: 96.94% coverage
+- Overall project coverage improved to 24.00% (up from 20%)
+- Total test count: 1109 tests (1088 passing, 98.2% pass rate)
+
+### Documentation
+- Comprehensive docstrings for all new modules
+- Usage examples in module documentation
+- Based on 2025 fuzzing framework best practices research
+
 ## [Unreleased]
 
 ### Added
@@ -121,6 +169,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated documentation (installation, testing guides)
 
 ### Planned
+- Integration of crash intelligence with fuzzing campaigns
 - Enhanced coverage-guided fuzzing
 - Network fuzzing support (DICOM C-STORE, C-FIND)
 - Distributed fuzzing across multiple machines
