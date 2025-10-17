@@ -13,16 +13,19 @@ DICOM-Fuzzer is built with production-grade stability features to ensure reliabl
 ### 1. Resource Management
 
 #### Memory Limits
+
 - **Default Soft Limit**: 1GB per fuzzing operation
 - **Default Hard Limit**: 2GB per fuzzing operation
 - **Platform Support**: Unix/Linux (full), Windows (disk only)
 
 #### CPU Time Limits
+
 - **Default Limit**: 30 seconds per test case
 - **Prevents**: Runaway processes from consuming all CPU
 - **Platform Support**: Unix/Linux only
 
 #### Disk Space Monitoring
+
 - **Pre-flight Check**: Validates sufficient disk space before starting
 - **Minimum Required**: 1GB free space (configurable)
 - **Runtime Monitoring**: Periodic checks during long campaigns
@@ -50,27 +53,32 @@ with manager.limited_execution():
 ### 2. Error Recovery
 
 #### Automatic Retry Logic
+
 - **Transient Errors**: Automatically retried up to 2 times by default
 - **Exponential Backoff**: Brief delays between retries (100ms, 200ms)
 - **Retry Tracking**: Each result includes `retry_count` for analysis
 
 **Error Types That Trigger Retry:**
+
 - Generic errors (Exception)
 - Resource temporarily unavailable
 - Network timeouts (for future network fuzzing)
 
 **Error Types That Don't Retry:**
+
 - Crashes (negative exit codes)
 - Out of memory errors
 - Successful executions
 
 #### Circuit Breaker Pattern
+
 - **Purpose**: Stop testing targets that consistently fail
 - **Threshold**: Opens after 5 consecutive failures
 - **Reset Timeout**: 60 seconds before retry attempt
 - **Benefits**: Saves time, prevents resource waste
 
 **Circuit Breaker States:**
+
 1. **CLOSED**: Normal operation, all tests execute
 2. **OPEN**: Target failing consistently, tests skipped
 3. **HALF-OPEN**: After timeout, trying one test to check recovery
@@ -98,16 +106,19 @@ print(f"Circuit Open: {runner.circuit_breaker.is_open}")
 ### 3. Checkpoint and Resume
 
 #### Campaign Checkpoints
+
 - **Auto-save Interval**: Every 100 files processed (configurable)
 - **Format**: JSON (human-readable)
 - **Location**: `./checkpoints/` by default
 
 #### Resumable Campaigns
+
 - **Automatic Detection**: Lists interrupted campaigns on startup
 - **State Preservation**: Tracks progress, statistics, file lists
 - **Resume From**: Last checkpoint or specific file index
 
 **Checkpoint Contents:**
+
 - Campaign ID and status
 - Start time and last update
 - Files processed vs. total
@@ -148,6 +159,7 @@ if interrupted:
 ### 4. Graceful Shutdown
 
 #### Signal Handling
+
 - **Supported Signals**: SIGINT (Ctrl+C), SIGTERM
 - **Behavior**: Saves checkpoint before exiting
 - **Second Signal**: Forces immediate exit
@@ -174,6 +186,7 @@ finally:
 ### 5. Advanced Error Classification
 
 #### Detailed Status Codes
+
 - `SUCCESS`: Normal execution, exit code 0
 - `CRASH`: Application crashed (negative exit code)
 - `HANG`: Timeout expired
@@ -183,7 +196,9 @@ finally:
 - `SKIPPED`: Test not run (circuit breaker open)
 
 #### Intelligent Error Detection
+
 Analyzes stderr output for specific error patterns:
+
 - Out of memory: "out of memory", "memory error", "cannot allocate"
 - Resource issues: "resource", "limit", "quota", "too many"
 - Crashes: Negative return codes (SIGSEGV, SIGABRT, etc.)
@@ -191,24 +206,29 @@ Analyzes stderr output for specific error patterns:
 ### 6. Pre-flight Validation
 
 #### ConfigValidator Checks
+
 Run before starting campaigns to catch issues early:
 
 **File System Checks:**
+
 - Input file exists and is readable
 - Input file appears to be valid DICOM
 - Output directory writable or can be created
 - Sufficient disk space available
 
 **Environment Checks:**
+
 - Python version >= 3.11
 - Required dependencies installed
 - Optional dependencies (tqdm, psutil) available
 
 **Target Application Checks:**
+
 - Executable exists and is accessible
 - File has execute permissions (Unix)
 
 **System Resource Checks:**
+
 - Available memory
 - CPU core count
 - Disk space per partition
@@ -256,6 +276,7 @@ if not passed:
 ### For Reliable Long-Running Campaigns
 
 1. **Enable All Safety Features:**
+
    ```python
    runner = TargetRunner(
        target_executable="./app",
@@ -266,6 +287,7 @@ if not passed:
    ```
 
 2. **Use Pre-flight Validation:**
+
    ```python
    validator = ConfigValidator()
    if not validator.validate_all(...):
@@ -274,6 +296,7 @@ if not passed:
    ```
 
 3. **Enable Checkpointing:**
+
    ```python
    recovery = CampaignRecovery(
        checkpoint_interval=100  # Every 100 files
@@ -281,6 +304,7 @@ if not passed:
    ```
 
 4. **Install Signal Handlers:**
+
    ```python
    signal_handler = SignalHandler(recovery_manager=recovery)
    signal_handler.install()
@@ -297,6 +321,7 @@ if not passed:
 ### For Critical Production Campaigns
 
 1. **Run with Conservative Limits:**
+
    ```python
    limits = ResourceLimits(
        max_memory_mb=512,  # Lower limit for safety
@@ -306,11 +331,13 @@ if not passed:
    ```
 
 2. **Use Strict Validation:**
+
    ```python
    validator = ConfigValidator(strict=True)  # Warnings = errors
    ```
 
 3. **Set Shorter Checkpoint Intervals:**
+
    ```python
    recovery = CampaignRecovery(checkpoint_interval=50)
    ```
@@ -324,38 +351,43 @@ if not passed:
 ## Performance Impact
 
 ### Resource Limit Overhead
+
 - **Memory Monitoring**: Minimal (<1% CPU)
 - **Disk Space Checks**: Negligible (cached by OS)
 - **Resource Enforcement**: Only on Unix (Windows checks disk only)
 
 ### Checkpoint Overhead
+
 - **Save Time**: ~50ms per checkpoint (JSON serialization)
 - **Disk I/O**: ~1KB per checkpoint file
 - **Recommendation**: Balance frequency vs. recovery granularity
 
 ### Retry Overhead
+
 - **Delay per Retry**: 100ms default (configurable)
 - **Typical Impact**: <1% for campaigns with few errors
 - **High Error Rate**: May increase runtime significantly
 
 ### Circuit Breaker Impact
+
 - **Check Overhead**: Negligible (in-memory state)
 - **Benefit**: Saves significant time when target fails consistently
 - **Example**: 1000 tests, 5 fail, circuit opens = 995 tests skipped
 
 ## Platform Support
 
-| Feature | Linux | Windows | macOS |
-|---------|-------|---------|-------|
-| Memory Limits | ✅ Full | ❌ No | ✅ Full |
-| CPU Limits | ✅ Full | ❌ No | ✅ Full |
-| Disk Checks | ✅ Full | ✅ Full | ✅ Full |
-| File Descriptors | ✅ Full | ❌ No | ✅ Full |
-| Checkpoints | ✅ Full | ✅ Full | ✅ Full |
-| Signal Handling | ✅ Full | ⚠️ SIGINT only | ✅ Full |
+| Feature             | Linux   | Windows            | macOS   |
+| ------------------- | ------- | ------------------ | ------- |
+| Memory Limits       | ✅ Full | ❌ No              | ✅ Full |
+| CPU Limits          | ✅ Full | ❌ No              | ✅ Full |
+| Disk Checks         | ✅ Full | ✅ Full            | ✅ Full |
+| File Descriptors    | ✅ Full | ❌ No              | ✅ Full |
+| Checkpoints         | ✅ Full | ✅ Full            | ✅ Full |
+| Signal Handling     | ✅ Full | ⚠️ SIGINT only     | ✅ Full |
 | Resource Monitoring | ✅ Full | ⚠️ Requires psutil | ✅ Full |
 
 **Legend:**
+
 - ✅ Full: Complete support
 - ⚠️ Partial: Limited functionality
 - ❌ No: Not supported
@@ -365,41 +397,49 @@ if not passed:
 ### Common Issues
 
 #### 1. Resource Limits Not Enforced (Windows)
+
 **Symptom**: Memory/CPU limits have no effect
 
 **Cause**: Windows doesn't support `resource` module
 
 **Solution**: Resource limits only work on Unix-like systems. Windows users should:
+
 - Monitor resource usage manually
 - Use system-level resource management (Windows Resource Manager)
 - Set shorter timeouts to prevent runaway processes
 
 #### 2. Checkpoint Files Growing Large
+
 **Symptom**: Checkpoint directory uses significant disk space
 
 **Cause**: Large campaigns generate large checkpoint files
 
 **Solutions:**
+
 - Increase `checkpoint_interval` (fewer checkpoints)
 - Clean up old checkpoints manually
 - Use `.gitignore` to exclude checkpoint directory
 
 #### 3. Circuit Breaker Opens Too Quickly
+
 **Symptom**: Tests skipped after only a few failures
 
 **Cause**: Default threshold (5 failures) may be too low
 
 **Solution**: Adjust circuit breaker threshold:
+
 ```python
 runner.circuit_breaker.failure_threshold = 10  # More failures allowed
 ```
 
 #### 4. Pre-flight Validation Too Strict
+
 **Symptom**: Validation fails on warnings
 
 **Cause**: Strict mode enabled
 
 **Solution**: Disable strict mode:
+
 ```python
 validator = ConfigValidator(strict=False)
 ```
@@ -409,9 +449,11 @@ validator = ConfigValidator(strict=False)
 ### From Version 1.0 to 1.1
 
 **Breaking Changes:**
+
 - None! All stability features are opt-in
 
 **New Features:**
+
 - Resource management (automatic)
 - Error recovery (automatic retry)
 - Circuit breaker (enabled by default)
@@ -421,6 +463,7 @@ validator = ConfigValidator(strict=False)
 **Recommended Changes:**
 
 1. **Update target_runner.py usage** (new parameters available):
+
    ```python
    # Old (still works)
    runner = TargetRunner(target_executable="./app")
@@ -434,6 +477,7 @@ validator = ConfigValidator(strict=False)
    ```
 
 2. **Add pre-flight validation**:
+
    ```python
    from dicom_fuzzer.core import ConfigValidator
 
@@ -442,6 +486,7 @@ validator = ConfigValidator(strict=False)
    ```
 
 3. **Enable checkpoints for long campaigns**:
+
    ```python
    from dicom_fuzzer.core import CampaignRecovery
 
@@ -452,6 +497,7 @@ validator = ConfigValidator(strict=False)
 ## Future Improvements
 
 **Planned for Version 1.2:**
+
 - Automatic crash triaging and deduplication
 - Distributed fuzzing across multiple machines
 - Real-time monitoring dashboard

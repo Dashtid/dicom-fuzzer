@@ -16,7 +16,6 @@ stress conditions that might occur in real-world security testing.
 import gc
 import os
 import time
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import psutil
@@ -109,7 +108,9 @@ class TestLargeBatchProcessing:
 
         # Allow some growth, but should not have major leak
         # Allow up to 500MB growth for 5000 mutations
-        assert memory_growth < 500, f"Memory grew by {memory_growth:.0f}MB, potential leak"
+        assert memory_growth < 500, (
+            f"Memory grew by {memory_growth:.0f}MB, potential leak"
+        )
 
 
 class TestResourcePressure:
@@ -214,8 +215,6 @@ class TestConcurrentOperations:
         """Test concurrent validation operations."""
         from concurrent.futures import ThreadPoolExecutor
 
-        from dicom_fuzzer.core.parser import DicomParser
-
         # Generate test files
         output_dir = temp_dir / "concurrent_validation"
         generator = DICOMGenerator(output_dir=str(output_dir))
@@ -281,7 +280,9 @@ class TestLongRunningCampaigns:
         crash_rate = 0.1  # 10% crashes
 
         for i in range(test_iterations):
-            stats.track_iteration(f"test_{i}.dcm", mutations_applied=5, severity="moderate")
+            stats.track_iteration(
+                f"test_{i}.dcm", mutations_applied=5, severity="moderate"
+            )
 
             # Simulate crashes at expected rate
             if i % 10 == 0:  # Every 10th iteration
@@ -349,9 +350,7 @@ class TestMemoryLeakDetection:
         memory_growth = final_memory - initial_memory
 
         # Should not grow significantly (allow 100MB growth)
-        assert (
-            memory_growth < 100
-        ), f"Memory grew {memory_growth:.0f}MB, potential leak"
+        assert memory_growth < 100, f"Memory grew {memory_growth:.0f}MB, potential leak"
 
     def test_repeated_validation_no_leak(self, sample_dicom_file):
         """Test repeated validation doesn't leak memory."""
@@ -372,9 +371,7 @@ class TestMemoryLeakDetection:
         memory_growth = final_memory - initial_memory
 
         # Should not grow significantly
-        assert (
-            memory_growth < 100
-        ), f"Memory grew {memory_growth:.0f}MB, potential leak"
+        assert memory_growth < 100, f"Memory grew {memory_growth:.0f}MB, potential leak"
 
 
 class TestEdgeCaseStress:
@@ -402,7 +399,6 @@ class TestEdgeCaseStress:
     def test_deeply_nested_sequences(self):
         """Test handling deeply nested DICOM sequences."""
         from pydicom.sequence import Sequence
-        from pydicom.tag import Tag
 
         dataset = Dataset()
         current = dataset
@@ -420,7 +416,9 @@ class TestEdgeCaseStress:
         result = validator.validate(dataset)
 
         # Should detect deep nesting
-        assert any("nested" in w.lower() or "depth" in w.lower() for w in result.warnings)
+        assert any(
+            "nested" in w.lower() or "depth" in w.lower() for w in result.warnings
+        )
 
     def test_extremely_long_strings(self):
         """Test handling extremely long string values."""

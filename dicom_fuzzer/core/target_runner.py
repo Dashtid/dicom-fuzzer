@@ -22,7 +22,7 @@ STABILITY ENHANCEMENTS:
 import logging
 import subprocess
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -133,9 +133,7 @@ class TargetRunner:
         """
         self.target_executable = Path(target_executable)
         if not self.target_executable.exists():
-            raise FileNotFoundError(
-                f"Target executable not found: {target_executable}"
-            )
+            raise FileNotFoundError(f"Target executable not found: {target_executable}")
 
         self.timeout = timeout
         self.crash_dir = Path(crash_dir)
@@ -216,7 +214,9 @@ class TargetRunner:
                     f"consecutive failures detected"
                 )
 
-    def _classify_error(self, stderr: str, returncode: Optional[int]) -> ExecutionStatus:
+    def _classify_error(
+        self, stderr: str, returncode: Optional[int]
+    ) -> ExecutionStatus:
         """
         Classify error type based on stderr and return code.
 
@@ -251,9 +251,7 @@ class TargetRunner:
 
         return ExecutionStatus.ERROR
 
-    def execute_test(
-        self, test_file: Path, retry_count: int = 0
-    ) -> ExecutionResult:
+    def execute_test(self, test_file: Path, retry_count: int = 0) -> ExecutionResult:
         """
         Execute target application with a test file.
 
@@ -310,10 +308,10 @@ class TargetRunner:
                 self._update_circuit_breaker(success=False)
 
                 # Retry on transient errors
-                if (
-                    retry_count < self.max_retries
-                    and test_result in [ExecutionStatus.ERROR, ExecutionStatus.RESOURCE_EXHAUSTED]
-                ):
+                if retry_count < self.max_retries and test_result in [
+                    ExecutionStatus.ERROR,
+                    ExecutionStatus.RESOURCE_EXHAUSTED,
+                ]:
                     logger.debug(
                         f"Transient error detected, retrying "
                         f"({retry_count + 1}/{self.max_retries})"
@@ -425,9 +423,7 @@ class TargetRunner:
 
         # Pre-flight resource check
         try:
-            self.resource_manager.check_available_resources(
-                output_dir=self.crash_dir
-            )
+            self.resource_manager.check_available_resources(output_dir=self.crash_dir)
         except Exception as e:
             logger.error(f"Pre-flight resource check failed: {e}")
             logger.warning("Proceeding anyway - resource limits may not be enforced")
@@ -451,9 +447,7 @@ class TargetRunner:
                 )
 
                 if stop_on_crash and exec_result.result == ExecutionStatus.CRASH:
-                    logger.info(
-                        "Stopping campaign on first crash (stop_on_crash=True)"
-                    )
+                    logger.info("Stopping campaign on first crash (stop_on_crash=True)")
                     break
 
             # Check circuit breaker - if open, skip remaining tests
@@ -528,8 +522,7 @@ class TargetRunner:
             summary.append("\n  HANGS DETECTED:")
             for exec_result in results[ExecutionStatus.HANG][:10]:
                 summary.append(
-                    f"    - {exec_result.test_file.name} "
-                    f"(timeout={self.timeout}s)"
+                    f"    - {exec_result.test_file.name} (timeout={self.timeout}s)"
                 )
             if len(results[ExecutionStatus.HANG]) > 10:
                 summary.append(
@@ -547,15 +540,15 @@ class TargetRunner:
 
         # Circuit breaker stats
         if self.enable_circuit_breaker:
-            summary.append(f"\n  Circuit Breaker Stats:")
+            summary.append("\n  Circuit Breaker Stats:")
             summary.append(
                 f"    Successes: {self.circuit_breaker.success_count}, "
                 f"Failures: {self.circuit_breaker.failure_count}"
             )
             if self.circuit_breaker.is_open:
-                summary.append(f"    Status: OPEN (target failing consistently)")
+                summary.append("    Status: OPEN (target failing consistently)")
             else:
-                summary.append(f"    Status: CLOSED")
+                summary.append("    Status: CLOSED")
 
         summary.append("")
         return "\n".join(summary)

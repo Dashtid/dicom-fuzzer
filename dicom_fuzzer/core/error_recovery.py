@@ -14,9 +14,7 @@ STABILITY FEATURES:
 
 import json
 import logging
-import pickle
 import signal
-import sys
 import time
 from dataclasses import asdict, dataclass
 from enum import Enum
@@ -185,9 +183,7 @@ class CampaignRecovery:
 
         return self.files_since_checkpoint >= self.checkpoint_interval
 
-    def save_checkpoint(
-        self, checkpoint: Optional[CampaignCheckpoint] = None
-    ) -> Path:
+    def save_checkpoint(self, checkpoint: Optional[CampaignCheckpoint] = None) -> Path:
         """
         Save checkpoint to disk.
 
@@ -296,7 +292,10 @@ class CampaignRecovery:
         Args:
             campaign_id: Campaign identifier
         """
-        if self.current_checkpoint and self.current_checkpoint.campaign_id == campaign_id:
+        if (
+            self.current_checkpoint
+            and self.current_checkpoint.campaign_id == campaign_id
+        ):
             self.current_checkpoint.status = CampaignStatus.COMPLETED
             self.current_checkpoint.last_update = time.time()
             self.save_checkpoint()
@@ -314,7 +313,10 @@ class CampaignRecovery:
             campaign_id: Campaign identifier
             reason: Reason for failure
         """
-        if self.current_checkpoint and self.current_checkpoint.campaign_id == campaign_id:
+        if (
+            self.current_checkpoint
+            and self.current_checkpoint.campaign_id == campaign_id
+        ):
             self.current_checkpoint.status = CampaignStatus.FAILED
             self.current_checkpoint.last_update = time.time()
             self.current_checkpoint.metadata["failure_reason"] = reason
@@ -329,7 +331,10 @@ class CampaignRecovery:
         Args:
             campaign_id: Campaign identifier
         """
-        if self.current_checkpoint and self.current_checkpoint.campaign_id == campaign_id:
+        if (
+            self.current_checkpoint
+            and self.current_checkpoint.campaign_id == campaign_id
+        ):
             self.current_checkpoint.status = CampaignStatus.INTERRUPTED
             self.current_checkpoint.last_update = time.time()
             self.save_checkpoint()

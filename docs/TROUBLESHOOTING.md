@@ -22,6 +22,7 @@ Comprehensive troubleshooting guide for common issues encountered when using DIC
 **Problem**: Missing required dependencies.
 
 **Solution**:
+
 ```bash
 # Install all dependencies
 pip install -r requirements.txt
@@ -35,6 +36,7 @@ pip install pydicom pytest hypothesis psutil tqdm
 **Problem**: `Python 3.11+ required, found 3.10`.
 
 **Solution**:
+
 ```bash
 # Check your Python version
 python --version
@@ -52,6 +54,7 @@ pyenv local 3.11
 **Problem**: Cannot install packages due to permissions.
 
 **Solution**:
+
 ```bash
 # Option 1: Use virtual environment (recommended)
 python -m venv venv
@@ -74,6 +77,7 @@ pip install --user -r requirements.txt
 **Problem**: `generator.generate_batch()` returns empty list.
 
 **Diagnosis**:
+
 ```python
 from dicom_fuzzer.core.generator import DICOMGenerator
 
@@ -85,11 +89,13 @@ print(f"Skipped: {generator.stats.skipped_due_to_write_errors}")
 ```
 
 **Common Causes**:
+
 1. **Output directory not writable** - Check permissions
 2. **Disk full** - Check available disk space
 3. **Invalid input file** - Verify DICOM file is valid
 
 **Solutions**:
+
 ```bash
 # Check disk space
 df -h .  # Unix/Linux/macOS
@@ -108,6 +114,7 @@ python -c "import pydicom; pydicom.dcmread('input.dcm')"
 **Problem**: Generated files cannot be read by DICOM tools.
 
 **Diagnosis**:
+
 ```python
 from dicom_fuzzer.core.validator import DicomValidator
 from dicom_fuzzer.core.parser import DicomParser
@@ -121,6 +128,7 @@ if not result.is_valid:
 ```
 
 **Solutions**:
+
 - Use less aggressive mutation strategies
 - Enable validation after generation
 - Check for file write errors in logs
@@ -130,6 +138,7 @@ if not result.is_valid:
 **Problem**: Input DICOM file validation fails.
 
 **Solution**:
+
 ```bash
 # Check file size
 ls -lh input.dcm  # Unix/Linux/macOS
@@ -148,6 +157,7 @@ python -c "import pydicom; ds = pydicom.dcmread('input.dcm', force=True); print(
 **Problem**: Cannot find specified target application.
 
 **Solution**:
+
 ```bash
 # Verify path exists
 ls /path/to/target.exe  # Unix/Linux/macOS
@@ -165,11 +175,13 @@ chmod +x /path/to/target.exe
 **Problem**: Every test case times out.
 
 **Diagnosis**:
+
 - Target application may require GUI (and server has no display)
 - Target waiting for user input
 - Target application crashed but not returning
 
 **Solutions**:
+
 ```bash
 # Test target manually first
 ./target.exe test.dcm
@@ -186,6 +198,7 @@ dicom-fuzzer input.dcm -t target.exe --timeout 30
 **Problem**: "Test skipped - circuit breaker open" after only a few failures.
 
 **Solution**:
+
 ```python
 # Adjust circuit breaker threshold in code
 runner = TargetRunner(target_executable="./app")
@@ -203,6 +216,7 @@ runner = TargetRunner(
 **Problem**: Expected crashes not being detected.
 
 **Diagnosis**:
+
 ```python
 # Enable verbose logging
 logging.basicConfig(level=logging.DEBUG)
@@ -215,6 +229,7 @@ print(f"Stderr: {result.stderr}")
 ```
 
 **Solutions**:
+
 - Increase test file count (more mutations = better coverage)
 - Use different mutation strategies
 - Verify target actually processes the file
@@ -231,6 +246,7 @@ print(f"Stderr: {result.stderr}")
 **Explanation**: Memory and CPU limits only work on Unix/Linux/macOS. Windows only supports disk space checking.
 
 **Solution**:
+
 ```bash
 # On Windows, resource limits are informational only
 # Use Windows Resource Manager for system-level limits
@@ -246,6 +262,7 @@ python main.py ...
 **Problem**: `MemoryError` or `Out of memory` during fuzzing.
 
 **Solution**:
+
 ```python
 from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
 
@@ -263,6 +280,7 @@ with manager.limited_execution():
 ```
 
 **Or use CLI**:
+
 ```bash
 dicom-fuzzer input.dcm --max-memory 512 --max-memory-hard 1024
 ```
@@ -272,6 +290,7 @@ dicom-fuzzer input.dcm --max-memory 512 --max-memory-hard 1024
 **Problem**: "Insufficient disk space" warnings during pre-flight check.
 
 **Solution**:
+
 ```bash
 # Free up disk space
 rm -rf old_fuzzed_files/
@@ -293,6 +312,7 @@ dicom-fuzzer input.dcm --min-disk-space 500  # Require only 500MB
 **Problem**: Generating 1000 files takes hours instead of minutes.
 
 **Diagnosis**:
+
 ```python
 import time
 from dicom_fuzzer.core.generator import DICOMGenerator
@@ -308,11 +328,13 @@ print(f"Rate: {len(files)/elapsed:.1f} files/sec")
 ```
 
 **Expected Performance**:
+
 - Simple mutations: 50-100 files/sec
 - Complex mutations: 10-50 files/sec
 - With validation: 5-20 files/sec
 
 **Solutions**:
+
 ```python
 # Disable unnecessary features
 generator = DICOMGenerator(
@@ -337,6 +359,7 @@ from concurrent.futures import ProcessPoolExecutor
 **Problem**: Python process consuming excessive memory.
 
 **Diagnosis**:
+
 ```python
 import psutil
 import os
@@ -347,6 +370,7 @@ print(f"Memory usage: {memory_mb:.0f} MB")
 ```
 
 **Solutions**:
+
 ```python
 # Generate in smaller batches
 generator = DICOMGenerator(output_dir="./output")
@@ -372,6 +396,7 @@ for i in range(0, 1000, batch_size):
 **Problem**: Cannot write to output directory.
 
 **Solution**:
+
 ```powershell
 # Run as administrator
 powershell -Command "Start-Process python -ArgumentList 'script.py' -Verb RunAs"
@@ -388,6 +413,7 @@ dicom-fuzzer input.dcm -o %USERPROFILE%\fuzzed_files
 **Problem**: macOS security restrictions preventing file access.
 
 **Solution**:
+
 ```bash
 # Grant Terminal/Python Full Disk Access
 # System Preferences > Security & Privacy > Privacy > Full Disk Access
@@ -402,6 +428,7 @@ dicom-fuzzer input.dcm -o ~/Documents/fuzzed_files/
 **Problem**: System file descriptor limit reached.
 
 **Solution**:
+
 ```bash
 # Check current limit
 ulimit -n
@@ -422,38 +449,41 @@ echo "* hard nofile 10000" | sudo tee -a /etc/security/limits.conf
 
 ### Exit Codes
 
-| Code | Meaning | Action |
-|------|---------|--------|
-| 0 | Success | Normal operation |
-| 1 | General error | Check error message and logs |
-| 2 | Command line error | Review command syntax |
-| 130 | Interrupted (Ctrl+C) | User cancelled operation |
+| Code | Meaning              | Action                       |
+| ---- | -------------------- | ---------------------------- |
+| 0    | Success              | Normal operation             |
+| 1    | General error        | Check error message and logs |
+| 2    | Command line error   | Review command syntax        |
+| 130  | Interrupted (Ctrl+C) | User cancelled operation     |
 
 ### Execution Status Codes
 
-| Status | Meaning | Typical Cause |
-|--------|---------|---------------|
-| SUCCESS | Test passed | Target processed file normally |
-| CRASH | Application crashed | Segfault, assertion failure |
-| HANG | Test timed out | Infinite loop, deadlock |
-| ERROR | Generic error | Non-zero exit code |
-| OOM | Out of memory | Memory exhaustion |
-| RESOURCE_EXHAUSTED | Resource limit hit | CPU/memory/disk limit exceeded |
-| SKIPPED | Test not run | Circuit breaker open |
+| Status             | Meaning             | Typical Cause                  |
+| ------------------ | ------------------- | ------------------------------ |
+| SUCCESS            | Test passed         | Target processed file normally |
+| CRASH              | Application crashed | Segfault, assertion failure    |
+| HANG               | Test timed out      | Infinite loop, deadlock        |
+| ERROR              | Generic error       | Non-zero exit code             |
+| OOM                | Out of memory       | Memory exhaustion              |
+| RESOURCE_EXHAUSTED | Resource limit hit  | CPU/memory/disk limit exceeded |
+| SKIPPED            | Test not run        | Circuit breaker open           |
 
 ### Common Log Messages
 
 **"No file meta information present"**
+
 - **Severity**: Warning
 - **Meaning**: DICOM file missing standard metadata
 - **Action**: Often harmless for fuzzing, can ignore
 
 **"Resource limit exceeded"**
+
 - **Severity**: Error
 - **Meaning**: Operation exceeded configured limits
 - **Action**: Increase limits or reduce workload
 
 **"Circuit breaker open"**
+
 - **Severity**: Info
 - **Meaning**: Too many consecutive failures, stopping tests
 - **Action**: Fix target application or adjust threshold
@@ -473,6 +503,7 @@ logging.basicConfig(
 ```
 
 Or via CLI:
+
 ```bash
 dicom-fuzzer input.dcm -v  # Verbose mode
 ```
@@ -520,6 +551,7 @@ When reporting issues, include:
 6. **Relevant log output** (with `-v` flag)
 
 **Where to Report**:
+
 - GitHub Issues: https://github.com/yourusername/DICOM-Fuzzer/issues
 - Documentation: See `docs/` directory for guides
 

@@ -13,18 +13,15 @@ Tests all new stability features:
 import subprocess
 import sys
 import time
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
 
 from dicom_fuzzer.core.target_runner import (
-    CircuitBreakerState,
     ExecutionResult,
     ExecutionStatus,
     TargetRunner,
 )
-from dicom_fuzzer.core.resource_manager import ResourceLimits
 
 
 @pytest.fixture
@@ -125,7 +122,9 @@ class TestExecutionSuccess:
             assert result.stdout == "Application output"
             assert result.stderr == "Debug messages"
 
-    def test_disable_stdout_stderr_collection(self, mock_executable, tmp_path, test_file):
+    def test_disable_stdout_stderr_collection(
+        self, mock_executable, tmp_path, test_file
+    ):
         """Test disabling stdout/stderr collection."""
         runner = TargetRunner(
             target_executable=str(mock_executable),

@@ -233,9 +233,7 @@ class ResourceManager:
                 hard_bytes = self.limits.max_memory_mb_hard * 1024 * 1024
 
                 saved_limits["as"] = sys_resource.getrlimit(sys_resource.RLIMIT_AS)
-                sys_resource.setrlimit(
-                    sys_resource.RLIMIT_AS, (soft_bytes, hard_bytes)
-                )
+                sys_resource.setrlimit(sys_resource.RLIMIT_AS, (soft_bytes, hard_bytes))
                 logger.debug(
                     f"Set memory limit: soft={self.limits.max_memory_mb}MB, "
                     f"hard={self.limits.max_memory_mb_hard}MB"
