@@ -18,7 +18,7 @@ import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -374,12 +374,12 @@ class ConfigValidator:
             )
         )
 
-    def _check_disk_space(
-        self, output_dir: Path, min_mb: float, num_files: int
-    ):
+    def _check_disk_space(self, output_dir: Path, min_mb: float, num_files: int):
         """Check available disk space."""
         try:
-            stat = shutil.disk_usage(output_dir if output_dir.exists() else output_dir.parent)
+            stat = shutil.disk_usage(
+                output_dir if output_dir.exists() else output_dir.parent
+            )
             free_mb = stat.free / (1024 * 1024)
 
             # Estimate required space (assuming 1MB per file as default)

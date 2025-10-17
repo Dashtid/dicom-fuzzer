@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 from dicom_fuzzer.core.generator import DICOMGenerator
-from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
+from dicom_fuzzer.core.resource_manager import ResourceLimits
 from dicom_fuzzer.core.target_runner import TargetRunner
 
 try:
@@ -141,7 +141,9 @@ def main():
     )
 
     # Resource limit options
-    resource_group = parser.add_argument_group("resource limits", "Control system resource usage")
+    resource_group = parser.add_argument_group(
+        "resource limits", "Control system resource usage"
+    )
     resource_group.add_argument(
         "--max-memory",
         type=int,
@@ -175,7 +177,9 @@ def main():
 
     # Create resource limits if specified
     resource_limits = None
-    if any([args.max_memory, args.max_memory_hard, args.max_cpu_time, args.min_disk_space]):
+    if any(
+        [args.max_memory, args.max_memory_hard, args.max_cpu_time, args.min_disk_space]
+    ):
         resource_limits = ResourceLimits(
             max_memory_mb=args.max_memory or 1024,
             max_memory_mb_hard=args.max_memory_hard or 2048,
@@ -261,8 +265,7 @@ def main():
         print(f"  [!] Skipped (write errors): {skipped}")
         files_per_sec = len(files) / elapsed_time
         print(
-            f"  [T] Time elapsed: {elapsed_time:.2f}s "
-            f"({files_per_sec:.1f} files/sec)"
+            f"  [T] Time elapsed: {elapsed_time:.2f}s ({files_per_sec:.1f} files/sec)"
         )
 
         if generator.stats.strategies_used:
@@ -315,7 +318,7 @@ def main():
                 print(summary)
                 print(
                     f"\nTarget testing completed in {test_elapsed:.2f}s "
-                    f"({len(files)/test_elapsed:.1f} tests/sec)\n"
+                    f"({len(files) / test_elapsed:.1f} tests/sec)\n"
                 )
 
             except FileNotFoundError as e:

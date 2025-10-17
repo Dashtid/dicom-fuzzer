@@ -16,15 +16,12 @@ rather than crashing when encountering real-world error conditions.
 
 import os
 import shutil
-from pathlib import Path
 from unittest.mock import Mock, patch
 
-import psutil
 import pytest
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.config_validator import ConfigValidator
-from dicom_fuzzer.core.exceptions import DicomFuzzingError
 from dicom_fuzzer.core.generator import DICOMGenerator
 from dicom_fuzzer.core.parser import DicomParser
 from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
@@ -435,7 +432,8 @@ class TestConfigurationErrors:
         """Test handling conflicting configuration."""
         # Create validator with conflicting settings
         validator = DicomValidator(
-            strict_mode=True, max_file_size=0  # Zero size limit
+            strict_mode=True,
+            max_file_size=0,  # Zero size limit
         )
 
         # Should initialize without crashing
@@ -467,9 +465,7 @@ class TestGracefulDegradation:
 class TestInterruptionHandling:
     """Test handling of interruptions and signals."""
 
-    def test_keyboard_interrupt_during_generation(
-        self, sample_dicom_file, temp_dir
-    ):
+    def test_keyboard_interrupt_during_generation(self, sample_dicom_file, temp_dir):
         """Test handling Ctrl+C during generation."""
         from dicom_fuzzer.core.error_recovery import SignalHandler
 
@@ -481,7 +477,9 @@ class TestInterruptionHandling:
 
         try:
             # Simulate interrupt after a few files
-            with patch("dicom_fuzzer.core.generator.DICOMGenerator.generate") as mock_gen:
+            with patch(
+                "dicom_fuzzer.core.generator.DICOMGenerator.generate"
+            ) as mock_gen:
 
                 def side_effect(*args, **kwargs):
                     if mock_gen.call_count >= 3:

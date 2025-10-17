@@ -47,7 +47,7 @@ repos:
       - id: check-merge-conflict
       - id: check-toml
       - id: check-yaml
-        args: [--unsafe]  # Allow custom tags in GitHub Actions
+        args: [--unsafe] # Allow custom tags in GitHub Actions
       - id: check-json
       - id: end-of-file-fixer
         exclude: ^(artifacts/|data/|\.hypothesis/|\.pytest_cache/)
@@ -105,8 +105,8 @@ ci:
 
     [pre-commit.ci] auto fixes from pre-commit hooks
   autofix_prs: true
-  autoupdate_branch: ''
-  autoupdate_commit_msg: 'chore: pre-commit autoupdate'
+  autoupdate_branch: ""
+  autoupdate_commit_msg: "chore: pre-commit autoupdate"
   autoupdate_schedule: weekly
-  skip: [pytest-quick]  # Skip pytest in CI (covered by GitHub Actions)
+  skip: [pytest-quick] # Skip pytest in CI (covered by GitHub Actions)
   submodules: false

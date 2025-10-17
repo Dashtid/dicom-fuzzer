@@ -192,6 +192,7 @@ dicom-fuzzer input.dcm \
 ```
 
 **Resource Limit Options** (v1.1.0+):
+
 - `--max-memory MB`: Soft memory limit (Unix/Linux/macOS only)
 - `--max-memory-hard MB`: Hard memory limit (Unix/Linux/macOS only)
 - `--max-cpu-time SEC`: CPU time limit per operation (Unix/Linux/macOS only)

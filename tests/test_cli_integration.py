@@ -11,10 +11,7 @@ Tests the command-line interface end-to-end, including:
 APPROACH: Uses factory pattern for argparse testing per 2025 best practices.
 """
 
-import shlex
 import sys
-from io import StringIO
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -159,9 +156,7 @@ class TestFileGeneration:
                 call_args = mock_gen.generate_batch.call_args
                 assert call_args[1]["count"] == 10
 
-    def test_generate_with_specific_strategies(
-        self, sample_dicom, output_dir, capsys
-    ):
+    def test_generate_with_specific_strategies(self, sample_dicom, output_dir, capsys):
         """Test generation with specific strategies."""
         args = [
             "dicom-fuzzer",
@@ -355,9 +350,7 @@ class TestTargetTesting:
             with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
                 with patch("dicom_fuzzer.cli.main.TargetRunner") as mock_runner_class:
                     mock_gen = Mock()
-                    test_files = [
-                        output_dir / f"fuzzed_{i:04d}.dcm" for i in range(10)
-                    ]
+                    test_files = [output_dir / f"fuzzed_{i:04d}.dcm" for i in range(10)]
                     mock_gen.generate_batch.return_value = test_files
                     mock_gen.stats.skipped_due_to_write_errors = 0
                     mock_gen.stats.strategies_used = {"metadata": 10}
@@ -420,9 +413,7 @@ class TestErrorHandling:
         with patch("sys.argv", args):
             with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
                 mock_gen = Mock()
-                mock_gen.generate_batch.side_effect = RuntimeError(
-                    "Unexpected error"
-                )
+                mock_gen.generate_batch.side_effect = RuntimeError("Unexpected error")
                 mock_gen_class.return_value = mock_gen
 
                 with patch("dicom_fuzzer.cli.main.Path.mkdir"):
