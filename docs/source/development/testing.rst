@@ -32,5 +32,5 @@ Tests run automatically on:
 
 * Every push to main/develop
 * All pull requests
-* Python 3.11, 3.12, 3.13
-* Windows and Linux
+* Python 3.11, 3.12, 3.13, 3.14
+* Windows, Linux, and macOS

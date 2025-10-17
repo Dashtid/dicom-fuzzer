@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from dicom_fuzzer.core.generator import DICOMGenerator
+from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
 from dicom_fuzzer.core.target_runner import TargetRunner
 
 try:
@@ -139,11 +140,49 @@ def main():
         help="Stop testing on first crash detected",
     )
 
+    # Resource limit options
+    resource_group = parser.add_argument_group("resource limits", "Control system resource usage")
+    resource_group.add_argument(
+        "--max-memory",
+        type=int,
+        metavar="MB",
+        help="Maximum memory usage in MB (soft limit, default: 1024). Unix/Linux only.",
+    )
+    resource_group.add_argument(
+        "--max-memory-hard",
+        type=int,
+        metavar="MB",
+        help="Maximum memory hard limit in MB (default: 2048). Unix/Linux only.",
+    )
+    resource_group.add_argument(
+        "--max-cpu-time",
+        type=int,
+        metavar="SEC",
+        help="Maximum CPU time per operation in seconds (default: 30). Unix/Linux only.",
+    )
+    resource_group.add_argument(
+        "--min-disk-space",
+        type=int,
+        metavar="MB",
+        help="Minimum required free disk space in MB (default: 1024).",
+    )
+
     args = parser.parse_args()
 
     # Setup logging
     setup_logging(args.verbose)
     logger = logging.getLogger(__name__)
+
+    # Create resource limits if specified
+    resource_limits = None
+    if any([args.max_memory, args.max_memory_hard, args.max_cpu_time, args.min_disk_space]):
+        resource_limits = ResourceLimits(
+            max_memory_mb=args.max_memory or 1024,
+            max_memory_mb_hard=args.max_memory_hard or 2048,
+            max_cpu_seconds=args.max_cpu_time or 30,
+            min_disk_space_mb=args.min_disk_space or 1024,
+        )
+        logger.info(f"Resource limits configured: {resource_limits}")
 
     # Validate input file
     input_path = validate_input_file(args.input_file)
@@ -257,9 +296,12 @@ def main():
                     target_executable=args.target,
                     timeout=args.timeout,
                     crash_dir=output_path / "crashes",
+                    resource_limits=resource_limits,
                 )
 
                 logger.info("Starting target testing campaign...")
+                if resource_limits:
+                    logger.info("Resource limits will be enforced during testing")
                 test_start = time.time()
 
                 results = runner.run_campaign(
