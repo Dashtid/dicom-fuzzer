@@ -17,10 +17,29 @@ import hashlib
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
+
+
+class InstabilityCause(Enum):
+    """
+    Root causes of execution instability.
+
+    CONCEPT: Different types of non-determinism require different fixes:
+    - Race conditions: Need better synchronization
+    - Uninitialized memory: Memory safety bugs
+    - Entropy: Random number generators, timestamps
+    - Timing: Execution time dependencies
+    """
+
+    RACE_CONDITION = "race_condition"  # Threading/concurrency issues
+    UNINITIALIZED_MEMORY = "uninitialized"  # Memory not initialized
+    ENTROPY_SOURCE = "entropy"  # Random numbers, timestamps
+    TIMING_DEPENDENT = "timing"  # Timing-based behavior
+    UNKNOWN = "unknown"  # Cannot determine cause
 
 
 @dataclass
@@ -41,6 +60,12 @@ class StabilityMetrics:
 
     # Detailed tracking
     execution_variance: Dict[str, List[str]] = field(default_factory=dict)
+
+    # Root cause analysis
+    instability_causes: Dict[str, InstabilityCause] = field(default_factory=dict)
+    cause_counts: Dict[InstabilityCause, int] = field(
+        default_factory=lambda: defaultdict(int)
+    )
 
     def __str__(self) -> str:
         """String representation for logging."""
