@@ -4,9 +4,9 @@ A specialized security testing tool for fuzzing DICOM (Digital Imaging and Commu
 
 [![CI/CD Pipeline](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/Dashtid/DICOM-Fuzzer/branch/main/graph/badge.svg)](https://codecov.io/gh/Dashtid/DICOM-Fuzzer)
-[![Tests](<https://img.shields.io/badge/tests-1091%2F1109%20passing%20(98.4%25)-brightgreen>)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-24%25-green)](docs/COVERAGE.md)
-[![Core Modules](https://img.shields.io/badge/core%20modules-11%2F13%20%40%2090%25%2B-brightgreen)](#test-coverage)
+[![Tests](<https://img.shields.io/badge/tests-2097%2B%20passing-brightgreen>)](tests/)
+[![Coverage](https://img.shields.io/badge/coverage-50.56%25-brightgreen)](docs/COVERAGE.md)
+[![Core Modules](https://img.shields.io/badge/core%20modules-17%2B%20%40%20100%25-brightgreen)](#test-coverage)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://python.org)
 [![Code Style](https://img.shields.io/badge/code%20style-ruff-black)](https://github.com/astral-sh/ruff)
 [![Security](https://img.shields.io/badge/security-bandit-yellow)](https://github.com/PyCQA/bandit)
@@ -75,6 +75,17 @@ DICOM-Fuzzer is a comprehensive fuzzing framework for testing the security and r
 - **Pre-flight Validation**: Comprehensive checks before campaign start (Python version, dependencies, disk space)
 - **Graceful Shutdown**: SIGINT/SIGTERM handling with state preservation
 - **Platform-Aware**: Full support on Unix/Linux/macOS, graceful degradation on Windows
+
+### Enhanced Stability Features (v1.3.0 - 2025)
+
+- **Silent Crash Debugging**: Automatic faulthandler integration for segfault tracebacks
+- **Atomic Checkpoints**: Corruption-resistant checkpoint writes with validation
+- **Stateless Harness Validation**: Tools to ensure 100% deterministic fuzzing
+- **Corpus Minimization**: Remove redundant seeds (95%+ reduction) while preserving coverage
+- **Timeout Budget Management**: Adaptive timeout adjustment to prevent time waste
+- **Coverage Correlation**: Identify crash-prone code paths for prioritized fixes
+- **Root Cause Analysis**: Classify instability (race conditions, uninitialized memory, entropy)
+- **Enhanced Error Handling**: ProcessPoolExecutor with BrokenProcessPool detection
 
 ## Project Structure
 
@@ -477,40 +488,51 @@ open reports/coverage/htmlcov/index.html   # macOS
 
 ### Test Coverage
 
-**Overall Statistics:**
+**Overall Statistics (2025-10-18):**
 
-- **Total Tests**: 1109 (1091 passing, 98.4% pass rate)
-- **New Tests in v1.2.0**: 62 tests for crash intelligence features
-- **Overall Coverage**: 24.00%
-- **Core Modules at 90%+**: 13 out of 16 (including v1.2.0 modules)
+- **Total Tests**: 2,097+ across 69 test files
+- **Overall Coverage**: 50.56% (target: 80% by industry standards)
+- **Core Modules at 100%**: 17+ critical modules
+- **Recent Achievement**: Enhanced reporter module (120 statements) 11.67% → 100%
 
-**Module Coverage:**
+**Module Coverage (100% Coverage Modules):**
+
+| Module                            | Statements | Tests | Status       |
+| --------------------------------- | ---------- | ----- | ------------ |
+| **enhanced_reporter.py** (NEW)    | 120        | 41    | ✅ Perfect   |
+| **config.py**                     | 88         | 51    | ✅ Perfect   |
+| **config_validator.py**           | 170        | 55    | ✅ Perfect   |
+| **crash_deduplication.py**        | 140        | 53    | ✅ Perfect   |
+| **crash_analyzer.py**             | 123        | 26    | ✅ Perfect   |
+| **generator.py**                  | 90         | 41    | ✅ Perfect   |
+| **reporter.py**                   | 83         | 24    | ✅ Perfect   |
+| **statistics.py**                 | 120        | 24    | ✅ Perfect   |
+| **validator.py**                  | 150        | 59    | ✅ Perfect   |
+| **profiler.py**                   | 115        | 62    | ✅ Perfect   |
+| **timeout_budget.py**             | 120        | 36    | ✅ Perfect   |
+| **coverage_correlation.py**       | 144        | 41    | ✅ Perfect   |
+| **exceptions.py**                 | 19         | 8     | ✅ Perfect   |
+| **types.py**                      | 6          | 8     | ✅ Perfect   |
+| **metadata_fuzzer.py**            | 16         | -     | ✅ Perfect   |
+| **pixel_fuzzer.py**               | 12         | -     | ✅ Perfect   |
+
+**High Coverage Modules:**
 
 | Module                            | Coverage | Tests | Status       |
 | --------------------------------- | -------- | ----- | ------------ |
-| **crash_deduplication.py**        | 100%     | 29    | ✅ Perfect   |
-| **crash_analyzer.py**             | 100%     | 26    | ✅ Perfect   |
-| **generator.py**                  | 100%     | 41    | ✅ Perfect   |
-| **reporter.py**                   | 100%     | 24    | ✅ Perfect   |
-| **statistics.py**                 | 100%     | 24    | ✅ Perfect   |
-| **validator.py**                  | 100%     | 59    | ✅ Perfect   |
-| **exceptions.py**                 | 100%     | -     | ✅ Perfect   |
-| **types.py**                      | 100%     | 8     | ✅ Perfect   |
 | **crash_triage.py** (v1.2.0)      | 97.53%   | 17    | ✅ Excellent |
-| **stability_tracker.py** (v1.2.0) | 96.94%   | 22    | ✅ Excellent |
-| **fuzzing_session.py**            | 96.52%   | 41    | ✅ Excellent |
+| **stability_tracker.py** (v1.2.0) | 97.20%   | 22    | ✅ Excellent |
+| **fuzzing_session.py**            | 70.23%   | 41    | ✅ Good      |
+| **corpus.py**                     | 59.74%   | 24    | ⚠️  Improving |
 | **parser.py**                     | 96.60%   | 57    | ✅ Excellent |
-| **mutator.py**                    | 94.67%   | 50    | ✅ Excellent |
-| **corpus.py**                     | 91.03%   | 24    | ✅ Excellent |
-| **test_minimizer.py** (v1.2.0)    | -        | 23    | ✅ Complete  |
 
-**New Test Files:**
+**New Test Files (Latest Session):**
 
-- `tests/test_fuzzing_session_edge_cases.py` - 9 comprehensive edge case tests
-- `tests/test_end_to_end_fuzzing.py` - 4 integration workflow tests
-- `tests/test_crash_triage.py` (v1.2.0) - 17 comprehensive crash triaging tests
-- `tests/test_test_minimizer.py` (v1.2.0) - 23 test case minimization tests
-- `tests/test_stability_tracker.py` (v1.2.0) - 22 stability tracking tests
+- `tests/test_enhanced_reporter_comprehensive.py` - 41 tests for HTML report generation
+- `tests/test_config_comprehensive.py` - 51 tests for configuration management
+- `tests/test_config_validator_comprehensive.py` - 55 tests for pre-flight validation
+- `tests/test_crash_deduplication_comprehensive.py` - 53 tests for crash grouping
+- Previous session files remain active with ongoing improvements
 
 See [Test Coverage Documentation](#test-documentation) for detailed analysis.
 
@@ -523,6 +545,80 @@ See [Test Coverage Documentation](#test-documentation) for detailed analysis.
 - **[Reporting System](docs/REPORTING.md)** - Report generation and analysis
 - **[Coverage Analysis](docs/COVERAGE.md)** - Test coverage breakdown
 - **[Project Structure](docs/STRUCTURE.md)** - Repository organization
+
+## Stability Features Usage (v1.3.0)
+
+### Corpus Minimization
+
+Reduce corpus size before fuzzing:
+
+```python
+from pathlib import Path
+from dicom_fuzzer.utils.corpus_minimization import minimize_corpus_for_campaign
+
+# Minimize corpus (removes redundant seeds)
+minimized = minimize_corpus_for_campaign(
+    corpus_dir=Path("./seeds"),
+    output_dir=Path("./minimized"),
+    max_corpus_size=500
+)
+# Corpus minimized: 5000 -> 247 seeds (95.1% reduction)
+```
+
+### Stateless Harness Validation
+
+Ensure 100% deterministic fuzzing:
+
+```python
+from dicom_fuzzer.utils.stateless_harness import validate_determinism
+
+# Test harness for determinism
+is_deterministic, error = validate_determinism(
+    test_input=test_file,
+    test_function=my_fuzzer,
+    runs=5
+)
+
+if not is_deterministic:
+    print(f"Non-deterministic behavior: {error}")
+```
+
+### Timeout Budget Management
+
+Prevent time waste on slow inputs:
+
+```python
+from dicom_fuzzer.utils.timeout_budget import TimeoutBudgetManager, ExecutionTimer
+
+budget = TimeoutBudgetManager(max_timeout_ratio=0.10)  # Max 10% time on timeouts
+
+with ExecutionTimer() as timer:
+    result = run_test(test_file)
+
+budget.record_execution(timer.duration, timed_out=(result == TIMEOUT))
+
+# Automatically adjusts timeout if budget exceeded
+```
+
+### Coverage Correlation
+
+Identify crash-prone code paths:
+
+```python
+from dicom_fuzzer.utils.coverage_correlation import correlate_crashes_with_coverage
+
+correlation = correlate_crashes_with_coverage(
+    crashes=session.crashes,
+    coverage_data=coverage_tracker.get_all_coverage(),
+    safe_inputs=safe_test_files
+)
+
+# Shows which code paths have highest crash rate
+print(f"Dangerous paths: {len(correlation.dangerous_paths)}")
+print(f"Vulnerable functions: {correlation.vulnerable_functions}")
+```
+
+See [examples/stability_features_demo.py](examples/stability_features_demo.py) for complete demonstrations.
 
 ## Use Cases
 
