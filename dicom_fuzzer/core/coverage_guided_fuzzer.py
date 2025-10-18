@@ -13,7 +13,7 @@ import hashlib
 from pathlib import Path
 from typing import Optional, Dict, Any, Callable, List, Tuple
 from dataclasses import dataclass, field
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, BrokenExecutor
 import json
 import sys
 
@@ -276,17 +276,31 @@ class CoverageGuidedFuzzer:
             iteration += 1
 
     async def _run_parallel(self) -> None:
-        """Run parallel fuzzing with multiple workers."""
-        with ThreadPoolExecutor(max_workers=self.config.num_workers) as executor:
-            tasks = []
+        """
+        Run parallel fuzzing with multiple workers.
 
-            for _ in range(self.config.num_workers):
-                task = executor.submit(self._worker_loop)
-                tasks.append(task)
+        STABILITY: Uses ThreadPoolExecutor with proper error handling.
+        For CPU-intensive tasks, consider ProcessPoolExecutor with BrokenProcessPool handling.
+        """
+        try:
+            with ThreadPoolExecutor(max_workers=self.config.num_workers) as executor:
+                tasks = []
 
-            # Wait for all workers
-            for task in tasks:
-                task.result()
+                for _ in range(self.config.num_workers):
+                    task = executor.submit(self._worker_loop)
+                    tasks.append(task)
+
+                # Wait for all workers
+                for task in tasks:
+                    try:
+                        task.result()
+                    except Exception as e:
+                        logger.error(f"Worker thread crashed: {e}", exc_info=True)
+                        # Continue with other workers
+
+        except BrokenExecutor as e:
+            logger.error(f"Executor failed catastrophically: {e}")
+            raise
 
     def _worker_loop(self) -> None:
         """Worker loop for parallel fuzzing."""

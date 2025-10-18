@@ -6,10 +6,13 @@ Generates mutated DICOM files to test parser robustness and security.
 """
 
 import argparse
+import faulthandler
 import logging
+import shutil
 import sys
 import time
 from pathlib import Path
+from typing import List, Tuple
 
 from dicom_fuzzer.core.generator import DICOMGenerator
 from dicom_fuzzer.core.resource_manager import ResourceLimits
@@ -21,6 +24,10 @@ try:
     HAS_TQDM = True
 except ImportError:
     HAS_TQDM = False
+
+# Enable faulthandler for debugging silent crashes and segfaults
+# This will dump Python tracebacks on crashes (SIGSEGV, SIGFPE, SIGABRT, etc.)
+faulthandler.enable(file=sys.stderr, all_threads=True)
 
 
 def setup_logging(verbose: bool = False):
@@ -75,6 +82,106 @@ def parse_strategies(strategies_str: str) -> list:
         print(f"Valid strategies: {', '.join(sorted(valid_strategies))}")
 
     return [s for s in strategies if s in valid_strategies]
+
+
+def pre_campaign_health_check(
+    output_dir: Path,
+    target: str = None,
+    resource_limits: ResourceLimits = None,
+    verbose: bool = False,
+) -> Tuple[bool, List[str]]:
+    """
+    Comprehensive health check before starting fuzzing campaign.
+
+    STABILITY: Validates environment to catch issues before wasting time
+    on doomed campaigns.
+
+    Args:
+        output_dir: Output directory path
+        target: Target executable path (optional)
+        resource_limits: Resource limits configuration (optional)
+        verbose: Enable verbose output
+
+    Returns:
+        Tuple of (passed: bool, issues: List[str])
+    """
+    issues = []
+    warnings = []
+
+    # Check Python version
+    if sys.version_info < (3, 11):
+        warnings.append(
+            f"Python {sys.version_info.major}.{sys.version_info.minor} "
+            "detected. Python 3.11+ recommended for best performance."
+        )
+
+    # Check required dependencies
+    try:
+        import pydicom
+    except ImportError:
+        issues.append("Missing required dependency: pydicom")
+
+    try:
+        import psutil
+    except ImportError:
+        warnings.append("Missing optional dependency: psutil (for resource monitoring)")
+
+    # Check disk space
+    try:
+        stat = shutil.disk_usage(output_dir.parent if output_dir.exists() else ".")
+        free_space_mb = stat.free / (1024 * 1024)
+        if free_space_mb < 100:
+            issues.append(f"Insufficient disk space: {free_space_mb:.0f}MB (need >100MB)")
+        elif free_space_mb < 1024:
+            warnings.append(f"Low disk space: {free_space_mb:.0f}MB (recommend >1GB)")
+    except Exception as e:
+        warnings.append(f"Could not check disk space: {e}")
+
+    # Check output directory is writable
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        test_file = output_dir / ".write_test"
+        test_file.write_text("test")
+        test_file.unlink()
+    except Exception as e:
+        issues.append(f"Output directory not writable: {e}")
+
+    # Check target executable if specified
+    if target:
+        target_path = Path(target)
+        if not target_path.exists():
+            issues.append(f"Target executable not found: {target}")
+        elif not target_path.is_file():
+            issues.append(f"Target path is not a file: {target}")
+
+    # Check resource limits are reasonable
+    if resource_limits:
+        if resource_limits.max_memory_mb and resource_limits.max_memory_mb < 128:
+            warnings.append("Memory limit very low (<128MB), may cause frequent OOM errors")
+
+        if resource_limits.max_cpu_seconds and resource_limits.max_cpu_seconds < 1:
+            warnings.append("CPU time limit very low (<1s), may cause frequent timeouts")
+
+    # Report results
+    passed = len(issues) == 0
+
+    if verbose or not passed:
+        if issues:
+            print("\n[!] Pre-flight check found critical issues:")
+            for issue in issues:
+                print(f"  [-] {issue}")
+
+        if warnings and verbose:
+            print("\n[!] Pre-flight check warnings:")
+            for warning in warnings:
+                print(f"  [!] {warning}")
+
+        if passed and not warnings:
+            print("\n[+] Pre-flight checks passed")
+        elif passed:
+            print(f"\n[+] Pre-flight checks passed with {len(warnings)} warning(s)")
+
+    return passed, issues + warnings
 
 
 def main():
@@ -207,6 +314,19 @@ def main():
     output_path = Path(args.output)
     output_path.mkdir(parents=True, exist_ok=True)
     logger.info(f"Output directory: {output_path}")
+
+    # Run pre-campaign health check
+    health_check_passed, health_issues = pre_campaign_health_check(
+        output_dir=output_path,
+        target=args.target,
+        resource_limits=resource_limits,
+        verbose=args.verbose,
+    )
+
+    if not health_check_passed:
+        print("\n[ERROR] Pre-flight checks failed. Cannot proceed with campaign.")
+        print("Please resolve the issues above and try again.")
+        sys.exit(1)
 
     # Generate fuzzed files
     print("\n" + "=" * 70)

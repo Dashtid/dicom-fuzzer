@@ -185,7 +185,10 @@ class CampaignRecovery:
 
     def save_checkpoint(self, checkpoint: Optional[CampaignCheckpoint] = None) -> Path:
         """
-        Save checkpoint to disk.
+        Save checkpoint to disk atomically to prevent corruption.
+
+        STABILITY: Uses atomic write pattern (write to temp, then rename) to ensure
+        checkpoint file is never in corrupted/partial state.
 
         Args:
             checkpoint: Checkpoint to save (uses current if None)
@@ -206,11 +209,19 @@ class CampaignRecovery:
         checkpoint_file = (
             self.checkpoint_dir / f"{checkpoint.campaign_id}_checkpoint.json"
         )
+        temp_file = checkpoint_file.with_suffix(".tmp")
 
-        # Save as JSON for human readability
+        # Save as JSON for human readability with atomic write
         try:
-            with open(checkpoint_file, "w") as f:
+            # Write to temporary file first
+            with open(temp_file, "w") as f:
                 json.dump(checkpoint.to_dict(), f, indent=2)
+
+            # Atomic rename (prevents corruption on crash during write)
+            # On Windows, need to remove destination first
+            if checkpoint_file.exists():
+                checkpoint_file.unlink()
+            temp_file.rename(checkpoint_file)
 
             logger.info(
                 f"Checkpoint saved: {checkpoint_file} "
@@ -221,17 +232,25 @@ class CampaignRecovery:
 
         except Exception as e:
             logger.error(f"Failed to save checkpoint: {e}")
+            # Cleanup temp file if it exists
+            if temp_file.exists():
+                try:
+                    temp_file.unlink()
+                except Exception:
+                    pass
             raise
 
     def load_checkpoint(self, campaign_id: str) -> Optional[CampaignCheckpoint]:
         """
-        Load checkpoint from disk.
+        Load and validate checkpoint from disk.
+
+        STABILITY: Validates checkpoint data integrity to detect corruption.
 
         Args:
             campaign_id: Campaign identifier
 
         Returns:
-            CampaignCheckpoint if found, None otherwise
+            CampaignCheckpoint if found and valid, None otherwise
         """
         checkpoint_file = self.checkpoint_dir / f"{campaign_id}_checkpoint.json"
 
@@ -244,6 +263,12 @@ class CampaignRecovery:
                 data = json.load(f)
 
             checkpoint = CampaignCheckpoint.from_dict(data)
+
+            # VALIDATION: Verify checkpoint data is consistent
+            if not self._validate_checkpoint(checkpoint):
+                logger.error("Checkpoint validation failed - checkpoint may be corrupted")
+                return None
+
             logger.info(
                 f"Checkpoint loaded: {checkpoint_file} "
                 f"({checkpoint.processed_files}/{checkpoint.total_files} files)"
@@ -252,9 +277,70 @@ class CampaignRecovery:
             self.current_checkpoint = checkpoint
             return checkpoint
 
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            logger.error(f"Failed to load checkpoint (corrupted or invalid): {e}")
+            return None
         except Exception as e:
             logger.error(f"Failed to load checkpoint: {e}")
             return None
+
+    def _validate_checkpoint(self, checkpoint: CampaignCheckpoint) -> bool:
+        """
+        Validate checkpoint data integrity.
+
+        CONCEPT: Detect corrupted or inconsistent checkpoint data before use.
+
+        Args:
+            checkpoint: Checkpoint to validate
+
+        Returns:
+            True if valid, False otherwise
+        """
+        try:
+            # Check basic sanity of counters
+            if checkpoint.processed_files > checkpoint.total_files:
+                logger.error(
+                    f"Checkpoint corruption: processed ({checkpoint.processed_files}) "
+                    f"> total ({checkpoint.total_files})"
+                )
+                return False
+
+            if checkpoint.processed_files < 0 or checkpoint.total_files < 0:
+                logger.error("Checkpoint corruption: negative file counts")
+                return False
+
+            # Check that result counts add up
+            total_results = checkpoint.successful + checkpoint.failed + checkpoint.crashes
+            if total_results > checkpoint.processed_files:
+                logger.warning(
+                    f"Checkpoint stats mismatch: results ({total_results}) "
+                    f"> processed ({checkpoint.processed_files}). Accepting anyway."
+                )
+                # Don't reject - this might happen with concurrent updates
+
+            # Check current_file_index is reasonable
+            if checkpoint.current_file_index < 0:
+                logger.error("Checkpoint corruption: negative file index")
+                return False
+
+            if checkpoint.current_file_index > len(checkpoint.test_files):
+                logger.error(
+                    f"Checkpoint corruption: file index ({checkpoint.current_file_index}) "
+                    f"> test files ({len(checkpoint.test_files)})"
+                )
+                return False
+
+            # Check timestamps are reasonable
+            if checkpoint.last_update < checkpoint.start_time:
+                logger.error("Checkpoint corruption: last_update < start_time")
+                return False
+
+            # All checks passed
+            return True
+
+        except Exception as e:
+            logger.error(f"Exception during checkpoint validation: {e}")
+            return False
 
     def list_interrupted_campaigns(self) -> List[CampaignCheckpoint]:
         """
