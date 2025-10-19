@@ -47,7 +47,7 @@ class TestHTMLReportGeneration:
         crash = CrashReport(
             crash_id="test_001",
             timestamp=datetime.now(),
-            crash_type=CrashType.SEGMENTATION_FAULT,
+            crash_type=CrashType.SEGFAULT,
             severity=CrashSeverity.CRITICAL,
             test_case_path="/test/file.dcm",
             stack_trace="Stack trace here",
@@ -174,7 +174,7 @@ class TestJSONReportGeneration:
             crash = CrashReport(
                 crash_id=f"test_{i}",
                 timestamp=datetime.now(),
-                crash_type=CrashType.SEGMENTATION_FAULT,
+                crash_type=CrashType.SEGFAULT,
                 severity=CrashSeverity.HIGH,
                 test_case_path=f"/test/crash{i}.dcm",
                 stack_trace="",
@@ -200,7 +200,7 @@ class TestJSONReportGeneration:
         crash = CrashReport(
             crash_id="test_005",
             timestamp=datetime(2025, 1, 1, 12, 0, 0),
-            crash_type=CrashType.EXCEPTION,
+            crash_type=CrashType.UNCAUGHT_EXCEPTION,
             severity=CrashSeverity.LOW,
             test_case_path="/test/exception.dcm",
             stack_trace="Exception trace",
@@ -302,7 +302,7 @@ class TestHelperMethods:
         crash = CrashReport(
             crash_id="test_006",
             timestamp=datetime(2025, 1, 1, 12, 0, 0),
-            crash_type=CrashType.SEGMENTATION_FAULT,
+            crash_type=CrashType.SEGFAULT,
             severity=CrashSeverity.CRITICAL,
             test_case_path="/test/crash.dcm",
             stack_trace="Stack trace",
@@ -366,7 +366,7 @@ class TestHelperMethods:
         crash = CrashReport(
             crash_id="test_007",
             timestamp=datetime.now(),
-            crash_type=CrashType.SEGMENTATION_FAULT,
+            crash_type=CrashType.SEGFAULT,
             severity=CrashSeverity.HIGH,
             test_case_path="/test/seg.dcm",
             stack_trace="Stack here",
@@ -414,7 +414,7 @@ class TestIntegrationScenarios:
             crash = CrashReport(
                 crash_id=f"crash_{i}",
                 timestamp=datetime.now(),
-                crash_type=CrashType.SEGMENTATION_FAULT if i % 2 == 0 else CrashType.TIMEOUT,
+                crash_type=CrashType.SEGFAULT if i % 2 == 0 else CrashType.TIMEOUT,
                 severity=CrashSeverity.HIGH if i < 3 else CrashSeverity.MEDIUM,
                 test_case_path=f"/test/file{i}.dcm",
                 stack_trace=f"Stack trace {i}",

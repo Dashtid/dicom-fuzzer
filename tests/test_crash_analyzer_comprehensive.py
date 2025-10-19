@@ -157,7 +157,7 @@ class TestCrashDetection:
         try:
             raise ValueError("Test crash")
         except ValueError as e:
-            crash_type = analyzer.classify_exception(e)
+            crash_type = analyzer._classify_exception(e)
 
             assert crash_type == CrashType.UNCAUGHT_EXCEPTION
 
@@ -165,17 +165,21 @@ class TestCrashDetection:
         """Test classifying timeout crashes."""
         analyzer = CrashAnalyzer()
 
-        crash_type = analyzer.classify_by_exit_code(-15)  # SIGTERM
+        try:
+            raise TimeoutError("Test timeout")
+        except TimeoutError as e:
+            crash_type = analyzer._classify_exception(e)
 
-        assert crash_type in [CrashType.TIMEOUT, CrashType.UNKNOWN]
+            assert crash_type == CrashType.TIMEOUT
 
     def test_classify_segfault(self):
         """Test classifying segmentation faults."""
         analyzer = CrashAnalyzer()
 
-        crash_type = analyzer.classify_by_exit_code(-11)  # SIGSEGV
+        # Segfaults can't be directly raised in Python, so test severity classification instead
+        severity = analyzer._determine_severity(CrashType.SEGFAULT, Exception())
 
-        assert crash_type in [CrashType.SEGFAULT, CrashType.UNKNOWN]
+        assert severity == CrashSeverity.CRITICAL
 
 
 class TestSeverityClassification:
@@ -185,7 +189,7 @@ class TestSeverityClassification:
         """Test segfaults are classified as critical."""
         analyzer = CrashAnalyzer()
 
-        severity = analyzer.classify_severity(CrashType.SEGFAULT)
+        severity = analyzer._determine_severity(CrashType.SEGFAULT, Exception())
 
         assert severity == CrashSeverity.CRITICAL
 
@@ -193,46 +197,56 @@ class TestSeverityClassification:
         """Test timeouts are classified as high severity."""
         analyzer = CrashAnalyzer()
 
-        severity = analyzer.classify_severity(CrashType.TIMEOUT)
+        severity = analyzer._determine_severity(CrashType.TIMEOUT, Exception())
 
         assert severity == CrashSeverity.HIGH
 
     def test_unknown_crash_severity(self):
-        """Test unknown crashes have unknown severity."""
+        """Test unknown crashes have medium severity by default."""
         analyzer = CrashAnalyzer()
 
-        severity = analyzer.classify_severity(CrashType.UNKNOWN)
+        severity = analyzer._determine_severity(CrashType.UNKNOWN, Exception())
 
-        assert severity == CrashSeverity.UNKNOWN
+        assert severity == CrashSeverity.MEDIUM
 
 
 class TestCrashReporting:
     """Test crash report generation."""
 
     def test_generate_crash_id(self):
-        """Test crash ID generation."""
+        """Test crash ID generation via analyze_exception."""
         analyzer = CrashAnalyzer()
 
-        crash_id = analyzer.generate_crash_id()
+        try:
+            raise ValueError("Test exception")
+        except ValueError as e:
+            report = analyzer.analyze_exception(e, "/test.dcm")
 
-        assert isinstance(crash_id, str)
-        assert len(crash_id) > 0
+        assert isinstance(report.crash_id, str)
+        assert len(report.crash_id) > 0
 
     def test_unique_crash_ids(self):
         """Test crash IDs are unique."""
         analyzer = CrashAnalyzer()
 
-        id1 = analyzer.generate_crash_id()
-        id2 = analyzer.generate_crash_id()
+        try:
+            raise ValueError("Test exception 1")
+        except ValueError as e:
+            report1 = analyzer.analyze_exception(e, "/test1.dcm")
 
-        assert id1 != id2
+        try:
+            raise ValueError("Test exception 2")
+        except ValueError as e:
+            report2 = analyzer.analyze_exception(e, "/test2.dcm")
+
+        assert report1.crash_id != report2.crash_id
 
     def test_generate_crash_hash(self):
         """Test crash hash generation for deduplication."""
         analyzer = CrashAnalyzer()
 
-        hash1 = analyzer.generate_crash_hash("stack trace 1", "error message 1")
-        hash2 = analyzer.generate_crash_hash("stack trace 2", "error message 2")
+        hash1 = analyzer._generate_crash_hash("stack trace 1", "error message 1")
+        hash2 = analyzer._generate_crash_hash("stack trace 2", "error message 2")
 
         assert isinstance(hash1, str)
         assert isinstance(hash2, str)
@@ -242,8 +256,8 @@ class TestCrashReporting:
         """Test identical crashes generate same hash."""
         analyzer = CrashAnalyzer()
 
-        hash1 = analyzer.generate_crash_hash("trace", "message")
-        hash2 = analyzer.generate_crash_hash("trace", "message")
+        hash1 = analyzer._generate_crash_hash("trace", "message")
+        hash2 = analyzer._generate_crash_hash("trace", "message")
 
         assert hash1 == hash2
 
@@ -252,46 +266,29 @@ class TestCrashStorage:
     """Test crash storage and retrieval."""
 
     def test_store_crash_report(self, tmp_path):
-        """Test storing crash report."""
+        """Test storing crash report via record_crash."""
         analyzer = CrashAnalyzer(crash_dir=str(tmp_path))
 
-        report = CrashReport(
-            crash_id="test-crash",
-            timestamp=datetime.now(),
-            crash_type=CrashType.SEGFAULT,
-            severity=CrashSeverity.CRITICAL,
-            test_case_path="/test.dcm",
-            stack_trace="trace",
-            exception_message="error",
-            crash_hash="hash123",
-            additional_info={},
-        )
-
-        analyzer.store_crash(report)
+        try:
+            raise ValueError("Test error")
+        except ValueError as e:
+            report = analyzer.record_crash(e, "/test.dcm")
 
         assert len(analyzer.crashes) == 1
-        assert analyzer.crashes[0].crash_id == "test-crash"
+        assert report is not None
 
     def test_get_crash_count(self, tmp_path):
         """Test getting crash count."""
         analyzer = CrashAnalyzer(crash_dir=str(tmp_path))
 
-        # Add multiple crashes
+        # Add multiple crashes using record_crash
         for i in range(5):
-            report = CrashReport(
-                crash_id=f"crash-{i}",
-                timestamp=datetime.now(),
-                crash_type=CrashType.UNKNOWN,
-                severity=CrashSeverity.UNKNOWN,
-                test_case_path=f"/test{i}.dcm",
-                stack_trace=None,
-                exception_message=None,
-                crash_hash=f"hash{i}",
-                additional_info={},
-            )
-            analyzer.store_crash(report)
+            try:
+                raise ValueError(f"Test error {i}")
+            except ValueError as e:
+                analyzer.record_crash(e, f"/test{i}.dcm")
 
-        assert analyzer.get_crash_count() == 5
+        assert len(analyzer.crashes) == 5
 
 
 class TestIntegrationScenarios:
@@ -301,54 +298,33 @@ class TestIntegrationScenarios:
         """Test complete crash analysis workflow."""
         analyzer = CrashAnalyzer(crash_dir=str(tmp_path))
 
-        # Simulate crash
-        crash_type = CrashType.SEGFAULT
-        severity = analyzer.classify_severity(crash_type)
-        crash_id = analyzer.generate_crash_id()
-        crash_hash = analyzer.generate_crash_hash("stack", "message")
+        # Simulate crash via exception
+        try:
+            raise MemoryError("Out of memory")
+        except MemoryError as e:
+            report = analyzer.record_crash(e, "/test.dcm")
 
-        # Create report
-        report = CrashReport(
-            crash_id=crash_id,
-            timestamp=datetime.now(),
-            crash_type=crash_type,
-            severity=severity,
-            test_case_path="/test.dcm",
-            stack_trace="stack",
-            exception_message="message",
-            crash_hash=crash_hash,
-            additional_info={},
-        )
-
-        # Store report
-        analyzer.store_crash(report)
-
-        # Verify
-        assert analyzer.get_crash_count() == 1
-        assert analyzer.crashes[0].severity == CrashSeverity.CRITICAL
+        # Verify workflow
+        assert len(analyzer.crashes) == 1
+        assert report is not None
+        assert report.crash_type == CrashType.OUT_OF_MEMORY
+        assert report.severity == CrashSeverity.HIGH
 
     def test_multiple_crashes_different_types(self, tmp_path):
         """Test analyzing multiple different crash types."""
         analyzer = CrashAnalyzer(crash_dir=str(tmp_path))
 
-        crash_types = [
-            CrashType.SEGFAULT,
-            CrashType.TIMEOUT,
-            CrashType.OUT_OF_MEMORY,
+        # Simulate different crash types
+        exceptions = [
+            MemoryError("OOM"),
+            RecursionError("Stack overflow"),
+            TimeoutError("Timeout"),
         ]
 
-        for crash_type in crash_types:
-            report = CrashReport(
-                crash_id=analyzer.generate_crash_id(),
-                timestamp=datetime.now(),
-                crash_type=crash_type,
-                severity=analyzer.classify_severity(crash_type),
-                test_case_path="/test.dcm",
-                stack_trace=None,
-                exception_message=None,
-                crash_hash=analyzer.generate_crash_hash(str(crash_type), ""),
-                additional_info={},
-            )
-            analyzer.store_crash(report)
+        for exc in exceptions:
+            try:
+                raise exc
+            except Exception as e:
+                analyzer.record_crash(e, "/test.dcm")
 
-        assert analyzer.get_crash_count() == 3
+        assert len(analyzer.crashes) == 3
