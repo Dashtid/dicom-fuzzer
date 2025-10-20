@@ -5,14 +5,10 @@ including sensitive data redaction, security event logging, and performance metr
 """
 
 import logging
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock
 
-import pytest
-import structlog
 
 from dicom_fuzzer.utils.logger import (
-    SENSITIVE_FIELDS,
     PerformanceLogger,
     SecurityEventLogger,
     add_security_context,

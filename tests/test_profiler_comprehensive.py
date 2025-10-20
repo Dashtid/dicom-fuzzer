@@ -6,7 +6,7 @@ Achieves 70%+ coverage of performance profiling functionality.
 
 import pytest
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from dicom_fuzzer.core.profiler import (
     FuzzingMetrics,
     PerformanceProfiler,

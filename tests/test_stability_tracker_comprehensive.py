@@ -3,10 +3,7 @@
 Tests stability metrics tracking, instability detection, and root cause analysis.
 """
 
-from collections import defaultdict
-from unittest.mock import Mock, patch
 
-import pytest
 
 from dicom_fuzzer.core.stability_tracker import (
     InstabilityCause,

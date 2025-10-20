@@ -107,9 +107,7 @@ class TestValidationError:
     def test_with_error_code_and_context(self):
         """Test ValidationError with all parameters."""
         context = {"expected": "DICM", "actual": "XXXX"}
-        error = ValidationError(
-            "Invalid header", error_code="VAL001", context=context
-        )
+        error = ValidationError("Invalid header", error_code="VAL001", context=context)
 
         assert error.message == "Invalid header"
         assert error.error_code == "VAL001"
@@ -249,7 +247,7 @@ class TestExceptionHierarchy:
         validation_err = ValidationError("test")
         parsing_err = ParsingError("test")
 
-        assert type(validation_err) != type(parsing_err)
+        assert type(validation_err) is not type(parsing_err)
         assert isinstance(validation_err, ValidationError)
         assert isinstance(parsing_err, ParsingError)
         assert not isinstance(validation_err, ParsingError)

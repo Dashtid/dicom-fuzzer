@@ -12,13 +12,12 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-import pydicom
 import pytest
-from hypothesis import given, strategies as st, settings, assume, HealthCheck
+from hypothesis import given, strategies as st, settings, HealthCheck
 from hypothesis.strategies import composite
-from pydicom.dataset import Dataset, FileDataset
+from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.fuzzing_session import FuzzingSession, MutationRecord
+from dicom_fuzzer.core.fuzzing_session import FuzzingSession
 from dicom_fuzzer.core.mutator import DicomMutator
 from dicom_fuzzer.core.types import MutationSeverity
 

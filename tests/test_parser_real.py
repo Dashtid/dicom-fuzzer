@@ -3,17 +3,19 @@
 Targets uncovered code paths to increase coverage.
 """
 
-import tempfile
 from pathlib import Path
 
 import pytest
-import pydicom
 from pydicom.dataset import Dataset, FileDataset
 from pydicom.uid import generate_uid
 from pydicom.tag import Tag
 
 from dicom_fuzzer.core.parser import DicomParser
-from dicom_fuzzer.core.exceptions import ParsingError, SecurityViolationError, ValidationError
+from dicom_fuzzer.core.exceptions import (
+    ParsingError,
+    SecurityViolationError,
+    ValidationError,
+)
 
 
 @pytest.fixture
@@ -23,9 +25,9 @@ def real_dicom_file(tmp_path):
 
     # Create file meta information
     file_meta = Dataset()
-    file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
     file_meta.MediaStorageSOPInstanceUID = generate_uid()
-    file_meta.TransferSyntaxUID = '1.2.840.10008.1.2'
+    file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
     file_meta.ImplementationClassUID = generate_uid()
 
     # Create the FileDataset instance
@@ -52,9 +54,9 @@ def minimal_dicom_file(tmp_path):
     filename = tmp_path / "minimal.dcm"
 
     file_meta = Dataset()
-    file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
     file_meta.MediaStorageSOPInstanceUID = generate_uid()
-    file_meta.TransferSyntaxUID = '1.2.840.10008.1.2'
+    file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
     file_meta.ImplementationClassUID = generate_uid()
 
     ds = FileDataset(str(filename), {}, file_meta=file_meta, preamble=b"\0" * 128)
@@ -85,10 +87,7 @@ class TestParserInitialization:
 
     def test_custom_max_file_size(self, real_dicom_file):
         """Test custom max file size."""
-        parser = DicomParser(
-            str(real_dicom_file),
-            max_file_size=200 * 1024 * 1024
-        )
+        parser = DicomParser(str(real_dicom_file), max_file_size=200 * 1024 * 1024)
 
         assert parser.max_file_size == 200 * 1024 * 1024
 
@@ -127,9 +126,9 @@ class TestSecurityChecks:
         weird_file = tmp_path / "test.txt"
 
         file_meta = Dataset()
-        file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
         file_meta.MediaStorageSOPInstanceUID = generate_uid()
-        file_meta.TransferSyntaxUID = '1.2.840.10008.1.2'
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
         file_meta.ImplementationClassUID = generate_uid()
 
         ds = FileDataset(str(weird_file), {}, file_meta=file_meta, preamble=b"\0" * 128)
@@ -230,9 +229,9 @@ class TestValidation:
         filename = tmp_path / "incomplete.dcm"
 
         file_meta = Dataset()
-        file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
         file_meta.MediaStorageSOPInstanceUID = generate_uid()
-        file_meta.TransferSyntaxUID = '1.2.840.10008.1.2'
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
         file_meta.ImplementationClassUID = generate_uid()
 
         ds = FileDataset(str(filename), {}, file_meta=file_meta, preamble=b"\0" * 128)
@@ -293,9 +292,9 @@ class TestDifferentFileSizes:
         file_path = tmp_path / "justright.dcm"
 
         file_meta = Dataset()
-        file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
         file_meta.MediaStorageSOPInstanceUID = generate_uid()
-        file_meta.TransferSyntaxUID = '1.2.840.10008.1.2'
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
         file_meta.ImplementationClassUID = generate_uid()
 
         ds = FileDataset(str(file_path), {}, file_meta=file_meta, preamble=b"\0" * 128)
@@ -304,6 +303,7 @@ class TestDifferentFileSizes:
 
         # Add large pixel data to increase file size (but not over 100MB)
         import numpy as np
+
         ds.PixelData = np.zeros((512, 512), dtype=np.uint16).tobytes()
         ds.Rows = 512
         ds.Columns = 512

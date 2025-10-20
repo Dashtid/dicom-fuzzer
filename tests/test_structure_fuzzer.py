@@ -147,7 +147,6 @@ class TestCorruptFileHeader:
     def test_corrupt_file_header_dicm_prefix(self, tmp_path):
         """Test corrupting DICM prefix."""
         from unittest.mock import patch
-        from pathlib import Path
 
         fuzzer = StructureFuzzer()
 

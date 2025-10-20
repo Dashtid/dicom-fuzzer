@@ -9,12 +9,10 @@ and real DICOM files, not mocks or stubs.
 """
 
 import pytest
-from pathlib import Path
 from pydicom import Dataset, DataElement
 from pydicom.dataset import FileDataset
 from pydicom.uid import ImplicitVRLittleEndian, generate_uid
 from pydicom.tag import Tag
-import tempfile
 
 from dicom_fuzzer.core.validator import DicomValidator, ValidationResult
 
@@ -312,7 +310,9 @@ class TestDicomValidatorValidate:
         assert len(result.errors) == 0
         assert bool(result) is True
 
-    def test_validate_missing_patient_tags_non_strict(self, dataset_missing_patient_tags):
+    def test_validate_missing_patient_tags_non_strict(
+        self, dataset_missing_patient_tags
+    ):
         """Test validating dataset missing patient tags in non-strict mode."""
         validator = DicomValidator(strict_mode=False)
         result = validator.validate(dataset_missing_patient_tags)
@@ -330,12 +330,13 @@ class TestDicomValidatorValidate:
         assert result.is_valid is False
         assert len(result.errors) > 0
 
-    def test_validate_with_check_required_tags_false(self, dataset_missing_patient_tags):
+    def test_validate_with_check_required_tags_false(
+        self, dataset_missing_patient_tags
+    ):
         """Test validating with required tag checking disabled."""
         validator = DicomValidator(strict_mode=True)
         result = validator.validate(
-            dataset_missing_patient_tags,
-            check_required_tags=False
+            dataset_missing_patient_tags, check_required_tags=False
         )
 
         # Should pass because we disabled required tag checking
@@ -353,7 +354,9 @@ class TestDicomValidatorValidate:
     def test_validate_null_bytes_ignored(self, dataset_with_null_bytes):
         """Test validating with security checks disabled."""
         validator = DicomValidator()
-        result = validator.validate(dataset_with_null_bytes, check_security=False, check_required_tags=False)
+        result = validator.validate(
+            dataset_with_null_bytes, check_security=False, check_required_tags=False
+        )
 
         # Should pass because security checks are disabled
         assert result.is_valid is True
@@ -361,11 +364,16 @@ class TestDicomValidatorValidate:
     def test_validate_deeply_nested_sequence(self, dataset_with_deeply_nested_sequence):
         """Test that deeply nested sequences are detected."""
         validator = DicomValidator()
-        result = validator.validate(dataset_with_deeply_nested_sequence, check_security=True)
+        result = validator.validate(
+            dataset_with_deeply_nested_sequence, check_security=True
+        )
 
         # Deep nesting should be flagged
         assert result.is_valid is False
-        assert any("deeply nested" in err.lower() or "depth" in err.lower() for err in result.errors)
+        assert any(
+            "deeply nested" in err.lower() or "depth" in err.lower()
+            for err in result.errors
+        )
 
     def test_validate_large_private_tag(self, dataset_with_large_private_tag):
         """Test that large private tags are detected."""
@@ -374,7 +382,9 @@ class TestDicomValidatorValidate:
 
         # Large private tag should be flagged
         assert result.is_valid is False
-        assert any("private" in err.lower() or "large" in err.lower() for err in result.errors)
+        assert any(
+            "private" in err.lower() or "large" in err.lower() for err in result.errors
+        )
 
     def test_validate_empty_dataset(self):
         """Test validating an empty dataset."""
@@ -392,7 +402,7 @@ class TestDicomValidatorValidate:
             dataset_missing_patient_tags,
             check_required_tags=False,
             check_values=False,
-            check_security=False
+            check_security=False,
         )
 
         # With all checks disabled, should pass
@@ -492,7 +502,10 @@ class TestDicomValidatorValidateFile:
         result, dataset = validator.validate_file("/path/to/nonexistent/file.dcm")
 
         assert result.is_valid is False
-        assert any("not found" in err.lower() or "does not exist" in err.lower() for err in result.errors)
+        assert any(
+            "not found" in err.lower() or "does not exist" in err.lower()
+            for err in result.errors
+        )
         assert dataset is None
 
     def test_validate_file_invalid_format(self, invalid_dicom_file):
@@ -510,7 +523,9 @@ class TestDicomValidatorValidateFile:
 
         # Should fail due to size limit
         assert result.is_valid is False
-        assert any("too large" in err.lower() or "size" in err.lower() for err in result.errors)
+        assert any(
+            "too large" in err.lower() or "size" in err.lower() for err in result.errors
+        )
 
     def test_validate_file_large_allowed(self, large_dicom_file):
         """Test validating large file with higher size limit."""
@@ -561,7 +576,9 @@ class TestDicomValidatorValidateBatch:
         assert len(results) == 1
         assert results[0].is_valid is True
 
-    def test_validate_batch_with_custom_checks(self, dataset_with_null_bytes, valid_dataset):
+    def test_validate_batch_with_custom_checks(
+        self, dataset_with_null_bytes, valid_dataset
+    ):
         """Test validating batch - security checks are always applied."""
         validator = DicomValidator()
 

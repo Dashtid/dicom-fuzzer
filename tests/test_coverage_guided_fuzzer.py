@@ -5,10 +5,8 @@ Comprehensive test suite for the coverage-guided fuzzing system.
 """
 
 import pytest
-import asyncio
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
 import sys
 
 # Add parent directory to path

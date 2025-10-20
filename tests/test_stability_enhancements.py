@@ -11,9 +11,7 @@ Tests the 2025 stability improvements:
 import hashlib
 import time
 from pathlib import Path
-from unittest.mock import Mock
 
-import pytest
 
 from dicom_fuzzer.utils.corpus_minimization import (
     minimize_corpus_for_campaign,

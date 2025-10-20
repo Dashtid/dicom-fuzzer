@@ -6,8 +6,7 @@ mutation recording, crash logging, and report generation.
 
 import json
 from datetime import datetime
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
 

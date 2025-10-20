@@ -4,9 +4,7 @@ Tests crash detection, classification, reporting, and deduplication.
 """
 
 from datetime import datetime
-from unittest.mock import Mock, patch
 
-import pytest
 
 from dicom_fuzzer.core.crash_analyzer import (
     CrashAnalyzer,
@@ -134,14 +132,14 @@ class TestCrashAnalyzerInitialization:
     def test_custom_crash_directory(self, tmp_path):
         """Test analyzer with custom crash directory."""
         crash_dir = tmp_path / "crashes"
-        analyzer = CrashAnalyzer(crash_dir=str(crash_dir))
+        CrashAnalyzer(crash_dir=str(crash_dir))
 
         assert crash_dir.exists()
 
     def test_crash_directory_creation(self, tmp_path):
         """Test crash directory is created."""
         crash_dir = tmp_path / "custom_crashes"
-        analyzer = CrashAnalyzer(crash_dir=str(crash_dir))
+        CrashAnalyzer(crash_dir=str(crash_dir))
 
         assert crash_dir.exists()
         assert crash_dir.is_dir()

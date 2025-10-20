@@ -6,13 +6,15 @@ including HTML and JSON report creation.
 
 import json
 from datetime import datetime
-from pathlib import Path
-from unittest.mock import Mock
 
-import pytest
 
 from dicom_fuzzer.core.reporter import ReportGenerator
-from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer, CrashReport, CrashSeverity, CrashType
+from dicom_fuzzer.core.crash_analyzer import (
+    CrashAnalyzer,
+    CrashReport,
+    CrashSeverity,
+    CrashType,
+)
 
 
 class TestReportGeneratorInitialization:
@@ -29,7 +31,7 @@ class TestReportGeneratorInitialization:
     def test_initialization_creates_directory(self, tmp_path):
         """Test that output directory is created."""
         output_dir = tmp_path / "custom_reports"
-        generator = ReportGenerator(output_dir=str(output_dir))
+        ReportGenerator(output_dir=str(output_dir))
 
         assert output_dir.exists()
         assert output_dir.is_dir()
@@ -68,9 +70,7 @@ class TestHTMLReportGeneration:
         generator = ReportGenerator(output_dir=str(tmp_path))
         analyzer = CrashAnalyzer(crash_dir=str(tmp_path))
 
-        report_path = generator.generate_crash_html_report(
-            analyzer, "My Test Campaign"
-        )
+        report_path = generator.generate_crash_html_report(analyzer, "My Test Campaign")
 
         content = report_path.read_text(encoding="utf-8")
         assert "My Test Campaign" in content
