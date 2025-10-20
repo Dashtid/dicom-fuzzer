@@ -52,19 +52,15 @@ class TestSecurityChecks:
             # Parsing will fail but security check should not trigger
             pass
 
-    @patch('pydicom.dcmread')
-    def test_oversized_file_detection(self, mock_dcmread, tmp_path):
+    def test_oversized_file_detection(self, tmp_path):
         """Test detection of oversized files."""
-        # Create a file
+        # Create a file that exceeds a very small max size
         test_file = tmp_path / "large.dcm"
         test_file.write_bytes(b"DICM" + b"\x00" * 100)
 
-        # Mock file size check
-        with patch.object(Path, 'stat') as mock_stat:
-            mock_stat.return_value.st_size = 200 * 1024 * 1024  # 200MB
-
-            with pytest.raises(SecurityViolationError, match="exceeds maximum"):
-                DicomParser(test_file, security_checks=True)
+        # Use a very small max file size to trigger the error (file is 104 bytes)
+        with pytest.raises(SecurityViolationError, match="exceeds maximum"):
+            DicomParser(test_file, security_checks=True, max_file_size=50)
 
 
 class TestParsingOperations:
@@ -111,7 +107,7 @@ class TestParsingOperations:
         """Test dataset property access."""
         test_file = tmp_path / "test.dcm"
 
-        # Create a real minimal DICOM file
+        # Create a real minimal DICOM file with required elements
         import pydicom
         from pydicom.dataset import Dataset, FileMetaDataset
 
@@ -123,6 +119,8 @@ class TestParsingOperations:
         ds = Dataset()
         ds.file_meta = file_meta
         ds.PatientName = "Test"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # Required
+        ds.SOPInstanceUID = "1.2.3"  # Required
 
         pydicom.dcmwrite(str(test_file), ds)
 
@@ -135,16 +133,27 @@ class TestParsingOperations:
 class TestMetadataExtraction:
     """Test metadata extraction."""
 
-    @patch('pydicom.dcmread')
-    def test_get_metadata(self, mock_dcmread, tmp_path):
+    def test_get_metadata(self, tmp_path):
         """Test metadata extraction."""
         test_file = tmp_path / "test.dcm"
-        test_file.write_bytes(b"DICM" + b"\x00" * 100)
 
-        mock_dataset = Mock(spec=Dataset)
-        mock_dataset.PatientName = "Test^Patient"
-        mock_dataset.StudyDate = "20250101"
-        mock_dcmread.return_value = mock_dataset
+        # Create a real DICOM file with metadata
+        import pydicom
+        from pydicom.dataset import Dataset, FileMetaDataset
+
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3"
+
+        ds = Dataset()
+        ds.file_meta = file_meta
+        ds.PatientName = "Test^Patient"
+        ds.StudyDate = "20250101"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3"
+
+        pydicom.dcmwrite(str(test_file), ds)
 
         parser = DicomParser(test_file, security_checks=False)
 
@@ -152,14 +161,26 @@ class TestMetadataExtraction:
             metadata = parser.get_metadata()
             assert isinstance(metadata, dict)
 
-    @patch('pydicom.dcmread')
-    def test_metadata_caching(self, mock_dcmread, tmp_path):
+    def test_metadata_caching(self, tmp_path):
         """Test metadata is cached."""
         test_file = tmp_path / "test.dcm"
-        test_file.write_bytes(b"DICM" + b"\x00" * 100)
 
-        mock_dataset = Mock(spec=Dataset)
-        mock_dcmread.return_value = mock_dataset
+        # Create a real DICOM file
+        import pydicom
+        from pydicom.dataset import Dataset, FileMetaDataset
+
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3"
+
+        ds = Dataset()
+        ds.file_meta = file_meta
+        ds.PatientName = "Test"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3"
+
+        pydicom.dcmwrite(str(test_file), ds)
 
         parser = DicomParser(test_file, security_checks=False)
 
@@ -175,30 +196,32 @@ class TestMetadataExtraction:
 class TestTagOperations:
     """Test tag-related operations."""
 
-    @patch('pydicom.dcmread')
-    def test_critical_tag_detection(self, mock_dcmread, tmp_path):
+    def test_critical_tag_detection(self):
         """Test detection of critical tags."""
-        test_file = tmp_path / "test.dcm"
-        test_file.write_bytes(b"DICM" + b"\x00" * 100)
-
-        mock_dataset = Mock(spec=Dataset)
-        mock_dcmread.return_value = mock_dataset
-
-        parser = DicomParser(test_file, security_checks=False)
-
-        # Test critical tag checking
+        # Test critical tag checking (doesn't need parser instance)
         sop_class_tag = Tag(0x0008, 0x0016)
         assert sop_class_tag in DicomParser.CRITICAL_TAGS
 
-    @patch('pydicom.dcmread')
-    def test_has_tag_method(self, mock_dcmread, tmp_path):
+    def test_has_tag_method(self, tmp_path):
         """Test checking if tag exists."""
         test_file = tmp_path / "test.dcm"
-        test_file.write_bytes(b"DICM" + b"\x00" * 100)
 
-        mock_dataset = Mock(spec=Dataset)
-        mock_dataset.__contains__ = Mock(return_value=True)
-        mock_dcmread.return_value = mock_dataset
+        # Create a real DICOM file
+        import pydicom
+        from pydicom.dataset import Dataset, FileMetaDataset
+
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3"
+
+        ds = Dataset()
+        ds.file_meta = file_meta
+        ds.PatientName = "Test"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3"
+
+        pydicom.dcmwrite(str(test_file), ds)
 
         parser = DicomParser(test_file, security_checks=False)
 
@@ -210,27 +233,51 @@ class TestTagOperations:
 class TestPropertyAccess:
     """Test property access methods."""
 
-    @patch('pydicom.dcmread')
-    def test_file_path_property(self, mock_dcmread, tmp_path):
+    def test_file_path_property(self, tmp_path):
         """Test file_path property."""
         test_file = tmp_path / "test.dcm"
-        test_file.write_bytes(b"DICM" + b"\x00" * 100)
 
-        mock_dataset = Mock(spec=Dataset)
-        mock_dcmread.return_value = mock_dataset
+        # Create a real DICOM file
+        import pydicom
+        from pydicom.dataset import Dataset, FileMetaDataset
+
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3"
+
+        ds = Dataset()
+        ds.file_meta = file_meta
+        ds.PatientName = "Test"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3"
+
+        pydicom.dcmwrite(str(test_file), ds)
 
         parser = DicomParser(test_file, security_checks=False)
 
         assert parser.file_path == test_file
 
-    @patch('pydicom.dcmread')
-    def test_security_checks_property(self, mock_dcmread, tmp_path):
+    def test_security_checks_property(self, tmp_path):
         """Test security_checks_enabled property."""
         test_file = tmp_path / "test.dcm"
-        test_file.write_bytes(b"DICM" + b"\x00" * 100)
 
-        mock_dataset = Mock(spec=Dataset)
-        mock_dcmread.return_value = mock_dataset
+        # Create a real DICOM file
+        import pydicom
+        from pydicom.dataset import Dataset, FileMetaDataset
+
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3"
+
+        ds = Dataset()
+        ds.file_meta = file_meta
+        ds.PatientName = "Test"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3"
+
+        pydicom.dcmwrite(str(test_file), ds)
 
         parser = DicomParser(test_file, security_checks=True)
 
@@ -240,16 +287,27 @@ class TestPropertyAccess:
 class TestIntegrationScenarios:
     """Test integration scenarios."""
 
-    @patch('pydicom.dcmread')
-    def test_complete_parsing_workflow(self, mock_dcmread, tmp_path):
+    def test_complete_parsing_workflow(self, tmp_path):
         """Test complete parsing workflow."""
         test_file = tmp_path / "workflow.dcm"
-        test_file.write_bytes(b"DICM" + b"\x00" * 200)
 
-        mock_dataset = Mock(spec=Dataset)
-        mock_dataset.PatientName = "Test^Patient"
-        mock_dataset.Modality = "CT"
-        mock_dcmread.return_value = mock_dataset
+        # Create a real DICOM file
+        import pydicom
+        from pydicom.dataset import Dataset, FileMetaDataset
+
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3"
+
+        ds = Dataset()
+        ds.file_meta = file_meta
+        ds.PatientName = "Test^Patient"
+        ds.Modality = "CT"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3"
+
+        pydicom.dcmwrite(str(test_file), ds)
 
         # Parse file
         parser = DicomParser(test_file, security_checks=False)
@@ -258,32 +316,54 @@ class TestIntegrationScenarios:
         assert parser.dataset is not None
         assert parser.file_path == test_file
 
-    @patch('pydicom.dcmread')
-    def test_parser_with_custom_max_size(self, mock_dcmread, tmp_path):
+    def test_parser_with_custom_max_size(self, tmp_path):
         """Test parser with custom max file size."""
         test_file = tmp_path / "test.dcm"
-        test_file.write_bytes(b"DICM" + b"\x00" * 100)
 
-        mock_dataset = Mock(spec=Dataset)
-        mock_dcmread.return_value = mock_dataset
+        # Create a real DICOM file
+        import pydicom
+        from pydicom.dataset import Dataset, FileMetaDataset
+
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3"
+
+        ds = Dataset()
+        ds.file_meta = file_meta
+        ds.PatientName = "Test"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3"
+
+        pydicom.dcmwrite(str(test_file), ds)
 
         custom_max = 50 * 1024 * 1024  # 50MB
         parser = DicomParser(test_file, security_checks=False, max_file_size=custom_max)
 
         assert parser.max_file_size == custom_max
 
-    @patch('pydicom.dcmread')
-    def test_multiple_parser_instances(self, mock_dcmread, tmp_path):
+    def test_multiple_parser_instances(self, tmp_path):
         """Test creating multiple parser instances."""
         file1 = tmp_path / "file1.dcm"
         file2 = tmp_path / "file2.dcm"
-        file1.write_bytes(b"DICM" + b"\x00" * 100)
-        file2.write_bytes(b"DICM" + b"\x00" * 100)
 
-        mock_dataset1 = Mock(spec=Dataset)
-        mock_dataset2 = Mock(spec=Dataset)
+        # Create real DICOM files
+        import pydicom
+        from pydicom.dataset import Dataset, FileMetaDataset
 
-        mock_dcmread.side_effect = [mock_dataset1, mock_dataset2]
+        for i, test_file in enumerate([file1, file2]):
+            file_meta = FileMetaDataset()
+            file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+            file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+            file_meta.MediaStorageSOPInstanceUID = f"1.2.{i}"
+
+            ds = Dataset()
+            ds.file_meta = file_meta
+            ds.PatientName = f"Test{i}"
+            ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+            ds.SOPInstanceUID = f"1.2.{i}"
+
+            pydicom.dcmwrite(str(test_file), ds)
 
         parser1 = DicomParser(file1, security_checks=False)
         parser2 = DicomParser(file2, security_checks=False)
