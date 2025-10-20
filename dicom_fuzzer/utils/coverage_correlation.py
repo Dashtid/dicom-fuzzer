@@ -14,7 +14,6 @@ the effectiveness of your fuzzer." (2025 Best Practices)
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Dict, List, Set, Optional, Tuple
 
 logger = logging.getLogger(__name__)

@@ -53,7 +53,7 @@ def demo_corpus_minimization():
     print("\n[*] Validating corpus quality...")
     metrics = validate_corpus_quality(corpus_dir)
 
-    print(f"\nCorpus Statistics:")
+    print("\nCorpus Statistics:")
     print(f"  Total Files:     {metrics['total_files']:,}")
     print(f"  Total Size:      {metrics['total_size_mb']:.1f} MB")
     print(f"  Avg File Size:   {metrics['avg_file_size_kb']:.1f} KB")
@@ -62,7 +62,7 @@ def demo_corpus_minimization():
     print(f"  Corrupted:       {metrics['corrupted']:,}")
 
     # Minimize corpus
-    print(f"\n[*] Minimizing corpus...")
+    print("\n[*] Minimizing corpus...")
     print(f"    Source: {corpus_dir}")
     print(f"    Output: {output_dir}")
 
@@ -72,7 +72,7 @@ def demo_corpus_minimization():
         max_corpus_size=500,
     )
 
-    print(f"\n[+] Corpus minimized successfully!")
+    print("\n[+] Corpus minimized successfully!")
     print(f"    Minimized corpus: {len(minimized_files)} files")
     print(f"    Location: {output_dir}")
 
@@ -138,7 +138,7 @@ def demo_stateless_harness_validation():
     if is_deterministic:
         print("[!] Unexpected: stateful harness appears deterministic")
     else:
-        print(f"[+] Correctly detected non-deterministic behavior:")
+        print("[+] Correctly detected non-deterministic behavior:")
         print(f"    {error}")
 
     # Demonstrate stateless wrapper

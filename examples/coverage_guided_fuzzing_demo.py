@@ -54,7 +54,7 @@ def target_function(dicom_data: bytes) -> bool:
 
         return True
 
-    except Exception as e:
+    except Exception:
         # The fuzzer will catch crashes and save them for analysis
         raise
 
@@ -105,7 +105,7 @@ def main():
         verbose=True,
     )
 
-    print(f"Configuration:")
+    print("Configuration:")
     print(f"  - Max iterations: {config.max_iterations}")
     print(f"  - Workers: {config.num_workers}")
     print(f"  - Coverage-guided: {config.coverage_guided}")

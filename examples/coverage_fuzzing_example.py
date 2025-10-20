@@ -8,7 +8,6 @@ to test a DICOM parser for vulnerabilities.
 
 import sys
 from pathlib import Path
-from typing import Optional
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -90,7 +89,7 @@ def vulnerable_dicom_parser(data: bytes) -> bool:
         print(f"[VULNERABILITY FOUND] {type(e).__name__}: {e}")
         raise
 
-    except Exception as e:
+    except Exception:
         # Other unexpected errors
         return False
 

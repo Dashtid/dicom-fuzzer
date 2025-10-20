@@ -7,7 +7,7 @@ Learns which mutations are most effective for discovering new code paths.
 
 import random
 import struct
-from typing import Dict, List, Optional, Tuple, Any, Callable
+from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
 import numpy as np
