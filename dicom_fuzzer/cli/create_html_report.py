@@ -2,8 +2,6 @@
 
 import json
 import sys
-from pathlib import Path
-from datetime import datetime
 
 def create_html_report(json_path: str, html_path: str = None):
     """Create HTML report from JSON fuzzing results."""

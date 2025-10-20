@@ -13,15 +13,13 @@ import hashlib
 from pathlib import Path
 from typing import Optional, Dict, Any, Callable, List, Tuple
 from dataclasses import dataclass, field
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, BrokenExecutor
+from concurrent.futures import ThreadPoolExecutor, BrokenExecutor
 import json
-import sys
 
 import pydicom
-from pydicom.errors import InvalidDicomError
 
 from .coverage_instrumentation import CoverageTracker, CoverageInfo
-from .corpus_manager import CorpusManager, Seed, HistoricalCorpusManager
+from .corpus_manager import CorpusManager, HistoricalCorpusManager
 from .coverage_guided_mutator import CoverageGuidedMutator, MutationType
 from .crash_analyzer import CrashAnalyzer
 from .reporter import ReportGenerator

@@ -81,7 +81,6 @@ def visualize_dicom(file_path: Path, output_path: Path) -> bool:
     try:
         import pydicom
         import matplotlib.pyplot as plt
-        import numpy as np
 
         # Read DICOM file
         ds = pydicom.dcmread(str(file_path))
@@ -305,11 +304,11 @@ def run_fuzzing_workflow():
     logger.info(f"Fuzzed variants generated: {len(fuzzed_files)}")
     logger.info(f"Crashes discovered: {len(crashes_found)}")
     logger.info(f"Unique crash signatures: {len(analyzer.crash_signatures)}")
-    logger.info(f"\nOutput directories:")
-    logger.info(f"  - Images: demo_output/images/")
-    logger.info(f"  - Fuzzed files: demo_output/fuzzed/")
-    logger.info(f"  - Crashes: demo_output/crashes/")
-    logger.info(f"  - Reports: demo_output/reports/")
+    logger.info("\nOutput directories:")
+    logger.info("  - Images: demo_output/images/")
+    logger.info("  - Fuzzed files: demo_output/fuzzed/")
+    logger.info("  - Crashes: demo_output/crashes/")
+    logger.info("  - Reports: demo_output/reports/")
     logger.info("=" * 80)
 
     if crashes_found:

@@ -14,7 +14,6 @@ from typing import Dict, List, Optional, Set, Tuple, Any
 from dataclasses import dataclass, field
 from collections import defaultdict
 import heapq
-import random
 from enum import Enum
 
 from .coverage_instrumentation import CoverageInfo, calculate_coverage_distance
