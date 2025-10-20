@@ -70,14 +70,27 @@ class TestSecurityChecks:
 class TestParsingOperations:
     """Test DICOM parsing operations."""
 
-    @patch('pydicom.dcmread')
-    def test_successful_parse(self, mock_dcmread, tmp_path):
+    def test_successful_parse(self, tmp_path):
         """Test successful DICOM file parsing."""
         test_file = tmp_path / "test.dcm"
-        test_file.write_bytes(b"DICM" + b"\x00" * 100)
 
-        mock_dataset = Mock(spec=Dataset)
-        mock_dcmread.return_value = mock_dataset
+        # Create a real minimal DICOM file
+        import pydicom
+        from pydicom.dataset import Dataset, FileMetaDataset
+
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3"
+
+        ds = Dataset()
+        ds.file_meta = file_meta
+        ds.PatientName = "Test"
+        ds.PatientID = "001"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3"
+
+        pydicom.dcmwrite(str(test_file), ds)
 
         parser = DicomParser(test_file, security_checks=False)
 
@@ -94,18 +107,29 @@ class TestParsingOperations:
         with pytest.raises(ParsingError, match="Failed to parse"):
             DicomParser(test_file, security_checks=False)
 
-    @patch('pydicom.dcmread')
-    def test_dataset_property(self, mock_dcmread, tmp_path):
+    def test_dataset_property(self, tmp_path):
         """Test dataset property access."""
         test_file = tmp_path / "test.dcm"
-        test_file.write_bytes(b"DICM" + b"\x00" * 100)
 
-        mock_dataset = Mock(spec=Dataset)
-        mock_dcmread.return_value = mock_dataset
+        # Create a real minimal DICOM file
+        import pydicom
+        from pydicom.dataset import Dataset, FileMetaDataset
+
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3"
+
+        ds = Dataset()
+        ds.file_meta = file_meta
+        ds.PatientName = "Test"
+
+        pydicom.dcmwrite(str(test_file), ds)
 
         parser = DicomParser(test_file, security_checks=False)
 
-        assert parser.dataset == mock_dataset
+        assert parser.dataset is not None
+        assert hasattr(parser.dataset, 'PatientName')
 
 
 class TestMetadataExtraction:

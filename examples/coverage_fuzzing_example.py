@@ -35,14 +35,14 @@ def vulnerable_dicom_parser(data: bytes) -> bool:
         ds = pydicom.dcmread(BytesIO(data), force=True)
 
         # Vulnerability 1: Buffer overflow with long patient name
-        if hasattr(ds, 'PatientName'):
+        if hasattr(ds, "PatientName"):
             patient_name = str(ds.PatientName)
             if len(patient_name) > 1000:
                 # Simulate buffer overflow
                 raise MemoryError("Buffer overflow in patient name")
 
         # Vulnerability 2: Integer overflow in dimensions
-        if hasattr(ds, 'Rows') and hasattr(ds, 'Columns'):
+        if hasattr(ds, "Rows") and hasattr(ds, "Columns"):
             try:
                 total_pixels = int(ds.Rows) * int(ds.Columns)
                 if total_pixels > 2**31:
@@ -51,8 +51,8 @@ def vulnerable_dicom_parser(data: bytes) -> bool:
                 pass
 
         # Vulnerability 3: Crash on specific transfer syntax
-        if hasattr(ds, 'file_meta') and hasattr(ds.file_meta, 'TransferSyntaxUID'):
-            if 'INVALID' in str(ds.file_meta.TransferSyntaxUID):
+        if hasattr(ds, "file_meta") and hasattr(ds.file_meta, "TransferSyntaxUID"):
+            if "INVALID" in str(ds.file_meta.TransferSyntaxUID):
                 raise ValueError("Invalid transfer syntax causes crash")
 
         # Vulnerability 4: Stack overflow with nested sequences
@@ -60,21 +60,21 @@ def vulnerable_dicom_parser(data: bytes) -> bool:
             if depth > 50:  # Too deep
                 raise RecursionError("Stack overflow in sequence parsing")
 
-            if hasattr(elem, 'value') and isinstance(elem.value, list):
+            if hasattr(elem, "value") and isinstance(elem.value, list):
                 for item in elem.value:
-                    if hasattr(item, '__iter__'):
+                    if hasattr(item, "__iter__"):
                         count_sequence_depth(item, depth + 1)
 
         for elem in ds:
-            if elem.VR == 'SQ':
+            if elem.VR == "SQ":
                 count_sequence_depth(elem)
 
         # Vulnerability 5: Division by zero in pixel spacing
-        if hasattr(ds, 'PixelSpacing'):
+        if hasattr(ds, "PixelSpacing"):
             try:
                 spacing = ds.PixelSpacing
                 if len(spacing) >= 2:
-                    ratio = float(spacing[0]) / float(spacing[1])
+                    _ = float(spacing[0]) / float(spacing[1])
             except (ZeroDivisionError, ValueError, TypeError):
                 raise ZeroDivisionError("Division by zero in pixel spacing")
 
@@ -84,7 +84,13 @@ def vulnerable_dicom_parser(data: bytes) -> bool:
         # Normal DICOM parsing error
         return False
 
-    except (MemoryError, OverflowError, ValueError, RecursionError, ZeroDivisionError) as e:
+    except (
+        MemoryError,
+        OverflowError,
+        ValueError,
+        RecursionError,
+        ZeroDivisionError,
+    ) as e:
         # These are our "vulnerabilities" - the fuzzer should find these
         print(f"[VULNERABILITY FOUND] {type(e).__name__}: {e}")
         raise
@@ -99,33 +105,28 @@ def create_example_config() -> FuzzingConfig:
     return FuzzingConfig(
         # Target our vulnerable parser
         target_function=vulnerable_dicom_parser,
-        target_modules=['__main__', 'pydicom'],  # Track coverage in these modules
-
+        target_modules=["__main__", "pydicom"],  # Track coverage in these modules
         # Fuzzing parameters
         max_iterations=1000,
         timeout_per_run=0.5,
         num_workers=1,
-
         # Coverage settings
         coverage_guided=True,
         track_branches=True,
         minimize_corpus=True,
-
         # Corpus settings
         corpus_dir=Path("example_corpus"),
         max_corpus_size=100,
-
         # Mutation settings
         max_mutations=5,
         adaptive_mutations=True,
         dicom_aware=True,  # Enable DICOM-specific mutations
-
         # Output settings
         output_dir=Path("example_output"),
         crash_dir=Path("example_crashes"),
         save_interesting=True,
         report_interval=50,
-        verbose=True
+        verbose=True,
     )
 
 
@@ -151,7 +152,7 @@ async def run_example():
     print("-" * 60)
 
     # Configure coverage tracking
-    configure_global_tracker({'__main__', 'pydicom'})
+    configure_global_tracker({"__main__", "pydicom"})
 
     # Create fuzzer
     config = create_example_config()
@@ -183,8 +184,8 @@ async def run_example():
             print("\nTop Effective Mutations:")
             sorted_mutations = sorted(
                 stats.mutation_stats.items(),
-                key=lambda x: x[1].get('success_rate', 0),
-                reverse=True
+                key=lambda x: x[1].get("success_rate", 0),
+                reverse=True,
             )
             for mutation, data in sorted_mutations[:5]:
                 print(f"  {mutation}: {data['success_rate']:.2%} success rate")
@@ -200,9 +201,11 @@ async def run_example():
     except Exception as e:
         print(f"\nError during fuzzing: {e}")
         import traceback
+
         traceback.print_exc()
 
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(run_example())

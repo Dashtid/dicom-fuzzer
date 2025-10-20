@@ -57,7 +57,9 @@ def demo_corpus_minimization():
     print(f"  Total Files:     {metrics['total_files']:,}")
     print(f"  Total Size:      {metrics['total_size_mb']:.1f} MB")
     print(f"  Avg File Size:   {metrics['avg_file_size_kb']:.1f} KB")
-    print(f"  Size Range:      {metrics['min_size_kb']:.1f} - {metrics['max_size_kb']:.1f} KB")
+    print(
+        f"  Size Range:      {metrics['min_size_kb']:.1f} - {metrics['max_size_kb']:.1f} KB"
+    )
     print(f"  Valid DICOM:     {metrics['valid_dicom']:,}")
     print(f"  Corrupted:       {metrics['corrupted']:,}")
 

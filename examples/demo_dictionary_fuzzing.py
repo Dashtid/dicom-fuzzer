@@ -170,7 +170,9 @@ def demo_specific_dictionary():
     # Mutate specific tag with specific dictionary
     print("\nMutating Modality tag with modalities dictionary...")
     mutated_ds = fuzzer.mutate_with_specific_dictionary(
-        original_ds, 0x00080060, "modalities"  # Modality tag
+        original_ds,
+        0x00080060,
+        "modalities",  # Modality tag
     )
 
     print(f"  Original: {original_ds.Modality}")
