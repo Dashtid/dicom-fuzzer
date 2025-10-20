@@ -27,8 +27,7 @@ from .reporter import ReportGenerator
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -116,18 +115,15 @@ class CoverageGuidedFuzzer:
         history_dir = config.corpus_dir / "history" if config.corpus_dir else None
         if history_dir and history_dir.exists():
             self.corpus_manager = HistoricalCorpusManager(
-                history_dir=history_dir,
-                max_corpus_size=config.max_corpus_size
+                history_dir=history_dir, max_corpus_size=config.max_corpus_size
             )
         else:
-            self.corpus_manager = CorpusManager(
-                max_corpus_size=config.max_corpus_size
-            )
+            self.corpus_manager = CorpusManager(max_corpus_size=config.max_corpus_size)
 
         self.mutator = CoverageGuidedMutator(
             max_mutations=config.max_mutations,
             adaptive_mode=config.adaptive_mutations,
-            dicom_aware=config.dicom_aware
+            dicom_aware=config.dicom_aware,
         )
 
         self.crash_analyzer = CrashAnalyzer(crash_dir=str(config.crash_dir))
@@ -194,7 +190,7 @@ class CoverageGuidedFuzzer:
         if self.config.seed_dir and self.config.seed_dir.exists():
             for seed_file in self.config.seed_dir.glob("*.dcm"):
                 try:
-                    with open(seed_file, 'rb') as f:
+                    with open(seed_file, "rb") as f:
                         data = f.read()
 
                     # Get initial coverage
@@ -229,12 +225,13 @@ class CoverageGuidedFuzzer:
 
             # Convert to bytes
             from io import BytesIO
+
             buffer = BytesIO()
             pydicom.dcmwrite(buffer, ds, write_like_original=False)
             return buffer.getvalue()
-        except:
+        except Exception:
             # Fallback to minimal DICOM header
-            return b'DICM' + b'\x00' * 128
+            return b"DICM" + b"\x00" * 128
 
     async def _run_single(self) -> None:
         """Run single-threaded fuzzing loop."""
@@ -263,8 +260,7 @@ class CoverageGuidedFuzzer:
 
                 # Handle results
                 await self._process_result(
-                    mutated_data, coverage, crashed,
-                    seed.id, mutation_type
+                    mutated_data, coverage, crashed, seed.id, mutation_type
                 )
 
                 # Report progress
@@ -322,15 +318,13 @@ class CoverageGuidedFuzzer:
                 )
 
                 # Process result
-                asyncio.run(self._process_result(
-                    mutated_data, coverage, crashed,
-                    seed.id, mutation_type
-                ))
+                asyncio.run(
+                    self._process_result(
+                        mutated_data, coverage, crashed, seed.id, mutation_type
+                    )
+                )
 
-    async def _execute_with_coverage(
-        self,
-        data: bytes
-    ) -> Tuple[CoverageInfo, bool]:
+    async def _execute_with_coverage(self, data: bytes) -> Tuple[CoverageInfo, bool]:
         """
         Execute target with coverage tracking.
 
@@ -343,9 +337,9 @@ class CoverageGuidedFuzzer:
         try:
             with self.coverage_tracker.track_coverage(data) as coverage:
                 # Execute target with timeout
-                result = await asyncio.wait_for(
+                _ = await asyncio.wait_for(
                     asyncio.to_thread(self._execute_target, data),
-                    timeout=self.config.timeout_per_run
+                    timeout=self.config.timeout_per_run,
                 )
         except asyncio.TimeoutError:
             logger.debug("Execution timeout")
@@ -375,7 +369,7 @@ class CoverageGuidedFuzzer:
             import subprocess
             import tempfile
 
-            with tempfile.NamedTemporaryFile(suffix='.dcm', delete=False) as f:
+            with tempfile.NamedTemporaryFile(suffix=".dcm", delete=False) as f:
                 f.write(data)
                 temp_path = f.name
 
@@ -383,7 +377,7 @@ class CoverageGuidedFuzzer:
                 result = subprocess.run(
                     [self.config.target_binary, temp_path],
                     capture_output=True,
-                    timeout=self.config.timeout_per_run
+                    timeout=self.config.timeout_per_run,
                 )
                 return result.returncode == 0
             finally:
@@ -393,10 +387,11 @@ class CoverageGuidedFuzzer:
             # Default: try to parse as DICOM
             try:
                 from io import BytesIO
+
                 ds = pydicom.dcmread(BytesIO(data))
                 # Try to access some attributes to trigger parsing
                 _ = ds.PatientName
-                _ = ds.pixel_array if hasattr(ds, 'PixelData') else None
+                _ = ds.pixel_array if hasattr(ds, "PixelData") else None
                 return True
             except Exception:
                 raise
@@ -407,14 +402,14 @@ class CoverageGuidedFuzzer:
         coverage: CoverageInfo,
         crashed: bool,
         parent_id: str,
-        mutation_type: MutationType
+        mutation_type: MutationType,
     ) -> None:
         """Process execution result."""
         # Update mutation feedback
         self.mutator.update_strategy_feedback(
             mutation_type,
             coverage.new_coverage,
-            len(coverage.edges - self.coverage_tracker.global_coverage.edges)
+            len(coverage.edges - self.coverage_tracker.global_coverage.edges),
         )
 
         # Handle crashes
@@ -428,12 +423,16 @@ class CoverageGuidedFuzzer:
             if is_unique:
                 self.stats.unique_crashes += 1
                 # Simple crash info object
-                crash_info = type('CrashInfo', (), {
-                    'id': crash_hash,
-                    'coverage_hash': coverage.get_coverage_hash(),
-                    'parent_id': parent_id,
-                    'is_unique': True
-                })()
+                crash_info = type(
+                    "CrashInfo",
+                    (),
+                    {
+                        "id": crash_hash,
+                        "coverage_hash": coverage.get_coverage_hash(),
+                        "parent_id": parent_id,
+                        "is_unique": True,
+                    },
+                )()
                 self._save_crash(data, crash_info)
 
             # Update seed crash count
@@ -442,8 +441,12 @@ class CoverageGuidedFuzzer:
         # Handle new coverage
         if coverage.new_coverage:
             self.stats.coverage_increases += 1
-            self.stats.current_coverage = len(self.coverage_tracker.global_coverage.edges)
-            self.stats.max_coverage = max(self.stats.max_coverage, self.stats.current_coverage)
+            self.stats.current_coverage = len(
+                self.coverage_tracker.global_coverage.edges
+            )
+            self.stats.max_coverage = max(
+                self.stats.max_coverage, self.stats.current_coverage
+            )
 
             # Add to corpus
             new_seed = self.corpus_manager.add_seed(
@@ -459,18 +462,22 @@ class CoverageGuidedFuzzer:
     def _save_crash(self, data: bytes, crash_info: Any) -> None:
         """Save crash to disk."""
         crash_file = self.config.crash_dir / f"crash_{crash_info.id}.dcm"
-        with open(crash_file, 'wb') as f:
+        with open(crash_file, "wb") as f:
             f.write(data)
 
         # Save crash metadata
         meta_file = self.config.crash_dir / f"crash_{crash_info.id}.json"
-        with open(meta_file, 'w') as f:
-            json.dump({
-                'id': crash_info.id,
-                'coverage_hash': crash_info.coverage_hash,
-                'timestamp': time.time(),
-                'parent_seed': crash_info.parent_id,
-            }, f, indent=2)
+        with open(meta_file, "w") as f:
+            json.dump(
+                {
+                    "id": crash_info.id,
+                    "coverage_hash": crash_info.coverage_hash,
+                    "timestamp": time.time(),
+                    "parent_seed": crash_info.parent_id,
+                },
+                f,
+                indent=2,
+            )
 
     def _save_interesting_input(self, data: bytes, seed_id: str) -> None:
         """Save interesting input that increases coverage."""
@@ -478,14 +485,16 @@ class CoverageGuidedFuzzer:
         interesting_dir.mkdir(exist_ok=True)
 
         input_file = interesting_dir / f"input_{seed_id}.dcm"
-        with open(input_file, 'wb') as f:
+        with open(input_file, "wb") as f:
             f.write(data)
 
     def _report_progress(self) -> None:
         """Report fuzzing progress."""
         # Calculate metrics
         elapsed = time.time() - self.stats.start_time
-        self.stats.exec_per_sec = self.stats.total_executions / elapsed if elapsed > 0 else 0
+        self.stats.exec_per_sec = (
+            self.stats.total_executions / elapsed if elapsed > 0 else 0
+        )
 
         # Get coverage stats
         cov_stats = self.coverage_tracker.get_coverage_stats()
@@ -523,7 +532,7 @@ class CoverageGuidedFuzzer:
         # Generate final report
         report = self._generate_report()
         report_file = self.config.output_dir / "fuzzing_report.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump(report, f, indent=2, default=str)
 
         logger.info(f"Fuzzing complete. Results saved to {self.config.output_dir}")
@@ -533,35 +542,35 @@ class CoverageGuidedFuzzer:
         elapsed = time.time() - self.stats.start_time
 
         return {
-            'duration': elapsed,
-            'total_executions': self.stats.total_executions,
-            'exec_per_sec': self.stats.exec_per_sec,
-            'crashes': {
-                'total': self.stats.total_crashes,
-                'unique': self.stats.unique_crashes
+            "duration": elapsed,
+            "total_executions": self.stats.total_executions,
+            "exec_per_sec": self.stats.exec_per_sec,
+            "crashes": {
+                "total": self.stats.total_crashes,
+                "unique": self.stats.unique_crashes,
             },
-            'coverage': {
-                'edges': self.stats.current_coverage,
-                'max_edges': self.stats.max_coverage,
-                'increases': self.stats.coverage_increases
+            "coverage": {
+                "edges": self.stats.current_coverage,
+                "max_edges": self.stats.max_coverage,
+                "increases": self.stats.coverage_increases,
             },
-            'corpus': {
-                'size': self.stats.corpus_size,
-                'stats': self.corpus_manager.get_corpus_stats()
+            "corpus": {
+                "size": self.stats.corpus_size,
+                "stats": self.corpus_manager.get_corpus_stats(),
             },
-            'mutations': self.stats.mutation_stats,
-            'config': {
-                'max_iterations': self.config.max_iterations,
-                'workers': self.config.num_workers,
-                'adaptive': self.config.adaptive_mutations,
-                'dicom_aware': self.config.dicom_aware
-            }
+            "mutations": self.stats.mutation_stats,
+            "config": {
+                "max_iterations": self.config.max_iterations,
+                "workers": self.config.num_workers,
+                "adaptive": self.config.adaptive_mutations,
+                "dicom_aware": self.config.dicom_aware,
+            },
         }
 
 
 def create_fuzzer_from_config(config_path: Path) -> CoverageGuidedFuzzer:
     """Create fuzzer from configuration file."""
-    with open(config_path, 'r') as f:
+    with open(config_path, "r") as f:
         config_dict = json.load(f)
 
     config = FuzzingConfig(**config_dict)

@@ -99,9 +99,7 @@ def correlate_crashes_with_coverage(
         # Get coverage for crash-triggering input
         crash_input = str(crash.test_case_path)
         if crash_input not in coverage_data:
-            logger.warning(
-                f"No coverage data for crash input: {crash_input}"
-            )
+            logger.warning(f"No coverage data for crash input: {crash_input}")
             continue
 
         crash_coverage = coverage_data[crash_input]
@@ -109,9 +107,7 @@ def correlate_crashes_with_coverage(
         # Update coverage insights for each hit
         for coverage_id in crash_coverage:
             if coverage_id not in coverage_tracker:
-                coverage_tracker[coverage_id] = CoverageInsight(
-                    identifier=coverage_id
-                )
+                coverage_tracker[coverage_id] = CoverageInsight(identifier=coverage_id)
 
             insight = coverage_tracker[coverage_id]
             insight.total_hits += 1
@@ -122,20 +118,16 @@ def correlate_crashes_with_coverage(
         crash_only = crash_coverage - safe_coverage
         if crash_only:
             correlation.crash_only_coverage[crash.crash_id] = crash_only
-            logger.debug(
-                f"Crash {crash.crash_id}: {len(crash_only)} unique code paths"
-            )
+            logger.debug(f"Crash {crash.crash_id}: {len(crash_only)} unique code paths")
 
     # Update safe hits
-    for safe_input in (safe_inputs or []):
+    for safe_input in safe_inputs or []:
         if safe_input not in coverage_data:
             continue
 
         for coverage_id in coverage_data[safe_input]:
             if coverage_id not in coverage_tracker:
-                coverage_tracker[coverage_id] = CoverageInsight(
-                    identifier=coverage_id
-                )
+                coverage_tracker[coverage_id] = CoverageInsight(identifier=coverage_id)
 
             insight = coverage_tracker[coverage_id]
             insight.total_hits += 1
@@ -160,9 +152,7 @@ def correlate_crashes_with_coverage(
     correlation.dangerous_paths = dangerous
 
     # Extract vulnerable functions
-    correlation.vulnerable_functions = _extract_functions_from_coverage(
-        dangerous
-    )
+    correlation.vulnerable_functions = _extract_functions_from_coverage(dangerous)
 
     logger.info(
         f"Coverage correlation complete: {len(dangerous)} dangerous paths identified"
@@ -172,7 +162,7 @@ def correlate_crashes_with_coverage(
 
 
 def _extract_functions_from_coverage(
-    dangerous_paths: List[Tuple[str, float]]
+    dangerous_paths: List[Tuple[str, float]],
 ) -> Set[str]:
     """
     Extract function names from coverage identifiers.
@@ -236,19 +226,18 @@ def generate_correlation_report(
 
     report.append(f"Total Coverage Points Analyzed: {total_insights:,}")
     report.append(
-        f"Dangerous Paths Found:          {dangerous_count:,} "
-        f"(>{50}% crash rate)"
+        f"Dangerous Paths Found:          {dangerous_count:,} (>{50}% crash rate)"
     )
-    report.append(f"Vulnerable Functions:           {len(correlation.vulnerable_functions)}")
+    report.append(
+        f"Vulnerable Functions:           {len(correlation.vulnerable_functions)}"
+    )
     report.append("")
 
     # Top dangerous paths
     if correlation.dangerous_paths:
         report.append("TOP DANGEROUS CODE PATHS:")
         report.append("-" * 80)
-        report.append(
-            f"{'Rank':<6} {'Crash Rate':<12} {'Hits':<8} {'Coverage ID':<50}"
-        )
+        report.append(f"{'Rank':<6} {'Crash Rate':<12} {'Hits':<8} {'Coverage ID':<50}")
         report.append("-" * 80)
 
         for i, (coverage_id, crash_rate) in enumerate(
@@ -278,9 +267,7 @@ def generate_correlation_report(
         )
         report.append("CRASH-ONLY CODE PATHS:")
         report.append("-" * 80)
-        report.append(
-            f"Code paths only executed during crashes: {total_crash_only:,}"
-        )
+        report.append(f"Code paths only executed during crashes: {total_crash_only:,}")
         report.append(
             f"Crashes with unique paths:                {len(correlation.crash_only_coverage):,}"
         )
@@ -300,9 +287,7 @@ def generate_correlation_report(
         report.append("  [+] No highly dangerous code paths detected")
 
     if total_crash_only > 0:
-        report.append(
-            f"  [!] Investigate {total_crash_only} crash-only code paths"
-        )
+        report.append(f"  [!] Investigate {total_crash_only} crash-only code paths")
         report.append("  [!] These may indicate error handling issues")
 
     report.append("")

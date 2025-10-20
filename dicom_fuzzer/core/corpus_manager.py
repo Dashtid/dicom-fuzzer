@@ -21,11 +21,12 @@ from .coverage_instrumentation import CoverageInfo, calculate_coverage_distance
 
 class SeedPriority(Enum):
     """Priority levels for seed scheduling."""
-    CRITICAL = 1   # Discovers new coverage
-    HIGH = 2       # Recent coverage gains
-    NORMAL = 3     # Standard seeds
-    LOW = 4        # Well-explored seeds
-    MINIMAL = 5    # Redundant/duplicate coverage
+
+    CRITICAL = 1  # Discovers new coverage
+    HIGH = 2  # Recent coverage gains
+    NORMAL = 3  # Standard seeds
+    LOW = 4  # Well-explored seeds
+    MINIMAL = 5  # Redundant/duplicate coverage
 
 
 @dataclass
@@ -96,7 +97,7 @@ class CorpusManager:
         self,
         max_corpus_size: int = 1000,
         min_coverage_distance: float = 0.1,
-        energy_allocation: str = 'adaptive'
+        energy_allocation: str = "adaptive",
     ):
         """
         Initialize corpus manager.
@@ -113,7 +114,9 @@ class CorpusManager:
         # Corpus storage
         self.seeds: Dict[str, Seed] = {}
         self.seed_queue: List[Seed] = []  # Priority queue
-        self.coverage_map: Dict[str, Set[str]] = defaultdict(set)  # Coverage -> seed IDs
+        self.coverage_map: Dict[str, Set[str]] = defaultdict(
+            set
+        )  # Coverage -> seed IDs
 
         # Coverage tracking
         self.global_coverage = CoverageInfo()
@@ -125,14 +128,16 @@ class CorpusManager:
 
         # Historical learning
         self.mutation_success_rate: Dict[str, float] = defaultdict(float)
-        self.seed_genealogy: Dict[str, List[str]] = defaultdict(list)  # Parent -> children
+        self.seed_genealogy: Dict[str, List[str]] = defaultdict(
+            list
+        )  # Parent -> children
 
     def add_seed(
         self,
         data: bytes,
         coverage: CoverageInfo,
         parent_id: Optional[str] = None,
-        mutation_type: Optional[str] = None
+        mutation_type: Optional[str] = None,
     ) -> Optional[Seed]:
         """
         Add a new seed to the corpus if it provides value.
@@ -159,12 +164,7 @@ class CorpusManager:
             return None
 
         # Create new seed
-        seed = Seed(
-            id=seed_hash,
-            data=data,
-            coverage=coverage,
-            parent_id=parent_id
-        )
+        seed = Seed(id=seed_hash, data=data, coverage=coverage, parent_id=parent_id)
 
         if mutation_type:
             seed.mutation_history.append(mutation_type)
@@ -231,7 +231,7 @@ class CorpusManager:
             return True
 
         # Calculate minimum distance to existing seeds
-        min_distance = float('inf')
+        min_distance = float("inf")
         for existing_seed in self.seeds.values():
             distance = calculate_coverage_distance(coverage, existing_seed.coverage)
             min_distance = min(min_distance, distance)
@@ -240,17 +240,19 @@ class CorpusManager:
 
     def _update_seed_energy(self, seed: Seed) -> None:
         """Update seed energy based on allocation strategy."""
-        if self.energy_allocation == 'uniform':
+        if self.energy_allocation == "uniform":
             seed.energy = 1.0
 
-        elif self.energy_allocation == 'adaptive':
+        elif self.energy_allocation == "adaptive":
             # Adaptive energy based on productivity
             if seed.discoveries > 0:
-                seed.energy = min(10.0, 2.0 * (seed.discoveries / max(seed.executions, 1)))
+                seed.energy = min(
+                    10.0, 2.0 * (seed.discoveries / max(seed.executions, 1))
+                )
             else:
                 seed.energy = max(0.1, 1.0 / (seed.executions + 1))
 
-        elif self.energy_allocation == 'exp':
+        elif self.energy_allocation == "exp":
             # Exponential decay
             seed.energy = 2.0 ** (-seed.executions / 10)
 
@@ -273,14 +275,18 @@ class CorpusManager:
         seed_values = []
         for seed_id, seed in self.seeds.items():
             # Calculate value score
-            unique_edges = seed.coverage.edges - self._get_coverage_without_seed(seed_id)
+            unique_edges = seed.coverage.edges - self._get_coverage_without_seed(
+                seed_id
+            )
             value = len(unique_edges) / (seed.executions + 1)
             seed_values.append((value, seed_id))
 
         seed_values.sort(reverse=True)
 
         # Keep top seeds
-        seeds_to_keep = set(seed_id for _, seed_id in seed_values[:self.max_corpus_size])
+        seeds_to_keep = set(
+            seed_id for _, seed_id in seed_values[: self.max_corpus_size]
+        )
 
         # Remove low-value seeds
         seeds_to_remove = set(self.seeds.keys()) - seeds_to_keep
@@ -327,20 +333,27 @@ class CorpusManager:
             if len(recent_coverage) >= 10 and len(set(recent_coverage)) == 1:
                 self.stats.coverage_plateaus += 1
 
-        self.stats.coverage_history.append((time.time(), len(self.global_coverage.edges)))
+        self.stats.coverage_history.append(
+            (time.time(), len(self.global_coverage.edges))
+        )
 
         return {
-            'total_seeds': self.stats.total_seeds,
-            'unique_coverage_signatures': len(set(s.coverage.get_coverage_hash() for s in self.seeds.values())),
-            'total_edges_covered': self.stats.total_edges_covered,
-            'total_executions': self.stats.total_executions,
-            'coverage_plateaus': self.stats.coverage_plateaus,
-            'time_since_coverage_increase': time.time() - self.stats.last_coverage_increase,
-            'mutation_success_rates': dict(self.mutation_success_rate),
-            'seed_priorities': {
-                priority.name: sum(1 for s in self.seeds.values() if s.priority == priority)
+            "total_seeds": self.stats.total_seeds,
+            "unique_coverage_signatures": len(
+                set(s.coverage.get_coverage_hash() for s in self.seeds.values())
+            ),
+            "total_edges_covered": self.stats.total_edges_covered,
+            "total_executions": self.stats.total_executions,
+            "coverage_plateaus": self.stats.coverage_plateaus,
+            "time_since_coverage_increase": time.time()
+            - self.stats.last_coverage_increase,
+            "mutation_success_rates": dict(self.mutation_success_rate),
+            "seed_priorities": {
+                priority.name: sum(
+                    1 for s in self.seeds.values() if s.priority == priority
+                )
                 for priority in SeedPriority
-            }
+            },
         }
 
     def save_corpus(self, directory: Path) -> None:
@@ -350,17 +363,17 @@ class CorpusManager:
         # Save seeds
         for seed_id, seed in self.seeds.items():
             seed_path = directory / f"{seed_id}.seed"
-            with open(seed_path, 'wb') as f:
+            with open(seed_path, "wb") as f:
                 pickle.dump(seed, f)
 
         # Save metadata
         metadata = {
-            'stats': self.get_corpus_stats(),
-            'mutation_success_rate': dict(self.mutation_success_rate),
-            'global_coverage_hash': self.global_coverage.get_coverage_hash()
+            "stats": self.get_corpus_stats(),
+            "mutation_success_rate": dict(self.mutation_success_rate),
+            "global_coverage_hash": self.global_coverage.get_coverage_hash(),
         }
 
-        with open(directory / 'corpus_metadata.json', 'w') as f:
+        with open(directory / "corpus_metadata.json", "w") as f:
             json.dump(metadata, f, indent=2, default=str)
 
     def load_corpus(self, directory: Path) -> None:
@@ -369,8 +382,8 @@ class CorpusManager:
             return
 
         # Load seeds
-        for seed_path in directory.glob('*.seed'):
-            with open(seed_path, 'rb') as f:
+        for seed_path in directory.glob("*.seed"):
+            with open(seed_path, "rb") as f:
                 seed = pickle.load(f)
                 self.seeds[seed.id] = seed
                 self.global_coverage.merge(seed.coverage)
@@ -380,11 +393,13 @@ class CorpusManager:
         heapq.heapify(self.seed_queue)
 
         # Load metadata
-        metadata_path = directory / 'corpus_metadata.json'
+        metadata_path = directory / "corpus_metadata.json"
         if metadata_path.exists():
-            with open(metadata_path, 'r') as f:
+            with open(metadata_path, "r") as f:
                 metadata = json.load(f)
-                self.mutation_success_rate.update(metadata.get('mutation_success_rate', {}))
+                self.mutation_success_rate.update(
+                    metadata.get("mutation_success_rate", {})
+                )
 
         self.stats.total_seeds = len(self.seeds)
         self.stats.total_edges_covered = len(self.global_coverage.edges)
@@ -424,7 +439,7 @@ class HistoricalCorpusManager(CorpusManager):
         valuable_seeds = sorted(
             self.historical_seeds,
             key=lambda s: (s.discoveries * 10 + s.crashes),
-            reverse=True
+            reverse=True,
         )
 
         # Add top seeds to corpus

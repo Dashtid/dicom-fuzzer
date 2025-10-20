@@ -3,41 +3,46 @@
 import json
 import sys
 
+
 def create_html_report(json_path: str, html_path: str = None):
     """Create HTML report from JSON fuzzing results."""
 
     # Read JSON report
-    with open(json_path, 'r') as f:
+    with open(json_path, "r") as f:
         report = json.load(f)
 
     # Default HTML path
     if html_path is None:
-        html_path = json_path.replace('.json', '.html')
+        html_path = json_path.replace(".json", ".html")
 
     # Get stats
-    stats = report['statistics']
-    config = report['configuration']
+    stats = report["statistics"]
+    config = report["configuration"]
 
     # Calculate total tests
-    total_tests = stats.get('viewer_hangs', 0) + stats.get('viewer_crashes', 0) + stats.get('viewer_success', 0)
-    hang_rate = stats.get('hang_rate', 0)
+    total_tests = (
+        stats.get("viewer_hangs", 0)
+        + stats.get("viewer_crashes", 0)
+        + stats.get("viewer_success", 0)
+    )
+    hang_rate = stats.get("hang_rate", 0)
 
     # Determine alert type
-    alert_html = ''
+    alert_html = ""
     if hang_rate == 100.0:
-        alert_html = '''<div class="alert">
+        alert_html = """<div class="alert">
             <strong>⚠️ CRITICAL SECURITY FINDING:</strong> 100% hang rate detected!
             This indicates a serious Denial of Service (DoS) vulnerability in Hermes.exe.
-        </div>'''
+        </div>"""
     elif hang_rate >= 50:
-        alert_html = f'''<div class="warning">
+        alert_html = f"""<div class="warning">
             <strong>⚠️ WARNING:</strong> High hang rate ({hang_rate:.1f}%) detected.
             This may indicate a DoS vulnerability.
-        </div>'''
+        </div>"""
     elif total_tests > 0:
-        alert_html = f'''<div class="success">
+        alert_html = f"""<div class="success">
             <strong>✓ INFO:</strong> Hang rate: {hang_rate:.1f}%
-        </div>'''
+        </div>"""
 
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -158,7 +163,7 @@ def create_html_report(json_path: str, html_path: str = None):
 <body>
     <div class="container">
         <h1>🔍 Hermes.exe DICOM Viewer Security Assessment</h1>
-        <p class="timestamp">Generated: {report['timestamp']}</p>
+        <p class="timestamp">Generated: {report["timestamp"]}</p>
 
         {alert_html}
 
@@ -170,42 +175,42 @@ def create_html_report(json_path: str, html_path: str = None):
             </tr>
             <tr>
                 <td><strong>Target Application</strong></td>
-                <td><code>{config.get('viewer_path', 'N/A')}</code></td>
+                <td><code>{config.get("viewer_path", "N/A")}</code></td>
             </tr>
             <tr>
                 <td><strong>Input Directory</strong></td>
-                <td><code>{config.get('input_dir', 'N/A')}</code></td>
+                <td><code>{config.get("input_dir", "N/A")}</code></td>
             </tr>
             <tr>
                 <td><strong>Output Directory</strong></td>
-                <td><code>{config.get('output_dir', 'N/A')}</code></td>
+                <td><code>{config.get("output_dir", "N/A")}</code></td>
             </tr>
             <tr>
                 <td><strong>Timeout (seconds)</strong></td>
-                <td>{config.get('timeout', 'N/A')}</td>
+                <td>{config.get("timeout", "N/A")}</td>
             </tr>
         </table>
 
         <h2>📊 Test Results</h2>
         <div class="summary-grid">
             <div class="metric-card">
-                <div class="metric-value">{stats.get('files_processed', 0)}</div>
+                <div class="metric-value">{stats.get("files_processed", 0)}</div>
                 <div class="metric-label">Files Processed</div>
             </div>
             <div class="metric-card">
-                <div class="metric-value">{stats.get('files_fuzzed', 0)}</div>
+                <div class="metric-value">{stats.get("files_fuzzed", 0)}</div>
                 <div class="metric-label">Files Fuzzed</div>
             </div>
             <div class="metric-card">
-                <div class="metric-value">{stats.get('files_generated', 0)}</div>
+                <div class="metric-value">{stats.get("files_generated", 0)}</div>
                 <div class="metric-label">Files Generated</div>
             </div>
             <div class="metric-card">
-                <div class="metric-value">{stats.get('viewer_crashes', 0)}</div>
+                <div class="metric-value">{stats.get("viewer_crashes", 0)}</div>
                 <div class="metric-label">Crashes</div>
             </div>
             <div class="metric-card">
-                <div class="metric-value">{stats.get('viewer_hangs', 0)}</div>
+                <div class="metric-value">{stats.get("viewer_hangs", 0)}</div>
                 <div class="metric-label">Hangs/Timeouts</div>
             </div>
             <div class="metric-card">
@@ -248,7 +253,7 @@ def create_html_report(json_path: str, html_path: str = None):
 
         <h2>💡 Recommendations</h2>
         <ul>
-            <li>Investigate hang logs in <code>{config.get('output_dir', 'output')}</code> for root cause analysis</li>
+            <li>Investigate hang logs in <code>{config.get("output_dir", "output")}</code> for root cause analysis</li>
             <li>Test fuzzed files manually to reproduce and debug the issue</li>
             <li>Implement robust input validation for DICOM file parsing</li>
             <li>Add timeout mechanisms in the DICOM parser to prevent infinite loops</li>
@@ -257,7 +262,7 @@ def create_html_report(json_path: str, html_path: str = None):
         </ul>
 
         <h2>📂 Output Files</h2>
-        <p>Fuzzed files and hang logs are available in: <code>{config.get('output_dir', 'N/A')}</code></p>
+        <p>Fuzzed files and hang logs are available in: <code>{config.get("output_dir", "N/A")}</code></p>
         <p>Each hang event has a corresponding log file with details about the problematic DICOM file.</p>
 
         <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
@@ -271,15 +276,18 @@ def create_html_report(json_path: str, html_path: str = None):
 """
 
     # Write HTML report
-    with open(html_path, 'w', encoding='utf-8') as f:
+    with open(html_path, "w", encoding="utf-8") as f:
         f.write(html_content)
 
     print(f"HTML report created: {html_path}")
     return html_path
 
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python create_html_report.py <json_report_path> [output_html_path]")
+        print(
+            "Usage: python create_html_report.py <json_report_path> [output_html_path]"
+        )
         sys.exit(1)
 
     json_path = sys.argv[1]

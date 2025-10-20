@@ -9,29 +9,29 @@ This script demonstrates a complete fuzzing workflow:
 4. Generate a comprehensive report
 """
 
+import logging
 import sys
 from pathlib import Path
 from typing import List
-import logging
 
 # Add project root to path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from core.parser import DICOMParser
-from core.generator import DICOMGenerator
-from core.mutator import DICAMMutator
-from core.fuzzing_session import FuzzingSession
-from core.reporter import Reporter
-from core.crash_analyzer import CrashAnalyzer
-from core.corpus import Corpus
-from core.coverage_tracker import CoverageTracker
-from core.statistics import Statistics
+# noqa: E402 - imports after path modification
+from core.crash_analyzer import CrashAnalyzer  # noqa: E402
+from core.corpus import Corpus  # noqa: E402
+from core.coverage_tracker import CoverageTracker  # noqa: E402
+from core.fuzzing_session import FuzzingSession  # noqa: E402
+from core.generator import DICOMGenerator  # noqa: E402
+from core.mutator import DICAMMutator  # noqa: E402
+from core.parser import DICOMParser  # noqa: E402
+from core.reporter import Reporter  # noqa: E402
+from core.statistics import Statistics  # noqa: E402
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -39,11 +39,11 @@ logger = logging.getLogger(__name__)
 def setup_directories():
     """Create necessary directories for the demo."""
     dirs = [
-        'demo_output',
-        'demo_output/fuzzed',
-        'demo_output/crashes',
-        'demo_output/images',
-        'demo_output/reports'
+        "demo_output",
+        "demo_output/fuzzed",
+        "demo_output/crashes",
+        "demo_output/images",
+        "demo_output/reports",
     ]
     for dir_path in dirs:
         Path(dir_path).mkdir(parents=True, exist_ok=True)
@@ -86,26 +86,26 @@ def visualize_dicom(file_path: Path, output_path: Path) -> bool:
         ds = pydicom.dcmread(str(file_path))
 
         # Get pixel data if available
-        if hasattr(ds, 'pixel_array'):
+        if hasattr(ds, "pixel_array"):
             pixel_data = ds.pixel_array
 
             # Create visualization
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
             # Display image
-            ax1.imshow(pixel_data, cmap='gray')
-            ax1.set_title(f'DICOM Image\n{file_path.name}')
-            ax1.axis('off')
+            ax1.imshow(pixel_data, cmap="gray")
+            ax1.set_title(f"DICOM Image\n{file_path.name}")
+            ax1.axis("off")
 
             # Display histogram
-            ax2.hist(pixel_data.flatten(), bins=50, color='blue', alpha=0.7)
-            ax2.set_title('Pixel Intensity Distribution')
-            ax2.set_xlabel('Pixel Value')
-            ax2.set_ylabel('Frequency')
+            ax2.hist(pixel_data.flatten(), bins=50, color="blue", alpha=0.7)
+            ax2.set_title("Pixel Intensity Distribution")
+            ax2.set_xlabel("Pixel Value")
+            ax2.set_ylabel("Frequency")
             ax2.grid(True, alpha=0.3)
 
             plt.tight_layout()
-            plt.savefig(output_path, dpi=150, bbox_inches='tight')
+            plt.savefig(output_path, dpi=150, bbox_inches="tight")
             plt.close()
 
             logger.info(f"Saved visualization: {output_path}")
@@ -138,12 +138,12 @@ def simulate_target_application(dicom_file: Path) -> tuple[bool, str]:
         # Simulate various crash conditions
 
         # Check for extremely large dimensions (simulated crash)
-        if hasattr(ds, 'Rows') and hasattr(ds, 'Columns'):
+        if hasattr(ds, "Rows") and hasattr(ds, "Columns"):
             if ds.Rows > 10000 or ds.Columns > 10000:
                 raise ValueError(f"Image dimensions too large: {ds.Rows}x{ds.Columns}")
 
         # Check for invalid pixel data (simulated crash)
-        if hasattr(ds, 'pixel_array'):
+        if hasattr(ds, "pixel_array"):
             pixel_data = ds.pixel_array
             if pixel_data.size == 0:
                 raise ValueError("Empty pixel data array")
@@ -153,7 +153,7 @@ def simulate_target_application(dicom_file: Path) -> tuple[bool, str]:
                 raise OverflowError(f"Pixel value overflow: {pixel_data.max()}")
 
         # Check for missing required tags (simulated crash)
-        required_tags = ['SOPClassUID', 'SOPInstanceUID', 'StudyInstanceUID']
+        required_tags = ["SOPClassUID", "SOPInstanceUID", "StudyInstanceUID"]
         for tag in required_tags:
             if not hasattr(ds, tag):
                 raise AttributeError(f"Missing required tag: {tag}")
@@ -179,7 +179,9 @@ def run_fuzzing_workflow():
     seed_files = find_seed_files()
 
     if not seed_files:
-        logger.error("No seed files found. Please ensure example DICOM files are available.")
+        logger.error(
+            "No seed files found. Please ensure example DICOM files are available."
+        )
         return
 
     logger.info(f"Found {len(seed_files)} seed files:")
@@ -189,7 +191,7 @@ def run_fuzzing_workflow():
     # Visualize original seed files
     logger.info("\n[2/5] Visualizing original DICOM files...")
     for i, seed in enumerate(seed_files):
-        output_path = Path(f"demo_output/images/original_{i+1}.png")
+        output_path = Path(f"demo_output/images/original_{i + 1}.png")
         visualize_dicom(seed, output_path)
 
     # Generate fuzzed variants
@@ -212,13 +214,17 @@ def run_fuzzing_workflow():
                 mutated = mutator.mutate(dicom_dict)
 
                 # Generate output file
-                output_file = Path(f"demo_output/fuzzed/seed{seed_idx+1}_variant{variant_idx+1}.dcm")
+                output_file = Path(
+                    f"demo_output/fuzzed/seed{seed_idx + 1}_variant{variant_idx + 1}.dcm"
+                )
                 generator.generate(mutated, str(output_file))
                 fuzzed_files.append(output_file)
 
                 # Visualize first few variants
                 if variant_idx < 3:
-                    img_output = Path(f"demo_output/images/seed{seed_idx+1}_variant{variant_idx+1}.png")
+                    img_output = Path(
+                        f"demo_output/images/seed{seed_idx + 1}_variant{variant_idx + 1}.png"
+                    )
                     visualize_dicom(output_file, img_output)
 
             logger.info(f"Generated {mutations_per_seed} variants from {seed.name}")
@@ -236,14 +242,15 @@ def run_fuzzing_workflow():
     analyzer = CrashAnalyzer()
     stats = Statistics()
 
-    session = FuzzingSession(
+    # Session is created but not actively used in this demo workflow
+    _ = FuzzingSession(
         corpus=corpus,
         mutator=mutator,
         generator=generator,
         coverage_tracker=coverage,
         crash_analyzer=analyzer,
         statistics=stats,
-        max_iterations=len(fuzzed_files)
+        max_iterations=len(fuzzed_files),
     )
 
     # Test each fuzzed file
@@ -253,10 +260,7 @@ def run_fuzzing_workflow():
 
         if not success:
             # Record crash
-            crashes_found.append({
-                'file': fuzz_file,
-                'error': error_msg
-            })
+            crashes_found.append({"file": fuzz_file, "error": error_msg})
 
             # Analyze crash
             try:
@@ -281,9 +285,7 @@ def run_fuzzing_workflow():
     logger.info("\n[5/5] Generating comprehensive report...")
 
     reporter = Reporter(
-        statistics=stats,
-        crash_analyzer=analyzer,
-        coverage_tracker=coverage
+        statistics=stats, crash_analyzer=analyzer, coverage_tracker=coverage
     )
 
     report_path = Path("demo_output/reports/fuzzing_report.md")
@@ -320,7 +322,7 @@ def run_fuzzing_workflow():
             logger.info(f"  ... and {len(crashes_found) - 5} more (see report)")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         run_fuzzing_workflow()
     except KeyboardInterrupt:

@@ -13,32 +13,30 @@ import sys
 import pydicom
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('Agg')  # Use non-interactive backend
+
+matplotlib.use("Agg")  # Use non-interactive backend
 from pathlib import Path
 import logging
 from typing import List
 import random
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(levelname)s: %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
 def setup_output_dirs():
     """Create output directories."""
     dirs = [
-        'demo_output',
-        'demo_output/fuzzed',
-        'demo_output/crashes',
-        'demo_output/images',
-        'demo_output/reports'
+        "demo_output",
+        "demo_output/fuzzed",
+        "demo_output/crashes",
+        "demo_output/images",
+        "demo_output/reports",
     ]
     for d in dirs:
         Path(d).mkdir(parents=True, exist_ok=True)
-    return Path('demo_output')
+    return Path("demo_output")
 
 
 def find_seed_files() -> List[Path]:
@@ -51,7 +49,7 @@ def find_seed_files() -> List[Path]:
 
     # Find DICOM files
     dicom_files = []
-    for ext in ['*.dcm', '*.DCM', '*']:
+    for ext in ["*.dcm", "*.DCM", "*"]:
         files = list(example_dir.rglob(ext))
         dicom_files.extend(files)
         if len(dicom_files) >= 3:
@@ -62,11 +60,11 @@ def find_seed_files() -> List[Path]:
     for f in dicom_files[:10]:  # Check first 10
         try:
             ds = pydicom.dcmread(str(f), force=True)
-            if hasattr(ds, 'pixel_array'):
+            if hasattr(ds, "pixel_array"):
                 valid_files.append(f)
                 if len(valid_files) >= 3:
                     break
-        except:
+        except Exception:
             continue
 
     return valid_files
@@ -77,7 +75,7 @@ def visualize_dicom(file_path: Path, output_path: Path, title: str = None) -> bo
     try:
         ds = pydicom.dcmread(str(file_path))
 
-        if not hasattr(ds, 'pixel_array'):
+        if not hasattr(ds, "pixel_array"):
             return False
 
         pixel_data = ds.pixel_array
@@ -86,20 +84,26 @@ def visualize_dicom(file_path: Path, output_path: Path, title: str = None) -> bo
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
         # Display image
-        im = ax1.imshow(pixel_data, cmap='gray')
+        im = ax1.imshow(pixel_data, cmap="gray")
         ax1.set_title(title or file_path.name, fontsize=10)
-        ax1.axis('off')
+        ax1.axis("off")
         plt.colorbar(im, ax=ax1, fraction=0.046)
 
         # Display histogram
-        ax2.hist(pixel_data.flatten(), bins=50, color='steelblue', alpha=0.7, edgecolor='black')
-        ax2.set_title('Pixel Value Distribution')
-        ax2.set_xlabel('Pixel Value')
-        ax2.set_ylabel('Frequency')
+        ax2.hist(
+            pixel_data.flatten(),
+            bins=50,
+            color="steelblue",
+            alpha=0.7,
+            edgecolor="black",
+        )
+        ax2.set_title("Pixel Value Distribution")
+        ax2.set_xlabel("Pixel Value")
+        ax2.set_ylabel("Frequency")
         ax2.grid(True, alpha=0.3)
 
         plt.tight_layout()
-        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.savefig(output_path, dpi=150, bbox_inches="tight")
         plt.close()
 
         logger.info(f"Saved visualization: {output_path.name}")
@@ -116,15 +120,11 @@ def simple_mutate_dicom(ds: pydicom.Dataset) -> pydicom.Dataset:
     mutated = ds.copy()
 
     # Choose random mutation
-    mutation_type = random.choice([
-        'modify_pixel',
-        'modify_tag',
-        'flip_bits',
-        'scale_values',
-        'add_noise'
-    ])
+    mutation_type = random.choice(
+        ["modify_pixel", "modify_tag", "flip_bits", "scale_values", "add_noise"]
+    )
 
-    if mutation_type == 'modify_pixel' and hasattr(mutated, 'pixel_array'):
+    if mutation_type == "modify_pixel" and hasattr(mutated, "pixel_array"):
         # Modify random pixels
         pixels = mutated.pixel_array.copy()
         num_modifications = random.randint(10, 100)
@@ -134,34 +134,35 @@ def simple_mutate_dicom(ds: pydicom.Dataset) -> pydicom.Dataset:
             pixels[y, x] = random.randint(0, pixels.max())
         mutated.PixelData = pixels.tobytes()
 
-    elif mutation_type == 'modify_tag':
+    elif mutation_type == "modify_tag":
         # Modify a random tag value
-        modifiable_tags = ['PatientName', 'StudyDescription', 'SeriesDescription']
+        modifiable_tags = ["PatientName", "StudyDescription", "SeriesDescription"]
         for tag in modifiable_tags:
             if hasattr(mutated, tag):
                 setattr(mutated, tag, f"FUZZED_{random.randint(1000, 9999)}")
                 break
 
-    elif mutation_type == 'flip_bits' and hasattr(mutated, 'pixel_array'):
+    elif mutation_type == "flip_bits" and hasattr(mutated, "pixel_array"):
         # Flip random bits in pixel data
         pixels = mutated.pixel_array.copy()
         num_flips = random.randint(5, 50)
         for _ in range(num_flips):
             y = random.randint(0, pixels.shape[0] - 1)
             x = random.randint(0, pixels.shape[1] - 1)
-            pixels[y, x] ^= (1 << random.randint(0, 7))
+            pixels[y, x] ^= 1 << random.randint(0, 7)
         mutated.PixelData = pixels.tobytes()
 
-    elif mutation_type == 'scale_values' and hasattr(mutated, 'pixel_array'):
+    elif mutation_type == "scale_values" and hasattr(mutated, "pixel_array"):
         # Scale pixel values
         pixels = mutated.pixel_array.copy()
         scale_factor = random.uniform(0.5, 2.0)
         pixels = (pixels * scale_factor).astype(pixels.dtype)
         mutated.PixelData = pixels.tobytes()
 
-    elif mutation_type == 'add_noise' and hasattr(mutated, 'pixel_array'):
+    elif mutation_type == "add_noise" and hasattr(mutated, "pixel_array"):
         # Add random noise
         import numpy as np
+
         pixels = mutated.pixel_array.copy()
         noise = np.random.normal(0, pixels.std() * 0.1, pixels.shape)
         pixels = np.clip(pixels + noise, 0, pixels.max()).astype(pixels.dtype)
@@ -178,14 +179,17 @@ def simulate_target(dicom_file: Path) -> tuple[bool, str]:
         # Simulate various crash conditions
 
         # Check dimensions
-        if hasattr(ds, 'Rows') and hasattr(ds, 'Columns'):
+        if hasattr(ds, "Rows") and hasattr(ds, "Columns"):
             if ds.Rows > 10000 or ds.Columns > 10000:
-                return False, f"DimensionError: Image too large ({ds.Rows}x{ds.Columns})"
+                return (
+                    False,
+                    f"DimensionError: Image too large ({ds.Rows}x{ds.Columns})",
+                )
             if ds.Rows == 0 or ds.Columns == 0:
                 return False, "DimensionError: Zero dimension"
 
         # Check pixel data
-        if hasattr(ds, 'pixel_array'):
+        if hasattr(ds, "pixel_array"):
             pixels = ds.pixel_array
 
             if pixels.size == 0:
@@ -193,15 +197,19 @@ def simulate_target(dicom_file: Path) -> tuple[bool, str]:
 
             # Simulate crash on extreme values
             if pixels.max() > 65535:
-                return False, f"OverflowError: Pixel value {pixels.max()} exceeds maximum"
+                return (
+                    False,
+                    f"OverflowError: Pixel value {pixels.max()} exceeds maximum",
+                )
 
             # Simulate crash on NaN or inf
             import numpy as np
+
             if np.any(np.isnan(pixels)) or np.any(np.isinf(pixels)):
                 return False, "ValueError: Invalid pixel values (NaN/Inf)"
 
         # Check required tags
-        required = ['SOPClassUID', 'SOPInstanceUID']
+        required = ["SOPClassUID", "SOPInstanceUID"]
         for tag in required:
             if not hasattr(ds, tag):
                 return False, f"MissingTagError: Required tag {tag} missing"
@@ -238,8 +246,8 @@ def run_demo():
     # Visualize originals
     print("\n[1/4] Visualizing original DICOM files...")
     for i, seed in enumerate(seeds):
-        output = output_dir / 'images' / f'original_{i+1}.png'
-        visualize_dicom(seed, output, f"Original Seed #{i+1}: {seed.name}")
+        output = output_dir / "images" / f"original_{i + 1}.png"
+        visualize_dicom(seed, output, f"Original Seed #{i + 1}: {seed.name}")
 
     # Generate fuzzed variants
     print("\n[2/4] Generating fuzzed variants...")
@@ -255,15 +263,24 @@ def run_demo():
                 mutated = simple_mutate_dicom(ds)
 
                 # Save
-                output_file = output_dir / 'fuzzed' / f'seed{seed_idx+1}_var{var_idx+1}.dcm'
+                output_file = (
+                    output_dir / "fuzzed" / f"seed{seed_idx + 1}_var{var_idx + 1}.dcm"
+                )
                 mutated.save_as(str(output_file))
                 fuzzed_files.append(output_file)
 
                 # Visualize first few
                 if var_idx < 3:
-                    img_output = output_dir / 'images' / f'fuzzed_seed{seed_idx+1}_var{var_idx+1}.png'
-                    visualize_dicom(output_file, img_output,
-                                  f"Fuzzed Variant: Seed #{seed_idx+1}, Variant #{var_idx+1}")
+                    img_output = (
+                        output_dir
+                        / "images"
+                        / f"fuzzed_seed{seed_idx + 1}_var{var_idx + 1}.png"
+                    )
+                    visualize_dicom(
+                        output_file,
+                        img_output,
+                        f"Fuzzed Variant: Seed #{seed_idx + 1}, Variant #{var_idx + 1}",
+                    )
 
             logger.info(f"Generated {variants_per_seed} variants from {seed.name}")
 
@@ -280,19 +297,16 @@ def run_demo():
         success, error = simulate_target(fuzz_file)
 
         if not success:
-            crashes.append({
-                'file': fuzz_file.name,
-                'error': error
-            })
+            crashes.append({"file": fuzz_file.name, "error": error})
 
             # Move to crashes dir
-            crash_dest = output_dir / 'crashes' / fuzz_file.name
+            crash_dest = output_dir / "crashes" / fuzz_file.name
             fuzz_file.rename(crash_dest)
 
     print("\nTesting complete:")
     print(f"  - Files tested: {len(fuzzed_files)}")
     print(f"  - Crashes found: {len(crashes)}")
-    print(f"  - Crash rate: {len(crashes)/len(fuzzed_files)*100:.1f}%")
+    print(f"  - Crash rate: {len(crashes) / len(fuzzed_files) * 100:.1f}%")
 
     # Generate report
     print("\n[4/4] Generating report...")
@@ -301,7 +315,7 @@ def run_demo():
 
 ## Executive Summary
 
-**Date:** {Path('demo_output').stat().st_mtime}
+**Date:** {Path("demo_output").stat().st_mtime}
 **Duration:** Demo session
 **Status:** Complete
 
@@ -319,7 +333,7 @@ def run_demo():
 |--------|-------|
 | Total Test Cases | {len(fuzzed_files)} |
 | Crashes Detected | {len(crashes)} |
-| Crash Rate | {len(crashes)/len(fuzzed_files)*100:.1f}% |
+| Crash Rate | {len(crashes) / len(fuzzed_files) * 100:.1f}% |
 | Successful Tests | {len(fuzzed_files) - len(crashes)} |
 
 ### Seed Files
@@ -335,7 +349,7 @@ def run_demo():
         # Group by error type
         error_types = {}
         for crash in crashes:
-            error_type = crash['error'].split(':')[0]
+            error_type = crash["error"].split(":")[0]
             if error_type not in error_types:
                 error_types[error_type] = []
             error_types[error_type].append(crash)
@@ -353,27 +367,27 @@ def run_demo():
     report += "### Original Seed Files\n\n"
 
     for i in range(len(seeds)):
-        report += f"![Original Seed {i+1}](../images/original_{i+1}.png)\n\n"
+        report += f"![Original Seed {i + 1}](../images/original_{i + 1}.png)\n\n"
 
     report += "### Example Fuzzed Variants\n\n"
 
     for seed_idx in range(len(seeds)):
         for var_idx in range(min(3, variants_per_seed)):
-            img_file = f'fuzzed_seed{seed_idx+1}_var{var_idx+1}.png'
-            if (output_dir / 'images' / img_file).exists():
+            img_file = f"fuzzed_seed{seed_idx + 1}_var{var_idx + 1}.png"
+            if (output_dir / "images" / img_file).exists():
                 report += f"![Fuzzed Variant](../images/{img_file})\n\n"
 
     report += "\n## Output Files\n\n"
-    report += f"- **Visualizations:** `demo_output/images/` ({len(list((output_dir/'images').glob('*.png')))} images)\n"
-    report += f"- **Fuzzed Files:** `demo_output/fuzzed/` ({len(list((output_dir/'fuzzed').glob('*.dcm')))} files)\n"
-    report += f"- **Crashes:** `demo_output/crashes/` ({len(list((output_dir/'crashes').glob('*.dcm')))} files)\n"
+    report += f"- **Visualizations:** `demo_output/images/` ({len(list((output_dir / 'images').glob('*.png')))} images)\n"
+    report += f"- **Fuzzed Files:** `demo_output/fuzzed/` ({len(list((output_dir / 'fuzzed').glob('*.dcm')))} files)\n"
+    report += f"- **Crashes:** `demo_output/crashes/` ({len(list((output_dir / 'crashes').glob('*.dcm')))} files)\n"
     report += "- **Reports:** `demo_output/reports/`\n"
 
     report += "\n---\n\n"
     report += "*Generated by DICOM Fuzzer - Demonstration Mode*\n"
 
     # Save report
-    report_path = output_dir / 'reports' / 'FUZZING_REPORT.md'
+    report_path = output_dir / "reports" / "FUZZING_REPORT.md"
     report_path.write_text(report)
 
     logger.info(f"Report saved to: {report_path}")
@@ -395,7 +409,7 @@ def run_demo():
     return report_path
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         run_demo()
     except KeyboardInterrupt:

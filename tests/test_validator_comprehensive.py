@@ -120,8 +120,7 @@ class TestDicomValidator:
         validator = DicomValidator()
 
         assert validator.strict_mode is False
-        assert validator.check_required is True
-        assert validator.check_vr is True
+        assert validator.max_file_size == 100 * 1024 * 1024
 
     def test_initialization_strict_mode(self):
         """Test strict mode initialization."""
@@ -133,47 +132,62 @@ class TestDicomValidator:
         """Test custom options."""
         validator = DicomValidator(
             strict_mode=True,
-            check_required=False,
-            check_vr=False
+            max_file_size=50 * 1024 * 1024
         )
 
-        assert validator.check_required is False
-        assert validator.check_vr is False
+        assert validator.strict_mode is True
+        assert validator.max_file_size == 50 * 1024 * 1024
 
     def test_validate_file_missing(self):
         """Test validation of missing file."""
         validator = DicomValidator()
 
-        result = validator.validate_file("nonexistent.dcm")
+        result, dataset = validator.validate_file("nonexistent.dcm")
 
         assert result.is_valid is False
         assert len(result.errors) > 0
+        assert dataset is None
 
-    @patch('dicom_fuzzer.core.validator.Path.exists')
-    @patch('pydicom.dcmread')
-    def test_validate_file_success(self, mock_dcmread, mock_exists):
+    def test_validate_file_success(self, tmp_path):
         """Test successful file validation."""
-        mock_exists.return_value = True
-        mock_dataset = Mock(spec=Dataset)
-        mock_dataset.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        mock_dataset.PatientName = "Test^Patient"
-        mock_dcmread.return_value = mock_dataset
+        # Create a minimal valid DICOM file
+        test_file = tmp_path / "test.dcm"
+
+        import pydicom
+        from pydicom.dataset import Dataset, FileMetaDataset
+
+        # Create file meta information
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # Implicit VR Little Endian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5.6.7"
+
+        # Create dataset
+        ds = Dataset()
+        ds.file_meta = file_meta
+        ds.PatientName = "Test^Patient"
+        ds.PatientID = "TEST001"
+
+        # Save the file
+        pydicom.dcmwrite(str(test_file), ds)
 
         validator = DicomValidator()
-        result = validator.validate_file("test.dcm")
+        result, dataset = validator.validate_file(test_file)
 
-        # Should call validation
-        mock_dcmread.assert_called_once()
+        # Should return result and dataset
+        assert isinstance(result, ValidationResult)
+        assert dataset is not None
 
     def test_validate_dataset_empty(self):
         """Test validation of empty dataset."""
         validator = DicomValidator(strict_mode=True)
         dataset = Dataset()
 
-        result = validator.validate_dataset(dataset)
+        result = validator.validate(dataset)
 
         # Empty dataset should have issues in strict mode
         assert isinstance(result, ValidationResult)
+        assert result.is_valid is False  # Empty dataset is invalid
 
     def test_validate_dataset_basic(self):
         """Test basic dataset validation."""
@@ -181,19 +195,20 @@ class TestDicomValidator:
         dataset = Dataset()
         dataset.PatientName = "Test"
 
-        result = validator.validate_dataset(dataset)
+        result = validator.validate(dataset)
 
         assert isinstance(result, ValidationResult)
 
-    @patch('dicom_fuzzer.core.validator.SecurityEventLogger')
-    def test_validation_logs_security_events(self, mock_logger):
+    def test_validation_logs_security_events(self):
         """Test that validation failures log security events."""
         validator = DicomValidator(strict_mode=True)
 
         # This will trigger validation logic
-        result = validator.validate_file("missing.dcm")
+        result, dataset = validator.validate_file("missing.dcm")
 
         assert isinstance(result, ValidationResult)
+        assert result.is_valid is False
+        assert dataset is None
 
 
 class TestValidationIntegration:

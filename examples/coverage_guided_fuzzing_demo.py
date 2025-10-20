@@ -46,10 +46,10 @@ def target_function(dicom_data: bytes) -> bool:
         is_valid = validator.validate(dataset)
 
         # Extract some metadata
-        if hasattr(dataset, 'PatientName'):
+        if hasattr(dataset, "PatientName"):
             patient_name = str(dataset.PatientName)
 
-        if hasattr(dataset, 'StudyDate'):
+        if hasattr(dataset, "StudyDate"):
             study_date = str(dataset.StudyDate)
 
         return True
@@ -62,9 +62,9 @@ def target_function(dicom_data: bytes) -> bool:
 def main():
     """Run coverage-guided fuzzing demonstration."""
 
-    print("="* 70)
+    print("=" * 70)
     print("Coverage-Guided Fuzzing Demonstration")
-    print("="* 70)
+    print("=" * 70)
     print()
     print("This demo shows how to use advanced coverage-guided fuzzing")
     print("to automatically find bugs in DICOM processing code.")
@@ -74,32 +74,29 @@ def main():
     config = FuzzingConfig(
         # Target configuration
         target_function=target_function,
-        target_modules=['core.parser', 'core.validator'],  # Track coverage in these modules
-
+        target_modules=[
+            "core.parser",
+            "core.validator",
+        ],  # Track coverage in these modules
         # Fuzzing parameters
         max_iterations=1000,  # Run 1000 fuzzing iterations
         timeout_per_run=1.0,  # 1 second timeout per test
         num_workers=4,  # Use 4 parallel workers
-
         # Coverage parameters
         coverage_guided=True,  # Enable coverage-guided mode
         track_branches=True,  # Track branch coverage
         minimize_corpus=True,  # Minimize corpus automatically
-
         # Corpus parameters
         seed_dir=Path("test_data/valid_dicoms"),  # Initial seed files
         max_corpus_size=500,  # Keep up to 500 interesting inputs
-
         # Mutation parameters
         max_mutations=10,  # Up to 10 mutations per input
         adaptive_mutations=True,  # Adapt mutations based on feedback
         dicom_aware=True,  # Use DICOM-specific mutations
-
         # Output configuration
         output_dir=Path("fuzzing_results"),
         crash_dir=Path("crashes"),
         save_interesting=True,  # Save inputs that find new coverage
-
         # Reporting
         report_interval=100,  # Report stats every 100 iterations
         verbose=True,
@@ -126,9 +123,9 @@ def main():
 
         # Print final statistics
         print()
-        print("="* 70)
+        print("=" * 70)
         print("Fuzzing Campaign Complete!")
-        print("="* 70)
+        print("=" * 70)
         print(f"Total executions: {stats.total_executions}")
         print(f"Executions/sec: {stats.exec_per_sec:.2f}")
         print(f"Total crashes: {stats.total_crashes}")

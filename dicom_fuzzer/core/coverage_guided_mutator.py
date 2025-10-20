@@ -18,6 +18,7 @@ from .corpus_manager import Seed
 
 class MutationType(Enum):
     """Types of mutations available."""
+
     # Byte-level mutations
     BIT_FLIP = "bit_flip"
     BYTE_FLIP = "byte_flip"
@@ -95,7 +96,7 @@ class CoverageGuidedMutator:
         self,
         max_mutations: int = 10,
         adaptive_mode: bool = True,
-        dicom_aware: bool = True
+        dicom_aware: bool = True,
     ):
         """
         Initialize the coverage-guided mutator.
@@ -115,24 +116,51 @@ class CoverageGuidedMutator:
 
         # Interesting values for mutations
         self.interesting_bytes = [
-            0x00, 0xFF, 0x7F, 0x80,  # Boundary values
-            0x01, 0xFE, 0x10, 0xEF,  # Near boundaries
+            0x00,
+            0xFF,
+            0x7F,
+            0x80,  # Boundary values
+            0x01,
+            0xFE,
+            0x10,
+            0xEF,  # Near boundaries
         ]
 
         self.interesting_ints = [
-            0, 1, -1, 16, -16, 32, -32, 64, -64,
-            127, -128, 255, -256, 512, -512,
-            1024, -1024, 4096, -4096, 32767, -32768,
-            65535, -65536, 2147483647, -2147483648
+            0,
+            1,
+            -1,
+            16,
+            -16,
+            32,
+            -32,
+            64,
+            -64,
+            127,
+            -128,
+            255,
+            -256,
+            512,
+            -512,
+            1024,
+            -1024,
+            4096,
+            -4096,
+            32767,
+            -32768,
+            65535,
+            -65536,
+            2147483647,
+            -2147483648,
         ]
 
         # DICOM-specific values
         self.dicom_tags = [
-            b'\x08\x00',  # Group 0x0008
-            b'\x10\x00',  # Group 0x0010 (Patient)
-            b'\x20\x00',  # Group 0x0020 (Study)
-            b'\x28\x00',  # Group 0x0028 (Image)
-            b'\x7F\xE0',  # Pixel Data
+            b"\x08\x00",  # Group 0x0008
+            b"\x10\x00",  # Group 0x0010 (Patient)
+            b"\x20\x00",  # Group 0x0020 (Study)
+            b"\x28\x00",  # Group 0x0028 (Image)
+            b"\x7f\xe0",  # Pixel Data
         ]
 
         # Track mutation history
@@ -152,14 +180,12 @@ class CoverageGuidedMutator:
                 MutationType.DICOM_VR_MISMATCH,
                 MutationType.DICOM_LENGTH_OVERFLOW,
                 MutationType.DICOM_SEQUENCE_NEST,
-                MutationType.DICOM_TRANSFER_SYNTAX
+                MutationType.DICOM_TRANSFER_SYNTAX,
             ]:
                 self.strategies[mutation_type].enabled = False
 
     def mutate(
-        self,
-        seed: Seed,
-        coverage_info: Optional[CoverageInfo] = None
+        self, seed: Seed, coverage_info: Optional[CoverageInfo] = None
     ) -> List[Tuple[bytes, MutationType]]:
         """
         Mutate a seed to generate new test cases.
@@ -176,8 +202,7 @@ class CoverageGuidedMutator:
 
         # Determine number of mutations based on seed energy
         num_mutations = min(
-            self.max_mutations,
-            max(1, int(seed.energy * random.randint(1, 5)))
+            self.max_mutations, max(1, int(seed.energy * random.randint(1, 5)))
         )
 
         for _ in range(num_mutations):
@@ -193,15 +218,12 @@ class CoverageGuidedMutator:
         return mutations
 
     def _select_mutation_strategy(
-        self,
-        coverage_info: Optional[CoverageInfo] = None
+        self, coverage_info: Optional[CoverageInfo] = None
     ) -> MutationType:
         """Select mutation strategy based on weights and coverage."""
         if not self.adaptive_mode or random.random() < 0.1:
             # 10% random selection for exploration
-            enabled_strategies = [
-                mt for mt, s in self.strategies.items() if s.enabled
-            ]
+            enabled_strategies = [mt for mt, s in self.strategies.items() if s.enabled]
             return random.choice(enabled_strategies)
 
         # Weighted selection based on success rates
@@ -226,9 +248,7 @@ class CoverageGuidedMutator:
         return np.random.choice(strategies, p=weights)
 
     def _apply_mutation(
-        self,
-        data: bytearray,
-        mutation_type: MutationType
+        self, data: bytearray, mutation_type: MutationType
     ) -> Optional[bytearray]:
         """Apply specific mutation to data."""
         if len(data) == 0:
@@ -306,7 +326,7 @@ class CoverageGuidedMutator:
         for _ in range(num_flips):
             pos = random.randint(0, len(data) - 1)
             bit = random.randint(0, 7)
-            data[pos] ^= (1 << bit)
+            data[pos] ^= 1 << bit
         return data
 
     def _byte_flip(self, data: bytearray) -> bytearray:
@@ -373,7 +393,7 @@ class CoverageGuidedMutator:
 
         block_size = random.randint(1, min(100, len(data) // 4))
         pos = random.randint(0, len(data) - block_size)
-        del data[pos:pos + block_size]
+        del data[pos : pos + block_size]
         return data
 
     def _block_duplicate(self, data: bytearray) -> bytearray:
@@ -385,7 +405,7 @@ class CoverageGuidedMutator:
         src_pos = random.randint(0, max(0, len(data) - block_size))
         dst_pos = random.randint(0, len(data))
 
-        block = data[src_pos:src_pos + block_size]
+        block = data[src_pos : src_pos + block_size]
         for i, byte in enumerate(block):
             data.insert(dst_pos + i, byte)
         return data
@@ -418,7 +438,7 @@ class CoverageGuidedMutator:
 
         # Add remainder
         if len(result) < len(data):
-            result.extend(data[len(result):])
+            result.extend(data[len(result) :])
 
         return result
 
@@ -446,19 +466,19 @@ class CoverageGuidedMutator:
             # Try different encodings
             if random.random() < 0.5:
                 # Little endian
-                data[pos:pos+4] = struct.pack('<i', value)
+                data[pos : pos + 4] = struct.pack("<i", value)
             else:
                 # Big endian
-                data[pos:pos+4] = struct.pack('>i', value)
+                data[pos : pos + 4] = struct.pack(">i", value)
         return data
 
     def _boundary_values(self, data: bytearray) -> bytearray:
         """Insert boundary values at random positions."""
         boundaries = [
-            b'\x00' * 4,  # Zeros
-            b'\xFF' * 4,  # Max values
-            b'\x7F\xFF\xFF\xFF',  # Max signed int
-            b'\x80\x00\x00\x00',  # Min signed int
+            b"\x00" * 4,  # Zeros
+            b"\xff" * 4,  # Max values
+            b"\x7f\xff\xff\xff",  # Max signed int
+            b"\x80\x00\x00\x00",  # Min signed int
         ]
 
         if len(data) < 4:
@@ -468,7 +488,7 @@ class CoverageGuidedMutator:
         for _ in range(num_insertions):
             boundary = random.choice(boundaries)
             pos = random.randint(0, max(0, len(data) - len(boundary)))
-            data[pos:pos+len(boundary)] = boundary
+            data[pos : pos + len(boundary)] = boundary
 
         return data
 
@@ -485,15 +505,41 @@ class CoverageGuidedMutator:
                 if random.random() < 0.5:
                     data[i] = random.randint(0, 255)
                 else:
-                    data[i+1] = random.randint(0, 255)
+                    data[i + 1] = random.randint(0, 255)
         return data
 
     def _dicom_vr_mismatch(self, data: bytearray) -> bytearray:
         """Create VR mismatches."""
-        vr_bytes = [b'AE', b'AS', b'AT', b'CS', b'DA', b'DS', b'DT', b'FL',
-                    b'FD', b'IS', b'LO', b'LT', b'OB', b'OD', b'OF', b'OW',
-                    b'PN', b'SH', b'SL', b'SQ', b'SS', b'ST', b'TM', b'UI',
-                    b'UL', b'UN', b'US', b'UT']
+        vr_bytes = [
+            b"AE",
+            b"AS",
+            b"AT",
+            b"CS",
+            b"DA",
+            b"DS",
+            b"DT",
+            b"FL",
+            b"FD",
+            b"IS",
+            b"LO",
+            b"LT",
+            b"OB",
+            b"OD",
+            b"OF",
+            b"OW",
+            b"PN",
+            b"SH",
+            b"SL",
+            b"SQ",
+            b"SS",
+            b"ST",
+            b"TM",
+            b"UI",
+            b"UL",
+            b"UN",
+            b"US",
+            b"UT",
+        ]
 
         if len(data) < 132:
             return data
@@ -502,7 +548,7 @@ class CoverageGuidedMutator:
         for i in range(132, len(data) - 6, 2):
             if random.random() < 0.05:  # 5% chance
                 vr = random.choice(vr_bytes)
-                data[i+4:i+6] = vr
+                data[i + 4 : i + 6] = vr
 
         return data
 
@@ -515,13 +561,15 @@ class CoverageGuidedMutator:
         for i in range(132, len(data) - 8, 2):
             if random.random() < 0.05:
                 # Set length to large value
-                overflow_value = random.choice([
-                    0xFFFFFFFF,  # Max uint32
-                    0x7FFFFFFF,  # Max int32
-                    0xFFFF,      # Max uint16
-                    len(data) * 2,  # Double actual length
-                ])
-                data[i+6:i+10] = struct.pack('<I', overflow_value & 0xFFFFFFFF)
+                overflow_value = random.choice(
+                    [
+                        0xFFFFFFFF,  # Max uint32
+                        0x7FFFFFFF,  # Max int32
+                        0xFFFF,  # Max uint16
+                        len(data) * 2,  # Double actual length
+                    ]
+                )
+                data[i + 6 : i + 10] = struct.pack("<I", overflow_value & 0xFFFFFFFF)
 
         return data
 
@@ -531,8 +579,8 @@ class CoverageGuidedMutator:
             return data
 
         # Insert sequence delimiters
-        seq_start = b'\xFE\xFF\x00\xE0'
-        seq_end = b'\xFE\xFF\x0D\xE0'
+        seq_start = b"\xfe\xff\x00\xe0"
+        seq_end = b"\xfe\xff\x0d\xe0"
 
         # Add nested sequences
         depth = random.randint(1, 10)
@@ -552,13 +600,13 @@ class CoverageGuidedMutator:
     def _dicom_transfer_syntax(self, data: bytearray) -> bytearray:
         """Mutate transfer syntax."""
         transfer_syntaxes = [
-            b'1.2.840.10008.1.2',      # Implicit VR Little Endian
-            b'1.2.840.10008.1.2.1',    # Explicit VR Little Endian
-            b'1.2.840.10008.1.2.2',    # Explicit VR Big Endian
-            b'1.2.840.10008.1.2.4.50', # JPEG Baseline
-            b'1.2.840.10008.1.2.4.70', # JPEG Lossless
-            b'1.2.840.10008.1.2.5',    # RLE Lossless
-            b'INVALID.SYNTAX',         # Invalid syntax
+            b"1.2.840.10008.1.2",  # Implicit VR Little Endian
+            b"1.2.840.10008.1.2.1",  # Explicit VR Little Endian
+            b"1.2.840.10008.1.2.2",  # Explicit VR Big Endian
+            b"1.2.840.10008.1.2.4.50",  # JPEG Baseline
+            b"1.2.840.10008.1.2.4.70",  # JPEG Lossless
+            b"1.2.840.10008.1.2.5",  # RLE Lossless
+            b"INVALID.SYNTAX",  # Invalid syntax
         ]
 
         # Try to find and replace transfer syntax
@@ -571,10 +619,7 @@ class CoverageGuidedMutator:
         return data
 
     def update_strategy_feedback(
-        self,
-        mutation_type: MutationType,
-        coverage_gained: bool,
-        new_edges: int = 0
+        self, mutation_type: MutationType, coverage_gained: bool, new_edges: int = 0
     ) -> None:
         """Update mutation strategy based on feedback."""
         if mutation_type in self.strategies:
@@ -596,8 +641,9 @@ class CoverageGuidedMutator:
         recent_success = {}
 
         for mutation_type in MutationType:
-            successes = sum(1 for mt, success in recent_history
-                          if mt == mutation_type and success)
+            successes = sum(
+                1 for mt, success in recent_history if mt == mutation_type and success
+            )
             total = sum(1 for mt, _ in recent_history if mt == mutation_type)
 
             if total > 0:
@@ -620,13 +666,14 @@ class CoverageGuidedMutator:
         for mutation_type, strategy in self.strategies.items():
             if strategy.total_count > 0:
                 stats[mutation_type.value] = {
-                    'success_rate': strategy.success_rate,
-                    'total_count': strategy.total_count,
-                    'success_count': strategy.success_count,
-                    'weight': strategy.weight,
-                    'avg_coverage_gain': (
+                    "success_rate": strategy.success_rate,
+                    "total_count": strategy.total_count,
+                    "success_count": strategy.success_count,
+                    "weight": strategy.weight,
+                    "avg_coverage_gain": (
                         np.mean(strategy.coverage_gains)
-                        if strategy.coverage_gains else 0
-                    )
+                        if strategy.coverage_gains
+                        else 0
+                    ),
                 }
         return stats

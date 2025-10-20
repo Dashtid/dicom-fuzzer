@@ -250,24 +250,16 @@ class TimeoutBudgetManager:
         )
         report.append("")
         report.append(f"Current Timeout:      {self.current_timeout:.2f}s")
-        report.append(
-            f"Avg Successful Time:  {stats.avg_successful_time:.2f}s"
-        )
+        report.append(f"Avg Successful Time:  {stats.avg_successful_time:.2f}s")
         if stats.timeout_count > 0:
-            report.append(
-                f"Avg Timeout Time:     {stats.avg_timeout_time:.2f}s"
-            )
+            report.append(f"Avg Timeout Time:     {stats.avg_timeout_time:.2f}s")
         report.append("")
 
         # Recommendations
         report.append("RECOMMENDATIONS:")
         if self.is_budget_exceeded():
-            report.append(
-                "  [!] Timeout budget exceeded - timeout has been reduced"
-            )
-            report.append(
-                "  [!] Consider filtering out consistently slow inputs"
-            )
+            report.append("  [!] Timeout budget exceeded - timeout has been reduced")
+            report.append("  [!] Consider filtering out consistently slow inputs")
         else:
             report.append("  [+] Timeout budget within acceptable limits")
 
