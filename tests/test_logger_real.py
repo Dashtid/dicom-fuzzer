@@ -5,10 +5,7 @@ and specialized loggers with actual usage patterns.
 """
 
 import logging
-from pathlib import Path
 
-import pytest
-import structlog
 
 from dicom_fuzzer.utils.logger import (
     SENSITIVE_FIELDS,
@@ -128,7 +125,11 @@ class TestTimestampProcessor:
         # Should contain date and time parts
         assert "T" in result["timestamp"]
         # Should contain timezone info
-        assert "+" in result["timestamp"] or "Z" in result["timestamp"] or "-" in result["timestamp"]
+        assert (
+            "+" in result["timestamp"]
+            or "Z" in result["timestamp"]
+            or "-" in result["timestamp"]
+        )
 
 
 class TestSecurityContextProcessor:
@@ -240,9 +241,9 @@ class TestGetLogger:
 
         assert logger is not None
         # Logger can be BoundLogger or BoundLoggerLazyProxy
-        assert hasattr(logger, 'info')
-        assert hasattr(logger, 'warning')
-        assert hasattr(logger, 'error')
+        assert hasattr(logger, "info")
+        assert hasattr(logger, "warning")
+        assert hasattr(logger, "error")
 
     def test_get_logger_different_names(self):
         """Test getting loggers with different names."""
@@ -395,9 +396,7 @@ class TestIntegrationScenarios:
 
         # Log various events
         base_logger.info("fuzzing_started", campaign="test-001")
-        security_logger.log_validation_failure(
-            "/test.dcm", "Invalid format"
-        )
+        security_logger.log_validation_failure("/test.dcm", "Invalid format")
         perf_logger.log_operation("mutation", 25.5)
 
         # Log file should exist and have content

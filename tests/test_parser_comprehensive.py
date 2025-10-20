@@ -4,8 +4,7 @@ Tests DICOM file parsing, security checks, and metadata extraction.
 """
 
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-import tempfile
+from unittest.mock import Mock, patch
 
 import pytest
 from pydicom import Dataset
@@ -15,7 +14,6 @@ from dicom_fuzzer.core.parser import DicomParser
 from dicom_fuzzer.core.exceptions import (
     ParsingError,
     SecurityViolationError,
-    ValidationError,
 )
 
 

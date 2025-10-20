@@ -4,10 +4,9 @@ This test suite provides thorough coverage of pixel data fuzzing functionality,
 including noise injection and error handling.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import numpy as np
-import pytest
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.strategies.pixel_fuzzer import PixelFuzzer

@@ -5,7 +5,7 @@ Achieves 80%+ coverage of statistics tracking functionality.
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime
 from dicom_fuzzer.core.statistics import (
     IterationData,
     MutationStatistics,

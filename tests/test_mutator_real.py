@@ -3,19 +3,16 @@
 Tests the main mutation engine with real DICOM files and actual strategies.
 """
 
-from datetime import datetime, timezone
-from typing import Dict, Optional
+from datetime import datetime
 
 import pytest
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.exceptions import MutationError
 from dicom_fuzzer.core.mutator import (
     DicomMutator,
     MutationRecord,
     MutationSession,
     MutationSeverity,
-    MutationStrategy,
 )
 
 
@@ -168,7 +165,9 @@ class TestStrategyRegistration:
             pass
 
         invalid = InvalidStrategy()
-        with pytest.raises(ValueError, match="does not implement MutationStrategy protocol"):
+        with pytest.raises(
+            ValueError, match="does not implement MutationStrategy protocol"
+        ):
             mutator.register_strategy(invalid)
 
 
@@ -179,7 +178,7 @@ class TestSessionManagement:
         """Test starting a mutation session."""
         mutator = DicomMutator(config={"auto_register_strategies": False})
 
-        session_id = mutator.start_session(basic_dataset)
+        mutator.start_session(basic_dataset)
 
         assert session_id is not None
         assert isinstance(session_id, str)
@@ -192,7 +191,7 @@ class TestSessionManagement:
         mutator = DicomMutator(config={"auto_register_strategies": False})
         file_info = {"filename": "test.dcm", "size": 1024}
 
-        session_id = mutator.start_session(basic_dataset, file_info=file_info)
+        mutator.start_session(basic_dataset, file_info=file_info)
 
         assert mutator.current_session.original_file_info == file_info
 
@@ -243,7 +242,7 @@ class TestMutationApplication:
         """Test applying mutations with single strategy."""
         config = {
             "auto_register_strategies": False,
-            "mutation_probability": 1.0  # Ensure mutation always happens
+            "mutation_probability": 1.0,  # Ensure mutation always happens
         }
         mutator = DicomMutator(config=config)
         strategy = TestStrategy()
@@ -259,7 +258,7 @@ class TestMutationApplication:
         """Test that mutations are tracked in session."""
         config = {
             "auto_register_strategies": False,
-            "mutation_probability": 1.0  # Ensure mutation always happens
+            "mutation_probability": 1.0,  # Ensure mutation always happens
         }
         mutator = DicomMutator(config=config)
         strategy = TestStrategy()
@@ -297,7 +296,7 @@ class TestMutationApplication:
         mutator.register_strategy(strategy)
 
         # Should handle gracefully or raise error
-        result = mutator.apply_mutations(basic_dataset, num_mutations=1)
+        _ = mutator.apply_mutations(basic_dataset, num_mutations=1)
         # Implementation may vary - just ensure it doesn't crash
 
     def test_apply_mutations_no_strategies_registered(self, basic_dataset):
@@ -314,7 +313,7 @@ class TestMutationApplication:
         """Test applying mutations multiple times."""
         config = {
             "auto_register_strategies": False,
-            "mutation_probability": 1.0  # Ensure mutations always happen
+            "mutation_probability": 1.0,  # Ensure mutations always happen
         }
         mutator = DicomMutator(config=config)
         strategy = TestStrategy()
@@ -391,7 +390,7 @@ class TestSessionSummary:
         """Test getting session summary."""
         config = {
             "auto_register_strategies": False,
-            "mutation_probability": 1.0  # Ensure mutation always happens
+            "mutation_probability": 1.0,  # Ensure mutation always happens
         }
         mutator = DicomMutator(config=config)
         strategy = TestStrategy()
@@ -418,7 +417,7 @@ class TestSessionSummary:
         """Test that summary includes mutation count."""
         config = {
             "auto_register_strategies": False,
-            "mutation_probability": 1.0  # Ensure mutation always happens
+            "mutation_probability": 1.0,  # Ensure mutation always happens
         }
         mutator = DicomMutator(config=config)
         strategy = TestStrategy()
@@ -439,7 +438,7 @@ class TestErrorHandling:
         """Test that failing strategy doesn't stop other mutations."""
         config = {
             "auto_register_strategies": False,
-            "mutation_probability": 1.0  # Ensure mutations always happen
+            "mutation_probability": 1.0,  # Ensure mutations always happen
         }
         mutator = DicomMutator(config=config)
         failing = FailingStrategy()
@@ -468,7 +467,10 @@ class TestErrorHandling:
         result = mutator.apply_mutations(ds, num_mutations=1)
 
         # Should not have been mutated
-        assert not hasattr(result, "PatientName") or result.PatientName != "CONDITIONAL_MUTATED"
+        assert (
+            not hasattr(result, "PatientName")
+            or result.PatientName != "CONDITIONAL_MUTATED"
+        )
 
 
 class TestIntegrationScenarios:
@@ -478,14 +480,14 @@ class TestIntegrationScenarios:
         """Test complete mutation workflow from start to finish."""
         config = {
             "auto_register_strategies": False,
-            "mutation_probability": 1.0  # Ensure mutation always happens
+            "mutation_probability": 1.0,  # Ensure mutation always happens
         }
         mutator = DicomMutator(config=config)
         strategy = TestStrategy()
         mutator.register_strategy(strategy)
 
         # Start session
-        session_id = mutator.start_session(
+        mutator.start_session(
             basic_dataset, file_info={"filename": "test.dcm"}
         )
         assert session_id is not None
@@ -508,7 +510,7 @@ class TestIntegrationScenarios:
         """Test applying multiple different strategies."""
         config = {
             "auto_register_strategies": False,
-            "mutation_probability": 1.0  # Ensure mutations always happen
+            "mutation_probability": 1.0,  # Ensure mutations always happen
         }
         mutator = DicomMutator(config=config)
         strategy1 = TestStrategy("strategy1")
@@ -526,7 +528,7 @@ class TestIntegrationScenarios:
         """Test starting new session after ending previous one."""
         config = {
             "auto_register_strategies": False,
-            "mutation_probability": 1.0  # Ensure mutations always happen
+            "mutation_probability": 1.0,  # Ensure mutations always happen
         }
         mutator = DicomMutator(config=config)
         strategy = TestStrategy()

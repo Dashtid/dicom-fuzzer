@@ -4,12 +4,8 @@ This test suite provides thorough coverage of configuration validation,
 pre-flight checks, and system resource validation.
 """
 
-import os
-import sys
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import pytest
 
 from dicom_fuzzer.core.config_validator import ConfigValidator, ValidationResult
 

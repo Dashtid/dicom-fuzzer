@@ -11,19 +11,13 @@ These tests verify full fuzzing session workflows including:
 import json
 import shutil
 import tempfile
-from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
 
 import pydicom
 import pytest
-from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.fuzzing_session import (
-    CrashRecord,
-    FuzzedFileRecord,
     FuzzingSession,
-    MutationRecord,
 )
 
 

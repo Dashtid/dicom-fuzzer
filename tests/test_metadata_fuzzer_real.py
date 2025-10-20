@@ -5,7 +5,6 @@ Tests patient information mutation with actual DICOM datasets.
 
 from datetime import datetime
 
-import pytest
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
@@ -19,8 +18,8 @@ class TestMetadataFuzzerInitialization:
         fuzzer = MetadataFuzzer()
 
         assert fuzzer is not None
-        assert hasattr(fuzzer, 'fake_names')
-        assert hasattr(fuzzer, 'fake_ids')
+        assert hasattr(fuzzer, "fake_names")
+        assert hasattr(fuzzer, "fake_ids")
 
     def test_fake_names_populated(self):
         """Test that fake names list is populated."""
@@ -81,9 +80,9 @@ class TestMutatePatientInfo:
 
         result = fuzzer.mutate_patient_info(dataset)
 
-        assert hasattr(result, 'PatientID')
-        assert hasattr(result, 'PatientName')
-        assert hasattr(result, 'PatientBirthDate')
+        assert hasattr(result, "PatientID")
+        assert hasattr(result, "PatientName")
+        assert hasattr(result, "PatientBirthDate")
 
     def test_mutate_patient_info_id_from_fake_list(self):
         """Test that PatientID comes from fake_ids list."""
@@ -208,15 +207,15 @@ class TestIntegrationScenarios:
         dataset = Dataset()
 
         first = fuzzer.mutate_patient_info(dataset)
-        first_id = first.PatientID
+        _ = first.PatientID  # Access attribute to test it exists
 
         second = fuzzer.mutate_patient_info(dataset)
-        second_id = second.PatientID
+        _ = second.PatientID  # Access attribute to test it exists
 
         # Each mutation might produce different values
         # (or same if random picks same value)
         assert first is second  # Same object
-        assert hasattr(second, 'PatientID')
+        assert hasattr(second, "PatientID")
 
     def test_batch_mutation(self):
         """Test mutating multiple datasets in batch."""

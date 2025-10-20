@@ -3,8 +3,6 @@
 Tests pixel data mutation with actual DICOM datasets containing pixel data.
 """
 
-from pathlib import Path
-
 import numpy as np
 import pytest
 from pydicom import FileDataset
@@ -69,12 +67,12 @@ class TestMutatePixels:
     def test_mutate_pixels_with_pixel_data(self, dataset_with_pixels):
         """Test mutating dataset with pixel data."""
         fuzzer = PixelFuzzer()
-        original_data = dataset_with_pixels.PixelData
+        _ = dataset_with_pixels.PixelData  # Access to ensure it exists
 
         result = fuzzer.mutate_pixels(dataset_with_pixels)
 
         assert result is dataset_with_pixels
-        assert hasattr(result, 'PixelData')
+        assert hasattr(result, "PixelData")
         # Pixel data should likely be modified (though random chance it's identical)
         # We just verify it exists and is bytes
         assert isinstance(result.PixelData, bytes)
@@ -95,7 +93,7 @@ class TestMutatePixels:
 
         # Should return dataset unchanged
         assert result is dataset_no_pixels
-        assert not hasattr(result, 'PixelData')
+        assert not hasattr(result, "PixelData")
 
     def test_mutate_pixels_with_invalid_dimensions(self):
         """Test handling dataset with invalid pixel dimensions."""
@@ -129,7 +127,7 @@ class TestMutatePixels:
 
         for _ in range(5):
             result = fuzzer.mutate_pixels(dataset_with_pixels)
-            assert hasattr(result, 'PixelData')
+            assert hasattr(result, "PixelData")
 
     def test_mutate_pixels_with_corrupted_pixel_data(self):
         """Test handling dataset with corrupted PixelData tag."""
@@ -164,9 +162,8 @@ class TestPixelMutationBehavior:
             try:
                 new_pixels = ds_copy.pixel_array
                 if not np.array_equal(original_pixels, new_pixels):
-                    mutations_found = True
                     break
-            except:
+            except Exception:
                 # If pixel access fails, that's okay
                 pass
 
@@ -194,7 +191,7 @@ class TestPixelMutationBehavior:
             # Allow up to 20% for randomness
             percent_changed = (differences / total_pixels) * 100
             assert percent_changed <= 20
-        except:
+        except Exception:
             # If pixel access fails, that's okay
             pass
 
@@ -241,13 +238,13 @@ class TestIntegrationScenarios:
         fuzzer = PixelFuzzer()
 
         # Original state
-        assert 'PixelData' in dataset_with_pixels
+        assert "PixelData" in dataset_with_pixels
 
         # Fuzz
         result = fuzzer.mutate_pixels(dataset_with_pixels)
 
         # Verify still has pixel data
-        assert 'PixelData' in result
+        assert "PixelData" in result
         assert isinstance(result.PixelData, bytes)
 
     def test_batch_pixel_fuzzing(self):
@@ -270,7 +267,7 @@ class TestIntegrationScenarios:
 
         # All should still have PixelData
         for ds in datasets:
-            assert hasattr(ds, 'PixelData')
+            assert hasattr(ds, "PixelData")
 
     def test_fuzzer_with_mixed_datasets(self, dataset_with_pixels, dataset_no_pixels):
         """Test fuzzer with mix of datasets with/without pixels."""
@@ -280,7 +277,7 @@ class TestIntegrationScenarios:
         result2 = fuzzer.mutate_pixels(dataset_no_pixels)
 
         # With pixels should still have pixels
-        assert 'PixelData' in result1
+        assert "PixelData" in result1
 
         # Without pixels should still not have pixels
-        assert 'PixelData' not in result2
+        assert "PixelData" not in result2

@@ -3,12 +3,9 @@
 Tests checkpoint/resume functionality, error recovery, and campaign state management.
 """
 
-import json
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 
-import pytest
 
 from dicom_fuzzer.core.error_recovery import (
     CampaignCheckpoint,

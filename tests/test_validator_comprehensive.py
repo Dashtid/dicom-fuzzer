@@ -1,10 +1,7 @@
 """Comprehensive tests for dicom_fuzzer.core.validator module."""
 
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from pydicom import Dataset
-from pydicom.tag import Tag
 
 from dicom_fuzzer.core.validator import ValidationResult, DicomValidator
 

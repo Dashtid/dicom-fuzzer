@@ -5,7 +5,6 @@ Focuses on critical utility functions for 70%+ coverage.
 """
 
 import pytest
-import tempfile
 from pathlib import Path
 from pydicom.tag import Tag
 

@@ -4,8 +4,6 @@ Tests the dictionary access, value generation, and edge case handling
 functionality with actual usage patterns.
 """
 
-import pytest
-
 from dicom_fuzzer.utils.dicom_dictionaries import (
     CHARACTER_SETS,
     COMMON_UID_ROOTS,

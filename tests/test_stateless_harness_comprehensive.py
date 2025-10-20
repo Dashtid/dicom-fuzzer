@@ -5,7 +5,6 @@ Achieves 80%+ coverage of stateless_harness.py module.
 """
 
 import gc
-import tempfile
 from pathlib import Path
 import pytest
 

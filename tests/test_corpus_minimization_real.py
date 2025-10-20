@@ -45,9 +45,7 @@ def create_dicom_file():
         file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
         file_meta.ImplementationClassUID = generate_uid()
 
-        ds = FileDataset(
-            str(path), {}, file_meta=file_meta, preamble=b"\0" * 128
-        )
+        ds = FileDataset(str(path), {}, file_meta=file_meta, preamble=b"\0" * 128)
         ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
         ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
         ds.PatientName = "Test^Patient"
@@ -83,9 +81,7 @@ class TestMinimizeCorpusForCampaign:
 
         assert result == []
 
-    def test_minimize_single_file(
-        self, corpus_dir, output_dir, create_dicom_file
-    ):
+    def test_minimize_single_file(self, corpus_dir, output_dir, create_dicom_file):
         """Test minimizing corpus with single file."""
         create_dicom_file(corpus_dir / "test1.dcm")
 
@@ -95,9 +91,7 @@ class TestMinimizeCorpusForCampaign:
         assert result[0].exists()
         assert result[0].name == "test1.dcm"
 
-    def test_minimize_multiple_files(
-        self, corpus_dir, output_dir, create_dicom_file
-    ):
+    def test_minimize_multiple_files(self, corpus_dir, output_dir, create_dicom_file):
         """Test minimizing corpus with multiple files."""
         for i in range(5):
             create_dicom_file(corpus_dir / f"test{i}.dcm")
@@ -114,9 +108,7 @@ class TestMinimizeCorpusForCampaign:
         for i in range(10):
             create_dicom_file(corpus_dir / f"test{i}.dcm")
 
-        result = minimize_corpus_for_campaign(
-            corpus_dir, output_dir, max_corpus_size=3
-        )
+        result = minimize_corpus_for_campaign(corpus_dir, output_dir, max_corpus_size=3)
 
         assert len(result) == 3
 
@@ -128,9 +120,7 @@ class TestMinimizeCorpusForCampaign:
         create_dicom_file(corpus_dir / "small.dcm", size_kb=1)
         create_dicom_file(corpus_dir / "medium.dcm", size_kb=5)
 
-        result = minimize_corpus_for_campaign(
-            corpus_dir, output_dir, max_corpus_size=1
-        )
+        result = minimize_corpus_for_campaign(corpus_dir, output_dir, max_corpus_size=1)
 
         # Should pick the smallest file
         assert len(result) == 1
@@ -343,18 +333,14 @@ class TestValidateCorpusQuality:
 class TestIntegrationScenarios:
     """Test realistic usage scenarios."""
 
-    def test_minimize_then_validate(
-        self, corpus_dir, output_dir, create_dicom_file
-    ):
+    def test_minimize_then_validate(self, corpus_dir, output_dir, create_dicom_file):
         """Test minimizing corpus then validating the result."""
         # Create corpus
         for i in range(10):
             create_dicom_file(corpus_dir / f"test{i}.dcm")
 
         # Minimize
-        result = minimize_corpus_for_campaign(
-            corpus_dir, output_dir, max_corpus_size=5
-        )
+        result = minimize_corpus_for_campaign(corpus_dir, output_dir, max_corpus_size=5)
 
         assert len(result) == 5
 
@@ -364,9 +350,7 @@ class TestIntegrationScenarios:
         assert metrics["total_files"] == 5
         assert metrics["valid_dicom"] == 5
 
-    def test_minimize_large_corpus(
-        self, corpus_dir, output_dir, create_dicom_file
-    ):
+    def test_minimize_large_corpus(self, corpus_dir, output_dir, create_dicom_file):
         """Test minimizing a larger corpus."""
         # Create 50 files
         for i in range(50):

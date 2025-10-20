@@ -3,11 +3,9 @@
 Tests HTML report generation, session overview, crash details, mutation analysis.
 """
 
-import json
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import pytest
 
 from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
 

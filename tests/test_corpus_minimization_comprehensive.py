@@ -4,8 +4,6 @@ Comprehensive tests for corpus minimization module.
 Achieves 80%+ coverage of corpus_minimization.py module.
 """
 
-import tempfile
-from pathlib import Path
 import pytest
 
 from dicom_fuzzer.utils.corpus_minimization import (

@@ -3,10 +3,7 @@
 Tests seed management, prioritization, and corpus evolution.
 """
 
-import time
-from unittest.mock import Mock, patch
 
-import pytest
 
 from dicom_fuzzer.core.corpus_manager import (
     CorpusManager,

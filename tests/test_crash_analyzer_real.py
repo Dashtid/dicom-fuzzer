@@ -3,7 +3,6 @@
 Targets uncovered code paths to increase coverage.
 """
 
-import pytest
 from datetime import datetime
 from pathlib import Path
 
@@ -128,10 +127,7 @@ class TestCrashHashGeneration:
         analyzer = CrashAnalyzer()
 
         # Generate hash multiple times
-        hashes = [
-            analyzer._generate_crash_hash("trace", "msg")
-            for _ in range(5)
-        ]
+        hashes = [analyzer._generate_crash_hash("trace", "msg") for _ in range(5)]
 
         # All should be identical
         assert len(set(hashes)) == 1
@@ -216,7 +212,7 @@ class TestSaveCrashReport:
         report_path = analyzer.save_crash_report(report)
 
         # Read and verify content
-        content = report_path.read_text(encoding='utf-8')
+        content = report_path.read_text(encoding="utf-8")
         assert "test_002" in content
         assert "CRITICAL" in content or "critical" in content
         assert "Segmentation fault" in content

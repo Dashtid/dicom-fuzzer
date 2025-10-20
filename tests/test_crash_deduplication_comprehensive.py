@@ -4,9 +4,7 @@ This test suite provides thorough coverage of crash deduplication functionality,
 including configuration validation, similarity calculations, and grouping logic.
 """
 
-import hashlib
 from datetime import datetime
-from unittest.mock import MagicMock, patch
 
 import pytest
 

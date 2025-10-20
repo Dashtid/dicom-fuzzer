@@ -4,9 +4,7 @@ Tests the error recovery and checkpoint/resume functionality with realistic scen
 """
 
 import json
-import signal
 import time
-from pathlib import Path
 
 import pytest
 
@@ -160,7 +158,7 @@ class TestCampaignRecoveryInitialization:
         checkpoint_dir = tmp_path / "new_checkpoints"
         assert not checkpoint_dir.exists()
 
-        recovery = CampaignRecovery(checkpoint_dir=str(checkpoint_dir))
+        CampaignRecovery(checkpoint_dir=str(checkpoint_dir))
 
         assert checkpoint_dir.exists()
 
@@ -731,7 +729,7 @@ class TestUpdateProgress:
             checkpoint_dir=str(temp_checkpoint_dir), checkpoint_interval=1
         )
 
-        checkpoint = recovery.create_checkpoint(
+        recovery.create_checkpoint(
             campaign_id="test_campaign",
             total_files=10,
             processed_files=0,

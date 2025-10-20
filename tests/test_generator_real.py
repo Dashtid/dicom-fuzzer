@@ -3,11 +3,9 @@
 Targets uncovered code paths to increase coverage.
 """
 
-import tempfile
 from pathlib import Path
 
 import pytest
-import pydicom
 from pydicom.dataset import Dataset, FileDataset
 from pydicom.uid import generate_uid
 
@@ -21,9 +19,9 @@ def real_dicom_file(tmp_path):
 
     # Create file meta information
     file_meta = Dataset()
-    file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
     file_meta.MediaStorageSOPInstanceUID = generate_uid()
-    file_meta.TransferSyntaxUID = '1.2.840.10008.1.2'
+    file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
     file_meta.ImplementationClassUID = generate_uid()
 
     # Create the FileDataset instance
@@ -64,45 +62,45 @@ class TestGenerationStats:
         """Test recording successful generation."""
         stats = GenerationStats()
 
-        stats.record_success(['metadata', 'header'])
+        stats.record_success(["metadata", "header"])
 
         assert stats.successful == 1
-        assert stats.strategies_used['metadata'] == 1
-        assert stats.strategies_used['header'] == 1
+        assert stats.strategies_used["metadata"] == 1
+        assert stats.strategies_used["header"] == 1
 
     def test_record_multiple_successes(self):
         """Test recording multiple successes."""
         stats = GenerationStats()
 
-        stats.record_success(['metadata'])
-        stats.record_success(['metadata', 'pixel'])
-        stats.record_success(['header'])
+        stats.record_success(["metadata"])
+        stats.record_success(["metadata", "pixel"])
+        stats.record_success(["header"])
 
         assert stats.successful == 3
-        assert stats.strategies_used['metadata'] == 2
-        assert stats.strategies_used['pixel'] == 1
-        assert stats.strategies_used['header'] == 1
+        assert stats.strategies_used["metadata"] == 2
+        assert stats.strategies_used["pixel"] == 1
+        assert stats.strategies_used["header"] == 1
 
     def test_record_failure(self):
         """Test recording failure."""
         stats = GenerationStats()
 
-        stats.record_failure('ValueError')
+        stats.record_failure("ValueError")
 
         assert stats.failed == 1
-        assert stats.error_types['ValueError'] == 1
+        assert stats.error_types["ValueError"] == 1
 
     def test_record_multiple_failures(self):
         """Test recording multiple failures."""
         stats = GenerationStats()
 
-        stats.record_failure('ValueError')
-        stats.record_failure('TypeError')
-        stats.record_failure('ValueError')
+        stats.record_failure("ValueError")
+        stats.record_failure("TypeError")
+        stats.record_failure("ValueError")
 
         assert stats.failed == 3
-        assert stats.error_types['ValueError'] == 2
-        assert stats.error_types['TypeError'] == 1
+        assert stats.error_types["ValueError"] == 2
+        assert stats.error_types["TypeError"] == 1
 
 
 class TestDICOMGeneratorInit:
@@ -120,10 +118,7 @@ class TestDICOMGeneratorInit:
 
     def test_custom_skip_write_errors(self, tmp_path):
         """Test initialization with custom skip_write_errors."""
-        gen = DICOMGenerator(
-            output_dir=str(tmp_path),
-            skip_write_errors=False
-        )
+        gen = DICOMGenerator(output_dir=str(tmp_path), skip_write_errors=False)
 
         assert gen.skip_write_errors is False
 
@@ -144,10 +139,7 @@ class TestGenerateBatch:
         output_dir = tmp_path / "output"
         gen = DICOMGenerator(output_dir=str(output_dir))
 
-        result = gen.generate_batch(
-            original_file=str(real_dicom_file),
-            count=5
-        )
+        result = gen.generate_batch(original_file=str(real_dicom_file), count=5)
 
         assert len(result) <= 5  # May be less due to random failures
         for path in result:
@@ -160,9 +152,7 @@ class TestGenerateBatch:
         gen = DICOMGenerator(output_dir=str(output_dir))
 
         result = gen.generate_batch(
-            original_file=str(real_dicom_file),
-            count=3,
-            strategies=['metadata']
+            original_file=str(real_dicom_file), count=3, strategies=["metadata"]
         )
 
         assert len(result) <= 3
@@ -175,7 +165,7 @@ class TestGenerateBatch:
         result = gen.generate_batch(
             original_file=str(real_dicom_file),
             count=3,
-            strategies=['metadata', 'header']
+            strategies=["metadata", "header"],
         )
 
         assert len(result) <= 3
@@ -184,10 +174,7 @@ class TestGenerateBatch:
         """Test generating zero files."""
         gen = DICOMGenerator(output_dir=str(tmp_path))
 
-        result = gen.generate_batch(
-            original_file=str(real_dicom_file),
-            count=0
-        )
+        result = gen.generate_batch(original_file=str(real_dicom_file), count=0)
 
         assert result == []
 
@@ -195,10 +182,7 @@ class TestGenerateBatch:
         """Test stats are updated during generation."""
         gen = DICOMGenerator(output_dir=str(tmp_path))
 
-        gen.generate_batch(
-            original_file=str(real_dicom_file),
-            count=5
-        )
+        gen.generate_batch(original_file=str(real_dicom_file), count=5)
 
         assert gen.stats.total_attempted >= 1
         assert gen.stats.successful >= 0
@@ -214,27 +198,27 @@ class TestFuzzerSelection:
         fuzzers = gen._select_fuzzers(None)
 
         # By default, metadata, header, pixel (not structure)
-        assert 'metadata' in fuzzers
-        assert 'header' in fuzzers
-        assert 'pixel' in fuzzers
+        assert "metadata" in fuzzers
+        assert "header" in fuzzers
+        assert "pixel" in fuzzers
 
     def test_select_specific_fuzzers(self, tmp_path):
         """Test selecting specific fuzzers."""
         gen = DICOMGenerator(output_dir=str(tmp_path))
 
-        fuzzers = gen._select_fuzzers(['metadata', 'header'])
+        fuzzers = gen._select_fuzzers(["metadata", "header"])
 
-        assert 'metadata' in fuzzers
-        assert 'header' in fuzzers
-        assert 'pixel' not in fuzzers
+        assert "metadata" in fuzzers
+        assert "header" in fuzzers
+        assert "pixel" not in fuzzers
 
     def test_select_single_fuzzer(self, tmp_path):
         """Test selecting single fuzzer."""
         gen = DICOMGenerator(output_dir=str(tmp_path))
 
-        fuzzers = gen._select_fuzzers(['metadata'])
+        fuzzers = gen._select_fuzzers(["metadata"])
 
-        assert 'metadata' in fuzzers
+        assert "metadata" in fuzzers
         assert len(fuzzers) == 1
 
 
@@ -271,10 +255,7 @@ class TestFileNaming:
         """Test generated files have unique names."""
         gen = DICOMGenerator(output_dir=str(tmp_path))
 
-        result = gen.generate_batch(
-            original_file=str(real_dicom_file),
-            count=10
-        )
+        result = gen.generate_batch(original_file=str(real_dicom_file), count=10)
 
         filenames = [p.name for p in result]
         assert len(filenames) == len(set(filenames))  # All unique
@@ -283,15 +264,12 @@ class TestFileNaming:
         """Test filename format."""
         gen = DICOMGenerator(output_dir=str(tmp_path))
 
-        result = gen.generate_batch(
-            original_file=str(real_dicom_file),
-            count=1
-        )
+        result = gen.generate_batch(original_file=str(real_dicom_file), count=1)
 
         if result:
             filename = result[0].name
-            assert filename.startswith('fuzzed_')
-            assert filename.endswith('.dcm')
+            assert filename.startswith("fuzzed_")
+            assert filename.endswith(".dcm")
 
 
 class TestOutputDirectory:
@@ -302,10 +280,7 @@ class TestOutputDirectory:
         output_dir = tmp_path / "custom_output"
         gen = DICOMGenerator(output_dir=str(output_dir))
 
-        result = gen.generate_batch(
-            original_file=str(real_dicom_file),
-            count=3
-        )
+        result = gen.generate_batch(original_file=str(real_dicom_file), count=3)
 
         for path in result:
             assert path.parent == output_dir

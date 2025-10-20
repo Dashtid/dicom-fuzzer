@@ -7,7 +7,7 @@ including resource limits, usage tracking, disk space checks, and execution cont
 import platform
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
 

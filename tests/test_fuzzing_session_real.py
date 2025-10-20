@@ -133,7 +133,7 @@ class TestFileFuzzingWorkflow:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -144,7 +144,9 @@ class TestFileFuzzingWorkflow:
         assert session.current_file_record is not None
         assert session.stats["files_fuzzed"] == 1
 
-    def test_start_file_fuzzing_extracts_metadata(self, temp_session_dirs, sample_dicom_file):
+    def test_start_file_fuzzing_extracts_metadata(
+        self, temp_session_dirs, sample_dicom_file
+    ):
         """Test that metadata is extracted from source file."""
         session = FuzzingSession(
             session_name="test_session",
@@ -153,7 +155,7 @@ class TestFileFuzzingWorkflow:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -172,7 +174,7 @@ class TestFileFuzzingWorkflow:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -216,7 +218,7 @@ class TestFileFuzzingWorkflow:
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
         shutil.copy(sample_dicom_file, output_file)
 
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -337,7 +339,7 @@ class TestTestResults:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -358,7 +360,7 @@ class TestTestResults:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -390,7 +392,7 @@ class TestTestResults:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -417,7 +419,7 @@ class TestCrashRecording:
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
         shutil.copy(sample_dicom_file, output_file)
 
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -448,7 +450,7 @@ class TestCrashRecording:
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
         shutil.copy(sample_dicom_file, output_file)
 
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -479,7 +481,7 @@ class TestCrashRecording:
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
         shutil.copy(sample_dicom_file, output_file)
 
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -511,7 +513,7 @@ class TestCrashRecording:
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
         shutil.copy(sample_dicom_file, output_file)
 
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -560,7 +562,7 @@ class TestSessionReporting:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -583,7 +585,7 @@ class TestSessionReporting:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -607,7 +609,7 @@ class TestSessionReporting:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -624,7 +626,9 @@ class TestSessionReporting:
             data = json.load(f)
             assert "session_info" in data
 
-    def test_save_session_report_custom_path(self, temp_session_dirs, sample_dicom_file):
+    def test_save_session_report_custom_path(
+        self, temp_session_dirs, sample_dicom_file
+    ):
         """Test saving session report to custom path."""
         session = FuzzingSession(
             session_name="test_session",
@@ -633,7 +637,7 @@ class TestSessionReporting:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -655,7 +659,7 @@ class TestSessionReporting:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -821,7 +825,7 @@ class TestIntegrationScenarios:
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
         shutil.copy(sample_dicom_file, output_file)
 
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
