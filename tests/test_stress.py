@@ -241,7 +241,9 @@ class TestConcurrentOperations:
 class TestLongRunningCampaigns:
     """Test long-running fuzzing campaigns."""
 
-    @pytest.mark.skip(reason="Flaky: Worker crashes in parallel execution - test infrastructure issue")
+    @pytest.mark.skip(
+        reason="Flaky: Worker crashes in parallel execution - test infrastructure issue"
+    )
     def test_extended_campaign_stability(self, sample_dicom_file, temp_dir):
         """Test campaign running for extended period."""
         from dicom_fuzzer.core.statistics import StatisticsCollector
@@ -283,6 +285,9 @@ class TestLongRunningCampaigns:
         # Simulate campaign with known numbers
         test_iterations = 1000
 
+        # Register a test strategy
+        stats.record_mutation("test_strategy", duration=0.1)
+
         for i in range(test_iterations):
             stats.track_iteration(
                 f"test_{i}.dcm", mutations_applied=5, severity="moderate"
@@ -290,12 +295,12 @@ class TestLongRunningCampaigns:
 
             # Simulate crashes at expected rate
             if i % 10 == 0:  # Every 10th iteration
-                stats.track_crash(f"test_{i}.dcm")
+                stats.record_crash("test_strategy", f"crash_hash_{i}")
 
         # Verify statistics accuracy
-        report = stats.get_report()
-        assert report["total_iterations"] == test_iterations
-        assert report["total_crashes"] == 100  # 10% of 1000
+        summary = stats.get_summary()
+        assert summary["total_iterations"] == test_iterations
+        assert summary["total_crashes_found"] == 100  # 10% of 1000
 
     def test_target_runner_extended_execution(self, temp_dir):
         """Test target runner over extended period."""
@@ -326,7 +331,7 @@ class TestLongRunningCampaigns:
             start_time = time.time()
             for test_file in test_files:
                 result = runner.execute_test(str(test_file))
-                assert result.status == ExecutionStatus.SUCCESS
+                assert result.result == ExecutionStatus.SUCCESS
 
             duration = time.time() - start_time
 
