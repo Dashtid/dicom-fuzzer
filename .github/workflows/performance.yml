@@ -20,37 +20,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-          cache-dependency-path: requirements.txt
-
-      - name: Cache uv packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-
       - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.14
 
       - name: Install dependencies
         run: |
-          uv venv
-          source .venv/bin/activate
-          uv pip install -r requirements.txt
+          uv sync --extra dev
           uv pip install pytest-benchmark memory-profiler
 
       - name: Run benchmarks
         run: |
-          source .venv/bin/activate
-          pytest tests/ -v --benchmark-only --benchmark-autosave --benchmark-json=benchmark.json
+          uv run pytest tests/ -v --benchmark-only --benchmark-autosave --benchmark-json=benchmark.json
 
       - name: Download previous benchmark data
         uses: actions/cache@v4
@@ -78,33 +64,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.14
 
       - name: Install dependencies
         run: |
-          uv venv
-          source .venv/bin/activate
-          uv pip install -r requirements.txt
+          uv sync --extra dev
           uv pip install memory-profiler matplotlib
 
       - name: Profile memory usage
         run: |
-          source .venv/bin/activate
           # Create memory profiling script
           cat > profile_memory.py << 'EOF'
           from memory_profiler import profile
           import pydicom
-          from core.parser import DicomParser
-          from core.generator import DICOMGenerator
-          from core.mutator import DicomMutator
+          from dicom_fuzzer.core.parser import DicomParser
+          from dicom_fuzzer.core.generator import DICOMGenerator
+          from dicom_fuzzer.core.mutator import DicomMutator
 
           @profile
           def test_parser_memory():
@@ -133,7 +114,7 @@ jobs:
               test_mutator_memory()
           EOF
 
-          python -m memory_profiler profile_memory.py > memory-profile.txt
+          uv run python -m memory_profiler profile_memory.py > memory-profile.txt
 
       - name: Upload memory profile
         uses: actions/upload-artifact@v4
@@ -148,30 +129,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.14
 
       - name: Install dependencies
         run: |
-          uv venv
-          source .venv/bin/activate
-          uv pip install -r requirements.txt
+          uv sync --extra dev
           uv pip install locust
 
       - name: Create load test script
         run: |
           cat > locustfile.py << 'EOF'
           from locust import User, task, between
-          from core.generator import DICOMGenerator
-          from core.mutator import DicomMutator
-          from core.validator import DicomValidator
+          from dicom_fuzzer.core.generator import DICOMGenerator
+          from dicom_fuzzer.core.mutator import DicomMutator
+          from dicom_fuzzer.core.validator import DicomValidator
 
           class DicomFuzzerUser(User):
               wait_time = between(0.1, 0.5)
@@ -203,8 +180,7 @@ jobs:
 
       - name: Run load test
         run: |
-          source .venv/bin/activate
-          locust -f locustfile.py --headless --users 10 --spawn-rate 2 --run-time 60s --html load-test-report.html
+          uv run locust -f locustfile.py --headless --users 10 --spawn-rate 2 --run-time 60s --html load-test-report.html
 
       - name: Upload load test report
         uses: actions/upload-artifact@v4
@@ -219,30 +195,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.14
 
       - name: Install dependencies
         run: |
-          uv venv
-          source .venv/bin/activate
-          uv pip install -r requirements.txt
+          uv sync --extra dev
           uv pip install py-spy
 
       - name: CPU profiling with py-spy
         run: |
-          source .venv/bin/activate
           # Create profiling script
           cat > cpu_profile.py << 'EOF'
-          from core.generator import DicomGenerator
-          from core.mutator import DicomMutator
+          from dicom_fuzzer.core.generator import DicomGenerator
+          from dicom_fuzzer.core.mutator import DicomMutator
 
           def main():
               gen = DicomGenerator()
@@ -257,7 +228,7 @@ jobs:
               main()
           EOF
 
-          py-spy record -o cpu-profile.svg --format speedscope -- python cpu_profile.py
+          uv run py-spy record -o cpu-profile.svg --format speedscope -- python cpu_profile.py
 
       - name: Upload CPU profile
         uses: actions/upload-artifact@v4
