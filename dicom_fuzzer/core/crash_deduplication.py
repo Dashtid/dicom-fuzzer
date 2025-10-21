@@ -12,7 +12,6 @@ by analyzing multiple crash characteristics:
 import hashlib
 from dataclasses import dataclass
 from difflib import SequenceMatcher
-from typing import Dict, List, Optional
 
 from dicom_fuzzer.core.fuzzing_session import CrashRecord
 
@@ -56,7 +55,7 @@ class CrashDeduplicator:
     helping security researchers focus on distinct vulnerabilities.
     """
 
-    def __init__(self, config: Optional[DeduplicationConfig] = None):
+    def __init__(self, config: DeduplicationConfig | None = None):
         """
         Initialize crash deduplicator.
 
@@ -64,12 +63,12 @@ class CrashDeduplicator:
             config: Deduplication configuration (uses defaults if None)
         """
         self.config = config or DeduplicationConfig()
-        self.crash_groups: List[List[CrashRecord]] = []
-        self.group_signatures: List[str] = []
+        self.crash_groups: list[list[CrashRecord]] = []
+        self.group_signatures: list[str] = []
 
     def deduplicate_crashes(
-        self, crashes: List[CrashRecord]
-    ) -> Dict[str, List[CrashRecord]]:
+        self, crashes: list[CrashRecord]
+    ) -> dict[str, list[CrashRecord]]:
         """
         Deduplicate list of crashes into groups.
 
@@ -109,7 +108,7 @@ class CrashDeduplicator:
         """Get count of unique crash groups."""
         return len(self.crash_groups)
 
-    def get_deduplication_stats(self) -> Dict:
+    def get_deduplication_stats(self) -> dict:
         """
         Get deduplication statistics.
 
@@ -138,7 +137,7 @@ class CrashDeduplicator:
             "group_sizes": [len(group) for group in self.crash_groups],
         }
 
-    def _find_best_group(self, crash: CrashRecord) -> Optional[int]:
+    def _find_best_group(self, crash: CrashRecord) -> int | None:
         """
         Find best matching group for crash.
 
@@ -278,7 +277,7 @@ class CrashDeduplicator:
 
         return normalized
 
-    def _extract_function_sequence(self, trace: str) -> List[str]:
+    def _extract_function_sequence(self, trace: str) -> list[str]:
         """
         Extract function call sequence from stack trace.
 
@@ -374,8 +373,8 @@ class CrashDeduplicator:
         """
         Compare mutation patterns that caused crashes.
 
-        This would require access to the fuzzing session data
-        to get mutation records for each crash.
+        Analyzes the mutation sequences that led to each crash to identify
+        common mutation patterns that might indicate the same underlying bug.
 
         Args:
             crash1: First crash
@@ -384,9 +383,41 @@ class CrashDeduplicator:
         Returns:
             Similarity score (0.0-1.0)
         """
-        # TODO: Implement when we have access to mutation data
-        # For now, return neutral score
-        return 0.5
+        # If either crash has no mutation data, cannot compare
+        if not crash1.mutation_sequence or not crash2.mutation_sequence:
+            return 0.5  # Neutral score when data unavailable
+
+        # Extract mutation types from sequences
+        mutations1 = {
+            mut[0] if isinstance(mut, tuple) else str(mut)
+            for mut in crash1.mutation_sequence
+        }
+        mutations2 = {
+            mut[0] if isinstance(mut, tuple) else str(mut)
+            for mut in crash2.mutation_sequence
+        }
+
+        # Calculate Jaccard similarity (intersection over union)
+        if not mutations1 and not mutations2:
+            return 1.0  # Both empty - identical
+
+        intersection = len(mutations1 & mutations2)
+        union = len(mutations1 | mutations2)
+
+        if union == 0:
+            return 0.5  # Neutral if both empty after all
+
+        jaccard = intersection / union
+
+        # Weight by sequence length similarity
+        len1, len2 = len(crash1.mutation_sequence), len(crash2.mutation_sequence)
+        max_len = max(len1, len2)
+        min_len = min(len1, len2)
+
+        length_similarity = min_len / max_len if max_len > 0 else 1.0
+
+        # Combine Jaccard similarity with length similarity (70/30 weight)
+        return 0.7 * jaccard + 0.3 * length_similarity
 
     def _generate_signature(self, crash: CrashRecord) -> str:
         """
@@ -415,8 +446,8 @@ class CrashDeduplicator:
 
 
 def deduplicate_session_crashes(
-    session_data: Dict, config: Optional[DeduplicationConfig] = None
-) -> Dict:
+    session_data: dict, config: DeduplicationConfig | None = None
+) -> dict:
     """
     Deduplicate crashes from a fuzzing session.
 

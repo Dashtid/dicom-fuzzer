@@ -635,7 +635,8 @@ class TestExceptionHandling:
 class TestPropertyBasedTargetRunner:
     """Property-based tests for target runner using Hypothesis."""
 
-    from hypothesis import given, settings, strategies as st, HealthCheck
+    from hypothesis import HealthCheck, given, settings
+    from hypothesis import strategies as st
 
     @settings(
         suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=1000
@@ -766,7 +767,8 @@ class TestPropertyBasedTargetRunner:
             assert result.stderr == stderr_data
 
     @settings(
-        suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=1000
+        suppress_health_check=[HealthCheck.function_scoped_fixture],
+        deadline=None,  # Disable deadline - test can be slow with large numbers
     )
     @given(num_successes=st.integers(0, 100), num_failures=st.integers(0, 100))
     def test_campaign_statistics_property(

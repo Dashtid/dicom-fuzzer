@@ -10,6 +10,8 @@ with edge cases and invalid data, we test parser robustness and error handling.
 
 import random
 
+from pydicom.tag import Tag
+
 
 class HeaderFuzzer:
     """
@@ -115,6 +117,9 @@ class HeaderFuzzer:
 
         SECURITY: Type confusion vulnerabilities occur when parsers
         don't validate VR constraints properly.
+
+        NOTE: We bypass pydicom validation by directly setting DataElement._value
+        to allow fuzzing with intentionally invalid data.
         """
         # Test invalid date format (should be YYYYMMDD)
         if hasattr(dataset, "StudyDate"):
@@ -140,7 +145,7 @@ class HeaderFuzzer:
             ]
             dataset.StudyTime = random.choice(invalid_times)
 
-        # Test invalid integer string (IS VR)
+        # Test invalid integer string (IS VR) - bypass validation
         if hasattr(dataset, "SeriesNumber"):
             invalid_integers = [
                 "NOT_A_NUMBER",  # Non-numeric
@@ -149,9 +154,12 @@ class HeaderFuzzer:
                 "-999999999",  # Very negative
                 "",  # Empty
             ]
-            dataset.SeriesNumber = random.choice(invalid_integers)
+            value = random.choice(invalid_integers)
+            # Bypass validation by setting the internal _value directly
+            elem = dataset[Tag(0x0020, 0x0011)]  # SeriesNumber
+            elem._value = value
 
-        # Test invalid decimal string (DS VR)
+        # Test invalid decimal string (DS VR) - bypass validation
         if hasattr(dataset, "SliceThickness"):
             invalid_decimals = [
                 "INVALID",  # Non-numeric
@@ -160,7 +168,10 @@ class HeaderFuzzer:
                 "Infinity",  # Infinity
                 "1e999",  # Too large
             ]
-            dataset.SliceThickness = random.choice(invalid_decimals)
+            value = random.choice(invalid_decimals)
+            # Bypass validation by setting the internal _value directly
+            elem = dataset[Tag(0x0018, 0x0050)]  # SliceThickness
+            elem._value = value
 
         return dataset
 

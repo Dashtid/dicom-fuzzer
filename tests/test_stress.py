@@ -29,7 +29,6 @@ from dicom_fuzzer.core.statistics import StatisticsCollector
 from dicom_fuzzer.core.target_runner import ExecutionStatus, TargetRunner
 from dicom_fuzzer.core.validator import DicomValidator
 
-
 # Mark all tests as slow
 pytestmark = pytest.mark.slow
 
@@ -94,7 +93,9 @@ class TestLargeBatchProcessing:
         # Perform 5000 mutations
         for i in range(5000):
             dataset = parser.dataset.copy()
-            mutated = mutator.mutate(dataset)
+            mutator.start_session(dataset)
+            mutated = mutator.apply_mutations(dataset, num_mutations=1)
+            mutator.end_session()
 
             # Verify mutation didn't crash
             assert mutated is not None
@@ -172,11 +173,14 @@ class TestResourcePressure:
         cpu_start = time.process_time()
 
         # Perform CPU-heavy mutations
-        for _ in range(1000):
+        for i in range(1000):
             dataset = parser.dataset.copy()
+            # Start session for each batch
+            mutator.start_session(dataset)
             # Apply multiple mutation passes
             for _ in range(10):
-                mutator.mutate(dataset)
+                mutator.apply_mutations(dataset, num_mutations=1)
+            mutator.end_session()
 
         wall_time = time.time() - start_time
         cpu_time = time.process_time() - cpu_start
