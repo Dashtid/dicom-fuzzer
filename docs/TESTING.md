@@ -7,6 +7,7 @@ Comprehensive guide to the test suite, coverage, and testing best practices for 
 - [Overview](#overview)
 - [Test Coverage Summary](#test-coverage-summary)
 - [Running Tests](#running-tests)
+- [Modern Tooling](#modern-tooling)
 - [Test Structure](#test-structure)
 - [Writing Tests](#writing-tests)
 - [Integration Tests](#integration-tests)
@@ -37,35 +38,38 @@ The DICOM-Fuzzer project maintains a comprehensive test suite with **930+ tests*
 
 ### Module Coverage Details
 
-| Module | Coverage | Tests | Lines | Missing | Status |
-|--------|----------|-------|-------|---------|--------|
-| **crash_deduplication.py** | 100% | 29 | 140 | 0 | ✅ Perfect |
-| **crash_analyzer.py** | 100% | 26 | 132 | 0 | ✅ Perfect |
-| **generator.py** | 100% | 41 | 90 | 0 | ✅ Perfect |
-| **reporter.py** | 100% | 24 | 83 | 0 | ✅ Perfect |
-| **statistics.py** | 100% | 24 | 97 | 0 | ✅ Perfect |
-| **validator.py** | 100% | 59 | 150 | 0 | ✅ Perfect |
-| **exceptions.py** | 100% | - | 19 | 0 | ✅ Perfect |
-| **types.py** | 100% | 8 | 6 | 0 | ✅ Perfect |
-| **fuzzing_session.py** | 96.52% | 41 | 230 | 8 | ✅ Excellent |
-| **parser.py** | 96.60% | 57 | 147 | 5 | ✅ Excellent |
-| **mutator.py** | 94.67% | 50 | 150 | 8 | ✅ Excellent |
-| **corpus.py** | 91.03% | 24 | 156 | 14 | ✅ Excellent |
-| **coverage_tracker.py** | 62.86% | 47 | 105 | 39 | ⚠️ Good |
+| Module                     | Coverage | Tests | Lines | Missing | Status       |
+| -------------------------- | -------- | ----- | ----- | ------- | ------------ |
+| **crash_deduplication.py** | 100%     | 29    | 140   | 0       | ✅ Perfect   |
+| **crash_analyzer.py**      | 100%     | 26    | 132   | 0       | ✅ Perfect   |
+| **generator.py**           | 100%     | 41    | 90    | 0       | ✅ Perfect   |
+| **reporter.py**            | 100%     | 24    | 83    | 0       | ✅ Perfect   |
+| **statistics.py**          | 100%     | 24    | 97    | 0       | ✅ Perfect   |
+| **validator.py**           | 100%     | 59    | 150   | 0       | ✅ Perfect   |
+| **exceptions.py**          | 100%     | -     | 19    | 0       | ✅ Perfect   |
+| **types.py**               | 100%     | 8     | 6     | 0       | ✅ Perfect   |
+| **fuzzing_session.py**     | 96.52%   | 41    | 230   | 8       | ✅ Excellent |
+| **parser.py**              | 96.60%   | 57    | 147   | 5       | ✅ Excellent |
+| **mutator.py**             | 94.67%   | 50    | 150   | 8       | ✅ Excellent |
+| **corpus.py**              | 91.03%   | 24    | 156   | 14      | ✅ Excellent |
+| **coverage_tracker.py**    | 62.86%   | 47    | 105   | 39      | ⚠️ Good      |
 
 ### Recent Improvements (January 2025)
 
 **fuzzing_session.py**: 88.26% → 96.52% (+8.26%)
+
 - Added `test_fuzzing_session_edge_cases.py` (255 lines, 9 tests)
 - Covers crash types, mutation tracking, session summaries
 - Only 8 lines missing (exception handlers)
 
 **crash_deduplication.py**: 97.86% → 100% (+2.14%)
+
 - Added 4 edge case tests
 - Empty state handling
 - Disabled strategy configurations
 
 **End-to-End Integration Tests**: New
+
 - Created `test_end_to_end_fuzzing.py` (321 lines, 4 tests)
 - Complete fuzzing workflows
 - Multi-module integration verification
@@ -144,6 +148,53 @@ pytest tests/ --durations=10
 pytest tests/ --durations=0
 ```
 
+## Modern Tooling
+
+### Using Just Task Runner (Recommended)
+
+The project now includes a `justfile` with convenient test commands:
+
+```bash
+# Install just (if not already installed)
+# Windows: winget install Casey.Just
+# macOS: brew install just
+# Linux: cargo install just
+
+# Run tests with just
+just test                    # Run all tests
+just test-cov                # Run tests with coverage report
+just test-parallel           # Run tests in parallel (4 workers)
+just smoke                   # Quick smoke test (non-slow tests)
+just test-file tests/test_fuzzing_session.py  # Run specific file
+just coverage                # Generate detailed coverage report
+```
+
+### Using uv (Modern Package Manager)
+
+All commands can be run with `uv run` for deterministic dependency resolution:
+
+```bash
+# Run tests with uv
+uv run pytest tests/ -v
+uv run pytest tests/ --cov=dicom_fuzzer --cov-report=html
+uv run pytest -n 4 tests/  # Parallel execution
+
+# Use uv for faster dependency management
+uv sync --all-extras  # Install all dependencies
+uv pip list --outdated  # Check for updates
+```
+
+### Legacy Commands (Still Supported)
+
+Traditional pytest commands continue to work:
+
+```bash
+pytest tests/ -v
+pytest tests/ --cov=dicom_fuzzer --cov-report=html
+```
+
+**Note**: Modern tooling (uv + Ruff + Hatchling) was introduced in January 2025 to replace setuptools, black, isort, flake8, and pylint. See [README.md](../README.md#modern-tooling-2025) for full details.
+
 ## Test Structure
 
 ### Directory Organization
@@ -173,7 +224,9 @@ tests/
 ### Test Categories
 
 #### Unit Tests
+
 Test individual functions and methods in isolation:
+
 - `test_fuzzing_session.py`
 - `test_mutator.py`
 - `test_parser.py`
@@ -181,17 +234,23 @@ Test individual functions and methods in isolation:
 - etc.
 
 #### Integration Tests
+
 Test multiple modules working together:
+
 - `test_fuzzing_session_integration.py`
 - `test_end_to_end_fuzzing.py` ⭐
 
 #### Edge Case Tests
+
 Test error conditions and boundary cases:
+
 - `test_fuzzing_session_edge_cases.py` ⭐
 - Dedicated edge case test classes in other files
 
 #### Property-Based Tests
+
 Generative testing with Hypothesis:
+
 - `test_property_based.py`
 
 ## Writing Tests
@@ -253,6 +312,7 @@ class TestFeatureName:
    - ❌ `test_crash_1`
 
 2. **Arrange-Act-Assert**: Structure tests clearly
+
    ```python
    # Arrange
    session = FuzzingSession("test")
@@ -268,6 +328,7 @@ class TestFeatureName:
    - Multiple asserts are OK if they verify the same concept
 
 4. **Use Fixtures**: Share setup code with fixtures
+
    ```python
    @pytest.fixture
    def sample_dicom_file(tmp_path):
@@ -283,6 +344,7 @@ class TestFeatureName:
    - Invalid inputs
 
 6. **Document Why**: Explain non-obvious test logic
+
    ```python
    def test_crash_deduplication_similar_stacks(self):
        """Test that crashes with similar stack traces are grouped.
@@ -299,6 +361,7 @@ class TestFeatureName:
 Located in `tests/test_end_to_end_fuzzing.py`, these tests verify complete workflows:
 
 #### 1. Complete Fuzzing Campaign
+
 ```python
 def test_complete_fuzzing_campaign(fuzzing_workspace, sample_dicom_file):
     """
@@ -311,6 +374,7 @@ def test_complete_fuzzing_campaign(fuzzing_workspace, sample_dicom_file):
 ```
 
 #### 2. Crash Detection & Analysis
+
 ```python
 def test_crash_detection_and_analysis_workflow(fuzzing_workspace):
     """
@@ -323,6 +387,7 @@ def test_crash_detection_and_analysis_workflow(fuzzing_workspace):
 ```
 
 #### 3. Multi-File Fuzzing
+
 ```python
 def test_multi_file_fuzzing_with_statistics(fuzzing_workspace, sample_dicom_file):
     """
@@ -334,6 +399,7 @@ def test_multi_file_fuzzing_with_statistics(fuzzing_workspace, sample_dicom_file
 ```
 
 #### 4. Reporter Integration
+
 ```python
 def test_reporter_integration(fuzzing_workspace):
     """
@@ -359,13 +425,16 @@ pytest tests/test_end_to_end_fuzzing.py::TestEndToEndFuzzingWorkflow::test_compl
 ### Understanding Coverage Metrics
 
 **Line Coverage**: Percentage of code lines executed
+
 - **Target**: 90%+ for core modules
 - **Current**: 69.12% overall, 11/13 modules at 90%+
 
 **Branch Coverage**: Percentage of decision branches taken
+
 - Not currently measured but implicit in edge case testing
 
 **Missing Coverage**: Usually exception handlers and edge paths
+
 - Example: fuzzing_session.py missing 8 lines (all exception handlers)
 
 ### Viewing Coverage Reports
@@ -379,6 +448,7 @@ start reports/coverage/htmlcov/index.html  # Windows
 ```
 
 **HTML Report Features:**
+
 - ✅ Per-file coverage percentages
 - ✅ Line-by-line execution highlighting
 - ✅ Missing line identification
@@ -386,16 +456,17 @@ start reports/coverage/htmlcov/index.html  # Windows
 
 ### Coverage Goals
 
-| Coverage Level | Status | Action |
-|---------------|--------|--------|
-| **90-100%** | ✅ Excellent | Maintain with new features |
-| **70-90%** | ⚠️ Good | Add edge case tests |
-| **50-70%** | ⚠️ Fair | Add unit tests |
-| **< 50%** | ❌ Poor | Prioritize testing |
+| Coverage Level | Status       | Action                     |
+| -------------- | ------------ | -------------------------- |
+| **90-100%**    | ✅ Excellent | Maintain with new features |
+| **70-90%**     | ⚠️ Good      | Add edge case tests        |
+| **50-70%**     | ⚠️ Fair      | Add unit tests             |
+| **< 50%**      | ❌ Poor      | Prioritize testing         |
 
 ### Improving Coverage
 
 1. **Identify Missing Lines**
+
    ```bash
    pytest tests/test_module.py --cov=core.module --cov-report=term-missing
    ```
@@ -406,6 +477,7 @@ start reports/coverage/htmlcov/index.html  # Windows
    - Unreachable code?
 
 3. **Add Targeted Tests**
+
    ```python
    def test_exception_handler():
        """Test error condition that triggers handler."""
@@ -438,7 +510,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: "3.13"
       - name: Install dependencies
         run: |
           pip install uv
@@ -463,6 +535,7 @@ pre-commit run --all-files
 ```
 
 **Hooks include:**
+
 - Code formatting (black)
 - Import sorting (isort)
 - Linting (flake8)
@@ -557,6 +630,7 @@ When modifying code:
 ### Test Review Checklist
 
 Before merging:
+
 - [ ] All tests pass
 - [ ] Coverage ≥ 90% for changed modules
 - [ ] Integration tests pass
@@ -568,11 +642,13 @@ Before merging:
 ## Resources
 
 ### Internal Documentation
+
 - [Coverage Analysis](COVERAGE.md) - Detailed coverage breakdown
 - [Fuzzing Guide](FUZZING_GUIDE.md) - Testing methodologies
 - [Project Structure](../README.md#project-structure) - Repository organization
 
 ### External Resources
+
 - [pytest Documentation](https://docs.pytest.org/)
 - [Coverage.py Guide](https://coverage.readthedocs.io/)
 - [Hypothesis Documentation](https://hypothesis.readthedocs.io/)
