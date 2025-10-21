@@ -151,10 +151,11 @@ class TestFileGeneration:
                         # Should exit with success
                         assert e.code == 0 or e.code is None
 
-                # Verify generator was called
-                mock_gen.generate_batch.assert_called_once()
-                call_args = mock_gen.generate_batch.call_args
-                assert call_args[1]["count"] == 10
+                # Verify generator was called (CLI calls it multiple times with count=1)
+                assert mock_gen.generate_batch.call_count == 10
+                # Each call should have count=1
+                for call in mock_gen.generate_batch.call_args_list:
+                    assert call.kwargs.get("count") == 1 or call.args[1] == 1
 
     def test_generate_with_specific_strategies(self, sample_dicom, output_dir, capsys):
         """Test generation with specific strategies."""
@@ -287,7 +288,8 @@ class TestTargetTesting:
                     # Verify runner was created with correct params
                     mock_runner_class.assert_called_once()
                     call_args = mock_runner_class.call_args
-                    assert str(target_exe) in str(call_args)
+                    # Check target_executable parameter was passed
+                    assert call_args.kwargs["target_executable"] == str(target_exe)
 
                     # Verify campaign was run
                     mock_runner.run_campaign.assert_called_once()

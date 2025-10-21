@@ -5,8 +5,6 @@ These tests target specific uncovered code paths in validator.py
 to increase overall test coverage.
 """
 
-import pytest
-from pathlib import Path
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.tag import Tag
 import pydicom
@@ -83,7 +81,7 @@ class TestValidatorSecurityChecks:
         # Add many private tags (odd group numbers indicate private tags)
         for i in range(150):
             tag = Tag(0x0009 + (i * 2), 0x0010)  # Private tags
-            ds.add_new(tag, 'LO', f'PrivateValue{i}')
+            ds.add_new(tag, "LO", f"PrivateValue{i}")
 
         pydicom.dcmwrite(str(test_file), ds)
 
@@ -116,10 +114,10 @@ class TestValidatorSecurityChecks:
         current_seq = innermost
         for i in range(12):
             wrapper = Dataset()
-            wrapper.add_new(Tag(0x0040, 0x0260), 'SQ', [current_seq])
+            wrapper.add_new(Tag(0x0040, 0x0260), "SQ", [current_seq])
             current_seq = wrapper
 
-        ds.add_new(Tag(0x0040, 0x0260), 'SQ', [current_seq])
+        ds.add_new(Tag(0x0040, 0x0260), "SQ", [current_seq])
 
         pydicom.dcmwrite(str(test_file), ds)
 
@@ -128,7 +126,10 @@ class TestValidatorSecurityChecks:
 
         # Should warn about deep nesting
         assert len(result.warnings) > 0
-        assert any("nested" in warning.lower() or "depth" in warning.lower() for warning in result.warnings)
+        assert any(
+            "nested" in warning.lower() or "depth" in warning.lower()
+            for warning in result.warnings
+        )
 
     def test_validate_large_private_tag_data(self):
         """Test detection of large private tag data via validate()."""
@@ -138,15 +139,15 @@ class TestValidatorSecurityChecks:
         ds.SOPInstanceUID = "1.2.3"
 
         # Add large private tag data (> 1MB)
-        large_data = b'\x00' * (2 * 1024 * 1024)  # 2MB
-        ds.add_new(Tag(0x0009, 0x0010), 'OB', large_data)
+        large_data = b"\x00" * (2 * 1024 * 1024)  # 2MB
+        ds.add_new(Tag(0x0009, 0x0010), "OB", large_data)
 
         validator = DicomValidator()
         result = validator.validate(ds, check_security=True)
 
         # Should warn about large private data (>1MB)
         assert len(result.warnings) > 0
-        warnings_text = ' '.join(result.warnings).lower()
+        warnings_text = " ".join(result.warnings).lower()
         # The validator checks for private tags with data > 1MB
         assert "private" in warnings_text and "large" in warnings_text
 
@@ -157,7 +158,7 @@ class TestValidatorFileOperations:
     def test_validate_file_empty_file(self, tmp_path):
         """Test validation of empty file."""
         test_file = tmp_path / "empty.dcm"
-        test_file.write_bytes(b'')
+        test_file.write_bytes(b"")
 
         validator = DicomValidator()
         result, dataset = validator.validate_file(test_file)

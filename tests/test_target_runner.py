@@ -12,7 +12,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from dicom_fuzzer.core.target_runner import ExecutionResult, ExecutionStatus, TargetRunner
+from dicom_fuzzer.core.target_runner import (
+    ExecutionResult,
+    ExecutionStatus,
+    TargetRunner,
+)
 
 
 @pytest.fixture
@@ -479,11 +483,12 @@ if len(sys.argv) > 1:
         else:
             target_exe = target_script
 
-        # Run campaign
+        # Run campaign (disable circuit breaker for complete end-to-end testing)
         runner = TargetRunner(
             target_executable=str(target_exe),
             timeout=5.0,
             crash_dir=str(tmp_path / "crashes"),
+            enable_circuit_breaker=False,
         )
 
         results = runner.run_campaign(test_files)

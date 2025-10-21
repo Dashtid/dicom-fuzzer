@@ -178,7 +178,7 @@ class TestSessionManagement:
         """Test starting a mutation session."""
         mutator = DicomMutator(config={"auto_register_strategies": False})
 
-        mutator.start_session(basic_dataset)
+        session_id = mutator.start_session(basic_dataset)
 
         assert session_id is not None
         assert isinstance(session_id, str)
@@ -487,7 +487,7 @@ class TestIntegrationScenarios:
         mutator.register_strategy(strategy)
 
         # Start session
-        mutator.start_session(
+        session_id = mutator.start_session(
             basic_dataset, file_info={"filename": "test.dcm"}
         )
         assert session_id is not None

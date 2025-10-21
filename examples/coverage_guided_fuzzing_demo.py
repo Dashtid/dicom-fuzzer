@@ -43,14 +43,14 @@ def target_function(dicom_data: bytes) -> bool:
 
         # Validate the dataset
         validator = DICOMValidator()
-        is_valid = validator.validate(dataset)
+        _ = validator.validate(dataset)  # Result checked but not used in this demo
 
-        # Extract some metadata
+        # Extract some metadata (just for demonstration - not used)
         if hasattr(dataset, "PatientName"):
-            patient_name = str(dataset.PatientName)
+            _ = str(dataset.PatientName)
 
         if hasattr(dataset, "StudyDate"):
-            study_date = str(dataset.StudyDate)
+            _ = str(dataset.StudyDate)
 
         return True
 

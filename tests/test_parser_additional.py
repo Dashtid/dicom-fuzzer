@@ -5,15 +5,12 @@ These tests target specific uncovered code paths in parser.py
 to increase overall test coverage.
 """
 
-import pytest
-from pathlib import Path
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.tag import Tag
 import pydicom
 import numpy as np
 
 from dicom_fuzzer.core.parser import DicomParser
-from dicom_fuzzer.core.exceptions import ParsingError
 
 
 class TestMetadataExtraction:
@@ -163,8 +160,8 @@ class TestMetadataExtraction:
         ds.SOPInstanceUID = "1.2.3"
 
         # Add private tags
-        ds.add_new(Tag(0x0009, 0x0010), 'LO', 'PRIVATE_CREATOR')
-        ds.add_new(Tag(0x0009, 0x1001), 'LO', 'PrivateValue1')
+        ds.add_new(Tag(0x0009, 0x0010), "LO", "PRIVATE_CREATOR")
+        ds.add_new(Tag(0x0009, 0x1001), "LO", "PrivateValue1")
 
         pydicom.dcmwrite(str(test_file), ds)
 
@@ -224,7 +221,7 @@ class TestTagOperations:
         parser = DicomParser(test_file, security_checks=False)
 
         # Test get_tag_value if method exists
-        if hasattr(parser, 'get_tag_value'):
+        if hasattr(parser, "get_tag_value"):
             value = parser.get_tag_value(Tag(0x0010, 0x0010))
             assert "Test" in str(value)
 
@@ -247,7 +244,7 @@ class TestTagOperations:
 
         parser = DicomParser(test_file, security_checks=False)
 
-        if hasattr(parser, 'has_tag'):
+        if hasattr(parser, "has_tag"):
             # PatientName should be present
             assert parser.has_tag(Tag(0x0010, 0x0010)) is True
             # Random tag should not be present
@@ -273,7 +270,7 @@ class TestTagOperations:
 
         parser = DicomParser(test_file, security_checks=False)
 
-        if hasattr(parser, 'get_all_tags'):
+        if hasattr(parser, "get_all_tags"):
             tags = parser.get_all_tags()
             assert len(tags) > 0
             # Should include PatientName tag
@@ -298,10 +295,10 @@ class TestPrivateTagExtraction:
         ds.SOPInstanceUID = "1.2.3"
 
         # Add multiple private tags
-        ds.add_new(Tag(0x0009, 0x0010), 'LO', 'VENDOR1')
-        ds.add_new(Tag(0x0009, 0x1001), 'LO', 'Value1')
-        ds.add_new(Tag(0x0011, 0x0010), 'LO', 'VENDOR2')
-        ds.add_new(Tag(0x0011, 0x1001), 'LO', 'Value2')
+        ds.add_new(Tag(0x0009, 0x0010), "LO", "VENDOR1")
+        ds.add_new(Tag(0x0009, 0x1001), "LO", "Value1")
+        ds.add_new(Tag(0x0011, 0x0010), "LO", "VENDOR2")
+        ds.add_new(Tag(0x0011, 0x1001), "LO", "Value2")
 
         pydicom.dcmwrite(str(test_file), ds)
 

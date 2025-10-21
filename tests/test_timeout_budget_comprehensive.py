@@ -404,7 +404,7 @@ class TestIntegrationScenarios:
             timed_out = i % 10 == 0
             duration = 5.0 if timed_out else 0.5
 
-            with ExecutionTimer() as timer:
+            with ExecutionTimer():
                 time.sleep(0.001)  # Simulate work
 
             manager.record_execution(duration, timed_out)

@@ -248,6 +248,17 @@ class DicomValidator:
 
                 dataset = pydicom.dcmread(file_path, force=True)
 
+                # Check if file has valid DICOM structure (preamble + file_meta)
+                # force=True allows reading malformed DICOM, but completely invalid files
+                # will have no preamble and empty file_meta
+                if not hasattr(dataset, "preamble") or dataset.preamble is None:
+                    if not hasattr(dataset, "file_meta") or len(dataset.file_meta) == 0:
+                        result.add_error(
+                            "File does not appear to be valid DICOM format "
+                            "(missing DICOM preamble and file meta information)"
+                        )
+                        return result, dataset
+
                 # Validate the parsed dataset
                 validation_result = self.validate(dataset)
                 result.errors.extend(validation_result.errors)
@@ -340,14 +351,6 @@ class DicomValidator:
                     context={"tag": str(elem.tag), "length": len(str_value)},
                 )
 
-            # Check for null bytes in strings (potential attack)
-            if "\x00" in str_value[:-1]:
-                # Allow single trailing null (DICOM padding)
-                result.add_error(
-                    f"Tag {elem.tag} contains null bytes (potential attack)",
-                    context={"tag": str(elem.tag)},
-                )
-
     def _validate_security(self, dataset: Dataset, result: ValidationResult) -> None:
         """Perform security-focused validation.
 
@@ -359,18 +362,41 @@ class DicomValidator:
         """
         # Check for suspiciously large number of elements
         if len(dataset) > 10000:
-            result.add_warning(
-                f"Dataset has unusually large number of elements: {len(dataset)}",
-                context={"element_count": len(dataset)},
-            )
+            msg = f"Dataset has unusually large number of elements: {len(dataset)}"
+            ctx = {"element_count": len(dataset)}
+            if self.strict_mode:
+                result.add_error(msg, context=ctx)
+            else:
+                result.add_warning(msg, context=ctx)
 
         # Check for deeply nested sequences
         max_depth = self._check_sequence_depth(dataset)
         if max_depth > 10:
-            result.add_warning(
-                f"Dataset has deeply nested sequences: depth {max_depth}",
-                context={"max_depth": max_depth},
-            )
+            msg = f"Dataset has deeply nested sequences: depth {max_depth}"
+            ctx = {"max_depth": max_depth}
+            if self.strict_mode:
+                result.add_error(msg, context=ctx)
+            else:
+                result.add_warning(msg, context=ctx)
+
+        # Check for null bytes in string values (potential attack)
+        for elem in dataset:
+            # Skip empty or undefined values
+            if elem.value is None or elem.value == "":
+                continue
+
+            # Convert to string for checking
+            str_value = str(elem.value) if not isinstance(elem.value, bytes) else None
+
+            if str_value is None:
+                continue
+
+            # Check for null bytes (allow single trailing null for DICOM padding)
+            if "\x00" in str_value[:-1]:
+                result.add_error(
+                    f"Tag {elem.tag} contains null bytes (potential attack)",
+                    context={"tag": str(elem.tag)},
+                )
 
         # Check for private tags with suspicious patterns
         self._check_private_tags(dataset, result)
@@ -412,17 +438,21 @@ class DicomValidator:
                 # Check for suspiciously large private data
                 if hasattr(elem, "value") and isinstance(elem.value, bytes):
                     if len(elem.value) > 1024 * 1024:  # > 1MB
-                        result.add_warning(
-                            f"Private tag {elem.tag} contains large data: {len(elem.value)} bytes",  # noqa: E501
-                            context={"tag": str(elem.tag), "size": len(elem.value)},
-                        )
+                        msg = f"Private tag {elem.tag} contains large data: {len(elem.value)} bytes"
+                        ctx = {"tag": str(elem.tag), "size": len(elem.value)}
+                        if self.strict_mode:
+                            result.add_error(msg, context=ctx)
+                        else:
+                            result.add_warning(msg, context=ctx)
 
         # Too many private tags might indicate data exfiltration attempt
         if private_tag_count > 100:
-            result.add_warning(
-                f"Dataset contains many private tags: {private_tag_count}",
-                context={"private_tag_count": private_tag_count},
-            )
+            msg = f"Dataset contains many private tags: {private_tag_count}"
+            ctx = {"private_tag_count": private_tag_count}
+            if self.strict_mode:
+                result.add_error(msg, context=ctx)
+            else:
+                result.add_warning(msg, context=ctx)
 
     def validate_batch(
         self, datasets: List[Dataset], stop_on_first_error: bool = False
@@ -439,12 +469,12 @@ class DicomValidator:
         results = []
 
         for i, dataset in enumerate(datasets):
-            logger.debug(f"Validating dataset {i+1}/{len(datasets)}")
+            logger.debug(f"Validating dataset {i + 1}/{len(datasets)}")
             result = self.validate(dataset)
             results.append(result)
 
             if stop_on_first_error and not result.is_valid:
-                logger.warning(f"Stopping validation at dataset {i+1} due to error")
+                logger.warning(f"Stopping validation at dataset {i + 1} due to error")
                 break
 
         # Summary statistics

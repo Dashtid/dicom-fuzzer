@@ -185,7 +185,7 @@ class TestTargetRunnerInitialization:
         exe.touch()
         crash_dir = tmp_path / "crashes"
 
-        runner = TargetRunner(target_executable=str(exe), crash_dir=str(crash_dir))
+        TargetRunner(target_executable=str(exe), crash_dir=str(crash_dir))
 
         assert crash_dir.exists()
 
@@ -222,7 +222,9 @@ class TestTargetRunnerInitialization:
         exe.touch()
 
         runner = TargetRunner(
-            target_executable=str(exe), enable_circuit_breaker=False, crash_dir=str(tmp_path)
+            target_executable=str(exe),
+            enable_circuit_breaker=False,
+            crash_dir=str(tmp_path),
         )
 
         assert runner.enable_circuit_breaker is False
@@ -301,7 +303,9 @@ class TestCircuitBreakerLogic:
         exe = tmp_path / "target.exe"
         exe.touch()
         runner = TargetRunner(
-            target_executable=str(exe), enable_circuit_breaker=False, crash_dir=str(tmp_path)
+            target_executable=str(exe),
+            enable_circuit_breaker=False,
+            crash_dir=str(tmp_path),
         )
 
         runner.circuit_breaker.is_open = True

@@ -49,7 +49,11 @@ class TestMutatePixels:
         ds.BitsAllocated = 8
 
         # Mock pixel_array property
-        with patch.object(Dataset, "pixel_array", new_callable=lambda: property(lambda self: pixel_array)):
+        with patch.object(
+            Dataset,
+            "pixel_array",
+            new_callable=lambda: property(lambda self: pixel_array),
+        ):
             mutated = fuzzer.mutate_pixels(ds)
 
         assert isinstance(mutated, Dataset)
@@ -69,7 +73,11 @@ class TestMutatePixels:
         pixel_array = np.zeros((2, 2), dtype=np.uint8)
         ds.PixelData = pixel_array.tobytes()
 
-        with patch.object(Dataset, "pixel_array", new_callable=lambda: property(lambda self: pixel_array.copy())):
+        with patch.object(
+            Dataset,
+            "pixel_array",
+            new_callable=lambda: property(lambda self: pixel_array.copy()),
+        ):
             mutated = fuzzer.mutate_pixels(ds)
 
         assert hasattr(mutated, "PixelData")
@@ -81,7 +89,13 @@ class TestMutatePixels:
         ds.PixelData = b"invalid_data"
 
         # Mock pixel_array to raise ValueError
-        with patch.object(Dataset, "pixel_array", new_callable=lambda: property(lambda self: (_ for _ in ()).throw(ValueError("Invalid pixel data")))):
+        with patch.object(
+            Dataset,
+            "pixel_array",
+            new_callable=lambda: property(
+                lambda self: (_ for _ in ()).throw(ValueError("Invalid pixel data"))
+            ),
+        ):
             mutated = fuzzer.mutate_pixels(ds)
 
         # Should return dataset without crashing
@@ -93,7 +107,13 @@ class TestMutatePixels:
         ds = Dataset()
         ds.PixelData = b"data"
 
-        with patch.object(Dataset, "pixel_array", new_callable=lambda: property(lambda self: (_ for _ in ()).throw(AttributeError("Missing attribute")))):
+        with patch.object(
+            Dataset,
+            "pixel_array",
+            new_callable=lambda: property(
+                lambda self: (_ for _ in ()).throw(AttributeError("Missing attribute"))
+            ),
+        ):
             mutated = fuzzer.mutate_pixels(ds)
 
         assert isinstance(mutated, Dataset)
@@ -104,7 +124,13 @@ class TestMutatePixels:
         ds = Dataset()
         ds.PixelData = b"data"
 
-        with patch.object(Dataset, "pixel_array", new_callable=lambda: property(lambda self: (_ for _ in ()).throw(TypeError("Type error")))):
+        with patch.object(
+            Dataset,
+            "pixel_array",
+            new_callable=lambda: property(
+                lambda self: (_ for _ in ()).throw(TypeError("Type error"))
+            ),
+        ):
             mutated = fuzzer.mutate_pixels(ds)
 
         assert isinstance(mutated, Dataset)
@@ -133,7 +159,13 @@ class TestPixelDataCheck:
         ds.PixelData = b"\x00" * 100
 
         # Tag exists, so mutation will be attempted
-        with patch.object(Dataset, "pixel_array", new_callable=lambda: property(lambda self: np.zeros((10, 10), dtype=np.uint8))):
+        with patch.object(
+            Dataset,
+            "pixel_array",
+            new_callable=lambda: property(
+                lambda self: np.zeros((10, 10), dtype=np.uint8)
+            ),
+        ):
             mutated = fuzzer.mutate_pixels(ds)
 
         assert "PixelData" in mutated
@@ -151,7 +183,13 @@ class TestCorruptedHeaders:
         ds.Columns = 2147483647  # Invalid
 
         # Should handle exception gracefully
-        with patch.object(Dataset, "pixel_array", new_callable=lambda: property(lambda self: (_ for _ in ()).throw(ValueError("Invalid dimensions")))):
+        with patch.object(
+            Dataset,
+            "pixel_array",
+            new_callable=lambda: property(
+                lambda self: (_ for _ in ()).throw(ValueError("Invalid dimensions"))
+            ),
+        ):
             mutated = fuzzer.mutate_pixels(ds)
 
         assert isinstance(mutated, Dataset)
@@ -164,7 +202,13 @@ class TestCorruptedHeaders:
         ds.Rows = -1
         ds.Columns = -1
 
-        with patch.object(Dataset, "pixel_array", new_callable=lambda: property(lambda self: (_ for _ in ()).throw(ValueError("Negative dimensions")))):
+        with patch.object(
+            Dataset,
+            "pixel_array",
+            new_callable=lambda: property(
+                lambda self: (_ for _ in ()).throw(ValueError("Negative dimensions"))
+            ),
+        ):
             mutated = fuzzer.mutate_pixels(ds)
 
         assert isinstance(mutated, Dataset)
@@ -181,7 +225,11 @@ class TestIntegrationScenarios:
         pixel_array = np.zeros((10, 10), dtype=np.uint8)
         ds.PixelData = pixel_array.tobytes()
 
-        with patch.object(Dataset, "pixel_array", new_callable=lambda: property(lambda self: pixel_array.copy())):
+        with patch.object(
+            Dataset,
+            "pixel_array",
+            new_callable=lambda: property(lambda self: pixel_array.copy()),
+        ):
             for _ in range(5):
                 ds = fuzzer.mutate_pixels(ds)
 
@@ -198,7 +246,11 @@ class TestIntegrationScenarios:
         pixel_array = np.zeros((5, 5), dtype=np.uint8)
         ds.PixelData = pixel_array.tobytes()
 
-        with patch.object(Dataset, "pixel_array", new_callable=lambda: property(lambda self: pixel_array.copy())):
+        with patch.object(
+            Dataset,
+            "pixel_array",
+            new_callable=lambda: property(lambda self: pixel_array.copy()),
+        ):
             mutated = fuzzer.mutate_pixels(ds)
 
         # Other fields should be preserved
@@ -217,7 +269,11 @@ class TestIntegrationScenarios:
             pixel_array = np.zeros(shape, dtype=np.uint8)
             ds.PixelData = pixel_array.tobytes()
 
-            with patch.object(Dataset, "pixel_array", new_callable=lambda: property(lambda self: pixel_array.copy())):
+            with patch.object(
+                Dataset,
+                "pixel_array",
+                new_callable=lambda: property(lambda self: pixel_array.copy()),
+            ):
                 mutated = fuzzer.mutate_pixels(ds)
 
             assert isinstance(mutated, Dataset)
@@ -233,7 +289,11 @@ class TestIntegrationScenarios:
             pixel_array = np.zeros((10, 10), dtype=dtype)
             ds.PixelData = pixel_array.tobytes()
 
-            with patch.object(Dataset, "pixel_array", new_callable=lambda: property(lambda self: pixel_array.copy())):
+            with patch.object(
+                Dataset,
+                "pixel_array",
+                new_callable=lambda: property(lambda self: pixel_array.copy()),
+            ):
                 mutated = fuzzer.mutate_pixels(ds)
 
             assert isinstance(mutated, Dataset)
@@ -251,11 +311,17 @@ class TestIntegrationScenarios:
             pixel_array = np.zeros((10, 10), dtype=np.uint8)
             ds.PixelData = pixel_array.tobytes()
 
-            # Create noise mask with specified coverage
-            noise_mask = np.random.random((10, 10)) < coverage
-            mock_random.return_value = noise_mask
+            # Configure mock to return actual random array
+            # Mock should return array that creates noise_mask when compared to coverage
+            mock_random.return_value = np.full(
+                (10, 10), coverage / 2
+            )  # Half will be < coverage
 
-            with patch.object(Dataset, "pixel_array", new_callable=lambda: property(lambda self: pixel_array.copy())):
+            with patch.object(
+                Dataset,
+                "pixel_array",
+                new_callable=lambda: property(lambda self: pixel_array.copy()),
+            ):
                 mutated = fuzzer.mutate_pixels(ds)
 
             assert isinstance(mutated, Dataset)

@@ -220,23 +220,40 @@ class DicomParser:
                 metadata[field_name] = ""
 
         # Add image-specific metadata if present
+        # Check for PixelData tag instead of pixel_array property
         try:
-            if hasattr(self.dataset, "pixel_array"):
-                pixel_array = self.dataset.pixel_array
-                metadata.update(
-                    {
-                        "has_pixel_data": True,
-                        "image_shape": pixel_array.shape,
-                        "image_dtype": str(pixel_array.dtype),
-                        "rows": getattr(self.dataset, "Rows", None),
-                        "columns": getattr(self.dataset, "Columns", None),
-                        "bits_allocated": getattr(self.dataset, "BitsAllocated", None),
-                        "bits_stored": getattr(self.dataset, "BitsStored", None),
-                        "samples_per_pixel": getattr(
-                            self.dataset, "SamplesPerPixel", None
-                        ),
-                    }
-                )
+            if "PixelData" in self.dataset:
+                try:
+                    pixel_array = self.dataset.pixel_array
+                    metadata.update(
+                        {
+                            "has_pixel_data": True,
+                            "image_shape": pixel_array.shape,
+                            "image_dtype": str(pixel_array.dtype),
+                            "rows": getattr(self.dataset, "Rows", None),
+                            "columns": getattr(self.dataset, "Columns", None),
+                            "bits_allocated": getattr(
+                                self.dataset, "BitsAllocated", None
+                            ),
+                            "bits_stored": getattr(self.dataset, "BitsStored", None),
+                            "samples_per_pixel": getattr(
+                                self.dataset, "SamplesPerPixel", None
+                            ),
+                        }
+                    )
+                except Exception as e:
+                    # PixelData exists but can't be decoded
+                    logger.warning(f"PixelData exists but can't be decoded: {e}")
+                    metadata["has_pixel_data"] = True
+                    metadata["rows"] = getattr(self.dataset, "Rows", None)
+                    metadata["columns"] = getattr(self.dataset, "Columns", None)
+                    metadata["bits_allocated"] = getattr(
+                        self.dataset, "BitsAllocated", None
+                    )
+                    metadata["bits_stored"] = getattr(self.dataset, "BitsStored", None)
+                    metadata["samples_per_pixel"] = getattr(
+                        self.dataset, "SamplesPerPixel", None
+                    )
             else:
                 metadata["has_pixel_data"] = False
         except Exception as e:

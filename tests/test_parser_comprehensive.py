@@ -3,11 +3,9 @@
 Tests DICOM file parsing, security checks, and metadata extraction.
 """
 
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
-from pydicom import Dataset
 from pydicom.tag import Tag
 
 from dicom_fuzzer.core.parser import DicomParser
@@ -47,7 +45,7 @@ class TestSecurityChecks:
         """Test parser with security checks disabled."""
         # Should not raise on nonexistent file when checks disabled
         try:
-            parser = DicomParser("/fake.dcm", security_checks=False)
+            DicomParser("/fake.dcm", security_checks=False)
         except ParsingError:
             # Parsing will fail but security check should not trigger
             pass
@@ -92,7 +90,7 @@ class TestParsingOperations:
 
         assert parser.dataset is not None
 
-    @patch('pydicom.dcmread')
+    @patch("pydicom.dcmread")
     def test_parse_failure_raises_error(self, mock_dcmread, tmp_path):
         """Test parse failure raises ParsingError."""
         test_file = tmp_path / "bad.dcm"
@@ -127,7 +125,7 @@ class TestParsingOperations:
         parser = DicomParser(test_file, security_checks=False)
 
         assert parser.dataset is not None
-        assert hasattr(parser.dataset, 'PatientName')
+        assert hasattr(parser.dataset, "PatientName")
 
 
 class TestMetadataExtraction:
@@ -157,7 +155,7 @@ class TestMetadataExtraction:
 
         parser = DicomParser(test_file, security_checks=False)
 
-        if hasattr(parser, 'get_metadata'):
+        if hasattr(parser, "get_metadata"):
             metadata = parser.get_metadata()
             assert isinstance(metadata, dict)
 
@@ -185,7 +183,7 @@ class TestMetadataExtraction:
         parser = DicomParser(test_file, security_checks=False)
 
         # Access metadata multiple times
-        if hasattr(parser, 'get_metadata'):
+        if hasattr(parser, "get_metadata"):
             metadata1 = parser.get_metadata()
             metadata2 = parser.get_metadata()
 
@@ -225,7 +223,7 @@ class TestTagOperations:
 
         parser = DicomParser(test_file, security_checks=False)
 
-        if hasattr(parser, 'has_tag'):
+        if hasattr(parser, "has_tag"):
             result = parser.has_tag(Tag(0x0010, 0x0010))
             assert isinstance(result, bool)
 

@@ -5,6 +5,8 @@ Tests cover all corruption strategies: tag ordering, length fields,
 unexpected tags, duplicates, and binary header corruption.
 """
 
+from pathlib import Path
+
 import pytest
 from pydicom.dataset import Dataset
 
@@ -324,4 +326,6 @@ class TestIntegrationScenarios:
         mutated3 = fuzzer._insert_unexpected_tags(ds)
         mutated4 = fuzzer._duplicate_tags(ds)
 
-        assert all(isinstance(m, Dataset) for m in [mutated1, mutated2, mutated3, mutated4])
+        assert all(
+            isinstance(m, Dataset) for m in [mutated1, mutated2, mutated3, mutated4]
+        )

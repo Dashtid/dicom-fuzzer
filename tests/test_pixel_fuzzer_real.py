@@ -154,7 +154,6 @@ class TestPixelMutationBehavior:
         original_pixels = dataset_with_pixels.pixel_array.copy()
 
         # Track if any mutation occurred across multiple tries
-        mutations_found = False
         for _ in range(10):
             ds_copy = dataset_with_pixels
             fuzzer.mutate_pixels(ds_copy)

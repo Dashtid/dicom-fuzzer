@@ -513,8 +513,9 @@ class TestParserEdgeCases:
             side_effect=ValueError("Pixel error"),
         ):
             metadata = parser.extract_metadata()
-            # Should set has_pixel_data to False due to exception
-            assert metadata["has_pixel_data"] is False
+            # Should set has_pixel_data to True because PixelData tag exists
+            # even though it can't be decoded
+            assert metadata["has_pixel_data"] is True
 
     def test_dataset_property_when_none(self, tmp_path):
         """Test dataset property raises ParsingError when None (line 169)."""

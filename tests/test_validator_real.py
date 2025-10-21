@@ -363,7 +363,7 @@ class TestDicomValidatorValidate:
 
     def test_validate_deeply_nested_sequence(self, dataset_with_deeply_nested_sequence):
         """Test that deeply nested sequences are detected."""
-        validator = DicomValidator()
+        validator = DicomValidator(strict_mode=True)
         result = validator.validate(
             dataset_with_deeply_nested_sequence, check_security=True
         )
@@ -377,7 +377,7 @@ class TestDicomValidatorValidate:
 
     def test_validate_large_private_tag(self, dataset_with_large_private_tag):
         """Test that large private tags are detected."""
-        validator = DicomValidator()
+        validator = DicomValidator(strict_mode=True)
         result = validator.validate(dataset_with_large_private_tag, check_security=True)
 
         # Large private tag should be flagged
@@ -619,7 +619,7 @@ class TestDicomValidatorSecurityChecks:
 
     def test_security_check_sequence_depth(self):
         """Test detection of excessively deep sequence nesting."""
-        validator = DicomValidator()
+        validator = DicomValidator(strict_mode=True)
 
         ds = Dataset()
         current = ds
@@ -651,7 +651,7 @@ class TestDicomValidatorSecurityChecks:
 
     def test_security_check_private_tag_size(self):
         """Test detection of suspiciously large private tags."""
-        validator = DicomValidator()
+        validator = DicomValidator(strict_mode=True)
 
         ds = Dataset()
         # Add private tag with 2 MB of data
