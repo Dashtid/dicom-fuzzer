@@ -4,11 +4,14 @@ A specialized security testing tool for fuzzing DICOM (Digital Imaging and Commu
 
 [![CI/CD Pipeline](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/Dashtid/DICOM-Fuzzer/branch/main/graph/badge.svg)](https://codecov.io/gh/Dashtid/DICOM-Fuzzer)
-[![Tests](<https://img.shields.io/badge/tests-2097%2B%20passing-brightgreen>)](tests/)
+[![Tests](https://img.shields.io/badge/tests-2097%2B%20passing-brightgreen)](tests/)
 [![Coverage](https://img.shields.io/badge/coverage-50.56%25-brightgreen)](docs/COVERAGE.md)
 [![Core Modules](https://img.shields.io/badge/core%20modules-17%2B%20%40%20100%25-brightgreen)](#test-coverage)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://python.org)
 [![Code Style](https://img.shields.io/badge/code%20style-ruff-black)](https://github.com/astral-sh/ruff)
+[![Linter](https://img.shields.io/badge/linter-ruff-orange)](https://github.com/astral-sh/ruff)
+[![Build](https://img.shields.io/badge/build-hatchling-blue)](https://github.com/pypa/hatch)
+[![Package Manager](https://img.shields.io/badge/package%20manager-uv-purple)](https://github.com/astral-sh/uv)
 [![Security](https://img.shields.io/badge/security-bandit-yellow)](https://github.com/PyCQA/bandit)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -170,8 +173,7 @@ DICOM-Fuzzer/
 git clone https://github.com/yourusername/DICOM-Fuzzer.git
 cd DICOM-Fuzzer
 
-# Install with uv (recommended)
-uv venv
+# Install with uv (recommended - fast, modern Python package manager)
 uv sync
 
 # Activate virtual environment
@@ -184,17 +186,52 @@ source .venv/bin/activate
 ### Development Setup
 
 ```bash
-# Install development dependencies
-uv sync --dev
+# Install all dependencies (including dev and docs)
+uv sync --all-extras
 
 # Install pre-commit hooks
-pre-commit install
+uv run pre-commit install
 
 # Run tests
-pytest tests/ -v
+uv run pytest tests/ -v
 
 # Run with coverage
-pytest tests/ --cov=dicom_fuzzer --cov-report=html
+uv run pytest tests/ --cov=dicom_fuzzer --cov-report=html
+```
+
+### Modern Tooling (2025)
+
+This project uses modern Python development tools:
+
+- **[uv](https://github.com/astral-sh/uv)** - Fast Python package manager and resolver
+- **[Hatchling](https://github.com/pypa/hatch)** - Modern build backend (replaces setuptools)
+- **[Ruff](https://github.com/astral-sh/ruff)** - Fast linter and formatter (replaces black, isort, flake8, pylint)
+- **[just](https://just.systems/)** - Modern task runner with 30+ recipes
+
+**Using Just Task Runner** (optional, but recommended):
+
+```bash
+# Install just (cross-platform)
+# Windows (via winget):
+winget install Casey.Just
+# macOS (via homebrew):
+brew install just
+# Linux (via cargo):
+cargo install just
+
+# View all available tasks
+just
+
+# Common tasks
+just install          # Install all dependencies
+just test             # Run all tests
+just test-cov         # Run tests with coverage
+just lint             # Run linter
+just format-check     # Check formatting
+just fix              # Auto-fix linting issues
+just check            # Run all quality checks
+just build            # Build package
+just clean            # Clean cache and artifacts
 ```
 
 ## Usage
@@ -472,14 +509,17 @@ config = {
 ### Run Test Suite
 
 ```bash
-# Run all tests
-pytest tests/ -v
+# Using just (recommended)
+just test              # Run all tests
+just test-cov          # Run tests with coverage
+just test-parallel     # Run tests in parallel (faster)
+just smoke             # Quick smoke test (fast subset)
+just test-file tests/test_fuzzing_session.py  # Run specific test file
 
-# Run with coverage
-pytest tests/ --cov=dicom_fuzzer --cov-report=html
-
-# Run specific test module
-pytest tests/test_fuzzing_session.py -v
+# Using uv directly
+uv run pytest tests/ -v
+uv run pytest tests/ --cov=dicom_fuzzer --cov-report=html
+uv run pytest tests/test_fuzzing_session.py -v
 
 # View coverage report
 start reports/coverage/htmlcov/index.html  # Windows
@@ -497,24 +537,24 @@ open reports/coverage/htmlcov/index.html   # macOS
 
 **Module Coverage (100% Coverage Modules):**
 
-| Module                            | Statements | Tests | Status       |
-| --------------------------------- | ---------- | ----- | ------------ |
-| **enhanced_reporter.py** (NEW)    | 120        | 41    | ✅ Perfect   |
-| **config.py**                     | 88         | 51    | ✅ Perfect   |
-| **config_validator.py**           | 170        | 55    | ✅ Perfect   |
-| **crash_deduplication.py**        | 140        | 53    | ✅ Perfect   |
-| **crash_analyzer.py**             | 123        | 26    | ✅ Perfect   |
-| **generator.py**                  | 90         | 41    | ✅ Perfect   |
-| **reporter.py**                   | 83         | 24    | ✅ Perfect   |
-| **statistics.py**                 | 120        | 24    | ✅ Perfect   |
-| **validator.py**                  | 150        | 59    | ✅ Perfect   |
-| **profiler.py**                   | 115        | 62    | ✅ Perfect   |
-| **timeout_budget.py**             | 120        | 36    | ✅ Perfect   |
-| **coverage_correlation.py**       | 144        | 41    | ✅ Perfect   |
-| **exceptions.py**                 | 19         | 8     | ✅ Perfect   |
-| **types.py**                      | 6          | 8     | ✅ Perfect   |
-| **metadata_fuzzer.py**            | 16         | -     | ✅ Perfect   |
-| **pixel_fuzzer.py**               | 12         | -     | ✅ Perfect   |
+| Module                         | Statements | Tests | Status     |
+| ------------------------------ | ---------- | ----- | ---------- |
+| **enhanced_reporter.py** (NEW) | 120        | 41    | ✅ Perfect |
+| **config.py**                  | 88         | 51    | ✅ Perfect |
+| **config_validator.py**        | 170        | 55    | ✅ Perfect |
+| **crash_deduplication.py**     | 140        | 53    | ✅ Perfect |
+| **crash_analyzer.py**          | 123        | 26    | ✅ Perfect |
+| **generator.py**               | 90         | 41    | ✅ Perfect |
+| **reporter.py**                | 83         | 24    | ✅ Perfect |
+| **statistics.py**              | 120        | 24    | ✅ Perfect |
+| **validator.py**               | 150        | 59    | ✅ Perfect |
+| **profiler.py**                | 115        | 62    | ✅ Perfect |
+| **timeout_budget.py**          | 120        | 36    | ✅ Perfect |
+| **coverage_correlation.py**    | 144        | 41    | ✅ Perfect |
+| **exceptions.py**              | 19         | 8     | ✅ Perfect |
+| **types.py**                   | 6          | 8     | ✅ Perfect |
+| **metadata_fuzzer.py**         | 16         | -     | ✅ Perfect |
+| **pixel_fuzzer.py**            | 12         | -     | ✅ Perfect |
 
 **High Coverage Modules:**
 
@@ -523,7 +563,7 @@ open reports/coverage/htmlcov/index.html   # macOS
 | **crash_triage.py** (v1.2.0)      | 97.53%   | 17    | ✅ Excellent |
 | **stability_tracker.py** (v1.2.0) | 97.20%   | 22    | ✅ Excellent |
 | **fuzzing_session.py**            | 70.23%   | 41    | ✅ Good      |
-| **corpus.py**                     | 59.74%   | 24    | ⚠️  Improving |
+| **corpus.py**                     | 59.74%   | 24    | ⚠️ Improving |
 | **parser.py**                     | 96.60%   | 57    | ✅ Excellent |
 
 **New Test Files (Latest Session):**
@@ -674,11 +714,12 @@ Contributions are welcome! This project is designed to be both a practical tool 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/crash-analyzer-improvements`)
 3. Make your changes with tests
-4. Ensure all tests pass (`pytest tests/ -v`)
-5. Ensure code quality (`black . && isort . && flake8`)
-6. Commit with conventional commits (`git commit -m "feat: add crash signature hashing"`)
-7. Push to your fork (`git push origin feature/crash-analyzer-improvements`)
-8. Open a Pull Request
+4. Ensure all tests pass (`just test` or `uv run pytest tests/ -v`)
+5. Ensure code quality (`just check` or `uv run ruff check . && uv run ruff format . && uv run mypy dicom_fuzzer/`)
+6. Run pre-commit hooks (`just pre-commit` or `uv run pre-commit run --all-files`)
+7. Commit with conventional commits (`git commit -m "feat: add crash signature hashing"`)
+8. Push to your fork (`git push origin feature/crash-analyzer-improvements`)
+9. Open a Pull Request
 
 ### Development Guidelines
 
@@ -688,6 +729,27 @@ Contributions are welcome! This project is designed to be both a practical tool 
 - Document security implications
 - Use atomic commits (one logical change per commit)
 - Follow conventional commit format
+
+### Code Quality
+
+```bash
+# Using just (recommended)
+just lint              # Run Ruff linter
+just format-check      # Check code formatting
+just fix               # Auto-fix linting and formatting issues
+just typecheck         # Run mypy type checking
+just check             # Run all quality checks (lint + format + typecheck)
+just security          # Run Bandit security scan
+just pre-commit        # Run pre-commit hooks on all files
+
+# Using uv directly
+uv run ruff check .
+uv run ruff format --check .
+uv run ruff check --fix . && uv run ruff format .
+uv run mypy dicom_fuzzer/
+uv run bandit -c pyproject.toml -r dicom_fuzzer/
+uv run pre-commit run --all-files
+```
 
 See [.claude/CLAUDE.md](.claude/CLAUDE.md) for detailed development guidelines.
 
@@ -700,7 +762,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with [pydicom](https://pydicom.github.io/) for DICOM parsing
 - Uses [pynetdicom](https://pynetdicom.readthedocs.io/) for network operations
 - Testing with [pytest](https://pytest.org/) and [hypothesis](https://hypothesis.readthedocs.io/)
-- Code quality with [black](https://github.com/psf/black), [isort](https://pycqa.github.io/isort/), and [flake8](https://flake8.pycqa.org/)
+- Modern tooling with [uv](https://github.com/astral-sh/uv) (package manager), [Ruff](https://github.com/astral-sh/ruff) (linter/formatter), [Hatchling](https://github.com/pypa/hatch) (build backend), and [just](https://just.systems/) (task runner)
 
 ## Disclaimer
 
