@@ -210,27 +210,31 @@ class TestResourceManagementWorkflow:
         """
         # Create resource manager with limits
         limits = ResourceLimits(
-            max_memory_mb=1024,  # 1GB (soft limit)
-            max_memory_hard_mb=2048,  # 2GB (hard limit)
-            max_cpu_time_seconds=60,  # 1 minute
+            max_memory_mb=1024,  # 1GB
+            max_cpu_seconds=60,  # 1 minute
             min_disk_space_mb=100,  # 100MB minimum
         )
 
         manager = ResourceManager(limits)
 
-        # Check pre-flight validation
-        validation_result = manager.check_available_resources()
-        assert validation_result is not None, "Should return validation result"
-
-        # On Windows, only disk space is checked
-        # On Unix/Linux, all resources are checked
-
-        # Test disk space monitoring (works on all platforms)
+        # Test resource availability checking
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
-        has_space = manager.check_disk_space(str(output_dir))
-        assert isinstance(has_space, bool), "Should return boolean for disk space check"
+        has_resources = manager.check_available_resources(output_dir)
+        assert isinstance(has_resources, bool), "Should return boolean for resource check"
+
+        # Test current resource usage
+        usage = manager.get_current_usage(output_dir)
+        assert usage is not None, "Should return resource usage"
+        assert hasattr(usage, "memory_mb"), "Should have memory usage"
+        assert hasattr(usage, "disk_free_mb"), "Should have disk usage"
+
+        # Test campaign accommodation estimate
+        can_run = manager.can_accommodate_campaign(
+            num_files=10, avg_file_size_mb=1.0, output_dir=output_dir
+        )
+        assert isinstance(can_run, bool), "Should return boolean for campaign check"
 
 
 class TestSessionPersistenceWorkflow:
@@ -262,9 +266,10 @@ class TestSessionPersistenceWorkflow:
 
         # Simulate some fuzzing activity
         for i in range(5):
+            output_file = session_workspace["output"] / f"output_{i}.dcm"
             file_id = session1.start_file_fuzzing(
                 source_file="source.dcm",
-                output_file=f"output_{i}.dcm",
+                output_file=str(output_file),
                 severity="moderate",
             )
 
@@ -276,7 +281,7 @@ class TestSessionPersistenceWorkflow:
                 mutated_value="A" * 1000,
             )
 
-            session1.end_file_fuzzing(f"output_{i}.dcm")
+            session1.end_file_fuzzing(output_file)
 
         # Save session state
         report_path = session1.save_session_report()
@@ -305,12 +310,13 @@ class TestSessionPersistenceWorkflow:
 
         # Continue fuzzing
         for i in range(5, 10):
+            output_file = session_workspace["output"] / f"output_{i}.dcm"
             file_id = session2.start_file_fuzzing(
                 source_file="source.dcm",
-                output_file=f"output_{i}.dcm",
+                output_file=str(output_file),
                 severity="moderate",
             )
-            session2.end_file_fuzzing(f"output_{i}.dcm")
+            session2.end_file_fuzzing(output_file)
 
         # Save final state
         final_report_path = session2.save_session_report()
