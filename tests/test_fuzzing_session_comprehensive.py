@@ -591,9 +591,7 @@ class TestIntegrationScenarios:
         session.record_test_result(file_id, "crash")
 
         # Record crash
-        crash = session.record_crash(
-            file_id=file_id, crash_type="crash", severity="high"
-        )
+        session.record_crash(file_id=file_id, crash_type="crash", severity="high")
 
         # Generate report
         report = session.generate_session_report()

@@ -59,7 +59,7 @@ class TestCorruptedFileHandling:
         try:
             parser = DicomParser(truncated_file)
             validator = DicomValidator()
-            result = validator.validate(parser.dataset)
+            validator.validate(parser.dataset)
 
             # Either parse fails or validation detects issues
             # This is acceptable behavior
@@ -119,7 +119,7 @@ class TestDiskSpaceErrors:
         available_mb = disk_usage.free / (1024 * 1024)
         required_mb = available_mb + 10000  # Request 10GB more than available
 
-        result = validator._check_disk_space(temp_dir, required_mb, num_files=1000)
+        validator._check_disk_space(temp_dir, required_mb, num_files=1000)
 
         # Should detect insufficient space (check happens in validate_all)
         # This test verifies the method exists and runs
@@ -140,7 +140,7 @@ class TestDiskSpaceErrors:
 
             # Should handle error gracefully
             try:
-                files = generator.generate_batch(sample_dicom_file, count=10)
+                generator.generate_batch(sample_dicom_file, count=10)
                 # If it handles gracefully, no exception
                 assert True
             except OSError as e:
@@ -160,7 +160,7 @@ class TestPermissionErrors:
         restricted_file.chmod(0o000)
 
         try:
-            parser = DicomParser(restricted_file)
+            DicomParser(restricted_file)
             # Should fail to read
             assert False, "Should have raised permission error"
         except (PermissionError, OSError):
@@ -255,7 +255,7 @@ class TestResourceExhaustion:
         result = runner.execute_test(str(test_file))
 
         # Should detect timeout/hang
-        assert result.status in (ExecutionStatus.HANG, ExecutionStatus.ERROR)
+        assert result.result in (ExecutionStatus.HANG, ExecutionStatus.ERROR)
 
     def test_too_many_open_files(self, sample_dicom_file, temp_dir):
         """Test handling too many open files."""
@@ -333,15 +333,9 @@ class TestTargetExecutableErrors:
         """Test handling nonexistent target executable."""
         fake_exe = temp_dir / "nonexistent.exe"
 
-        runner = TargetRunner(target_executable=str(fake_exe))
-
-        test_file = temp_dir / "test.dcm"
-        test_file.write_bytes(b"dummy")
-
-        result = runner.execute_test(str(test_file))
-
-        # Should detect execution error
-        assert result.status in (ExecutionStatus.ERROR, ExecutionStatus.SKIPPED)
+        # TargetRunner should raise FileNotFoundError for nonexistent executable
+        with pytest.raises(FileNotFoundError):
+            TargetRunner(target_executable=str(fake_exe))
 
     def test_executable_crashes(self, temp_dir):
         """Test handling target executable that crashes."""
@@ -360,7 +354,7 @@ class TestTargetExecutableErrors:
         result = runner.execute_test(str(test_file))
 
         # Should detect crash
-        assert result.status in (ExecutionStatus.CRASH, ExecutionStatus.ERROR)
+        assert result.result in (ExecutionStatus.CRASH, ExecutionStatus.ERROR)
 
     def test_circuit_breaker_activation(self, temp_dir):
         """Test circuit breaker opens after consistent failures."""
@@ -379,21 +373,38 @@ class TestTargetExecutableErrors:
         test_file = temp_dir / "test.dcm"
         test_file.write_bytes(b"dummy")
 
-        # Trigger circuit breaker (5 failures)
-        for i in range(6):
+        # Trigger circuit breaker - run tests until it opens
+        # NOTE: Circuit breaker counts consecutive failures including retries.
+        # With max_retries=2, each execute_test call can generate up to 3 failures
+        # (original + 2 retries), so the circuit may open after just 1-2 calls.
+        results = []
+        for i in range(10):
             result = runner.execute_test(str(test_file))
+            results.append(result)
 
-            if i < 5:
-                # First 5 should execute and fail
-                assert result.status in (
-                    ExecutionStatus.ERROR,
-                    ExecutionStatus.CRASH,
-                )
-            else:
-                # 6th should be skipped (circuit open)
-                assert result.status == ExecutionStatus.SKIPPED
+            # Circuit breaker should eventually open
+            if result.result == ExecutionStatus.SKIPPED:
+                break
 
+        # Verify circuit breaker opened
         assert runner.circuit_breaker.is_open
+
+        # Should have at least 1 failed execution (which may include retries)
+        failures = [
+            r
+            for r in results
+            if r.result in (ExecutionStatus.ERROR, ExecutionStatus.CRASH)
+        ]
+        assert len(failures) >= 1, "Should have at least 1 failure before circuit opens"
+
+        # Total consecutive failures (including retries) should be >= threshold
+        assert (
+            runner.circuit_breaker.consecutive_failures
+            >= runner.circuit_breaker.failure_threshold
+        )
+
+        # Last result should be skipped (circuit open)
+        assert results[-1].result == ExecutionStatus.SKIPPED
 
 
 class TestConfigurationErrors:
@@ -470,7 +481,7 @@ class TestInterruptionHandling:
         from dicom_fuzzer.core.error_recovery import SignalHandler
 
         output_dir = temp_dir / "interrupted"
-        generator = DICOMGenerator(output_dir=str(output_dir))
+        DICOMGenerator(output_dir=str(output_dir))
 
         signal_handler = SignalHandler()
         signal_handler.install()
@@ -478,7 +489,7 @@ class TestInterruptionHandling:
         try:
             # Simulate interrupt after a few files
             with patch(
-                "dicom_fuzzer.core.generator.DICOMGenerator.generate"
+                "dicom_fuzzer.core.generator.DICOMGenerator.generate_batch"
             ) as mock_gen:
 
                 def side_effect(*args, **kwargs):
@@ -536,7 +547,7 @@ class TestRecoveryMechanisms:
             result = runner.execute_test(str(test_file))
 
             # Should succeed after retry
-            assert result.status == ExecutionStatus.SUCCESS
+            assert result.result == ExecutionStatus.SUCCESS
             assert result.retry_count >= 1
             assert call_count == 2  # Original + 1 retry
 

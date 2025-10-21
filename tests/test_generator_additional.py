@@ -6,10 +6,9 @@ in generator.py to achieve maximum test coverage.
 """
 
 import pytest
-from pathlib import Path
 from pydicom.dataset import Dataset, FileMetaDataset
 import pydicom
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 import struct
 
 from dicom_fuzzer.core.generator import DICOMGenerator, GenerationStats
@@ -76,9 +75,7 @@ class TestGeneratorErrorHandling:
 
         # Use structure strategy (line 111)
         files = generator.generate_batch(
-            str(test_file),
-            count=1,
-            strategies=["structure"]
+            str(test_file), count=1, strategies=["structure"]
         )
 
         # Should generate files or handle gracefully
@@ -104,11 +101,11 @@ class TestGeneratorErrorHandling:
         output_dir = tmp_path / "output"
         generator = DICOMGenerator(
             output_dir=str(output_dir),
-            skip_write_errors=False  # Don't skip errors
+            skip_write_errors=False,  # Don't skip errors
         )
 
         # Mock a fuzzer to raise an error
-        with patch.object(generator, '_apply_single_fuzzer') as mock_fuzzer:
+        with patch.object(generator, "_apply_single_fuzzer") as mock_fuzzer:
             mock_fuzzer.side_effect = ValueError("Test error")
 
             # Should raise the error (not skip it)
@@ -133,17 +130,14 @@ class TestGeneratorErrorHandling:
         pydicom.dcmwrite(str(test_file), ds)
 
         output_dir = tmp_path / "output"
-        generator = DICOMGenerator(
-            output_dir=str(output_dir),
-            skip_write_errors=True
-        )
+        generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
 
         # Mock save_as to raise OSError
-        with patch('pydicom.dataset.Dataset.save_as') as mock_save:
+        with patch("pydicom.dataset.Dataset.save_as") as mock_save:
             mock_save.side_effect = OSError("Disk full")
 
             # Should skip the error and return empty list
-            files = generator.generate_batch(str(test_file), count=1)
+            generator.generate_batch(str(test_file), count=1)
 
             # Should handle error gracefully
             assert generator.stats.skipped_due_to_write_errors > 0
@@ -168,11 +162,11 @@ class TestGeneratorErrorHandling:
         output_dir = tmp_path / "output"
         generator = DICOMGenerator(
             output_dir=str(output_dir),
-            skip_write_errors=False  # Don't skip
+            skip_write_errors=False,  # Don't skip
         )
 
         # Mock save_as to raise struct.error
-        with patch('pydicom.dataset.Dataset.save_as') as mock_save:
+        with patch("pydicom.dataset.Dataset.save_as") as mock_save:
             mock_save.side_effect = struct.error("Invalid format")
 
             # Should raise the error
@@ -203,7 +197,7 @@ class TestGeneratorErrorHandling:
         generator = DICOMGenerator(output_dir=str(output_dir))
 
         # Mock save_as to raise unexpected exception
-        with patch('pydicom.dataset.Dataset.save_as') as mock_save:
+        with patch("pydicom.dataset.Dataset.save_as") as mock_save:
             mock_save.side_effect = RuntimeError("Unexpected error")
 
             # Should raise the unexpected error
@@ -228,13 +222,10 @@ class TestGeneratorErrorHandling:
         pydicom.dcmwrite(str(test_file), ds)
 
         output_dir = tmp_path / "output"
-        generator = DICOMGenerator(
-            output_dir=str(output_dir),
-            skip_write_errors=True
-        )
+        generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
 
         # Mock _apply_mutations to return None
-        with patch.object(generator, '_apply_mutations') as mock_apply:
+        with patch.object(generator, "_apply_mutations") as mock_apply:
             mock_apply.return_value = (None, [])
 
             # Should handle None gracefully
@@ -263,24 +254,18 @@ class TestGeneratorErrorHandling:
         output_dir = tmp_path / "output"
 
         # Test with skip_write_errors=True (lines 168-170)
-        generator = DICOMGenerator(
-            output_dir=str(output_dir),
-            skip_write_errors=True
-        )
+        generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
 
-        with patch.object(generator, '_apply_single_fuzzer') as mock_fuzzer:
+        with patch.object(generator, "_apply_single_fuzzer") as mock_fuzzer:
             mock_fuzzer.side_effect = TypeError("Invalid type")
 
-            files = generator.generate_batch(str(test_file), count=1)
+            generator.generate_batch(str(test_file), count=1)
             assert generator.stats.skipped_due_to_write_errors > 0
 
         # Test with skip_write_errors=False (lines 172-173)
-        generator2 = DICOMGenerator(
-            output_dir=str(output_dir),
-            skip_write_errors=False
-        )
+        generator2 = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=False)
 
-        with patch.object(generator2, '_apply_single_fuzzer') as mock_fuzzer:
+        with patch.object(generator2, "_apply_single_fuzzer") as mock_fuzzer:
             mock_fuzzer.side_effect = AttributeError("Missing attribute")
 
             with pytest.raises(AttributeError):
@@ -317,7 +302,7 @@ class TestGeneratorEdgeCases:
         files = generator.generate_batch(
             str(test_file),
             count=2,
-            strategies=["metadata", "header", "pixel", "structure"]
+            strategies=["metadata", "header", "pixel", "structure"],
         )
 
         assert isinstance(files, list)
@@ -342,7 +327,7 @@ class TestGeneratorEdgeCases:
         output_dir = tmp_path / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        files = generator.generate_batch(str(test_file), count=3)
+        generator.generate_batch(str(test_file), count=3)
 
         # Stats should be tracked
         assert generator.stats.total_attempted > 0

@@ -133,7 +133,7 @@ class TestFileFuzzingWorkflow:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        session.start_file_fuzzing(
+        file_id = session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -218,7 +218,7 @@ class TestFileFuzzingWorkflow:
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
         shutil.copy(sample_dicom_file, output_file)
 
-        session.start_file_fuzzing(
+        file_id = session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -339,7 +339,7 @@ class TestTestResults:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        session.start_file_fuzzing(
+        file_id = session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -360,7 +360,7 @@ class TestTestResults:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        session.start_file_fuzzing(
+        file_id = session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -392,7 +392,7 @@ class TestTestResults:
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
-        session.start_file_fuzzing(
+        file_id = session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -419,7 +419,7 @@ class TestCrashRecording:
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
         shutil.copy(sample_dicom_file, output_file)
 
-        session.start_file_fuzzing(
+        file_id = session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -450,7 +450,7 @@ class TestCrashRecording:
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
         shutil.copy(sample_dicom_file, output_file)
 
-        session.start_file_fuzzing(
+        file_id = session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -481,7 +481,7 @@ class TestCrashRecording:
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
         shutil.copy(sample_dicom_file, output_file)
 
-        session.start_file_fuzzing(
+        file_id = session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -513,7 +513,7 @@ class TestCrashRecording:
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
         shutil.copy(sample_dicom_file, output_file)
 
-        session.start_file_fuzzing(
+        file_id = session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",
@@ -825,7 +825,7 @@ class TestIntegrationScenarios:
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
         shutil.copy(sample_dicom_file, output_file)
 
-        session.start_file_fuzzing(
+        file_id = session.start_file_fuzzing(
             source_file=sample_dicom_file,
             output_file=output_file,
             severity="moderate",

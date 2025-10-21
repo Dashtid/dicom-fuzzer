@@ -1,6 +1,5 @@
 """Comprehensive tests for dicom_fuzzer.core.validator module."""
 
-from unittest.mock import Mock, patch
 from pydicom import Dataset
 
 from dicom_fuzzer.core.validator import ValidationResult, DicomValidator
@@ -130,10 +129,7 @@ class TestDicomValidator:
 
     def test_initialization_custom_options(self):
         """Test custom options."""
-        validator = DicomValidator(
-            strict_mode=True,
-            max_file_size=50 * 1024 * 1024
-        )
+        validator = DicomValidator(strict_mode=True, max_file_size=50 * 1024 * 1024)
 
         assert validator.strict_mode is True
         assert validator.max_file_size == 50 * 1024 * 1024
@@ -221,7 +217,8 @@ class TestValidationIntegration:
         # Simulate validation process
         result.add_warning("Optional field missing")
 
-        if some_critical_check_fails := False:
+        # Demonstrate conditional error (walrus operator for demonstration)
+        if critical_check_fails := False:  # noqa: F841
             result.add_error("Critical error")
 
         # Result should still be valid
@@ -244,8 +241,7 @@ class TestValidationIntegration:
         result = ValidationResult()
 
         result.add_error(
-            "Invalid VR",
-            {"tag": "0x0010,0x0010", "expected": "PN", "actual": "LO"}
+            "Invalid VR", {"tag": "0x0010,0x0010", "expected": "PN", "actual": "LO"}
         )
 
         assert result.is_valid is False

@@ -22,9 +22,7 @@ class TestFuzzingSessionEdgeCases:
 
         with pytest.raises(KeyError, match="Unknown file ID"):
             session.record_test_result(
-                file_id="nonexistent_file",
-                result="pass",
-                execution_time=1.0
+                file_id="nonexistent_file", result="pass", execution_time=1.0
             )
 
     def test_record_crash_hang_type(self, tmp_path):
@@ -35,7 +33,7 @@ class TestFuzzingSessionEdgeCases:
         file_id = session.start_file_fuzzing(
             source_file=Path("test.dcm"),
             output_file=Path("fuzz_test.dcm"),
-            severity="moderate"
+            severity="moderate",
         )
 
         # Record a hang (not a crash)
@@ -60,28 +58,28 @@ class TestFuzzingSessionEdgeCases:
         file_id = session.start_file_fuzzing(
             source_file=Path("test.dcm"),
             output_file=Path("fuzz_test.dcm"),
-            severity="moderate"
+            severity="moderate",
         )
 
         # Record multiple mutations
         session.record_mutation(
             strategy_name="StrategyA",
             target_tag="(0010,0010)",
-            mutation_type="flip_bits"
+            mutation_type="flip_bits",
         )
 
         session.record_mutation(
             strategy_name="StrategyB",
             target_tag="(0010,0020)",
-            mutation_type="swap_bytes"
+            mutation_type="swap_bytes",
         )
 
         # Record crash
-        crash = session.record_crash(
+        session.record_crash(
             file_id=file_id,
             crash_type="crash",
             exception_type="ValueError",
-            exception_message="Test"
+            exception_message="Test",
         )
 
         # Verify crash has file record with mutations
@@ -114,10 +112,10 @@ class TestFuzzingSessionEdgeCases:
         session = FuzzingSession("test_session", str(tmp_path))
 
         # Create a complete file record with mutations
-        file_id = session.start_file_fuzzing(
+        session.start_file_fuzzing(
             source_file=Path("test.dcm"),
             output_file=Path("fuzz_test.dcm"),
-            severity="moderate"
+            severity="moderate",
         )
 
         session.record_mutation(
@@ -125,7 +123,7 @@ class TestFuzzingSessionEdgeCases:
             target_tag="(0010,0010)",
             mutation_type="flip_bits",
             original_value="Original",
-            mutated_value="Mutated"
+            mutated_value="Mutated",
         )
 
         session.end_file_fuzzing(Path("fuzz_test.dcm"))
@@ -165,7 +163,7 @@ class TestFuzzingSessionEdgeCases:
         assert report_path.exists()
 
         # Verify content is valid JSON
-        with open(report_path, 'r') as f:
+        with open(report_path, "r") as f:
             report_data = json.load(f)
             assert "session_info" in report_data
             assert "statistics" in report_data
@@ -177,7 +175,7 @@ class TestFuzzingSessionEdgeCases:
         file_id = session.start_file_fuzzing(
             source_file=Path("test.dcm"),
             output_file=Path("fuzz_test.dcm"),
-            severity="moderate"
+            severity="moderate",
         )
 
         # Record crash WITHOUT calling record_test_result first
@@ -186,7 +184,7 @@ class TestFuzzingSessionEdgeCases:
             file_id=file_id,
             crash_type="crash",
             exception_type="ValueError",
-            exception_message="Test crash"
+            exception_message="Test crash",
         )
 
         # Stats should be incremented
@@ -199,41 +197,35 @@ class TestFuzzingSessionEdgeCases:
 
         # File 1: crash
         file_id_1 = session.start_file_fuzzing(
-            Path("test1.dcm"),
-            Path("fuzz1.dcm"),
-            "moderate"
+            Path("test1.dcm"), Path("fuzz1.dcm"), "moderate"
         )
         session.record_crash(
             file_id=file_id_1,
             crash_type="crash",
             exception_type="Error",
-            exception_message="Crash"
+            exception_message="Crash",
         )
 
         # File 2: hang
         file_id_2 = session.start_file_fuzzing(
-            Path("test2.dcm"),
-            Path("fuzz2.dcm"),
-            "moderate"
+            Path("test2.dcm"), Path("fuzz2.dcm"), "moderate"
         )
         session.record_crash(
             file_id=file_id_2,
             crash_type="hang",
             exception_type="Timeout",
-            exception_message="Hang"
+            exception_message="Hang",
         )
 
         # File 3: another crash
         file_id_3 = session.start_file_fuzzing(
-            Path("test3.dcm"),
-            Path("fuzz3.dcm"),
-            "moderate"
+            Path("test3.dcm"), Path("fuzz3.dcm"), "moderate"
         )
         session.record_crash(
             file_id=file_id_3,
             crash_type="crash",
             exception_type="Error",
-            exception_message="Crash 2"
+            exception_message="Crash 2",
         )
 
         # Verify stats

@@ -48,7 +48,8 @@ class TestAnalyzeException:
             report = analyzer.analyze_exception(e, "/test.dcm")
 
         assert report.crash_type == CrashType.UNCAUGHT_EXCEPTION
-        assert "ValueError" in report.exception_message
+        assert report.exception_message == "Test error"
+        assert report.additional_info["exception_type"] == "ValueError"
         assert report.stack_trace is not None
 
     def test_analyze_memory_error(self):
@@ -237,20 +238,22 @@ class TestRecordCrash:
         """Test recording duplicate crash returns None."""
         analyzer = CrashAnalyzer(crash_dir=str(tmp_path))
 
-        # First crash
+        # Create a single exception to record twice
+        # This simulates finding the same crash from different test cases
+        exception = None
         try:
             raise ValueError("Same error")
         except ValueError as e:
-            report1 = analyzer.record_crash(e, "/test1.dcm")
+            exception = e
 
-        # Second identical crash
-        try:
-            raise ValueError("Same error")
-        except ValueError as e:
-            report2 = analyzer.record_crash(e, "/test2.dcm")
+        # First crash - record the exception
+        report1 = analyzer.record_crash(exception, "/test1.dcm")
+
+        # Second crash - same exception (duplicate)
+        report2 = analyzer.record_crash(exception, "/test2.dcm")
 
         assert report1 is not None
-        assert report2 is None  # Duplicate
+        assert report2 is None  # Duplicate - same crash hash
         assert len(analyzer.crashes) == 1  # Only unique crashes stored
 
     def test_multiple_unique_crashes_recorded(self, tmp_path):

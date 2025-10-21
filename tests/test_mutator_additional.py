@@ -6,16 +6,15 @@ to increase overall test coverage.
 """
 
 import pytest
-from pathlib import Path
-from pydicom.dataset import Dataset, FileMetaDataset
-from pydicom.tag import Tag
-import pydicom
-from unittest.mock import Mock, patch, MagicMock
-from copy import deepcopy
-from datetime import datetime, timezone
+from pydicom.dataset import Dataset
+from unittest.mock import Mock
 
-from dicom_fuzzer.core.mutator import DicomMutator, MutationRecord, MutationSession, MutationSeverity
-from dicom_fuzzer.core.parser import DicomParser
+from dicom_fuzzer.core.mutator import (
+    DicomMutator,
+    MutationRecord,
+    MutationSession,
+    MutationSeverity,
+)
 
 
 class TestMutationRecordAndSession:
@@ -28,7 +27,7 @@ class TestMutationRecordAndSession:
             strategy_name="test_strategy",
             severity=MutationSeverity.MODERATE,
             description="Test mutation",
-            success=True
+            success=True,
         )
         assert record.mutation_id == "test123"
         assert record.strategy_name == "test_strategy"
@@ -39,9 +38,7 @@ class TestMutationRecordAndSession:
     def test_mutation_session_creation(self):
         """Test MutationSession creation."""
         session = MutationSession(
-            session_id="session123",
-            total_mutations=5,
-            successful_mutations=4
+            session_id="session123", total_mutations=5, successful_mutations=4
         )
         assert session.session_id == "session123"
         assert session.mutations == []
@@ -57,7 +54,7 @@ class TestMutatorConfigAndDefaults:
         custom_config = {
             "max_mutations_per_file": 50,
             "default_severity": MutationSeverity.AGGRESSIVE,
-            "mutation_probability": 0.9
+            "mutation_probability": 0.9,
         }
 
         mutator = DicomMutator(config=custom_config)
@@ -104,7 +101,9 @@ class TestStrategyRegistration:
         mutator = DicomMutator()
 
         # Try to register invalid strategy (missing mutate method)
-        invalid_strategy = Mock(spec=['get_strategy_name'])  # Only has get_strategy_name
+        invalid_strategy = Mock(
+            spec=["get_strategy_name"]
+        )  # Only has get_strategy_name
         invalid_strategy.get_strategy_name = Mock(return_value="invalid")
 
         # Should raise ValueError when trying to register
@@ -231,7 +230,9 @@ class TestMutationApplication:
         mutator.register_strategy(error_strategy)
 
         # Try to apply mutation - should handle error gracefully
-        mutated_ds = mutator.apply_mutations(ds, strategy_names=["error_strategy"], num_mutations=1)
+        mutated_ds = mutator.apply_mutations(
+            ds, strategy_names=["error_strategy"], num_mutations=1
+        )
 
         # Should still return a dataset (error handled)
         assert isinstance(mutated_ds, Dataset)
@@ -250,7 +251,7 @@ class TestSafetyChecks:
         mutator = DicomMutator()
 
         # Test that _is_safe_to_mutate method exists
-        assert hasattr(mutator, '_is_safe_to_mutate')
+        assert hasattr(mutator, "_is_safe_to_mutate")
 
 
 class TestStrategyFiltering:
@@ -266,7 +267,7 @@ class TestStrategyFiltering:
         mutator = DicomMutator()
 
         # Test that _get_applicable_strategies method exists
-        assert hasattr(mutator, '_get_applicable_strategies')
+        assert hasattr(mutator, "_get_applicable_strategies")
 
     def test_get_applicable_strategies_with_names(self):
         """Test getting applicable strategies based on names."""
@@ -292,7 +293,9 @@ class TestStrategyFiltering:
         mutator.register_strategy(strategy2)
 
         # Apply only strategy1
-        mutated_ds = mutator.apply_mutations(ds, strategy_names=["strategy1"], num_mutations=1)
+        mutated_ds = mutator.apply_mutations(
+            ds, strategy_names=["strategy1"], num_mutations=1
+        )
         assert isinstance(mutated_ds, Dataset)
 
 
@@ -311,7 +314,7 @@ class TestMutationRecording:
         mutator.start_session(ds)
 
         # Apply mutations
-        mutated_ds = mutator.apply_mutations(ds, num_mutations=2)
+        mutator.apply_mutations(ds, num_mutations=2)
 
         # End session and get MutationSession object
         session = mutator.end_session()
@@ -324,7 +327,7 @@ class TestMutationRecording:
     def test_record_mutation_method_exists(self):
         """Test that _record_mutation method exists."""
         mutator = DicomMutator()
-        assert hasattr(mutator, '_record_mutation')
+        assert hasattr(mutator, "_record_mutation")
 
 
 class TestEdgeCases:

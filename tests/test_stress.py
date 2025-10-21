@@ -176,7 +176,7 @@ class TestResourcePressure:
             dataset = parser.dataset.copy()
             # Apply multiple mutation passes
             for _ in range(10):
-                mutated = mutator.mutate(dataset)
+                mutator.mutate(dataset)
 
         wall_time = time.time() - start_time
         cpu_time = time.process_time() - cpu_start
@@ -277,7 +277,6 @@ class TestLongRunningCampaigns:
 
         # Simulate campaign with known numbers
         test_iterations = 1000
-        crash_rate = 0.1  # 10% crashes
 
         for i in range(test_iterations):
             stats.track_iteration(
@@ -364,7 +363,7 @@ class TestMemoryLeakDetection:
 
         # Validate 1000 times
         for _ in range(1000):
-            result = validator.validate(parser.dataset.copy())
+            validator.validate(parser.dataset.copy())
 
         gc.collect()
         final_memory = psutil.Process().memory_info().rss / (1024 * 1024)

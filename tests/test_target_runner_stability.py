@@ -727,7 +727,7 @@ class TestPropertyBasedTargetRunner:
 
             # Execute multiple times
             for _ in range(num_files):
-                result = runner.execute_test(test_file)
+                runner.execute_test(test_file)
 
             # Property: subprocess.run should be called with correct timeout
             for call in mock_run.call_args_list:

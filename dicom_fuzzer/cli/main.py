@@ -117,12 +117,12 @@ def pre_campaign_health_check(
 
     # Check required dependencies
     try:
-        import pydicom
+        import pydicom  # noqa: F401
     except ImportError:
         issues.append("Missing required dependency: pydicom")
 
     try:
-        import psutil
+        import psutil  # noqa: F401
     except ImportError:
         warnings.append("Missing optional dependency: psutil (for resource monitoring)")
 
@@ -131,7 +131,9 @@ def pre_campaign_health_check(
         stat = shutil.disk_usage(output_dir.parent if output_dir.exists() else ".")
         free_space_mb = stat.free / (1024 * 1024)
         if free_space_mb < 100:
-            issues.append(f"Insufficient disk space: {free_space_mb:.0f}MB (need >100MB)")
+            issues.append(
+                f"Insufficient disk space: {free_space_mb:.0f}MB (need >100MB)"
+            )
         elif free_space_mb < 1024:
             warnings.append(f"Low disk space: {free_space_mb:.0f}MB (recommend >1GB)")
     except Exception as e:
@@ -157,10 +159,14 @@ def pre_campaign_health_check(
     # Check resource limits are reasonable
     if resource_limits:
         if resource_limits.max_memory_mb and resource_limits.max_memory_mb < 128:
-            warnings.append("Memory limit very low (<128MB), may cause frequent OOM errors")
+            warnings.append(
+                "Memory limit very low (<128MB), may cause frequent OOM errors"
+            )
 
         if resource_limits.max_cpu_seconds and resource_limits.max_cpu_seconds < 1:
-            warnings.append("CPU time limit very low (<1s), may cause frequent timeouts")
+            warnings.append(
+                "CPU time limit very low (<1s), may cause frequent timeouts"
+            )
 
     # Report results
     passed = len(issues) == 0

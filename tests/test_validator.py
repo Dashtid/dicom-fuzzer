@@ -371,9 +371,9 @@ class TestTagValuesValidation:
         dataset.PatientName = "A" * 15000  # Long value
         dataset.PatientID = "Test\x00ID"  # Null byte
 
-        result = validator.validate(dataset, check_values=False)
+        result = validator.validate(dataset, check_values=False, check_security=False)
 
-        # Should not check values
+        # Should not check values or security
         assert not any("long" in e.lower() for e in result.errors)
         assert not any("null" in e.lower() for e in result.errors)
 

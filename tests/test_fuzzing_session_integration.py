@@ -36,7 +36,9 @@ def temp_workspace():
         import pydicom.uid
 
         file_meta = FileMetaDataset()
-        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+        file_meta.MediaStorageSOPClassUID = (
+            "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+        )
         file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
         file_meta.ImplementationClassUID = "1.2.3.4"
         file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
@@ -80,9 +82,7 @@ class TestFuzzingSessionIntegration:
 
         # Start file fuzzing
         file_id = fuzzing_session.start_file_fuzzing(
-            source_file=source_file,
-            output_file=output_file,
-            severity="moderate"
+            source_file=source_file, output_file=output_file, severity="moderate"
         )
 
         assert file_id is not None
@@ -112,7 +112,7 @@ class TestFuzzingSessionIntegration:
                 "mutation_type": "corrupt_pixels",
                 "target_element": "PixelData",
                 "parameters": {"corruption_rate": 0.1},
-            }
+            },
         ]
 
         for mutation_data in mutations:
@@ -143,9 +143,7 @@ class TestFuzzingSessionIntegration:
 
         # Create a fuzzed file that "causes" a crash
         file_id = fuzzing_session.start_file_fuzzing(
-            source_file=source_file,
-            output_file=output_file,
-            severity="aggressive"
+            source_file=source_file, output_file=output_file, severity="aggressive"
         )
 
         # Record mutations
@@ -199,9 +197,7 @@ class TestFuzzingSessionIntegration:
             output_file = temp_workspace / "output" / f"fuzzed_{i:03d}.dcm"
 
             file_id = fuzzing_session.start_file_fuzzing(
-                source_file=source_file,
-                output_file=output_file,
-                severity="moderate"
+                source_file=source_file, output_file=output_file, severity="moderate"
             )
 
             # Record different mutations for each file
@@ -335,7 +331,9 @@ class TestFuzzingSessionIntegration:
 
         # Verify fuzzed metadata
         assert file_record.fuzzed_metadata["PatientName"] == "Modified^Patient"
-        assert file_record.fuzzed_metadata["Modality"] == "MR"  # Verify tracked field changed
+        assert (
+            file_record.fuzzed_metadata["Modality"] == "MR"
+        )  # Verify tracked field changed
         # InstitutionName is not in the key_tags list, so it won't be extracted
         # This is expected behavior - only key identifying fields are tracked
 
@@ -419,7 +417,6 @@ class TestFuzzingSessionIntegration:
             exception_message=crash_info["exception_message"],
             stack_trace="\n".join(crash_info["stack_trace"]),
         )
-        crash_id = crash_record.crash_id
 
         crash_record = fuzzing_session.crashes[0]
 
@@ -450,9 +447,7 @@ class TestFuzzingSessionIntegration:
 
         for i, session in enumerate(sessions):
             output_file = temp_workspace / "output" / f"session_{i}" / "test.dcm"
-            file_id = session.start_file_fuzzing(
-                source_file, output_file, "moderate"
-            )
+            session.start_file_fuzzing(source_file, output_file, "moderate")
 
             # Record different number of mutations
             for j in range(i + 1):
@@ -504,7 +499,9 @@ class TestFuzzingSessionIntegration:
 
         # Verify statistics
         assert fuzzing_session.stats["files_fuzzed"] == 100
-        assert fuzzing_session.stats["mutations_applied"] == 550  # Sum of (i%10)+1 for i in 0..99
+        assert (
+            fuzzing_session.stats["mutations_applied"] == 550
+        )  # Sum of (i%10)+1 for i in 0..99
         assert fuzzing_session.stats["crashes"] == 5  # Every 20th file
 
         # Generate report should handle large session

@@ -125,7 +125,7 @@ class TestDICOMGeneratorInit:
     def test_output_dir_created(self, tmp_path):
         """Test output directory is created."""
         new_dir = tmp_path / "new" / "nested" / "dir"
-        gen = DICOMGenerator(output_dir=str(new_dir))
+        DICOMGenerator(output_dir=str(new_dir))
 
         assert new_dir.exists()
         assert new_dir.is_dir()
@@ -239,13 +239,15 @@ class TestMutationHandling:
         gen = DICOMGenerator(output_dir=str(tmp_path), skip_write_errors=False)
 
         # _handle_mutation_error should raise the error when skip_write_errors=False
-        try:
-            result = gen._handle_mutation_error(ValueError("Test error"))
-            # If it doesn't raise, it should return None and update stats
-            assert gen.stats.failed >= 1
-        except ValueError:
-            # This is also acceptable behavior
-            pass
+        # Need to call it within an exception context for 'raise' to work
+        with pytest.raises(ValueError, match="Test error"):
+            try:
+                raise ValueError("Test error")
+            except ValueError as e:
+                gen._handle_mutation_error(e)
+
+        # Stats should be updated
+        assert gen.stats.failed >= 1
 
 
 class TestFileNaming:

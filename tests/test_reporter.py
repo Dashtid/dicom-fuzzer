@@ -25,7 +25,7 @@ class TestReportGenerator:
         """Test reporter creates output directory."""
         with tempfile.TemporaryDirectory() as tmpdir:
             report_dir = Path(tmpdir) / "reports" / "nested"
-            reporter = ReportGenerator(output_dir=str(report_dir))
+            ReportGenerator(output_dir=str(report_dir))
 
             assert report_dir.exists()
 

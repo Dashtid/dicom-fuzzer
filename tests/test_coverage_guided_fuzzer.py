@@ -14,7 +14,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dicom_fuzzer.core.coverage_instrumentation import CoverageTracker, CoverageInfo
 from dicom_fuzzer.core.corpus_manager import CorpusManager, Seed, SeedPriority
-from dicom_fuzzer.core.coverage_guided_mutator import CoverageGuidedMutator, MutationType
+from dicom_fuzzer.core.coverage_guided_mutator import (
+    CoverageGuidedMutator,
+    MutationType,
+)
 from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
 
 
@@ -32,11 +35,11 @@ class TestCoverageInstrumentation:
                 return x - 1
 
         # Track coverage for different inputs
-        with tracker.track_coverage(b"1") as cov1:
+        with tracker.track_coverage(b"1"):
             result = test_function(1)
             assert result == 2
 
-        with tracker.track_coverage(b"-1") as cov2:
+        with tracker.track_coverage(b"-1"):
             result = test_function(-1)
             assert result == -2
 
@@ -75,32 +78,32 @@ class TestCoverageInstrumentation:
     def test_module_filtering(self):
         """Test module filtering in coverage tracking."""
         # Track only specific modules
-        tracker = CoverageTracker(target_modules={'test_module'})
+        tracker = CoverageTracker(target_modules={"test_module"})
 
         # Mock module name check
-        tracker._module_cache['test_module.py'] = True
-        tracker._module_cache['other_module.py'] = False
+        tracker._module_cache["test_module.py"] = True
+        tracker._module_cache["other_module.py"] = False
 
-        assert tracker.should_track_module('test_module.py')
-        assert not tracker.should_track_module('other_module.py')
+        assert tracker.should_track_module("test_module.py")
+        assert not tracker.should_track_module("other_module.py")
 
     def test_coverage_statistics(self):
         """Test coverage statistics calculation."""
         tracker = CoverageTracker()
 
         # Add some coverage
-        tracker.global_coverage.edges.add(('file1', 1, 'file1', 2))
-        tracker.global_coverage.edges.add(('file1', 2, 'file1', 3))
-        tracker.global_coverage.functions.add('file1:func1')
+        tracker.global_coverage.edges.add(("file1", 1, "file1", 2))
+        tracker.global_coverage.edges.add(("file1", 2, "file1", 3))
+        tracker.global_coverage.functions.add("file1:func1")
         tracker.total_executions = 10
         tracker.coverage_increases = 3
 
         stats = tracker.get_coverage_stats()
-        assert stats['total_edges'] == 2
-        assert stats['total_functions'] == 1
-        assert stats['total_executions'] == 10
-        assert stats['coverage_increases'] == 3
-        assert stats['coverage_rate'] == 0.3
+        assert stats["total_edges"] == 2
+        assert stats["total_functions"] == 1
+        assert stats["total_executions"] == 10
+        assert stats["coverage_increases"] == 3
+        assert stats["coverage_rate"] == 0.3
 
 
 class TestCorpusManager:
@@ -112,7 +115,7 @@ class TestCorpusManager:
 
         # Create coverage info
         coverage = CoverageInfo()
-        coverage.edges.add(('file', 1, 'file', 2))
+        coverage.edges.add(("file", 1, "file", 2))
 
         # Add seed
         seed = manager.add_seed(b"test_data", coverage)
@@ -130,12 +133,12 @@ class TestCorpusManager:
 
         # Add seeds with different priorities
         cov1 = CoverageInfo()
-        cov1.edges.add(('file', 1, 'file', 2))
-        seed1 = manager.add_seed(b"data1", cov1)
+        cov1.edges.add(("file", 1, "file", 2))
+        _ = manager.add_seed(b"data1", cov1)
 
         cov2 = CoverageInfo()
-        cov2.edges.add(('file', 3, 'file', 4))
-        seed2 = manager.add_seed(b"data2", cov2)
+        cov2.edges.add(("file", 3, "file", 4))
+        _ = manager.add_seed(b"data2", cov2)
 
         # Get next seed - should be highest priority
         next_seed = manager.get_next_seed()
@@ -149,7 +152,7 @@ class TestCorpusManager:
         # Add more seeds than max size
         for i in range(5):
             cov = CoverageInfo()
-            cov.edges.add(('file', i, 'file', i+1))
+            cov.edges.add(("file", i, "file", i + 1))
             manager.add_seed(f"data{i}".encode(), cov)
 
         # Check corpus was minimized
@@ -161,7 +164,7 @@ class TestCorpusManager:
 
         # Add seed with coverage
         cov1 = CoverageInfo()
-        cov1.edges = {('file', 1, 'file', 2), ('file', 2, 'file', 3)}
+        cov1.edges = {("file", 1, "file", 2), ("file", 2, "file", 3)}
         seed1 = manager.add_seed(b"data1", cov1)
         assert seed1 is not None
 
@@ -173,7 +176,7 @@ class TestCorpusManager:
 
         # Add seed with different coverage
         cov3 = CoverageInfo()
-        cov3.edges = {('file', 4, 'file', 5)}
+        cov3.edges = {("file", 4, "file", 5)}
         seed3 = manager.add_seed(b"data3", cov3)
         assert seed3 is not None
 
@@ -183,8 +186,8 @@ class TestCorpusManager:
 
         # Add seed with mutation info
         cov = CoverageInfo()
-        cov.edges = {('file', 1, 'file', 2)}
-        seed = manager.add_seed(b"data", cov, mutation_type="bit_flip")
+        cov.edges = {("file", 1, "file", 2)}
+        manager.add_seed(b"data", cov, mutation_type="bit_flip")
 
         # Check mutation tracking
         assert "bit_flip" in manager.mutation_success_rate
@@ -202,12 +205,7 @@ class TestCoverageGuidedMutator:
         mutator = CoverageGuidedMutator()
 
         # Create a seed
-        seed = Seed(
-            id="test",
-            data=b"Hello World",
-            coverage=CoverageInfo(),
-            energy=1.0
-        )
+        seed = Seed(id="test", data=b"Hello World", coverage=CoverageInfo(), energy=1.0)
 
         # Generate mutations
         mutations = mutator.mutate(seed)
@@ -223,14 +221,9 @@ class TestCoverageGuidedMutator:
         mutator = CoverageGuidedMutator(dicom_aware=True)
 
         # Create DICOM-like data
-        dicom_data = b'DICM' + b'\x00' * 128 + b'\x08\x00\x10\x00'
+        dicom_data = b"DICM" + b"\x00" * 128 + b"\x08\x00\x10\x00"
 
-        seed = Seed(
-            id="test",
-            data=dicom_data,
-            coverage=CoverageInfo(),
-            energy=2.0
-        )
+        seed = Seed(id="test", data=dicom_data, coverage=CoverageInfo(), energy=2.0)
 
         # Generate mutations
         mutations = mutator.mutate(seed)
@@ -243,11 +236,11 @@ class TestCoverageGuidedMutator:
             MutationType.DICOM_VR_MISMATCH,
             MutationType.DICOM_LENGTH_OVERFLOW,
             MutationType.DICOM_SEQUENCE_NEST,
-            MutationType.DICOM_TRANSFER_SYNTAX
+            MutationType.DICOM_TRANSFER_SYNTAX,
         ]
 
         # At least one DICOM-specific mutation should be attempted
-        has_dicom_mutation = any(mt in dicom_mutations for mt in mutation_types)
+        any(mt in dicom_mutations for mt in mutation_types)
         # Note: This might not always be true due to randomness
 
     def test_adaptive_mutation_selection(self):
@@ -273,16 +266,14 @@ class TestCoverageGuidedMutator:
         # Perform mutations and update feedback
         for i in range(10):
             mutator.update_strategy_feedback(
-                MutationType.BIT_FLIP,
-                coverage_gained=(i % 2 == 0),
-                new_edges=i
+                MutationType.BIT_FLIP, coverage_gained=(i % 2 == 0), new_edges=i
             )
 
         stats = mutator.get_mutation_stats()
-        assert 'bit_flip' in stats
-        assert stats['bit_flip']['total_count'] == 10
-        assert stats['bit_flip']['success_count'] == 5
-        assert stats['bit_flip']['success_rate'] == 0.5
+        assert "bit_flip" in stats
+        assert stats["bit_flip"]["total_count"] == 10
+        assert stats["bit_flip"]["success_count"] == 5
+        assert stats["bit_flip"]["success_rate"] == 0.5
 
 
 class TestCoverageGuidedFuzzer:
@@ -291,10 +282,7 @@ class TestCoverageGuidedFuzzer:
     @pytest.mark.asyncio
     async def test_fuzzer_initialization(self):
         """Test fuzzer initialization."""
-        config = FuzzingConfig(
-            max_iterations=10,
-            output_dir=Path(tempfile.mkdtemp())
-        )
+        config = FuzzingConfig(max_iterations=10, output_dir=Path(tempfile.mkdtemp()))
 
         fuzzer = CoverageGuidedFuzzer(config)
         assert fuzzer.config == config
@@ -308,7 +296,7 @@ class TestCoverageGuidedFuzzer:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Simple target function
             def target_function(data: bytes) -> bool:
-                if len(data) > 10 and b'CRASH' in data:
+                if len(data) > 10 and b"CRASH" in data:
                     raise ValueError("Crash found!")
                 return True
 
@@ -316,7 +304,7 @@ class TestCoverageGuidedFuzzer:
                 target_function=target_function,
                 max_iterations=50,
                 output_dir=Path(tmpdir) / "output",
-                crash_dir=Path(tmpdir) / "crashes"
+                crash_dir=Path(tmpdir) / "crashes",
             )
 
             fuzzer = CoverageGuidedFuzzer(config)
@@ -335,7 +323,7 @@ class TestCoverageGuidedFuzzer:
 
             def crashing_target(data: bytes) -> bool:
                 nonlocal crash_count
-                if b'\xFF\xFF\xFF\xFF' in data:
+                if b"\xff\xff\xff\xff" in data:
                     crash_count += 1
                     raise Exception("Crash!")
                 return True
@@ -344,7 +332,7 @@ class TestCoverageGuidedFuzzer:
                 target_function=crashing_target,
                 max_iterations=100,
                 output_dir=Path(tmpdir) / "output",
-                crash_dir=Path(tmpdir) / "crashes"
+                crash_dir=Path(tmpdir) / "crashes",
             )
 
             fuzzer = CoverageGuidedFuzzer(config)
@@ -361,7 +349,7 @@ class TestCoverageGuidedFuzzer:
             num_workers=4,
             coverage_guided=True,
             adaptive_mutations=True,
-            dicom_aware=True
+            dicom_aware=True,
         )
 
         assert config.max_iterations == 1000
@@ -401,12 +389,15 @@ class TestIntegration:
                 adaptive_mutations=True,
                 output_dir=Path(tmpdir) / "output",
                 corpus_dir=Path(tmpdir) / "corpus",
-                crash_dir=Path(tmpdir) / "crashes"
+                crash_dir=Path(tmpdir) / "crashes",
             )
 
             # Configure coverage tracking
-            from dicom_fuzzer.core.coverage_instrumentation import configure_global_tracker
-            configure_global_tracker({'__main__'})
+            from dicom_fuzzer.core.coverage_instrumentation import (
+                configure_global_tracker,
+            )
+
+            configure_global_tracker({"__main__"})
 
             fuzzer = CoverageGuidedFuzzer(config)
             stats = await fuzzer.run()
@@ -417,7 +408,7 @@ class TestIntegration:
             assert stats.current_coverage > 0
 
             # Check that corpus was saved
-            corpus_files = list(config.corpus_dir.glob('*.seed'))
+            corpus_files = list(config.corpus_dir.glob("*.seed"))
             assert len(corpus_files) > 0
 
 

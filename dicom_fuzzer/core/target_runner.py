@@ -270,6 +270,10 @@ class TargetRunner:
         5. Retries on transient failures
         6. Enforces resource limits
         """
+        # Convert to Path if string provided
+        if isinstance(test_file, str):
+            test_file = Path(test_file)
+
         # Check circuit breaker
         if not self._check_circuit_breaker():
             return ExecutionResult(

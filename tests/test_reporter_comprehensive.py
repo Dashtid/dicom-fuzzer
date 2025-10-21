@@ -145,7 +145,7 @@ class TestJSONReportGeneration:
         crash = CrashReport(
             crash_id="test_004",
             timestamp=datetime.now(),
-            crash_type=CrashType.MEMORY_ERROR,
+            crash_type=CrashType.SEGFAULT,
             severity=CrashSeverity.CRITICAL,
             test_case_path="/test/mem.dcm",
             stack_trace="Memory corruption",
@@ -442,14 +442,18 @@ class TestIntegrationScenarios:
 
     def test_multiple_report_generations(self, tmp_path):
         """Test generating multiple reports."""
+        import time
+
         generator = ReportGenerator(output_dir=str(tmp_path))
         analyzer = CrashAnalyzer(crash_dir=str(tmp_path))
 
-        # Generate three reports
+        # Generate three reports with small delay to avoid timestamp collision
         paths = []
         for i in range(3):
             path = generator.generate_crash_html_report(analyzer, f"Campaign {i}")
             paths.append(path)
+            if i < 2:  # Don't sleep after last iteration
+                time.sleep(1.1)  # Sleep > 1 second to ensure different timestamps
 
         # All should exist and be unique
         assert len(set(paths)) == 3

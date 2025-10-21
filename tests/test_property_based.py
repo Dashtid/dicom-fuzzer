@@ -34,8 +34,20 @@ def dicom_tag_strategy(draw):
 @composite
 def patient_name_strategy(draw):
     """Generate valid patient names."""
-    first = draw(st.text(alphabet=st.characters(min_codepoint=65, max_codepoint=90), min_size=1, max_size=20))
-    last = draw(st.text(alphabet=st.characters(min_codepoint=65, max_codepoint=90), min_size=1, max_size=20))
+    first = draw(
+        st.text(
+            alphabet=st.characters(min_codepoint=65, max_codepoint=90),
+            min_size=1,
+            max_size=20,
+        )
+    )
+    last = draw(
+        st.text(
+            alphabet=st.characters(min_codepoint=65, max_codepoint=90),
+            min_size=1,
+            max_size=20,
+        )
+    )
     return f"{last}^{first}"
 
 
@@ -64,10 +76,12 @@ class TestMutatorProperties:
     @settings(suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=500)
     def test_mutations_respect_count(self, num_mutations, mutation_probability):
         """Property: Applied mutations never exceed requested count."""
-        mutator = DicomMutator(config={
-            "mutation_probability": mutation_probability,
-            "auto_register_strategies": True
-        })
+        mutator = DicomMutator(
+            config={
+                "mutation_probability": mutation_probability,
+                "auto_register_strategies": True,
+            }
+        )
 
         # Create a minimal dataset
         ds = Dataset()
@@ -86,7 +100,9 @@ class TestMutatorProperties:
 
     @given(
         severity=mutation_severity_strategy(),
-        strategy_names=st.lists(st.text(min_size=1, max_size=20), min_size=0, max_size=5),
+        strategy_names=st.lists(
+            st.text(min_size=1, max_size=20), min_size=0, max_size=5
+        ),
     )
     def test_mutation_parameters_preserved(self, severity, strategy_names):
         """Property: Mutation parameters are correctly preserved."""
@@ -100,9 +116,7 @@ class TestMutatorProperties:
         # Apply mutations with specific parameters
         if strategy_names:
             result = mutator.apply_mutations(
-                ds,
-                severity=severity,
-                strategy_names=strategy_names
+                ds, severity=severity, strategy_names=strategy_names
             )
         else:
             result = mutator.apply_mutations(ds, severity=severity)
@@ -112,10 +126,16 @@ class TestMutatorProperties:
 
     @given(
         patient_name=patient_name_strategy(),
-        patient_id=st.text(alphabet=st.characters(min_codepoint=48, max_codepoint=57), min_size=1, max_size=10),
+        patient_id=st.text(
+            alphabet=st.characters(min_codepoint=48, max_codepoint=57),
+            min_size=1,
+            max_size=10,
+        ),
         study_date=dicom_date_strategy(),
     )
-    def test_dataset_remains_valid_after_mutation(self, patient_name, patient_id, study_date):
+    def test_dataset_remains_valid_after_mutation(
+        self, patient_name, patient_id, study_date
+    ):
         """Property: Mutated datasets remain structurally valid."""
         mutator = DicomMutator(config={"mutation_probability": 1.0})
 
@@ -140,7 +160,15 @@ class TestFuzzingSessionProperties:
     """Property-based tests for FuzzingSession."""
 
     @given(
-        session_name=st.text(alphabet=st.characters(min_codepoint=65, max_codepoint=122), min_size=1, max_size=50),
+        session_name=st.text(
+            alphabet=st.characters(
+                min_codepoint=65,
+                max_codepoint=122,
+                blacklist_characters='<>:"/\\|?*',  # Exclude Windows invalid path chars
+            ),
+            min_size=1,
+            max_size=50,
+        ),
         num_files=st.integers(min_value=0, max_value=100),
     )
     @settings(deadline=500)
@@ -158,7 +186,7 @@ class TestFuzzingSessionProperties:
                 file_id = session.start_file_fuzzing(
                     source_file=Path(f"input_{i}.dcm"),
                     output_file=Path(f"output_{i}.dcm"),
-                    severity="moderate"
+                    severity="moderate",
                 )
                 file_ids.append(file_id)
                 session.end_file_fuzzing(Path(f"output_{i}.dcm"), success=False)
@@ -177,7 +205,7 @@ class TestFuzzingSessionProperties:
                 st.text(min_size=0, max_size=50),  # mutated_value
             ),
             min_size=0,
-            max_size=20
+            max_size=20,
         )
     )
     def test_mutation_recording_integrity(self, mutations):
@@ -188,10 +216,10 @@ class TestFuzzingSessionProperties:
                 output_dir=tmpdir,
             )
 
-            file_id = session.start_file_fuzzing(
+            session.start_file_fuzzing(
                 source_file=Path("test.dcm"),
                 output_file=Path("out.dcm"),
-                severity="moderate"
+                severity="moderate",
             )
 
             # Record mutations
@@ -227,13 +255,12 @@ class TestFuzzingSessionProperties:
                 output_dir=tmpdir,
             )
 
-            file_counter = 0
-
             # Record crashes
             for i in range(num_crashes):
                 file_id = f"crash_file_{i}"
                 # Create a proper file record structure
                 from dicom_fuzzer.core.fuzzing_session import FuzzedFileRecord
+
                 file_record = FuzzedFileRecord(
                     file_id=file_id,
                     source_file=str(Path(f"source_{i}.dcm")),
@@ -241,13 +268,11 @@ class TestFuzzingSessionProperties:
                     timestamp=datetime.now(),
                     file_hash="test_hash",
                     severity="moderate",
-                    mutations=[]
+                    mutations=[],
                 )
                 session.fuzzed_files[file_id] = file_record
                 session.record_crash(
-                    file_id=file_id,
-                    crash_type="crash",
-                    exception_type="TestCrash"
+                    file_id=file_id, crash_type="crash", exception_type="TestCrash"
                 )
 
             # Record hangs
@@ -255,6 +280,7 @@ class TestFuzzingSessionProperties:
                 file_id = f"hang_file_{i}"
                 # Create a proper file record structure
                 from dicom_fuzzer.core.fuzzing_session import FuzzedFileRecord
+
                 file_record = FuzzedFileRecord(
                     file_id=file_id,
                     source_file=str(Path(f"source_hang_{i}.dcm")),
@@ -262,13 +288,11 @@ class TestFuzzingSessionProperties:
                     timestamp=datetime.now(),
                     file_hash="test_hash",
                     severity="moderate",
-                    mutations=[]
+                    mutations=[],
                 )
                 session.fuzzed_files[file_id] = file_record
                 session.record_crash(
-                    file_id=file_id,
-                    crash_type="hang",
-                    exception_type="Timeout"
+                    file_id=file_id, crash_type="hang", exception_type="Timeout"
                 )
 
             # Properties
@@ -282,16 +306,18 @@ class TestSecurityProperties:
 
     @given(
         injection_payloads=st.lists(
-            st.sampled_from([
-                "'; DROP TABLE patients; --",
-                "<script>alert('XSS')</script>",
-                "../../etc/passwd",
-                "\x00\x00\x00\x00",
-                "A" * 10000,  # Buffer overflow attempt
-                "%s%s%s%s%s%s%s",  # Format string
-            ]),
+            st.sampled_from(
+                [
+                    "'; DROP TABLE patients; --",
+                    "<script>alert('XSS')</script>",
+                    "../../etc/passwd",
+                    "\x00\x00\x00\x00",
+                    "A" * 10000,  # Buffer overflow attempt
+                    "%s%s%s%s%s%s%s",  # Format string
+                ]
+            ),
             min_size=1,
-            max_size=5
+            max_size=5,
         )
     )
     def test_injection_payload_handling(self, injection_payloads):
@@ -302,10 +328,10 @@ class TestSecurityProperties:
                 output_dir=tmpdir,
             )
 
-            file_id = session.start_file_fuzzing(
+            session.start_file_fuzzing(
                 source_file=Path("test.dcm"),
                 output_file=Path("out.dcm"),
-                severity="aggressive"
+                severity="aggressive",
             )
 
             # Record dangerous mutations
@@ -324,7 +350,11 @@ class TestSecurityProperties:
 
             # Properties
             assert isinstance(report, dict)
-            assert len(session.current_file_record.mutations) == len(injection_payloads) if session.current_file_record else True
+            assert (
+                len(session.current_file_record.mutations) == len(injection_payloads)
+                if session.current_file_record
+                else True
+            )
 
             # Report generation shouldn't fail with dangerous content
             report_path = session.save_session_report()
@@ -332,16 +362,20 @@ class TestSecurityProperties:
 
     @given(
         path_traversal_attempts=st.lists(
-            st.sampled_from([
-                "../../../etc/passwd",
-                "..\\..\\..\\windows\\system32\\config\\sam",
-                "file:///etc/passwd",
-            ]),
+            st.sampled_from(
+                [
+                    "../../../etc/passwd",
+                    "..\\..\\..\\windows\\system32\\config\\sam",
+                    "file:///etc/passwd",
+                ]
+            ),
             min_size=1,
-            max_size=3
+            max_size=3,
         )
     )
-    @settings(deadline=None)  # Disable deadline for this test due to variable path handling times
+    @settings(
+        deadline=None
+    )  # Disable deadline for this test due to variable path handling times
     def test_path_traversal_prevention(self, path_traversal_attempts):
         """Property: Path traversal attempts are handled safely."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -356,7 +390,7 @@ class TestSecurityProperties:
                     file_id = session.start_file_fuzzing(
                         source_file=Path(attempt),
                         output_file=Path("safe_output.dcm"),
-                        severity="moderate"
+                        severity="moderate",
                     )
                     # If it doesn't raise, the path should be tracked safely
                     assert file_id in session.fuzzed_files
@@ -380,7 +414,7 @@ class TestDataIntegrity:
                 st.binary(max_size=100),
             ),
             min_size=0,
-            max_size=10
+            max_size=10,
         )
     )
     def test_mutation_value_preservation(self, original_values):
@@ -391,10 +425,10 @@ class TestDataIntegrity:
                 output_dir=tmpdir,
             )
 
-            file_id = session.start_file_fuzzing(
+            session.start_file_fuzzing(
                 source_file=Path("test.dcm"),
                 output_file=Path("out.dcm"),
-                severity="moderate"
+                severity="moderate",
             )
 
             # Record mutations with various value types

@@ -27,7 +27,7 @@ class TestEnhancedReportGeneratorInitialization:
     def test_creates_output_directory(self, tmp_path):
         """Test that output directory is created."""
         output_dir = tmp_path / "custom_reports"
-        generator = EnhancedReportGenerator(output_dir=str(output_dir))
+        EnhancedReportGenerator(output_dir=str(output_dir))
         assert output_dir.exists()
         assert output_dir.is_dir()
 
@@ -79,7 +79,9 @@ class TestHTMLReportGeneration:
         }
 
         custom_path = tmp_path / "custom_report.html"
-        report_path = generator.generate_html_report(session_data, output_path=custom_path)
+        report_path = generator.generate_html_report(
+            session_data, output_path=custom_path
+        )
 
         assert report_path == custom_path
         assert custom_path.exists()
@@ -204,7 +206,7 @@ class TestHTMLDocumentGeneration:
 
         # Verify HTML structure
         assert "<!DOCTYPE html>" in html
-        assert "<html lang=\"en\">" in html
+        assert '<html lang="en">' in html
         assert "</html>" in html
         assert "<head>" in html
         assert "</head>" in html
@@ -406,9 +408,7 @@ class TestCrashSummary:
 
         fuzzed_files = {
             "file-001": {
-                "mutations": [
-                    {"strategy_name": "BitFlip", "mutation_type": "bit_flip"}
-                ]
+                "mutations": [{"strategy_name": "BitFlip", "mutation_type": "bit_flip"}]
             }
         }
 
@@ -435,9 +435,7 @@ class TestCrashSummary:
             for i in range(1, 6)
         ]
 
-        fuzzed_files = {
-            f"file-{i:03d}": {"mutations": []} for i in range(1, 6)
-        }
+        fuzzed_files = {f"file-{i:03d}": {"mutations": []} for i in range(1, 6)}
 
         html = generator._html_crash_summary(crashes, fuzzed_files)
 
@@ -745,7 +743,10 @@ class TestHTMLEscaping:
 
         result = generator._escape_html('<script>alert("XSS & Injection")</script>')
 
-        assert result == "&lt;script&gt;alert(&quot;XSS &amp; Injection&quot;)&lt;/script&gt;"
+        assert (
+            result
+            == "&lt;script&gt;alert(&quot;XSS &amp; Injection&quot;)&lt;/script&gt;"
+        )
 
     def test_escape_html_empty_string(self, tmp_path):
         """Test escaping empty string."""
@@ -890,7 +891,10 @@ class TestIntegrationScenarios:
         fuzzed_files = {
             f"large-file-{i:05d}": {
                 "mutations": [
-                    {"strategy_name": f"Strategy{i % 5}", "mutation_type": f"type{i % 3}"}
+                    {
+                        "strategy_name": f"Strategy{i % 5}",
+                        "mutation_type": f"type{i % 3}",
+                    }
                 ]
             }
             for i in range(50)
