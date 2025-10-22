@@ -374,8 +374,13 @@ class CrashDeduplicator:
         """
         Compare mutation patterns that caused crashes.
 
-        This would require access to the fuzzing session data
-        to get mutation records for each crash.
+        Analyzes mutation sequences using multiple approaches:
+        1. Sequence similarity (order matters) - using LCS-based matching
+        2. Mutation type distribution (frequency of mutation types)
+        3. Strategy frequency (which strategies were used)
+
+        This helps identify crashes caused by similar mutation patterns,
+        improving deduplication accuracy per 2025 fuzzing research.
 
         Args:
             crash1: First crash
@@ -384,9 +389,135 @@ class CrashDeduplicator:
         Returns:
             Similarity score (0.0-1.0)
         """
-        # TODO: Implement when we have access to mutation data
-        # For now, return neutral score
-        return 0.5
+        # Get mutation sequences (list of tuples: (strategy_name, mutation_type))
+        seq1 = crash1.mutation_sequence if hasattr(crash1, "mutation_sequence") else []
+        seq2 = crash2.mutation_sequence if hasattr(crash2, "mutation_sequence") else []
+
+        # Handle empty sequences
+        if not seq1 and not seq2:
+            return 1.0  # Both have no mutation data - consider them similar
+        if not seq1 or not seq2:
+            return 0.0  # One has data, one doesn't - dissimilar
+
+        # 1. Sequence similarity (order matters) - 40% weight
+        # Uses LCS-based approach similar to ECHO (2025 research)
+        sequence_similarity = SequenceMatcher(None, seq1, seq2).ratio()
+
+        # 2. Mutation type distribution - 30% weight
+        # Compare frequency of mutation types
+        type_similarity = self._compare_mutation_type_distribution(seq1, seq2)
+
+        # 3. Strategy frequency - 30% weight
+        # Compare which strategies were used
+        strategy_similarity = self._compare_strategy_frequency(seq1, seq2)
+
+        # Weighted combination
+        overall = (
+            0.4 * sequence_similarity + 0.3 * type_similarity + 0.3 * strategy_similarity
+        )
+
+        return overall
+
+    def _compare_mutation_type_distribution(
+        self, seq1: List[tuple], seq2: List[tuple]
+    ) -> float:
+        """
+        Compare distribution of mutation types between two sequences.
+
+        Args:
+            seq1: First mutation sequence
+            seq2: Second mutation sequence
+
+        Returns:
+            Similarity score (0.0-1.0)
+        """
+        # Extract mutation types (second element of each tuple)
+        types1 = [mut[1] for mut in seq1 if len(mut) >= 2]
+        types2 = [mut[1] for mut in seq2 if len(mut) >= 2]
+
+        if not types1 and not types2:
+            return 1.0
+        if not types1 or not types2:
+            return 0.0
+
+        # Build frequency distributions
+        from collections import Counter
+
+        dist1 = Counter(types1)
+        dist2 = Counter(types2)
+
+        # Calculate similarity using Jaccard similarity for sets
+        # and cosine similarity for frequencies
+        all_types = set(dist1.keys()) | set(dist2.keys())
+
+        if not all_types:
+            return 1.0
+
+        # Jaccard similarity (set overlap)
+        intersection = set(dist1.keys()) & set(dist2.keys())
+        jaccard = len(intersection) / len(all_types) if all_types else 0.0
+
+        # Cosine similarity (frequency correlation)
+        dot_product = sum(dist1.get(t, 0) * dist2.get(t, 0) for t in all_types)
+        magnitude1 = sum(v**2 for v in dist1.values()) ** 0.5
+        magnitude2 = sum(v**2 for v in dist2.values()) ** 0.5
+
+        cosine = (
+            dot_product / (magnitude1 * magnitude2) if magnitude1 and magnitude2 else 0.0
+        )
+
+        # Combine Jaccard (type overlap) and cosine (frequency similarity)
+        return 0.5 * jaccard + 0.5 * cosine
+
+    def _compare_strategy_frequency(
+        self, seq1: List[tuple], seq2: List[tuple]
+    ) -> float:
+        """
+        Compare distribution of mutation strategies between two sequences.
+
+        Args:
+            seq1: First mutation sequence
+            seq2: Second mutation sequence
+
+        Returns:
+            Similarity score (0.0-1.0)
+        """
+        # Extract strategy names (first element of each tuple)
+        strategies1 = [mut[0] for mut in seq1 if len(mut) >= 1]
+        strategies2 = [mut[0] for mut in seq2 if len(mut) >= 1]
+
+        if not strategies1 and not strategies2:
+            return 1.0
+        if not strategies1 or not strategies2:
+            return 0.0
+
+        # Build frequency distributions
+        from collections import Counter
+
+        dist1 = Counter(strategies1)
+        dist2 = Counter(strategies2)
+
+        # Calculate similarity using same approach as mutation types
+        all_strategies = set(dist1.keys()) | set(dist2.keys())
+
+        if not all_strategies:
+            return 1.0
+
+        # Jaccard similarity
+        intersection = set(dist1.keys()) & set(dist2.keys())
+        jaccard = len(intersection) / len(all_strategies) if all_strategies else 0.0
+
+        # Cosine similarity
+        dot_product = sum(dist1.get(s, 0) * dist2.get(s, 0) for s in all_strategies)
+        magnitude1 = sum(v**2 for v in dist1.values()) ** 0.5
+        magnitude2 = sum(v**2 for v in dist2.values()) ** 0.5
+
+        cosine = (
+            dot_product / (magnitude1 * magnitude2) if magnitude1 and magnitude2 else 0.0
+        )
+
+        # Combine Jaccard and cosine
+        return 0.5 * jaccard + 0.5 * cosine
 
     def _generate_signature(self, crash: CrashRecord) -> str:
         """

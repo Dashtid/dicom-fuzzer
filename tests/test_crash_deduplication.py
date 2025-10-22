@@ -652,6 +652,209 @@ class TestCrashDeduplicationIntegration:
         assert result["statistics"]["total_crashes"] == 10
         assert result["statistics"]["unique_groups"] >= 1
 
+    def test_realistic_mutation_sequence_deduplication(self):
+        """Test deduplication with realistic mutation sequences."""
+        # Create crashes with realistic mutation patterns
+        crashes = []
+
+        # Group 1: Buffer overflow from header fuzzing (3 similar crashes)
+        for i in range(3):
+            crashes.append(
+                CrashRecord(
+                    crash_id=f"header_overflow_{i}",
+                    timestamp=datetime.now(),
+                    crash_type="crash",
+                    severity="critical",
+                    fuzzed_file_id=f"file_{i}",
+                    fuzzed_file_path=f"fuzzed_{i}.dcm",
+                    exception_type="MemoryError",
+                    exception_message=f"Buffer overflow at offset {i * 100}",
+                    stack_trace="""
+                    File "dicom_parser.py", line 150, in parse_header
+                        read_tag_value(buffer)
+                    MemoryError: Buffer overflow
+                    """,
+                    mutation_sequence=[
+                        ("HeaderFuzzer", "overlong_string"),
+                        ("HeaderFuzzer", "flip_bits"),
+                        ("DictionaryFuzzer", "insert_pattern"),
+                    ],
+                )
+            )
+
+        # Group 2: Null pointer from metadata fuzzing (2 similar crashes)
+        for i in range(2):
+            crashes.append(
+                CrashRecord(
+                    crash_id=f"metadata_null_{i}",
+                    timestamp=datetime.now(),
+                    crash_type="crash",
+                    severity="high",
+                    fuzzed_file_id=f"file_{i + 10}",
+                    fuzzed_file_path=f"fuzzed_{i + 10}.dcm",
+                    exception_type="NullPointerException",
+                    exception_message="Null reference access",
+                    stack_trace="""
+                    File "metadata.py", line 200, in get_patient_name
+                        return dataset.PatientName.value
+                    AttributeError: 'NoneType' object has no attribute 'value'
+                    """,
+                    mutation_sequence=[
+                        ("MetadataFuzzer", "insert_null"),
+                        ("MetadataFuzzer", "delete_bytes"),
+                    ],
+                )
+            )
+
+        # Group 3: Pixel data corruption (2 similar crashes)
+        for i in range(2):
+            crashes.append(
+                CrashRecord(
+                    crash_id=f"pixel_corrupt_{i}",
+                    timestamp=datetime.now(),
+                    crash_type="crash",
+                    severity="medium",
+                    fuzzed_file_id=f"file_{i + 20}",
+                    fuzzed_file_path=f"fuzzed_{i + 20}.dcm",
+                    exception_type="ValueError",
+                    exception_message="Invalid pixel data shape",
+                    stack_trace="""
+                    File "pixel_data.py", line 80, in decode_pixels
+                        validate_shape(pixels)
+                    ValueError: Invalid pixel data shape
+                    """,
+                    mutation_sequence=[
+                        ("PixelFuzzer", "corrupt_data"),
+                        ("PixelFuzzer", "flip_bits"),
+                        ("StructureFuzzer", "modify_header"),
+                    ],
+                )
+            )
+
+        # Group 4: Unique crash with different mutation pattern
+        crashes.append(
+            CrashRecord(
+                crash_id="unique_structure",
+                timestamp=datetime.now(),
+                crash_type="crash",
+                severity="high",
+                fuzzed_file_id="file_30",
+                fuzzed_file_path="fuzzed_30.dcm",
+                exception_type="StructureError",
+                exception_message="Invalid DICOM structure",
+                stack_trace="""
+                File "validator.py", line 50, in validate_structure
+                    check_tag_order(tags)
+                StructureError: Invalid tag order
+                """,
+                mutation_sequence=[
+                    ("StructureFuzzer", "reorder_tags"),
+                    ("StructureFuzzer", "delete_bytes"),
+                ],
+            )
+        )
+
+        # Test with mutation pattern enabled
+        config = DeduplicationConfig(
+            stack_trace_weight=0.4,
+            exception_weight=0.3,
+            mutation_weight=0.3,
+            overall_threshold=0.75,
+        )
+
+        deduplicator = CrashDeduplicator(config)
+        groups = deduplicator.deduplicate_crashes(crashes)
+
+        # Should identify 4 unique crash patterns
+        assert len(groups) == 4, f"Expected 4 groups, got {len(groups)}"
+
+        # Verify group sizes
+        group_sizes = sorted([len(crashes) for crashes in groups.values()], reverse=True)
+        assert group_sizes[0] == 3  # Header overflow group
+        assert group_sizes[1] == 2  # Metadata null group
+        assert group_sizes[2] == 2  # Pixel corruption group
+        assert group_sizes[3] == 1  # Unique structure error
+
+        # Verify stats
+        stats = deduplicator.get_deduplication_stats()
+        assert stats["total_crashes"] == 8
+        assert stats["unique_groups"] == 4
+        assert stats["largest_group"] == 3
+
+    def test_mutation_pattern_improves_deduplication_accuracy(self):
+        """Test that mutation patterns improve deduplication accuracy."""
+        # Create two crashes with:
+        # - Similar stack traces and exceptions (would normally group together)
+        # - But very different mutation patterns (should separate them)
+
+        crash1 = CrashRecord(
+            crash_id="crash_1",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f1",
+            fuzzed_file_path="t1.dcm",
+            exception_type="ValueError",
+            exception_message="Invalid data",
+            stack_trace="""
+            File "parser.py", line 100, in parse
+                validate(data)
+            ValueError: Invalid data
+            """,
+            mutation_sequence=[
+                ("HeaderFuzzer", "overlong_string"),
+                ("HeaderFuzzer", "flip_bits"),
+            ],
+        )
+
+        crash2 = CrashRecord(
+            crash_id="crash_2",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f2",
+            fuzzed_file_path="t2.dcm",
+            exception_type="ValueError",
+            exception_message="Invalid data",
+            stack_trace="""
+            File "parser.py", line 100, in parse
+                validate(data)
+            ValueError: Invalid data
+            """,
+            mutation_sequence=[
+                ("PixelFuzzer", "corrupt_data"),
+                ("StructureFuzzer", "delete_bytes"),
+            ],
+        )
+
+        # With high mutation weight, different patterns should separate crashes
+        config_high_mutation = DeduplicationConfig(
+            stack_trace_weight=0.2,
+            exception_weight=0.2,
+            mutation_weight=0.6,
+            overall_threshold=0.75,
+        )
+
+        dedup_high = CrashDeduplicator(config_high_mutation)
+        groups_high = dedup_high.deduplicate_crashes([crash1, crash2])
+
+        # Should create 2 groups (different mutation patterns matter)
+        assert len(groups_high) == 2
+
+        # With low mutation weight, similar stack/exception should group together
+        config_low_mutation = DeduplicationConfig(
+            stack_trace_weight=0.6,
+            exception_weight=0.3,
+            mutation_weight=0.1,
+            overall_threshold=0.75,
+        )
+
+        dedup_low = CrashDeduplicator(config_low_mutation)
+        groups_low = dedup_low.deduplicate_crashes([crash1, crash2])
+
+        # Should create 1 group (stack trace and exception similarity dominate)
+        assert len(groups_low) == 1
+
     def test_weighted_strategy_combinations(self, realistic_crash_dataset):
         """Test different weighting strategies produce different results."""
         # Stack trace heavy
@@ -728,3 +931,443 @@ class TestCrashDeduplicationIntegration:
         # Should still work with disabled strategies
         assert len(groups_no_exc) >= 1
         assert len(groups_no_mut) >= 1
+
+
+class TestMutationPatternComparison:
+    """Test mutation pattern comparison functionality."""
+
+    def test_identical_mutation_sequences(self):
+        """Test that identical mutation sequences return perfect similarity."""
+        deduplicator = CrashDeduplicator()
+
+        crash1 = CrashRecord(
+            crash_id="c1",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f1",
+            fuzzed_file_path="t1.dcm",
+            mutation_sequence=[
+                ("HeaderFuzzer", "flip_bits"),
+                ("PixelFuzzer", "corrupt_data"),
+                ("MetadataFuzzer", "overlong_string"),
+            ],
+        )
+
+        crash2 = CrashRecord(
+            crash_id="c2",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f2",
+            fuzzed_file_path="t2.dcm",
+            mutation_sequence=[
+                ("HeaderFuzzer", "flip_bits"),
+                ("PixelFuzzer", "corrupt_data"),
+                ("MetadataFuzzer", "overlong_string"),
+            ],
+        )
+
+        similarity = deduplicator._compare_mutation_patterns(crash1, crash2)
+
+        # Identical sequences should have very high similarity
+        assert similarity >= 0.95
+
+    def test_completely_different_sequences(self):
+        """Test that completely different sequences return low similarity."""
+        deduplicator = CrashDeduplicator()
+
+        crash1 = CrashRecord(
+            crash_id="c1",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f1",
+            fuzzed_file_path="t1.dcm",
+            mutation_sequence=[
+                ("HeaderFuzzer", "flip_bits"),
+                ("HeaderFuzzer", "overlong_string"),
+            ],
+        )
+
+        crash2 = CrashRecord(
+            crash_id="c2",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f2",
+            fuzzed_file_path="t2.dcm",
+            mutation_sequence=[
+                ("PixelFuzzer", "corrupt_data"),
+                ("MetadataFuzzer", "insert_null"),
+            ],
+        )
+
+        similarity = deduplicator._compare_mutation_patterns(crash1, crash2)
+
+        # Completely different sequences should have low similarity
+        assert similarity <= 0.5
+
+    def test_similar_sequences_different_order(self):
+        """Test sequences with same mutations but different order."""
+        deduplicator = CrashDeduplicator()
+
+        crash1 = CrashRecord(
+            crash_id="c1",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f1",
+            fuzzed_file_path="t1.dcm",
+            mutation_sequence=[
+                ("HeaderFuzzer", "flip_bits"),
+                ("PixelFuzzer", "corrupt_data"),
+            ],
+        )
+
+        crash2 = CrashRecord(
+            crash_id="c2",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f2",
+            fuzzed_file_path="t2.dcm",
+            mutation_sequence=[
+                ("PixelFuzzer", "corrupt_data"),
+                ("HeaderFuzzer", "flip_bits"),
+            ],
+        )
+
+        similarity = deduplicator._compare_mutation_patterns(crash1, crash2)
+
+        # Same mutations, different order should still have moderate similarity
+        # (due to type/strategy distribution matching)
+        assert 0.3 <= similarity <= 0.8
+
+    def test_empty_mutation_sequences_both(self):
+        """Test crashes with no mutation data."""
+        deduplicator = CrashDeduplicator()
+
+        crash1 = CrashRecord(
+            crash_id="c1",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f1",
+            fuzzed_file_path="t1.dcm",
+            mutation_sequence=[],
+        )
+
+        crash2 = CrashRecord(
+            crash_id="c2",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f2",
+            fuzzed_file_path="t2.dcm",
+            mutation_sequence=[],
+        )
+
+        similarity = deduplicator._compare_mutation_patterns(crash1, crash2)
+
+        # Both empty should be considered similar
+        assert similarity == 1.0
+
+    def test_empty_mutation_sequence_one_side(self):
+        """Test when only one crash has mutation data."""
+        deduplicator = CrashDeduplicator()
+
+        crash1 = CrashRecord(
+            crash_id="c1",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f1",
+            fuzzed_file_path="t1.dcm",
+            mutation_sequence=[("HeaderFuzzer", "flip_bits")],
+        )
+
+        crash2 = CrashRecord(
+            crash_id="c2",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f2",
+            fuzzed_file_path="t2.dcm",
+            mutation_sequence=[],
+        )
+
+        similarity = deduplicator._compare_mutation_patterns(crash1, crash2)
+
+        # One empty, one with data should be dissimilar
+        assert similarity == 0.0
+
+    def test_missing_mutation_sequence_attribute(self):
+        """Test crashes without mutation_sequence attribute (backwards compatibility)."""
+        deduplicator = CrashDeduplicator()
+
+        # Create crashes without mutation_sequence (old format)
+        crash1 = CrashRecord(
+            crash_id="c1",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f1",
+            fuzzed_file_path="t1.dcm",
+        )
+
+        crash2 = CrashRecord(
+            crash_id="c2",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f2",
+            fuzzed_file_path="t2.dcm",
+        )
+
+        # Should handle gracefully
+        similarity = deduplicator._compare_mutation_patterns(crash1, crash2)
+
+        # Both missing should be similar (neutral score)
+        assert similarity == 1.0
+
+    def test_mutation_type_distribution_matching(self):
+        """Test that same mutation types increase similarity."""
+        deduplicator = CrashDeduplicator()
+
+        crash1 = CrashRecord(
+            crash_id="c1",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f1",
+            fuzzed_file_path="t1.dcm",
+            mutation_sequence=[
+                ("HeaderFuzzer", "flip_bits"),
+                ("HeaderFuzzer", "flip_bits"),
+                ("PixelFuzzer", "corrupt_data"),
+            ],
+        )
+
+        crash2 = CrashRecord(
+            crash_id="c2",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f2",
+            fuzzed_file_path="t2.dcm",
+            mutation_sequence=[
+                ("MetadataFuzzer", "flip_bits"),
+                ("DictionaryFuzzer", "flip_bits"),
+                ("StructureFuzzer", "corrupt_data"),
+            ],
+        )
+
+        similarity = deduplicator._compare_mutation_patterns(crash1, crash2)
+
+        # Same mutation types (different strategies) should have moderate similarity
+        # Note: Using >= 0.29 to account for floating point precision
+        assert similarity >= 0.29
+
+    def test_strategy_frequency_matching(self):
+        """Test that same strategies increase similarity."""
+        deduplicator = CrashDeduplicator()
+
+        crash1 = CrashRecord(
+            crash_id="c1",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f1",
+            fuzzed_file_path="t1.dcm",
+            mutation_sequence=[
+                ("HeaderFuzzer", "flip_bits"),
+                ("HeaderFuzzer", "overlong_string"),
+                ("PixelFuzzer", "corrupt_data"),
+            ],
+        )
+
+        crash2 = CrashRecord(
+            crash_id="c2",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f2",
+            fuzzed_file_path="t2.dcm",
+            mutation_sequence=[
+                ("HeaderFuzzer", "insert_null"),
+                ("HeaderFuzzer", "delete_bytes"),
+                ("PixelFuzzer", "flip_bits"),
+            ],
+        )
+
+        similarity = deduplicator._compare_mutation_patterns(crash1, crash2)
+
+        # Same strategies (different mutation types) should have moderate similarity
+        # Note: Using >= 0.29 to account for floating point precision
+        assert similarity >= 0.29
+
+    def test_partial_sequence_overlap(self):
+        """Test sequences with partial overlap."""
+        deduplicator = CrashDeduplicator()
+
+        crash1 = CrashRecord(
+            crash_id="c1",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f1",
+            fuzzed_file_path="t1.dcm",
+            mutation_sequence=[
+                ("HeaderFuzzer", "flip_bits"),
+                ("PixelFuzzer", "corrupt_data"),
+                ("MetadataFuzzer", "overlong_string"),
+                ("DictionaryFuzzer", "insert_null"),
+            ],
+        )
+
+        crash2 = CrashRecord(
+            crash_id="c2",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f2",
+            fuzzed_file_path="t2.dcm",
+            mutation_sequence=[
+                ("HeaderFuzzer", "flip_bits"),
+                ("PixelFuzzer", "corrupt_data"),
+                ("StructureFuzzer", "delete_bytes"),
+            ],
+        )
+
+        similarity = deduplicator._compare_mutation_patterns(crash1, crash2)
+
+        # Partial overlap should give moderate similarity
+        assert 0.3 <= similarity <= 0.8
+
+    def test_mutation_pattern_weight_affects_deduplication(self):
+        """Test that mutation weight affects overall deduplication."""
+        # Create crashes with different mutations
+        crash1 = CrashRecord(
+            crash_id="c1",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f1",
+            fuzzed_file_path="t1.dcm",
+            exception_type="ValueError",
+            stack_trace="trace1",
+            mutation_sequence=[("HeaderFuzzer", "flip_bits")],
+        )
+
+        crash2 = CrashRecord(
+            crash_id="c2",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f2",
+            fuzzed_file_path="t2.dcm",
+            exception_type="ValueError",
+            stack_trace="trace1",
+            mutation_sequence=[("PixelFuzzer", "corrupt_data")],
+        )
+
+        # High mutation weight
+        config_high_mutation = DeduplicationConfig(
+            stack_trace_weight=0.2,
+            exception_weight=0.2,
+            mutation_weight=0.6,
+        )
+        dedup_high = CrashDeduplicator(config_high_mutation)
+        groups_high = dedup_high.deduplicate_crashes([crash1, crash2])
+
+        # Low mutation weight
+        config_low_mutation = DeduplicationConfig(
+            stack_trace_weight=0.6,
+            exception_weight=0.3,
+            mutation_weight=0.1,
+        )
+        dedup_low = CrashDeduplicator(config_low_mutation)
+        groups_low = dedup_low.deduplicate_crashes([crash1, crash2])
+
+        # High mutation weight should create more groups (different mutations matter more)
+        # Low mutation weight should create fewer groups (stack/exception similarity matters more)
+        assert len(groups_high) >= len(groups_low)
+
+    def test_mutation_type_distribution_helper(self):
+        """Test the mutation type distribution comparison helper."""
+        deduplicator = CrashDeduplicator()
+
+        seq1 = [
+            ("HeaderFuzzer", "flip_bits"),
+            ("HeaderFuzzer", "flip_bits"),
+            ("PixelFuzzer", "corrupt_data"),
+        ]
+
+        seq2 = [
+            ("MetadataFuzzer", "flip_bits"),
+            ("DictionaryFuzzer", "flip_bits"),
+            ("StructureFuzzer", "corrupt_data"),
+        ]
+
+        similarity = deduplicator._compare_mutation_type_distribution(seq1, seq2)
+
+        # Same type distribution should yield high similarity
+        assert similarity > 0.5
+
+    def test_strategy_frequency_helper(self):
+        """Test the strategy frequency comparison helper."""
+        deduplicator = CrashDeduplicator()
+
+        seq1 = [
+            ("HeaderFuzzer", "flip_bits"),
+            ("HeaderFuzzer", "overlong_string"),
+            ("PixelFuzzer", "corrupt_data"),
+        ]
+
+        seq2 = [
+            ("HeaderFuzzer", "insert_null"),
+            ("HeaderFuzzer", "delete_bytes"),
+            ("PixelFuzzer", "flip_bits"),
+        ]
+
+        similarity = deduplicator._compare_strategy_frequency(seq1, seq2)
+
+        # Same strategy distribution should yield high similarity
+        assert similarity > 0.5
+
+    def test_malformed_tuple_sequences(self):
+        """Test handling of malformed mutation sequence tuples."""
+        deduplicator = CrashDeduplicator()
+
+        crash1 = CrashRecord(
+            crash_id="c1",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f1",
+            fuzzed_file_path="t1.dcm",
+            mutation_sequence=[
+                ("HeaderFuzzer",),  # Single element tuple
+                ("PixelFuzzer", "corrupt_data"),
+            ],
+        )
+
+        crash2 = CrashRecord(
+            crash_id="c2",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f2",
+            fuzzed_file_path="t2.dcm",
+            mutation_sequence=[
+                ("HeaderFuzzer", "flip_bits"),
+                ("PixelFuzzer",),  # Single element tuple
+            ],
+        )
+
+        # Should handle gracefully without crashing
+        similarity = deduplicator._compare_mutation_patterns(crash1, crash2)
+
+        # Should return some valid similarity score
+        assert 0.0 <= similarity <= 1.0
