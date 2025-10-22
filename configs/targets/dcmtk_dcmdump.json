@@ -1,0 +1,71 @@
+{
+  "name": "DCMTK dcmdump Parser",
+  "description": "DCMTK dcmdump DICOM file parser - command-line utility",
+  "version": "3.6.8",
+  "target_type": "subprocess",
+
+  "executable": {
+    "path": "dcmdump",
+    "arguments": ["{input_file}"],
+    "timeout_seconds": 10,
+    "memory_limit_mb": 512,
+    "cpu_limit_percent": 100
+  },
+
+  "docker": {
+    "enabled": true,
+    "image": "dicom-fuzzer/dcmtk:latest",
+    "command": ["fuzz-dcmdump", "{input_file}"],
+    "volumes": {
+      "./fuzzed": "/input"
+    }
+  },
+
+  "crash_detection": {
+    "non_zero_exit_codes": true,
+    "signal_crashes": true,
+    "timeout_is_hang": true,
+    "oom_detection": true,
+    "error_patterns": [
+      "ERROR:",
+      "FATAL:",
+      "Assertion",
+      "Segmentation fault",
+      "AddressSanitizer"
+    ]
+  },
+
+  "fuzzing_config": {
+    "strip_pixel_data": true,
+    "max_file_size_mb": 10,
+    "min_file_size_bytes": 132,
+    "strategies": [
+      "metadata",
+      "header",
+      "structure"
+    ],
+    "mutation_severity": "moderate",
+    "mutations_per_file": 3
+  },
+
+  "corpus": {
+    "seed_directory": "./seeds",
+    "max_corpus_size": 1000,
+    "min_fitness_threshold": 0.1
+  },
+
+  "reporting": {
+    "output_directory": "./reports/dcmdump",
+    "crash_directory": "./crashes/dcmdump",
+    "json_report": true,
+    "html_report": true,
+    "save_crash_samples": true
+  },
+
+  "notes": [
+    "dcmdump is a DICOM file parser that dumps file contents to stdout",
+    "Focus fuzzing on parser logic by stripping PixelData",
+    "Common vulnerabilities: buffer overflows, integer overflows, assertion failures",
+    "Test with various DICOM transfer syntaxes and SOP classes"
+  ]
+}
