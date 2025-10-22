@@ -1,0 +1,81 @@
+{
+  "name": "Orthanc REST API",
+  "description": "Orthanc PACS server REST API endpoints",
+  "version": "24.10.2",
+  "target_type": "http_api",
+
+  "api": {
+    "base_url": "http://localhost:8042",
+    "authentication": {
+      "type": "basic",
+      "username": "orthanc",
+      "password": "orthanc"
+    },
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/instances",
+        "content_type": "application/dicom",
+        "description": "Upload DICOM instance"
+      },
+      {
+        "method": "POST",
+        "path": "/tools/find",
+        "content_type": "application/json",
+        "description": "Query DICOM instances"
+      }
+    ],
+    "timeout_seconds": 30
+  },
+
+  "docker": {
+    "enabled": true,
+    "image": "dicom-fuzzer/orthanc:latest",
+    "ports": {
+      "8042": "8042",
+      "4242": "4242"
+    }
+  },
+
+  "crash_detection": {
+    "http_status_codes": [500, 502, 503, 504],
+    "timeout_is_hang": true,
+    "response_patterns": [
+      "Internal Server Error",
+      "Segmentation fault",
+      "Assertion failed"
+    ]
+  },
+
+  "fuzzing_config": {
+    "strip_pixel_data": false,
+    "max_file_size_mb": 50,
+    "strategies": [
+      "metadata",
+      "header",
+      "structure",
+      "pixel"
+    ],
+    "mutation_severity": "moderate"
+  },
+
+  "corpus": {
+    "seed_directory": "./seeds",
+    "max_corpus_size": 500,
+    "min_fitness_threshold": 0.2
+  },
+
+  "reporting": {
+    "output_directory": "./reports/orthanc",
+    "crash_directory": "./crashes/orthanc",
+    "json_report": true,
+    "html_report": true
+  },
+
+  "notes": [
+    "Orthanc is a lightweight PACS server with REST API",
+    "Test both /instances upload endpoint and query endpoints",
+    "Monitor server logs for crashes and errors",
+    "Can fuzz with full PixelData to test image processing"
+  ]
+}
