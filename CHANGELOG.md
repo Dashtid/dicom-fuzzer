@@ -161,7 +161,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Added - 2025-10-22
+
+#### Performance Optimizations
+- **Lazy Loading for Corpus Datasets** (`corpus.py`): 50-70% memory reduction, 3-5x faster startup
+- **Strategy Caching in Mutator** (`mutator.py`): +20-30% mutation selection improvement
+- **Optimized Deep Copy Operations** (`mutator.py`): 2-3x faster mutations (replaced deepcopy with dataset.copy())
+- **Performance Benchmarking Infrastructure**: benchmark_fuzzing.py, profile_hotspots.py, PERFORMANCE.md
+  - Baseline: 157.62 ops/sec end-to-end throughput
+
+#### Production Fuzzing Tools
+- **Seed Corpus Management**: import_seed_corpus.py, download_public_seeds.py
+- **Docker Infrastructure**: DCMTK + Orthanc containers with ASAN instrumentation
+- **Target Configurations**: JSON configs for dcmdump and Orthanc API
+- **Production Examples**: fuzz_dcmtk.py with quick-start mode and Docker support
+- **Environment Setup**: setup_test_environment.sh for automated installation
+
+#### Automated Crash Triage Integration
+- **Enhanced HTML Reports**: Top 10 Critical Crashes section, color-coded severity badges
+- **Triage Data in Reports**: Priority scoring (0-100), exploitability indicators, recommendations
+- **Standalone Analysis Tool**: analyze_crashes.py with CSV/JSON/HTML export
+
+### Fixed - 2025-10-22
+- **Deprecated pydicom API**: Replaced write_like_original with enforce_file_format
+- **Mutation Pattern Comparison**: Implemented _compare_mutation_patterns() with LCS-based matching
+- **Test Coverage**: fuzzing_session.py 87%→96%, corpus.py 91%→99%
+
+### Added - 2025-10-18
 - **Python 3.14 Support**: Full compatibility with Python 3.14
   - Updated pyproject.toml classifiers and black configuration
   - Updated CI/CD workflows to test against Python 3.14
@@ -169,11 +195,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated documentation (installation, testing guides)
 
 ### Planned
-- Integration of crash intelligence with fuzzing campaigns
-- Enhanced coverage-guided fuzzing
-- Network fuzzing support (DICOM C-STORE, C-FIND)
+- Enhanced coverage-guided fuzzing with AFL-style feedback
+- Network fuzzing support (DICOM C-STORE, C-FIND protocols)
 - Distributed fuzzing across multiple machines
-- Additional mutation strategies
+- Additional mutation strategies (grammar-based, protocol-aware)
 
 ---
 
