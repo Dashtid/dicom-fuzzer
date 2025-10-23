@@ -79,6 +79,8 @@ auth.yaml
 # CRITICAL: Local test data (NEVER commit)
 # Use pattern matching for local data directories
 fuzzed_*/
+test_fuzzed_*/
+reports/test_results.txt
 
 # Medical/Healthcare Specific
 *patient*

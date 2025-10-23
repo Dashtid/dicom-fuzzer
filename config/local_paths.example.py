@@ -15,17 +15,21 @@ from pathlib import Path
 # ============================================================================
 # Your local DICOM test data directory
 # This directory contains real DICOM files for fuzzing
-DICOM_INPUT_DIR = Path(r"C:\Data\Kiwi - Example Data - 20210423")
+# You can use public datasets from NEMA or TCIA
+DICOM_INPUT_DIR = Path(r"./test_data/dicom_samples")
 
 # Alternative test data locations (optional)
-DICOM_INPUT_DIR_SMALL = Path(r"C:\Data\Test-Small")  # For quick tests
-DICOM_INPUT_DIR_LARGE = Path(r"C:\Data\Test-Large")  # For comprehensive campaigns
+DICOM_INPUT_DIR_SMALL = Path(r"./test_data/small_dataset")  # For quick tests
+DICOM_INPUT_DIR_LARGE = Path(
+    r"./test_data/large_dataset"
+)  # For comprehensive campaigns
 
 # ============================================================================
 # DICOM Viewer
 # ============================================================================
 # Path to your DICOM viewer executable
-DICOM_VIEWER_PATH = Path(r"C:\Hermes\Affinity\Hermes.exe")
+# Replace with the path to your DICOM viewer application
+DICOM_VIEWER_PATH = Path(r"/path/to/dicom/viewer")
 
 # Timeout for viewer (seconds)
 VIEWER_TIMEOUT = 5

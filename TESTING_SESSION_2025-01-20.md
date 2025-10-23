@@ -189,12 +189,12 @@ All work committed with descriptive messages following conventional commit forma
      - `crash_analyzer.py`: 32.58% → target 50%
      - `crash_triage.py`: 27.95% → target 40%
 
-2. **Low-Hanging Fruit Modules**
+3. **Low-Hanging Fruit Modules**
    - `header_fuzzer.py`: 13.79% coverage (58 statements)
    - `structure_fuzzer.py`: 11.96% coverage (92 statements)
    - `dictionary_fuzzer.py`: 60.18% coverage (113 statements)
 
-3. **Documentation Updates**
+4. **Documentation Updates**
    - Update README.md badges with new coverage numbers
    - Update test count in README (2097+ → 2204+)
    - Add session notes to CHANGELOG.md
@@ -331,7 +331,7 @@ pytest tests/ -n auto
 
 ```bash
 # Activate environment
-cd "c:/Users/david.dashti/OneDrive - Hermes Medical Solutions AB/Documents/David - Main/Personal/Private/Code - 2/dicom-fuzzer"
+cd /path/to/dicom-fuzzer
 .venv/Scripts/activate
 
 # Check current coverage

@@ -8,32 +8,34 @@ This guide explains how to use the DICOM Fuzzer to test DICOM viewer application
 
 ```bash
 python examples/fuzz_dicom_viewer.py \
-    --input "C:/Data/Kiwi - Example Data - 20210423" \
+    --input "./test_data/dicom_samples" \
     --output "./fuzzed_output" \
     --count 100 \
     --severity moderate
 ```
 
 This will:
+
 - Load 100 real DICOM files from the input directory
 - Apply intelligent mutations using dictionary-based fuzzing
 - Save fuzzed files to `./fuzzed_output`
 
-### 2. Fuzz and Test Hermes Viewer (Automated)
+### 2. Fuzz and Test DICOM Viewer (Automated)
 
 ```bash
 python examples/fuzz_dicom_viewer.py \
-    --input "C:/Data/Kiwi - Example Data - 20210423" \
+    --input "./test_data/dicom_samples" \
     --output "./fuzzed_output" \
-    --viewer "C:/Hermes/Affinity/Hermes.exe" \
+    --viewer "/path/to/dicom/viewer" \
     --count 50 \
     --timeout 5 \
     --severity aggressive
 ```
 
 This will:
+
 - Generate 50 fuzzed files with aggressive mutations
-- Automatically launch Hermes.exe with each fuzzed file
+- Automatically launch the DICOM viewer with each fuzzed file
 - Monitor for crashes, hangs, and errors
 - Log all crashes and hangs to the output directory
 
@@ -42,8 +44,8 @@ This will:
 Set these environment variables for easier usage:
 
 ```bash
-export DICOM_INPUT="C:/Data/Kiwi - Example Data - 20210423"
-export DICOM_VIEWER="C:/Hermes/Affinity/Hermes.exe"
+export DICOM_INPUT_DIR="./test_data/dicom_samples"
+export DICOM_VIEWER_PATH="/path/to/dicom/viewer"
 
 # Now you can run with defaults
 python examples/fuzz_dicom_viewer.py --count 20
@@ -54,21 +56,25 @@ python examples/fuzz_dicom_viewer.py --count 20
 Choose the right severity for your testing goals:
 
 ### Minimal (--severity minimal)
+
 - Very small changes, unlikely to crash
 - Good for: Testing input validation
 - Use when: You want valid-looking but slightly corrupted files
 
 ### Moderate (--severity moderate) [DEFAULT]
+
 - Medium changes, may cause some issues
 - Good for: General fuzzing, finding edge cases
 - Use when: Balanced between valid and corrupt data
 
 ### Aggressive (--severity aggressive)
+
 - Large changes, likely to break things
 - Good for: Finding crash bugs, robustness testing
 - Use when: You want to stress-test error handling
 
 ### Extreme (--severity extreme)
+
 - Maximum changes, definitely will break things
 - Good for: Finding critical vulnerabilities
 - Use when: You want maximum chaos for security testing
@@ -78,11 +84,13 @@ Choose the right severity for your testing goals:
 ### Generated Files
 
 Fuzzed files are named:
+
 ```
 fuzzed_{severity}_{original_name}_{timestamp}.dcm
 ```
 
 Example:
+
 ```
 fuzzed_moderate_CT_Image_1759601826850.dcm
 ```
@@ -90,11 +98,13 @@ fuzzed_moderate_CT_Image_1759601826850.dcm
 ### Crash Logs
 
 When a viewer crashes, a crash log is created:
+
 ```
 crash_{filename}.txt
 ```
 
 Contains:
+
 - File path that caused the crash
 - Return code
 - STDOUT and STDERR output
@@ -102,11 +112,13 @@ Contains:
 ### Hang Logs
 
 When a viewer hangs (timeout), a hang log is created:
+
 ```
 hang_{filename}.txt
 ```
 
 Contains:
+
 - File path that caused the hang
 - Timeout duration
 
@@ -115,20 +127,23 @@ Contains:
 ### Manual Testing Workflow
 
 1. Generate fuzzed files:
+
 ```bash
 python examples/fuzz_dicom_viewer.py \
-    --input "C:/Data/Kiwi - Example Data - 20210423" \
+    --input "./test_data/dicom_samples" \
     --output "./fuzzed_output" \
     --count 100 \
     --severity aggressive
 ```
 
 2. Manually test each file:
+
 - Open each fuzzed file in the viewer
 - Watch for crashes, hangs, or unexpected behavior
 - Document any findings
 
 3. Report vulnerabilities:
+
 - Save crash logs
 - Note reproduction steps
 - Report to vendor (responsible disclosure)
@@ -141,7 +156,7 @@ For long-running fuzzing campaigns:
 # Generate 1000 files with different severity levels
 for severity in minimal moderate aggressive extreme; do
     python examples/fuzz_dicom_viewer.py \
-        --input "C:/Data/Kiwi - Example Data - 20210423" \
+        --input "./test_data/dicom_samples" \
         --output "./fuzzed_${severity}" \
         --count 250 \
         --severity $severity
@@ -155,9 +170,9 @@ Test different DICOM viewers:
 ```bash
 # List of viewers to test
 viewers=(
-    "C:/Hermes/Affinity/Hermes.exe"
-    "C:/Program Files/OsiriX/OsiriX.exe"
-    "C:/Horos/Horos.exe"
+    "/path/to/viewer1"
+    "/path/to/viewer2"
+    "/path/to/viewer3"
 )
 
 # Test each viewer
@@ -174,6 +189,7 @@ done
 ### IMPORTANT: Defensive Security Only
 
 This tool is for **DEFENSIVE** security testing:
+
 - ✅ Test your own software
 - ✅ Test software you have permission to test
 - ✅ Responsible disclosure of findings
@@ -205,20 +221,20 @@ Generate 50 fuzzed files for manual testing:
 
 ```bash
 python examples/fuzz_dicom_viewer.py \
-    --input "C:/Data/Kiwi - Example Data - 20210423" \
+    --input "./test_data/dicom_samples" \
     --output "./test_files" \
     --count 50
 ```
 
 ### Example 2: Automated Viewer Testing
 
-Test Hermes viewer with 100 fuzzed files:
+Test DICOM viewer with 100 fuzzed files:
 
 ```bash
 python examples/fuzz_dicom_viewer.py \
-    --input "C:/Data/Kiwi - Example Data - 20210423" \
+    --input "./test_data/dicom_samples" \
     --output "./test_output" \
-    --viewer "C:/Hermes/Affinity/Hermes.exe" \
+    --viewer "/path/to/dicom/viewer" \
     --count 100 \
     --timeout 10 \
     --severity aggressive
@@ -231,7 +247,7 @@ Focus on specific DICOM types:
 ```bash
 # Test only CT images
 python examples/fuzz_dicom_viewer.py \
-    --input "C:/Data/CT_Images" \
+    --input "./test_data/ct_images" \
     --output "./ct_fuzzed" \
     --count 200 \
     --severity extreme
@@ -240,21 +256,25 @@ python examples/fuzz_dicom_viewer.py \
 ## Troubleshooting
 
 ### "No DICOM files found"
+
 - Check the input path exists
 - Verify files have `.dcm` extension
 - Try using absolute paths
 
 ### "Viewer not found"
+
 - Check the viewer path is correct
 - Use absolute paths
 - Verify the executable exists
 
 ### "All mutations failed to write"
+
 - Try lower severity levels
 - Some mutations may be too corrupt
 - This is normal for EXTREME severity
 
 ### Files not being tested
+
 - Check timeout is long enough
 - Viewer may need more time to start
 - Try increasing `--timeout`
@@ -273,6 +293,7 @@ After fuzzing:
 ## Support
 
 For issues or questions:
+
 - Check the main README.md
 - Review test files in `tests/test_dictionary_fuzzer.py`
 - See examples in `examples/demo_dictionary_fuzzing.py`
