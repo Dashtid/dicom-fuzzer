@@ -1,0 +1,164 @@
+# DICOM Viewer Profiles Configuration
+#
+# This file defines command-line configurations for various DICOM viewers.
+# Use these profiles with ViewerLauncher3D for automated 3D series testing.
+#
+# USAGE:
+#   python examples/fuzz_dicom_viewer.py --mode 3d --viewer-profile microdicom
+#
+# PROFILE STRUCTURE:
+#   viewer_type: Type identifier (generic, microdicom, radiant, rubo, custom)
+#   executable_path: Full path to viewer executable (use environment variables)
+#   command_template: Command line template with {folder_path} placeholder
+#   timeout_seconds: Max time to wait for viewer load (default: 60)
+#   memory_limit_mb: Max memory usage in MB (null = unlimited)
+#   expected_window_title: Window title pattern for detection (optional)
+#   requires_folder_scan: Whether viewer scans folder for DICOM files
+#   additional_args: Extra command-line arguments (optional)
+#
+# SECURITY NOTE:
+# Based on 2025 CVE research, the following viewers have known vulnerabilities:
+#   - MicroDicom: CVE-2025-35975, CVE-2025-36521, CVE-2025-5943 (patched in 2025.2+)
+#   - RadiAnt: CVE-2025-1001 (patched in 2025.1+)
+#
+# IMPORTANT: Only test viewers in isolated environments. Do not use production systems.
+
+---
+# Generic Viewer Profile
+# Use this as a template for custom/unknown viewers
+generic:
+  viewer_type: generic
+  executable_path: /path/to/viewer # Replace with actual path
+  command_template: "{folder_path}" # Pass folder as first argument
+  timeout_seconds: 60
+  memory_limit_mb: null # No memory limit
+  expected_window_title: null
+  requires_folder_scan: true
+  additional_args: []
+  description: "Generic DICOM viewer with folder argument support"
+
+# MicroDicom DICOM Viewer
+# Homepage: https://www.microdicom.com/
+# Command-line docs: https://www.microdicom.com/microdicom-viewer-documentation/command-line.html
+microdicom:
+  viewer_type: microdicom
+  executable_path: "C:/Program Files/MicroDicom/mDicom.exe" # Windows default path
+  command_template: "{folder_path}" # Folder path as argument
+  timeout_seconds: 90 # MicroDicom can be slow with large series
+  memory_limit_mb: 4096 # 4GB limit for safety
+  expected_window_title: "MicroDicom"
+  requires_folder_scan: true
+  additional_args: []
+  description: "MicroDicom DICOM Viewer (update to 2025.2+ for CVE fixes)"
+  vulnerabilities:
+    - CVE-2025-35975: "Out-of-bounds write (CVSS 8.8) - fixed in 2025.2"
+    - CVE-2025-36521: "Out-of-bounds read (CVSS 8.8) - fixed in 2025.2"
+    - CVE-2025-5943: "Out-of-bounds write (CVSS 8.6) - fixed in 2025.3"
+    - CVE-2025-1002: "Certificate validation (CVSS 5.7) - fixed in 2025.2"
+
+# RadiAnt DICOM Viewer
+# Homepage: https://www.radiantviewer.com/
+# Note: Commercial viewer, requires license for full features
+radiant:
+  viewer_type: radiant
+  executable_path: "C:/Program Files/RadiAntViewer/RadiAntViewer64.exe" # Windows 64-bit
+  command_template: "{folder_path}" # Folder path as argument
+  timeout_seconds: 60
+  memory_limit_mb: 8192 # 8GB for large series (RadiAnt can use >4GB)
+  expected_window_title: "RadiAnt"
+  requires_folder_scan: true
+  additional_args: []
+  description: "RadiAnt DICOM Viewer (update to 2025.1+ for CVE-2025-1001 fix)"
+  vulnerabilities:
+    - CVE-2025-1001: "Certificate validation (CVSS 5.7) - fixed in 2025.1"
+
+# Rubo DICOM Viewer
+# Homepage: https://www.rubomedical.com/
+# Command-line docs: https://www.rubomedical.com/help/DicomViewer/Html/Command_line_DICOM_viewer.html
+rubo:
+  viewer_type: rubo
+  executable_path: "C:/Program Files/Rubo/DICOMviewer.exe" # Windows default path
+  command_template: "{folder_path}" # Folder path as argument
+  timeout_seconds: 60
+  memory_limit_mb: null # No specific limit
+  expected_window_title: "DICOM Viewer"
+  requires_folder_scan: true
+  additional_args: []
+  description: "Rubo DICOM Viewer with folder scanning support"
+
+# Sante DICOM Viewer Pro
+# Homepage: https://www.santesoft.com/
+# Note: Commercial viewer with known vulnerabilities
+sante:
+  viewer_type: custom
+  executable_path: "C:/Program Files/Santesoft/Sante DICOM Viewer Pro/SanteDICOMViewerPro.exe"
+  command_template: "{folder_path}"
+  timeout_seconds: 60
+  memory_limit_mb: 2048
+  expected_window_title: "Sante DICOM Viewer"
+  requires_folder_scan: true
+  additional_args: []
+  description: "Sante DICOM Viewer Pro (CVE-2025-5307 out-of-bounds read)"
+  vulnerabilities:
+    - CVE-2025-5307: "Out-of-bounds read / memory corruption"
+
+# Orthanc Server (with built-in viewer)
+# Homepage: https://www.orthanc-server.com/
+# Note: Server with web-based viewer, not command-line
+orthanc:
+  viewer_type: custom
+  executable_path: "orthanc" # Command-line tool
+  command_template: "{folder_path}"
+  timeout_seconds: 120 # Server startup + import
+  memory_limit_mb: null
+  expected_window_title: null
+  requires_folder_scan: true
+  additional_args: ["--verbose"]
+  description: "Orthanc DICOM server (2025 vulnerabilities identified)"
+  note: "Not suitable for direct fuzzing - use web API instead"
+
+# Example: Custom Viewer
+# Copy this template and modify for your viewer
+custom_example:
+  viewer_type: custom
+  executable_path: "/path/to/your/viewer"
+  command_template: "{folder_path}" # Adjust based on your viewer
+  timeout_seconds: 60
+  memory_limit_mb: null
+  expected_window_title: "Your Viewer Title"
+  requires_folder_scan: true
+  additional_args:
+    - "--fullscreen" # Example additional argument
+    - "--no-splash" # Example additional argument
+  description: "Custom DICOM viewer template"
+
+# Example: Viewer with complex command line
+# Some viewers require more complex command-line arguments
+custom_complex:
+  viewer_type: custom
+  executable_path: "/path/to/viewer"
+  command_template: "--load-directory {folder_path} --mode 3d --fast-load"
+  timeout_seconds: 90
+  memory_limit_mb: 4096
+  expected_window_title: null
+  requires_folder_scan: true
+  additional_args:
+    - "--log-level=debug"
+  description: "Example of complex command-line viewer"
+# PUBLIC DICOM TEST DATASETS:
+#
+# For testing, use these public DICOM datasets:
+#
+# 1. NEMA DICOM Samples
+#    https://www.dicomstandard.org/
+#    Standard-compliant test files
+#
+# 2. TCIA (The Cancer Imaging Archive)
+#    https://www.cancerimagingarchive.net/
+#    Real-world clinical datasets (requires registration)
+#
+# 3. Osirix DICOM Sample Data
+#    https://www.osirix-viewer.com/resources/dicom-image-library/
+#    Multi-modality test datasets
+#
+# NEVER USE REAL PATIENT DATA FOR FUZZING!

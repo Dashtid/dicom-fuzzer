@@ -12,12 +12,21 @@ from .crash_triage import (
     ExploitabilityRating,
     Severity,
 )
+from .dicom_series import DicomSeries
 from .error_recovery import CampaignRecovery, CampaignStatus, SignalHandler
 from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
 from .generator import DICOMGenerator
 from .mutator import DicomMutator
 from .parser import DicomParser
 from .resource_manager import ResourceLimits, ResourceManager
+from .series_detector import SeriesDetector
+from .series_validator import (
+    SeriesValidator,
+    ValidationIssue,
+    ValidationReport,
+    ValidationSeverity,
+)
+from .series_writer import SeriesMetadata, SeriesWriter
 from .stability_tracker import StabilityMetrics, StabilityTracker
 from .target_runner import ExecutionStatus, TargetRunner
 from .test_minimizer import MinimizationStrategy, TestMinimizer
@@ -55,4 +64,13 @@ __all__ = [
     # Stability tracking (v1.2.0)
     "StabilityTracker",
     "StabilityMetrics",
+    # 3D Series support (v2.0.0-alpha)
+    "DicomSeries",
+    "SeriesDetector",
+    "SeriesValidator",
+    "ValidationIssue",
+    "ValidationReport",
+    "ValidationSeverity",
+    "SeriesWriter",
+    "SeriesMetadata",
 ]
