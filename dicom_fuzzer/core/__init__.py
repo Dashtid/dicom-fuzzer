@@ -16,9 +16,15 @@ from .dicom_series import DicomSeries
 from .error_recovery import CampaignRecovery, CampaignStatus, SignalHandler
 from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
 from .generator import DICOMGenerator
+from .lazy_loader import (
+    LazyDicomLoader,
+    create_deferred_loader,
+    create_metadata_loader,
+)
 from .mutator import DicomMutator
 from .parser import DicomParser
 from .resource_manager import ResourceLimits, ResourceManager
+from .series_cache import CacheEntry, SeriesCache
 from .series_detector import SeriesDetector
 from .series_validator import (
     SeriesValidator,
@@ -73,4 +79,10 @@ __all__ = [
     "ValidationSeverity",
     "SeriesWriter",
     "SeriesMetadata",
+    # Performance optimization (v2.0.0-alpha Phase 4)
+    "LazyDicomLoader",
+    "create_metadata_loader",
+    "create_deferred_loader",
+    "SeriesCache",
+    "CacheEntry",
 ]
