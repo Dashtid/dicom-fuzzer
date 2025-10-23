@@ -141,11 +141,21 @@ DICOM-Fuzzer/
 │   │   ├── reporter.py        # Report generation
 │   │   ├── statistics.py      # Statistics tracking
 │   │   ├── coverage_tracker.py # Code coverage
+│   │   ├── lazy_loader.py     # Lazy DICOM loading (Phase 4)
+│   │   ├── series_cache.py    # LRU caching (Phase 4)
+│   │   ├── dicom_series.py    # 3D series data structure
+│   │   ├── series_detector.py # Series detection & grouping
+│   │   ├── series_validator.py # Series validation
+│   │   ├── series_writer.py   # Series writing
 │   │   └── exceptions.py      # Exception hierarchy
 │   ├── strategies/            # Mutation strategies
 │   │   ├── header_fuzzer.py   # Header mutations
 │   │   ├── metadata_fuzzer.py # Metadata mutations
-│   │   └── pixel_fuzzer.py    # Pixel data mutations
+│   │   ├── pixel_fuzzer.py    # Pixel data mutations
+│   │   ├── series_mutator.py  # 3D series mutations (Phase 2)
+│   │   └── parallel_mutator.py # Parallel processing (Phase 4)
+│   ├── harness/               # Test harnesses
+│   │   └── viewer_launcher_3d.py # 3D viewer testing (Phase 3)
 │   ├── utils/                 # Utilities
 │   │   ├── helpers.py         # Helper functions
 │   │   ├── logger.py          # Logging utilities
@@ -154,7 +164,14 @@ DICOM-Fuzzer/
 │       ├── main.py            # Main CLI
 │       ├── generate_report.py # Report generation
 │       └── realtime_monitor.py # Live dashboard
-├── tests/                     # Test suite (930+ tests)
+├── tests/                     # Test suite (976+ tests)
+│   ├── test_lazy_loader.py    # Lazy loading tests (Phase 4)
+│   ├── test_series_cache.py   # Caching tests (Phase 4)
+│   ├── test_parallel_mutator.py # Parallel processing tests (Phase 4)
+│   ├── test_series_detector.py # Series detection tests (Phase 1)
+│   ├── test_series_mutator.py # Series mutation tests (Phase 2)
+│   ├── test_viewer_launcher_3d.py # Viewer testing tests (Phase 3)
+│   └── ...                    # 970+ other tests
 ├── examples/                  # Example scripts
 │   ├── demo_fuzzing.py        # Basic fuzzing demo
 │   ├── fuzz_dicom_viewer.py   # Viewer fuzzing example
@@ -176,11 +193,16 @@ DICOM-Fuzzer/
 │   ├── FUZZING_GUIDE.md       # Fuzzing methodology
 │   ├── CRASH_INTELLIGENCE.md  # Crash intelligence guide (v1.2.0)
 │   ├── TESTING.md             # Testing guide
-│   └── REPORTING.md           # Reporting system
+│   ├── REPORTING.md           # Reporting system
+│   ├── 3D_FUZZING_ROADMAP.md  # 3D fuzzing roadmap (Phase 1-4)
+│   ├── VIEWER_TESTING_3D.md   # 3D viewer testing guide (Phase 3)
+│   └── PERFORMANCE_3D.md      # Performance optimization guide (Phase 4)
 ├── config/                    # Configuration
 │   ├── local_paths.example.py # Path template
-│   └── local_paths.py         # Local paths (gitignored)
+│   ├── local_paths.py         # Local paths (gitignored)
+│   └── viewer_profiles.yaml   # Viewer configurations (Phase 3)
 ├── scripts/                   # Build/deployment scripts
+│   └── benchmark_3d_fuzzing.py # Performance benchmarking (Phase 4)
 ├── pyproject.toml             # Project configuration
 ├── requirements.txt           # Dependencies
 ├── CHANGELOG.md               # Version history
