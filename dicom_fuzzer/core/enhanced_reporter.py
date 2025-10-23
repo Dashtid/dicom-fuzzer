@@ -6,6 +6,7 @@ Generates comprehensive, interactive HTML reports with:
 - Crash forensics with drill-down details
 - Interactive visualizations
 - Artifact preservation tracking
+- Automated crash triage and prioritization
 """
 # flake8: noqa: E201, E202, E222, E221, E702
 # HTML template strings contain intentional CSS formatting
@@ -14,19 +15,88 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from dicom_fuzzer.core.crash_triage import CrashTriageEngine, CrashTriage, Severity, ExploitabilityRating
+from dicom_fuzzer.core.fuzzing_session import CrashRecord
+
 
 class EnhancedReportGenerator:
     """Generate enhanced HTML and JSON reports for fuzzing sessions."""
 
-    def __init__(self, output_dir: str = "./reports"):
+    def __init__(self, output_dir: str = "./reports", enable_triage: bool = True):
         """
         Initialize enhanced report generator.
 
         Args:
             output_dir: Directory for generated reports
+            enable_triage: Enable automated crash triage and prioritization
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize crash triage engine
+        self.enable_triage = enable_triage
+        if enable_triage:
+            self.triage_engine = CrashTriageEngine()
+        else:
+            self.triage_engine = None
+
+    def _enrich_crashes_with_triage(self, session_data: Dict) -> Dict:
+        """
+        Enrich crash records with automated triage analysis.
+
+        Args:
+            session_data: Session report dictionary
+
+        Returns:
+            Enhanced session data with triage information
+        """
+        if not self.enable_triage or not self.triage_engine:
+            return session_data
+
+        crashes = session_data.get("crashes", [])
+        if not crashes:
+            return session_data
+
+        # Convert crash dicts to CrashRecord objects for triage
+        crash_records = []
+        for crash in crashes:
+            # Create CrashRecord from dict (simplified for triage)
+            crash_record = CrashRecord(
+                crash_id=crash.get("crash_id", "unknown"),
+                fuzzed_file_id=crash.get("fuzzed_file_id", "unknown"),
+                fuzzed_file_path=crash.get("fuzzed_file_path", ""),
+                crash_type=crash.get("crash_type", "unknown"),
+                return_code=crash.get("return_code"),
+                exception_type=crash.get("exception_type"),
+                exception_message=crash.get("exception_message"),
+                stack_trace=crash.get("stack_trace", ""),
+                timestamp=crash.get("timestamp", "")
+            )
+            crash_records.append((crash, crash_record))
+
+        # Perform triage
+        for crash_dict, crash_record in crash_records:
+            triage = self.triage_engine.triage_crash(crash_record)
+
+            # Add triage data to crash dict
+            crash_dict["triage"] = {
+                "severity": triage.severity.value,
+                "exploitability": triage.exploitability.value,
+                "priority_score": triage.priority_score,
+                "indicators": triage.indicators,
+                "recommendations": triage.recommendations,
+                "tags": triage.tags,
+                "summary": triage.summary
+            }
+
+        # Sort crashes by priority score (highest first)
+        session_data["crashes"] = sorted(
+            crashes,
+            key=lambda c: c.get("triage", {}).get("priority_score", 0),
+            reverse=True
+        )
+
+        return session_data
 
     def generate_html_report(
         self,
@@ -43,6 +113,9 @@ class EnhancedReportGenerator:
         Returns:
             Path to generated HTML report
         """
+        # Enrich crashes with automated triage
+        session_data = self._enrich_crashes_with_triage(session_data)
+
         if output_path is None:
             html_dir = self.output_dir / "html"
             html_dir.mkdir(parents=True, exist_ok=True)
@@ -498,6 +571,41 @@ class EnhancedReportGenerator:
             </table>
 """
 
+        # Add Top 10 Critical Crashes section if triage enabled
+        if self.enable_triage:
+            critical_crashes = [c for c in crashes if c.get("triage", {}).get("severity") in ["critical", "high"]]
+            if critical_crashes:
+                html += """
+            <h3>🚨 Top Critical Crashes</h3>
+            <table>
+                <tr>
+                    <th>Priority</th>
+                    <th>Crash ID</th>
+                    <th>Severity</th>
+                    <th>Exploitability</th>
+                    <th>Summary</th>
+                </tr>
+"""
+                for crash in critical_crashes[:10]:  # Top 10
+                    triage = crash.get("triage", {})
+                    priority = triage.get("priority_score", 0)
+                    severity = triage.get("severity", "unknown")
+                    exploitability = triage.get("exploitability", "unknown")
+                    summary = triage.get("summary", "No summary available")
+
+                    html += f"""
+                <tr>
+                    <td><strong>{priority:.1f}/100</strong></td>
+                    <td><code>{crash["crash_id"]}</code></td>
+                    <td><span class="badge {severity}">{severity.upper()}</span></td>
+                    <td><span class="badge {exploitability.replace('_', '-')}">{exploitability.replace('_', ' ').title()}</span></td>
+                    <td>{summary[:100]}</td>
+                </tr>
+"""
+                html += """
+            </table>
+"""
+
         return html
 
     def _html_crash_details(self, crashes: List[Dict], fuzzed_files: Dict) -> str:
@@ -539,6 +647,29 @@ class EnhancedReportGenerator:
 
                     <div class="info-label">Crash Log:</div>
                     <div class="info-value"><span class="file-path">{crash.get('crash_log_path', 'N/A')}</span></div>
+"""
+
+            # Add triage information if available
+            triage = crash.get("triage")
+            if triage:
+                html += f"""
+                    <div class="info-label">Triage Priority:</div>
+                    <div class="info-value"><strong>{triage.get('priority_score', 0):.1f}/100</strong></div>
+
+                    <div class="info-label">Exploitability:</div>
+                    <div class="info-value"><span class="badge {triage.get('exploitability', 'unknown').replace('_', '-')}">{triage.get('exploitability', 'unknown').replace('_', ' ').title()}</span></div>
+"""
+                if triage.get("indicators"):
+                    indicators_list = "<br>".join(f"• {ind}" for ind in triage["indicators"])
+                    html += f"""
+                    <div class="info-label">Triage Indicators:</div>
+                    <div class="info-value">{indicators_list}</div>
+"""
+                if triage.get("recommendations"):
+                    recommendations_list = "<br>".join(f"• {rec}" for rec in triage["recommendations"])
+                    html += f"""
+                    <div class="info-label">Recommendations:</div>
+                    <div class="info-value">{recommendations_list}</div>
 """
 
             if crash.get("return_code") is not None:
@@ -700,6 +831,41 @@ class EnhancedReportGenerator:
 """
 
         html += """
+            </table>
+"""
+
+        # Add Top 10 Critical Crashes section if triage enabled
+        if self.enable_triage:
+            critical_crashes = [c for c in crashes if c.get("triage", {}).get("severity") in ["critical", "high"]]
+            if critical_crashes:
+                html += """
+            <h3>🚨 Top Critical Crashes</h3>
+            <table>
+                <tr>
+                    <th>Priority</th>
+                    <th>Crash ID</th>
+                    <th>Severity</th>
+                    <th>Exploitability</th>
+                    <th>Summary</th>
+                </tr>
+"""
+                for crash in critical_crashes[:10]:  # Top 10
+                    triage = crash.get("triage", {})
+                    priority = triage.get("priority_score", 0)
+                    severity = triage.get("severity", "unknown")
+                    exploitability = triage.get("exploitability", "unknown")
+                    summary = triage.get("summary", "No summary available")
+
+                    html += f"""
+                <tr>
+                    <td><strong>{priority:.1f}/100</strong></td>
+                    <td><code>{crash["crash_id"]}</code></td>
+                    <td><span class="badge {severity}">{severity.upper()}</span></td>
+                    <td><span class="badge {exploitability.replace('_', '-')}">{exploitability.replace('_', ' ').title()}</span></td>
+                    <td>{summary[:100]}</td>
+                </tr>
+"""
+                html += """
             </table>
 """
 

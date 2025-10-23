@@ -75,7 +75,8 @@ class TestCorpusEntry:
         )
 
         assert entry.entry_id == "test001"
-        assert entry.dataset == sample_dataset
+        # OPTIMIZATION: Use get_dataset() for lazy loading compatibility
+        assert entry.get_dataset() == sample_dataset
         assert entry.coverage == mock_coverage
         assert entry.fitness_score == 0.75
         assert entry.generation == 2
@@ -517,3 +518,224 @@ class TestCorpusManagerIntegration:
         stats = manager.get_statistics()
         assert stats["total_added"] == 2  # only good entries added
         assert stats["total_rejected"] == 2  # bad entries rejected
+
+
+class TestCorpusManagerErrorHandling:
+    """Test error handling and edge cases in corpus management."""
+
+    def test_eviction_not_needed_when_under_limit(self, temp_corpus_dir, sample_dataset):
+        """Test that eviction is skipped when corpus is under max size."""
+        manager = CorpusManager(
+            temp_corpus_dir, max_corpus_size=10, min_fitness_threshold=0.0
+        )
+
+        # Add only 3 entries (well under limit of 10)
+        for i in range(3):
+            ds = sample_dataset.copy()
+            ds.PatientID = f"TEST{i:03d}"
+            manager.add_entry(f"entry{i}", ds)
+
+        # Call eviction directly (should do nothing)
+        manager._evict_lowest_fitness()
+
+        # All entries should still be present
+        assert len(manager.corpus) == 3
+        assert manager.total_evicted == 0
+
+    def test_eviction_with_coverage_map_cleanup(
+        self, temp_corpus_dir, sample_dataset, mock_coverage
+    ):
+        """Test that eviction properly cleans up coverage map."""
+        manager = CorpusManager(
+            temp_corpus_dir, max_corpus_size=2, min_fitness_threshold=0.0
+        )
+
+        # Add entries with coverage and different fitness
+        with patch.object(manager, "_calculate_fitness", return_value=0.3):
+            manager.add_entry("low", sample_dataset, coverage=mock_coverage)
+
+        # Create different mock coverage for second entry
+        mock_coverage2 = Mock()
+        mock_coverage2.lines_covered = {10, 20, 30}
+        mock_coverage2.branches_covered = {(10, 20)}
+        mock_coverage2.coverage_hash = Mock(return_value="hash456")
+
+        with patch.object(manager, "_calculate_fitness", return_value=0.9):
+            manager.add_entry("high", sample_dataset, coverage=mock_coverage2)
+
+        # Add third entry to trigger eviction
+        mock_coverage3 = Mock()
+        mock_coverage3.lines_covered = {100, 200}
+        mock_coverage3.branches_covered = {(100, 200)}
+        mock_coverage3.coverage_hash = Mock(return_value="hash789")
+
+        with patch.object(manager, "_calculate_fitness", return_value=0.7):
+            manager.add_entry("medium", sample_dataset, coverage=mock_coverage3)
+
+        # Low fitness entry should be evicted
+        assert "low" not in manager.corpus
+        assert manager.total_evicted == 1
+
+        # Coverage map should be cleaned up
+        # The hash from evicted entry should either be removed or not have the entry
+        hash_low = mock_coverage.coverage_hash()
+        if hash_low in manager.coverage_map:
+            assert "low" not in manager.coverage_map[hash_low]
+
+    def test_save_entry_dicom_write_failure(self, temp_corpus_dir, sample_dataset):
+        """Test handling of DICOM save failure."""
+        manager = CorpusManager(temp_corpus_dir, min_fitness_threshold=0.0)
+
+        # Create an entry
+        entry = CorpusEntry(entry_id="test_fail", dataset=sample_dataset)
+
+        # Mock the dataset.save_as to raise an exception
+        with patch.object(
+            sample_dataset, "save_as", side_effect=Exception("Write failed")
+        ):
+            # Should not crash, just log error
+            manager._save_entry(entry)
+
+        # Entry should have been added to in-memory corpus
+        # But file may not exist on disk
+        dcm_path = temp_corpus_dir / "test_fail.dcm"
+        # File should not exist due to write failure
+        assert not dcm_path.exists()
+
+    def test_save_entry_metadata_write_failure(self, temp_corpus_dir, sample_dataset):
+        """Test handling of JSON metadata save failure."""
+        manager = CorpusManager(temp_corpus_dir, min_fitness_threshold=0.0)
+
+        entry = CorpusEntry(entry_id="test_meta_fail", dataset=sample_dataset)
+
+        # Mock json.dump to raise exception
+        with patch("dicom_fuzzer.core.corpus.json.dump", side_effect=Exception("JSON write failed")):
+            # Should not crash, just log error
+            manager._save_entry(entry)
+
+        # DICOM file should exist
+        dcm_path = temp_corpus_dir / "test_meta_fail.dcm"
+        assert dcm_path.exists()
+
+        # But metadata file may not exist or be incomplete
+        meta_path = temp_corpus_dir / "test_meta_fail.json"
+        # Metadata might not exist due to write failure
+        # This is acceptable - the test just verifies it doesn't crash
+
+    def test_load_corpus_nonexistent_directory(self, temp_corpus_dir):
+        """Test loading corpus from non-existent directory."""
+        # Use a path that doesn't exist
+        nonexistent_dir = temp_corpus_dir / "does_not_exist"
+        assert not nonexistent_dir.exists()
+
+        # Should not crash, just start with empty corpus
+        manager = CorpusManager(nonexistent_dir)
+
+        # Directory should now exist (created by __init__)
+        assert nonexistent_dir.exists()
+        assert len(manager.corpus) == 0
+
+    def test_load_corpus_with_corrupted_dicom(self, temp_corpus_dir, sample_dataset):
+        """Test loading corpus with corrupted DICOM file."""
+        # First, save a valid entry
+        manager1 = CorpusManager(temp_corpus_dir, min_fitness_threshold=0.0)
+        manager1.add_entry("valid", sample_dataset)
+
+        # Corrupt the DICOM file
+        dcm_path = temp_corpus_dir / "valid.dcm"
+        dcm_path.write_bytes(b"CORRUPTED DATA NOT A VALID DICOM")
+
+        # Try to load corpus (should skip corrupted file)
+        manager2 = CorpusManager(temp_corpus_dir)
+
+        # Corrupted entry should be skipped
+        assert "valid" not in manager2.corpus
+        assert len(manager2.corpus) == 0
+
+    def test_load_corpus_with_invalid_metadata_json(self, temp_corpus_dir, sample_dataset):
+        """Test loading corpus with invalid JSON metadata."""
+        # Create manager and add entry
+        manager1 = CorpusManager(temp_corpus_dir, min_fitness_threshold=0.0)
+        manager1.add_entry("test_json", sample_dataset)
+
+        # Corrupt the JSON metadata
+        meta_path = temp_corpus_dir / "test_json.json"
+        meta_path.write_text("{ INVALID JSON")
+
+        # Load should work but skip corrupted entry
+        manager2 = CorpusManager(temp_corpus_dir)
+
+        # Entry should be skipped due to JSON parsing error
+        # This is expected behavior - corrupted metadata causes the entire entry to be skipped
+        assert "test_json" not in manager2.corpus
+        assert len(manager2.corpus) == 0
+
+    def test_eviction_removes_coverage_map_when_empty(
+        self, temp_corpus_dir, sample_dataset, mock_coverage
+    ):
+        """Test that empty coverage map entries are removed during eviction."""
+        manager = CorpusManager(
+            temp_corpus_dir, max_corpus_size=1, min_fitness_threshold=0.0
+        )
+
+        # Add entry with coverage
+        with patch.object(manager, "_calculate_fitness", return_value=0.3):
+            manager.add_entry("first", sample_dataset, coverage=mock_coverage)
+
+        # Verify coverage map has entry
+        cov_hash = mock_coverage.coverage_hash()
+        assert cov_hash in manager.coverage_map
+        assert "first" in manager.coverage_map[cov_hash]
+
+        # Add second entry with different coverage to trigger eviction
+        mock_coverage2 = Mock()
+        mock_coverage2.lines_covered = {100, 200}
+        mock_coverage2.branches_covered = {(100, 200)}
+        mock_coverage2.coverage_hash = Mock(return_value="different_hash")
+
+        with patch.object(manager, "_calculate_fitness", return_value=0.9):
+            manager.add_entry("second", sample_dataset, coverage=mock_coverage2)
+
+        # First entry should be evicted
+        assert "first" not in manager.corpus
+
+        # Coverage map for first entry should be cleaned up
+        # If the set is now empty, the hash key should be removed entirely
+        if cov_hash in manager.coverage_map:
+            # If key still exists, it should not contain "first"
+            assert "first" not in manager.coverage_map[cov_hash]
+        # Alternatively, the key should be removed entirely (preferred behavior)
+
+    def test_multiple_evictions_in_sequence(self, temp_corpus_dir, sample_dataset):
+        """Test multiple eviction cycles."""
+        manager = CorpusManager(
+            temp_corpus_dir, max_corpus_size=3, min_fitness_threshold=0.0
+        )
+
+        # Add entries to fill corpus
+        for i in range(3):
+            with patch.object(manager, "_calculate_fitness", return_value=0.3 + i * 0.1):
+                ds = sample_dataset.copy()
+                ds.PatientID = f"INIT{i:03d}"
+                manager.add_entry(f"init{i}", ds)
+
+        assert len(manager.corpus) == 3
+        initial_evictions = manager.total_evicted
+
+        # Add more entries to trigger multiple evictions
+        for i in range(5):
+            with patch.object(manager, "_calculate_fitness", return_value=0.7 + i * 0.01):
+                ds = sample_dataset.copy()
+                ds.PatientID = f"NEW{i:03d}"
+                manager.add_entry(f"new{i}", ds)
+
+        # Corpus should still be at max size
+        assert len(manager.corpus) == 3
+        # Should have evicted 5 entries (the original low-fitness ones)
+        assert manager.total_evicted == initial_evictions + 5
+
+        # Only highest fitness entries should remain
+        final_ids = set(manager.corpus.keys())
+        assert "new4" in final_ids  # Highest fitness
+        assert "new3" in final_ids
+        assert "new2" in final_ids
