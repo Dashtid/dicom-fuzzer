@@ -2,25 +2,49 @@
 r"""
 Fuzz DICOM Viewer Applications
 
-This script fuzzes DICOM viewer applications (like Hermes.exe) by:
+This script fuzzes DICOM viewer applications by:
 1. Loading real DICOM files from a local directory
 2. Applying intelligent mutations using dictionary-based fuzzing
 3. Saving mutated files to an output directory
 4. Optionally launching the viewer with each mutated file
 5. Monitoring for crashes and unexpected behavior
 
-SECURITY: This script is for DEFENSIVE security testing only.
-Use only on systems you own or have explicit permission to test.
+SECURITY NOTICE: For Defensive Security Testing Only
+---------------------------------------------------
+This tool is for AUTHORIZED security testing only.
+
+AUTHORIZED USES:
+- Security testing of in-house medical imaging software
+- Vulnerability assessment in controlled lab environments
+- Compliance testing for medical device manufacturers
+- Academic research with IRB approval
+
+PROHIBITED USES:
+- Testing production medical systems without authorization
+- Attacking third-party medical infrastructure
+- Processing real patient data (PHI) without proper safeguards
+
+PRIVACY REQUIREMENTS:
+- Use only de-identified, public test datasets
+- Never commit patient data to version control
+- Comply with HIPAA, GDPR, and local regulations
 
 Example usage:
     # Generate fuzzed files only (no execution)
-    python fuzz_dicom_viewer.py --input "C:/Data/Kiwi - Example Data - 20210423" \\
+    python fuzz_dicom_viewer.py --input "./test_data/dicom_samples" \\
         --output "./fuzzed_output" --count 100
 
     # Fuzz and test viewer (automated)
-    python fuzz_dicom_viewer.py --input "C:/Data/Kiwi - Example Data - 20210423" \\
-        --output "./fuzzed_output" --viewer "C:/Hermes/Affinity/Hermes.exe" \\
-        --count 50 --timeout 5
+    python fuzz_dicom_viewer.py \\
+        --input "./test_data/dicom_samples" \\
+        --output "./fuzzed_output" \\
+        --viewer "/path/to/viewer" \\
+        --count 50 --timeout 5 --severity moderate
+
+    # Use environment variables for paths
+    export DICOM_INPUT_DIR="./test_data/dicom_samples"
+    export DICOM_VIEWER_PATH="/path/to/viewer"
+    python fuzz_dicom_viewer.py --count 20
 """
 
 import argparse
@@ -30,7 +54,6 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
 
 import pydicom
 
@@ -46,9 +69,7 @@ try:
     DEFAULT_TIMEOUT = local_paths.VIEWER_TIMEOUT
 except ImportError:
     # Fallback to environment variables if local_paths.py doesn't exist
-    DEFAULT_INPUT = os.getenv(
-        "DICOM_INPUT_DIR", "C:/Data/Kiwi - Example Data - 20210423"
-    )
+    DEFAULT_INPUT = os.getenv("DICOM_INPUT_DIR", "./test_data/dicom_samples")
     DEFAULT_VIEWER = os.getenv("DICOM_VIEWER_PATH")
     DEFAULT_TIMEOUT = int(os.getenv("DICOM_VIEWER_TIMEOUT", "5"))
 
@@ -72,7 +93,7 @@ class ViewerFuzzer:
         self,
         input_dir: str,
         output_dir: str,
-        viewer_path: Optional[str] = None,
+        viewer_path: str | None = None,
         timeout: int = 5,
         use_enhanced_reporting: bool = True,
     ):
@@ -108,8 +129,8 @@ class ViewerFuzzer:
         self.validator = DicomValidator(strict_mode=False)
 
         # Initialize enhanced reporting if enabled
-        self.fuzzing_session: Optional[FuzzingSession] = None
-        self.current_file_id: Optional[str] = None
+        self.fuzzing_session: FuzzingSession | None = None
+        self.current_file_id: str | None = None
 
         if self.use_enhanced_reporting:
             session_name = f"viewer_fuzzing_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -140,7 +161,7 @@ class ViewerFuzzer:
             "viewer_hangs": [],  # Files that hung the viewer
         }
 
-    def find_dicom_files(self, limit: Optional[int] = None) -> List[Path]:
+    def find_dicom_files(self, limit: int | None = None) -> list[Path]:
         """
         Find DICOM files in input directory.
 
@@ -164,7 +185,7 @@ class ViewerFuzzer:
 
     def generate_fuzzed_file(
         self, source_file: Path, severity: MutationSeverity
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """
         Generate a fuzzed DICOM file.
 
@@ -489,7 +510,7 @@ class ViewerFuzzer:
             # Generate interactive HTML report
             import json as json_module
 
-            with open(json_path, "r", encoding="utf-8") as f:
+            with open(json_path, encoding="utf-8") as f:
                 session_data = json_module.load(f)
 
             reporter = EnhancedReportGenerator()
@@ -612,19 +633,19 @@ def main():
         epilog="""
 Examples:
   # Generate 100 fuzzed files
-  python fuzz_dicom_viewer.py --input "C:/Data/Kiwi - Example Data - 20210423" \\
+  python fuzz_dicom_viewer.py --input "./test_data/dicom_samples" \\
       --output "./fuzzed_output" --count 100
 
-  # Fuzz and test Hermes viewer
+  # Fuzz and test DICOM viewer application
   python fuzz_dicom_viewer.py \\
-      --input "C:/Data/Kiwi - Example Data - 20210423" \\
+      --input "./test_data/dicom_samples" \\
       --output "./fuzzed_output" \\
-      --viewer "C:/Hermes/Affinity/Hermes.exe" \\
-      --count 50 --timeout 5 --severity aggressive
+      --viewer "/path/to/dicom/viewer" \\
+      --count 50 --timeout 5 --severity moderate
 
   # Use environment variables for paths
-  export DICOM_INPUT="C:/Data/Kiwi - Example Data - 20210423"
-  export DICOM_VIEWER="C:/Hermes/Affinity/Hermes.exe"
+  export DICOM_INPUT_DIR="./test_data/dicom_samples"
+  export DICOM_VIEWER_PATH="/path/to/dicom/viewer"
   python fuzz_dicom_viewer.py --count 20
         """,
     )

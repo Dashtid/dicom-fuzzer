@@ -8,7 +8,7 @@ def create_html_report(json_path: str, html_path: str = None):
     """Create HTML report from JSON fuzzing results."""
 
     # Read JSON report
-    with open(json_path, "r") as f:
+    with open(json_path) as f:
         report = json.load(f)
 
     # Default HTML path
@@ -32,7 +32,7 @@ def create_html_report(json_path: str, html_path: str = None):
     if hang_rate == 100.0:
         alert_html = """<div class="alert">
             <strong>⚠️ CRITICAL SECURITY FINDING:</strong> 100% hang rate detected!
-            This indicates a serious Denial of Service (DoS) vulnerability in Hermes.exe.
+            This indicates a serious Denial of Service (DoS) vulnerability in the DICOM viewer.
         </div>"""
     elif hang_rate >= 50:
         alert_html = f"""<div class="warning">
@@ -49,7 +49,7 @@ def create_html_report(json_path: str, html_path: str = None):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hermes.exe Fuzzing Report</title>
+    <title>DICOM Viewer Fuzzing Report</title>
     <style>
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -162,7 +162,7 @@ def create_html_report(json_path: str, html_path: str = None):
 </head>
 <body>
     <div class="container">
-        <h1>🔍 Hermes.exe DICOM Viewer Security Assessment</h1>
+        <h1>🔍 DICOM Viewer Security Assessment</h1>
         <p class="timestamp">Generated: {report["timestamp"]}</p>
 
         {alert_html}

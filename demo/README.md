@@ -9,6 +9,7 @@ This directory contains demonstration scripts that showcase the DICOM Fuzzer's c
 A streamlined demonstration that shows the core fuzzing workflow without requiring the full framework complexity.
 
 **Features:**
+
 - Finds example DICOM files automatically
 - Generates fuzzed variants with simple mutations
 - Visualizes both original and fuzzed DICOM images
@@ -16,18 +17,21 @@ A streamlined demonstration that shows the core fuzzing workflow without requiri
 - Creates comprehensive reports with statistics
 
 **Usage:**
+
 ```bash
 # From project root
 python demo/demo_simple.py
 ```
 
 **Output Location:** `demo/output/`
+
 - `demo/output/images/` - PNG visualizations of DICOM files
 - `demo/output/fuzzed/` - Generated fuzzed DICOM files
 - `demo/output/crashes/` - Files that triggered crashes
 - `demo/output/reports/` - Markdown and HTML reports
 
 **Mutation Types:**
+
 - Pixel modification (random pixel changes)
 - Bit flipping (flip individual bits)
 - Value scaling (scale pixel intensities)
@@ -41,6 +45,7 @@ python demo/demo_simple.py
 A complete demonstration using the full DICOM Fuzzer framework with all components.
 
 **Features:**
+
 - Full integration with core framework components
 - Advanced mutation strategies
 - Coverage tracking
@@ -48,6 +53,7 @@ A complete demonstration using the full DICOM Fuzzer framework with all componen
 - Statistical reporting
 
 **Usage:**
+
 ```bash
 # From project root
 python demo/demo_workflow.py
@@ -64,11 +70,13 @@ python demo/demo_workflow.py
 ### Required Dependencies
 
 Install additional visualization dependencies:
+
 ```bash
 pip install matplotlib structlog
 ```
 
 Or from the project root:
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -76,20 +84,28 @@ pip install -r requirements.txt
 ### DICOM Test Data
 
 The demo scripts look for DICOM files in:
+
 ```
-C:/Data/Kiwi - Example Data - 20210423/
+./test_data/dicom_samples/
 ```
 
 **To use your own DICOM files:**
-1. Edit the demo script
-2. Modify the `find_seed_files()` function
-3. Update the path to your DICOM directory
+
+1. Create the `test_data/dicom_samples/` directory
+2. Place your DICOM test files there
+3. Alternatively, edit the demo script and modify the `find_seed_files()` function
+
+**Public DICOM Test Datasets:**
+
+- NEMA DICOM samples: https://www.dicomstandard.org/
+- TCIA (The Cancer Imaging Archive): https://www.cancerimagingarchive.net/
 
 ---
 
 ## Quick Start
 
 1. **Activate virtual environment:**
+
    ```bash
    source .venv/Scripts/activate  # Git Bash (Windows)
    # or
@@ -97,6 +113,7 @@ C:/Data/Kiwi - Example Data - 20210423/
    ```
 
 2. **Run the simple demo:**
+
    ```bash
    python demo/demo_simple.py
    ```
@@ -113,6 +130,7 @@ C:/Data/Kiwi - Example Data - 20210423/
 ### Report Contents
 
 The generated report includes:
+
 - **Executive Summary** - High-level statistics
 - **Configuration** - Fuzzing parameters used
 - **Results** - Detailed test outcomes
@@ -122,12 +140,14 @@ The generated report includes:
 ### Interpreting Results
 
 **Crash Rate:**
+
 - 0% - All mutations were handled gracefully
 - 1-10% - Normal for robust applications
-- >10% - May indicate input validation issues
+- > 10% - May indicate input validation issues
 
 **Error Types:**
 Common crash categories:
+
 - `DimensionError` - Image size validation issues
 - `PixelDataError` - Pixel data integrity problems
 - `OverflowError` - Numeric overflow conditions
@@ -186,6 +206,7 @@ def setup_output_dirs():
 ### "No seed files found"
 
 **Solution:**
+
 - Verify DICOM files exist in the configured path
 - Update `find_seed_files()` with correct path
 - Check file permissions
@@ -193,17 +214,20 @@ def setup_output_dirs():
 ### "Failed to visualize"
 
 **Possible causes:**
+
 - DICOM file has no pixel data (metadata only)
 - 3D/4D DICOM volumes (not 2D images)
 - Corrupted DICOM file
 
 **Solution:**
+
 - Use 2D DICOM images (CT, MR, X-ray slices)
 - Check error messages for specific issues
 
 ### "Module not found"
 
 **Solution:**
+
 ```bash
 # Install missing dependencies
 pip install matplotlib structlog pydicom
@@ -212,6 +236,7 @@ pip install matplotlib structlog pydicom
 ### "Permission denied" errors
 
 **Solution:**
+
 - Run with appropriate permissions
 - Check output directory write access
 - Ensure DICOM files are readable
@@ -225,6 +250,7 @@ pip install matplotlib structlog pydicom
 To test against a real DICOM viewer/processor:
 
 1. **Modify the `simulate_target()` function:**
+
    ```python
    def test_real_application(dicom_file: Path) -> tuple[bool, str]:
        try:
@@ -283,6 +309,7 @@ demo/output/
 ### Cleaning Up
 
 Remove generated files:
+
 ```bash
 # Remove all demo output
 rm -rf demo/output/

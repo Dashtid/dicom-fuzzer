@@ -10,15 +10,15 @@ This script runs a simplified fuzzing demo that:
 """
 
 import sys
-import pydicom
-import matplotlib.pyplot as plt
+
 import matplotlib
+import matplotlib.pyplot as plt
+import pydicom
 
 matplotlib.use("Agg")  # Use non-interactive backend
-from pathlib import Path
 import logging
-from typing import List
 import random
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -39,12 +39,13 @@ def setup_output_dirs():
     return Path("demo_output")
 
 
-def find_seed_files() -> List[Path]:
+def find_seed_files() -> list[Path]:
     """Find example DICOM files."""
-    example_dir = Path("C:/Data/Kiwi - Example Data - 20210423")
+    example_dir = Path("./test_data/dicom_samples")
 
     if not example_dir.exists():
         logger.error(f"Example directory not found: {example_dir}")
+        logger.info("Please place DICOM test files in ./test_data/dicom_samples/")
         return []
 
     # Find DICOM files

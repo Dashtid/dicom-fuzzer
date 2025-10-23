@@ -7,18 +7,21 @@ The DICOM-Fuzzer now includes a comprehensive reporting system that provides **c
 ## Key Features
 
 ### 🔍 Complete Traceability
+
 - **Every mutation is tracked** with full details (strategy, parameters, original/mutated values)
 - **Crashes linked to exact files** that caused them
 - **Full mutation history** preserved for forensic analysis
 - **Crash artifacts preserved** with original samples
 
 ### 📊 Comprehensive Reports
+
 - **Interactive HTML reports** with drill-down details
 - **Machine-readable JSON** for automation and CI/CD
 - **Crash forensics** with stack traces and reproduction commands
 - **Mutation analysis** showing strategy effectiveness
 
 ### 🔐 Security-Focused
+
 - **Crash severity classification** (critical, high, medium, low)
 - **Reproducibility instructions** for each crash
 - **Artifact preservation** for deeper analysis
@@ -29,6 +32,7 @@ The DICOM-Fuzzer now includes a comprehensive reporting system that provides **c
 ### Core Components
 
 #### 1. FuzzingSession (`core/fuzzing_session.py`)
+
 Tracks complete fuzzing campaigns with full traceability.
 
 ```python
@@ -76,6 +80,7 @@ session.save_session_report()
 ```
 
 #### 2. EnhancedReportGenerator (`core/enhanced_reporter.py`)
+
 Generates beautiful, interactive HTML reports.
 
 ```python
@@ -91,6 +96,7 @@ html_path = reporter.generate_html_report(session_data)
 ```
 
 #### 3. Unified Report Tool (`tools/generate_report.py`)
+
 Command-line tool for report generation.
 
 ```bash
@@ -141,7 +147,7 @@ crashes/
   "fuzzed_files": {
     "fuzz_20241005_143025_001": {
       "file_id": "fuzz_20241005_143025_001",
-      "source_file": "C:/Data/sample.dcm",
+      "source_file": "./test_data/dicom_samples/sample.dcm",
       "output_file": "./output/fuzzed_moderate_sample_001.dcm",
       "timestamp": "2024-10-05T14:30:25",
       "file_hash": "a1b2c3...",
@@ -186,17 +192,21 @@ crashes/
 ## HTML Report Features
 
 ### 📊 Session Overview
+
 - Statistics dashboard with key metrics
 - Duration and timing information
 - Alert banners for crashes/hangs
 
 ### 🔥 Crash Summary Table
+
 - Quick overview of all crashes
 - Sortable by severity, type, timestamp
 - Links to detailed views
 
 ### 🔍 Crash Forensics
+
 Each crash includes:
+
 - **Complete file information**: Source file, fuzzed file, preserved sample
 - **Mutation history**: Every mutation applied with before/after values
 - **Exception details**: Full exception message and stack trace
@@ -204,11 +214,13 @@ Each crash includes:
 - **Crash log location**: Path to detailed text log
 
 ### 📈 Mutation Analysis
+
 - Strategy usage statistics
 - Mutation type breakdown
 - Effectiveness metrics
 
 ### Interactive Features
+
 - **Expandable sections** for mutation history and stack traces
 - **Copy-to-clipboard** for reproduction commands
 - **Color-coded severity** (critical=red, high=orange, etc.)
@@ -351,32 +363,42 @@ fi
 ## Best Practices
 
 ### 1. Always Use Session Tracking
+
 Even for quick tests, use `FuzzingSession` to maintain traceability:
+
 ```python
 session = FuzzingSession("quick_test")
 ```
 
 ### 2. Preserve Crash Artifacts
+
 The system automatically preserves crash artifacts. Keep these for:
+
 - Reproduction testing
 - Sharing with developers
 - Regression testing
 
 ### 3. Review Mutation History
+
 When investigating crashes, review the complete mutation history to understand:
+
 - Which mutations contributed to the crash
 - What combination of mutations triggered it
 - How to create similar test cases
 
 ### 4. Use Severity Classification
+
 Classify crashes appropriately:
+
 - **Critical**: Memory corruption, potential code execution
 - **High**: DoS, data corruption
 - **Medium**: Recoverable errors
 - **Low**: Minor issues
 
 ### 5. Document Reproduction Steps
+
 The system generates reproduction commands, but add context:
+
 - System configuration
 - Required dependencies
 - Environmental factors
@@ -384,6 +406,7 @@ The system generates reproduction commands, but add context:
 ## Troubleshooting
 
 ### Report Generation Fails
+
 ```python
 # Ensure session data is valid JSON
 with open("session.json") as f:
@@ -391,13 +414,16 @@ with open("session.json") as f:
 ```
 
 ### Missing Crash Details
+
 ```python
 # Always record test results
 session.record_test_result(file_id, "crash", return_code=-1)
 ```
 
 ### Large Report Files
+
 For campaigns with thousands of mutations:
+
 ```python
 # Use summary mode (to be implemented)
 reporter.generate_html_report(data, summary_mode=True)
@@ -415,6 +441,7 @@ reporter.generate_html_report(data, summary_mode=True)
 ## Support
 
 For issues or questions about the reporting system:
+
 1. Check this documentation
 2. Review example code in `examples/`
 3. Examine test cases in `tests/test_fuzzing_session.py`

@@ -12,16 +12,15 @@ This script demonstrates a complete fuzzing workflow:
 import logging
 import sys
 from pathlib import Path
-from typing import List
 
 # Add project root to path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 # noqa: E402 - imports after path modification
-from core.crash_analyzer import CrashAnalyzer  # noqa: E402
 from core.corpus import Corpus  # noqa: E402
 from core.coverage_tracker import CoverageTracker  # noqa: E402
+from core.crash_analyzer import CrashAnalyzer  # noqa: E402
 from core.fuzzing_session import FuzzingSession  # noqa: E402
 from core.generator import DICOMGenerator  # noqa: E402
 from core.mutator import DICAMMutator  # noqa: E402
@@ -50,10 +49,10 @@ def setup_directories():
     logger.info("Created output directories")
 
 
-def find_seed_files() -> List[Path]:
+def find_seed_files() -> list[Path]:
     """Find example DICOM files to use as seeds."""
-    # Look for example DICOM files in common locations
-    example_dir = Path("//c/Data/Kiwi - Example Data - 20210423")
+    # Look for example DICOM files in local test data directory
+    example_dir = Path("./test_data/dicom_samples")
 
     if example_dir.exists():
         # Find DICOM files (they often have no extension or .dcm)
@@ -64,6 +63,7 @@ def find_seed_files() -> List[Path]:
         return dicom_files
 
     logger.warning(f"Example directory not found: {example_dir}")
+    logger.info("Please place DICOM test files in ./test_data/dicom_samples/")
     return []
 
 
@@ -79,8 +79,8 @@ def visualize_dicom(file_path: Path, output_path: Path) -> bool:
         True if successful, False otherwise
     """
     try:
-        import pydicom
         import matplotlib.pyplot as plt
+        import pydicom
 
         # Read DICOM file
         ds = pydicom.dcmread(str(file_path))
