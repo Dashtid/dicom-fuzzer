@@ -8,10 +8,8 @@ Tests lazy loading strategies:
 - Helper functions
 """
 
-import tempfile
 from pathlib import Path
 
-import pydicom
 import pytest
 from pydicom.dataset import Dataset, FileMetaInformationDataset
 from pydicom.uid import generate_uid
@@ -206,7 +204,7 @@ class TestPerformanceCharacteristics:
         # Print for manual inspection
         print(
             f"\nMetadata-only: {meta_time:.4f}s, Full: {full_time:.4f}s, "
-            f"Speedup: {full_time/meta_time:.1f}x"
+            f"Speedup: {full_time / meta_time:.1f}x"
         )
 
 

@@ -5,6 +5,7 @@
 This guide covers performance optimization strategies for fuzzing large DICOM series (500-1000+ slices). Phase 4 optimizations achieve **3-5x speedup** for typical workflows through lazy loading, caching, and parallel processing.
 
 **Performance Targets**:
+
 - 500-slice series: <5 minutes end-to-end
 - 1000-slice series: <10 minutes end-to-end
 - Memory usage: <2GB peak for typical series
@@ -67,11 +68,11 @@ print(f"Cache stats: {cache.get_statistics()}")
 
 ### Performance Comparison
 
-| Operation | Serial (baseline) | Optimized | Speedup |
-|-----------|------------------|-----------|---------|
-| Load 500 slices (metadata) | 25s | 2.5s | 10x |
-| Mutate 500 slices | 120s | 30s | 4x |
-| Cache hit (2nd access) | 25s | 0.1s | 250x |
+| Operation                  | Serial (baseline) | Optimized | Speedup |
+| -------------------------- | ----------------- | --------- | ------- |
+| Load 500 slices (metadata) | 25s               | 2.5s      | 10x     |
+| Mutate 500 slices          | 120s              | 30s       | 4x      |
+| Cache hit (2nd access)     | 25s               | 0.1s      | 250x    |
 
 ---
 
@@ -101,12 +102,14 @@ ds = loader.load(Path("large_image.dcm"))
 ### When to Use Lazy Loading
 
 **Use metadata-only loading for**:
+
 - Series detection and grouping
 - Validation (checking tags, UIDs)
 - Metadata mutations (no pixel changes)
 - Sorting and filtering
 
 **Load full data when**:
+
 - Pixel data mutations needed
 - Writing final fuzzed files
 - Viewer testing
@@ -187,17 +190,20 @@ stats = cache.get_statistics()
 ### Cache Tuning
 
 **Cache Size Guidelines**:
+
 - Small series (<100 slices): 10-20MB cache
 - Medium series (100-250 slices): 50-100MB cache
 - Large series (250-500 slices): 100-200MB cache
 - Extra-large series (500+ slices): 200-500MB cache
 
 **When to Use Caching**:
+
 - Iterative fuzzing (multiple mutations of same series)
 - Validation passes over same files
 - Benchmark/testing workflows
 
 **When NOT to Use Caching**:
+
 - One-time processing
 - Streaming large datasets (no reuse)
 - Memory-constrained environments
@@ -245,13 +251,13 @@ mutated_ds, records = mutator.mutate_series_parallel(
 
 ### Parallel-Compatible Strategies
 
-| Strategy | Parallel Support | Speedup | Notes |
-|----------|-----------------|---------|-------|
-| `SLICE_POSITION_ATTACK` | ✅ Full | 3-4x | Perfect parallelization |
-| `BOUNDARY_SLICE_TARGETING` | ✅ Full | 2-3x | Only boundary slices mutated |
-| `GRADIENT_MUTATION` | ✅ Full | 3-4x | Per-slice gradient calculation |
-| `METADATA_CORRUPTION` | ❌ Serial | 1x | Requires series-level coordination |
-| `INCONSISTENCY_INJECTION` | ❌ Serial | 1x | Cross-slice dependencies |
+| Strategy                   | Parallel Support | Speedup | Notes                              |
+| -------------------------- | ---------------- | ------- | ---------------------------------- |
+| `SLICE_POSITION_ATTACK`    | ✅ Full          | 3-4x    | Perfect parallelization            |
+| `BOUNDARY_SLICE_TARGETING` | ✅ Full          | 2-3x    | Only boundary slices mutated       |
+| `GRADIENT_MUTATION`        | ✅ Full          | 3-4x    | Per-slice gradient calculation     |
+| `METADATA_CORRUPTION`      | ❌ Serial        | 1x      | Requires series-level coordination |
+| `INCONSISTENCY_INJECTION`  | ❌ Serial        | 1x      | Cross-slice dependencies           |
 
 ### Worker Tuning
 
@@ -271,6 +277,7 @@ print(f"CPUs: {cpu_count}, Recommended workers: {optimal}")
 ```
 
 **Worker Guidelines**:
+
 - **2 cores**: workers=1 (parallel overhead not worth it)
 - **4 cores**: workers=2-3
 - **8 cores**: workers=6
@@ -279,6 +286,7 @@ print(f"CPUs: {cpu_count}, Recommended workers: {optimal}")
 ### Parallel Overhead
 
 Parallel processing has overhead (~50-100ms per series). Only worth it for:
+
 - Series with 10+ slices
 - CPU-bound mutations (position, gradient)
 - Multi-core systems (4+ cores)
@@ -299,11 +307,13 @@ mutated = mutator.mutate_series(series, strategy, parallel=False)
 ### System Requirements
 
 **Minimum**:
+
 - CPU: 4 cores
 - RAM: 4GB
 - Disk: SSD recommended (HDD works but slower)
 
 **Recommended**:
+
 - CPU: 8+ cores
 - RAM: 8GB+
 - Disk: NVMe SSD (5000+ MB/s read)
@@ -387,6 +397,7 @@ SERIES MUTATION:
 ```
 
 **What to Look For**:
+
 - **Slices/sec should be consistent** across series sizes (good scaling)
 - **Memory should scale linearly** with slices
 - **Parallel speedup**: Compare serial vs parallel times
@@ -394,12 +405,12 @@ SERIES MUTATION:
 ### Performance Targets
 
 | Series Size | Detection Time | Mutation Time (parallel) | Total Time |
-|-------------|----------------|-------------------------|------------|
-| 50 slices   | <2s            | <2s                     | <5s        |
-| 100 slices  | <3s            | <4s                     | <10s       |
-| 250 slices  | <8s            | <10s                    | <25s       |
-| 500 slices  | <15s           | <20s                    | <45s       |
-| 1000 slices | <30s           | <40s                    | <90s       |
+| ----------- | -------------- | ------------------------ | ---------- |
+| 50 slices   | <2s            | <2s                      | <5s        |
+| 100 slices  | <3s            | <4s                      | <10s       |
+| 250 slices  | <8s            | <10s                     | <25s       |
+| 500 slices  | <15s           | <20s                     | <45s       |
+| 1000 slices | <30s           | <40s                     | <90s       |
 
 ---
 
@@ -462,6 +473,7 @@ print(f"Memory used: {mem_after - mem_before:.1f}MB")
 **Symptoms**: Operations taking much longer than expected
 
 **Diagnostic**:
+
 ```python
 import time
 
@@ -474,6 +486,7 @@ print(f"Detection took {elapsed:.1f}s for {len(series)} series")
 ```
 
 **Solutions**:
+
 1. Check disk I/O (SSD vs HDD)
 2. Enable lazy loading
 3. Verify parallel workers active
@@ -484,6 +497,7 @@ print(f"Detection took {elapsed:.1f}s for {len(series)} series")
 **Symptoms**: Memory exceeding 2GB for typical series
 
 **Diagnostic**:
+
 ```python
 import psutil
 
@@ -492,6 +506,7 @@ print(f"Memory: {psutil.virtual_memory().percent}%")
 ```
 
 **Solutions**:
+
 1. Use metadata-only loading
 2. Reduce cache size
 3. Process in batches
@@ -502,6 +517,7 @@ print(f"Memory: {psutil.virtual_memory().percent}%")
 **Symptoms**: Parallel slower than serial or minimal speedup
 
 **Diagnostic**:
+
 ```python
 import time
 
@@ -520,6 +536,7 @@ print(f"Speedup: {serial_time / parallel_time:.1f}x")
 ```
 
 **Solutions**:
+
 1. Check CPU count (multiprocessing.cpu_count())
 2. Reduce worker count if >CPU cores
 3. Verify strategy supports parallelization
@@ -530,6 +547,7 @@ print(f"Speedup: {serial_time / parallel_time:.1f}x")
 **Symptoms**: Low cache hit rate (<50%)
 
 **Diagnostic**:
+
 ```python
 stats = cache.get_statistics()
 print(f"Hit rate: {stats['hit_rate']:.1%}")
@@ -540,6 +558,7 @@ print(f"Evictions: {stats['evictions']}")
 ```
 
 **Solutions**:
+
 1. Increase cache size
 2. Reduce max_entries if evictions high
 3. Check if files being modified between accesses
