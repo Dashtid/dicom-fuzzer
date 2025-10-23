@@ -90,6 +90,28 @@ DICOM-Fuzzer is a comprehensive fuzzing framework for testing the security and r
 - **Root Cause Analysis**: Classify instability (race conditions, uninitialized memory, entropy)
 - **Enhanced Error Handling**: ProcessPoolExecutor with BrokenProcessPool detection
 
+### 3D DICOM Fuzzing (Phase 1-3 Complete - 2025)
+
+- **Series Detection & Validation**: Automatic grouping of DICOM files into 3D series
+  - SeriesInstanceUID-based series detection
+  - Validation of slice ordering and spacing
+  - Support for multi-slice CT, MRI, and other volumetric modalities
+- **Series-Level Mutations**: 5 mutation strategies for 3D series fuzzing
+  - Series metadata corruption (UIDs, tags)
+  - Slice position/orientation attacks
+  - Boundary slice targeting (first/middle/last)
+  - Gradient mutations (progressive corruption)
+  - Inconsistency injection (mixed modalities)
+- **3D Viewer Integration**: Automated testing of DICOM viewers with fuzzed 3D series
+  - Folder-based series loading
+  - Memory monitoring during 3D rendering
+  - Crash detection and correlation to specific slices
+  - Support for MicroDicom, RadiAnt, Rubo, Sante, and custom viewers
+  - YAML configuration with pre-configured viewer profiles
+  - 22/22 tests passing (100%), 84% code coverage
+
+See [docs/3D_FUZZING_ROADMAP.md](docs/3D_FUZZING_ROADMAP.md) and [docs/VIEWER_TESTING_3D.md](docs/VIEWER_TESTING_3D.md) for details.
+
 ## Project Structure
 
 ```
