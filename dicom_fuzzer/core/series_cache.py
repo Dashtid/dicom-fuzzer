@@ -32,9 +32,9 @@ USAGE:
 import hashlib
 import time
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
 
 from pydicom.dataset import Dataset
 
@@ -93,8 +93,8 @@ class SeriesCache:
         )
 
     def get(
-        self, file_path: Path, loader: Optional[Callable[[Path], Dataset]] = None
-    ) -> Optional[Dataset]:
+        self, file_path: Path, loader: Callable[[Path], Dataset] | None = None
+    ) -> Dataset | None:
         """
         Get dataset from cache or load from disk.
 
@@ -252,7 +252,7 @@ class SeriesCache:
 
         logger.debug(
             f"Cache ADD: {file_path.name} "
-            f"(size={size_bytes/1024:.1f}KB, entries={len(self._cache)})"
+            f"(size={size_bytes / 1024:.1f}KB, entries={len(self._cache)})"
         )
 
     def _remove_entry(self, cache_key: str) -> None:

@@ -29,7 +29,6 @@ import multiprocessing
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
-from typing import Optional
 
 import pydicom
 from pydicom.dataset import Dataset
@@ -50,7 +49,7 @@ def _mutate_single_slice(
     slice_index: int,
     strategy: str,
     severity: str,
-    seed: Optional[int],
+    seed: int | None,
     **kwargs,
 ) -> tuple[int, Dataset, list[SeriesMutationRecord]]:
     """
@@ -130,9 +129,9 @@ class ParallelSeriesMutator:
 
     def __init__(
         self,
-        workers: Optional[int] = None,
+        workers: int | None = None,
         severity: str = "moderate",
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ):
         """
         Initialize parallel mutator.
@@ -224,7 +223,9 @@ class ParallelSeriesMutator:
 
                     completed += 1
                     if completed % 50 == 0:
-                        logger.info(f"Progress: {completed}/{series.slice_count} slices")
+                        logger.info(
+                            f"Progress: {completed}/{series.slice_count} slices"
+                        )
 
                 except Exception as e:
                     slice_index = future_to_index[future]
@@ -234,9 +235,7 @@ class ParallelSeriesMutator:
                         series.slices[slice_index]
                     )
 
-        logger.info(
-            f"Parallel mutation complete: {len(all_records)} mutations applied"
-        )
+        logger.info(f"Parallel mutation complete: {len(all_records)} mutations applied")
 
         return mutated_datasets, all_records
 

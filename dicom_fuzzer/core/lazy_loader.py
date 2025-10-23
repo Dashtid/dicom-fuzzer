@@ -22,7 +22,6 @@ See docs/PERFORMANCE_3D.md for detailed usage patterns.
 """
 
 from pathlib import Path
-from typing import Optional
 
 import pydicom
 from pydicom.dataset import Dataset
@@ -45,7 +44,7 @@ class LazyDicomLoader:
     def __init__(
         self,
         metadata_only: bool = False,
-        defer_size: Optional[int] = None,
+        defer_size: int | None = None,
         force: bool = True,
     ):
         """
@@ -121,9 +120,7 @@ class LazyDicomLoader:
             FileNotFoundError: If file doesn't exist
         """
         if hasattr(dataset, "PixelData") and dataset.PixelData is not None:
-            logger.warning(
-                f"Dataset {file_path.name} already has pixel data loaded"
-            )
+            logger.warning(f"Dataset {file_path.name} already has pixel data loaded")
             return dataset.PixelData
 
         if not file_path.exists():

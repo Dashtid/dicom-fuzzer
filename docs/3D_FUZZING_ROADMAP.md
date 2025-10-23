@@ -516,8 +516,8 @@ n**Actual Effort**: 2 weeks
 
 - ⏳ Integration testing (verify optimizations work with existing modules)
 - ⏳ Performance benchmarking and validation
-- ⏳ Update dicom_fuzzer/core/__init__.py exports
-- ⏳ Update dicom_fuzzer/strategies/__init__.py exports
+- ⏳ Update dicom_fuzzer/core/**init**.py exports
+- ⏳ Update dicom_fuzzer/strategies/**init**.py exports
 - ⏳ Unit tests for LazyDicomLoader (target: 85%+ coverage)
 - ⏳ Unit tests for SeriesCache (target: 85%+ coverage)
 - ⏳ Unit tests for ParallelSeriesMutator (target: 85%+ coverage)

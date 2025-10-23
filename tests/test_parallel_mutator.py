@@ -10,7 +10,6 @@ Tests parallel mutation strategies:
 """
 
 import multiprocessing
-from pathlib import Path
 
 import pytest
 from pydicom.dataset import Dataset, FileMetaInformationDataset
