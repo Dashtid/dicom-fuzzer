@@ -139,30 +139,34 @@ class SeriesDetector:
             recursive: If True, scan subdirectories
 
         Returns:
-            List of paths to DICOM files
+            List of paths to DICOM files (deduplicated)
         """
-        dicom_files = []
+        # Use set to automatically deduplicate paths
+        # (handles case-insensitive filesystems where *.dcm and *.DCM match same files)
+        dicom_files_set: set[Path] = set()
         patterns = ["*.dcm", "*.DCM", "*.dicom", "*.DICOM"]
 
         if recursive:
             for pattern in patterns:
-                dicom_files.extend(directory.rglob(pattern))
+                dicom_files_set.update(directory.rglob(pattern))
         else:
             for pattern in patterns:
-                dicom_files.extend(directory.glob(pattern))
+                dicom_files_set.update(directory.glob(pattern))
 
         # Also try files without extension (common in DICOM)
         if recursive:
             for file_path in directory.rglob("*"):
                 if file_path.is_file() and not file_path.suffix:
                     if self._is_dicom_file(file_path):
-                        dicom_files.append(file_path)
+                        dicom_files_set.add(file_path)
         else:
             for file_path in directory.glob("*"):
                 if file_path.is_file() and not file_path.suffix:
                     if self._is_dicom_file(file_path):
-                        dicom_files.append(file_path)
+                        dicom_files_set.add(file_path)
 
+        # Convert set back to list for consistent return type
+        dicom_files = list(dicom_files_set)
         logger.info(f"Found {len(dicom_files)} DICOM files")
         return dicom_files
 

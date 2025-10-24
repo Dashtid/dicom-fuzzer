@@ -271,7 +271,7 @@ class ParallelSeriesMutator:
         **kwargs,
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
         """
-        Fall back to serial mutation.
+        Fall back to serial mutation using public API.
 
         Args:
             series: DICOM series
@@ -281,41 +281,13 @@ class ParallelSeriesMutator:
         Returns:
             Tuple of (mutated_datasets, mutation_records)
         """
-        # Load all datasets
-        datasets = []
-        for slice_path in series.slices:
-            ds = pydicom.dcmread(slice_path)
-            datasets.append(ds)
+        # Use the public mutate_series() API instead of calling private methods
+        # This ensures we use the same mutation logic as the serial mutator
+        mutated_datasets, records = self._serial_mutator.mutate_series(
+            series, strategy, **kwargs
+        )
 
-        # Use serial mutator
-        if strategy == SeriesMutationStrategy.METADATA_CORRUPTION:
-            mutated = self._serial_mutator._mutate_series_metadata(datasets)
-        elif strategy == SeriesMutationStrategy.SLICE_POSITION_ATTACK:
-            mutated = self._serial_mutator._mutate_slice_positions(datasets)
-        elif strategy == SeriesMutationStrategy.BOUNDARY_SLICE_TARGETING:
-            target = kwargs.get("target", "first")
-            mutated = self._serial_mutator._mutate_boundary_slices(datasets, target)
-        elif strategy == SeriesMutationStrategy.GRADIENT_MUTATION:
-            pattern = kwargs.get("pattern", "linear")
-            mutated = self._serial_mutator._mutate_gradient(datasets, pattern)
-        elif strategy == SeriesMutationStrategy.INCONSISTENCY_INJECTION:
-            inconsistency = kwargs.get("inconsistency_type", "mixed_modality")
-            mutated = self._serial_mutator._inject_inconsistencies(
-                datasets, inconsistency
-            )
-        else:
-            mutated = datasets
-
-        # Create records
-        records = [
-            SeriesMutationRecord(
-                strategy=strategy.value,
-                slice_index=None,  # Applies to all
-                severity=self.severity,
-            )
-        ]
-
-        return mutated, records
+        return mutated_datasets, records
 
 
 def get_optimal_workers() -> int:
