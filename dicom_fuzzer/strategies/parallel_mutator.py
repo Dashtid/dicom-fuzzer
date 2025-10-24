@@ -26,12 +26,12 @@ See docs/PERFORMANCE_3D.md for detailed usage and tuning guide.
 """
 
 import multiprocessing
-import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import pydicom
 from pydicom.dataset import Dataset
+from pydicom.uid import generate_uid
 
 from dicom_fuzzer.core.dicom_series import DicomSeries
 from dicom_fuzzer.strategies.series_mutator import (
@@ -70,15 +70,40 @@ def _mutate_single_slice(
         # Load slice
         ds = pydicom.dcmread(file_path, stop_before_pixels=False)
 
+        # Create temporary single-slice DicomSeries for public API
+        # Extract metadata from the dataset
+        series_uid = (
+            ds.SeriesInstanceUID if hasattr(ds, "SeriesInstanceUID") else generate_uid()
+        )
+        study_uid = (
+            ds.StudyInstanceUID if hasattr(ds, "StudyInstanceUID") else generate_uid()
+        )
+        modality = ds.Modality if hasattr(ds, "Modality") else "CT"
+
+        # Create single-slice series
+        temp_series = DicomSeries(
+            series_uid=series_uid,
+            study_uid=study_uid,
+            modality=modality,
+            slices=[file_path],
+            metadata={
+                "slice_index": slice_index,
+                "total_slices": kwargs.get("total_slices", 1),
+            },
+        )
+
         # Create mutator with per-slice seed
         slice_seed = seed + slice_index if seed is not None else None
         mutator = Series3DMutator(severity=severity, seed=slice_seed)
 
-        # Apply mutation based on strategy
-        if strategy == "slice_position_attack":
-            mutated = mutator._mutate_single_slice_position(ds, **kwargs)
-        elif strategy == "boundary_slice_targeting":
-            # Check if this slice is a boundary
+        # Use public API for mutation
+        # Convert string strategy to enum if needed
+        strategy_enum = (
+            SeriesMutationStrategy(strategy) if isinstance(strategy, str) else strategy
+        )
+
+        # For boundary targeting, only mutate if this is a boundary slice
+        if strategy == "boundary_slice_targeting":
             total_slices = kwargs.get("total_slices", 1)
             target = kwargs.get("target", "first")
 
@@ -90,28 +115,22 @@ def _mutate_single_slice(
             elif target == "middle" and slice_index == total_slices // 2:
                 is_boundary = True
 
-            if is_boundary:
-                mutated = mutator._mutate_single_slice_boundary(ds, **kwargs)
-            else:
-                mutated = ds  # No mutation for non-boundary slices
+            if not is_boundary:
+                # No mutation for non-boundary slices
+                return (slice_index, ds, [])
 
-        elif strategy == "gradient_mutation":
-            # Apply gradient based on position in series
-            progress = slice_index / kwargs.get("total_slices", 1)
-            mutated = mutator._mutate_single_slice_gradient(ds, progress, **kwargs)
-        else:
-            # For strategies that don't support per-slice parallelization
-            mutated = ds
+        # Remove worker-specific kwargs that mutate_series() doesn't accept
+        mutator_kwargs = {k: v for k, v in kwargs.items() if k not in ["total_slices"]}
 
-        # Create mutation record
-        record = SeriesMutationRecord(
-            strategy=strategy,
-            slice_index=slice_index,
-            severity=severity,
-            details={"worker_pid": os.getpid()},
+        # Apply mutation using public API
+        mutated_datasets, records = mutator.mutate_series(
+            temp_series, strategy_enum, **mutator_kwargs
         )
 
-        return (slice_index, mutated, [record])
+        # Return the first (and only) mutated dataset
+        mutated = mutated_datasets[0] if mutated_datasets else ds
+
+        return (slice_index, mutated, records)
 
     except Exception as e:
         logger.error(f"Worker error for slice {slice_index}: {e}")
@@ -173,10 +192,12 @@ class ParallelSeriesMutator:
             Tuple of (mutated_datasets, mutation_records)
         """
         # Check if strategy supports parallelization
+        # Only BOUNDARY_SLICE_TARGETING truly benefits from parallel processing
+        # Other strategies either:
+        # - Randomly select slices (SLICE_POSITION_ATTACK, METADATA_CORRUPTION) - use serial
+        # - Need full series context (GRADIENT_MUTATION, INCONSISTENCY_INJECTION) - use serial
         parallel_strategies = {
-            SeriesMutationStrategy.SLICE_POSITION_ATTACK,
             SeriesMutationStrategy.BOUNDARY_SLICE_TARGETING,
-            SeriesMutationStrategy.GRADIENT_MUTATION,
         }
 
         if strategy not in parallel_strategies:
