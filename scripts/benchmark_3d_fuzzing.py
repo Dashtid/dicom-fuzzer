@@ -23,7 +23,7 @@ from typing import Any
 
 import psutil
 import pydicom
-from pydicom.dataset import Dataset
+from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import generate_uid
 
 # Add parent directory to path
@@ -72,8 +72,8 @@ class PerformanceBenchmark:
         datasets = []
 
         for i in range(num_slices):
-            # Create file meta information first
-            file_meta = Dataset()
+            # Create file meta information first (must be FileMetaDataset for valid DICOM)
+            file_meta = FileMetaDataset()
             file_meta.TransferSyntaxUID = (
                 "1.2.840.10008.1.2"  # Implicit VR Little Endian
             )
@@ -156,7 +156,7 @@ class PerformanceBenchmark:
 
         for i, ds in enumerate(datasets):
             output_path = series_dir / f"slice_{i + 1:03d}.dcm"
-            pydicom.dcmwrite(output_path, ds)
+            ds.save_as(output_path, write_like_original=False)
 
         detector = SeriesDetector()
 
@@ -224,10 +224,32 @@ class PerformanceBenchmark:
             f"[BENCHMARK] Series Mutation ({strategy.value}) - {num_slices} slices"
         )
 
-        # Create synthetic series (in memory, not on disk)
-        datasets, _ = self.create_synthetic_series(num_slices)
+        # Create synthetic series and write to disk (required for DicomSeries API)
+        datasets, temp_dir = self.create_synthetic_series(num_slices)
 
-        # For this benchmark, we'll just measure mutation time on datasets
+        # Write to disk
+        series_dir = temp_dir / f"mutation_series_{num_slices}_slices"
+        series_dir.mkdir(exist_ok=True)
+
+        slice_paths = []
+        for i, ds in enumerate(datasets):
+            output_path = series_dir / f"slice_{i + 1:03d}.dcm"
+            ds.save_as(output_path, write_like_original=False)
+            slice_paths.append(output_path)
+
+        # Create DicomSeries object for public API
+        series = DicomSeries(
+            series_uid=datasets[0].SeriesInstanceUID,
+            study_uid=datasets[0].StudyInstanceUID,
+            modality=datasets[0].Modality,
+            slices=slice_paths,
+            metadata={
+                "PatientName": str(datasets[0].PatientName),
+                "PatientID": datasets[0].PatientID,
+            },
+        )
+
+        # Use public API for mutations
         mutator = Series3DMutator(severity="moderate", seed=42)
 
         times = []
@@ -238,19 +260,8 @@ class PerformanceBenchmark:
             start_mem = self.get_memory_usage()
             start_time = time.perf_counter()
 
-            # Perform mutation based on strategy
-            if strategy == SeriesMutationStrategy.METADATA_CORRUPTION:
-                _ = mutator._mutate_series_metadata(datasets)
-            elif strategy == SeriesMutationStrategy.SLICE_POSITION_ATTACK:
-                _ = mutator._mutate_slice_positions(datasets)
-            elif strategy == SeriesMutationStrategy.BOUNDARY_SLICE_TARGETING:
-                _ = mutator._mutate_boundary_slices(datasets, target="first")
-            elif strategy == SeriesMutationStrategy.GRADIENT_MUTATION:
-                _ = mutator._mutate_gradient(datasets, pattern="linear")
-            elif strategy == SeriesMutationStrategy.INCONSISTENCY_INJECTION:
-                _ = mutator._inject_inconsistencies(
-                    datasets, inconsistency_type="mixed_modality"
-                )
+            # Use public mutate_series() API instead of private methods
+            mutated_datasets, records = mutator.mutate_series(series, strategy)
 
             end_time = time.perf_counter()
             end_mem = self.get_memory_usage()
@@ -262,8 +273,14 @@ class PerformanceBenchmark:
             memory_usage.append(mem_delta)
 
             logger.info(
-                f"  Iteration {iteration + 1}: {elapsed:.3f}s, +{mem_delta:.1f}MB"
+                f"  Iteration {iteration + 1}: {elapsed:.3f}s, +{mem_delta:.1f}MB, "
+                f"{len(records)} mutations"
             )
+
+        # Clean up
+        import shutil
+
+        shutil.rmtree(series_dir)
 
         return {
             "operation": "series_mutation",
