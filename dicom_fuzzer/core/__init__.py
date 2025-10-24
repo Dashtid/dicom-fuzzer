@@ -26,6 +26,11 @@ from .parser import DicomParser
 from .resource_manager import ResourceLimits, ResourceManager
 from .series_cache import CacheEntry, SeriesCache
 from .series_detector import SeriesDetector
+from .series_reporter import (
+    Series3DReport,
+    Series3DReportGenerator,
+    SeriesMutationSummary,
+)
 from .series_validator import (
     SeriesValidator,
     ValidationIssue,
@@ -85,4 +90,8 @@ __all__ = [
     "create_deferred_loader",
     "SeriesCache",
     "CacheEntry",
+    # Enhanced Reporting & Analytics (v2.0.0-alpha Phase 5)
+    "Series3DReport",
+    "Series3DReportGenerator",
+    "SeriesMutationSummary",
 ]
