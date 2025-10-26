@@ -766,7 +766,9 @@ class TestPropertyBasedTargetRunner:
             assert result.stdout == stdout_data
             assert result.stderr == stderr_data
 
-    @pytest.mark.skip(reason="Flaky: Worker crashes in pytest-xdist parallel execution with hypothesis")
+    @pytest.mark.skip(
+        reason="Flaky: Worker crashes in pytest-xdist parallel execution with hypothesis"
+    )
     @settings(
         suppress_health_check=[HealthCheck.function_scoped_fixture],
         deadline=None,  # Disable deadline - test can be slow with large numbers
@@ -828,7 +830,7 @@ class TestPropertyBasedTargetRunner:
             )
 
             # Mock time to return consistent execution time
-            with patch("time.perf_counter") as mock_time:
+            with patch("time.time") as mock_time:
                 mock_time.side_effect = [0.0, execution_time]
                 result = runner.execute_test(test_file)
 

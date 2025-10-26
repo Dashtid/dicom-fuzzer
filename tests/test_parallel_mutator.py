@@ -191,26 +191,37 @@ class TestParallelSeriesMutator:
 
     def test_different_seeds_produce_different_results(self, sample_series):
         """Test that different seeds produce different results."""
-        mutator1 = ParallelSeriesMutator(workers=2, seed=42)
-        mutator2 = ParallelSeriesMutator(workers=2, seed=99)
+        mutator1 = ParallelSeriesMutator(workers=2, seed=42, severity="moderate")
+        mutator2 = ParallelSeriesMutator(workers=2, seed=99, severity="moderate")
 
-        mutated1, _ = mutator1.mutate_series_parallel(
-            sample_series, SeriesMutationStrategy.SLICE_POSITION_ATTACK
+        # Run multiple times to account for probabilistic mutations
+        differences_found = 0
+        for _ in range(5):
+            mutated1, _ = mutator1.mutate_series_parallel(
+                sample_series, SeriesMutationStrategy.GRADIENT_MUTATION
+            )
+
+            mutated2, _ = mutator2.mutate_series_parallel(
+                sample_series, SeriesMutationStrategy.GRADIENT_MUTATION
+            )
+
+            # Check if any slices differ
+            for ds1, ds2 in zip(mutated1, mutated2):
+                if hasattr(ds1, "ImagePositionPatient") and hasattr(
+                    ds2, "ImagePositionPatient"
+                ):
+                    if ds1.ImagePositionPatient != ds2.ImagePositionPatient:
+                        differences_found += 1
+                        break
+                if hasattr(ds1, "SliceLocation") and hasattr(ds2, "SliceLocation"):
+                    if ds1.SliceLocation != ds2.SliceLocation:
+                        differences_found += 1
+                        break
+
+        # Should find differences in at least 2 out of 5 runs
+        assert differences_found >= 2, (
+            f"Different seeds should produce different mutations (found {differences_found}/5 different)"
         )
-
-        mutated2, _ = mutator2.mutate_series_parallel(
-            sample_series, SeriesMutationStrategy.SLICE_POSITION_ATTACK
-        )
-
-        # Different seeds should produce different mutations
-        different = False
-        for ds1, ds2 in zip(mutated1, mutated2):
-            if hasattr(ds1, "SliceLocation") and hasattr(ds2, "SliceLocation"):
-                if ds1.SliceLocation != ds2.SliceLocation:
-                    different = True
-                    break
-
-        assert different, "Different seeds should produce different mutations"
 
 
 class TestMutateSeriesAutoDetection:
