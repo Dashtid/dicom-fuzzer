@@ -39,7 +39,7 @@ from dicom_fuzzer.strategies.series_mutator import (
     Series3DMutator,
     SeriesMutationStrategy,
 )
-from dicom_fuzzer.utils.logger import get_logger, setup_logging
+from dicom_fuzzer.utils.logger import configure_logging, get_logger
 
 logger = get_logger(__name__)
 
@@ -151,7 +151,7 @@ def main():
     args = parse_args()
 
     # Setup logging
-    setup_logging(level=args.log_level)
+    configure_logging(log_level=args.log_level)
 
     logger.info("=" * 60)
     logger.info("3D DICOM SERIES FUZZER")
