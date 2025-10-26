@@ -280,6 +280,9 @@ class TestLongRunningCampaigns:
         """Test statistics tracking over long campaign."""
         stats = StatisticsCollector()
 
+        # Register strategy first by recording a mutation
+        stats.record_mutation("test_strategy", duration=0.1)
+
         # Simulate campaign with known numbers
         test_iterations = 1000
 
@@ -290,12 +293,13 @@ class TestLongRunningCampaigns:
 
             # Simulate crashes at expected rate
             if i % 10 == 0:  # Every 10th iteration
-                stats.track_crash(f"test_{i}.dcm")
+                # Use record_crash with strategy and crash_hash parameters
+                stats.record_crash("test_strategy", f"crash_hash_{i}")
 
         # Verify statistics accuracy
-        report = stats.get_report()
+        report = stats.get_summary()
         assert report["total_iterations"] == test_iterations
-        assert report["total_crashes"] == 100  # 10% of 1000
+        assert report["total_crashes_found"] == 100  # 10% of 1000
 
     def test_target_runner_extended_execution(self, temp_dir):
         """Test target runner over extended period."""
@@ -326,7 +330,7 @@ class TestLongRunningCampaigns:
             start_time = time.time()
             for test_file in test_files:
                 result = runner.execute_test(str(test_file))
-                assert result.status == ExecutionStatus.SUCCESS
+                assert result.result == ExecutionStatus.SUCCESS
 
             duration = time.time() - start_time
 
