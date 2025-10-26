@@ -11,7 +11,7 @@ Tests lazy loading strategies:
 from pathlib import Path
 
 import pytest
-from pydicom.dataset import Dataset, FileMetaInformationDataset
+from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import generate_uid
 
 from dicom_fuzzer.core.lazy_loader import (
@@ -25,7 +25,7 @@ from dicom_fuzzer.core.lazy_loader import (
 def sample_dicom_file(tmp_path):
     """Create a sample DICOM file with pixel data."""
     # Create file meta
-    file_meta = FileMetaInformationDataset()
+    file_meta = FileMetaDataset()
     file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # Implicit VR Little Endian
     file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT Image
     file_meta.MediaStorageSOPInstanceUID = generate_uid()
@@ -220,7 +220,7 @@ class TestEdgeCases:
     def test_load_pixels_without_pixel_data(self, tmp_path):
         """Test loading pixels from file without pixel data."""
         # Create DICOM file without pixel data
-        file_meta = FileMetaInformationDataset()
+        file_meta = FileMetaDataset()
         file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
         file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
         file_meta.MediaStorageSOPInstanceUID = generate_uid()
