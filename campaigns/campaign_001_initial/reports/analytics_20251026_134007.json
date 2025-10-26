@@ -1,0 +1,47 @@
+{
+  "campaign_name": "DICOM Fuzzing",
+  "generated_at": "2025-10-26T13:40:07.769375",
+  "coverage_correlation": {
+    "metadata_corruption": {
+      "coverage_increase": 50.0,
+      "unique_paths": 19,
+      "crash_correlation": 0.041666666666666664,
+      "sample_size": 96,
+      "correlation_score": 0.2695
+    },
+    "slice_position_attack": {
+      "coverage_increase": 50.0,
+      "unique_paths": 20,
+      "crash_correlation": 0.049019607843137254,
+      "sample_size": 102,
+      "correlation_score": 0.2747058823529412
+    },
+    "inconsistency_injection": {
+      "coverage_increase": 50.0,
+      "unique_paths": 22,
+      "crash_correlation": 0.04504504504504504,
+      "sample_size": 111,
+      "correlation_score": 0.2795135135135135
+    },
+    "boundary_slice_targeting": {
+      "coverage_increase": 50.0,
+      "unique_paths": 17,
+      "crash_correlation": 0.0449438202247191,
+      "sample_size": 89,
+      "correlation_score": 0.26448314606741574
+    },
+    "gradient_mutation": {
+      "coverage_increase": 50.0,
+      "unique_paths": 20,
+      "crash_correlation": 0.049019607843137254,
+      "sample_size": 102,
+      "correlation_score": 0.2747058823529412
+    }
+  },
+  "trend_analysis": null,
+  "performance_metrics": null,
+  "recommendations": [
+    "[+] Prioritize 'inconsistency_injection' strategy (correlation score: 0.28)",
+    "[!] Consider reducing usage of: metadata_corruption, slice_position_attack, inconsistency_injection, boundary_slice_targeting, gradient_mutation"
+  ]
+}

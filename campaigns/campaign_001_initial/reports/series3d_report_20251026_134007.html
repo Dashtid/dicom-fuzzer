@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign 001: Initial Fuzzing - 3D Series Fuzzing Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #764ba2;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+        h3 {
+            color: #555;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .stat-card .label {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        .badge-minimal { background: #4CAF50; color: white; }
+        .badge-moderate { background: #FF9800; color: white; }
+        .badge-aggressive { background: #f44336; color: white; }
+        .badge-extreme { background: #9C27B0; color: white; }
+        .progress-bar {
+            background: #e0e0e0;
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        .timestamp {
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Campaign 001: Initial Fuzzing</h1>
+        <p class="timestamp">Generated: 2025-10-26 13:40:07</p>
+
+        <h2>[+] Campaign Summary</h2>
+        <div class="summary-grid">
+            <div class="stat-card">
+                <div class="label">Series Fuzzed</div>
+                <div class="value">10</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Total Mutations</div>
+                <div class="value">500</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Crashes Found</div>
+                <div class="value">25</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Avg Mutations/Series</div>
+                <div class="value">50.0</div>
+            </div>
+        </div>
+<h2>[+] Strategy Effectiveness</h2><table><thead><tr><th>Strategy</th><th>Usage Count</th><th>Avg Mutations/Series</th><th>Series Coverage</th></tr></thead><tbody><tr><td><strong>inconsistency_injection</strong></td><td>111</td><td>11.10</td><td>100.0%</td></tr><tr><td><strong>slice_position_attack</strong></td><td>102</td><td>10.20</td><td>100.0%</td></tr><tr><td><strong>gradient_mutation</strong></td><td>102</td><td>10.20</td><td>100.0%</td></tr><tr><td><strong>metadata_corruption</strong></td><td>96</td><td>9.60</td><td>100.0%</td></tr><tr><td><strong>boundary_slice_targeting</strong></td><td>89</td><td>8.90</td><td>100.0%</td></tr></tbody></table><h2>[+] Series Details</h2><table><thead><tr><th>Series UID</th><th>Modality</th><th>Slices</th><th>Mutations</th><th>Coverage</th></tr></thead><tbody><tr><td><code>1.2.840.10008.5.1.4....</code></td><td>PT</td><td>34</td><td>50</td><td>76.5%</td></tr><tr><td><code>1.2.840.10009.5.1.4....</code></td><td>CT</td><td>67</td><td>50</td><td>49.3%</td></tr><tr><td><code>1.2.840.10010.5.1.4....</code></td><td>PT</td><td>94</td><td>50</td><td>39.4%</td></tr><tr><td><code>1.2.840.10011.5.1.4....</code></td><td>MR</td><td>24</td><td>50</td><td>83.3%</td></tr><tr><td><code>1.2.840.10012.5.1.4....</code></td><td>CT</td><td>39</td><td>50</td><td>76.9%</td></tr><tr><td><code>1.2.840.10013.5.1.4....</code></td><td>MR</td><td>51</td><td>50</td><td>64.7%</td></tr><tr><td><code>1.2.840.10014.5.1.4....</code></td><td>CT</td><td>90</td><td>50</td><td>46.7%</td></tr><tr><td><code>1.2.840.10015.5.1.4....</code></td><td>CT</td><td>69</td><td>50</td><td>53.6%</td></tr><tr><td><code>1.2.840.10016.5.1.4....</code></td><td>PT</td><td>32</td><td>50</td><td>68.8%</td></tr><tr><td><code>1.2.840.10017.5.1.4....</code></td><td>PT</td><td>25</td><td>50</td><td>96.0%</td></tr></tbody></table><h2>[!] Crashes Found (25)</h2><p>Crash details integration pending...</p>
+    </div>
+</body>
+</html>
