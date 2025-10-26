@@ -50,17 +50,22 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-xdist>=3.8.0",
-    "pytest-timeout>=2.4.0",
-    "hypothesis>=6.82.0",
-    "ruff>=0.14.0",
-    "mypy>=1.5.0",
-    "bandit>=1.7.5",
-    "pre-commit>=3.3.0",
-    "types-aiofiles>=23.0.0",
+    # Testing framework (state-of-the-art 2025)
+    "pytest>=8.4.0",           # Latest pytest with improved diagnostics
+    "pytest-cov>=4.1.0",       # Coverage reporting
+    "pytest-asyncio>=0.21.0",  # Async test support
+    "pytest-xdist>=3.8.0",     # Parallel test execution
+    "pytest-timeout>=2.4.0",   # Test timeouts
+    "pytest-benchmark>=5.0.0", # Performance regression testing
+    "pytest-mock>=3.15.0",     # Better mocking utilities
+    "pytest-snapshot>=0.9.0",  # Snapshot testing for outputs
+    "hypothesis>=6.82.0",      # Property-based testing
+    # Code quality (modern tools)
+    "ruff>=0.14.0",            # Fast linter/formatter (replaces black/flake8)
+    "mypy>=1.13.0",            # Type checking with latest improvements
+    "bandit>=1.7.5",           # Security vulnerability scanning
+    "pre-commit>=3.3.0",       # Git hooks for quality gates
+    "types-aiofiles>=23.0.0",  # Type stubs
 ]
 docs = [
     "sphinx>=7.1.0",
