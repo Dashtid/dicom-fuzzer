@@ -146,9 +146,9 @@ addopts = [
     "--durations=10",
     # Timeout for individual tests (prevents hanging)
     "--timeout=30",
-    # Target: 80% coverage (industry standard for security-critical tools)
-    # Note: Individual modules achieve 90%+ when tested in isolation
-    # Aggregate appears lower due to parallel execution coverage collection
+    # Current: ~22% coverage (many advanced features untested)
+    # Target: 80% coverage (industry standard - future improvement)
+    # Gap areas: utils/* (0%), harness/* (0%), advanced strategies need tests
     "--cov-fail-under=22",
 ]
 testpaths = ["tests"]
