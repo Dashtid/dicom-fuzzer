@@ -170,6 +170,7 @@ markers = [
     "performance: Performance tests",
     "slow: Tests that take a long time to run (>5s)",
     "network: Tests requiring network access",
+    "asyncio: Asynchronous tests using asyncio",
 ]
 # Timeout configuration
 timeout = 30
