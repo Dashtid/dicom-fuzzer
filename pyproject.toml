@@ -146,10 +146,10 @@ addopts = [
     "--durations=10",
     # Timeout for individual tests (prevents hanging)
     "--timeout=30",
-    # Current: ~22% coverage (many advanced features untested)
+    # Current: 56% coverage (significant improvement from 22%)
     # Target: 80% coverage (industry standard - future improvement)
-    # Gap areas: utils/* (0%), harness/* (0%), advanced strategies need tests
-    "--cov-fail-under=22",
+    # Progress: helpers.py 100%, property-based tests enabled with hypothesis
+    "--cov-fail-under=50",
 ]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
