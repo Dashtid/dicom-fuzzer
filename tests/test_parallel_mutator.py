@@ -12,7 +12,7 @@ Tests parallel mutation strategies:
 import multiprocessing
 
 import pytest
-from pydicom.dataset import Dataset, FileMetaInformationDataset
+from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import generate_uid
 
 from dicom_fuzzer.core.dicom_series import DicomSeries
@@ -32,7 +32,7 @@ def sample_series(tmp_path):
 
     for i in range(10):  # 10 slices
         # Create file meta
-        file_meta = FileMetaInformationDataset()
+        file_meta = FileMetaDataset()
         file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
         file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
         file_meta.MediaStorageSOPInstanceUID = generate_uid()
@@ -283,7 +283,7 @@ class TestEdgeCases:
         """Test parallel mutation with single-slice series."""
         # Create single-slice series
         series_uid = generate_uid()
-        file_meta = FileMetaInformationDataset()
+        file_meta = FileMetaDataset()
         file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
         file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
         file_meta.MediaStorageSOPInstanceUID = generate_uid()

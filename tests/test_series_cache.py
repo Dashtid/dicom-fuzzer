@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 import pytest
-from pydicom.dataset import Dataset, FileMetaInformationDataset
+from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import generate_uid
 
 from dicom_fuzzer.core.series_cache import CacheEntry, SeriesCache
@@ -25,7 +25,7 @@ def sample_dicom_files(tmp_path):
     files = []
     for i in range(5):
         # Create file meta
-        file_meta = FileMetaInformationDataset()
+        file_meta = FileMetaDataset()
         file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
         file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
         file_meta.MediaStorageSOPInstanceUID = generate_uid()
