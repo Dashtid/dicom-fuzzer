@@ -163,6 +163,9 @@ class ParallelSeriesMutator:
         if workers is None:
             workers = multiprocessing.cpu_count()
 
+        if workers <= 0:
+            raise ValueError(f"workers must be > 0, got {workers}")
+
         self.workers = workers
         self.severity = severity
         self.seed = seed
