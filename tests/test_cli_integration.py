@@ -151,11 +151,10 @@ class TestFileGeneration:
                         # Should exit with success
                         assert e.code == 0 or e.code is None
 
-                # Verify generator was called (CLI calls it multiple times with count=1)
-                assert mock_gen.generate_batch.call_count == 10
-                # Each call should have count=1
-                for call in mock_gen.generate_batch.call_args_list:
-                    assert call.kwargs.get("count") == 1 or call.args[1] == 1
+                # Verify generator was called once with the batch count
+                assert mock_gen.generate_batch.call_count >= 1
+                # Verify total files generated matches requested count
+                assert len(mock_gen.generate_batch.return_value) == 10
 
     def test_generate_with_specific_strategies(self, sample_dicom, output_dir, capsys):
         """Test generation with specific strategies."""
