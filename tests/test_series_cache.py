@@ -284,8 +284,8 @@ class TestCacheSizing:
 
     def test_size_based_eviction(self, sample_dicom_files, simple_loader):
         """Test eviction based on memory size."""
-        # Very small cache (0.1MB = 100KB)
-        cache = SeriesCache(max_size_mb=0.1, max_entries=1000)
+        # Very small cache (0.001MB = 1KB) - forces eviction with small DICOM files
+        cache = SeriesCache(max_size_mb=0.001, max_entries=1000)
 
         # Load multiple files until eviction occurs
         for file_path in sample_dicom_files:
