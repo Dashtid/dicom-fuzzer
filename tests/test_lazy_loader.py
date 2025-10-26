@@ -168,11 +168,11 @@ class TestHelperFunctions:
 
     def test_create_deferred_loader(self, sample_dicom_file):
         """Test create_deferred_loader helper."""
-        loader = create_deferred_loader(defer_size=1024)
+        loader = create_deferred_loader(defer_size_mb=1)
 
         # Should be configured for deferred loading
         assert loader.metadata_only is False
-        assert loader.defer_size == 1024
+        assert loader.defer_size == 1 * 1024 * 1024  # 1 MB in bytes
         assert loader.force is True
 
         # Should defer large elements (behavior varies by pydicom version)
