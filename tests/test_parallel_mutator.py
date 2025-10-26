@@ -326,10 +326,11 @@ class TestEdgeCases:
         ds.PixelData = b"\x00" * (64 * 64 * 2)
 
         file_path = tmp_path / "single.dcm"
-        ds.save_as(file_path)
+        ds.save_as(file_path, write_like_original=False)
 
         single_series = DicomSeries(
             series_uid=series_uid,
+            study_uid=ds.StudyInstanceUID,
             modality="CT",
             slices=[file_path],
             metadata={"StudyInstanceUID": ds.StudyInstanceUID},
