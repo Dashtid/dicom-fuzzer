@@ -72,6 +72,7 @@ def sample_series(tmp_path):
 
     return DicomSeries(
         series_uid=series_uid,
+        study_uid=study_uid,
         modality="CT",
         slices=slice_paths,
         metadata={
