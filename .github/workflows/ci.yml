@@ -27,12 +27,14 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Set up Python
-        run: uv python install 3.14
+        run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --all-extras
 
       - name: Run Ruff linter
         run: uv run ruff check --output-format=github dicom_fuzzer/ tests/ examples/
@@ -50,12 +52,14 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Set up Python
-        run: uv python install 3.14
+        run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --all-extras
 
       - name: Run Bandit security scan
         run: uv run bandit -c pyproject.toml -r dicom_fuzzer/
@@ -70,12 +74,14 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Set up Python
-        run: uv python install 3.14
+        run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --all-extras
 
       - name: Run mypy
         run: uv run mypy --config-file=pyproject.toml --ignore-missing-imports dicom_fuzzer/
@@ -88,7 +94,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.11', '3.12', '3.13', '3.14']
+        python-version: ['3.11', '3.12', '3.13']
         exclude:
           # Test all Python versions on Linux, but only latest on macOS/Windows to reduce CI time
           - os: macos-latest
@@ -117,7 +123,7 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --all-extras
 
       - name: Run tests with parallel execution and coverage
         run: |
@@ -125,7 +131,7 @@ jobs:
         timeout-minutes: 20
 
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.14'
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
@@ -134,7 +140,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Archive coverage HTML report
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.14'
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-html-report
@@ -166,10 +172,10 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install 3.14
+        run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --all-extras
 
       - name: Run tests with coverage
         run: uv run pytest tests/ --cov=dicom_fuzzer --cov-report=xml --cov-report=term --junitxml=junit.xml -n 4 --dist=loadscope
@@ -201,7 +207,7 @@ jobs:
           version: "latest"
 
       - name: Set up Python
-        run: uv python install 3.14
+        run: uv python install 3.13
 
       - name: Build package
         run: uv build
