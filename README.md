@@ -173,22 +173,30 @@ DICOM-Fuzzer/
 │   ├── test_viewer_launcher_3d.py # Viewer testing tests (Phase 3)
 │   └── ...                    # 970+ other tests
 ├── examples/                  # Example scripts
+│   ├── demo/                  # Demonstration scripts
+│   │   ├── README.md          # Demo documentation
+│   │   ├── demo_simple.py     # Simple workflow demo
+│   │   └── demo_workflow.py   # Full framework demo
 │   ├── demo_fuzzing.py        # Basic fuzzing demo
 │   ├── fuzz_dicom_viewer.py   # Viewer fuzzing example
 │   └── coverage_guided_fuzzing_demo.py
-├── demo/                      # Demonstration scripts
-│   ├── README.md              # Demo documentation
-│   ├── demo_simple.py         # Simple workflow demo
-│   └── demo_workflow.py       # Full framework demo
-├── artifacts/                 # Fuzzing outputs (gitignored)
+├── output/                    # Fuzzing outputs (gitignored)
 │   ├── crashes/               # Crash files
+│   ├── logs/                  # Fuzzing logs
 │   ├── fuzzed/                # Fuzzed DICOM files
 │   ├── corpus/                # Test corpus
+│   ├── campaigns/             # Campaign results
 │   └── reports/               # Generated reports
-├── data/                      # Seed files & dictionaries
+├── configs/                   # Configuration
+│   ├── targets/               # Target configurations
+│   │   ├── dcmtk_dcmdump.json # DCMTK target
+│   │   └── orthanc_api.json   # Orthanc target
 │   ├── seeds/                 # Seed DICOM files
-│   └── dictionaries/          # Fuzzing dictionaries
+│   ├── dictionaries/          # Fuzzing dictionaries
+│   └── viewer_profiles.yaml   # Viewer configurations (Phase 3)
 ├── docs/                      # Documentation
+│   ├── README.md              # Documentation index
+│   ├── archive/               # Historical documentation
 │   ├── COVERAGE.md            # Test coverage analysis
 │   ├── FUZZING_GUIDE.md       # Fuzzing methodology
 │   ├── CRASH_INTELLIGENCE.md  # Crash intelligence guide (v1.2.0)
@@ -197,10 +205,6 @@ DICOM-Fuzzer/
 │   ├── 3D_FUZZING_ROADMAP.md  # 3D fuzzing roadmap (Phase 1-4)
 │   ├── VIEWER_TESTING_3D.md   # 3D viewer testing guide (Phase 3)
 │   └── PERFORMANCE_3D.md      # Performance optimization guide (Phase 4)
-├── config/                    # Configuration
-│   ├── local_paths.example.py # Path template
-│   ├── local_paths.py         # Local paths (gitignored)
-│   └── viewer_profiles.yaml   # Viewer configurations (Phase 3)
 ├── scripts/                   # Build/deployment scripts
 │   └── benchmark_3d_fuzzing.py # Performance benchmarking (Phase 4)
 ├── pyproject.toml             # Project configuration
@@ -449,7 +453,7 @@ fuzzer.run_fuzzing_campaign(
 )
 
 # View results
-# Reports saved to: ./reports/html/
+# Reports saved to: ./output/reports/html/
 ```
 
 ### Crash Analysis
@@ -533,8 +537,8 @@ minimizer = TestMinimizer(
     max_iterations=1000
 )
 
-crash_file = Path("artifacts/crashes/crash_001.dcm")
-result = minimizer.minimize(crash_file, output_dir=Path("minimized/"))
+crash_file = Path("output/crashes/crash_001.dcm")
+result = minimizer.minimize(crash_file, output_dir=Path("output/minimized/"))
 
 print(f"\nMinimization Results:")
 print(f"Original: {result.original_size} bytes")
@@ -580,7 +584,7 @@ for input_hash in metrics.unstable_inputs:
 
 ### Local Paths (Not Tracked in Git)
 
-Create `config/local_paths.py` for environment-specific paths:
+Create `configs/local_paths.py` for environment-specific paths:
 
 ```python
 from pathlib import Path
@@ -593,7 +597,7 @@ DICOM_VIEWER_PATH = Path(r"C:\Program Files\YourApp\viewer.exe")
 VIEWER_TIMEOUT = 5
 ```
 
-See `config/local_paths.example.py` for template.
+See `configs/local_paths.example.py` for template.
 
 ### Mutation Strategies
 
@@ -627,8 +631,8 @@ uv run pytest tests/ --cov=dicom_fuzzer --cov-report=html
 uv run pytest tests/test_fuzzing_session.py -v
 
 # View coverage report
-start reports/coverage/htmlcov/index.html  # Windows
-open reports/coverage/htmlcov/index.html   # macOS
+start output/reports/coverage/htmlcov/index.html  # Windows
+open output/reports/coverage/htmlcov/index.html   # macOS
 ```
 
 ### Test Coverage
