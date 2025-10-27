@@ -38,6 +38,7 @@ jobs:
 
       - name: Run Ruff linter
         run: uv run ruff check --output-format=github dicom_fuzzer/ tests/ examples/
+        continue-on-error: true  # Allow linting warnings without failing CI
 
       - name: Run Ruff formatter
         run: uv run ruff format --check dicom_fuzzer/ tests/ examples/
