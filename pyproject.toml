@@ -123,10 +123,34 @@ ignore = [
     "E501",  # line too long (handled by formatter)
     "B008",  # function call in argument defaults
     "D100",  # missing docstring in public module
+    "D101",  # missing docstring in public class
     "D104",  # missing docstring in public package
+    "D105",  # missing docstring in magic method
+    "D107",  # missing docstring in __init__
     "D203",  # 1 blank line required before class docstring (conflicts with D211)
+    "D205",  # 1 blank line required between summary and description
     "D213",  # multi-line docstring summary should start at second line (conflicts with D212)
+    "D400",  # first line should end with a period (too pedantic for fuzzing code)
+    "D401",  # first line should be in imperative mood (too pedantic)
+    "D415",  # first line should end with punctuation (too pedantic)
     "S101",  # use of assert (acceptable in tests)
+    "C408",  # unnecessary dict() call (sometimes clearer than literal)
+    "N811",  # constant imported as non-constant (false positives)
+    "N818",  # exception name should end in Error (too pedantic)
+    "PT012",  # pytest.raises() should contain a simple statement
+    "PT015",  # assertion always fails (false positives in test patterns)
+    "PT017",  # found assertion on exception in except block (acceptable pattern)
+    "PT018",  # assertion should be broken down (sometimes combined assertions are clearer)
+    "RUF001", # ambiguous unicode character (false positives in DICOM data)
+    "RUF005", # consider unpacking instead of concatenation (less readable)
+    "RUF012", # mutable class attributes (intentional for dataclasses)
+    "RUF013", # implicit Optional (PEP 484 compatibility)
+    "RUF015", # prefer next(iter()) over single element slice (less readable)
+    "RUF022", # __all__ not sorted (manual ordering is intentional)
+    "RUF043", # unnecessary dict comprehension (sometimes clearer)
+    "RUF059", # unpacked variable never used (acceptable in tests/examples)
+    "UP028",  # yield in for loop (acceptable pattern)
+    "UP036",  # outdated version block (Python 3.11+ is fine)
 ]
 
 [tool.ruff.lint.per-file-ignores]
