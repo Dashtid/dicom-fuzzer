@@ -4,10 +4,10 @@ A specialized security testing tool for fuzzing DICOM (Digital Imaging and Commu
 
 [![CI/CD Pipeline](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/Dashtid/DICOM-Fuzzer/branch/main/graph/badge.svg)](https://codecov.io/gh/Dashtid/DICOM-Fuzzer)
-[![Tests](https://img.shields.io/badge/tests-2097%2B%20passing-brightgreen)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-50.56%25-brightgreen)](docs/COVERAGE.md)
+[![Tests](https://img.shields.io/badge/tests-2583%2B%20passing-brightgreen)](tests/)
+[![Coverage](https://img.shields.io/badge/coverage-71.69%25-brightgreen)](docs/COVERAGE.md)
 [![Core Modules](https://img.shields.io/badge/core%20modules-17%2B%20%40%20100%25-brightgreen)](#test-coverage)
-[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://python.org)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://python.org)
 [![Code Style](https://img.shields.io/badge/code%20style-ruff-black)](https://github.com/astral-sh/ruff)
 [![Linter](https://img.shields.io/badge/linter-ruff-orange)](https://github.com/astral-sh/ruff)
 [![Build](https://img.shields.io/badge/build-hatchling-blue)](https://github.com/pypa/hatch)
@@ -237,7 +237,7 @@ source .venv/bin/activate
 ### Development Setup
 
 ```bash
-# Install all dependencies (including dev and docs)
+# Install all dependencies (using modern dependency-groups)
 uv sync --all-extras
 
 # Install pre-commit hooks
@@ -283,6 +283,60 @@ just fix              # Auto-fix linting issues
 just check            # Run all quality checks
 just build            # Build package
 just clean            # Clean cache and artifacts
+```
+
+### VSCode Development Setup (Recommended)
+
+This project includes VSCode configuration for optimal development experience:
+
+**Pre-configured Features:**
+
+- **Pylance/Pyright**: Fast type checking (3-5x faster than mypy)
+- **Ruff Integration**: Auto-format and auto-fix on save
+- **Pytest Integration**: Discover and run tests from Test Explorer
+- **EditorConfig**: Consistent formatting across all editors
+
+**Quick Setup:**
+
+```bash
+# 1. Open project in VSCode
+code .
+
+# 2. Install recommended extensions (VSCode will prompt automatically)
+# Or install manually:
+# - Python (ms-python.python)
+# - Pylance (ms-python.vscode-pylance)
+# - Ruff (charliermarsh.ruff)
+# - EditorConfig (editorconfig.editorconfig)
+
+# 3. Python version is automatically detected from .python-version (3.13)
+
+# 4. Dependencies are automatically installed via uv.lock
+```
+
+**What's Configured:**
+
+- Format on save with Ruff
+- Organize imports on save
+- Type checking in editor (basic mode)
+- Test discovery and execution
+- Inlay hints for function return types and variables
+- Excluded files (.venv, **pycache**, caches)
+
+See [.vscode/settings.json](.vscode/settings.json) and [.vscode/extensions.json](.vscode/extensions.json) for full configuration.
+
+**Type Checking:**
+
+This project uses **dual type checking** for comprehensive coverage:
+
+- **mypy** (pre-commit hook): Strict validation before commits
+- **Pyright** (VSCode/Pylance): Real-time feedback in editor
+
+Run type checkers manually:
+
+```bash
+uv run mypy dicom_fuzzer/           # Mypy (strict)
+uv run pyright dicom_fuzzer/        # Pyright (fast)
 ```
 
 ## Usage

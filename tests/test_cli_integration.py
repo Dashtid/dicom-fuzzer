@@ -502,9 +502,9 @@ class TestOutputFormatting:
         # Import tqdm for mocking (skip test if not available)
         pytest.importorskip("tqdm")
 
-        # Mock tqdm availability
+        # Mock tqdm availability (patch where it's imported in main.py)
         with patch("sys.argv", args):
-            with patch("tqdm.tqdm") as mock_tqdm:
+            with patch("dicom_fuzzer.cli.main.tqdm") as mock_tqdm:
                 with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
                     mock_gen = Mock()
                     mock_gen.generate_batch.return_value = [

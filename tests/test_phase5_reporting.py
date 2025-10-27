@@ -13,6 +13,9 @@ from datetime import datetime, timedelta
 
 import pytest
 
+# Skip entire module if matplotlib not available (optional dependency for visualization)
+pytest.importorskip("matplotlib")
+
 from dicom_fuzzer.analytics.campaign_analytics import (
     CampaignAnalyzer,
     CoverageCorrelation,
