@@ -4,8 +4,8 @@ A specialized security testing tool for fuzzing DICOM (Digital Imaging and Commu
 
 [![CI/CD Pipeline](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/Dashtid/DICOM-Fuzzer/branch/main/graph/badge.svg)](https://codecov.io/gh/Dashtid/DICOM-Fuzzer)
-[![Tests](https://img.shields.io/badge/tests-2583%2B%20passing-brightgreen)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-71.69%25-brightgreen)](docs/COVERAGE.md)
+[![Tests](https://img.shields.io/badge/tests-2585%20passing-brightgreen)](tests/)
+[![Coverage](https://img.shields.io/badge/coverage-56.10%25-yellow)](docs/COVERAGE.md)
 [![Core Modules](https://img.shields.io/badge/core%20modules-17%2B%20%40%20100%25-brightgreen)](#test-coverage)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://python.org)
 [![Code Style](https://img.shields.io/badge/code%20style-ruff-black)](https://github.com/astral-sh/ruff)
