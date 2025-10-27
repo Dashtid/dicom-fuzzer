@@ -272,13 +272,22 @@ venv.bak/
 # mkdocs documentation
 /site
 
-# mypy
+# Type checkers
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# Pyre type checker
 .pyre/
+.pytype/
+
+# Linters and formatters
+.ruff_cache/
+
+# Benchmarks
+.benchmarks/
+
+# Temporary and log files
+*.log
+!docs/**/*.log
 
 # pytype static type analyzer
 .pytype/
