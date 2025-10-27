@@ -12,9 +12,10 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from io import BytesIO
+
 import pydicom
 from pydicom.errors import InvalidDicomError
-from io import BytesIO
 
 from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
 from dicom_fuzzer.core.coverage_instrumentation import configure_global_tracker

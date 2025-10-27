@@ -1,5 +1,4 @@
-"""
-Stability Metrics Tracking - AFL++-Style
+"""Stability Metrics Tracking - AFL++-Style
 
 This module tracks fuzzing stability metrics to detect non-deterministic
 behavior in the target application or fuzzing harness. Based on AFL++'s
@@ -19,14 +18,12 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
 
 class InstabilityCause(Enum):
-    """
-    Root causes of execution instability.
+    """Root causes of execution instability.
 
     CONCEPT: Different types of non-determinism require different fixes:
     - Race conditions: Need better synchronization
@@ -44,8 +41,7 @@ class InstabilityCause(Enum):
 
 @dataclass
 class StabilityMetrics:
-    """
-    Stability metrics for a fuzzing campaign.
+    """Stability metrics for a fuzzing campaign.
 
     Tracks consistency of execution across multiple runs of same inputs.
     """
@@ -56,14 +52,14 @@ class StabilityMetrics:
     stability_percentage: float = 100.0
 
     # Track which inputs show instability
-    unstable_inputs: Set[str] = field(default_factory=set)
+    unstable_inputs: set[str] = field(default_factory=set)
 
     # Detailed tracking
-    execution_variance: Dict[str, List[str]] = field(default_factory=dict)
+    execution_variance: dict[str, list[str]] = field(default_factory=dict)
 
     # Root cause analysis
-    instability_causes: Dict[str, InstabilityCause] = field(default_factory=dict)
-    cause_counts: Dict[InstabilityCause, int] = field(
+    instability_causes: dict[str, InstabilityCause] = field(default_factory=dict)
+    cause_counts: dict[InstabilityCause, int] = field(
         default_factory=lambda: defaultdict(int)
     )
 
@@ -76,26 +72,25 @@ class StabilityMetrics:
 
 
 class StabilityTracker:
-    """
-    Track stability metrics during fuzzing campaigns.
+    """Track stability metrics during fuzzing campaigns.
 
     Monitors whether the same input produces consistent behavior across
     multiple executions, flagging non-deterministic behavior.
     """
 
     def __init__(self, stability_window: int = 100, retest_frequency: int = 10):
-        """
-        Initialize stability tracker.
+        """Initialize stability tracker.
 
         Args:
             stability_window: Number of recent executions to consider
             retest_frequency: How often to retest inputs for stability (every N iterations)
+
         """
         self.stability_window = stability_window
         self.retest_frequency = retest_frequency
 
         # Track execution results by input hash
-        self.execution_history: Dict[str, List[str]] = defaultdict(list)
+        self.execution_history: dict[str, list[str]] = defaultdict(list)
 
         # Track overall metrics
         self.metrics = StabilityMetrics()
@@ -104,13 +99,12 @@ class StabilityTracker:
         self.iteration_count = 0
 
         # Inputs that have been tested multiple times
-        self.retested_inputs: Set[str] = set()
+        self.retested_inputs: set[str] = set()
 
     def record_execution(
         self, test_file: Path, execution_signature: str, retest: bool = False
     ) -> bool:
-        """
-        Record an execution and check stability.
+        """Record an execution and check stability.
 
         Args:
             test_file: Path to test file
@@ -119,6 +113,7 @@ class StabilityTracker:
 
         Returns:
             True if execution was stable, False if unstable
+
         """
         input_hash = self._hash_file(test_file)
 
@@ -160,14 +155,14 @@ class StabilityTracker:
         return is_stable
 
     def should_retest(self, test_file: Path) -> bool:
-        """
-        Determine if input should be retested for stability.
+        """Determine if input should be retested for stability.
 
         Args:
             test_file: Path to test file
 
         Returns:
             True if should retest
+
         """
         self.iteration_count += 1
 
@@ -189,20 +184,20 @@ class StabilityTracker:
         return False
 
     def get_metrics(self) -> StabilityMetrics:
-        """
-        Get current stability metrics.
+        """Get current stability metrics.
 
         Returns:
             Current metrics
+
         """
         return self.metrics
 
-    def get_unstable_inputs_report(self) -> List[Dict]:
-        """
-        Get detailed report of unstable inputs.
+    def get_unstable_inputs_report(self) -> list[dict]:
+        """Get detailed report of unstable inputs.
 
         Returns:
             List of dictionaries with unstable input details
+
         """
         report = []
         for input_hash in self.metrics.unstable_inputs:
@@ -219,14 +214,14 @@ class StabilityTracker:
         return report
 
     def is_campaign_stable(self, threshold: float = 95.0) -> bool:
-        """
-        Check if campaign is considered stable.
+        """Check if campaign is considered stable.
 
         Args:
             threshold: Minimum stability percentage required
 
         Returns:
             True if stability >= threshold
+
         """
         return self.metrics.stability_percentage >= threshold
 
@@ -238,14 +233,14 @@ class StabilityTracker:
         self.retested_inputs.clear()
 
     def _check_stability(self, input_hash: str) -> bool:
-        """
-        Check if input shows stable behavior.
+        """Check if input shows stable behavior.
 
         Args:
             input_hash: Hash of input file
 
         Returns:
             True if stable (all executions have same signature)
+
         """
         signatures = self.execution_history.get(input_hash, [])
 
@@ -256,24 +251,23 @@ class StabilityTracker:
         return len(set(signatures)) == 1
 
     def _hash_file(self, file_path: Path) -> str:
-        """
-        Generate hash of file content.
+        """Generate hash of file content.
 
         Args:
             file_path: Path to file
 
         Returns:
             SHA256 hash of file content
+
         """
         content = file_path.read_bytes()
         return hashlib.sha256(content).hexdigest()[:16]  # Use first 16 chars
 
 
 def generate_execution_signature(
-    exit_code: int, output_hash: Optional[str] = None, coverage: Optional[Set] = None
+    exit_code: int, output_hash: str | None = None, coverage: set | None = None
 ) -> str:
-    """
-    Generate signature for an execution.
+    """Generate signature for an execution.
 
     Combines exit code, output hash, and coverage into a single signature
     that can be used to detect non-deterministic behavior.
@@ -285,6 +279,7 @@ def generate_execution_signature(
 
     Returns:
         Execution signature string
+
     """
     parts = [str(exit_code)]
 
@@ -299,15 +294,15 @@ def generate_execution_signature(
     return "|".join(parts)
 
 
-def detect_stability_issues(tracker: StabilityTracker) -> List[str]:
-    """
-    Analyze stability tracker and detect common issues.
+def detect_stability_issues(tracker: StabilityTracker) -> list[str]:
+    """Analyze stability tracker and detect common issues.
 
     Args:
         tracker: StabilityTracker instance
 
     Returns:
         List of detected issues with recommendations
+
     """
     issues = []
 

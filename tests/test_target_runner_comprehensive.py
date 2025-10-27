@@ -11,13 +11,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from dicom_fuzzer.core.resource_manager import ResourceLimits
 from dicom_fuzzer.core.target_runner import (
     CircuitBreakerState,
     ExecutionResult,
     ExecutionStatus,
     TargetRunner,
 )
-from dicom_fuzzer.core.resource_manager import ResourceLimits
 
 
 class TestExecutionStatus:

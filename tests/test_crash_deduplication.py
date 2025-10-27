@@ -769,7 +769,9 @@ class TestCrashDeduplicationIntegration:
         assert len(groups) == 4, f"Expected 4 groups, got {len(groups)}"
 
         # Verify group sizes
-        group_sizes = sorted([len(crashes) for crashes in groups.values()], reverse=True)
+        group_sizes = sorted(
+            [len(crashes) for crashes in groups.values()], reverse=True
+        )
         assert group_sizes[0] == 3  # Header overflow group
         assert group_sizes[1] == 2  # Metadata null group
         assert group_sizes[2] == 2  # Pixel corruption group

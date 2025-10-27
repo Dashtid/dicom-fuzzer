@@ -14,7 +14,7 @@ Tests coverage-guided fuzzing orchestration including:
 """
 
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -101,7 +101,7 @@ class TestFuzzingCampaignStats:
     def test_custom_initialization(self):
         """Test stats initialization with custom values."""
         campaign_id = "test123"
-        start_time = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        start_time = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
 
         stats = FuzzingCampaignStats(campaign_id=campaign_id, start_time=start_time)
 
@@ -127,7 +127,7 @@ class TestFuzzingCampaignStats:
         fuzzer = CoverageGuidedFuzzer(corpus_dir=temp_corpus_dir)
 
         # Set start time to now (near-zero elapsed)
-        fuzzer.stats.start_time = datetime.now(timezone.utc)
+        fuzzer.stats.start_time = datetime.now(UTC)
         fuzzer.stats.total_iterations = 100
 
         # Should not crash, should calculate exec/sec
@@ -296,7 +296,7 @@ class TestFuzzingIteration:
             fuzzer.fuzz_iteration()
 
     def test_fuzz_iteration_interesting_input(self, temp_corpus_dir, sample_dataset):
-        """Test that interesting inputs are added to corpus."""  # noqa: D202
+        """Test that interesting inputs are added to corpus."""
 
         # Mock target that always returns
         def simple_target(ds):
@@ -351,7 +351,7 @@ class TestFuzzingCampaign:
         assert stats.total_iterations == 100
 
     def test_fuzz_campaign_stop_on_crash(self, temp_corpus_dir, sample_dataset):
-        """Test fuzzing campaign stops on crash when requested."""  # noqa: D202
+        """Test fuzzing campaign stops on crash when requested."""
 
         # Create target that crashes after certain mutations
         def crash_target(ds):

@@ -1,5 +1,4 @@
-"""
-Campaign Analytics Engine - Statistical Analysis for Fuzzing Campaigns
+"""Campaign Analytics Engine - Statistical Analysis for Fuzzing Campaigns
 
 This module provides advanced statistical analysis for DICOM fuzzing campaigns:
 - Coverage correlation (which mutations find which bugs)
@@ -29,8 +28,7 @@ from dicom_fuzzer.core.statistics import MutationStatistics
 
 @dataclass
 class CoverageCorrelation:
-    """
-    Correlation between mutation strategies and code coverage.
+    """Correlation between mutation strategies and code coverage.
 
     Tracks which mutations lead to which code paths being executed,
     helping identify high-value mutation strategies.
@@ -43,8 +41,7 @@ class CoverageCorrelation:
     sample_size: int  # Number of mutations analyzed
 
     def correlation_score(self) -> float:
-        """
-        Calculate overall correlation score (0-1).
+        """Calculate overall correlation score (0-1).
 
         Higher score = strategy is more effective at finding bugs.
         """
@@ -66,8 +63,7 @@ class CoverageCorrelation:
 
 @dataclass
 class TrendAnalysis:
-    """
-    Time-series analysis of fuzzing campaign progress.
+    """Time-series analysis of fuzzing campaign progress.
 
     Tracks how crash discovery and coverage change over time,
     helping identify when to stop fuzzing or adjust strategies.
@@ -84,11 +80,11 @@ class TrendAnalysis:
     mutations_over_time: list[tuple[datetime, int]] = field(default_factory=list)
 
     def crash_discovery_rate(self) -> float:
-        """
-        Calculate crash discovery rate (crashes per hour).
+        """Calculate crash discovery rate (crashes per hour).
 
         Returns:
             Crashes found per hour of fuzzing
+
         """
         if not self.crashes_over_time or self.total_duration.total_seconds() == 0:
             return 0.0
@@ -99,11 +95,11 @@ class TrendAnalysis:
         return total_crashes / hours if hours > 0 else 0.0
 
     def coverage_growth_rate(self) -> float:
-        """
-        Calculate coverage growth rate (% per hour).
+        """Calculate coverage growth rate (% per hour).
 
         Returns:
             Percentage increase in coverage per hour
+
         """
         if len(self.coverage_over_time) < 2 or self.total_duration.total_seconds() == 0:
             return 0.0
@@ -124,8 +120,7 @@ class TrendAnalysis:
     def is_plateauing(
         self, threshold_hours: float = 1.0, min_rate: float = 0.1
     ) -> bool:
-        """
-        Detect if fuzzing campaign has plateaued (diminishing returns).
+        """Detect if fuzzing campaign has plateaued (diminishing returns).
 
         Args:
             threshold_hours: Hours to analyze for plateau detection
@@ -133,6 +128,7 @@ class TrendAnalysis:
 
         Returns:
             True if campaign has plateaued (should consider stopping)
+
         """
         if not self.crashes_over_time or len(self.crashes_over_time) < 2:
             return False
@@ -159,8 +155,7 @@ class TrendAnalysis:
 
 @dataclass
 class PerformanceMetrics:
-    """
-    Performance profiling for fuzzing campaigns.
+    """Performance profiling for fuzzing campaigns.
 
     Tracks system resource usage and throughput metrics.
     """
@@ -173,8 +168,7 @@ class PerformanceMetrics:
     cache_hit_rate: float  # Percentage (0-100)
 
     def throughput_score(self) -> float:
-        """
-        Calculate overall throughput score (0-1).
+        """Calculate overall throughput score (0-1).
 
         Higher score = better performance optimization.
         """
@@ -190,8 +184,7 @@ class PerformanceMetrics:
 
 
 class CampaignAnalyzer:
-    """
-    Analyzes fuzzing campaigns to provide actionable insights.
+    """Analyzes fuzzing campaigns to provide actionable insights.
 
     Integrates with existing statistics tracking and provides:
     - Coverage correlation analysis
@@ -201,11 +194,11 @@ class CampaignAnalyzer:
     """
 
     def __init__(self, campaign_name: str = "DICOM Fuzzing"):
-        """
-        Initialize campaign analyzer.
+        """Initialize campaign analyzer.
 
         Args:
             campaign_name: Name of the fuzzing campaign
+
         """
         self.campaign_name = campaign_name
         self.coverage_data: dict[str, CoverageCorrelation] = {}
@@ -215,8 +208,7 @@ class CampaignAnalyzer:
     def analyze_strategy_effectiveness(
         self, report: Series3DReport, mutation_stats: list[MutationStatistics]
     ) -> dict[str, dict[str, float]]:
-        """
-        Analyze effectiveness of mutation strategies.
+        """Analyze effectiveness of mutation strategies.
 
         Args:
             report: Series3D report with mutation data
@@ -228,6 +220,7 @@ class CampaignAnalyzer:
             - crashes_per_mutation: Crash rate
             - coverage_contribution: Coverage increase
             - time_efficiency: Mutations per second
+
         """
         effectiveness = {}
         strategy_effectiveness_data = report.get_strategy_effectiveness()
@@ -277,8 +270,7 @@ class CampaignAnalyzer:
         crashes_found: int,
         mutations_applied: int,
     ) -> CoverageCorrelation:
-        """
-        Calculate coverage correlation for a mutation strategy.
+        """Calculate coverage correlation for a mutation strategy.
 
         Args:
             strategy: Mutation strategy name
@@ -289,6 +281,7 @@ class CampaignAnalyzer:
 
         Returns:
             CoverageCorrelation object with analysis results
+
         """
         # Calculate crash correlation (simple ratio for now)
         crash_correlation = (
@@ -316,8 +309,7 @@ class CampaignAnalyzer:
         coverage_timeline: list[tuple[datetime, float]],
         mutation_timeline: list[tuple[datetime, int]],
     ) -> TrendAnalysis:
-        """
-        Analyze time-series trends in fuzzing campaign.
+        """Analyze time-series trends in fuzzing campaign.
 
         Args:
             start_time: Campaign start time
@@ -328,6 +320,7 @@ class CampaignAnalyzer:
 
         Returns:
             TrendAnalysis object with time-series analysis
+
         """
         trend = TrendAnalysis(
             campaign_name=self.campaign_name,
@@ -351,8 +344,7 @@ class CampaignAnalyzer:
         disk_io_mb_per_sec: float = 0.0,
         cache_hit_rate: float = 0.0,
     ) -> PerformanceMetrics:
-        """
-        Profile campaign performance metrics.
+        """Profile campaign performance metrics.
 
         Args:
             mutations_per_second: Mutation throughput
@@ -364,6 +356,7 @@ class CampaignAnalyzer:
 
         Returns:
             PerformanceMetrics object with profiling data
+
         """
         metrics = PerformanceMetrics(
             mutations_per_second=mutations_per_second,
@@ -378,11 +371,11 @@ class CampaignAnalyzer:
         return metrics
 
     def generate_recommendations(self) -> list[str]:
-        """
-        Generate actionable recommendations based on analysis.
+        """Generate actionable recommendations based on analysis.
 
         Returns:
             List of recommendation strings
+
         """
         recommendations = []
 
@@ -458,14 +451,14 @@ class CampaignAnalyzer:
         return recommendations
 
     def export_to_json(self, output_path: Path) -> Path:
-        """
-        Export analysis results to JSON.
+        """Export analysis results to JSON.
 
         Args:
             output_path: Path to output JSON file
 
         Returns:
             Path to exported file
+
         """
         data = {
             "campaign_name": self.campaign_name,

@@ -1,5 +1,4 @@
-"""
-Coverage-Guided Fuzzing - Main Orchestrator
+"""Coverage-Guided Fuzzing - Main Orchestrator
 
 LEARNING OBJECTIVE: This module demonstrates how to build a complete coverage-guided
 fuzzer that intelligently explores code paths.
@@ -14,10 +13,11 @@ libFuzzer, and Hongfuzz. It's dramatically more effective than random fuzzing.
 
 import random
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from pydicom.dataset import Dataset
 
@@ -31,8 +31,7 @@ logger = get_logger(__name__)
 
 @dataclass
 class FuzzingCampaignStats:
-    """
-    Statistics for a fuzzing campaign.
+    """Statistics for a fuzzing campaign.
 
     CONCEPT: Like a scoreboard that tracks our fuzzing progress and effectiveness.
 
@@ -45,10 +44,11 @@ class FuzzingCampaignStats:
         total_coverage: Total lines of code covered
         executions_per_second: Fuzzing throughput
         interesting_inputs_found: Number of inputs that increased coverage
+
     """
 
     campaign_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
-    start_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    start_time: datetime = field(default_factory=lambda: datetime.now(UTC))
     total_iterations: int = 0
     unique_crashes: int = 0
     corpus_size: int = 0
@@ -59,7 +59,7 @@ class FuzzingCampaignStats:
 
     def update_from_campaign(self, campaign: "CoverageGuidedFuzzer"):
         """Update stats from a fuzzing campaign."""
-        elapsed = (datetime.now(timezone.utc) - self.start_time).total_seconds()
+        elapsed = (datetime.now(UTC) - self.start_time).total_seconds()
         self.executions_per_second = (
             self.total_iterations / elapsed if elapsed > 0 else 0.0
         )
@@ -69,8 +69,7 @@ class FuzzingCampaignStats:
 
 
 class CoverageGuidedFuzzer:
-    """
-    Coverage-guided fuzzer for DICOM files.
+    """Coverage-guided fuzzer for DICOM files.
 
     LEARNING: This is a complete, production-quality coverage-guided fuzzer.
     It implements the same principles as professional fuzzing tools.
@@ -93,18 +92,18 @@ class CoverageGuidedFuzzer:
     def __init__(
         self,
         corpus_dir: Path,
-        target_function: Optional[Callable] = None,
+        target_function: Callable | None = None,
         max_corpus_size: int = 1000,
         mutation_severity: MutationSeverity = MutationSeverity.MODERATE,
     ):
-        """
-        Initialize the coverage-guided fuzzer.
+        """Initialize the coverage-guided fuzzer.
 
         Args:
             corpus_dir: Directory to store corpus
             target_function: Function to fuzz (takes Dataset, returns any)
             max_corpus_size: Maximum corpus size
             mutation_severity: Default mutation severity
+
         """
         self.corpus_dir = Path(corpus_dir)
         self.corpus_dir.mkdir(parents=True, exist_ok=True)
@@ -124,7 +123,7 @@ class CoverageGuidedFuzzer:
 
         # Statistics
         self.stats = FuzzingCampaignStats()
-        self.crashes: List[Dict[str, Any]] = []
+        self.crashes: list[dict[str, Any]] = []
 
         logger.info(
             "Coverage-guided fuzzer initialized",
@@ -132,9 +131,8 @@ class CoverageGuidedFuzzer:
             max_corpus_size=max_corpus_size,
         )
 
-    def add_seed(self, dataset: Dataset, seed_id: Optional[str] = None) -> str:
-        """
-        Add a seed input to the corpus.
+    def add_seed(self, dataset: Dataset, seed_id: str | None = None) -> str:
+        """Add a seed input to the corpus.
 
         CONCEPT: Seeds are initial test cases that we know work. We'll mutate
         these to explore the input space.
@@ -145,6 +143,7 @@ class CoverageGuidedFuzzer:
 
         Returns:
             Entry ID for the seed
+
         """
         if seed_id is None:
             seed_id = f"seed_{uuid.uuid4().hex[:8]}"
@@ -165,15 +164,15 @@ class CoverageGuidedFuzzer:
         logger.info("Added seed to corpus", seed_id=seed_id)
         return seed_id
 
-    def fuzz_iteration(self) -> Optional[CorpusEntry]:
-        """
-        Perform one fuzzing iteration.
+    def fuzz_iteration(self) -> CorpusEntry | None:
+        """Perform one fuzzing iteration.
 
         CONCEPT: Each iteration picks an interesting input, mutates it,
         executes the mutation, and evaluates if it's worth keeping.
 
         Returns:
             New corpus entry if interesting, None otherwise
+
         """
         # Select input to mutate
         parent = self._select_input()
@@ -235,8 +234,7 @@ class CoverageGuidedFuzzer:
         show_progress: bool = True,
         stop_on_crash: bool = False,
     ) -> FuzzingCampaignStats:
-        """
-        Run fuzzing campaign.
+        """Run fuzzing campaign.
 
         CONCEPT: A fuzzing campaign is a series of iterations that systematically
         explores the input space looking for bugs.
@@ -248,6 +246,7 @@ class CoverageGuidedFuzzer:
 
         Returns:
             Campaign statistics
+
         """
         logger.info(
             "Starting fuzzing campaign",
@@ -294,9 +293,8 @@ class CoverageGuidedFuzzer:
 
         return self.stats
 
-    def _select_input(self) -> Optional[CorpusEntry]:
-        """
-        Select an input from the corpus to mutate.
+    def _select_input(self) -> CorpusEntry | None:
+        """Select an input from the corpus to mutate.
 
         CONCEPT: We use a weighted selection strategy:
         - 80% of time: Pick high-fitness entries (exploit)
@@ -307,6 +305,7 @@ class CoverageGuidedFuzzer:
 
         Returns:
             Corpus entry to mutate
+
         """
         if not self.corpus_manager.corpus:
             return None
@@ -322,8 +321,7 @@ class CoverageGuidedFuzzer:
         return self.corpus_manager.get_random_entry()
 
     def _mutate_input(self, dataset: Dataset) -> Dataset:
-        """
-        Mutate an input using the DICOM mutator.
+        """Mutate an input using the DICOM mutator.
 
         CONCEPT: We apply multiple mutation strategies to create
         diverse variants of the input.
@@ -333,6 +331,7 @@ class CoverageGuidedFuzzer:
 
         Returns:
             Mutated dataset
+
         """
         # Start mutation session
         self.mutator.start_session(dataset)
@@ -348,9 +347,8 @@ class CoverageGuidedFuzzer:
 
     def _execute_with_coverage(
         self, dataset: Dataset, test_case_id: str
-    ) -> Optional[CoverageSnapshot]:
-        """
-        Execute target function with coverage tracking.
+    ) -> CoverageSnapshot | None:
+        """Execute target function with coverage tracking.
 
         Args:
             dataset: DICOM dataset to execute
@@ -358,6 +356,7 @@ class CoverageGuidedFuzzer:
 
         Returns:
             Coverage snapshot
+
         """
         snapshot = None
 
@@ -375,8 +374,7 @@ class CoverageGuidedFuzzer:
     def _record_crash(
         self, entry_id: str, parent_id: str, dataset: Dataset, exception: Exception
     ):
-        """
-        Record a crash for analysis.
+        """Record a crash for analysis.
 
         CONCEPT: Crashes are the most valuable finds in fuzzing.
         We record all crash details for later analysis.
@@ -386,13 +384,14 @@ class CoverageGuidedFuzzer:
             parent_id: ID of the parent input
             dataset: The crashing DICOM dataset
             exception: The exception that was raised
+
         """
         crash_record = {
             "crash_id": entry_id,
             "parent_id": parent_id,
             "exception_type": type(exception).__name__,
             "exception_message": str(exception),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
         self.crashes.append(crash_record)
@@ -407,11 +406,11 @@ class CoverageGuidedFuzzer:
         )
 
     def get_report(self) -> str:
-        """
-        Generate a fuzzing campaign report.
+        """Generate a fuzzing campaign report.
 
         Returns:
             Human-readable report
+
         """
         self.stats.update_from_campaign(self)
 
@@ -420,10 +419,10 @@ class CoverageGuidedFuzzer:
 
         report = f"""
 Coverage-Guided Fuzzing Campaign Report
-{'=' * 60}
+{"=" * 60}
 
 Campaign ID: {self.stats.campaign_id}
-Duration: {(datetime.now(timezone.utc) - self.stats.start_time).total_seconds():.1f}s
+Duration: {(datetime.now(UTC) - self.stats.start_time).total_seconds():.1f}s
 
 Execution Statistics:
   Total Iterations:        {self.stats.total_iterations}
@@ -432,14 +431,14 @@ Execution Statistics:
 Coverage Statistics:
   Total Lines Covered:     {self.stats.total_coverage}
   Interesting Inputs:      {self.stats.interesting_inputs_found}
-  Coverage Efficiency:     {coverage_stats['efficiency']:.1%}
+  Coverage Efficiency:     {coverage_stats["efficiency"]:.1%}
 
 Corpus Statistics:
-  Current Size:            {corpus_stats['total_entries']}
-  Max Generation:          {corpus_stats['max_generation']}
-  Average Fitness:         {corpus_stats['avg_fitness']:.2f}
-  Total Added:             {corpus_stats['total_added']}
-  Total Rejected:          {corpus_stats['total_rejected']}
+  Current Size:            {corpus_stats["total_entries"]}
+  Max Generation:          {corpus_stats["max_generation"]}
+  Average Fitness:         {corpus_stats["avg_fitness"]:.2f}
+  Total Added:             {corpus_stats["total_added"]}
+  Total Rejected:          {corpus_stats["total_rejected"]}
 
 Crashes Found:
   Unique Crashes:          {self.stats.unique_crashes}

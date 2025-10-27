@@ -1,5 +1,4 @@
-"""
-DICOM Fuzzer Structured Logging System
+"""DICOM Fuzzer Structured Logging System
 
 Provides structured logging with security event tracking and performance metrics.
 Uses structlog for consistent, analyzable log output.
@@ -7,9 +6,9 @@ Uses structlog for consistent, analyzable log output.
 
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import structlog
 from structlog.types import EventDict, WrappedLogger
@@ -38,6 +37,7 @@ def redact_sensitive_data(
 
     Returns:
         Processed event dictionary with sensitive data redacted
+
     """
     for key, value in event_dict.items():
         if key.lower() in SENSITIVE_FIELDS:
@@ -63,8 +63,9 @@ def add_timestamp(
 
     Returns:
         Event dictionary with timestamp added
+
     """
-    event_dict["timestamp"] = datetime.now(timezone.utc).isoformat()
+    event_dict["timestamp"] = datetime.now(UTC).isoformat()
     return event_dict
 
 
@@ -80,6 +81,7 @@ def add_security_context(
 
     Returns:
         Event dictionary with security context added
+
     """
     if event_dict.get("security_event"):
         event_dict["event_category"] = "SECURITY"
@@ -89,7 +91,7 @@ def add_security_context(
 
 
 def configure_logging(
-    log_level: str = "INFO", json_format: bool = True, log_file: Optional[Path] = None
+    log_level: str = "INFO", json_format: bool = True, log_file: Path | None = None
 ) -> None:
     """Configure structlog for the application.
 
@@ -102,6 +104,7 @@ def configure_logging(
         >>> configure_logging(log_level="DEBUG", json_format=True)
         >>> logger = structlog.get_logger("dicom_fuzzer")
         >>> logger.info("fuzzing_started", target="example.dcm")
+
     """
     # Clear existing handlers to allow reconfiguration
     for handler in logging.root.handlers[:]:
@@ -160,6 +163,7 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     Example:
         >>> logger = get_logger(__name__)
         >>> logger.info("operation_complete", duration_ms=123, status="success")
+
     """
     return structlog.get_logger(name)
 
@@ -172,11 +176,12 @@ class SecurityEventLogger:
 
         Args:
             logger: Base structlog logger to use
+
         """
         self.logger = logger
 
     def log_validation_failure(
-        self, file_path: str, reason: str, details: Optional[Dict[str, Any]] = None
+        self, file_path: str, reason: str, details: dict[str, Any] | None = None
     ) -> None:
         """Log DICOM validation failure.
 
@@ -184,6 +189,7 @@ class SecurityEventLogger:
             file_path: Path to the file that failed validation
             reason: Reason for validation failure
             details: Additional details about the failure
+
         """
         self.logger.warning(
             "validation_failure",
@@ -198,7 +204,7 @@ class SecurityEventLogger:
         self,
         pattern_type: str,
         description: str,
-        details: Optional[Dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         """Log detection of suspicious pattern.
 
@@ -206,6 +212,7 @@ class SecurityEventLogger:
             pattern_type: Type of suspicious pattern detected
             description: Human-readable description
             details: Additional details about the pattern
+
         """
         self.logger.warning(
             "suspicious_pattern_detected",
@@ -217,7 +224,7 @@ class SecurityEventLogger:
         )
 
     def log_fuzzing_campaign(
-        self, campaign_id: str, status: str, stats: Optional[Dict[str, Any]] = None
+        self, campaign_id: str, status: str, stats: dict[str, Any] | None = None
     ) -> None:
         """Log fuzzing campaign status.
 
@@ -225,6 +232,7 @@ class SecurityEventLogger:
             campaign_id: Unique identifier for the campaign
             status: Campaign status (started, completed, failed)
             stats: Campaign statistics
+
         """
         self.logger.info(
             "fuzzing_campaign",
@@ -244,6 +252,7 @@ class PerformanceLogger:
 
         Args:
             logger: Base structlog logger to use
+
         """
         self.logger = logger
 
@@ -251,7 +260,7 @@ class PerformanceLogger:
         self,
         operation: str,
         duration_ms: float,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Log performance of an operation.
 
@@ -259,6 +268,7 @@ class PerformanceLogger:
             operation: Name of the operation
             duration_ms: Duration in milliseconds
             metadata: Additional operation metadata
+
         """
         self.logger.info(
             "operation_performance",
@@ -282,6 +292,7 @@ class PerformanceLogger:
             mutations_count: Number of mutations applied
             duration_ms: Total duration in milliseconds
             file_size_bytes: Resulting file size in bytes
+
         """
         self.logger.info(
             "mutation_statistics",
@@ -297,7 +308,7 @@ class PerformanceLogger:
         self,
         memory_mb: float,
         cpu_percent: float,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Log resource usage metrics.
 
@@ -305,6 +316,7 @@ class PerformanceLogger:
             memory_mb: Memory usage in megabytes
             cpu_percent: CPU usage percentage
             metadata: Additional resource metadata
+
         """
         self.logger.info(
             "resource_usage",

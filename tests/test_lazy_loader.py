@@ -82,7 +82,9 @@ class TestLazyDicomLoader:
         # In stop_before_pixels mode, PixelData may or may not exist as an attribute
         # depending on pydicom version - check if it exists, it should not be bytes
         if hasattr(ds, "PixelData"):
-            assert not isinstance(ds.PixelData, bytes), "PixelData should not be bytes in metadata-only mode"
+            assert not isinstance(ds.PixelData, bytes), (
+                "PixelData should not be bytes in metadata-only mode"
+            )
 
     def test_full_loading(self, sample_dicom_file):
         """Test that full loading includes pixel data."""
@@ -119,7 +121,9 @@ class TestLazyDicomLoader:
         ds = loader.load(sample_dicom_file)
         # In metadata-only mode, PixelData may not exist as an attribute
         if hasattr(ds, "PixelData"):
-            assert not isinstance(ds.PixelData, bytes), "PixelData should not be bytes in metadata-only mode"
+            assert not isinstance(ds.PixelData, bytes), (
+                "PixelData should not be bytes in metadata-only mode"
+            )
 
         # Load pixels on demand
         pixel_data = loader.load_pixels(ds, sample_dicom_file)

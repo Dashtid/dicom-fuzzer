@@ -45,7 +45,7 @@ def main():
     output_dir.mkdir(exist_ok=True)
 
     for i in range(num_files):
-        print(f"Generating file {i+1}/{num_files}...", end=" ")
+        print(f"Generating file {i + 1}/{num_files}...", end=" ")
 
         try:
             # Generate a DICOM file using grammar
@@ -62,9 +62,9 @@ def main():
             print(f"[OK] - {len(dicom_bytes)} bytes, parsed successfully")
 
             # Show some properties
-            if hasattr(dataset, 'PatientName'):
+            if hasattr(dataset, "PatientName"):
                 print(f"       PatientName: {dataset.PatientName}")
-            if hasattr(dataset, 'Modality'):
+            if hasattr(dataset, "Modality"):
                 print(f"       Modality: {dataset.Modality}")
 
         except Exception as e:

@@ -1,5 +1,4 @@
-"""
-3D DICOM Series Mutation Strategies
+"""3D DICOM Series Mutation Strategies
 
 This module provides Series3DMutator with five specialized mutation strategies
 for fuzzing complete DICOM series (multi-slice 3D volumes).
@@ -56,8 +55,7 @@ class SeriesMutationStrategy(Enum):
 
 @dataclass
 class SeriesMutationRecord:
-    """
-    Record of a series-level mutation.
+    """Record of a series-level mutation.
 
     Extends MutationRecord with series-specific information.
     """
@@ -84,20 +82,19 @@ class SeriesMutationRecord:
 
 
 class Series3DMutator:
-    """
-    Mutator for 3D DICOM series with specialized attack strategies.
+    """Mutator for 3D DICOM series with specialized attack strategies.
 
     This class implements series-level fuzzing that targets vulnerabilities
     in multi-slice DICOM loading, parsing, and rendering.
     """
 
     def __init__(self, severity: str = "moderate", seed: int | None = None):
-        """
-        Initialize Series3DMutator.
+        """Initialize Series3DMutator.
 
         Args:
             severity: Mutation severity (minimal, moderate, aggressive, extreme)
             seed: Random seed for reproducibility
+
         """
         if severity not in ["minimal", "moderate", "aggressive", "extreme"]:
             raise ValueError(f"Invalid severity: {severity}")
@@ -124,8 +121,7 @@ class Series3DMutator:
         strategy: str | None = None,
         mutation_count: int | None = None,
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
-        """
-        Mutate a complete DICOM series using specified strategy.
+        """Mutate a complete DICOM series using specified strategy.
 
         Args:
             series: DicomSeries to mutate
@@ -137,6 +133,7 @@ class Series3DMutator:
 
         Raises:
             ValueError: If series is empty or strategy invalid
+
         """
         if not series.slices:
             raise ValueError("Cannot mutate empty series")
@@ -178,14 +175,14 @@ class Series3DMutator:
         return mutated_datasets, records
 
     def _load_datasets(self, series: DicomSeries) -> list[Dataset]:
-        """
-        Load all DICOM datasets from series.
+        """Load all DICOM datasets from series.
 
         Args:
             series: DicomSeries object
 
         Returns:
             List of pydicom Dataset objects (deep copies)
+
         """
         datasets = []
         for slice_path in series.slices:
@@ -202,8 +199,7 @@ class Series3DMutator:
     def _mutate_metadata_corruption(
         self, datasets: list[Dataset], series: DicomSeries, mutation_count: int
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
-        """
-        Strategy 1: Series Metadata Corruption.
+        """Strategy 1: Series Metadata Corruption.
 
         Corrupts series-level metadata to trigger parsing vulnerabilities:
         - Invalid SeriesInstanceUID format (empty, too long, invalid characters)
@@ -361,8 +357,7 @@ class Series3DMutator:
     def _mutate_slice_position_attack(
         self, datasets: list[Dataset], series: DicomSeries, mutation_count: int
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
-        """
-        Strategy 2: Slice Position Attacks.
+        """Strategy 2: Slice Position Attacks.
 
         Corrupts ImagePositionPatient to trigger geometry vulnerabilities:
         - Randomized z-coordinates (out of sequence)
@@ -517,8 +512,7 @@ class Series3DMutator:
     def _mutate_boundary_slice_targeting(
         self, datasets: list[Dataset], series: DicomSeries, mutation_count: int
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
-        """
-        Strategy 3: Boundary Slice Targeting.
+        """Strategy 3: Boundary Slice Targeting.
 
         Targets first, last, and middle slices with heavy corruption:
         - First slice corruption (affects series initialization)
@@ -590,8 +584,7 @@ class Series3DMutator:
     def _mutate_gradient_mutation(
         self, datasets: list[Dataset], series: DicomSeries, mutation_count: int
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
-        """
-        Strategy 4: Gradient Mutations.
+        """Strategy 4: Gradient Mutations.
 
         Progressive corruption from clean to heavily mutated:
         - Linear gradient (corruption increases slice by slice)
@@ -653,8 +646,7 @@ class Series3DMutator:
     def _mutate_inconsistency_injection(
         self, datasets: list[Dataset], series: DicomSeries, mutation_count: int
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
-        """
-        Strategy 5: Inconsistency Injection.
+        """Strategy 5: Inconsistency Injection.
 
         Creates inconsistencies across slices:
         - Mixed modalities (CT in one slice, MRI in another)

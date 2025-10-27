@@ -3,8 +3,8 @@ Pytest configuration and shared fixtures for DICOM-Fuzzer tests.
 """
 
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pydicom
 import pytest

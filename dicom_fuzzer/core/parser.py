@@ -7,7 +7,7 @@ with extensive validation, error handling, and security considerations.
 import logging
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import numpy as np
 import pydicom
@@ -30,6 +30,7 @@ class DicomParser:
         dataset: Parsed DICOM dataset
         metadata_cache: Cached metadata for performance
         security_checks_enabled: Whether to perform security validation
+
     """
 
     # Critical DICOM tags that should never be mutated for safety
@@ -45,9 +46,9 @@ class DicomParser:
 
     def __init__(
         self,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         security_checks: bool = True,
-        max_file_size: Optional[int] = None,
+        max_file_size: int | None = None,
     ) -> None:
         """Initialize DICOM parser with security validation.
 
@@ -60,12 +61,13 @@ class DicomParser:
             ParsingError: If file cannot be parsed
             SecurityViolationError: If security checks fail
             ValidationError: If file validation fails
+
         """
         self.file_path = Path(file_path)
         self.security_checks_enabled = security_checks
         self.max_file_size = max_file_size or self.MAX_FILE_SIZE
-        self._metadata_cache: Optional[Dict[str, Any]] = None
-        self._dataset: Optional[Dataset] = None
+        self._metadata_cache: dict[str, Any] | None = None
+        self._dataset: Dataset | None = None
 
         # Validate file before parsing
         if self.security_checks_enabled:
@@ -86,6 +88,7 @@ class DicomParser:
 
         Raises:
             SecurityViolationError: If security checks fail
+
         """
         # Check file existence and permissions
         if not self.file_path.exists():
@@ -123,7 +126,7 @@ class DicomParser:
             # Validate dataset structure
             self._validate_dataset()
 
-        except (pydicom.errors.InvalidDicomError, IOError) as e:
+        except (OSError, pydicom.errors.InvalidDicomError) as e:
             raise ParsingError(
                 f"Invalid DICOM file format: {e}", error_code="INVALID_DICOM_FORMAT"
             )
@@ -133,6 +136,7 @@ class DicomParser:
 
         Raises:
             ValidationError: If dataset validation fails
+
         """
         if self._dataset is None:
             raise ValidationError("Dataset is None after parsing")
@@ -164,12 +168,13 @@ class DicomParser:
 
         Raises:
             ParsingError: If dataset is not available
+
         """
         if self._dataset is None:
             raise ParsingError("Dataset not available - parsing may have failed")
         return self._dataset
 
-    def extract_metadata(self, include_private: bool = False) -> Dict[str, Any]:
+    def extract_metadata(self, include_private: bool = False) -> dict[str, Any]:
         """Extract comprehensive metadata from the DICOM file.
 
         Args:
@@ -181,6 +186,7 @@ class DicomParser:
         Security:
             Private tags may contain sensitive information and should be
             handled with care in production environments.
+
         """
         if self._metadata_cache is not None:
             return self._metadata_cache
@@ -267,7 +273,7 @@ class DicomParser:
         self._metadata_cache = metadata
         return metadata
 
-    def _extract_private_tags(self) -> Dict[str, Any]:
+    def _extract_private_tags(self) -> dict[str, Any]:
         """Extract private DICOM tags.
 
         Returns:
@@ -275,6 +281,7 @@ class DicomParser:
 
         Security:
             Private tags may contain sensitive or proprietary information.
+
         """
         private_tags = {}
 
@@ -293,7 +300,7 @@ class DicomParser:
 
         return private_tags
 
-    def get_pixel_data(self, validate: bool = True) -> Optional[np.ndarray]:
+    def get_pixel_data(self, validate: bool = True) -> np.ndarray | None:
         """Extract pixel array with validation.
 
         Args:
@@ -304,6 +311,7 @@ class DicomParser:
 
         Raises:
             ValidationError: If pixel data validation fails
+
         """
         try:
             if not hasattr(self.dataset, "pixel_array"):
@@ -333,6 +341,7 @@ class DicomParser:
 
         Raises:
             ValidationError: If validation fails
+
         """
         # Check array properties
         if pixel_array.size == 0:
@@ -351,11 +360,12 @@ class DicomParser:
                 error_code="PIXEL_DATA_TOO_LARGE",
             )
 
-    def get_transfer_syntax(self) -> Optional[str]:
+    def get_transfer_syntax(self) -> str | None:
         """Get the transfer syntax of the DICOM file.
 
         Returns:
             Transfer syntax UID or None if not available
+
         """
         try:
             return getattr(self.dataset, "file_meta", {}).get("TransferSyntaxUID", None)
@@ -368,6 +378,7 @@ class DicomParser:
 
         Returns:
             True if compressed, False otherwise
+
         """
         transfer_syntax = self.get_transfer_syntax()
         if not transfer_syntax:
@@ -388,7 +399,7 @@ class DicomParser:
 
         return transfer_syntax in compressed_syntaxes
 
-    def get_critical_tags(self) -> Dict[str, Any]:
+    def get_critical_tags(self) -> dict[str, Any]:
         """Extract critical DICOM tags that should not be mutated.
 
         Returns:
@@ -397,6 +408,7 @@ class DicomParser:
         Security:
             These tags are essential for DICOM functionality and should
             be preserved during fuzzing operations.
+
         """
         critical_data = {}
 
@@ -418,6 +430,7 @@ class DicomParser:
 
         Yields:
             The dataset for temporary modification
+
         """
         # Create a deep copy for mutation
         original_state = self.dataset.copy()

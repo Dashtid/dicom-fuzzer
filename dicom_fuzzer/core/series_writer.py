@@ -1,5 +1,4 @@
-"""
-DICOM Series Writer
+"""DICOM Series Writer
 
 This module provides SeriesWriter for writing fuzzed DICOM series to disk with
 comprehensive metadata tracking and reproduction capabilities.
@@ -41,8 +40,7 @@ logger = get_logger(__name__)
 
 @dataclass
 class SeriesMetadata:
-    """
-    Metadata about a written DICOM series.
+    """Metadata about a written DICOM series.
 
     Tracks both original and fuzzed series characteristics for debugging,
     analysis, and reproduction.
@@ -78,19 +76,18 @@ class SeriesMetadata:
 
 
 class SeriesWriter:
-    """
-    Write DICOM series to disk with comprehensive metadata tracking.
+    """Write DICOM series to disk with comprehensive metadata tracking.
 
     This class handles the output of fuzzed DICOM series, creating organized
     directory structures, metadata files, and reproduction scripts.
     """
 
     def __init__(self, output_root: Path):
-        """
-        Initialize SeriesWriter.
+        """Initialize SeriesWriter.
 
         Args:
             output_root: Root directory for all output (e.g., ./fuzzed_output/)
+
         """
         self.output_root = Path(output_root)
         self.output_root.mkdir(parents=True, exist_ok=True)
@@ -104,8 +101,7 @@ class SeriesWriter:
         mutations_applied: list[dict] | None = None,
         original_series: DicomSeries | None = None,
     ) -> SeriesMetadata:
-        """
-        Write a complete DICOM series to disk with metadata.
+        """Write a complete DICOM series to disk with metadata.
 
         Args:
             series: DicomSeries object with metadata
@@ -120,6 +116,7 @@ class SeriesWriter:
         Raises:
             ValueError: If series and datasets count mismatch
             IOError: If write fails
+
         """
         if len(datasets) != series.slice_count:
             raise ValueError(
@@ -198,8 +195,7 @@ class SeriesWriter:
         mutation_strategy: str | None = None,
         mutations_applied: list[dict] | None = None,
     ) -> Path:
-        """
-        Write a single DICOM slice to disk (for backward compatibility).
+        """Write a single DICOM slice to disk (for backward compatibility).
 
         Args:
             dataset: pydicom Dataset to write
@@ -209,6 +205,7 @@ class SeriesWriter:
 
         Returns:
             Path to written file
+
         """
         output_path = self.output_root / output_name
 
@@ -237,14 +234,14 @@ class SeriesWriter:
             raise OSError(f"Failed to write {output_name}") from e
 
     def _create_series_directory(self, series: DicomSeries) -> Path:
-        """
-        Create output directory for series.
+        """Create output directory for series.
 
         Args:
             series: DicomSeries object
 
         Returns:
             Path to created directory
+
         """
         # Use shortened UID for directory name
         short_uid = (
@@ -264,12 +261,12 @@ class SeriesWriter:
         return series_dir
 
     def _write_metadata_json(self, series_dir: Path, metadata: SeriesMetadata) -> None:
-        """
-        Write metadata.json file to series directory.
+        """Write metadata.json file to series directory.
 
         Args:
             series_dir: Series output directory
             metadata: SeriesMetadata object
+
         """
         metadata_path = series_dir / "metadata.json"
 
@@ -283,12 +280,12 @@ class SeriesWriter:
     def _create_reproduction_script(
         self, series_dir: Path, metadata: SeriesMetadata
     ) -> None:
-        """
-        Create reproduce.py script for debugging and verification.
+        """Create reproduce.py script for debugging and verification.
 
         Args:
             series_dir: Series output directory
             metadata: SeriesMetadata object
+
         """
         script_path = series_dir / "reproduce.py"
 
@@ -360,14 +357,14 @@ if __name__ == "__main__":
             logger.warning(f"Failed to create reproduce.py: {e}")
 
     def cleanup_old_series(self, days: int = 7) -> int:
-        """
-        Clean up series directories older than specified days.
+        """Clean up series directories older than specified days.
 
         Args:
             days: Delete series older than this many days
 
         Returns:
             Number of directories deleted
+
         """
         import time
 

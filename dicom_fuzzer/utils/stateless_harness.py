@@ -1,5 +1,4 @@
-"""
-Stateless Harness Validation Utilities
+"""Stateless Harness Validation Utilities
 
 CONCEPT: Ensure fuzzing harness maintains 100% stability through
 stateless design and determinism validation.
@@ -13,8 +12,9 @@ has hidden state, stability can drop, indicating nondeterministic behavior."
 import gc
 import hashlib
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +24,8 @@ def validate_determinism(
     test_function: Callable[[Any], Any],
     runs: int = 3,
     cleanup: bool = True,
-) -> tuple[bool, Optional[str]]:
-    """
-    Validate that test function produces deterministic results.
+) -> tuple[bool, str | None]:
+    """Validate that test function produces deterministic results.
 
     CONCEPT: Run same input multiple times and verify identical output.
     Detects hidden state, race conditions, or entropy sources.
@@ -39,6 +38,7 @@ def validate_determinism(
 
     Returns:
         Tuple of (is_deterministic: bool, error_message: str)
+
     """
     results = []
     result_hashes = []
@@ -78,14 +78,14 @@ def validate_determinism(
 
 
 def _hash_result(result: Any) -> str:
-    """
-    Hash result for determinism comparison.
+    """Hash result for determinism comparison.
 
     Args:
         result: Result to hash
 
     Returns:
         Hash string
+
     """
     if result is None:
         return hashlib.sha256(b"None").hexdigest()
@@ -109,8 +109,7 @@ def _hash_result(result: Any) -> str:
 
 
 def create_stateless_test_wrapper(test_function: Callable) -> Callable:
-    """
-    Create a stateless wrapper around test function.
+    """Create a stateless wrapper around test function.
 
     CONCEPT: Ensures fresh state for each test by:
     1. Force garbage collection before test
@@ -122,6 +121,7 @@ def create_stateless_test_wrapper(test_function: Callable) -> Callable:
 
     Returns:
         Stateless wrapper function
+
     """
 
     def stateless_wrapper(*args, **kwargs):
@@ -142,10 +142,9 @@ def create_stateless_test_wrapper(test_function: Callable) -> Callable:
 
 
 def detect_state_leaks(
-    harness_function: Callable[[Path], Any], test_files: List[Path]
+    harness_function: Callable[[Path], Any], test_files: list[Path]
 ) -> dict:
-    """
-    Detect state leaks between harness executions.
+    """Detect state leaks between harness executions.
 
     CONCEPT: Run multiple test files and check if earlier tests affect later ones.
 
@@ -155,6 +154,7 @@ def detect_state_leaks(
 
     Returns:
         Dictionary with leak detection results
+
     """
     results = {"leaked": False, "evidence": [], "affected_files": []}
 

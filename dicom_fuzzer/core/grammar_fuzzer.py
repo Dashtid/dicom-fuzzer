@@ -1,5 +1,4 @@
-"""
-Grammar-Based DICOM Fuzzer - Advanced Mutation Engine
+"""Grammar-Based DICOM Fuzzer - Advanced Mutation Engine
 
 LEARNING OBJECTIVE: This module demonstrates grammar-based fuzzing,
 where we understand the structure and rules (grammar) of DICOM files
@@ -18,14 +17,11 @@ WHY: Grammar-based fuzzing finds different bugs than random fuzzing:
 This is more sophisticated than Phase 1's random mutations.
 """
 
-from typing import Dict, List, Optional, Set
-
 from pydicom.dataset import Dataset
 
 
 class DicomGrammarRule:
-    """
-    Represents a DICOM grammar rule.
+    """Represents a DICOM grammar rule.
 
     CONCEPT: DICOM has many implicit rules:
     - Required tags for specific SOP Classes
@@ -37,18 +33,18 @@ class DicomGrammarRule:
     def __init__(
         self,
         rule_name: str,
-        tags_involved: List[str],
+        tags_involved: list[str],
         rule_type: str,
         description: str,
     ):
-        """
-        Initialize a grammar rule.
+        """Initialize a grammar rule.
 
         Args:
             rule_name: Name of the rule
             tags_involved: List of DICOM tag keywords involved
             rule_type: Type of rule (required, conditional, range, etc.)
             description: Human-readable description
+
         """
         self.rule_name = rule_name
         self.tags_involved = tags_involved
@@ -57,8 +53,7 @@ class DicomGrammarRule:
 
 
 class GrammarFuzzer:
-    """
-    Grammar-based DICOM fuzzer.
+    """Grammar-based DICOM fuzzer.
 
     CONCEPT: Uses knowledge of DICOM structure to create intelligent mutations
     that violate specific rules while maintaining syntactic validity.
@@ -75,15 +70,15 @@ class GrammarFuzzer:
         self.rules = self._load_dicom_rules()
         self.sop_class_requirements = self._load_sop_class_requirements()
 
-    def _load_dicom_rules(self) -> List[DicomGrammarRule]:
-        """
-        Load DICOM grammar rules.
+    def _load_dicom_rules(self) -> list[DicomGrammarRule]:
+        """Load DICOM grammar rules.
 
         CONCEPT: These rules encode DICOM standard requirements.
         In production, this would load from DICOM specification files.
 
         Returns:
             List of grammar rules
+
         """
         rules = []
 
@@ -160,15 +155,15 @@ class GrammarFuzzer:
 
         return rules
 
-    def _load_sop_class_requirements(self) -> Dict[str, Set[str]]:
-        """
-        Load SOP Class specific requirements.
+    def _load_sop_class_requirements(self) -> dict[str, set[str]]:
+        """Load SOP Class specific requirements.
 
         CONCEPT: Different DICOM SOP Classes (CT, MR, US, etc.)
         have different required tags. This encodes those rules.
 
         Returns:
             Dictionary mapping SOP Class UIDs to required tags
+
         """
         return {
             # CT Image Storage
@@ -208,8 +203,7 @@ class GrammarFuzzer:
         }
 
     def violate_required_tags(self, dataset: Dataset) -> Dataset:
-        """
-        Violate required tag rules.
+        """Violate required tag rules.
 
         CONCEPT: Remove or corrupt tags that DICOM says are required.
         Tests parser error handling for missing required elements.
@@ -222,6 +216,7 @@ class GrammarFuzzer:
 
         Returns:
             Mutated dataset with missing required tags
+
         """
         # Find applicable rules
         for rule in self.rules:
@@ -238,8 +233,7 @@ class GrammarFuzzer:
         return dataset
 
     def violate_conditional_rules(self, dataset: Dataset) -> Dataset:
-        """
-        Violate conditional dependency rules.
+        """Violate conditional dependency rules.
 
         CONCEPT: DICOM has "if X then Y" rules. For example:
         - If PixelData exists, Rows and Columns must exist
@@ -252,6 +246,7 @@ class GrammarFuzzer:
 
         Returns:
             Mutated dataset with violated dependencies
+
         """
         import random
 
@@ -272,8 +267,7 @@ class GrammarFuzzer:
         return dataset
 
     def create_inconsistent_state(self, dataset: Dataset) -> Dataset:
-        """
-        Create semantically inconsistent but syntactically valid data.
+        """Create semantically inconsistent but syntactically valid data.
 
         CONCEPT: The data follows DICOM syntax rules but makes no sense:
         - Rows=10 but pixel data is 1MB
@@ -288,6 +282,7 @@ class GrammarFuzzer:
 
         Returns:
             Dataset with inconsistent state
+
         """
         from datetime import datetime, timedelta
 
@@ -320,8 +315,7 @@ class GrammarFuzzer:
         return dataset
 
     def violate_value_constraints(self, dataset: Dataset) -> Dataset:
-        """
-        Violate VR-specific value constraints.
+        """Violate VR-specific value constraints.
 
         CONCEPT: Each DICOM VR has specific value constraints:
         - DA (Date): Must be YYYYMMDD
@@ -340,6 +334,7 @@ class GrammarFuzzer:
 
         Returns:
             Dataset with invalid VR values (where pydicom allows)
+
         """
         import random
 
@@ -388,10 +383,9 @@ class GrammarFuzzer:
         return dataset
 
     def apply_grammar_based_mutation(
-        self, dataset: Dataset, mutation_type: Optional[str] = None
+        self, dataset: Dataset, mutation_type: str | None = None
     ) -> Dataset:
-        """
-        Apply grammar-based mutation to dataset.
+        """Apply grammar-based mutation to dataset.
 
         Args:
             dataset: Dataset to mutate
@@ -399,6 +393,7 @@ class GrammarFuzzer:
 
         Returns:
             Mutated dataset
+
         """
         import random
 

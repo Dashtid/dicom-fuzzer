@@ -6,7 +6,6 @@ import sys
 
 def create_html_report(json_path: str, html_path: str = None):
     """Create HTML report from JSON fuzzing results."""
-
     # Read JSON report
     with open(json_path) as f:
         report = json.load(f)

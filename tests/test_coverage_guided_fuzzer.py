@@ -4,21 +4,22 @@ Tests for Coverage-Guided Fuzzer
 Comprehensive test suite for the coverage-guided fuzzing system.
 """
 
-import pytest
+import sys
 import tempfile
 from pathlib import Path
-import sys
+
+import pytest
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dicom_fuzzer.core.coverage_instrumentation import CoverageTracker, CoverageInfo
 from dicom_fuzzer.core.corpus_manager import CorpusManager, Seed, SeedPriority
+from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
 from dicom_fuzzer.core.coverage_guided_mutator import (
     CoverageGuidedMutator,
     MutationType,
 )
-from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
+from dicom_fuzzer.core.coverage_instrumentation import CoverageInfo, CoverageTracker
 
 
 class TestCoverageInstrumentation:

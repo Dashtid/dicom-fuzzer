@@ -163,7 +163,7 @@ class TestFuzzingSessionEdgeCases:
         assert report_path.exists()
 
         # Verify content is valid JSON
-        with open(report_path, "r") as f:
+        with open(report_path) as f:
             report_data = json.load(f)
             assert "session_info" in report_data
             assert "statistics" in report_data

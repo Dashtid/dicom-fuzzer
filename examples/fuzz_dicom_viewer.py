@@ -73,15 +73,15 @@ except ImportError:
     DEFAULT_VIEWER = os.getenv("DICOM_VIEWER_PATH")
     DEFAULT_TIMEOUT = int(os.getenv("DICOM_VIEWER_TIMEOUT", "5"))
 
-from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator  # noqa: E402
-from dicom_fuzzer.core.fuzzing_session import FuzzingSession  # noqa: E402
-from dicom_fuzzer.core.generator import DICOMGenerator  # noqa: E402
-from dicom_fuzzer.core.mutator import DicomMutator  # noqa: E402
-from dicom_fuzzer.core.types import MutationSeverity  # noqa: E402
-from dicom_fuzzer.core.validator import DicomValidator  # noqa: E402
+from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
+from dicom_fuzzer.core.fuzzing_session import FuzzingSession
+from dicom_fuzzer.core.generator import DICOMGenerator
+from dicom_fuzzer.core.mutator import DicomMutator
+from dicom_fuzzer.core.types import MutationSeverity
+from dicom_fuzzer.core.validator import DicomValidator
 
-# from dicom_fuzzer.strategies.dictionary_fuzzer import DictionaryFuzzer  # noqa: F401
-from dicom_fuzzer.utils.logger import get_logger  # noqa: E402
+# from dicom_fuzzer.strategies.dictionary_fuzzer import DictionaryFuzzer
+from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

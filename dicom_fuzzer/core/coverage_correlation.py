@@ -1,5 +1,4 @@
-"""
-Coverage Correlation - Link Crashes to Code Coverage
+"""Coverage Correlation - Link Crashes to Code Coverage
 
 Correlates fuzzing results with code coverage data to identify:
 - Which code paths trigger crashes
@@ -9,18 +8,17 @@ Correlates fuzzing results with code coverage data to identify:
 
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
 
 
 class CoverageCorrelator:
     """Correlate crashes with code coverage data."""
 
-    def __init__(self, coverage_file: Optional[Path] = None):
-        """
-        Initialize coverage correlator.
+    def __init__(self, coverage_file: Path | None = None):
+        """Initialize coverage correlator.
 
         Args:
             coverage_file: Path to coverage.json file from coverage.py
+
         """
         self.coverage_file = coverage_file or Path("reports/coverage/.coverage")
         self.coverage_data = {}
@@ -32,15 +30,20 @@ class CoverageCorrelator:
         """Load coverage data from file."""
         try:
             # Coverage.py stores data in JSON format
-            with open(self.coverage_file, "r", encoding="utf-8") as f:
+            with open(self.coverage_file, encoding="utf-8") as f:
                 self.coverage_data = json.load(f)
-        except Exception:
-            # Try alternate format
-            pass
+        except Exception as e:
+            # Try alternate format or coverage file doesn't exist yet
+            # This is expected during first run before coverage is collected
+            import structlog
 
-    def correlate_crashes(self, crashes: List[Dict], fuzzing_session: Dict) -> Dict:
-        """
-        Correlate crashes with coverage data.
+            logger = structlog.get_logger()
+            logger.debug(
+                "coverage_file_not_loaded", file=str(self.coverage_file), reason=str(e)
+            )
+
+    def correlate_crashes(self, crashes: list[dict], fuzzing_session: dict) -> dict:
+        """Correlate crashes with coverage data.
 
         Args:
             crashes: List of crash records
@@ -48,6 +51,7 @@ class CoverageCorrelator:
 
         Returns:
             Correlation analysis dictionary
+
         """
         results = {
             "crashes_with_coverage": [],
@@ -74,9 +78,8 @@ class CoverageCorrelator:
 
         return results
 
-    def _analyze_crash_coverage(self, crash: Dict, session: Dict) -> Optional[Dict]:
-        """
-        Analyze coverage for a specific crash.
+    def _analyze_crash_coverage(self, crash: dict, session: dict) -> dict | None:
+        """Analyze coverage for a specific crash.
 
         Args:
             crash: Crash record
@@ -84,6 +87,7 @@ class CoverageCorrelator:
 
         Returns:
             Coverage analysis or None
+
         """
         # Get file that caused crash
         file_id = crash.get("fuzzed_file_id")
@@ -110,15 +114,15 @@ class CoverageCorrelator:
             "crash_type": crash.get("crash_type"),
         }
 
-    def _identify_hotspots(self, crash_coverage: List[Dict]) -> Dict:
-        """
-        Identify code areas with multiple crashes.
+    def _identify_hotspots(self, crash_coverage: list[dict]) -> dict:
+        """Identify code areas with multiple crashes.
 
         Args:
             crash_coverage: List of crash coverage analyses
 
         Returns:
             Hotspot dictionary
+
         """
         hotspots = {}
 
@@ -145,15 +149,15 @@ class CoverageCorrelator:
             sorted(hotspots.items(), key=lambda x: x[1]["crash_count"], reverse=True)
         )
 
-    def _generate_recommendations(self, results: Dict) -> List[str]:
-        """
-        Generate coverage-guided fuzzing recommendations.
+    def _generate_recommendations(self, results: dict) -> list[str]:
+        """Generate coverage-guided fuzzing recommendations.
 
         Args:
             results: Correlation results
 
         Returns:
             List of recommendations
+
         """
         recommendations = []
 
@@ -183,10 +187,9 @@ class CoverageCorrelator:
 
 
 def correlate_session_coverage(
-    session_file: Path, coverage_file: Optional[Path] = None
-) -> Dict:
-    """
-    Correlate entire fuzzing session with coverage.
+    session_file: Path, coverage_file: Path | None = None
+) -> dict:
+    """Correlate entire fuzzing session with coverage.
 
     Args:
         session_file: Path to session JSON
@@ -194,8 +197,9 @@ def correlate_session_coverage(
 
     Returns:
         Correlation analysis
+
     """
-    with open(session_file, "r", encoding="utf-8") as f:
+    with open(session_file, encoding="utf-8") as f:
         session_data = json.load(f)
 
     correlator = CoverageCorrelator(coverage_file)

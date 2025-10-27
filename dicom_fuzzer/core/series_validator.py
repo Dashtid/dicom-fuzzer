@@ -1,5 +1,4 @@
-"""
-DICOM Series Validation
+"""DICOM Series Validation
 
 This module provides SeriesValidator for comprehensive validation of DICOM series
 to detect anomalies, inconsistencies, and potential attack vectors.
@@ -46,8 +45,7 @@ class ValidationSeverity(Enum):
 
 @dataclass
 class ValidationIssue:
-    """
-    Represents a single validation issue found in a series.
+    """Represents a single validation issue found in a series.
 
     Attributes:
         severity: Severity level of the issue
@@ -56,6 +54,7 @@ class ValidationIssue:
         slice_index: Index of affected slice (None if series-level issue)
         slice_path: Path to affected slice file (None if series-level issue)
         details: Additional details about the issue
+
     """
 
     severity: ValidationSeverity
@@ -75,14 +74,14 @@ class ValidationIssue:
 
 @dataclass
 class ValidationReport:
-    """
-    Complete validation report for a DICOM series.
+    """Complete validation report for a DICOM series.
 
     Attributes:
         series: The DicomSeries that was validated
         issues: List of ValidationIssue objects found
         is_valid: True if no ERROR or CRITICAL issues
         validation_time: Time taken for validation (seconds)
+
     """
 
     series: DicomSeries
@@ -126,8 +125,7 @@ class ValidationReport:
 
 
 class SeriesValidator:
-    """
-    Validate DICOM series for completeness, consistency, and correctness.
+    """Validate DICOM series for completeness, consistency, and correctness.
 
     This validator performs comprehensive checks to detect:
     - Missing or duplicate slices
@@ -138,23 +136,23 @@ class SeriesValidator:
     """
 
     def __init__(self, strict: bool = False):
-        """
-        Initialize validator.
+        """Initialize validator.
 
         Args:
             strict: If True, treat warnings as errors
+
         """
         self.strict = strict
 
     def validate_series(self, series: DicomSeries) -> ValidationReport:
-        """
-        Perform comprehensive validation of a DICOM series.
+        """Perform comprehensive validation of a DICOM series.
 
         Args:
             series: DicomSeries to validate
 
         Returns:
             ValidationReport with all issues found
+
         """
         import time
 
@@ -184,8 +182,7 @@ class SeriesValidator:
     def _validate_completeness(
         self, series: DicomSeries, report: ValidationReport
     ) -> None:
-        """
-        Validate series completeness (no missing slices).
+        """Validate series completeness (no missing slices).
 
         Checks:
         - At least one slice present
@@ -263,8 +260,7 @@ class SeriesValidator:
     def _validate_consistency(
         self, series: DicomSeries, report: ValidationReport
     ) -> None:
-        """
-        Validate consistency of series-level attributes across all slices.
+        """Validate consistency of series-level attributes across all slices.
 
         Checks:
         - All slices have same SeriesInstanceUID
@@ -285,8 +281,7 @@ class SeriesValidator:
             )
 
     def _validate_geometry(self, series: DicomSeries, report: ValidationReport) -> None:
-        """
-        Validate geometric properties of the series.
+        """Validate geometric properties of the series.
 
         Checks:
         - Uniform slice spacing
@@ -360,8 +355,7 @@ class SeriesValidator:
                 )
 
     def _validate_metadata(self, series: DicomSeries, report: ValidationReport) -> None:
-        """
-        Validate presence and validity of required DICOM metadata.
+        """Validate presence and validity of required DICOM metadata.
 
         Checks:
         - Required DICOM tags present (Patient, Study, Series, Instance)
@@ -405,8 +399,7 @@ class SeriesValidator:
     def _validate_security_concerns(
         self, series: DicomSeries, report: ValidationReport
     ) -> None:
-        """
-        Check for patterns that may indicate security issues or fuzzing targets.
+        """Check for patterns that may indicate security issues or fuzzing targets.
 
         Based on 2025 CVE research:
         - CVE-2025-35975: Out-of-bounds write

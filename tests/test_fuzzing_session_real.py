@@ -622,7 +622,7 @@ class TestSessionReporting:
         assert report_path.suffix == ".json"
 
         # Verify JSON is valid
-        with open(report_path, "r") as f:
+        with open(report_path) as f:
             data = json.load(f)
             assert "session_info" in data
 

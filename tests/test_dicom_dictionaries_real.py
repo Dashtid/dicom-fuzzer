@@ -7,7 +7,6 @@ functionality with actual usage patterns.
 from dicom_fuzzer.utils.dicom_dictionaries import (
     CHARACTER_SETS,
     COMMON_UID_ROOTS,
-    DICOMDictionaries,
     INSTITUTION_NAMES,
     MANUFACTURER_NAMES,
     MODALITY_CODES,
@@ -24,6 +23,7 @@ from dicom_fuzzer.utils.dicom_dictionaries import (
     TRANSFER_SYNTAXES,
     WINDOW_CENTER_VALUES,
     WINDOW_WIDTH_VALUES,
+    DICOMDictionaries,
 )
 
 

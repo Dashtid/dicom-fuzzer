@@ -21,7 +21,7 @@ class PixelFuzzer:
 
                 dataset.PixelData = pixels.tobytes()
             except (ValueError, AttributeError, TypeError):
-                # Pixel data access failed (invalid dimensions from header fuzzing)  # noqa: E501
-                # Expected with corrupted headers - skip pixel mutations  # noqa: E501
+                # Pixel data access failed (invalid dimensions from header fuzzing)
+                # Expected with corrupted headers - skip pixel mutations
                 pass
         return dataset

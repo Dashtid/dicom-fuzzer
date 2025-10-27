@@ -4,9 +4,11 @@ Comprehensive tests for core/profiler.py module.
 Achieves 70%+ coverage of performance profiling functionality.
 """
 
-import pytest
 import time
 from datetime import datetime
+
+import pytest
+
 from dicom_fuzzer.core.profiler import (
     FuzzingMetrics,
     PerformanceProfiler,
@@ -308,7 +310,14 @@ class TestIntegrationScenarios:
         """Test tracking different strategies."""
         profiler = PerformanceProfiler()
 
-        strategies = ["bit_flip", "byte_swap", "random", "bit_flip", "byte_swap", "bit_flip"]
+        strategies = [
+            "bit_flip",
+            "byte_swap",
+            "random",
+            "bit_flip",
+            "byte_swap",
+            "bit_flip",
+        ]
 
         for strategy in strategies:
             profiler.record_file_generated(strategy=strategy)
@@ -325,7 +334,9 @@ class TestIntegrationScenarios:
         profiler.record_mutation("header", duration=0.2)
         profiler.record_mutation("pixel", duration=0.5)
 
-        assert profiler.metrics.strategy_timing["header"] == pytest.approx(0.3, rel=0.01)
+        assert profiler.metrics.strategy_timing["header"] == pytest.approx(
+            0.3, rel=0.01
+        )
         assert profiler.metrics.strategy_timing["pixel"] == pytest.approx(0.5, rel=0.01)
 
     def test_eta_calculation_workflow(self):

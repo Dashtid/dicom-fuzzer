@@ -1,5 +1,4 @@
-"""
-Visualization Module - Charts and Graphs for Fuzzing Reports
+"""Visualization Module - Charts and Graphs for Fuzzing Reports
 
 This module provides visualization capabilities for fuzzing campaign analytics:
 - Matplotlib charts (bar charts, line graphs, pie charts)
@@ -40,18 +39,17 @@ sns.set_palette("husl")
 
 
 class FuzzingVisualizer:
-    """
-    Creates visualizations for fuzzing campaign analytics.
+    """Creates visualizations for fuzzing campaign analytics.
 
     Supports both static (Matplotlib) and interactive (Plotly) charts.
     """
 
     def __init__(self, output_dir: str = "./reports/charts"):
-        """
-        Initialize visualizer.
+        """Initialize visualizer.
 
         Args:
             output_dir: Directory to save chart files
+
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -71,8 +69,7 @@ class FuzzingVisualizer:
         effectiveness_data: dict[str, dict[str, float]],
         output_format: str = "png",
     ) -> Path:
-        """
-        Create bar chart of mutation strategy effectiveness.
+        """Create bar chart of mutation strategy effectiveness.
 
         Args:
             effectiveness_data: Dict mapping strategies to effectiveness metrics
@@ -80,6 +77,7 @@ class FuzzingVisualizer:
 
         Returns:
             Path to saved chart file
+
         """
         if output_format == "html":
             return self._plot_strategy_effectiveness_plotly(effectiveness_data)
@@ -192,8 +190,7 @@ class FuzzingVisualizer:
     def plot_crash_trend(
         self, trend_data: TrendAnalysis, output_format: str = "png"
     ) -> Path:
-        """
-        Create line chart of crash discovery over time.
+        """Create line chart of crash discovery over time.
 
         Args:
             trend_data: TrendAnalysis object with time-series data
@@ -201,6 +198,7 @@ class FuzzingVisualizer:
 
         Returns:
             Path to saved chart file
+
         """
         if output_format == "html":
             return self._plot_crash_trend_plotly(trend_data)
@@ -339,8 +337,7 @@ class FuzzingVisualizer:
     def plot_coverage_heatmap(
         self, coverage_data: dict[str, CoverageCorrelation], output_format: str = "png"
     ) -> Path:
-        """
-        Create heatmap of coverage correlation by strategy.
+        """Create heatmap of coverage correlation by strategy.
 
         Args:
             coverage_data: Dict mapping strategies to CoverageCorrelation
@@ -348,6 +345,7 @@ class FuzzingVisualizer:
 
         Returns:
             Path to saved chart file
+
         """
         if output_format == "html":
             return self._plot_coverage_heatmap_plotly(coverage_data)
@@ -488,8 +486,7 @@ class FuzzingVisualizer:
     def plot_performance_dashboard(
         self, performance_data: PerformanceMetrics, output_format: str = "png"
     ) -> Path:
-        """
-        Create performance dashboard with multiple metrics.
+        """Create performance dashboard with multiple metrics.
 
         Args:
             performance_data: PerformanceMetrics object
@@ -497,6 +494,7 @@ class FuzzingVisualizer:
 
         Returns:
             Path to saved chart file
+
         """
         if output_format == "html":
             return self._plot_performance_dashboard_plotly(performance_data)
@@ -718,8 +716,7 @@ class FuzzingVisualizer:
         coverage_chart_path: Path,
         performance_chart_path: Path,
     ) -> str:
-        """
-        Create HTML snippet embedding all charts.
+        """Create HTML snippet embedding all charts.
 
         Args:
             strategy_chart_path: Path to strategy effectiveness chart
@@ -729,6 +726,7 @@ class FuzzingVisualizer:
 
         Returns:
             HTML string with embedded charts
+
         """
         html = f"""
         <div class="charts-container">

@@ -1,5 +1,4 @@
-"""
-Series Metadata Caching for Performance Optimization
+"""Series Metadata Caching for Performance Optimization
 
 Implements LRU (Least Recently Used) cache for parsed DICOM metadata to avoid
 redundant file I/O and parsing operations.
@@ -61,19 +60,18 @@ class CacheEntry:
 
 
 class SeriesCache:
-    """
-    LRU cache for DICOM series metadata.
+    """LRU cache for DICOM series metadata.
 
     Caches parsed metadata (NOT pixel data) to avoid redundant I/O.
     """
 
     def __init__(self, max_size_mb: int = 100, max_entries: int = 1000):
-        """
-        Initialize series cache.
+        """Initialize series cache.
 
         Args:
             max_size_mb: Maximum cache size in megabytes
             max_entries: Maximum number of cached entries
+
         """
         self.max_size_bytes = max_size_mb * 1024 * 1024
         self.max_entries = max_entries
@@ -95,8 +93,7 @@ class SeriesCache:
     def get(
         self, file_path: Path, loader: Callable[[Path], Dataset] | None = None
     ) -> Dataset | None:
-        """
-        Get dataset from cache or load from disk.
+        """Get dataset from cache or load from disk.
 
         Args:
             file_path: Path to DICOM file
@@ -104,6 +101,7 @@ class SeriesCache:
 
         Returns:
             Cached or freshly loaded dataset, or None if file doesn't exist
+
         """
         cache_key = self._get_cache_key(file_path)
 
@@ -153,11 +151,11 @@ class SeriesCache:
             return None
 
     def invalidate(self, file_path: Path) -> None:
-        """
-        Invalidate cache entry for a file.
+        """Invalidate cache entry for a file.
 
         Args:
             file_path: Path to invalidate
+
         """
         cache_key = self._get_cache_key(file_path)
         if cache_key in self._cache:
@@ -171,11 +169,11 @@ class SeriesCache:
         logger.info("Cache CLEARED")
 
     def get_statistics(self) -> dict:
-        """
-        Get cache statistics.
+        """Get cache statistics.
 
         Returns:
             Dict with cache performance metrics
+
         """
         total_requests = self._hits + self._misses
         hit_rate = self._hits / total_requests if total_requests > 0 else 0.0
@@ -202,14 +200,14 @@ class SeriesCache:
         return hashlib.md5(abs_path.encode()).hexdigest()
 
     def _estimate_size(self, dataset: Dataset) -> int:
-        """
-        Estimate memory size of dataset (metadata only).
+        """Estimate memory size of dataset (metadata only).
 
         Args:
             dataset: pydicom Dataset
 
         Returns:
             Estimated size in bytes
+
         """
         # Rough estimation based on number of elements
         # Average ~100 bytes per element (conservative)
@@ -219,12 +217,12 @@ class SeriesCache:
         return estimated_size
 
     def _add_entry(self, file_path: Path, dataset: Dataset) -> None:
-        """
-        Add entry to cache, evicting if necessary.
+        """Add entry to cache, evicting if necessary.
 
         Args:
             file_path: File path
             dataset: Parsed dataset
+
         """
         cache_key = self._get_cache_key(file_path)
         file_mtime = file_path.stat().st_mtime

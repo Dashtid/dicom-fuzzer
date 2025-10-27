@@ -1,5 +1,4 @@
-"""
-DICOM Fuzzer - A professional-grade DICOM fuzzing framework.
+"""DICOM Fuzzer - A professional-grade DICOM fuzzing framework.
 
 This package provides comprehensive fuzzing capabilities for DICOM medical imaging systems,
 including mutation-based fuzzing, crash analysis, and reporting.
