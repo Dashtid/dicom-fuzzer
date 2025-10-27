@@ -1,5 +1,4 @@
-"""
-Coverage Correlation Analysis
+"""Coverage Correlation Analysis
 
 CONCEPT: Correlate crashes with coverage data to identify vulnerable
 code paths and prioritize security fixes.
@@ -14,15 +13,13 @@ the effectiveness of your fuzzer." (2025 Best Practices)
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class CoverageInsight:
-    """
-    Coverage insights for a specific code path or function.
+    """Coverage insights for a specific code path or function.
 
     Tracks how often a path is hit and whether it leads to crashes.
     """
@@ -32,7 +29,7 @@ class CoverageInsight:
     crash_hits: int = 0
     safe_hits: int = 0
     crash_rate: float = 0.0
-    unique_crashes: Set[str] = field(default_factory=set)
+    unique_crashes: set[str] = field(default_factory=set)
 
     def update_crash_rate(self):
         """Recalculate crash rate based on current hits."""
@@ -44,32 +41,30 @@ class CoverageInsight:
 
 @dataclass
 class CrashCoverageCorrelation:
-    """
-    Correlation between crashes and coverage data.
+    """Correlation between crashes and coverage data.
 
     Identifies which code paths are most strongly associated with crashes.
     """
 
     # Coverage unique to crashes (only hit when crashing)
-    crash_only_coverage: Dict[str, Set[str]] = field(default_factory=dict)
+    crash_only_coverage: dict[str, set[str]] = field(default_factory=dict)
 
     # Coverage correlation scores
-    coverage_insights: Dict[str, CoverageInsight] = field(default_factory=dict)
+    coverage_insights: dict[str, CoverageInsight] = field(default_factory=dict)
 
     # Most dangerous paths (highest crash rate)
-    dangerous_paths: List[Tuple[str, float]] = field(default_factory=list)
+    dangerous_paths: list[tuple[str, float]] = field(default_factory=list)
 
     # Functions associated with crashes
-    vulnerable_functions: Set[str] = field(default_factory=set)
+    vulnerable_functions: set[str] = field(default_factory=set)
 
 
 def correlate_crashes_with_coverage(
-    crashes: List,
-    coverage_data: Dict[str, Set[str]],
-    safe_inputs: Optional[List[str]] = None,
+    crashes: list,
+    coverage_data: dict[str, set[str]],
+    safe_inputs: list[str] | None = None,
 ) -> CrashCoverageCorrelation:
-    """
-    Correlate crashes with coverage to identify vulnerable code paths.
+    """Correlate crashes with coverage to identify vulnerable code paths.
 
     CONCEPT: Analyze which code paths are disproportionately hit during
     crashes vs safe executions. This reveals dangerous code areas.
@@ -81,6 +76,7 @@ def correlate_crashes_with_coverage(
 
     Returns:
         CrashCoverageCorrelation with vulnerability insights
+
     """
     correlation = CrashCoverageCorrelation()
 
@@ -88,7 +84,7 @@ def correlate_crashes_with_coverage(
     coverage_tracker = defaultdict(CoverageInsight)
 
     # Track safe coverage (baseline)
-    safe_coverage: Set[str] = set()
+    safe_coverage: set[str] = set()
     if safe_inputs:
         for safe_input in safe_inputs:
             if safe_input in coverage_data:
@@ -162,16 +158,16 @@ def correlate_crashes_with_coverage(
 
 
 def _extract_functions_from_coverage(
-    dangerous_paths: List[Tuple[str, float]],
-) -> Set[str]:
-    """
-    Extract function names from coverage identifiers.
+    dangerous_paths: list[tuple[str, float]],
+) -> set[str]:
+    """Extract function names from coverage identifiers.
 
     Args:
         dangerous_paths: List of (coverage_id, crash_rate) tuples
 
     Returns:
         Set of function names
+
     """
     functions = set()
 
@@ -203,8 +199,7 @@ def _extract_functions_from_coverage(
 def generate_correlation_report(
     correlation: CrashCoverageCorrelation, top_n: int = 20
 ) -> str:
-    """
-    Generate human-readable coverage correlation report.
+    """Generate human-readable coverage correlation report.
 
     Args:
         correlation: Correlation results
@@ -212,6 +207,7 @@ def generate_correlation_report(
 
     Returns:
         Formatted report string
+
     """
     report = []
 
@@ -298,15 +294,15 @@ def generate_correlation_report(
 
 def identify_crash_prone_modules(
     correlation: CrashCoverageCorrelation,
-) -> Dict[str, int]:
-    """
-    Identify modules/files with most crash-prone code.
+) -> dict[str, int]:
+    """Identify modules/files with most crash-prone code.
 
     Args:
         correlation: Correlation results
 
     Returns:
         Dict mapping module name -> dangerous path count
+
     """
     module_counts = defaultdict(int)
 
@@ -327,9 +323,8 @@ def identify_crash_prone_modules(
     return dict(module_counts)
 
 
-def get_safe_coverage(coverage_data: Dict[str, Set[str]]) -> Set[str]:
-    """
-    Get coverage from inputs that didn't crash.
+def get_safe_coverage(coverage_data: dict[str, set[str]]) -> set[str]:
+    """Get coverage from inputs that didn't crash.
 
     CONCEPT: Baseline "safe" coverage for comparison with crash coverage.
 
@@ -338,6 +333,7 @@ def get_safe_coverage(coverage_data: Dict[str, Set[str]]) -> Set[str]:
 
     Returns:
         Set of coverage IDs from safe executions
+
     """
     # Simple implementation: union of all coverage
     # In practice, you'd filter to only non-crash inputs

@@ -7,17 +7,17 @@ ensuring all modules work together correctly in real-world scenarios.
 
 from pathlib import Path
 
-import pytest
 import pydicom
+import pytest
 
+from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
 from dicom_fuzzer.core.fuzzing_session import FuzzingSession
 from dicom_fuzzer.core.generator import DICOMGenerator
 from dicom_fuzzer.core.mutator import DicomMutator
 from dicom_fuzzer.core.parser import DicomParser
-from dicom_fuzzer.core.validator import DicomValidator
-from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
 from dicom_fuzzer.core.reporter import ReportGenerator
 from dicom_fuzzer.core.statistics import StatisticsCollector
+from dicom_fuzzer.core.validator import DicomValidator
 
 
 class TestEndToEndFuzzingWorkflow:
@@ -334,7 +334,7 @@ class TestEndToEndFuzzingWorkflow:
         # Step 4: Verify report contents
         import json
 
-        with open(report_path, "r") as f:
+        with open(report_path) as f:
             report_data = json.load(f)
 
         assert "session_info" in report_data

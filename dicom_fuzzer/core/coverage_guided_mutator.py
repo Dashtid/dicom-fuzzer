@@ -1,5 +1,4 @@
-"""
-Coverage-Guided Mutation Engine for DICOM Fuzzer
+"""Coverage-Guided Mutation Engine for DICOM Fuzzer
 
 Implements intelligent mutation strategies that adapt based on coverage feedback.
 Learns which mutations are most effective for discovering new code paths.
@@ -7,13 +6,14 @@ Learns which mutations are most effective for discovering new code paths.
 
 import random
 import struct
-from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
+
 import numpy as np
 
-from .coverage_instrumentation import CoverageInfo
 from .corpus_manager import Seed
+from .coverage_instrumentation import CoverageInfo
 
 
 class MutationType(Enum):
@@ -60,7 +60,7 @@ class MutationStrategy:
     mutation_type: MutationType
     success_count: int = 0
     total_count: int = 0
-    coverage_gains: List[int] = None
+    coverage_gains: list[int] = None
     weight: float = 1.0
     enabled: bool = True
 
@@ -88,9 +88,7 @@ class MutationStrategy:
 
 
 class CoverageGuidedMutator:
-    """
-    Intelligent mutator that adapts strategies based on coverage feedback.
-    """
+    """Intelligent mutator that adapts strategies based on coverage feedback."""
 
     def __init__(
         self,
@@ -98,20 +96,20 @@ class CoverageGuidedMutator:
         adaptive_mode: bool = True,
         dicom_aware: bool = True,
     ):
-        """
-        Initialize the coverage-guided mutator.
+        """Initialize the coverage-guided mutator.
 
         Args:
             max_mutations: Maximum mutations per input
             adaptive_mode: Enable adaptive mutation selection
             dicom_aware: Enable DICOM-specific mutations
+
         """
         self.max_mutations = max_mutations
         self.adaptive_mode = adaptive_mode
         self.dicom_aware = dicom_aware
 
         # Initialize mutation strategies
-        self.strategies: Dict[MutationType, MutationStrategy] = {}
+        self.strategies: dict[MutationType, MutationStrategy] = {}
         self._init_strategies()
 
         # Interesting values for mutations
@@ -164,8 +162,8 @@ class CoverageGuidedMutator:
         ]
 
         # Track mutation history
-        self.mutation_history: List[Tuple[MutationType, bool]] = []
-        self.coverage_history: List[int] = []
+        self.mutation_history: list[tuple[MutationType, bool]] = []
+        self.coverage_history: list[int] = []
 
     def _init_strategies(self) -> None:
         """Initialize all mutation strategies."""
@@ -185,10 +183,9 @@ class CoverageGuidedMutator:
                 self.strategies[mutation_type].enabled = False
 
     def mutate(
-        self, seed: Seed, coverage_info: Optional[CoverageInfo] = None
-    ) -> List[Tuple[bytes, MutationType]]:
-        """
-        Mutate a seed to generate new test cases.
+        self, seed: Seed, coverage_info: CoverageInfo | None = None
+    ) -> list[tuple[bytes, MutationType]]:
+        """Mutate a seed to generate new test cases.
 
         Args:
             seed: Seed to mutate
@@ -196,6 +193,7 @@ class CoverageGuidedMutator:
 
         Returns:
             List of (mutated_data, mutation_type) tuples
+
         """
         mutations = []
         data = bytearray(seed.data)
@@ -220,7 +218,7 @@ class CoverageGuidedMutator:
         return mutations
 
     def _select_mutation_strategy(
-        self, coverage_info: Optional[CoverageInfo] = None
+        self, coverage_info: CoverageInfo | None = None
     ) -> MutationType:
         """Select mutation strategy based on weights and coverage."""
         if not self.adaptive_mode or random.random() < 0.1:
@@ -251,7 +249,7 @@ class CoverageGuidedMutator:
 
     def _apply_mutation(
         self, data: bytearray, mutation_type: MutationType
-    ) -> Optional[bytearray]:
+    ) -> bytearray | None:
         """Apply specific mutation to data."""
         if len(data) == 0:
             return None
@@ -662,7 +660,7 @@ class CoverageGuidedMutator:
                 elif recent_success[mutation_type] < 0.01:
                     strategy.weight = max(0.1, strategy.weight * 0.9)
 
-    def get_mutation_stats(self) -> Dict[str, Any]:
+    def get_mutation_stats(self) -> dict[str, Any]:
         """Get mutation statistics."""
         stats = {}
         for mutation_type, strategy in self.strategies.items():

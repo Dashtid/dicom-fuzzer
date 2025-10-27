@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Generate Simple Synthetic 3D DICOM Series
+"""Generate Simple Synthetic 3D DICOM Series
 
 Standalone script without dicom_fuzzer imports to avoid dependency issues.
 """

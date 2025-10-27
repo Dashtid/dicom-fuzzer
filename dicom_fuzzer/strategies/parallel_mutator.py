@@ -1,5 +1,4 @@
-"""
-Parallel Series Mutation for Performance Optimization
+"""Parallel Series Mutation for Performance Optimization
 
 Implements parallel processing of DICOM series mutations using ProcessPoolExecutor
 to leverage multiple CPU cores for faster throughput.
@@ -52,8 +51,7 @@ def _mutate_single_slice(
     seed: int | None,
     **kwargs,
 ) -> tuple[int, Dataset, list[SeriesMutationRecord]]:
-    """
-    Worker function to mutate a single slice (executed in separate process).
+    """Worker function to mutate a single slice (executed in separate process).
 
     Args:
         file_path: Path to DICOM file
@@ -65,6 +63,7 @@ def _mutate_single_slice(
 
     Returns:
         Tuple of (slice_index, mutated_dataset, mutation_records)
+
     """
     try:
         # Load slice
@@ -140,8 +139,7 @@ def _mutate_single_slice(
 
 
 class ParallelSeriesMutator:
-    """
-    Parallel series mutator using ProcessPoolExecutor.
+    """Parallel series mutator using ProcessPoolExecutor.
 
     Distributes slice mutations across multiple worker processes for faster throughput.
     """
@@ -152,13 +150,13 @@ class ParallelSeriesMutator:
         severity: str = "moderate",
         seed: int | None = None,
     ):
-        """
-        Initialize parallel mutator.
+        """Initialize parallel mutator.
 
         Args:
             workers: Number of worker processes (None = CPU count)
             severity: Mutation severity
             seed: Random seed for reproducibility
+
         """
         if workers is None:
             workers = multiprocessing.cpu_count()
@@ -183,8 +181,7 @@ class ParallelSeriesMutator:
         strategy: SeriesMutationStrategy,
         **kwargs,
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
-        """
-        Mutate series using parallel processing.
+        """Mutate series using parallel processing.
 
         Args:
             series: DICOM series to mutate
@@ -193,6 +190,7 @@ class ParallelSeriesMutator:
 
         Returns:
             Tuple of (mutated_datasets, mutation_records)
+
         """
         # Check if strategy supports parallelization
         # Only BOUNDARY_SLICE_TARGETING truly benefits from parallel processing
@@ -270,8 +268,7 @@ class ParallelSeriesMutator:
         parallel: bool = True,
         **kwargs,
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
-        """
-        Mutate series (auto-select parallel or serial).
+        """Mutate series (auto-select parallel or serial).
 
         Args:
             series: DICOM series
@@ -281,6 +278,7 @@ class ParallelSeriesMutator:
 
         Returns:
             Tuple of (mutated_datasets, mutation_records)
+
         """
         if parallel and series.slice_count >= 10:
             # Parallel worth it for 10+ slices
@@ -294,8 +292,7 @@ class ParallelSeriesMutator:
         strategy: SeriesMutationStrategy,
         **kwargs,
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
-        """
-        Fall back to serial mutation using public API.
+        """Fall back to serial mutation using public API.
 
         Args:
             series: DICOM series
@@ -304,6 +301,7 @@ class ParallelSeriesMutator:
 
         Returns:
             Tuple of (mutated_datasets, mutation_records)
+
         """
         # Use the public mutate_series() API instead of calling private methods
         # This ensures we use the same mutation logic as the serial mutator
@@ -315,11 +313,11 @@ class ParallelSeriesMutator:
 
 
 def get_optimal_workers() -> int:
-    """
-    Get optimal number of worker processes based on system.
+    """Get optimal number of worker processes based on system.
 
     Returns:
         Recommended worker count
+
     """
     cpu_count = multiprocessing.cpu_count()
 

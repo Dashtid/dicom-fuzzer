@@ -1,5 +1,4 @@
-"""
-Configuration Validation and Pre-flight Checks
+"""Configuration Validation and Pre-flight Checks
 
 CONCEPT: Validates configuration and system state before starting fuzzing
 campaigns to catch issues early and provide clear error messages.
@@ -18,7 +17,6 @@ import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -37,35 +35,33 @@ class ValidationResult:
 
 
 class ConfigValidator:
-    """
-    Validates configuration and performs pre-flight checks.
+    """Validates configuration and performs pre-flight checks.
 
     CONCEPT: Run a battery of validation checks before starting a campaign
     to catch configuration errors early and provide helpful feedback.
     """
 
     def __init__(self, strict: bool = True):
-        """
-        Initialize configuration validator.
+        """Initialize configuration validator.
 
         Args:
             strict: If True, warnings are treated as errors
+
         """
         self.strict = strict
-        self.errors: List[ValidationResult] = []
-        self.warnings: List[ValidationResult] = []
-        self.info: List[ValidationResult] = []
+        self.errors: list[ValidationResult] = []
+        self.warnings: list[ValidationResult] = []
+        self.info: list[ValidationResult] = []
 
     def validate_all(
         self,
-        input_file: Optional[Path] = None,
-        output_dir: Optional[Path] = None,
-        target_executable: Optional[Path] = None,
+        input_file: Path | None = None,
+        output_dir: Path | None = None,
+        target_executable: Path | None = None,
         min_disk_space_mb: float = 1024,
-        num_files: Optional[int] = None,
+        num_files: int | None = None,
     ) -> bool:
-        """
-        Run all validation checks.
+        """Run all validation checks.
 
         Args:
             input_file: Input DICOM file to validate
@@ -76,6 +72,7 @@ class ConfigValidator:
 
         Returns:
             True if all checks passed (or only warnings in non-strict mode)
+
         """
         logger.info("Running pre-flight validation checks...")
 
@@ -471,11 +468,11 @@ class ConfigValidator:
             )
 
     def get_summary(self) -> str:
-        """
-        Get summary of validation results.
+        """Get summary of validation results.
 
         Returns:
             Formatted summary string
+
         """
         lines = ["=" * 70, "  Pre-flight Validation Summary", "=" * 70]
 

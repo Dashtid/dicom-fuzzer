@@ -1,5 +1,4 @@
-"""
-Series3D Reporter - Enhanced Reporting for 3D DICOM Series Fuzzing
+"""Series3D Reporter - Enhanced Reporting for 3D DICOM Series Fuzzing
 
 This module provides specialized reporting for 3D DICOM series fuzzing campaigns,
 tracking series-level mutations, multi-slice attacks, and spatial integrity issues.
@@ -24,8 +23,7 @@ from dicom_fuzzer.strategies.series_mutator import (
 
 @dataclass
 class SeriesMutationSummary:
-    """
-    Summary of mutations applied to a DICOM series.
+    """Summary of mutations applied to a DICOM series.
 
     Tracks series-level statistics for reporting and analytics.
     """
@@ -69,8 +67,7 @@ class SeriesMutationSummary:
 
 @dataclass
 class Series3DReport:
-    """
-    Comprehensive report for a 3D series fuzzing campaign.
+    """Comprehensive report for a 3D series fuzzing campaign.
 
     Contains summary statistics, mutation details, and crash information.
     """
@@ -90,14 +87,14 @@ class Series3DReport:
         self.total_mutations_applied += summary.total_mutations
 
     def get_strategy_effectiveness(self) -> dict[str, dict[str, float]]:
-        """
-        Calculate effectiveness metrics for each mutation strategy.
+        """Calculate effectiveness metrics for each mutation strategy.
 
         Returns:
             Dictionary mapping strategy names to effectiveness metrics:
             - usage_count: Number of times strategy was used
             - avg_mutations_per_series: Average mutations per series
             - series_coverage: Percentage of series using this strategy
+
         """
         strategy_stats = {}
         total_series = len(self.series_summaries)
@@ -133,8 +130,7 @@ class Series3DReport:
 
 
 class Series3DReportGenerator:
-    """
-    Generates HTML and JSON reports for 3D DICOM series fuzzing campaigns.
+    """Generates HTML and JSON reports for 3D DICOM series fuzzing campaigns.
 
     Integrates with existing reporter infrastructure while adding 3D-specific features:
     - Series mutation tracking
@@ -144,24 +140,24 @@ class Series3DReportGenerator:
     """
 
     def __init__(self, output_dir: str = "./reports"):
-        """
-        Initialize Series3D report generator.
+        """Initialize Series3D report generator.
 
         Args:
             output_dir: Directory to save generated reports
+
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def generate_html_report(self, report: Series3DReport) -> Path:
-        """
-        Generate comprehensive HTML report for 3D series fuzzing.
+        """Generate comprehensive HTML report for 3D series fuzzing.
 
         Args:
             report: Series3D report data
 
         Returns:
             Path to generated HTML report
+
         """
         html = self._generate_html_header(report.campaign_name)
         html += self._generate_summary_section(report)
@@ -397,14 +393,14 @@ class Series3DReportGenerator:
 """
 
     def generate_json_report(self, report: Series3DReport) -> Path:
-        """
-        Generate JSON report for machine-readable analysis.
+        """Generate JSON report for machine-readable analysis.
 
         Args:
             report: Series3D report data
 
         Returns:
             Path to generated JSON report
+
         """
         import json
 

@@ -32,8 +32,8 @@ def temp_workspace():
         (workspace / "crashes").mkdir()
 
         # Create a sample DICOM file with proper file meta information
-        from pydicom.dataset import FileDataset, FileMetaDataset
         import pydicom.uid
+        from pydicom.dataset import FileDataset, FileMetaDataset
 
         file_meta = FileMetaDataset()
         file_meta.MediaStorageSOPClassUID = (
@@ -261,7 +261,7 @@ class TestFuzzingSessionIntegration:
         assert report_path.exists()
 
         # Load and verify report content
-        with open(report_path, "r") as f:
+        with open(report_path) as f:
             report = json.load(f)
 
         assert report["session_info"]["session_name"] == "test_session"
@@ -509,7 +509,7 @@ class TestFuzzingSessionIntegration:
         assert report_path.exists()
 
         # Verify report is valid JSON and contains all data
-        with open(report_path, "r") as f:
+        with open(report_path) as f:
             report = json.load(f)
 
         assert len(report["fuzzed_files"]) == 100
@@ -570,7 +570,7 @@ class TestEdgeCases:
         report_path = fuzzing_session.save_session_report()
 
         # Verify report is valid JSON despite special characters
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             report = json.load(f)
 
         assert len(report["fuzzed_files"]) == 1
@@ -582,7 +582,7 @@ class TestEdgeCases:
 
         assert report_path.exists()
 
-        with open(report_path, "r") as f:
+        with open(report_path) as f:
             report = json.load(f)
 
         assert report["statistics"]["files_fuzzed"] == 0

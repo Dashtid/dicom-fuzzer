@@ -5,11 +5,12 @@ These tests target specific uncovered error handling and edge case paths
 in generator.py to achieve maximum test coverage.
 """
 
+import struct
+from unittest.mock import patch
+
+import pydicom
 import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
-import pydicom
-from unittest.mock import patch
-import struct
 
 from dicom_fuzzer.core.generator import DICOMGenerator, GenerationStats
 

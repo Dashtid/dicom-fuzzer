@@ -51,9 +51,7 @@ class TestExploitabilityRating:
     def test_rating_values(self):
         """Test exploitability rating string values."""
         assert ExploitabilityRating.EXPLOITABLE.value == "exploitable"
-        assert (
-            ExploitabilityRating.PROBABLY_EXPLOITABLE.value == "probably_exploitable"
-        )
+        assert ExploitabilityRating.PROBABLY_EXPLOITABLE.value == "probably_exploitable"
         assert (
             ExploitabilityRating.PROBABLY_NOT_EXPLOITABLE.value
             == "probably_not_exploitable"

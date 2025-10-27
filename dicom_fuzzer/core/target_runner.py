@@ -1,5 +1,4 @@
-"""
-Target Application Runner
+"""Target Application Runner
 
 CONCEPT: This module interfaces with target applications to feed them
 fuzzed DICOM files and detect crashes, hangs, and other anomalies.
@@ -25,7 +24,6 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
 from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
@@ -47,8 +45,7 @@ class ExecutionStatus(Enum):
 
 @dataclass
 class ExecutionResult:
-    """
-    Results from executing target application with a test file.
+    """Results from executing target application with a test file.
 
     CONCEPT: Captures all relevant information about how the target
     application behaved when processing a fuzzed DICOM file.
@@ -56,12 +53,12 @@ class ExecutionResult:
 
     test_file: Path
     result: ExecutionStatus
-    exit_code: Optional[int]
+    exit_code: int | None
     execution_time: float
     stdout: str
     stderr: str
-    exception: Optional[Exception] = None
-    crash_hash: Optional[str] = None
+    exception: Exception | None = None
+    crash_hash: str | None = None
     retry_count: int = 0  # Number of retries attempted
 
     def __bool__(self) -> bool:
@@ -71,8 +68,7 @@ class ExecutionResult:
 
 @dataclass
 class CircuitBreakerState:
-    """
-    Circuit breaker state for failing target applications.
+    """Circuit breaker state for failing target applications.
 
     CONCEPT: If target consistently fails, temporarily stop testing it
     to avoid wasting resources on a broken target.
@@ -88,8 +84,7 @@ class CircuitBreakerState:
 
 
 class TargetRunner:
-    """
-    Runs target application with fuzzed files and detects anomalies.
+    """Runs target application with fuzzed files and detects anomalies.
 
     CONCEPT: This class acts as the bridge between the fuzzer and the
     target application being tested. It handles:
@@ -113,10 +108,9 @@ class TargetRunner:
         collect_stderr: bool = True,
         max_retries: int = 2,
         enable_circuit_breaker: bool = True,
-        resource_limits: Optional[ResourceLimits] = None,
+        resource_limits: ResourceLimits | None = None,
     ):
-        """
-        Initialize target runner.
+        """Initialize target runner.
 
         Args:
             target_executable: Path to application to test
@@ -130,6 +124,7 @@ class TargetRunner:
 
         Raises:
             FileNotFoundError: If target executable doesn't exist
+
         """
         self.target_executable = Path(target_executable)
         if not self.target_executable.exists():
@@ -158,11 +153,11 @@ class TargetRunner:
         )
 
     def _check_circuit_breaker(self) -> bool:
-        """
-        Check if circuit breaker allows execution.
+        """Check if circuit breaker allows execution.
 
         Returns:
             True if execution should proceed, False if circuit is open
+
         """
         if not self.enable_circuit_breaker:
             return True
@@ -184,11 +179,11 @@ class TargetRunner:
         return True
 
     def _update_circuit_breaker(self, success: bool):
-        """
-        Update circuit breaker state after execution.
+        """Update circuit breaker state after execution.
 
         Args:
             success: Whether execution was successful
+
         """
         if not self.enable_circuit_breaker:
             return
@@ -214,11 +209,8 @@ class TargetRunner:
                     f"consecutive failures detected"
                 )
 
-    def _classify_error(
-        self, stderr: str, returncode: Optional[int]
-    ) -> ExecutionStatus:
-        """
-        Classify error type based on stderr and return code.
+    def _classify_error(self, stderr: str, returncode: int | None) -> ExecutionStatus:
+        """Classify error type based on stderr and return code.
 
         Args:
             stderr: Standard error output
@@ -226,6 +218,7 @@ class TargetRunner:
 
         Returns:
             ExecutionStatus indicating error type
+
         """
         stderr_lower = stderr.lower()
 
@@ -252,8 +245,7 @@ class TargetRunner:
         return ExecutionStatus.ERROR
 
     def execute_test(self, test_file: Path, retry_count: int = 0) -> ExecutionResult:
-        """
-        Execute target application with a test file.
+        """Execute target application with a test file.
 
         Args:
             test_file: Path to DICOM file to test
@@ -269,6 +261,7 @@ class TargetRunner:
         4. Classifies the result (success/crash/hang/error)
         5. Retries on transient failures
         6. Enforces resource limits
+
         """
         # Convert to Path if string provided
         if isinstance(test_file, str):
@@ -403,10 +396,9 @@ class TargetRunner:
             )
 
     def run_campaign(
-        self, test_files: List[Path], stop_on_crash: bool = False
-    ) -> Dict[ExecutionStatus, List[ExecutionResult]]:
-        """
-        Run fuzzing campaign against target with multiple test files.
+        self, test_files: list[Path], stop_on_crash: bool = False
+    ) -> dict[ExecutionStatus, list[ExecutionResult]]:
+        """Run fuzzing campaign against target with multiple test files.
 
         Args:
             test_files: List of fuzzed DICOM files to test
@@ -417,8 +409,9 @@ class TargetRunner:
 
         CONCEPT: Batch testing mode - feed all fuzzed files to target
         and collect comprehensive results for analysis.
+
         """
-        results: Dict[ExecutionStatus, List[ExecutionResult]] = {
+        results: dict[ExecutionStatus, list[ExecutionResult]] = {
             result_type: [] for result_type in ExecutionStatus
         }
 
@@ -476,15 +469,15 @@ class TargetRunner:
 
         return results
 
-    def get_summary(self, results: Dict[ExecutionStatus, List[ExecutionResult]]) -> str:
-        """
-        Generate human-readable summary of campaign results.
+    def get_summary(self, results: dict[ExecutionStatus, list[ExecutionResult]]) -> str:
+        """Generate human-readable summary of campaign results.
 
         Args:
             results: Campaign results from run_campaign()
 
         Returns:
             Formatted summary string
+
         """
         total = sum(len(r) for r in results.values())
         crashes = len(results[ExecutionStatus.CRASH])

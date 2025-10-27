@@ -2,7 +2,6 @@ import random
 import struct
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from dicom_fuzzer.core.parser import DicomParser
 from dicom_fuzzer.strategies.header_fuzzer import HeaderFuzzer
@@ -19,10 +18,10 @@ class GenerationStats:
         self.successful = 0
         self.failed = 0
         self.skipped_due_to_write_errors = 0
-        self.strategies_used: Dict[str, int] = {}
-        self.error_types: Dict[str, int] = {}
+        self.strategies_used: dict[str, int] = {}
+        self.error_types: dict[str, int] = {}
 
-    def record_success(self, strategies: List[str]):
+    def record_success(self, strategies: list[str]):
         """Record successful file generation."""
         self.successful += 1
         for strategy in strategies:
@@ -35,8 +34,7 @@ class GenerationStats:
 
 
 class DICOMGenerator:
-    """
-    Generates batches of fuzzed DICOM files for security testing.
+    """Generates batches of fuzzed DICOM files for security testing.
 
     CONCEPT: Coordinates multiple fuzzing strategies to create
     a diverse set of test cases that stress different aspects
@@ -44,14 +42,14 @@ class DICOMGenerator:
     """
 
     def __init__(self, output_dir="./fuzzed_dicoms", skip_write_errors=True):
-        """
-        Initialize the generator.
+        """Initialize the generator.
 
         Args:
             output_dir: Directory to save generated files
             skip_write_errors: If True, skip files that can't be written due to
                              invalid mutations (good for fuzzing). If False,
                              raise errors (good for debugging).
+
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -62,10 +60,9 @@ class DICOMGenerator:
         self,
         original_file: str,
         count: int = 100,
-        strategies: Optional[List[str]] = None,
-    ) -> List[Path]:
-        """
-        Generate a batch of mutated DICOM files.
+        strategies: list[str] | None = None,
+    ) -> list[Path]:
+        """Generate a batch of mutated DICOM files.
 
         Args:
             original_file: Path to original DICOM file
@@ -75,6 +72,7 @@ class DICOMGenerator:
 
         Returns:
             List of paths to generated files
+
         """
         parser = DicomParser(original_file)
         base_dataset = parser.dataset
@@ -90,7 +88,7 @@ class DICOMGenerator:
 
         return generated_files
 
-    def _select_fuzzers(self, strategies: Optional[List[str]]) -> dict:
+    def _select_fuzzers(self, strategies: list[str] | None) -> dict:
         """Select fuzzers based on strategy names."""
         all_fuzzers = {
             "metadata": MetadataFuzzer(),
@@ -112,7 +110,7 @@ class DICOMGenerator:
             name: fuzzer for name, fuzzer in all_fuzzers.items() if name in strategies
         }
 
-    def _generate_single_file(self, base_dataset, active_fuzzers) -> Optional[Path]:
+    def _generate_single_file(self, base_dataset, active_fuzzers) -> Path | None:
         """Generate a single fuzzed file. Returns None if generation fails."""
         self.stats.total_attempted += 1
 
@@ -173,8 +171,8 @@ class DICOMGenerator:
         raise
 
     def _save_mutated_file(
-        self, mutated_dataset, strategies_applied: List[str]
-    ) -> Optional[Path]:
+        self, mutated_dataset, strategies_applied: list[str]
+    ) -> Path | None:
         """Save mutated dataset to file. Returns path or None on error."""
         filename = f"fuzzed_{uuid.uuid4().hex[:8]}.dcm"
         output_path = self.output_dir / filename

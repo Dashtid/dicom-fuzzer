@@ -321,7 +321,7 @@ class TestCheckpointSaving:
         checkpoint_path = recovery.save_checkpoint(checkpoint2)
 
         # Load and verify it's the second checkpoint
-        with open(checkpoint_path, "r") as f:
+        with open(checkpoint_path) as f:
             data = json.load(f)
 
         assert data["processed_files"] == 2

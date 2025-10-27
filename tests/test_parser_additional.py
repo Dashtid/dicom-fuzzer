@@ -5,10 +5,10 @@ These tests target specific uncovered code paths in parser.py
 to increase overall test coverage.
 """
 
+import numpy as np
+import pydicom
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.tag import Tag
-import pydicom
-import numpy as np
 
 from dicom_fuzzer.core.parser import DicomParser
 

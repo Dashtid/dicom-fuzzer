@@ -23,7 +23,9 @@ from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
 from dicom_fuzzer.core.validator import DicomValidator
 
 
-@pytest.mark.skip(reason="WIP: Integration test needs API alignment - will be completed in follow-up")
+@pytest.mark.skip(
+    reason="WIP: Integration test needs API alignment - will be completed in follow-up"
+)
 class TestCompleteCrashAnalysisPipeline:
     """Test the complete crash analysis workflow from fuzzing to triage."""
 
@@ -223,7 +225,9 @@ class TestResourceManagementWorkflow:
         output_dir.mkdir()
 
         has_resources = manager.check_available_resources(output_dir)
-        assert isinstance(has_resources, bool), "Should return boolean for resource check"
+        assert isinstance(has_resources, bool), (
+            "Should return boolean for resource check"
+        )
 
         # Test current resource usage
         usage = manager.get_current_usage(output_dir)
@@ -327,10 +331,14 @@ class TestSessionPersistenceWorkflow:
             final_data = json.load(f)
 
         # Verify session continuation
-        assert final_data["statistics"]["files_fuzzed"] == 5, "New session has 5 more files"
+        assert final_data["statistics"]["files_fuzzed"] == 5, (
+            "New session has 5 more files"
+        )
 
 
-@pytest.mark.skip(reason="WIP: Integration test needs validation mode adjustment - will be completed in follow-up")
+@pytest.mark.skip(
+    reason="WIP: Integration test needs validation mode adjustment - will be completed in follow-up"
+)
 class TestValidationWorkflow:
     """Test validation workflow integration."""
 

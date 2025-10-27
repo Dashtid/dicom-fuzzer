@@ -1,5 +1,4 @@
-"""
-Enhanced Fuzzing Report Generator
+"""Enhanced Fuzzing Report Generator
 
 Generates comprehensive, interactive HTML reports with:
 - Complete mutation traceability
@@ -8,7 +7,6 @@ Generates comprehensive, interactive HTML reports with:
 - Artifact preservation tracking
 - Automated crash triage and prioritization
 """
-# flake8: noqa: E201, E202, E222, E221, E702
 # HTML template strings contain intentional CSS formatting
 
 from datetime import datetime
@@ -24,12 +22,12 @@ class EnhancedReportGenerator:
     """Generate enhanced HTML and JSON reports for fuzzing sessions."""
 
     def __init__(self, output_dir: str = "./reports", enable_triage: bool = True):
-        """
-        Initialize enhanced report generator.
+        """Initialize enhanced report generator.
 
         Args:
             output_dir: Directory for generated reports
             enable_triage: Enable automated crash triage and prioritization
+
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -42,14 +40,14 @@ class EnhancedReportGenerator:
             self.triage_engine = None
 
     def _enrich_crashes_with_triage(self, session_data: dict) -> dict:
-        """
-        Enrich crash records with automated triage analysis.
+        """Enrich crash records with automated triage analysis.
 
         Args:
             session_data: Session report dictionary
 
         Returns:
             Enhanced session data with triage information
+
         """
         if not self.enable_triage or not self.triage_engine:
             return session_data
@@ -121,8 +119,7 @@ class EnhancedReportGenerator:
         session_data: dict,
         output_path: Path | None = None,
     ) -> Path:
-        """
-        Generate comprehensive HTML report from session data.
+        """Generate comprehensive HTML report from session data.
 
         Args:
             session_data: Session report dictionary
@@ -130,6 +127,7 @@ class EnhancedReportGenerator:
 
         Returns:
             Path to generated HTML report
+
         """
         # Enrich crashes with automated triage
         session_data = self._enrich_crashes_with_triage(session_data)

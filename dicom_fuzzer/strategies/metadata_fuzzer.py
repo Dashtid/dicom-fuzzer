@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 class MetadataFuzzer:
     def __init__(self):
         self.fake_names = ["Smith^John", "Doe^Jane", "Johnson^Mike"]
-        self.fake_ids = ["PAT{:06d}".format(i) for i in range(1000, 9999)]
+        self.fake_ids = [f"PAT{i:06d}" for i in range(1000, 9999)]
 
     def mutate_patient_info(self, dataset):
         """Generate believable but fake patient data"""

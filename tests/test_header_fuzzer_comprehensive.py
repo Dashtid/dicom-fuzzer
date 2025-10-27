@@ -251,7 +251,15 @@ class TestInvalidVRValues:
         """Test various invalid date formats."""
         fuzzer = HeaderFuzzer()
 
-        invalid_dates = ["INVALID", "99999999", "20251332", "20250145", "2025-01-01", "", "1"]
+        invalid_dates = [
+            "INVALID",
+            "99999999",
+            "20251332",
+            "20250145",
+            "2025-01-01",
+            "",
+            "1",
+        ]
 
         for invalid_date in invalid_dates:
             mock_choice.return_value = invalid_date
@@ -412,7 +420,9 @@ class TestIntegrationScenarios:
         mutated3 = fuzzer._invalid_vr_values(ds)
         mutated4 = fuzzer._boundary_values(ds)
 
-        assert all(isinstance(m, Dataset) for m in [mutated1, mutated2, mutated3, mutated4])
+        assert all(
+            isinstance(m, Dataset) for m in [mutated1, mutated2, mutated3, mutated4]
+        )
 
     def test_sequential_mutations(self):
         """Test applying mutations sequentially."""

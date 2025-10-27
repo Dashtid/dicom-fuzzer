@@ -1,5 +1,4 @@
-"""
-Structure Fuzzer - DICOM File Structure Attacks
+"""Structure Fuzzer - DICOM File Structure Attacks
 
 LEARNING OBJECTIVE: This module demonstrates low-level file format fuzzing,
 targeting the DICOM file structure itself rather than just the data values.
@@ -10,14 +9,12 @@ lead to crashes, buffer overflows, or other security issues.
 """
 
 import random
-from typing import Optional
 
 from pydicom.dataset import Dataset
 
 
 class StructureFuzzer:
-    """
-    Fuzzes the underlying DICOM file structure.
+    """Fuzzes the underlying DICOM file structure.
 
     CONCEPT: DICOM files have a specific binary structure:
     - File preamble (128 bytes)
@@ -38,8 +35,7 @@ class StructureFuzzer:
         ]
 
     def mutate_structure(self, dataset: Dataset) -> Dataset:
-        """
-        Apply structure-level mutations to the dataset.
+        """Apply structure-level mutations to the dataset.
 
         CONCEPT: We randomly select corruption strategies to apply.
         Each strategy targets a different aspect of DICOM structure.
@@ -49,6 +45,7 @@ class StructureFuzzer:
 
         Returns:
             Mutated dataset with structure corruptions
+
         """
         # Randomly select 1-2 corruption strategies to apply
         num_strategies = random.randint(1, 2)
@@ -60,8 +57,7 @@ class StructureFuzzer:
         return dataset
 
     def _corrupt_tag_ordering(self, dataset: Dataset) -> Dataset:
-        """
-        Corrupt the ordering of DICOM tags.
+        """Corrupt the ordering of DICOM tags.
 
         CONCEPT: DICOM tags should be in ascending numerical order.
         Breaking this order can expose parser assumptions and bugs.
@@ -74,6 +70,7 @@ class StructureFuzzer:
 
         Returns:
             Dataset with potentially scrambled tag order
+
         """
         # Get all data elements as a list
         elements = list(dataset.items())
@@ -95,8 +92,7 @@ class StructureFuzzer:
         return dataset
 
     def _corrupt_length_fields(self, dataset: Dataset) -> Dataset:
-        """
-        Corrupt length fields in DICOM data elements.
+        """Corrupt length fields in DICOM data elements.
 
         CONCEPT: Each DICOM element has a length field indicating data size.
         Incorrect lengths can cause buffer overflows or out-of-bounds reads.
@@ -111,6 +107,7 @@ class StructureFuzzer:
 
         Returns:
             Dataset with corrupted length indicators
+
         """
         # Target string-type elements for length corruption
         string_tags = [
@@ -148,8 +145,7 @@ class StructureFuzzer:
         return dataset
 
     def _insert_unexpected_tags(self, dataset: Dataset) -> Dataset:
-        """
-        Insert unexpected or reserved DICOM tags.
+        """Insert unexpected or reserved DICOM tags.
 
         CONCEPT: DICOM has reserved tag ranges and private tags.
         Inserting unusual tags tests parser robustness.
@@ -162,6 +158,7 @@ class StructureFuzzer:
 
         Returns:
             Dataset with unexpected tags inserted
+
         """
         # Define some problematic tag values
         unusual_tags = [
@@ -185,8 +182,7 @@ class StructureFuzzer:
         return dataset
 
     def _duplicate_tags(self, dataset: Dataset) -> Dataset:
-        """
-        Create duplicate DICOM tags.
+        """Create duplicate DICOM tags.
 
         CONCEPT: DICOM specification says each tag should appear once.
         Duplicates test parser handling of malformed files.
@@ -199,6 +195,7 @@ class StructureFuzzer:
 
         Returns:
             Dataset with duplicated tags
+
         """
         # Get existing tags
         existing_tags = list(dataset.keys())
@@ -224,10 +221,9 @@ class StructureFuzzer:
         return dataset
 
     def corrupt_file_header(
-        self, file_path: str, output_path: Optional[str] = None
-    ) -> Optional[str]:
-        """
-        Directly corrupt the DICOM file header at binary level.
+        self, file_path: str, output_path: str | None = None
+    ) -> str | None:
+        """Directly corrupt the DICOM file header at binary level.
 
         CONCEPT: This operates on the raw file bytes, not the parsed dataset.
         It can corrupt the file preamble, DICM prefix, or transfer syntax.
@@ -241,6 +237,7 @@ class StructureFuzzer:
 
         Returns:
             Path to corrupted file, or None on failure
+
         """
         try:
             # Read the entire file as binary

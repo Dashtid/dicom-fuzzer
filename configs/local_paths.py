@@ -1,5 +1,4 @@
-"""
-Local Path Configuration
+"""Local Path Configuration
 
 CRITICAL: This file is in .gitignore and will NEVER be committed to GitHub.
 Contains environment-specific paths for your local machine.

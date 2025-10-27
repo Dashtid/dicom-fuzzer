@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Performance Profiling Script
+"""Performance Profiling Script
 
 Profiles DICOM fuzzer operations using cProfile to identify hotspots.
 Generates detailed profiling reports for optimization targets.
@@ -11,10 +10,10 @@ Usage:
 
 import cProfile
 import pstats
-import tempfile
-from pathlib import Path
 import sys
+import tempfile
 from io import StringIO
+from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -22,9 +21,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian
 
+from dicom_fuzzer.core.corpus import CorpusManager
 from dicom_fuzzer.core.mutator import DicomMutator
 from dicom_fuzzer.core.parser import DicomParser
-from dicom_fuzzer.core.corpus import CorpusManager
 from dicom_fuzzer.core.types import MutationSeverity
 
 
@@ -63,9 +62,7 @@ def profile_mutations():
     # Run mutations
     for _ in range(100):
         mutated = mutator.apply_mutations(
-            dataset.copy(),
-            num_mutations=3,
-            severity=MutationSeverity.MODERATE
+            dataset.copy(), num_mutations=3, severity=MutationSeverity.MODERATE
         )
 
     profiler.disable()
@@ -74,7 +71,7 @@ def profile_mutations():
     stream = StringIO()
     stats = pstats.Stats(profiler, stream=stream)
     stats.strip_dirs()
-    stats.sort_stats('cumulative')
+    stats.sort_stats("cumulative")
 
     print("\nTop 20 functions by cumulative time:")
     print("-" * 80)
@@ -82,7 +79,7 @@ def profile_mutations():
     print(stream.getvalue())
 
     # Save detailed stats
-    stats.dump_stats('profile_mutations.prof')
+    stats.dump_stats("profile_mutations.prof")
     print("\n[*] Saved detailed profile to: profile_mutations.prof")
 
 
@@ -111,7 +108,7 @@ def profile_parsing():
         stream = StringIO()
         stats = pstats.Stats(profiler, stream=stream)
         stats.strip_dirs()
-        stats.sort_stats('cumulative')
+        stats.sort_stats("cumulative")
 
         print("\nTop 20 functions by cumulative time:")
         print("-" * 80)
@@ -119,7 +116,7 @@ def profile_parsing():
         print(stream.getvalue())
 
         # Save detailed stats
-        stats.dump_stats('profile_parsing.prof')
+        stats.dump_stats("profile_parsing.prof")
         print("\n[*] Saved detailed profile to: profile_parsing.prof")
 
     finally:
@@ -132,7 +129,9 @@ def profile_corpus():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         corpus_dir = Path(tmpdir) / "corpus"
-        manager = CorpusManager(corpus_dir, max_corpus_size=100, min_fitness_threshold=0.0)
+        manager = CorpusManager(
+            corpus_dir, max_corpus_size=100, min_fitness_threshold=0.0
+        )
 
         datasets = [create_sample_dicom() for _ in range(10)]
 
@@ -154,7 +153,7 @@ def profile_corpus():
         stream = StringIO()
         stats = pstats.Stats(profiler, stream=stream)
         stats.strip_dirs()
-        stats.sort_stats('cumulative')
+        stats.sort_stats("cumulative")
 
         print("\nTop 20 functions by cumulative time:")
         print("-" * 80)
@@ -162,7 +161,7 @@ def profile_corpus():
         print(stream.getvalue())
 
         # Save detailed stats
-        stats.dump_stats('profile_corpus.prof')
+        stats.dump_stats("profile_corpus.prof")
         print("\n[*] Saved detailed profile to: profile_corpus.prof")
 
 
@@ -172,7 +171,9 @@ def profile_end_to_end():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         corpus_dir = Path(tmpdir) / "corpus"
-        manager = CorpusManager(corpus_dir, max_corpus_size=50, min_fitness_threshold=0.0)
+        manager = CorpusManager(
+            corpus_dir, max_corpus_size=50, min_fitness_threshold=0.0
+        )
         mutator = DicomMutator()
 
         original_ds = create_sample_dicom()
@@ -184,9 +185,7 @@ def profile_end_to_end():
         for i in range(50):
             # Mutate
             mutated = mutator.apply_mutations(
-                original_ds.copy(),
-                num_mutations=3,
-                severity=MutationSeverity.MODERATE
+                original_ds.copy(), num_mutations=3, severity=MutationSeverity.MODERATE
             )
 
             # Add to corpus
@@ -202,7 +201,7 @@ def profile_end_to_end():
         stream = StringIO()
         stats = pstats.Stats(profiler, stream=stream)
         stats.strip_dirs()
-        stats.sort_stats('cumulative')
+        stats.sort_stats("cumulative")
 
         print("\nTop 30 functions by cumulative time:")
         print("-" * 80)
@@ -210,7 +209,7 @@ def profile_end_to_end():
         print(stream.getvalue())
 
         # Save detailed stats
-        stats.dump_stats('profile_end_to_end.prof')
+        stats.dump_stats("profile_end_to_end.prof")
         print("\n[*] Saved detailed profile to: profile_end_to_end.prof")
 
 

@@ -1,5 +1,4 @@
-"""
-Timeout Budget Management
+"""Timeout Budget Management
 
 CONCEPT: Manage global timeout budget for fuzzing campaigns to prevent
 runaway campaigns that spend too much time on timeouts.
@@ -11,15 +10,13 @@ consistently slow or hanging inputs.
 import logging
 import time
 from dataclasses import dataclass
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class TimeoutStatistics:
-    """
-    Statistics for timeout budget tracking.
+    """Statistics for timeout budget tracking.
 
     Tracks how much time is spent on timeouts vs successful executions.
     """
@@ -61,8 +58,7 @@ class TimeoutStatistics:
 
 
 class TimeoutBudgetManager:
-    """
-    Manage timeout budget for fuzzing campaigns.
+    """Manage timeout budget for fuzzing campaigns.
 
     CONCEPT: Prevent runaway campaigns by:
     1. Tracking time spent on timeouts vs successful runs
@@ -80,14 +76,14 @@ class TimeoutBudgetManager:
         max_timeout: float = 60.0,
         adjustment_interval: int = 100,
     ):
-        """
-        Initialize timeout budget manager.
+        """Initialize timeout budget manager.
 
         Args:
             max_timeout_ratio: Max % of time allowed for timeouts (0.10 = 10%)
             min_timeout: Minimum timeout value in seconds
             max_timeout: Maximum timeout value in seconds
             adjustment_interval: Adjust timeout every N executions
+
         """
         self.max_timeout_ratio = max_timeout_ratio
         self.min_timeout = min_timeout
@@ -109,15 +105,15 @@ class TimeoutBudgetManager:
         )
 
     def record_execution(
-        self, duration: float, timed_out: bool, start_time: Optional[float] = None
+        self, duration: float, timed_out: bool, start_time: float | None = None
     ):
-        """
-        Record execution result and update statistics.
+        """Record execution result and update statistics.
 
         Args:
             duration: Execution duration in seconds
             timed_out: Whether execution timed out
             start_time: Optional start timestamp for precise timing
+
         """
         # Update statistics
         self.stats.total_executions += 1
@@ -139,11 +135,11 @@ class TimeoutBudgetManager:
             self.executions_since_adjustment = 0
 
     def is_budget_exceeded(self) -> bool:
-        """
-        Check if timeout budget has been exceeded.
+        """Check if timeout budget has been exceeded.
 
         Returns:
             True if too much time spent on timeouts
+
         """
         if self.stats.total_time == 0:
             return False
@@ -159,17 +155,16 @@ class TimeoutBudgetManager:
         return exceeded
 
     def get_recommended_timeout(self) -> float:
-        """
-        Get recommended timeout value based on current statistics.
+        """Get recommended timeout value based on current statistics.
 
         Returns:
             Recommended timeout in seconds
+
         """
         return self.current_timeout
 
     def _adjust_timeout(self):
-        """
-        Adjust timeout based on recent statistics.
+        """Adjust timeout based on recent statistics.
 
         CONCEPT: If spending too much time on timeouts, reduce timeout.
         If success rate is high, can slightly increase for edge cases.
@@ -208,11 +203,11 @@ class TimeoutBudgetManager:
                 )
 
     def get_statistics(self) -> TimeoutStatistics:
-        """
-        Get current timeout statistics.
+        """Get current timeout statistics.
 
         Returns:
             TimeoutStatistics object
+
         """
         return self.stats
 
@@ -223,11 +218,11 @@ class TimeoutBudgetManager:
         logger.info("Timeout budget statistics reset")
 
     def generate_report(self) -> str:
-        """
-        Generate human-readable timeout budget report.
+        """Generate human-readable timeout budget report.
 
         Returns:
             Formatted report string
+
         """
         stats = self.stats
         report = []
@@ -270,8 +265,7 @@ class TimeoutBudgetManager:
 
 # Convenience function for timing executions
 class ExecutionTimer:
-    """
-    Context manager for timing executions.
+    """Context manager for timing executions.
 
     Usage:
         with ExecutionTimer() as timer:
@@ -286,8 +280,8 @@ class ExecutionTimer:
 
     def __init__(self):
         """Initialize timer."""
-        self.start_time: Optional[float] = None
-        self.end_time: Optional[float] = None
+        self.start_time: float | None = None
+        self.end_time: float | None = None
         self.duration: float = 0.0
 
     def __enter__(self):

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Generate 3D DICOM Series Fuzzing Reports
+"""Generate 3D DICOM Series Fuzzing Reports
 
 This CLI tool generates comprehensive reports for 3D DICOM series fuzzing campaigns,
 including HTML reports, JSON exports, and interactive visualizations.
@@ -15,7 +14,7 @@ FEATURES:
     - Static Matplotlib charts (PNG/SVG for print and documentation)
     - Performance analytics and recommendations
 
-EXAMPLE:
+Example:
     # Generate report from fuzzing session data
     python scripts/generate_3d_report.py \\
         --campaign-name "Phase 5 Testing" \\
@@ -29,6 +28,7 @@ This tool is for DEFENSIVE security testing only.
 - Use ONLY on systems you own or have permission to test
 - Never use on production medical systems
 - Ensure test data contains NO patient information
+
 """
 
 import argparse
@@ -57,18 +57,17 @@ logger = get_logger(__name__)
 
 
 class Report3DGenerator:
-    """
-    CLI tool for generating 3D series fuzzing reports.
+    """CLI tool for generating 3D series fuzzing reports.
 
     Integrates all Phase 5 components to create comprehensive reports.
     """
 
     def __init__(self, output_dir: str = "./reports"):
-        """
-        Initialize report generator.
+        """Initialize report generator.
 
         Args:
             output_dir: Directory to save generated reports
+
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -80,8 +79,7 @@ class Report3DGenerator:
     def create_demo_report(
         self, campaign_name: str, series_count: int = 10, mutation_count: int = 500
     ) -> Series3DReport:
-        """
-        Create a demonstration report with synthetic data.
+        """Create a demonstration report with synthetic data.
 
         Args:
             campaign_name: Name of the campaign
@@ -90,6 +88,7 @@ class Report3DGenerator:
 
         Returns:
             Series3DReport object with demo data
+
         """
         logger.info(f"Creating demo report: {campaign_name}")
         logger.info(f"  Series: {series_count}, Mutations: {mutation_count}")
@@ -159,8 +158,7 @@ class Report3DGenerator:
         include_analytics: bool = True,
         include_visualizations: bool = True,
     ) -> dict[str, Path]:
-        """
-        Generate full report with all requested formats.
+        """Generate full report with all requested formats.
 
         Args:
             report: Series3DReport to generate from
@@ -170,6 +168,7 @@ class Report3DGenerator:
 
         Returns:
             Dictionary mapping format names to output paths
+
         """
         if formats is None:
             formats = ["html", "json"]
@@ -207,14 +206,14 @@ class Report3DGenerator:
         return output_paths
 
     def generate_analytics_report(self, report: Series3DReport) -> Path:
-        """
-        Generate analytics report with recommendations.
+        """Generate analytics report with recommendations.
 
         Args:
             report: Series3DReport to analyze
 
         Returns:
             Path to analytics JSON file
+
         """
         # Create synthetic mutation statistics
         mutation_stats = []
@@ -265,14 +264,14 @@ class Report3DGenerator:
         return analytics_path
 
     def generate_visualizations(self, report: Series3DReport) -> dict[str, Path]:
-        """
-        Generate all visualization charts.
+        """Generate all visualization charts.
 
         Args:
             report: Series3DReport to visualize
 
         Returns:
             Dictionary mapping chart names to paths
+
         """
         chart_paths = {}
 

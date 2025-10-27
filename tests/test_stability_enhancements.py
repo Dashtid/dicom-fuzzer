@@ -12,10 +12,14 @@ import hashlib
 import time
 from pathlib import Path
 
-
 from dicom_fuzzer.utils.corpus_minimization import (
     minimize_corpus_for_campaign,
     validate_corpus_quality,
+)
+from dicom_fuzzer.utils.coverage_correlation import (
+    correlate_crashes_with_coverage,
+    generate_correlation_report,
+    identify_crash_prone_modules,
 )
 from dicom_fuzzer.utils.stateless_harness import (
     create_stateless_test_wrapper,
@@ -26,11 +30,6 @@ from dicom_fuzzer.utils.timeout_budget import (
     ExecutionTimer,
     TimeoutBudgetManager,
     TimeoutStatistics,
-)
-from dicom_fuzzer.utils.coverage_correlation import (
-    correlate_crashes_with_coverage,
-    generate_correlation_report,
-    identify_crash_prone_modules,
 )
 
 
@@ -102,9 +101,7 @@ class TestCorpusMinimization:
 
     def test_minimize_corpus_nonexistent(self, temp_dir):
         """Test minimization on non-existent corpus."""
-        result = minimize_corpus_for_campaign(
-            Path("/nonexistent"), temp_dir / "out"
-        )
+        result = minimize_corpus_for_campaign(Path("/nonexistent"), temp_dir / "out")
         assert result == []
 
     def test_minimize_corpus_basic(self, temp_dir, sample_dicom_file):
@@ -143,9 +140,7 @@ class TestCorpusMinimization:
             dest = corpus_dir / f"test_{i}.dcm"
             shutil.copy(sample_dicom_file, dest)
 
-        result = minimize_corpus_for_campaign(
-            corpus_dir, output_dir, max_corpus_size=5
-        )
+        result = minimize_corpus_for_campaign(corpus_dir, output_dir, max_corpus_size=5)
 
         assert len(result) <= 5
 
@@ -484,9 +479,7 @@ class TestCoverageCorrelation:
         ]
 
         # All crashes hit "func_vuln", safe inputs don't
-        coverage_data = {
-            f"crash_{i}.dcm": {"func_safe", "func_vuln"} for i in range(3)
-        }
+        coverage_data = {f"crash_{i}.dcm": {"func_safe", "func_vuln"} for i in range(3)}
         coverage_data["safe.dcm"] = {"func_safe"}
 
         safe_inputs = ["safe.dcm"]
@@ -504,8 +497,8 @@ class TestCoverageCorrelation:
     def test_generate_correlation_report(self):
         """Test correlation report generation."""
         from dicom_fuzzer.utils.coverage_correlation import (
-            CrashCoverageCorrelation,
             CoverageInsight,
+            CrashCoverageCorrelation,
         )
 
         correlation = CrashCoverageCorrelation()
@@ -570,9 +563,7 @@ class TestIntegration:
 
     def test_timeout_workflow(self):
         """Test complete timeout budget workflow."""
-        manager = TimeoutBudgetManager(
-            max_timeout_ratio=0.20, adjustment_interval=10
-        )
+        manager = TimeoutBudgetManager(max_timeout_ratio=0.20, adjustment_interval=10)
 
         # Simulate fuzzing campaign
         for i in range(20):
@@ -597,9 +588,7 @@ class TestIntegration:
 
         # Validate
         is_det, error = validate_determinism(
-            test_input="test",
-            test_function=test_harness,
-            runs=3
+            test_input="test", test_function=test_harness, runs=3
         )
         assert is_det, f"Expected deterministic but got: {error}"
 

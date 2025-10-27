@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Unified Report Generator - Generate Reports from Fuzzing Session Data
+"""Unified Report Generator - Generate Reports from Fuzzing Session Data
 
 This tool generates comprehensive HTML and JSON reports from fuzzing session data.
 It supports both new enhanced session format and legacy report formats.
@@ -24,7 +23,7 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator  # noqa: E402
+from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
 
 
 def generate_reports(
@@ -32,18 +31,18 @@ def generate_reports(
     output_html: Path = None,
     keep_json: bool = False,
 ):
-    """
-    Generate HTML (and optionally JSON) reports from session data.
+    """Generate HTML (and optionally JSON) reports from session data.
 
     Args:
         session_json_path: Path to session JSON file
         output_html: Path for HTML output (auto-generated if None)
         keep_json: Whether to keep the JSON alongside HTML
+
     """
     print(f"📊 Loading session data from: {session_json_path}")
 
     # Load session data
-    with open(session_json_path, "r", encoding="utf-8") as f:
+    with open(session_json_path, encoding="utf-8") as f:
         session_data = json.load(f)
 
     # Initialize reporter

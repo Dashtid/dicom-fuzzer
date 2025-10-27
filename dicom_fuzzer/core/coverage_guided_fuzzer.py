@@ -1,29 +1,28 @@
-"""
-Coverage-Guided Fuzzer for DICOM
+"""Coverage-Guided Fuzzer for DICOM
 
 Main fuzzing engine that integrates coverage tracking, corpus management,
 and adaptive mutations to maximize code coverage and bug discovery.
 """
 
-import time
-import logging
 import asyncio
-import signal
 import hashlib
-from pathlib import Path
-from typing import Optional, Dict, Any, Callable, List, Tuple
-from dataclasses import dataclass, field
-from concurrent.futures import ThreadPoolExecutor, BrokenExecutor
 import json
+import logging
+import signal
+import time
+from collections.abc import Callable
+from concurrent.futures import BrokenExecutor, ThreadPoolExecutor
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
 
 import pydicom
 
-from .coverage_instrumentation import CoverageTracker, CoverageInfo
 from .corpus_manager import CorpusManager, HistoricalCorpusManager
 from .coverage_guided_mutator import CoverageGuidedMutator, MutationType
+from .coverage_instrumentation import CoverageInfo, CoverageTracker
 from .crash_analyzer import CrashAnalyzer
 from .reporter import ReportGenerator
-
 
 # Configure logging
 logging.basicConfig(
@@ -37,9 +36,9 @@ class FuzzingConfig:
     """Configuration for coverage-guided fuzzing."""
 
     # Target configuration
-    target_function: Optional[Callable] = None
-    target_binary: Optional[str] = None
-    target_modules: List[str] = field(default_factory=list)
+    target_function: Callable | None = None
+    target_binary: str | None = None
+    target_modules: list[str] = field(default_factory=list)
 
     # Fuzzing parameters
     max_iterations: int = 10000
@@ -53,8 +52,8 @@ class FuzzingConfig:
     minimize_corpus: bool = True
 
     # Corpus parameters
-    corpus_dir: Optional[Path] = None
-    seed_dir: Optional[Path] = None
+    corpus_dir: Path | None = None
+    seed_dir: Path | None = None
     max_corpus_size: int = 1000
 
     # Mutation parameters
@@ -88,20 +87,18 @@ class FuzzingStats:
     corpus_size: int = 0
     exec_per_sec: float = 0.0
     time_since_last_coverage: float = 0.0
-    mutation_stats: Dict[str, Any] = field(default_factory=dict)
+    mutation_stats: dict[str, Any] = field(default_factory=dict)
 
 
 class CoverageGuidedFuzzer:
-    """
-    Main coverage-guided fuzzing engine for DICOM files.
-    """
+    """Main coverage-guided fuzzing engine for DICOM files."""
 
     def __init__(self, config: FuzzingConfig):
-        """
-        Initialize the coverage-guided fuzzer.
+        """Initialize the coverage-guided fuzzer.
 
         Args:
             config: Fuzzing configuration
+
         """
         self.config = config
         self.stats = FuzzingStats()
@@ -154,11 +151,11 @@ class CoverageGuidedFuzzer:
         self.should_stop = True
 
     async def run(self) -> FuzzingStats:
-        """
-        Run the fuzzing campaign.
+        """Run the fuzzing campaign.
 
         Returns:
             Final fuzzing statistics
+
         """
         logger.info("Starting coverage-guided fuzzing campaign")
         self.is_running = True
@@ -270,8 +267,7 @@ class CoverageGuidedFuzzer:
             iteration += 1
 
     async def _run_parallel(self) -> None:
-        """
-        Run parallel fuzzing with multiple workers.
+        """Run parallel fuzzing with multiple workers.
 
         STABILITY: Uses ThreadPoolExecutor with proper error handling.
         For CPU-intensive tasks, consider ProcessPoolExecutor with BrokenProcessPool handling.
@@ -324,12 +320,12 @@ class CoverageGuidedFuzzer:
                     )
                 )
 
-    async def _execute_with_coverage(self, data: bytes) -> Tuple[CoverageInfo, bool]:
-        """
-        Execute target with coverage tracking.
+    async def _execute_with_coverage(self, data: bytes) -> tuple[CoverageInfo, bool]:
+        """Execute target with coverage tracking.
 
         Returns:
             (coverage_info, crashed) tuple
+
         """
         crashed = False
         coverage = CoverageInfo()
@@ -341,7 +337,7 @@ class CoverageGuidedFuzzer:
                     asyncio.to_thread(self._execute_target, data),
                     timeout=self.config.timeout_per_run,
                 )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug("Execution timeout")
             crashed = True
         except Exception as e:
@@ -351,14 +347,14 @@ class CoverageGuidedFuzzer:
         return coverage, crashed
 
     def _execute_target(self, data: bytes) -> Any:
-        """
-        Execute the target with the given input.
+        """Execute the target with the given input.
 
         Args:
             data: Input data to test
 
         Returns:
             Execution result
+
         """
         if self.config.target_function:
             # Execute Python function
@@ -537,7 +533,7 @@ class CoverageGuidedFuzzer:
 
         logger.info(f"Fuzzing complete. Results saved to {self.config.output_dir}")
 
-    def _generate_report(self) -> Dict[str, Any]:
+    def _generate_report(self) -> dict[str, Any]:
         """Generate final fuzzing report."""
         elapsed = time.time() - self.stats.start_time
 
@@ -570,7 +566,7 @@ class CoverageGuidedFuzzer:
 
 def create_fuzzer_from_config(config_path: Path) -> CoverageGuidedFuzzer:
     """Create fuzzer from configuration file."""
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config_dict = json.load(f)
 
     config = FuzzingConfig(**config_dict)

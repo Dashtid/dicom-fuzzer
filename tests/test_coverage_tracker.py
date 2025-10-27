@@ -224,7 +224,7 @@ class TestTraceExecution:
 
         with tracker.trace_execution("test_1"):
             # Execute some code (will track this test file)
-            _ = 1 + 1  # noqa: F841
+            _ = 1 + 1
 
         # Should have recorded at least one execution
         assert tracker.total_executions == 1
@@ -235,7 +235,7 @@ class TestTraceExecution:
 
         with tracker.trace_execution("test_2"):
             # Simple operation
-            _ = sum([1, 2, 3])  # noqa: F841
+            _ = sum([1, 2, 3])
 
         # Should have some coverage recorded
         assert len(tracker.global_coverage) > 0 or tracker.total_executions == 1
@@ -287,7 +287,7 @@ class TestTraceExecution:
         tracker = CoverageTracker()
 
         with tracker.trace_execution("test_5"):
-            _ = 1  # noqa: F841
+            _ = 1
 
         # Current coverage should be cleared after context exits
         # (it's copied to snapshot, then cleared)
@@ -377,7 +377,7 @@ class TestStatistics:
         tracker = CoverageTracker()
 
         with tracker.trace_execution("test_1"):
-            _ = 1 + 1  # noqa: F841
+            _ = 1 + 1
 
         stats = tracker.get_statistics()
 
@@ -467,14 +467,14 @@ class TestReset:
 
         # Use tracker
         with tracker.trace_execution("test_1"):
-            _ = 1 + 1  # noqa: F841
+            _ = 1 + 1
 
         # Reset
         tracker.reset()
 
         # Use again
         with tracker.trace_execution("test_2"):
-            _ = 2 + 2  # noqa: F841
+            _ = 2 + 2
 
         # Should work normally
         assert tracker.total_executions >= 1
@@ -485,7 +485,7 @@ class TestIntegration:
 
     def test_complete_coverage_workflow(self):
         """Test a complete coverage-guided fuzzing workflow."""
-        from dicom_fuzzer.core.test_helper import simple_function, another_function
+        from dicom_fuzzer.core.test_helper import another_function, simple_function
 
         tracker = CoverageTracker(target_modules=["core"])
 
@@ -536,10 +536,10 @@ class TestIntegration:
 
         # Simulate some executions
         with tracker.trace_execution("test_1"):
-            _ = 1  # noqa: F841
+            _ = 1
 
         with tracker.trace_execution("test_2"):
-            _ = 2  # noqa: F841
+            _ = 2
 
         stats = tracker.get_statistics()
 
@@ -613,7 +613,7 @@ class TestActualCodeTracing:
 
     def test_trace_execution_updates_coverage_history(self):
         """Test that interesting executions are added to coverage history."""
-        from dicom_fuzzer.core.test_helper import simple_function, conditional_function
+        from dicom_fuzzer.core.test_helper import conditional_function, simple_function
 
         tracker = CoverageTracker(target_modules=["core"])
 
@@ -653,7 +653,7 @@ class TestActualCodeTracing:
 
     def test_trace_execution_records_new_coverage(self):
         """Test that trace_execution properly records new coverage."""
-        from dicom_fuzzer.core.test_helper import simple_function, another_function
+        from dicom_fuzzer.core.test_helper import another_function, simple_function
 
         tracker = CoverageTracker(target_modules=["core"])
 
@@ -670,7 +670,7 @@ class TestActualCodeTracing:
 
     def test_coverage_report_with_executions(self):
         """Test coverage report after real executions."""
-        from dicom_fuzzer.core.test_helper import simple_function, conditional_function
+        from dicom_fuzzer.core.test_helper import conditional_function, simple_function
 
         tracker = CoverageTracker(target_modules=["core"])
 

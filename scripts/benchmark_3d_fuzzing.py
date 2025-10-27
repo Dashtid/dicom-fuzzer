@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Comprehensive Performance Benchmarking for 3D DICOM Fuzzing
+"""Comprehensive Performance Benchmarking for 3D DICOM Fuzzing
 
 Benchmarks Phase 1-4 performance with various series sizes:
 - Series detection and loading
@@ -57,8 +56,7 @@ class PerformanceBenchmark:
     def create_synthetic_series(
         self, num_slices: int, modality: str = "CT"
     ) -> tuple[list[Dataset], Path]:
-        """
-        Create synthetic DICOM series for benchmarking.
+        """Create synthetic DICOM series for benchmarking.
 
         Args:
             num_slices: Number of slices to create
@@ -66,6 +64,7 @@ class PerformanceBenchmark:
 
         Returns:
             Tuple of (list of datasets, temp directory path)
+
         """
         series_uid = generate_uid()
         study_uid = generate_uid()
@@ -135,8 +134,7 @@ class PerformanceBenchmark:
     def benchmark_series_detection(
         self, num_slices: int, iterations: int = 3
     ) -> dict[str, Any]:
-        """
-        Benchmark series detection performance.
+        """Benchmark series detection performance.
 
         Args:
             num_slices: Number of slices in series
@@ -144,6 +142,7 @@ class PerformanceBenchmark:
 
         Returns:
             Dict with benchmark results
+
         """
         logger.info(f"[BENCHMARK] Series Detection - {num_slices} slices")
 
@@ -209,8 +208,7 @@ class PerformanceBenchmark:
         strategy: SeriesMutationStrategy,
         iterations: int = 3,
     ) -> dict[str, Any]:
-        """
-        Benchmark series mutation performance.
+        """Benchmark series mutation performance.
 
         Args:
             num_slices: Number of slices
@@ -219,6 +217,7 @@ class PerformanceBenchmark:
 
         Returns:
             Dict with benchmark results
+
         """
         logger.info(
             f"[BENCHMARK] Series Mutation ({strategy.value}) - {num_slices} slices"
@@ -297,8 +296,7 @@ class PerformanceBenchmark:
     def benchmark_series_writing(
         self, num_slices: int, iterations: int = 3
     ) -> dict[str, Any]:
-        """
-        Benchmark series writing performance.
+        """Benchmark series writing performance.
 
         Args:
             num_slices: Number of slices
@@ -306,6 +304,7 @@ class PerformanceBenchmark:
 
         Returns:
             Dict with benchmark results
+
         """
         logger.info(f"[BENCHMARK] Series Writing - {num_slices} slices")
 
@@ -383,11 +382,11 @@ class PerformanceBenchmark:
         }
 
     def run_comprehensive_benchmark(self, slice_counts: list[int]) -> None:
-        """
-        Run comprehensive benchmark across different series sizes.
+        """Run comprehensive benchmark across different series sizes.
 
         Args:
             slice_counts: List of slice counts to test
+
         """
         logger.info("=" * 80)
         logger.info("COMPREHENSIVE 3D FUZZING PERFORMANCE BENCHMARK")

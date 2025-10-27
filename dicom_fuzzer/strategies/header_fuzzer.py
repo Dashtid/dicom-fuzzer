@@ -1,5 +1,4 @@
-"""
-Header Fuzzer - DICOM Tag and Header Mutations
+"""Header Fuzzer - DICOM Tag and Header Mutations
 
 LEARNING OBJECTIVE: This module demonstrates header-level fuzzing,
 targeting DICOM tags, Value Representations (VRs), and data integrity.
@@ -14,8 +13,7 @@ from pydicom.tag import Tag
 
 
 class HeaderFuzzer:
-    """
-    Fuzzes DICOM headers with edge cases and invalid values.
+    """Fuzzes DICOM headers with edge cases and invalid values.
 
     CONCEPT: Tests how applications handle:
     - Overlong strings (buffer overflow)
@@ -36,14 +34,14 @@ class HeaderFuzzer:
         ]
 
     def mutate_tags(self, dataset):
-        """
-        Mutate DICOM tags with edge cases.
+        """Mutate DICOM tags with edge cases.
 
         Args:
             dataset: DICOM dataset to mutate
 
         Returns:
             Mutated dataset
+
         """
         mutations = [
             self._overlong_strings,
@@ -57,8 +55,7 @@ class HeaderFuzzer:
         return dataset
 
     def _overlong_strings(self, dataset):
-        """
-        Insert extremely long strings to test buffer handling.
+        """Insert extremely long strings to test buffer handling.
 
         SECURITY: Tests for buffer overflow vulnerabilities.
         Many older DICOM parsers allocate fixed buffers.
@@ -81,8 +78,7 @@ class HeaderFuzzer:
         return dataset
 
     def _missing_required_tags(self, dataset):
-        """
-        Remove required DICOM tags to test compliance.
+        """Remove required DICOM tags to test compliance.
 
         CONCEPT: DICOM defines required tags (Type 1) that must be present.
         Applications should reject files missing these tags.
@@ -106,8 +102,7 @@ class HeaderFuzzer:
         return dataset
 
     def _invalid_vr_values(self, dataset):
-        """
-        Insert invalid Value Representation (VR) values.
+        """Insert invalid Value Representation (VR) values.
 
         CONCEPT: Each DICOM tag has a specific VR (data type):
         - DA (Date): YYYYMMDD format
@@ -176,8 +171,7 @@ class HeaderFuzzer:
         return dataset
 
     def _boundary_values(self, dataset):
-        """
-        Insert boundary and edge case values.
+        """Insert boundary and edge case values.
 
         CONCEPT: Boundary values often expose off-by-one errors
         and integer overflow/underflow vulnerabilities.

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Generate Synthetic 3D DICOM Series for Testing
+"""Generate Synthetic 3D DICOM Series for Testing
 
 Creates a multi-slice CT series suitable for fuzzing campaigns.
 Based on the existing CT_small.dcm sample, this generates a complete 3D series.
@@ -35,8 +34,7 @@ def generate_ct_slice(
     study_uid: str,
     output_dir: Path,
 ) -> Path:
-    """
-    Generate a single CT slice with proper DICOM metadata.
+    """Generate a single CT slice with proper DICOM metadata.
 
     Args:
         slice_number: Slice index (0-based)
@@ -47,6 +45,7 @@ def generate_ct_slice(
 
     Returns:
         Path to the generated DICOM file
+
     """
     # Create new dataset
     file_meta = Dataset()
@@ -150,12 +149,12 @@ def generate_ct_slice(
 
 
 def generate_series(output_dir: Path, slice_count: int = 30) -> None:
-    """
-    Generate a complete 3D DICOM series.
+    """Generate a complete 3D DICOM series.
 
     Args:
         output_dir: Directory to save the series
         slice_count: Number of slices to generate
+
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 

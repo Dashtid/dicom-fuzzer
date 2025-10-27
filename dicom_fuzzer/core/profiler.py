@@ -1,5 +1,4 @@
-"""
-Performance Profiler - Fuzzing Campaign Metrics
+"""Performance Profiler - Fuzzing Campaign Metrics
 
 LEARNING OBJECTIVE: This module demonstrates performance monitoring for
 fuzzing campaigns, tracking execution time, memory usage, and throughput.
@@ -16,15 +15,13 @@ This helps with both development and production deployment.
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
 
 import psutil
 
 
 @dataclass
 class FuzzingMetrics:
-    """
-    Metrics collected during a fuzzing campaign.
+    """Metrics collected during a fuzzing campaign.
 
     CONCEPT: We track multiple dimensions of performance:
     - Time metrics: How long operations take
@@ -35,7 +32,7 @@ class FuzzingMetrics:
 
     # Time metrics
     start_time: datetime = field(default_factory=datetime.now)
-    end_time: Optional[datetime] = None
+    end_time: datetime | None = None
     total_duration: float = 0.0  # seconds
 
     # Throughput metrics
@@ -47,11 +44,11 @@ class FuzzingMetrics:
     # Resource metrics
     peak_memory_mb: float = 0.0
     avg_cpu_percent: float = 0.0
-    cpu_samples: List[float] = field(default_factory=list)
+    cpu_samples: list[float] = field(default_factory=list)
 
     # Strategy metrics
-    strategy_usage: Dict[str, int] = field(default_factory=dict)
-    strategy_timing: Dict[str, float] = field(default_factory=dict)
+    strategy_usage: dict[str, int] = field(default_factory=dict)
+    strategy_timing: dict[str, float] = field(default_factory=dict)
 
     def throughput_per_second(self) -> float:
         """Calculate files generated per second."""
@@ -66,14 +63,14 @@ class FuzzingMetrics:
         return 0.0
 
     def estimated_time_remaining(self, target: int) -> float:
-        """
-        Estimate time remaining to reach target.
+        """Estimate time remaining to reach target.
 
         Args:
             target: Target number of files to generate
 
         Returns:
             Estimated seconds remaining
+
         """
         if self.files_generated == 0:
             return 0.0
@@ -87,8 +84,7 @@ class FuzzingMetrics:
 
 
 class PerformanceProfiler:
-    """
-    Tracks performance metrics during fuzzing campaigns.
+    """Tracks performance metrics during fuzzing campaigns.
 
     CONCEPT: Context manager pattern for automatic tracking.
     Usage:
@@ -146,12 +142,12 @@ class PerformanceProfiler:
                 self.metrics.cpu_samples
             )
 
-    def record_file_generated(self, strategy: Optional[str] = None):
-        """
-        Record that a file was generated.
+    def record_file_generated(self, strategy: str | None = None):
+        """Record that a file was generated.
 
         Args:
             strategy: Strategy used to generate file
+
         """
         self.metrics.files_generated += 1
 
@@ -165,12 +161,12 @@ class PerformanceProfiler:
             self._sample_resources()
 
     def record_mutation(self, strategy: str, duration: float = 0.0):
-        """
-        Record that a mutation was applied.
+        """Record that a mutation was applied.
 
         Args:
             strategy: Strategy that performed mutation
             duration: Time taken for mutation (seconds)
+
         """
         self.metrics.mutations_applied += 1
         self.metrics.strategy_usage[strategy] = (
@@ -190,15 +186,15 @@ class PerformanceProfiler:
         """Record that a crash was found."""
         self.metrics.crashes_found += 1
 
-    def get_progress_report(self, target: Optional[int] = None) -> str:
-        """
-        Generate a progress report.
+    def get_progress_report(self, target: int | None = None) -> str:
+        """Generate a progress report.
 
         Args:
             target: Target number of files (optional)
 
         Returns:
             Formatted progress report
+
         """
         elapsed = (datetime.now() - self.metrics.start_time).total_seconds()
         throughput = self.metrics.files_generated / elapsed if elapsed > 0 else 0
@@ -231,12 +227,12 @@ class PerformanceProfiler:
 
         return "\n".join(report)
 
-    def get_summary(self) -> Dict:
-        """
-        Get metrics summary as dictionary.
+    def get_summary(self) -> dict:
+        """Get metrics summary as dictionary.
 
         Returns:
             Dictionary with all metrics
+
         """
         return {
             "duration_seconds": self.metrics.total_duration,
@@ -258,8 +254,7 @@ class PerformanceProfiler:
 
 
 class StrategyTimer:
-    """
-    Context manager for timing individual strategy operations.
+    """Context manager for timing individual strategy operations.
 
     CONCEPT: Decorator pattern for automatic timing.
     Usage:
@@ -270,12 +265,12 @@ class StrategyTimer:
     """
 
     def __init__(self, profiler: PerformanceProfiler, strategy: str):
-        """
-        Initialize timer.
+        """Initialize timer.
 
         Args:
             profiler: Profiler to record timing to
             strategy: Strategy being timed
+
         """
         self.profiler = profiler
         self.strategy = strategy
@@ -294,8 +289,7 @@ class StrategyTimer:
 
 
 def profile_function(strategy: str):
-    """
-    Decorator to profile a function.
+    """Decorator to profile a function.
 
     CONCEPT: Decorator pattern for automatic profiling.
 

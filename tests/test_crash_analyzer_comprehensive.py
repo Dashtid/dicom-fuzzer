@@ -5,7 +5,6 @@ Tests crash detection, classification, reporting, and deduplication.
 
 from datetime import datetime
 
-
 from dicom_fuzzer.core.crash_analyzer import (
     CrashAnalyzer,
     CrashReport,

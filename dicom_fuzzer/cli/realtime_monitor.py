@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Real-Time Fuzzing Monitor
+"""Real-Time Fuzzing Monitor
 
 Provides live monitoring of fuzzing campaigns with auto-refreshing statistics.
 Shows progress, crash detection, and performance metrics in real-time.
@@ -17,19 +16,18 @@ import argparse
 import json
 import time
 from pathlib import Path
-from typing import Dict
 
 
 class RealtimeMonitor:
     """Real-time monitoring of fuzzing campaigns."""
 
     def __init__(self, session_dir: Path, refresh_interval: int = 1):
-        """
-        Initialize real-time monitor.
+        """Initialize real-time monitor.
 
         Args:
             session_dir: Directory containing fuzzing session
             refresh_interval: Refresh interval in seconds
+
         """
         self.session_dir = session_dir
         self.refresh_interval = refresh_interval
@@ -67,7 +65,7 @@ class RealtimeMonitor:
         latest = max(session_files, key=lambda p: p.stat().st_mtime)
 
         try:
-            with open(latest, "r", encoding="utf-8") as f:
+            with open(latest, encoding="utf-8") as f:
                 data = json.load(f)
 
             self._display_stats(data)
@@ -79,7 +77,7 @@ class RealtimeMonitor:
         elapsed = time.time() - self.start_time
         print(f"\rWaiting for session data... ({elapsed:.0f}s)", end="", flush=True)
 
-    def _display_stats(self, data: Dict):
+    def _display_stats(self, data: dict):
         """Display statistics from session data."""
         # Clear screen (platform independent)
         print("\033[2J\033[H", end="")

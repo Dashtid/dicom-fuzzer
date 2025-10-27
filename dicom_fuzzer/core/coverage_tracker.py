@@ -1,5 +1,4 @@
-"""
-Coverage-Guided Fuzzing - Coverage Tracking System
+"""Coverage-Guided Fuzzing - Coverage Tracking System
 
 LEARNING OBJECTIVE: This module demonstrates how coverage-guided fuzzing works by
 tracking which code paths are executed during testing.
@@ -17,9 +16,9 @@ import hashlib
 import sys
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -28,8 +27,7 @@ logger = get_logger(__name__)
 
 @dataclass
 class CoverageSnapshot:
-    """
-    Represents the coverage state at a point in time.
+    """Represents the coverage state at a point in time.
 
     CONCEPT: A snapshot is like a photograph of which code lines were executed.
     We use this to compare different test cases and find which ones explore new code.
@@ -39,11 +37,12 @@ class CoverageSnapshot:
         branches_covered: Set of (filename, line_number, branch_id) tuples
         timestamp: When this snapshot was taken
         test_case_id: Identifier for the test case that produced this coverage
+
     """
 
-    lines_covered: Set[Tuple[str, int]] = field(default_factory=set)
-    branches_covered: Set[Tuple[str, int, int]] = field(default_factory=set)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    lines_covered: set[tuple[str, int]] = field(default_factory=set)
+    branches_covered: set[tuple[str, int, int]] = field(default_factory=set)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     test_case_id: str = ""
     total_lines: int = 0
     total_branches: int = 0
@@ -54,14 +53,14 @@ class CoverageSnapshot:
         self.total_branches = len(self.branches_covered)
 
     def coverage_hash(self) -> str:
-        """
-        Generate a unique hash for this coverage pattern.
+        """Generate a unique hash for this coverage pattern.
 
         CONCEPT: We use a hash to quickly check if two test cases have the
         same coverage. If they do, one is redundant.
 
         Returns:
             SHA-256 hash of the coverage pattern
+
         """
         # Sort for consistency
         lines_str = ",".join(
@@ -74,9 +73,8 @@ class CoverageSnapshot:
         combined = f"{lines_str}|{branches_str}"
         return hashlib.sha256(combined.encode()).hexdigest()
 
-    def new_coverage_vs(self, other: "CoverageSnapshot") -> Set[Tuple[str, int]]:
-        """
-        Find lines covered by this snapshot but not the other.
+    def new_coverage_vs(self, other: "CoverageSnapshot") -> set[tuple[str, int]]:
+        """Find lines covered by this snapshot but not the other.
 
         CONCEPT: This tells us what new code paths a test case discovered.
         If a test case covers new lines, it's "interesting" and worth keeping.
@@ -86,6 +84,7 @@ class CoverageSnapshot:
 
         Returns:
             Set of newly covered (filename, line_number) tuples
+
         """
         return self.lines_covered - other.lines_covered
 
@@ -97,8 +96,7 @@ class CoverageSnapshot:
 
 
 class CoverageTracker:
-    """
-    Tracks code coverage during fuzzing to guide mutation selection.
+    """Tracks code coverage during fuzzing to guide mutation selection.
 
     LEARNING: This is the core of coverage-guided fuzzing. It's like a GPS
     that tells us which routes (code paths) we've explored and which are new.
@@ -113,15 +111,15 @@ class CoverageTracker:
 
     def __init__(
         self,
-        target_modules: Optional[List[str]] = None,
-        ignore_patterns: Optional[List[str]] = None,
+        target_modules: list[str] | None = None,
+        ignore_patterns: list[str] | None = None,
     ):
-        """
-        Initialize the coverage tracker.
+        """Initialize the coverage tracker.
 
         Args:
             target_modules: List of module prefixes to track (e.g., ['core', 'strategies'])
             ignore_patterns: List of patterns to ignore (e.g., ['test_', '__pycache__'])
+
         """
         self.target_modules = target_modules or ["core", "strategies", "utils"]
         self.ignore_patterns = ignore_patterns or [
@@ -132,9 +130,9 @@ class CoverageTracker:
         ]
 
         # Coverage data
-        self.global_coverage: Set[Tuple[str, int]] = set()
-        self.current_coverage: Set[Tuple[str, int]] = set()
-        self.coverage_history: List[CoverageSnapshot] = []
+        self.global_coverage: set[tuple[str, int]] = set()
+        self.current_coverage: set[tuple[str, int]] = set()
+        self.coverage_history: list[CoverageSnapshot] = []
 
         # Statistics
         self.total_executions = 0
@@ -142,7 +140,7 @@ class CoverageTracker:
         self.redundant_cases = 0
 
         # Coverage hashes for deduplication
-        self.seen_coverage_hashes: Set[str] = set()
+        self.seen_coverage_hashes: set[str] = set()
 
         logger.info(
             "Coverage tracker initialized",
@@ -151,8 +149,7 @@ class CoverageTracker:
         )
 
     def _should_trace_file(self, filename: str) -> bool:
-        """
-        Determine if a file should be traced.
+        """Determine if a file should be traced.
 
         CONCEPT: We only want to track coverage in our code, not in Python's
         standard library or third-party packages.
@@ -162,6 +159,7 @@ class CoverageTracker:
 
         Returns:
             True if this file should be traced
+
         """
         # Ignore patterns
         for pattern in self.ignore_patterns:
@@ -188,8 +186,7 @@ class CoverageTracker:
         return False
 
     def _trace_function(self, frame, event, arg):
-        """
-        Tracing function called by sys.settrace.
+        """Tracing function called by sys.settrace.
 
         LEARNING: Python's sys.settrace calls this function for every line of code executed.
         It's very powerful but also has performance overhead.
@@ -204,6 +201,7 @@ class CoverageTracker:
 
         Returns:
             self._trace_function to continue tracing
+
         """
         if event == "line":
             filename = frame.f_code.co_filename
@@ -215,8 +213,7 @@ class CoverageTracker:
 
     @contextmanager
     def trace_execution(self, test_case_id: str):
-        """
-        Context manager to track coverage during code execution.
+        """Context manager to track coverage during code execution.
 
         LEARNING: Context managers (with/as) ensure cleanup happens even if errors occur.
 
@@ -230,6 +227,7 @@ class CoverageTracker:
 
         Yields:
             CoverageSnapshot after execution completes
+
         """
         # Clear current coverage
         self.current_coverage = set()
@@ -277,8 +275,7 @@ class CoverageTracker:
             self.total_executions += 1
 
     def is_interesting(self, snapshot: CoverageSnapshot) -> bool:
-        """
-        Determine if a coverage snapshot is interesting (provides new coverage).
+        """Determine if a coverage snapshot is interesting (provides new coverage).
 
         CONCEPT: A test case is "interesting" if it explores code we haven't
         seen before. These are the cases worth keeping and mutating further.
@@ -288,6 +285,7 @@ class CoverageTracker:
 
         Returns:
             True if this snapshot provides new coverage
+
         """
         # Check coverage hash for quick deduplication
         coverage_hash = snapshot.coverage_hash()
@@ -305,12 +303,12 @@ class CoverageTracker:
 
         return False
 
-    def get_statistics(self) -> Dict[str, Any]:
-        """
-        Get coverage tracking statistics.
+    def get_statistics(self) -> dict[str, Any]:
+        """Get coverage tracking statistics.
 
         Returns:
             Dictionary with coverage statistics
+
         """
         return {
             "total_executions": self.total_executions,
@@ -326,11 +324,11 @@ class CoverageTracker:
         }
 
     def get_coverage_report(self) -> str:
-        """
-        Generate a human-readable coverage report.
+        """Generate a human-readable coverage report.
 
         Returns:
             Formatted coverage report string
+
         """
         stats = self.get_statistics()
 

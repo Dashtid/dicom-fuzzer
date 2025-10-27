@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Coverage-Guided Fuzzing CLI for DICOM-Fuzzer
+"""Coverage-Guided Fuzzing CLI for DICOM-Fuzzer
 
 Command-line interface for running coverage-guided fuzzing campaigns
 against DICOM parsers and applications.
@@ -15,12 +14,12 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
 from rich.console import Console
 from rich.live import Live
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
+from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
 
 console = Console()
 
@@ -284,12 +283,12 @@ async def run_fuzzing_campaign(config: FuzzingConfig) -> None:
 
 def load_config_from_file(config_path: Path) -> FuzzingConfig:
     """Load configuration from JSON file."""
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config_dict = json.load(f)
 
     # Convert paths
     for key in ["corpus_dir", "seed_dir", "output_dir", "crash_dir"]:
-        if key in config_dict and config_dict[key]:
+        if config_dict.get(key):
             config_dict[key] = Path(config_dict[key])
 
     return FuzzingConfig(**config_dict)

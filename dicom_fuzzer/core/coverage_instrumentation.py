@@ -1,30 +1,30 @@
-"""
-Coverage Instrumentation for DICOM Fuzzer
+"""Coverage Instrumentation for DICOM Fuzzer
 
 Provides lightweight coverage tracking using Python's tracing capabilities.
 Tracks edge coverage (branch transitions) to guide fuzzing decisions.
 """
 
-import sys
 import hashlib
+import sys
+import threading
 import time
-from typing import Set, Dict, Optional, Tuple, Any, Callable
+from collections.abc import Callable
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-import threading
-from contextlib import contextmanager
+from typing import Any
 
 
 @dataclass
 class CoverageInfo:
     """Stores coverage information for a single execution."""
 
-    edges: Set[Tuple[str, int, str, int]] = field(default_factory=set)
-    branches: Set[Tuple[str, int, bool]] = field(default_factory=set)
-    functions: Set[str] = field(default_factory=set)
-    lines: Set[Tuple[str, int]] = field(default_factory=set)
+    edges: set[tuple[str, int, str, int]] = field(default_factory=set)
+    branches: set[tuple[str, int, bool]] = field(default_factory=set)
+    functions: set[str] = field(default_factory=set)
+    lines: set[tuple[str, int]] = field(default_factory=set)
     execution_time: float = 0.0
-    input_hash: Optional[str] = None
+    input_hash: str | None = None
     new_coverage: bool = False
 
     def merge(self, other: "CoverageInfo") -> None:
@@ -42,29 +42,28 @@ class CoverageInfo:
 
 
 class CoverageTracker:
-    """
-    Lightweight coverage tracker using sys.settrace.
+    """Lightweight coverage tracker using sys.settrace.
 
     Optimized for fuzzing workloads with minimal overhead.
     """
 
-    def __init__(self, target_modules: Optional[Set[str]] = None):
-        """
-        Initialize the coverage tracker.
+    def __init__(self, target_modules: set[str] | None = None):
+        """Initialize the coverage tracker.
 
         Args:
             target_modules: Set of module names to track (None = track all)
+
         """
         self.target_modules = target_modules or set()
         self.global_coverage = CoverageInfo()
         self.current_coverage = CoverageInfo()
-        self.coverage_history: Dict[str, CoverageInfo] = {}
-        self.last_location: Optional[Tuple[str, int]] = None
+        self.coverage_history: dict[str, CoverageInfo] = {}
+        self.last_location: tuple[str, int] | None = None
         self.trace_enabled = False
         self._lock = threading.RLock()  # Use RLock to allow re-entrant locking
 
         # Performance optimization: cache module checks
-        self._module_cache: Dict[str, bool] = {}
+        self._module_cache: dict[str, bool] = {}
 
         # Statistics
         self.total_executions = 0
@@ -85,9 +84,8 @@ class CoverageTracker:
         self._module_cache[filename] = result
         return result
 
-    def _trace_function(self, frame: Any, event: str, arg: Any) -> Optional[Callable]:
-        """
-        Trace function for sys.settrace.
+    def _trace_function(self, frame: Any, event: str, arg: Any) -> Callable | None:
+        """Trace function for sys.settrace.
 
         Tracks code execution at the line and branch level.
         """
@@ -134,15 +132,15 @@ class CoverageTracker:
         return self._trace_function
 
     @contextmanager
-    def track_coverage(self, input_data: Optional[bytes] = None):
-        """
-        Context manager to track coverage for a code block.
+    def track_coverage(self, input_data: bytes | None = None):
+        """Context manager to track coverage for a code block.
 
         Args:
             input_data: Optional input data to hash for deduplication
 
         Yields:
             CoverageInfo object that will be populated during execution
+
         """
         # Reset current coverage
         self.current_coverage = CoverageInfo()
@@ -187,7 +185,7 @@ class CoverageTracker:
                         self.current_coverage
                     )
 
-    def get_coverage_stats(self) -> Dict[str, Any]:
+    def get_coverage_stats(self) -> dict[str, Any]:
         """Get current coverage statistics."""
         with self._lock:
             return {
@@ -205,9 +203,8 @@ class CoverageTracker:
                 ),
             }
 
-    def get_uncovered_edges(self, recent_coverage: CoverageInfo) -> Set[Tuple]:
-        """
-        Get edges that haven't been covered yet.
+    def get_uncovered_edges(self, recent_coverage: CoverageInfo) -> set[tuple]:
+        """Get edges that haven't been covered yet.
 
         Useful for targeted fuzzing.
         """
@@ -255,21 +252,20 @@ class CoverageTracker:
 
 
 class HybridCoverageTracker(CoverageTracker):
-    """
-    Enhanced coverage tracker with optional Atheris integration.
+    """Enhanced coverage tracker with optional Atheris integration.
 
     Falls back to pure Python tracking if Atheris is not available.
     """
 
     def __init__(
-        self, target_modules: Optional[Set[str]] = None, use_atheris: bool = False
+        self, target_modules: set[str] | None = None, use_atheris: bool = False
     ):
-        """
-        Initialize hybrid coverage tracker.
+        """Initialize hybrid coverage tracker.
 
         Args:
             target_modules: Modules to track
             use_atheris: Try to use Atheris for coverage if available
+
         """
         super().__init__(target_modules)
         self.atheris_available = False
@@ -285,10 +281,8 @@ class HybridCoverageTracker(CoverageTracker):
                 print("Atheris not available, falling back to pure Python coverage")
 
     @contextmanager
-    def track_coverage(self, input_data: Optional[bytes] = None):
-        """
-        Track coverage with Atheris integration if available.
-        """
+    def track_coverage(self, input_data: bytes | None = None):
+        """Track coverage with Atheris integration if available."""
         if self.atheris_available and self.use_atheris:
             # Use Atheris coverage tracking
             # This would integrate with Atheris's coverage-guided fuzzing
@@ -301,8 +295,7 @@ class HybridCoverageTracker(CoverageTracker):
 
 
 def calculate_coverage_distance(cov1: CoverageInfo, cov2: CoverageInfo) -> float:
-    """
-    Calculate distance between two coverage signatures.
+    """Calculate distance between two coverage signatures.
 
     Used for coverage-guided seed selection.
     """
@@ -323,7 +316,7 @@ def calculate_coverage_distance(cov1: CoverageInfo, cov2: CoverageInfo) -> float
 
 
 # Global tracker instance (can be configured)
-_global_tracker: Optional[CoverageTracker] = None
+_global_tracker: CoverageTracker | None = None
 
 
 def get_global_tracker() -> CoverageTracker:
@@ -334,7 +327,7 @@ def get_global_tracker() -> CoverageTracker:
     return _global_tracker
 
 
-def configure_global_tracker(target_modules: Set[str]) -> None:
+def configure_global_tracker(target_modules: set[str]) -> None:
     """Configure the global tracker with target modules."""
     global _global_tracker
     _global_tracker = CoverageTracker(target_modules)

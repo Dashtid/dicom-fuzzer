@@ -320,7 +320,7 @@ class TestFuzzingSession:
         assert report_path.suffix == ".json"
 
         # Verify content
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             data = json.load(f)
 
         assert "session_info" in data
@@ -598,7 +598,7 @@ class TestFuzzingSession:
         )
 
         # Long binary data (will be truncated)
-        data = b"\xFF" * 100  # 100 bytes = 200 hex chars
+        data = b"\xff" * 100  # 100 bytes = 200 hex chars
         result = session._value_to_string(data)
 
         assert isinstance(result, str)
@@ -686,7 +686,7 @@ class TestFuzzingSession:
             target_tag="(7FE0,0010)",
             target_element="PixelData",
             original_value=b"\x00" * 10,
-            mutated_value=b"\xFF" * 10,
+            mutated_value=b"\xff" * 10,
         )
 
         file_record = FuzzedFileRecord(

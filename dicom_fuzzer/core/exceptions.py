@@ -4,7 +4,7 @@ This module defines the exception hierarchy for the DICOM fuzzer,
 providing detailed error information and categorization.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class DicomFuzzingError(Exception):
@@ -17,13 +17,14 @@ class DicomFuzzingError(Exception):
         message: Human-readable error description
         error_code: Optional error code for categorization
         context: Additional context information
+
     """
 
     def __init__(
         self,
         message: str,
-        error_code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
+        error_code: str | None = None,
+        context: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message)
         self.message = message

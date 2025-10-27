@@ -106,7 +106,7 @@ def demo_systematic_edge_cases():
                     print(f"  (length: {len(name_val)})")
                 elif category == "null_bytes":
                     print("  Example: PatientName contains null byte")
-                    print(f"  (repr: {repr(name_val)})")
+                    print(f"  (repr: {name_val!r})")
                 else:
                     print(f"  Example: PatientName = '{name_val}'")
 

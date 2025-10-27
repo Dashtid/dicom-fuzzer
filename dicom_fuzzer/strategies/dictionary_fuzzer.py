@@ -1,5 +1,4 @@
-"""
-Dictionary-Based DICOM Fuzzing Strategy
+"""Dictionary-Based DICOM Fuzzing Strategy
 
 LEARNING OBJECTIVE: This module demonstrates dictionary-based fuzzing - using
 domain knowledge to generate intelligent mutations.
@@ -19,7 +18,6 @@ This is called "smart fuzzing" or "grammar-aware fuzzing".
 
 import copy
 import random
-from typing import Dict, List, Tuple
 
 from pydicom.dataset import Dataset
 
@@ -31,8 +29,7 @@ logger = get_logger(__name__)
 
 
 class DictionaryFuzzer:
-    """
-    Dictionary-based fuzzing strategy for DICOM files.
+    """Dictionary-based fuzzing strategy for DICOM files.
 
     LEARNING: This fuzzer knows about DICOM - it understands what values
     should go in which tags and can intelligently substitute malicious but
@@ -48,7 +45,7 @@ class DictionaryFuzzer:
     # Mapping of DICOM tags to appropriate dictionaries
     # CONCEPT: Each DICOM tag has specific valid values. We know which dictionary
     # to use for each tag to generate realistic mutations.
-    TAG_TO_DICTIONARY: Dict[int, str] = {
+    TAG_TO_DICTIONARY: dict[int, str] = {
         0x00080016: "sop_class_uids",  # SOP Class UID
         0x00080018: "sop_class_uids",  # SOP Instance UID (reuse class UIDs)
         0x00020010: "transfer_syntaxes",  # Transfer Syntax UID
@@ -97,8 +94,7 @@ class DictionaryFuzzer:
     def mutate(
         self, dataset: Dataset, severity: MutationSeverity = MutationSeverity.MODERATE
     ) -> Dataset:
-        """
-        Apply dictionary-based mutations to a DICOM dataset.
+        """Apply dictionary-based mutations to a DICOM dataset.
 
         CONCEPT: Based on severity, we apply different mutation strategies:
         - MINIMAL: Replace with valid dictionary values
@@ -112,6 +108,7 @@ class DictionaryFuzzer:
 
         Returns:
             Mutated dataset
+
         """
         mutated = copy.deepcopy(dataset)
 
@@ -140,8 +137,7 @@ class DictionaryFuzzer:
         return mutated
 
     def _mutate_tag(self, dataset: Dataset, tag: int, severity: MutationSeverity):
-        """
-        Mutate a specific tag using dictionary values.
+        """Mutate a specific tag using dictionary values.
 
         CONCEPT: We choose a value from the appropriate dictionary based on
         the tag type and severity level.
@@ -150,6 +146,7 @@ class DictionaryFuzzer:
             dataset: Dataset to mutate (modified in place)
             tag: Tag to mutate
             severity: Mutation severity
+
         """
         tag_int = int(tag)
 
@@ -181,8 +178,7 @@ class DictionaryFuzzer:
             logger.debug(f"Failed to mutate tag {tag:08X}: {e}")
 
     def _get_valid_value(self, tag: int) -> str:
-        """
-        Get a valid value for a tag from dictionaries.
+        """Get a valid value for a tag from dictionaries.
 
         CONCEPT: We look up which dictionary is appropriate for this tag
         and return a random value from it.
@@ -192,6 +188,7 @@ class DictionaryFuzzer:
 
         Returns:
             Valid dictionary value
+
         """
         # Check if this is a UID tag
         if tag in self.UID_TAGS:
@@ -208,8 +205,7 @@ class DictionaryFuzzer:
         return DICOMDictionaries.get_random_value(dict_name)
 
     def _get_edge_case_value(self) -> str:
-        """
-        Get an edge case value.
+        """Get an edge case value.
 
         CONCEPT: Edge cases are values that often cause problems:
         - Empty strings
@@ -219,14 +215,14 @@ class DictionaryFuzzer:
 
         Returns:
             Edge case value
+
         """
         category = random.choice(list(self.edge_cases.keys()))
         values = self.edge_cases[category]
         return random.choice(values)
 
     def _get_malicious_value(self) -> str:
-        """
-        Get a malicious value designed to trigger vulnerabilities.
+        """Get a malicious value designed to trigger vulnerabilities.
 
         CONCEPT: These values specifically target common vulnerability types:
         - Buffer overflows
@@ -236,14 +232,14 @@ class DictionaryFuzzer:
 
         Returns:
             Malicious value
+
         """
         category = random.choice(list(self.malicious_values.keys()))
         values = self.malicious_values[category]
         return random.choice(values)
 
     def _get_num_mutations(self, severity: MutationSeverity, dataset_size: int) -> int:
-        """
-        Determine how many mutations to apply based on severity.
+        """Determine how many mutations to apply based on severity.
 
         CONCEPT: More severe = more mutations
 
@@ -253,6 +249,7 @@ class DictionaryFuzzer:
 
         Returns:
             Number of mutations to apply
+
         """
         if severity == MutationSeverity.MINIMAL:
             return random.randint(1, max(2, dataset_size // 20))
@@ -268,8 +265,7 @@ class DictionaryFuzzer:
         return "dictionary"
 
     def can_mutate(self, dataset: Dataset) -> bool:
-        """
-        Check if this strategy can mutate the dataset.
+        """Check if this strategy can mutate the dataset.
 
         CONCEPT: Dictionary fuzzing works on any DICOM dataset.
 
@@ -278,12 +274,12 @@ class DictionaryFuzzer:
 
         Returns:
             True (always applicable)
+
         """
         return True
 
-    def get_applicable_tags(self, dataset: Dataset) -> List[Tuple[int, str]]:
-        """
-        Get tags that can be mutated with their dictionary names.
+    def get_applicable_tags(self, dataset: Dataset) -> list[tuple[int, str]]:
+        """Get tags that can be mutated with their dictionary names.
 
         CONCEPT: This helps with targeted fuzzing - we can see which tags
         we can intelligently mutate.
@@ -293,6 +289,7 @@ class DictionaryFuzzer:
 
         Returns:
             List of (tag, dictionary_name) tuples
+
         """
         applicable = []
 
@@ -311,8 +308,7 @@ class DictionaryFuzzer:
     def mutate_with_specific_dictionary(
         self, dataset: Dataset, tag: int, dictionary_name: str
     ) -> Dataset:
-        """
-        Mutate a specific tag using a specific dictionary.
+        """Mutate a specific tag using a specific dictionary.
 
         CONCEPT: For targeted testing, we can specify exactly which
         dictionary to use for which tag.
@@ -324,6 +320,7 @@ class DictionaryFuzzer:
 
         Returns:
             Mutated dataset
+
         """
         mutated = copy.deepcopy(dataset)
 
@@ -347,9 +344,8 @@ class DictionaryFuzzer:
 
     def inject_edge_cases_systematically(
         self, dataset: Dataset, category: str
-    ) -> List[Dataset]:
-        """
-        Generate multiple datasets by systematically injecting edge cases.
+    ) -> list[Dataset]:
+        """Generate multiple datasets by systematically injecting edge cases.
 
         CONCEPT: Instead of random injection, we systematically try each
         edge case in each tag. This ensures comprehensive coverage.
@@ -360,6 +356,7 @@ class DictionaryFuzzer:
 
         Returns:
             List of mutated datasets
+
         """
         if category not in self.edge_cases:
             logger.warning(f"Unknown edge case category: {category}")

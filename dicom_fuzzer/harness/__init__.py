@@ -1,5 +1,4 @@
-"""
-DICOM Viewer Harness Module
+"""DICOM Viewer Harness Module
 
 This module provides tools for testing DICOM viewers with fuzzed data, including
 support for both 2D (single-file) and 3D (multi-slice series) testing scenarios.

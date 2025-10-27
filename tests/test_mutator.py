@@ -14,7 +14,7 @@ Tests cover:
 - Integration workflows
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock, patch
 
 import pytest
@@ -75,7 +75,7 @@ class TestMutationRecord:
 
     def test_record_creation_with_values(self):
         """Test creating mutation record with specific values."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         record = MutationRecord(
             mutation_id="test123",
@@ -106,9 +106,9 @@ class TestMutationRecord:
 
     def test_record_timestamp_automatic(self):
         """Test that timestamps are automatically generated."""
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         record = MutationRecord()
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
 
         assert before <= record.timestamp <= after
 
@@ -131,8 +131,8 @@ class TestMutationSession:
 
     def test_session_creation_with_values(self):
         """Test creating session with specific values."""
-        start_time = datetime.now(timezone.utc)
-        end_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
+        end_time = datetime.now(UTC)
         mutations = [MutationRecord(), MutationRecord()]
 
         session = MutationSession(

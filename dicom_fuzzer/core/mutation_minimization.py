@@ -1,5 +1,4 @@
-"""
-Mutation Minimization - Find Minimal Crash-Triggering Input
+"""Mutation Minimization - Find Minimal Crash-Triggering Input
 
 This module implements delta debugging and other minimization strategies
 to find the smallest set of mutations that still triggers a crash.
@@ -11,9 +10,9 @@ This helps identify the root cause vulnerability.
 """
 
 import copy
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
 
 import pydicom
 from pydicom.dataset import Dataset
@@ -27,15 +26,14 @@ class MinimizationResult:
 
     original_mutation_count: int
     minimized_mutation_count: int
-    minimal_mutations: List[MutationRecord]
+    minimal_mutations: list[MutationRecord]
     test_iterations: int
     still_crashes: bool
     minimization_ratio: float
 
 
 class MutationMinimizer:
-    """
-    Minimize mutations required to trigger a crash.
+    """Minimize mutations required to trigger a crash.
 
     Uses delta debugging algorithm to systematically reduce
     the mutation set while preserving the crash.
@@ -46,12 +44,12 @@ class MutationMinimizer:
         crash_tester: Callable[[Dataset], bool],
         max_iterations: int = 50,
     ):
-        """
-        Initialize mutation minimizer.
+        """Initialize mutation minimizer.
 
         Args:
             crash_tester: Function that tests if dataset crashes (returns True if crash)
             max_iterations: Maximum minimization iterations
+
         """
         self.crash_tester = crash_tester
         self.max_iterations = max_iterations
@@ -60,11 +58,10 @@ class MutationMinimizer:
     def minimize(
         self,
         original_dataset: Dataset,
-        mutations: List[MutationRecord],
+        mutations: list[MutationRecord],
         strategy: str = "delta_debug",
     ) -> MinimizationResult:
-        """
-        Minimize mutations to find minimal crash-triggering set.
+        """Minimize mutations to find minimal crash-triggering set.
 
         Args:
             original_dataset: Original DICOM dataset before mutations
@@ -73,6 +70,7 @@ class MutationMinimizer:
 
         Returns:
             MinimizationResult with minimal mutation set
+
         """
         self.test_count = 0
 
@@ -101,10 +99,9 @@ class MutationMinimizer:
         )
 
     def _delta_debugging(
-        self, original: Dataset, mutations: List[MutationRecord]
-    ) -> List[MutationRecord]:
-        """
-        Delta debugging algorithm.
+        self, original: Dataset, mutations: list[MutationRecord]
+    ) -> list[MutationRecord]:
+        """Delta debugging algorithm.
 
         Systematically reduces mutation set by testing subsets.
 
@@ -114,6 +111,7 @@ class MutationMinimizer:
 
         Returns:
             Minimal mutation list that still triggers crash
+
         """
         # Start with full set
         current_set = mutations.copy()
@@ -166,10 +164,9 @@ class MutationMinimizer:
         return current_set
 
     def _linear_minimization(
-        self, original: Dataset, mutations: List[MutationRecord]
-    ) -> List[MutationRecord]:
-        """
-        Linear minimization - try removing each mutation one at a time.
+        self, original: Dataset, mutations: list[MutationRecord]
+    ) -> list[MutationRecord]:
+        """Linear minimization - try removing each mutation one at a time.
 
         Faster but less effective than delta debugging.
 
@@ -179,6 +176,7 @@ class MutationMinimizer:
 
         Returns:
             Minimal mutation list
+
         """
         minimal = mutations.copy()
 
@@ -201,10 +199,9 @@ class MutationMinimizer:
         return minimal
 
     def _binary_minimization(
-        self, original: Dataset, mutations: List[MutationRecord]
-    ) -> List[MutationRecord]:
-        """
-        Binary search minimization.
+        self, original: Dataset, mutations: list[MutationRecord]
+    ) -> list[MutationRecord]:
+        """Binary search minimization.
 
         Test halves of the mutation set.
 
@@ -214,6 +211,7 @@ class MutationMinimizer:
 
         Returns:
             Minimal mutation list
+
         """
         current = mutations.copy()
 
@@ -244,10 +242,9 @@ class MutationMinimizer:
         return current
 
     def _apply_mutations(
-        self, dataset: Dataset, mutations: List[MutationRecord]
+        self, dataset: Dataset, mutations: list[MutationRecord]
     ) -> Dataset:
-        """
-        Apply list of mutations to dataset.
+        """Apply list of mutations to dataset.
 
         Args:
             dataset: Original dataset
@@ -255,6 +252,7 @@ class MutationMinimizer:
 
         Returns:
             Mutated dataset
+
         """
         # Deep copy to avoid modifying original
         mutated = copy.deepcopy(dataset)
@@ -269,9 +267,8 @@ class MutationMinimizer:
 
         return mutated
 
-    def _split_list(self, lst: List, n: int) -> List[List]:
-        """
-        Split list into n roughly equal parts.
+    def _split_list(self, lst: list, n: int) -> list[list]:
+        """Split list into n roughly equal parts.
 
         Args:
             lst: List to split
@@ -279,6 +276,7 @@ class MutationMinimizer:
 
         Returns:
             List of sublists
+
         """
         if n <= 0 or n > len(lst):
             return [lst]
@@ -300,19 +298,18 @@ class MutationMinimizer:
 
 
 class CrashMinimizationOrchestrator:
-    """
-    Orchestrate crash minimization across multiple crashes.
+    """Orchestrate crash minimization across multiple crashes.
 
     Prioritizes crashes and manages minimization workflow.
     """
 
     def __init__(self, viewer_path: Path, timeout: int = 5):
-        """
-        Initialize minimization orchestrator.
+        """Initialize minimization orchestrator.
 
         Args:
             viewer_path: Path to viewer executable for testing
             timeout: Timeout for crash tests
+
         """
         self.viewer_path = viewer_path
         self.timeout = timeout
@@ -321,11 +318,10 @@ class CrashMinimizationOrchestrator:
         self,
         crash_id: str,
         source_file: Path,
-        mutations: List[MutationRecord],
+        mutations: list[MutationRecord],
         strategy: str = "delta_debug",
     ) -> MinimizationResult:
-        """
-        Minimize mutations for a specific crash.
+        """Minimize mutations for a specific crash.
 
         Args:
             crash_id: Crash identifier
@@ -335,6 +331,7 @@ class CrashMinimizationOrchestrator:
 
         Returns:
             MinimizationResult
+
         """
         # Load original dataset
         original_ds = pydicom.dcmread(str(source_file), force=True)
@@ -384,12 +381,11 @@ class CrashMinimizationOrchestrator:
 
     def batch_minimize(
         self,
-        crashes: List[Tuple[str, Path, List[MutationRecord]]],
+        crashes: list[tuple[str, Path, list[MutationRecord]]],
         strategy: str = "delta_debug",
-        max_crashes: Optional[int] = None,
-    ) -> Dict[str, MinimizationResult]:
-        """
-        Minimize multiple crashes in batch.
+        max_crashes: int | None = None,
+    ) -> dict[str, MinimizationResult]:
+        """Minimize multiple crashes in batch.
 
         Args:
             crashes: List of (crash_id, source_file, mutations) tuples
@@ -398,6 +394,7 @@ class CrashMinimizationOrchestrator:
 
         Returns:
             Dictionary mapping crash_id to MinimizationResult
+
         """
         results = {}
 

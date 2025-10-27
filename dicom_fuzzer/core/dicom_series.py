@@ -1,5 +1,4 @@
-"""
-DICOM Series Data Structure
+"""DICOM Series Data Structure
 
 This module defines the DicomSeries dataclass representing a complete 3D DICOM series.
 
@@ -32,8 +31,7 @@ logger = get_logger(__name__)
 
 @dataclass
 class DicomSeries:
-    """
-    Represents a complete 3D DICOM series.
+    """Represents a complete 3D DICOM series.
 
     A series is a collection of DICOM instances (slices) that share the same
     SeriesInstanceUID and form a cohesive 3D volume.
@@ -46,6 +44,7 @@ class DicomSeries:
         slice_spacing: Distance between slices in mm (if uniform)
         orientation: Image orientation patient vector
         metadata: Series-level metadata extracted from first slice
+
     """
 
     series_uid: str
@@ -81,8 +80,7 @@ class DicomSeries:
         return self.is_3d
 
     def get_slice_positions(self) -> list[tuple[float, float, float]]:
-        """
-        Extract ImagePositionPatient for all slices.
+        """Extract ImagePositionPatient for all slices.
 
         Returns:
             List of (x, y, z) positions for each slice
@@ -91,6 +89,7 @@ class DicomSeries:
             Based on pydicom 2025 best practices, ImagePositionPatient[2] (z-coordinate)
             is the most reliable method for sorting slices, more robust than SliceLocation
             which may not be present in all modalities.
+
         """
         positions = []
         for slice_path in self.slices:
@@ -110,14 +109,14 @@ class DicomSeries:
         return positions
 
     def calculate_slice_spacing(self) -> float | None:
-        """
-        Calculate the distance between consecutive slices.
+        """Calculate the distance between consecutive slices.
 
         Uses ImagePositionPatient[2] (z-coordinate) to determine spacing.
         Returns None if spacing is non-uniform or cannot be determined.
 
         Returns:
             Average slice spacing in mm, or None if non-uniform
+
         """
         positions = self.get_slice_positions()
         if len(positions) < 2:
@@ -152,11 +151,11 @@ class DicomSeries:
             return None
 
     def get_dimensions(self) -> tuple[int, int, int] | None:
-        """
-        Get the 3D dimensions of the series (width, height, depth).
+        """Get the 3D dimensions of the series (width, height, depth).
 
         Returns:
             Tuple of (rows, columns, slices) or None if cannot be determined
+
         """
         if not self.slices:
             return None
@@ -171,13 +170,13 @@ class DicomSeries:
             return None
 
     def load_first_slice(self) -> Dataset | None:
-        """
-        Load the first slice as a pydicom Dataset.
+        """Load the first slice as a pydicom Dataset.
 
         Useful for extracting series-level metadata without loading entire volume.
 
         Returns:
             pydicom Dataset of first slice, or None if error
+
         """
         if not self.slices:
             return None
@@ -189,8 +188,7 @@ class DicomSeries:
             return None
 
     def validate_series_consistency(self) -> list[str]:
-        """
-        Validate that all slices have consistent series-level attributes.
+        """Validate that all slices have consistent series-level attributes.
 
         Checks:
         - All slices have same SeriesInstanceUID
@@ -200,6 +198,7 @@ class DicomSeries:
 
         Returns:
             List of validation error messages (empty if valid)
+
         """
         errors = []
 
