@@ -393,7 +393,13 @@ truncated*.dcm
 *COVERAGE*.md
 *SUMMARY*.md
 *STATUS*.md
+*_ANALYSIS.md
+*_SESSION*.md
+*SESSION_NOTES*.md
 analyze_*.py
+benchmark_*.txt
+README_*_ADDITION.txt
+README_*_insert.txt
 
 # ============================================================================
 # Project-Specific Output Directories
