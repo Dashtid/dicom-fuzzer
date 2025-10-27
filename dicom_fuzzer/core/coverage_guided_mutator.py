@@ -210,7 +210,9 @@ class CoverageGuidedMutator:
             mutation_type = self._select_mutation_strategy(coverage_info)
 
             # Apply mutation
-            mutated_data = self._apply_mutation(data, mutation_type)
+            # Apply mutation on a fresh copy for each mutation
+            data_copy = data.copy()
+            mutated_data = self._apply_mutation(data_copy, mutation_type)
 
             if mutated_data and mutated_data != data:
                 mutations.append((bytes(mutated_data), mutation_type))
