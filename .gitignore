@@ -386,7 +386,7 @@ truncated*.dcm
 !/samples/.gitkeep
 
 # IDE Settings
-.vscode/
+# .vscode/ - now tracked for team consistency (settings.json, extensions.json)
 .idea/
 
 # Analysis and summary reports

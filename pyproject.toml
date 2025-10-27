@@ -49,7 +49,20 @@ dependencies = [
     "psutil>=5.9.0",
 ]
 
-[project.optional-dependencies]
+
+[project.urls]
+Homepage = "https://github.com/Dashtid/DICOM-Fuzzer"
+Documentation = "https://dicom-fuzzer.readthedocs.io/"
+Repository = "https://github.com/Dashtid/DICOM-Fuzzer.git"
+"Bug Tracker" = "https://github.com/Dashtid/DICOM-Fuzzer/issues"
+
+[project.scripts]
+dicom-fuzzer = "dicom_fuzzer.cli.main:main"
+
+# Hatchling automatically discovers packages - no explicit configuration needed
+
+# Dependency groups (modern uv approach - replaces [tool.uv.dev-dependencies])
+[dependency-groups]
 dev = [
     # Testing framework (state-of-the-art 2025)
     "pytest>=8.4.0",           # Latest pytest with improved diagnostics
@@ -63,7 +76,6 @@ dev = [
     "pytest-randomly>=4.0.0",  # Random test order (finds hidden dependencies)
     "pytest-watch>=4.2.0",     # Auto-rerun tests on file changes
     "hypothesis>=6.142.0",     # Property-based testing (latest)
-    # Note: mutmut excluded (Windows incompatible - requires Unix 'resource' module)
     # Code quality (modern tools)
     "ruff>=0.14.1",            # Fast linter/formatter (replaces black/flake8)
     "mypy>=1.13.0",            # Type checking with latest improvements
@@ -71,29 +83,20 @@ dev = [
     "pre-commit>=4.3.0",       # Git hooks for quality gates
     "types-aiofiles>=25.0.0",  # Type stubs
 ]
+
 docs = [
     "sphinx>=7.1.0",
     "sphinx-rtd-theme>=1.3.0",
     "myst-parser>=2.0.0",
 ]
+
 network = [
     "pynetdicom[apps]>=2.0.0",
 ]
 
-[project.urls]
-Homepage = "https://github.com/Dashtid/DICOM-Fuzzer"
-Documentation = "https://dicom-fuzzer.readthedocs.io/"
-Repository = "https://github.com/Dashtid/DICOM-Fuzzer.git"
-"Bug Tracker" = "https://github.com/Dashtid/DICOM-Fuzzer/issues"
-
-[project.scripts]
-dicom-fuzzer = "dicom_fuzzer.cli.main:main"
-
-# Hatchling automatically discovers packages - no explicit configuration needed
-
 # UV configuration (modern Python package management)
 [tool.uv]
-dev-dependencies = []  # Managed through [project.optional-dependencies]
+# Configuration for uv package manager
 
 # Ruff configuration (replaces black, isort, flake8, pylint)
 [tool.ruff]
@@ -152,6 +155,26 @@ module = [
     "numpy.*",
 ]
 ignore_missing_imports = true
+
+# Pyright configuration (fast, modern type checker - 3-5x faster than mypy)
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+reportMissingImports = true
+reportMissingTypeStubs = false
+exclude = [
+    "**/__pycache__",
+    "**/node_modules",
+    ".venv",
+    "build",
+    "dist",
+    "artifacts",
+    ".hypothesis",
+]
+# Strictness options (gradually enable for better type safety)
+reportUnusedImport = "warning"
+reportUnusedVariable = "warning"
+reportDuplicateImport = "warning"
 
 [tool.pytest.ini_options]
 minversion = "7.0"
