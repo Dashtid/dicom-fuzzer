@@ -223,6 +223,47 @@ Reports are now saved to `output/reports/` by default:
 # Reports saved to: ./output/reports/html/
 ```
 
+## Cleanup After Migration (Recommended)
+
+After successfully migrating, clean up development caches and temporary files:
+
+```bash
+# Clean Python cache directories (safe - regenerated automatically)
+find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
+find . -type f -name "*.pyc" -delete
+find . -type f -name "*.pyo" -delete
+
+# Clean development tool caches (optional - saves disk space)
+# These will be regenerated when needed
+rm -rf .mypy_cache
+rm -rf .ruff_cache
+rm -rf .pytest_cache
+rm -rf .hypothesis
+rm -rf .benchmarks
+
+# Move orphaned log files to output/logs/ (if any)
+mv *.log output/logs/ 2>/dev/null || true
+
+# Verify cleanup
+du -sh .  # Check total directory size
+```
+
+**What's Safe to Delete**:
+
+- ✓ `__pycache__/` directories - Python bytecode cache
+- ✓ `.pyc`, `.pyo` files - Compiled Python files
+- ✓ `.mypy_cache/` - Type checker cache
+- ✓ `.ruff_cache/` - Linter cache
+- ✓ `.pytest_cache/` - Test cache
+- ✓ `.hypothesis/` - Hypothesis test cache
+- ✓ `.benchmarks/` - Benchmark data
+
+**What NOT to Delete**:
+
+- ✗ `.venv/` - Virtual environment
+- ✗ `.git/` - Git repository
+- ✗ `output/` - Your fuzzing results!
+
 ## Testing Your Migration
 
 ### Verify Structure
@@ -235,6 +276,9 @@ ls -la examples/demo/
 
 # Verify output directories have .gitkeep files
 find output/ -name .gitkeep
+
+# Check no old directories remain
+ls -d crashes logs reports campaigns artifacts 2>/dev/null || echo "All legacy dirs removed ✓"
 ```
 
 ### Run Tests
