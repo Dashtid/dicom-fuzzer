@@ -1,5 +1,4 @@
-"""
-DICOM Fuzzer - Command Line Interface
+"""DICOM Fuzzer - Command Line Interface
 
 A security testing tool for comprehensive fuzzing of DICOM implementations.
 Generates mutated DICOM files to test parser robustness and security.
@@ -12,7 +11,6 @@ import shutil
 import sys
 import time
 from pathlib import Path
-from typing import List, Tuple
 
 from dicom_fuzzer.core.generator import DICOMGenerator
 from dicom_fuzzer.core.resource_manager import ResourceLimits
@@ -41,8 +39,7 @@ def setup_logging(verbose: bool = False):
 
 
 def validate_input_file(file_path: str) -> Path:
-    """
-    Validate that the input file exists and is a DICOM file.
+    """Validate that the input file exists and is a DICOM file.
 
     Args:
         file_path: Path to input DICOM file
@@ -52,6 +49,7 @@ def validate_input_file(file_path: str) -> Path:
 
     Raises:
         SystemExit: If file doesn't exist or isn't accessible
+
     """
     path = Path(file_path)
     if not path.exists():
@@ -64,14 +62,14 @@ def validate_input_file(file_path: str) -> Path:
 
 
 def parse_strategies(strategies_str: str) -> list:
-    """
-    Parse comma-separated strategy list.
+    """Parse comma-separated strategy list.
 
     Args:
         strategies_str: Comma-separated strategy names
 
     Returns:
         List of strategy names
+
     """
     valid_strategies = {"metadata", "header", "pixel", "structure"}
     strategies = [s.strip().lower() for s in strategies_str.split(",")]
@@ -89,9 +87,8 @@ def pre_campaign_health_check(
     target: str = None,
     resource_limits: ResourceLimits = None,
     verbose: bool = False,
-) -> Tuple[bool, List[str]]:
-    """
-    Comprehensive health check before starting fuzzing campaign.
+) -> tuple[bool, list[str]]:
+    """Comprehensive health check before starting fuzzing campaign.
 
     STABILITY: Validates environment to catch issues before wasting time
     on doomed campaigns.
@@ -104,6 +101,7 @@ def pre_campaign_health_check(
 
     Returns:
         Tuple of (passed: bool, issues: List[str])
+
     """
     issues = []
     warnings = []
@@ -213,9 +211,9 @@ def main():
     parser.add_argument(
         "-o",
         "--output",
-        default="./fuzzed_dicoms",
+        default="./output",
         metavar="DIR",
-        help="Output directory for fuzzed files (default: ./fuzzed_dicoms)",
+        help="Output directory for fuzzed files (default: ./output)",
     )
     parser.add_argument(
         "-s",
@@ -397,7 +395,7 @@ def main():
         if generator.stats.strategies_used:
             print("\n  Strategy Usage:")
             for strategy, count in sorted(generator.stats.strategies_used.items()):
-                print(f"    - {strategy}: {count} times")  # noqa: E221
+                print(f"    - {strategy}: {count} times")
 
         print(f"\n  Output: {args.output}")
         print("=" * 70 + "\n")
@@ -405,7 +403,7 @@ def main():
         if args.verbose:
             print("Sample generated files:")
             for f in files[:10]:
-                print(f"  - {f.name}")  # noqa: E221
+                print(f"  - {f.name}")
             if len(files) > 10:
                 print(f"  ... and {len(files) - 10} more")
             print()

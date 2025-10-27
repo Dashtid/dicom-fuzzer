@@ -405,24 +405,26 @@ README_*_insert.txt
 # Project-Specific Output Directories
 # ============================================================================
 
-# Fuzzing output directories (can be large)
+# Consolidated output directory (all fuzzing results, logs, reports)
+/output/
+!/output/.gitkeep
+!/output/*/.gitkeep
+!/output/*/CAMPAIGN_RESULTS.md
+!/output/*/*.md
+
+# Legacy output directories (for backward compatibility during migration)
 /crashes/
 /test_fuzzed_series/
 /fuzzed_output/
 /fuzzed_dicoms/
 /checkpoints/
 /logs/
-/output/
-
-# Campaign data (keep structure, ignore large outputs)
 /campaigns/*/input/*.dcm
 /campaigns/*/input/slice_*.dcm
 /campaigns/*/fuzzed/
 /campaigns/*/crashes/
 !campaigns/*/*.md
 !campaigns/*/CAMPAIGN_RESULTS.md
-
-# Report outputs (keep templates, ignore generated files)
 /reports/*/charts/
 /reports/*/*.html
 /reports/*/*.json
@@ -430,6 +432,9 @@ README_*_insert.txt
 /reports/*/*.svg
 !reports/README.md
 !reports/*/*.md
+
+# Node modules (prettier cache from pre-commit hooks)
+/node_modules/
 
 # Benchmark test data
 /benchmark_clean_test/

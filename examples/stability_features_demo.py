@@ -39,8 +39,8 @@ def demo_corpus_minimization():
     )
 
     # Example corpus directory (adjust path)
-    corpus_dir = Path("./data/seeds")
-    output_dir = Path("./artifacts/minimized_corpus")
+    corpus_dir = Path("./configs/seeds")
+    output_dir = Path("./output/corpus")
 
     if not corpus_dir.exists():
         print(f"[!] Corpus directory not found: {corpus_dir}")
@@ -91,8 +91,8 @@ def demo_stateless_harness_validation():
     print("=" * 70)
 
     from dicom_fuzzer.utils.stateless_harness import (
-        validate_determinism,
         create_stateless_test_wrapper,
+        validate_determinism,
     )
 
     # Example test function
@@ -161,11 +161,12 @@ def demo_timeout_budget_management():
     print("DEMO 3: Timeout Budget Management")
     print("=" * 70)
 
-    from dicom_fuzzer.utils.timeout_budget import (
-        TimeoutBudgetManager,
-        ExecutionTimer,
-    )
     import time
+
+    from dicom_fuzzer.utils.timeout_budget import (
+        ExecutionTimer,
+        TimeoutBudgetManager,
+    )
 
     # Initialize timeout budget manager
     print("\n[*] Initializing timeout budget manager...")
@@ -220,11 +221,12 @@ def demo_coverage_correlation():
     print("DEMO 4: Coverage Correlation Analysis")
     print("=" * 70)
 
+    from dataclasses import dataclass
+
     from dicom_fuzzer.utils.coverage_correlation import (
         correlate_crashes_with_coverage,
         generate_correlation_report,
     )
-    from dataclasses import dataclass
 
     # Mock crash record
     @dataclass
