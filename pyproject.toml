@@ -42,6 +42,7 @@ dependencies = [
     "structlog>=23.0.0",
     "click>=8.1.0",
     "rich>=13.0.0",
+    "tqdm>=4.66.0",           # Progress bars for CLI
     "aiofiles>=23.0.0",
     "asyncio-mqtt>=0.11.0",
     "cryptography>=41.0.0",
@@ -53,7 +54,7 @@ dev = [
     # Testing framework (state-of-the-art 2025)
     "pytest>=8.4.0",           # Latest pytest with improved diagnostics
     "pytest-cov>=4.1.0",       # Coverage reporting
-    "pytest-asyncio>=0.21.0",  # Async test support
+    "pytest-asyncio>=1.2.0",   # Async test support (latest stable)
     "pytest-xdist>=3.8.0",     # Parallel test execution
     "pytest-timeout>=2.4.0",   # Test timeouts
     "pytest-benchmark>=5.0.0", # Performance regression testing
@@ -61,14 +62,14 @@ dev = [
     "pytest-snapshot>=0.9.0",  # Snapshot testing for outputs
     "pytest-randomly>=4.0.0",  # Random test order (finds hidden dependencies)
     "pytest-watch>=4.2.0",     # Auto-rerun tests on file changes
-    "hypothesis>=6.82.0",      # Property-based testing
+    "hypothesis>=6.142.0",     # Property-based testing (latest)
     # Note: mutmut excluded (Windows incompatible - requires Unix 'resource' module)
     # Code quality (modern tools)
-    "ruff>=0.14.0",            # Fast linter/formatter (replaces black/flake8)
+    "ruff>=0.14.1",            # Fast linter/formatter (replaces black/flake8)
     "mypy>=1.13.0",            # Type checking with latest improvements
-    "bandit>=1.7.5",           # Security vulnerability scanning
-    "pre-commit>=3.3.0",       # Git hooks for quality gates
-    "types-aiofiles>=23.0.0",  # Type stubs
+    "bandit>=1.8.0",           # Security vulnerability scanning
+    "pre-commit>=4.3.0",       # Git hooks for quality gates
+    "types-aiofiles>=25.0.0",  # Type stubs
 ]
 docs = [
     "sphinx>=7.1.0",
@@ -90,6 +91,10 @@ dicom-fuzzer = "dicom_fuzzer.cli.main:main"
 
 # Hatchling automatically discovers packages - no explicit configuration needed
 
+# UV configuration (modern Python package management)
+[tool.uv]
+dev-dependencies = []  # Managed through [project.optional-dependencies]
+
 # Ruff configuration (replaces black, isort, flake8, pylint)
 [tool.ruff]
 line-length = 88
@@ -105,14 +110,25 @@ select = [
     "B",   # flake8-bugbear
     "C4",  # flake8-comprehensions
     "UP",  # pyupgrade
+    "N",   # pep8-naming
+    "D",   # pydocstyle
+    "S",   # flake8-bandit (security)
+    "PT",  # flake8-pytest-style
+    "RUF", # Ruff-specific rules
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
     "B008",  # function call in argument defaults
+    "D100",  # missing docstring in public module
+    "D104",  # missing docstring in public package
+    "D203",  # 1 blank line required before class docstring (conflicts with D211)
+    "D213",  # multi-line docstring summary should start at second line (conflicts with D212)
+    "S101",  # use of assert (acceptable in tests)
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["B", "F841"]  # Allow assert statements and unused variables in tests
+"tests/**/*.py" = ["D", "S101", "B", "F841", "PT011"]  # Relax docstring, assert, and pytest fixture returns in tests
+"examples/**/*.py" = ["D", "S"]  # Relax docstring and security rules in examples
 
 [tool.mypy]
 python_version = "3.11"

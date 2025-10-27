@@ -21,13 +21,13 @@ repos:
 
   # Type checking with mypy
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
+    rev: v1.13.0
     hooks:
       - id: mypy
         additional_dependencies:
           - pydantic>=2.0.0
           - pydicom>=2.4.0
-          - types-aiofiles
+          - types-aiofiles>=25.0.0
         args:
           - --config-file=pyproject.toml
           - --ignore-missing-imports
@@ -68,7 +68,7 @@ repos:
 
   # Security scanning with bandit
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.6
+    rev: "1.8.0"
     hooks:
       - id: bandit
         args: [-c, pyproject.toml, -r, dicom_fuzzer/]
@@ -96,7 +96,7 @@ repos:
 
 # Configuration
 default_language_version:
-  python: python3.14
+  python: python3.13  # Python 3.14 is alpha, use stable 3.13
 
 # CI settings
 ci:
