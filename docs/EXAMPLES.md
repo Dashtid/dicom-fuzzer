@@ -230,6 +230,15 @@ for strategy in strategies:
     print(f"[+] Strategy '{strategy}': {strategy_output}")
 ```
 
+**Expected Output**:
+
+```
+[+] Strategy 'reverse_slices': samples/series/misordered/reverse_slices
+[+] Strategy 'random_shuffle': samples/series/misordered/random_shuffle
+[+] Strategy 'duplicate_slices': samples/series/misordered/duplicate_slices
+[+] Strategy 'skip_slices': samples/series/misordered/skip_slices
+```
+
 ---
 
 ## Coverage-Guided Fuzzing
@@ -303,6 +312,16 @@ minimized = corpus.minimize(
 print(f"[+] Minimized corpus size: {len(minimized)}")
 print(f"[+] Size reduction: {corpus.reduction_percentage:.1f}%")
 print(f"[+] Coverage retained: {minimized.coverage_percentage:.2f}%")
+```
+
+**Expected Output**:
+
+```
+[+] Initial corpus size: 450
+[+] Total size: 2.34 MB
+[+] Minimized corpus size: 98
+[+] Size reduction: 78.2%
+[+] Coverage retained: 95.12%
 ```
 
 ---
@@ -393,6 +412,15 @@ print(f"[+] Reduction: {minimized.reduction_percentage:.1f}%")
 print(f"[+] Still crashes: {'YES' if minimized.preserves_crash else 'NO'}")
 ```
 
+**Expected Output**:
+
+```
+[+] Original size: 524288 bytes
+[+] Minimized size: 2048 bytes
+[+] Reduction: 99.6%
+[+] Still crashes: YES
+```
+
 ---
 
 ## Network Protocol Fuzzing
@@ -434,6 +462,14 @@ fuzzer.fuzz_c_find(
 )
 
 print(f"[+] Results saved to: {fuzzer.results_dir}")
+```
+
+**Expected Output**:
+
+```
+[+] Fuzzing C-STORE...
+[+] Fuzzing C-FIND...
+[+] Results saved to: fuzzing_results/dimse_2025-10-28_14-32-15
 ```
 
 ---
@@ -587,6 +623,18 @@ dataset = mutator.mutate(
     dataset,
     strategies=["rt_dose"]
 )
+
+print(f"[+] Custom RT dose mutation applied")
+print(f"[+] Dose grid scaling modified: {dataset.DoseGridScaling}")
+print(f"[+] Dose units corrupted: {dataset.DoseUnits}")
+```
+
+**Expected Output**:
+
+```
+[+] Custom RT dose mutation applied
+[+] Dose grid scaling modified: 1.5e-4
+[+] Dose units corrupted: INVALID_UNIT
 ```
 
 ---
