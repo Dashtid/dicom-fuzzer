@@ -2,6 +2,19 @@
 
 Get started with DICOM Fuzzer in under 5 minutes.
 
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Your First Fuzzing Campaign](#your-first-fuzzing-campaign)
+- [Common Fuzzing Workflows](#common-fuzzing-workflows)
+- [Understanding Fuzzing Strategies](#understanding-fuzzing-strategies)
+- [Quick Tips](#quick-tips)
+- [What's Next?](#whats-next)
+- [Getting Test Data](#getting-test-data)
+- [Troubleshooting](#troubleshooting)
+- [Need Help?](#need-help)
+
 ## Prerequisites
 
 - **Python**: 3.11, 3.12, or 3.13

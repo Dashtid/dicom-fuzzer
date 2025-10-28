@@ -2,6 +2,18 @@
 
 This guide explains how to use the DICOM Fuzzer to test DICOM viewer applications for security vulnerabilities.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Mutation Severity Levels](#mutation-severity-levels)
+- [Understanding the Output](#understanding-the-output)
+- [Advanced Usage](#advanced-usage)
+- [Safety & Ethics](#safety--ethics)
+- [Examples](#examples)
+- [Troubleshooting](#troubleshooting)
+- [Next Steps](#next-steps)
+- [Support](#support)
+
 ## Quick Start
 
 ### 1. Generate Fuzzed Files (No Viewer Testing)

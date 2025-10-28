@@ -19,6 +19,28 @@ A security testing tool for fuzzing DICOM (Digital Imaging and Communications in
 
 [Installation](#installation) | [Quick Start](docs/QUICKSTART.md) | [Examples](docs/EXAMPLES.md) | [Documentation](#documentation) | [Contributing](CONTRIBUTING.md)
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Project Structure](#project-structure)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Command-Line Interface](#command-line-interface)
+  - [Basic Fuzzing (Python API)](#basic-fuzzing-python-api)
+  - [Testing a DICOM Viewer](#testing-a-dicom-viewer)
+  - [Crash Analysis](#crash-analysis)
+  - [Crash Intelligence](#crash-intelligence-v120)
+- [Configuration](#configuration)
+- [Testing](#testing)
+- [Documentation](#documentation)
+- [Stability Features](#stability-features-usage-v130)
+- [Use Cases](#use-cases)
+- [Safety and Ethical Use](#safety-and-ethical-use)
+- [Contributing](#contributing)
+- [License](#license)
+- [Project Status](#project-status)
+
 ## Overview
 
 DICOM Fuzzer is a security testing framework for DICOM medical imaging implementations. It combines mutation-based fuzzing, grammar-aware fuzzing, and crash intelligence to identify vulnerabilities in medical imaging systems before they can be exploited.

@@ -1,15 +1,29 @@
 # Security Policy
 
+## Table of Contents
+
+- [Supported Versions](#supported-versions)
+- [Reporting a Vulnerability](#reporting-a-vulnerability)
+- [Security Considerations for Users](#security-considerations-for-users)
+- [Security Features](#security-features)
+- [Known Security Limitations](#known-security-limitations)
+- [Secure Development Practices](#secure-development-practices)
+- [Security Advisories](#security-advisories)
+- [Compliance and Regulations](#compliance-and-regulations)
+- [Security Best Practices](#security-best-practices)
+- [Contact and Support](#contact-and-support)
+- [Acknowledgments](#acknowledgments)
+
 ## Supported Versions
 
 Security updates are provided for the following versions:
 
-| Version | Supported       | End of Support |
-| ------- | --------------- | -------------- |
-| 1.2.x   | ✓ Yes (Current) | TBD            |
-| 1.1.x   | ✓ Yes           | 2026-04-30     |
-| 1.0.x   | ✗ No            | 2025-10-31     |
-| < 1.0   | ✗ No            | 2025-01-31     |
+| Version | Supported     | End of Support |
+| ------- | ------------- | -------------- |
+| 1.2.x   | Yes (Current) | TBD            |
+| 1.1.x   | Yes           | 2026-04-30     |
+| 1.0.x   | No            | 2025-10-31     |
+| < 1.0   | No            | 2025-01-31     |
 
 ## Reporting a Vulnerability
 
