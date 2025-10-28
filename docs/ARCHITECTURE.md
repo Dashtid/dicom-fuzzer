@@ -131,6 +131,7 @@ dicom-fuzzer/
 **Responsibility**: DICOM file parsing and metadata extraction
 
 **Key Features**:
+
 - Pydicom integration for DICOM reading
 - Metadata extraction (patient, study, series, equipment)
 - Pixel data handling
@@ -138,6 +139,7 @@ dicom-fuzzer/
 - Security validation (file size limits, path validation)
 
 **Example**:
+
 ```python
 parser = DicomParser(max_file_size_mb=100)
 dataset = parser.parse_file(Path("sample.dcm"))
@@ -149,6 +151,7 @@ metadata = parser.extract_metadata(dataset)
 **Responsibility**: Apply fuzzing mutations to DICOM datasets
 
 **Key Features**:
+
 - Strategy registration and management
 - Mutation severity levels (LOW, MEDIUM, HIGH, CRITICAL)
 - Session lifecycle management
@@ -156,6 +159,7 @@ metadata = parser.extract_metadata(dataset)
 - Safety checks and validation
 
 **Architecture**:
+
 ```
 Mutator
 ├── MutationStrategy (ABC)
@@ -173,6 +177,7 @@ Mutator
 **Responsibility**: Generate fuzzed DICOM files in batch
 
 **Key Features**:
+
 - Batch file generation
 - Unique filename generation (`fuzzed_<hex>.dcm`)
 - Directory management
@@ -183,6 +188,7 @@ Mutator
 **Responsibility**: Validate DICOM compliance and security
 
 **Key Features**:
+
 - DICOM standard compliance checking
 - Security validation (null bytes, buffer overflow, DoS detection)
 - Required tags validation
@@ -190,6 +196,7 @@ Mutator
 - Batch validation with fail-fast/continue options
 
 **Validation Layers**:
+
 ```
 [Security Validation]
     ↓
@@ -205,6 +212,7 @@ Mutator
 **Responsibility**: Analyze and triage crashes
 
 **Key Features**:
+
 - Crash detection and collection
 - Stack trace analysis
 - Crash type classification
@@ -215,6 +223,7 @@ Mutator
 **Responsibility**: Deduplicate crash reports
 
 **Key Features**:
+
 - Stack hash-based deduplication
 - Crash fingerprinting
 - Unique crash identification
@@ -224,6 +233,7 @@ Mutator
 **Responsibility**: Minimize crash-inducing test cases
 
 **Key Features**:
+
 - Delta debugging algorithm
 - Binary search minimization
 - Crash reproduction verification
@@ -233,6 +243,7 @@ Mutator
 **Responsibility**: Track code coverage during fuzzing
 
 **Key Features**:
+
 - Coverage instrumentation
 - Path discovery
 - Coverage-guided mutation selection
@@ -242,6 +253,7 @@ Mutator
 **Responsibility**: Manage fuzzing campaign lifecycle
 
 **Key Features**:
+
 - Session state management
 - Artifact preservation
 - Statistics collection
@@ -252,6 +264,7 @@ Mutator
 **Responsibility**: Generate comprehensive HTML reports
 
 **Key Features**:
+
 - HTML report generation
 - Campaign statistics
 - Crash summaries
@@ -381,6 +394,7 @@ tests/
 ### Testing Patterns
 
 **Fixture Pattern**:
+
 ```python
 @pytest.fixture
 def sample_dicom_file(tmp_path):
@@ -396,6 +410,7 @@ def test_parser(sample_dicom_file):
 ```
 
 **Mock Pattern**:
+
 ```python
 def test_mutator_with_mock():
     mock_strategy = Mock(spec=MutationStrategy)
@@ -415,6 +430,7 @@ def test_mutator_with_mock():
 ### Optimization Strategies
 
 1. **Lazy Loading**: Load heavy modules on-demand
+
    ```python
    # dicom_fuzzer/core/lazy_loader.py
    def lazy_import(module_name):
@@ -422,6 +438,7 @@ def test_mutator_with_mock():
    ```
 
 2. **Caching**: Cache parsed DICOM datasets
+
    ```python
    @lru_cache(maxsize=128)
    def parse_cached(file_path):
@@ -429,12 +446,14 @@ def test_mutator_with_mock():
    ```
 
 3. **Batch Processing**: Process multiple files in parallel
+
    ```python
    with ThreadPoolExecutor(max_workers=4) as executor:
        results = executor.map(fuzz_file, input_files)
    ```
 
 4. **Resource Limits**: Prevent resource exhaustion
+
    ```python
    # File size limits
    MAX_FILE_SIZE = 100 * 1024 * 1024
@@ -445,12 +464,12 @@ def test_mutator_with_mock():
 
 ### Performance Metrics
 
-| Operation | Throughput | Notes |
-|-----------|------------|-------|
-| Parse DICOM | ~500 files/sec | Small files (<1MB) |
-| Metadata Mutation | ~1000 mutations/sec | Lightweight |
-| Pixel Mutation | ~50-100 mutations/sec | Heavy (depends on image size) |
-| File Generation | ~200 files/sec | I/O bound |
+| Operation         | Throughput            | Notes                         |
+| ----------------- | --------------------- | ----------------------------- |
+| Parse DICOM       | ~500 files/sec        | Small files (<1MB)            |
+| Metadata Mutation | ~1000 mutations/sec   | Lightweight                   |
+| Pixel Mutation    | ~50-100 mutations/sec | Heavy (depends on image size) |
+| File Generation   | ~200 files/sec        | I/O bound                     |
 
 ---
 
@@ -459,6 +478,7 @@ def test_mutator_with_mock():
 ### Adding Custom Mutation Strategies
 
 1. **Create Strategy Class**:
+
    ```python
    from dicom_fuzzer.core.mutator import MutationStrategy
 

@@ -432,6 +432,7 @@ grep "skips" .github/workflows/ci.yml
 ```
 
 **Ignored Rules** (for medical fuzzing use cases):
+
 - B101: assert_used (pytest requires asserts)
 - B104: hardcoded_bind_all_interfaces (test fixtures)
 - B110: try_except_pass (intentional in fuzzing)
@@ -459,6 +460,7 @@ grep "skips" .github/workflows/ci.yml
 ```
 
 **Local Testing**:
+
 ```bash
 # Run tests with same timeout as CI
 uv run pytest tests/ --timeout=300 -v
@@ -485,6 +487,7 @@ reports/
 ```
 
 **Test Docker Build Locally**:
+
 ```bash
 # Build with verbose output
 docker build --progress=plain -t dicom-fuzzer .
@@ -529,6 +532,7 @@ pre-commit run ruff --all-files
 ```
 
 **Lock File Issues**:
+
 ```bash
 # Regenerate lock file
 uv lock --upgrade

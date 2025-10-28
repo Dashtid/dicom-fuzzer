@@ -24,12 +24,12 @@ Test a DICOM viewer with metadata mutations:
 ```python
 """Basic fuzzing example - Single file with metadata mutations."""
 from pathlib import Path
-from dicom_fuzzer.core.mutator import Mutator
+from dicom_fuzzer.core.mutator import DicomMutator
 from dicom_fuzzer.core.parser import DicomParser
 
 # Initialize
 parser = DicomParser()
-mutator = Mutator()
+mutator = DicomMutator()
 
 # Load DICOM file
 input_file = Path("samples/input/ct_scan.dcm")
@@ -48,6 +48,7 @@ print(f"[+] Fuzzed file saved to: {output_file}")
 ```
 
 **Expected Output**:
+
 ```
 [+] Fuzzed file saved to: samples/output/fuzzed_ct_scan.dcm
 ```
@@ -59,8 +60,8 @@ Generate 100 fuzzed files with combined strategies:
 ```python
 """Batch fuzzing with multiple mutation strategies."""
 from pathlib import Path
-from dicom_fuzzer.core.generator import FileGenerator
-from dicom_fuzzer.core.mutator import Mutator
+from dicom_fuzzer.core.generator import DICOMGenerator
+from dicom_fuzzer.core.mutator import DicomMutator
 
 # Setup
 input_file = Path("samples/input/mr_brain.dcm")
@@ -68,8 +69,8 @@ output_dir = Path("samples/batch_output/")
 output_dir.mkdir(parents=True, exist_ok=True)
 
 # Generate fuzzed files
-generator = FileGenerator()
-mutator = Mutator()
+generator = DICOMGenerator(output_dir=output_dir)
+mutator = DicomMutator()
 
 strategies = ["metadata", "pixel", "header"]
 num_files = 100
@@ -88,6 +89,7 @@ print(f"[+] Output directory: {output_dir}")
 ```
 
 **Expected Output**:
+
 ```
 [+] Generated 100 fuzzed files
 [+] Strategies used: metadata, pixel, header
@@ -101,11 +103,11 @@ Control mutation severity for gradual testing:
 ```python
 """Fuzzing with different severity levels."""
 from pathlib import Path
-from dicom_fuzzer.core.mutator import Mutator, MutationSeverity
+from dicom_fuzzer.core.mutator import DicomMutator, MutationSeverity
 from dicom_fuzzer.core.parser import DicomParser
 
 parser = DicomParser()
-mutator = Mutator()
+mutator = DicomMutator()
 input_file = Path("samples/input/sample.dcm")
 dataset = parser.parse_file(input_file)
 
@@ -129,6 +131,7 @@ for severity in severities:
 ```
 
 **Expected Output**:
+
 ```
 [+] LOW severity: samples/output/fuzzed_low.dcm
 [+] MEDIUM severity: samples/output/fuzzed_medium.dcm
@@ -184,6 +187,7 @@ if series_list:
 ```
 
 **Expected Output**:
+
 ```
 [+] Found 1 series
 [+] Fuzzing series: 1.2.840.113619.2.55.3.12345.54321
@@ -267,6 +271,7 @@ print(f"[+] New paths found: {results.new_paths}")
 ```
 
 **Expected Output**:
+
 ```
 [+] Iterations: 10000
 [+] Coverage: 87.34%
@@ -340,6 +345,7 @@ for crash in unique_crashes:
 ```
 
 **Expected Output**:
+
 ```
 [+] Total crashes: 47
 [+] Unique crashes: 5
@@ -444,7 +450,7 @@ name: DICOM Fuzzing
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # Daily at 2 AM
+    - cron: "0 2 * * *" # Daily at 2 AM
   workflow_dispatch:
 
 jobs:
@@ -457,7 +463,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
@@ -514,6 +520,7 @@ CMD ["--input", "/fuzzing/input/", \
 ```
 
 **Usage**:
+
 ```bash
 # Build image
 docker build -t dicom-fuzzer -f Dockerfile.fuzzing .
@@ -570,9 +577,9 @@ class RTDoseMutationStrategy(MutationStrategy):
         return dataset
 
 # Register and use custom strategy
-from dicom_fuzzer.core.mutator import Mutator
+from dicom_fuzzer.core.mutator import DicomMutator
 
-mutator = Mutator()
+mutator = DicomMutator()
 mutator.register_strategy(RTDoseMutationStrategy())
 
 # Apply custom mutation
@@ -594,11 +601,11 @@ Measure fuzzing throughput:
 """Benchmark fuzzing performance and throughput."""
 import time
 from pathlib import Path
-from dicom_fuzzer.core.mutator import Mutator
+from dicom_fuzzer.core.mutator import DicomMutator
 from dicom_fuzzer.core.parser import DicomParser
 
 parser = DicomParser()
-mutator = Mutator()
+mutator = DicomMutator()
 
 input_file = Path("samples/input/large_series.dcm")
 dataset = parser.parse_file(input_file)
@@ -630,6 +637,7 @@ print(f"    Average time per file: {avg_time*1000:.2f}ms")
 ```
 
 **Expected Output**:
+
 ```
 [+] Performance Benchmarks:
     Total iterations: 1000
@@ -651,7 +659,7 @@ For additional examples and use cases:
 
 ## Contributing Examples
 
-Have a useful example? Contribute it!
+To contribute an example:
 
 1. Add your example to `examples/` directory
 2. Document usage in this file

@@ -1,6 +1,6 @@
 # DICOM Fuzzer Quick Start Guide
 
-Get started with DICOM Fuzzer in under 5 minutes!
+Get started with DICOM Fuzzer in under 5 minutes.
 
 ## Prerequisites
 
@@ -83,6 +83,7 @@ python -m dicom_fuzzer.cli \
 ```
 
 **What this does**:
+
 - Reads `sample.dcm` from `samples/input/`
 - Generates 10 fuzzed variants
 - Applies metadata and pixel data mutations
@@ -156,16 +157,17 @@ open samples/coverage_output/coverage_report.html
 
 DICOM Fuzzer includes multiple mutation strategies:
 
-| Strategy | What It Does | Example Use Case |
-|----------|--------------|------------------|
-| **metadata** | Mutates patient info, study details | Test PHI handling, patient matching |
-| **pixel** | Corrupts pixel data | Test image rendering, memory handling |
-| **header** | Mutates DICOM tags | Test tag parsing, buffer overflows |
-| **structure** | Modifies file structure | Test format validation |
-| **transfer_syntax** | Changes encoding | Test decompression, codec handling |
-| **sequence** | Fuzzes sequence elements | Test nested data handling |
+| Strategy            | What It Does                        | Example Use Case                      |
+| ------------------- | ----------------------------------- | ------------------------------------- |
+| **metadata**        | Mutates patient info, study details | Test PHI handling, patient matching   |
+| **pixel**           | Corrupts pixel data                 | Test image rendering, memory handling |
+| **header**          | Mutates DICOM tags                  | Test tag parsing, buffer overflows    |
+| **structure**       | Modifies file structure             | Test format validation                |
+| **transfer_syntax** | Changes encoding                    | Test decompression, codec handling    |
+| **sequence**        | Fuzzes sequence elements            | Test nested data handling             |
 
 **Combine strategies** for comprehensive testing:
+
 ```bash
 --strategies metadata,pixel,header,structure
 ```
@@ -173,22 +175,28 @@ DICOM Fuzzer includes multiple mutation strategies:
 ## Quick Tips
 
 ### Tip 1: Start Small
+
 Begin with 10-20 fuzzed files to understand the output before scaling up.
 
 ### Tip 2: Use Appropriate Strategies
+
 - **PACS testing**: Focus on `metadata` and `header`
 - **Viewer testing**: Use `pixel` and `structure`
 - **Network testing**: Use `transfer_syntax` and `sequence`
 
 ### Tip 3: Monitor Target Application
+
 Watch for:
+
 - **Crashes**: Segmentation faults, access violations
 - **Hangs**: Infinite loops, deadlocks
 - **Memory leaks**: Increasing memory usage
 - **Unexpected behavior**: Incorrect rendering, data corruption
 
 ### Tip 4: Save Crash-Inducing Files
+
 When you find a file that crashes the target:
+
 ```bash
 # Copy to crash collection
 cp samples/output/fuzzed_abc123.dcm crash_samples/
@@ -214,6 +222,7 @@ Now that you've run your first fuzzing campaign, explore these resources:
 ### Public DICOM Sample Sources
 
 1. **PyDICOM Test Files**
+
    ```bash
    git clone https://github.com/pydicom/pydicom.git
    cp pydicom/tests/test_files/*.dcm samples/input/
@@ -236,6 +245,7 @@ Now that you've run your first fuzzing campaign, explore these resources:
 ### Issue: "Module not found" errors
 
 **Solution**:
+
 ```bash
 # Ensure virtual environment is activated
 # Windows
@@ -250,6 +260,7 @@ uv run python -m dicom_fuzzer.cli --help
 ### Issue: "No DICOM files found"
 
 **Solution**:
+
 ```bash
 # Verify files are valid DICOM
 file samples/input/*.dcm
@@ -260,6 +271,7 @@ file samples/input/*.dcm
 ### Issue: Out of memory errors
 
 **Solution**:
+
 ```bash
 # Reduce batch size
 --count 10  # Instead of 1000
@@ -276,6 +288,7 @@ done
 ### Issue: Permission denied on output directory
 
 **Solution**:
+
 ```bash
 # Create output directory with proper permissions
 mkdir -p samples/output
@@ -291,4 +304,4 @@ chmod 755 samples/output
 
 ---
 
-**Ready to fuzz!** Start with the basic workflow above and experiment with different strategies and parameters. Happy fuzzing!
+Start with the basic workflow above and experiment with different strategies and parameters.

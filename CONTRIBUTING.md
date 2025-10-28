@@ -1,6 +1,6 @@
 # Contributing to DICOM Fuzzer
 
-Thank you for your interest in contributing to DICOM Fuzzer! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to DICOM Fuzzer. This document provides guidelines for contributing to the project.
 
 ## Table of Contents
 
@@ -113,11 +113,13 @@ uv run pytest -n 4
 ### Writing Tests
 
 **Location**: Place tests in `tests/` matching the module structure:
+
 ```
 dicom_fuzzer/core/parser.py → tests/test_parser.py
 ```
 
 **Test Structure**:
+
 ```python
 """Tests for dicom_fuzzer.core.parser module."""
 import pytest
@@ -139,6 +141,7 @@ class TestDicomParser:
 ```
 
 **Test Coverage Goals**:
+
 - **New features**: Aim for 80%+ coverage
 - **Bug fixes**: Add test that reproduces the bug
 - **Critical modules**: Aim for 100% coverage
@@ -146,6 +149,7 @@ class TestDicomParser:
 ### Using Fixtures
 
 Use pytest fixtures from `tests/conftest.py`:
+
 ```python
 def test_with_fixture(sample_dicom_file, temp_output_dir):
     """Test using shared fixtures."""
@@ -267,17 +271,20 @@ improvements without blocking releases.
 ### Before Submitting
 
 1. **Rebase on main**:
+
    ```bash
    git fetch upstream
    git rebase upstream/main
    ```
 
 2. **Run full test suite**:
+
    ```bash
    uv run pytest tests/ -v
    ```
 
 3. **Check code quality**:
+
    ```bash
    uv run ruff check .
    uv run ruff format .
@@ -290,6 +297,7 @@ improvements without blocking releases.
 ### Creating the PR
 
 1. **Push to your fork**:
+
    ```bash
    git push origin feature/your-feature-name
    ```
@@ -306,21 +314,26 @@ improvements without blocking releases.
 
 ```markdown
 ## Description
+
 Brief description of changes
 
 ## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
 - [ ] Documentation update
 
 ## Testing
+
 Describe testing performed:
+
 - [ ] Unit tests added/updated
 - [ ] Integration tests added/updated
 - [ ] Manual testing performed
 
 ## Checklist
+
 - [ ] Code follows style guidelines
 - [ ] Tests pass locally
 - [ ] Documentation updated
@@ -346,12 +359,14 @@ Describe testing performed:
 ### Writing Documentation
 
 **Markdown Files** (`docs/*.md`):
+
 - Use clear headings and structure
 - Include code examples with syntax highlighting
 - Add table of contents for long documents
 - Link to related documentation
 
 **Docstrings**:
+
 ```python
 def fuzz_dicom_file(
     input_file: Path,
@@ -403,4 +418,4 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 ---
 
-Thank you for contributing to DICOM Fuzzer! 🎉
+Thank you for contributing to DICOM Fuzzer.

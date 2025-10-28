@@ -4,12 +4,12 @@
 
 Security updates are provided for the following versions:
 
-| Version | Supported          | End of Support |
-| ------- | ------------------ | -------------- |
-| 1.2.x   | ✓ Yes (Current)    | TBD            |
-| 1.1.x   | ✓ Yes              | 2026-04-30     |
-| 1.0.x   | ✗ No               | 2025-10-31     |
-| < 1.0   | ✗ No               | 2025-01-31     |
+| Version | Supported       | End of Support |
+| ------- | --------------- | -------------- |
+| 1.2.x   | ✓ Yes (Current) | TBD            |
+| 1.1.x   | ✓ Yes           | 2026-04-30     |
+| 1.0.x   | ✗ No            | 2025-10-31     |
+| < 1.0   | ✗ No            | 2025-01-31     |
 
 ## Reporting a Vulnerability
 
@@ -36,12 +36,12 @@ We take security vulnerabilities seriously. If you discover a security issue in 
 
 ### Severity Levels and Response Times
 
-| Severity | Response Time | Fix Timeline | Examples |
-|----------|---------------|--------------|----------|
-| **CRITICAL** | 24 hours | 7 days | Remote code execution, authentication bypass |
-| **HIGH** | 48 hours | 14 days | Privilege escalation, SQL injection |
-| **MEDIUM** | 7 days | 30 days | Information disclosure, DoS |
-| **LOW** | 14 days | 60 days | Minor security improvements |
+| Severity     | Response Time | Fix Timeline | Examples                                     |
+| ------------ | ------------- | ------------ | -------------------------------------------- |
+| **CRITICAL** | 24 hours      | 7 days       | Remote code execution, authentication bypass |
+| **HIGH**     | 48 hours      | 14 days      | Privilege escalation, SQL injection          |
+| **MEDIUM**   | 7 days        | 30 days      | Information disclosure, DoS                  |
+| **LOW**      | 14 days       | 60 days      | Minor security improvements                  |
 
 ## Security Considerations for Users
 
@@ -159,6 +159,7 @@ DICOM Fuzzer follows secure development practices:
 ## Security Advisories
 
 Security advisories are published at:
+
 - GitHub Security Advisories: https://github.com/Dashtid/DICOM-Fuzzer/security/advisories
 - CHANGELOG.md: Security fixes documented in changelog
 
@@ -173,15 +174,19 @@ Security advisories are published at:
 **Fixed Version**: z.z.z
 
 ### Description
+
 [Description of vulnerability]
 
 ### Impact
+
 [Impact assessment]
 
 ### Remediation
+
 [Steps to remediate]
 
 ### Credit
+
 [Reporter credit, if desired]
 ```
 
