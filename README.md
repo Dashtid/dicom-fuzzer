@@ -645,46 +645,46 @@ This software is provided for educational and security testing purposes. Users a
 
 **Latest Updates** - v1.2.0 Crash Intelligence Release (January 2025):
 
-- ✅ **Crash Triaging** (`crash_triage.py`): Automated crash analysis and prioritization
+- **Crash Triaging** (`crash_triage.py`): Automated crash analysis and prioritization
   - 5 severity levels (CRITICAL, HIGH, MEDIUM, LOW, INFO)
   - 4 exploitability ratings (EXPLOITABLE to UNKNOWN)
   - Priority scoring (0-100) for investigation order
   - Automatic indicator extraction and tag generation
   - 97.53% test coverage with 17 comprehensive tests
-- ✅ **Test Case Minimization** (`test_minimizer.py`): Delta debugging for crash reduction
+- **Test Case Minimization** (`test_minimizer.py`): Delta debugging for crash reduction
   - DDMIN algorithm implementation (Andreas Zeller's delta debugging)
   - 4 minimization strategies (DDMIN, BINARY_SEARCH, LINEAR, BLOCK)
   - Automatic reduction while preserving crash behavior
   - 23 comprehensive tests with 100% pass rate
-- ✅ **Stability Tracking** (`stability_tracker.py`): AFL++-style stability metrics
+- **Stability Tracking** (`stability_tracker.py`): AFL++-style stability metrics
   - Execution consistency tracking with signature generation
   - Non-deterministic behavior detection (race conditions, uninitialized memory)
   - Stability percentage calculation and unstable input reporting
   - 96.94% test coverage with 22 comprehensive tests
-- ✅ **Documentation**: Comprehensive 600+ line crash intelligence guide
-- ✅ **Total Test Count**: 1109 tests (1091 passing, 98.4% pass rate)
+- **Documentation**: Comprehensive 600+ line crash intelligence guide
+- **Total Test Count**: 1109 tests (1091 passing, 98.4% pass rate)
 
 **Previous Updates** - v1.1.0 Stability Release (January 2025):
 
-- ✅ **Resource Management**: Memory, CPU, and disk space limits with platform-aware enforcement
-- ✅ **Error Recovery**: Checkpoint/resume for campaign resumption after interruption
-- ✅ **Retry Logic & Circuit Breaker**: Automatic retry with intelligent failure handling
-- ✅ **Pre-flight Validation**: Comprehensive configuration checks before campaign start
-- ✅ **CLI Integration**: Resource limits configurable via command-line flags
-- ✅ **Test Coverage Improvements**: validator.py (100%), helpers.py (100%), logger.py (100%)
-- ✅ **Stress Testing**: New test suites for 1000+ files, memory leaks, and concurrency
-- ✅ **Error Scenarios**: Comprehensive testing of corrupted files and resource exhaustion
-- ✅ **Property-Based Testing**: 9 hypothesis tests for target runner edge cases
-- ✅ **Documentation**: STABILITY.md and TROUBLESHOOTING.md guides added
+- **Resource Management**: Memory, CPU, and disk space limits with platform-aware enforcement
+- **Error Recovery**: Checkpoint/resume for campaign resumption after interruption
+- **Retry Logic & Circuit Breaker**: Automatic retry with intelligent failure handling
+- **Pre-flight Validation**: Comprehensive configuration checks before campaign start
+- **CLI Integration**: Resource limits configurable via command-line flags
+- **Test Coverage Improvements**: validator.py (100%), helpers.py (100%), logger.py (100%)
+- **Stress Testing**: New test suites for 1000+ files, memory leaks, and concurrency
+- **Error Scenarios**: Comprehensive testing of corrupted files and resource exhaustion
+- **Property-Based Testing**: 9 hypothesis tests for target runner edge cases
+- **Documentation**: STABILITY.md and TROUBLESHOOTING.md guides added
 
 **Previous Updates** - v1.0.0 (January 2025):
 
-- ✅ **Test Coverage Milestone**: 11 out of 13 core modules at 90%+ coverage
-- ✅ **8 Modules at 100% Coverage**: crash_analyzer, crash_deduplication, generator, reporter, statistics, validator, exceptions, types
-- ✅ **Edge Case Testing**: Comprehensive edge case tests for fuzzing_session.py (88% → 96.52%)
-- ✅ **End-to-End Integration Tests**: Complete workflow testing from generation to reporting
-- ✅ **Overall Coverage**: Improved from 28% to 69.12%
-- ✅ **1000+ Tests Passing**: Comprehensive test suite with integration tests
+- **Test Coverage Milestone**: 11 out of 13 core modules at 90%+ coverage
+- **8 Modules at 100% Coverage**: crash_analyzer, crash_deduplication, generator, reporter, statistics, validator, exceptions, types
+- **Edge Case Testing**: Comprehensive edge case tests for fuzzing_session.py (88% → 96.52%)
+- **End-to-End Integration Tests**: Complete workflow testing from generation to reporting
+- **Overall Coverage**: Improved from 28% to 69.12%
+- **1000+ Tests Passing**: Comprehensive test suite with integration tests
 
 **Earlier Updates**:
 
