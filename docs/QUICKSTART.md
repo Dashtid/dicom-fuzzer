@@ -174,17 +174,17 @@ DICOM Fuzzer includes multiple mutation strategies:
 
 ## Quick Tips
 
-### Tip 1: Start Small
+### Start Small
 
 Begin with 10-20 fuzzed files to understand the output before scaling up.
 
-### Tip 2: Use Appropriate Strategies
+### Use Appropriate Strategies
 
 - **PACS testing**: Focus on `metadata` and `header`
 - **Viewer testing**: Use `pixel` and `structure`
 - **Network testing**: Use `transfer_syntax` and `sequence`
 
-### Tip 3: Monitor Target Application
+### Monitor Target Application
 
 Watch for:
 
@@ -193,7 +193,7 @@ Watch for:
 - **Memory leaks**: Increasing memory usage
 - **Unexpected behavior**: Incorrect rendering, data corruption
 
-### Tip 4: Save Crash-Inducing Files
+### Save Crash-Inducing Files
 
 When you find a file that crashes the target:
 

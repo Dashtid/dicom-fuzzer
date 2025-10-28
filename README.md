@@ -21,7 +21,7 @@ A specialized security testing tool for fuzzing DICOM (Digital Imaging and Commu
 
 ## Overview
 
-DICOM-Fuzzer is a security testing framework for DICOM medical imaging implementations. It combines mutation-based fuzzing, grammar-aware fuzzing, and crash intelligence to identify vulnerabilities in medical imaging systems before they can be exploited.
+DICOM Fuzzer is a security testing framework for DICOM medical imaging implementations. It combines mutation-based fuzzing, grammar-aware fuzzing, and crash intelligence to identify vulnerabilities in medical imaging systems before they can be exploited.
 
 **Primary Use Cases:**
 
