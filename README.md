@@ -374,34 +374,34 @@ open output/reports/coverage/htmlcov/index.html   # macOS
 
 **Module Coverage (100% Coverage Modules):**
 
-| Module                         | Statements | Tests | Status     |
-| ------------------------------ | ---------- | ----- | ---------- |
-| **enhanced_reporter.py** (NEW) | 120        | 41    | ✅ Perfect |
-| **config.py**                  | 88         | 51    | ✅ Perfect |
-| **config_validator.py**        | 170        | 55    | ✅ Perfect |
-| **crash_deduplication.py**     | 140        | 53    | ✅ Perfect |
-| **crash_analyzer.py**          | 123        | 26    | ✅ Perfect |
-| **generator.py**               | 90         | 41    | ✅ Perfect |
-| **reporter.py**                | 83         | 24    | ✅ Perfect |
-| **statistics.py**              | 120        | 24    | ✅ Perfect |
-| **validator.py**               | 150        | 59    | ✅ Perfect |
-| **profiler.py**                | 115        | 62    | ✅ Perfect |
-| **timeout_budget.py**          | 120        | 36    | ✅ Perfect |
-| **coverage_correlation.py**    | 144        | 41    | ✅ Perfect |
-| **exceptions.py**              | 19         | 8     | ✅ Perfect |
-| **types.py**                   | 6          | 8     | ✅ Perfect |
-| **metadata_fuzzer.py**         | 16         | -     | ✅ Perfect |
-| **pixel_fuzzer.py**            | 12         | -     | ✅ Perfect |
+| Module                         | Statements | Tests | Status  |
+| ------------------------------ | ---------- | ----- | ------- |
+| **enhanced_reporter.py** (NEW) | 120        | 41    | Perfect |
+| **config.py**                  | 88         | 51    | Perfect |
+| **config_validator.py**        | 170        | 55    | Perfect |
+| **crash_deduplication.py**     | 140        | 53    | Perfect |
+| **crash_analyzer.py**          | 123        | 26    | Perfect |
+| **generator.py**               | 90         | 41    | Perfect |
+| **reporter.py**                | 83         | 24    | Perfect |
+| **statistics.py**              | 120        | 24    | Perfect |
+| **validator.py**               | 150        | 59    | Perfect |
+| **profiler.py**                | 115        | 62    | Perfect |
+| **timeout_budget.py**          | 120        | 36    | Perfect |
+| **coverage_correlation.py**    | 144        | 41    | Perfect |
+| **exceptions.py**              | 19         | 8     | Perfect |
+| **types.py**                   | 6          | 8     | Perfect |
+| **metadata_fuzzer.py**         | 16         | -     | Perfect |
+| **pixel_fuzzer.py**            | 12         | -     | Perfect |
 
 **High Coverage Modules:**
 
-| Module                            | Coverage | Tests | Status       |
-| --------------------------------- | -------- | ----- | ------------ |
-| **crash_triage.py** (v1.2.0)      | 97.53%   | 17    | ✅ Excellent |
-| **stability_tracker.py** (v1.2.0) | 97.20%   | 22    | ✅ Excellent |
-| **fuzzing_session.py**            | 70.23%   | 41    | ✅ Good      |
-| **corpus.py**                     | 59.74%   | 24    | ⚠️ Improving |
-| **parser.py**                     | 96.60%   | 57    | ✅ Excellent |
+| Module                            | Coverage | Tests | Status    |
+| --------------------------------- | -------- | ----- | --------- |
+| **crash_triage.py** (v1.2.0)      | 97.53%   | 17    | Excellent |
+| **stability_tracker.py** (v1.2.0) | 97.20%   | 22    | Excellent |
+| **fuzzing_session.py**            | 70.23%   | 41    | Good      |
+| **corpus.py**                     | 59.74%   | 24    | Improving |
+| **parser.py**                     | 96.60%   | 57    | Excellent |
 
 **New Test Files (Latest Session):**
 
