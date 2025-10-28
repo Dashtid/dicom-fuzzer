@@ -1,6 +1,6 @@
 # DICOM Fuzzer
 
-A specialized security testing tool for fuzzing DICOM (Digital Imaging and Communications in Medicine) implementations. Designed to identify vulnerabilities in medical imaging systems, PACS servers, and medical device software through automated security testing.
+A security testing tool for fuzzing DICOM (Digital Imaging and Communications in Medicine) implementations. Identifies vulnerabilities in medical imaging systems, PACS servers, and medical device software.
 
 [![CI/CD Pipeline](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/Dashtid/DICOM-Fuzzer/branch/main/graph/badge.svg)](https://codecov.io/gh/Dashtid/DICOM-Fuzzer)
@@ -25,7 +25,7 @@ DICOM Fuzzer is a security testing framework for DICOM medical imaging implement
 
 **Primary Use Cases:**
 
-- Security testing of PACS servers and medical imaging viewers
+- Security testing of PACS (Picture Archiving and Communication System) servers and medical imaging viewers
 - Vulnerability assessment of DICOM parsers and validators
 - Compliance testing for medical device software
 - Automated regression testing in CI/CD pipelines
@@ -35,7 +35,7 @@ DICOM Fuzzer is a security testing framework for DICOM medical imaging implement
 - **Mutation-Based Fuzzing**: Intelligent mutations of DICOM metadata, headers, pixel data, and file structure
 - **Coverage-Guided Fuzzing**: Track code coverage to guide mutation strategies
 - **Crash Intelligence**: Automated crash triaging with severity assessment, test case minimization (DDMIN algorithm), and stability tracking
-- **3D Series Fuzzing**: Specialized mutations for multi-slice CT/MRI series with viewer integration and performance optimization
+- **3D Series Fuzzing**: Specialized mutations for multi-slice CT (Computed Tomography) and MRI (Magnetic Resonance Imaging) series with viewer integration and performance optimization
 - **Production Stability**: Resource management, checkpoint/resume, circuit breaker pattern, and graceful error handling
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design and [Examples](docs/EXAMPLES.md) for usage patterns.
