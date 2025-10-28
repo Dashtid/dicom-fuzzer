@@ -602,8 +602,6 @@ uv run bandit -c pyproject.toml -r dicom_fuzzer/
 uv run pre-commit run --all-files
 ```
 
-See [.claude/CLAUDE.md](.claude/CLAUDE.md) for detailed development guidelines.
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
