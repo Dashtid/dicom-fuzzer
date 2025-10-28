@@ -226,6 +226,20 @@ python examples/fuzz_dicom_viewer.py \
     --count 50
 ```
 
+**Expected Output**:
+
+```
+[+] Loading DICOM files from: ./test_data/dicom_samples
+[+] Found 15 DICOM files
+[+] Generating 50 fuzzed files...
+[+] Progress: 10/50 (20%)
+[+] Progress: 20/50 (40%)
+[+] Progress: 30/50 (60%)
+[+] Progress: 40/50 (80%)
+[+] Progress: 50/50 (100%)
+[+] Generated 50 fuzzed files in ./test_files
+```
+
 ### Example 2: Automated Viewer Testing
 
 Test DICOM viewer with 100 fuzzed files:
@@ -240,6 +254,27 @@ python examples/fuzz_dicom_viewer.py \
     --severity aggressive
 ```
 
+**Expected Output**:
+
+```
+[+] Loading DICOM files from: ./test_data/dicom_samples
+[+] Found 23 DICOM files
+[+] Testing with viewer: /path/to/dicom/viewer
+[+] Timeout: 10 seconds
+[+] Severity: aggressive
+[+] Progress: 10/100 (10%) | Crashes: 0 | Hangs: 0
+[+] Progress: 20/100 (20%) | Crashes: 1 | Hangs: 0
+[!] CRASH detected with file: test_output/fuzzed_aggressive_CT_012.dcm
+[+] Progress: 50/100 (50%) | Crashes: 2 | Hangs: 1
+[+] Progress: 100/100 (100%) | Crashes: 3 | Hangs: 2
+[+] Fuzzing complete!
+[+] Results:
+    - Total files tested: 100
+    - Crashes detected: 3
+    - Hangs detected: 2
+    - Crash logs: test_output/crashes/
+```
+
 ### Example 3: Targeted Testing
 
 Focus on specific DICOM types:
@@ -251,6 +286,21 @@ python examples/fuzz_dicom_viewer.py \
     --output "./ct_fuzzed" \
     --count 200 \
     --severity extreme
+```
+
+**Expected Output**:
+
+```
+[+] Loading DICOM files from: ./test_data/ct_images
+[+] Found 8 CT DICOM files
+[+] Generating 200 fuzzed files with EXTREME severity...
+[!] Warning: EXTREME severity may produce highly corrupted files
+[+] Progress: 50/200 (25%)
+[+] Progress: 100/200 (50%)
+[+] Progress: 150/200 (75%)
+[+] Progress: 200/200 (100%)
+[+] Generated 200 fuzzed files in ./ct_fuzzed
+[!] Note: Some files may be too corrupted to open
 ```
 
 ## Troubleshooting
