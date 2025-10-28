@@ -687,13 +687,27 @@ See [Test Coverage Documentation](#test-documentation) for detailed analysis.
 
 ## Documentation
 
+### Getting Started
+
+- **[Quick Start Guide](docs/QUICKSTART.md)** - Get started in 5 minutes (NEW v1.2.0)
+- **[Examples](docs/EXAMPLES.md)** - Practical examples and use cases (NEW v1.2.0)
+- **[Contributing](CONTRIBUTING.md)** - Contribution guidelines (NEW v1.2.0)
+
+### User Guides
+
 - **[Fuzzing Guide](docs/FUZZING_GUIDE.md)** - Comprehensive fuzzing methodology
 - **[Crash Intelligence Guide](docs/CRASH_INTELLIGENCE.md)** - Crash triaging, minimization & stability tracking (v1.2.0)
 - **[Stability Guide](docs/STABILITY.md)** - Production stability features (v1.1.0+)
-- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions (updated with CI/CD)
 - **[Reporting System](docs/REPORTING.md)** - Report generation and analysis
+
+### Technical Documentation
+
+- **[Architecture](docs/ARCHITECTURE.md)** - System design and architecture (NEW v1.2.0)
+- **[Security Policy](SECURITY.md)** - Security disclosure and compliance (NEW v1.2.0)
 - **[Coverage Analysis](docs/COVERAGE.md)** - Test coverage breakdown
 - **[Project Structure](docs/STRUCTURE.md)** - Repository organization
+- **[Documentation Index](docs/README.md)** - Complete documentation map
 
 ## Stability Features Usage (v1.3.0)
 
