@@ -353,6 +353,10 @@ Describe testing performed:
 
 1. **Code Documentation**: Docstrings in Python modules
 2. **User Documentation**: Guides in `docs/` directory
+   - See [docs/README.md](docs/README.md) for complete documentation index
+   - [QUICKSTART.md](docs/QUICKSTART.md) for getting started
+   - [EXAMPLES.md](docs/EXAMPLES.md) for practical usage examples
+   - [ARCHITECTURE.md](docs/ARCHITECTURE.md) for system design
 3. **API Documentation**: Generated from docstrings (Sphinx)
 4. **Examples**: Practical examples in `examples/` directory
 
