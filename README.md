@@ -15,333 +15,61 @@ A specialized security testing tool for fuzzing DICOM (Digital Imaging and Commu
 [![Security](https://img.shields.io/badge/security-bandit-yellow)](https://github.com/PyCQA/bandit)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+## Quick Links
+
+[Installation](#installation) | [Quick Start](docs/QUICKSTART.md) | [Examples](docs/EXAMPLES.md) | [Documentation](#documentation) | [Contributing](CONTRIBUTING.md)
+
 ## Overview
 
-DICOM-Fuzzer is a comprehensive fuzzing framework for testing the security and robustness of DICOM-based medical imaging systems. It combines mutation-based fuzzing, grammar-aware fuzzing, and crash analysis to help identify vulnerabilities before they can be exploited.
+DICOM-Fuzzer is a security testing framework for DICOM medical imaging implementations. It combines mutation-based fuzzing, grammar-aware fuzzing, and crash intelligence to identify vulnerabilities in medical imaging systems before they can be exploited.
 
-**Target Use Cases:**
+**Primary Use Cases:**
 
-- Security testing of PACS (Picture Archiving and Communication Systems)
-- Vulnerability assessment of medical imaging viewers
-- Robustness testing of DICOM parsers and validators
+- Security testing of PACS servers and medical imaging viewers
+- Vulnerability assessment of DICOM parsers and validators
 - Compliance testing for medical device software
 - Automated regression testing in CI/CD pipelines
 
 ## Key Features
 
-### Fuzzing Capabilities
-
-- **Mutation-Based Fuzzing**: Intelligent mutations of DICOM metadata, headers, and pixel data
-- **Grammar-Based Fuzzing**: DICOM-aware mutations that understand protocol structure
+- **Mutation-Based Fuzzing**: Intelligent mutations of DICOM metadata, headers, pixel data, and file structure
 - **Coverage-Guided Fuzzing**: Track code coverage to guide mutation strategies
-- **Batch Processing**: Generate and test thousands of fuzzed files efficiently
+- **Crash Intelligence**: Automated crash triaging with severity assessment, test case minimization (DDMIN algorithm), and stability tracking
+- **3D Series Fuzzing**: Specialized mutations for multi-slice CT/MRI series with viewer integration and performance optimization
+- **Production Stability**: Resource management, checkpoint/resume, circuit breaker pattern, and graceful error handling
 
-### Crash Analysis & Reporting
-
-- **Automatic Crash Detection**: Monitor target applications for crashes, hangs, and errors
-- **Crash Deduplication**: Group similar crashes to identify unique vulnerabilities
-- **Mutation Minimization**: Automatically find the minimal mutation set that triggers a crash
-- **Comprehensive Reports**: Interactive HTML reports with full crash forensics
-
-### Crash Intelligence & Triaging (v1.2.0)
-
-- **Automated Crash Triaging**: Intelligent crash analysis with severity and exploitability assessment
-  - 5 severity levels: CRITICAL, HIGH, MEDIUM, LOW, INFO
-  - 4 exploitability ratings (EXPLOITABLE, PROBABLY_EXPLOITABLE, etc.)
-  - Priority scoring (0-100) for investigation order
-  - Automatic indicator extraction (heap corruption, use-after-free, buffer overflows)
-  - Tag generation for crash categorization
-- **Test Case Minimization**: Delta debugging for reducing crashes to minimal form
-  - DDMIN algorithm implementation (Andreas Zeller's delta debugging)
-  - Multiple minimization strategies (BINARY_SEARCH, LINEAR, BLOCK)
-  - Automatic reduction while preserving crash behavior
-  - 97% test coverage with comprehensive test suite
-- **Stability Tracking**: AFL++-style stability metrics for execution consistency
-  - Non-deterministic behavior detection
-  - Execution signature tracking (exit code + output + coverage)
-  - Stability percentage calculation and unstable input reporting
-  - Identifies race conditions, uninitialized memory, entropy sources
-
-### Mutation Tracking
-
-- **Complete Traceability**: Track every mutation from source file to crash
-- **Session Management**: Organize fuzzing campaigns with detailed session logs
-- **Artifact Preservation**: Automatically save crash samples and reproduction commands
-- **DICOM Metadata Snapshots**: Compare original vs. fuzzed file metadata
-
-### Production-Ready Stability (v1.1.0+)
-
-- **Resource Management**: Configurable memory, CPU, and disk space limits (Unix/Linux/macOS)
-- **Error Recovery**: Checkpoint/resume for long-running campaigns with progress preservation
-- **Retry Logic**: Automatic retry with exponential backoff for transient failures
-- **Circuit Breaker**: Prevent resource waste on consistently failing targets
-- **Pre-flight Validation**: Comprehensive checks before campaign start (Python version, dependencies, disk space)
-- **Graceful Shutdown**: SIGINT/SIGTERM handling with state preservation
-- **Platform-Aware**: Full support on Unix/Linux/macOS, graceful degradation on Windows
-
-### Enhanced Stability Features (v1.3.0 - 2025)
-
-- **Silent Crash Debugging**: Automatic faulthandler integration for segfault tracebacks
-- **Atomic Checkpoints**: Corruption-resistant checkpoint writes with validation
-- **Stateless Harness Validation**: Tools to ensure 100% deterministic fuzzing
-- **Corpus Minimization**: Remove redundant seeds (95%+ reduction) while preserving coverage
-- **Timeout Budget Management**: Adaptive timeout adjustment to prevent time waste
-- **Coverage Correlation**: Identify crash-prone code paths for prioritized fixes
-- **Root Cause Analysis**: Classify instability (race conditions, uninitialized memory, entropy)
-- **Enhanced Error Handling**: ProcessPoolExecutor with BrokenProcessPool detection
-
-### 3D DICOM Fuzzing (Phase 1-5 Complete - 2025)
-
-- **Series Detection & Validation** (Phase 1 - Complete): Automatic grouping of DICOM files into 3D series
-  - SeriesInstanceUID-based series detection
-  - Validation of slice ordering and spacing
-  - Support for multi-slice CT, MRI, and other volumetric modalities
-- **Series-Level Mutations** (Phase 2 - Complete): 5 mutation strategies for 3D series fuzzing
-  - Series metadata corruption (UIDs, tags)
-  - Slice position/orientation attacks
-  - Boundary slice targeting (first/middle/last)
-  - Gradient mutations (progressive corruption)
-  - Inconsistency injection (mixed modalities)
-- **3D Viewer Integration** (Phase 3 - Complete): Automated testing of DICOM viewers with fuzzed 3D series
-  - Folder-based series loading
-  - Memory monitoring during 3D rendering
-  - Crash detection and correlation to specific slices
-  - Support for MicroDicom, RadiAnt, Rubo, Sante, and custom viewers
-  - YAML configuration with pre-configured viewer profiles
-  - 22/22 tests passing (100%), 84% code coverage
-- **Performance Optimization** (Phase 4 - Complete): 3-5x speedup for large series
-  - Lazy loading: 10-100x faster metadata-only loading
-  - LRU caching: 250x faster cache hits
-  - Parallel processing: 3-4x faster mutations with ProcessPoolExecutor
-  - Memory efficient: <2GB for 500-slice series
-  - Auto-tuning worker pools and cache sizes
-  - 46 unit tests, comprehensive benchmarking infrastructure
-
-See [docs/3D_FUZZING_ROADMAP.md](docs/3D_FUZZING_ROADMAP.md), [docs/VIEWER_TESTING_3D.md](docs/VIEWER_TESTING_3D.md), and [docs/PERFORMANCE_3D.md](docs/PERFORMANCE_3D.md) for details.
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design and [Examples](docs/EXAMPLES.md) for usage patterns.
 
 ## Project Structure
 
 ```
-DICOM-Fuzzer/
-├── dicom_fuzzer/              # Main package
-│   ├── __init__.py            # Package exports
-│   ├── __main__.py            # CLI entry point
-│   ├── core/                  # Core fuzzing engine
-│   │   ├── config.py          # Configuration management
-│   │   ├── parser.py          # DICOM parsing
-│   │   ├── generator.py       # Test case generation
-│   │   ├── mutator.py         # Mutation engine
-│   │   ├── validator.py       # DICOM validation
-│   │   ├── fuzzing_session.py # Session tracking
-│   │   ├── crash_analyzer.py  # Crash analysis
-│   │   ├── crash_deduplication.py # Crash grouping
-│   │   ├── crash_triage.py    # Crash triaging (v1.2.0)
-│   │   ├── test_minimizer.py  # Test case minimization (v1.2.0)
-│   │   ├── stability_tracker.py # Stability tracking (v1.2.0)
-│   │   ├── reporter.py        # Report generation
-│   │   ├── statistics.py      # Statistics tracking
-│   │   ├── coverage_tracker.py # Code coverage
-│   │   ├── lazy_loader.py     # Lazy DICOM loading (Phase 4)
-│   │   ├── series_cache.py    # LRU caching (Phase 4)
-│   │   ├── dicom_series.py    # 3D series data structure
-│   │   ├── series_detector.py # Series detection & grouping
-│   │   ├── series_validator.py # Series validation
-│   │   ├── series_writer.py   # Series writing
-│   │   └── exceptions.py      # Exception hierarchy
-│   ├── strategies/            # Mutation strategies
-│   │   ├── header_fuzzer.py   # Header mutations
-│   │   ├── metadata_fuzzer.py # Metadata mutations
-│   │   ├── pixel_fuzzer.py    # Pixel data mutations
-│   │   ├── series_mutator.py  # 3D series mutations (Phase 2)
-│   │   └── parallel_mutator.py # Parallel processing (Phase 4)
-│   ├── harness/               # Test harnesses
-│   │   └── viewer_launcher_3d.py # 3D viewer testing (Phase 3)
-│   ├── utils/                 # Utilities
-│   │   ├── helpers.py         # Helper functions
-│   │   ├── logger.py          # Logging utilities
-│   │   └── dicom_dictionaries.py # DICOM dictionaries
-│   └── cli/                   # CLI tools
-│       ├── main.py            # Main CLI
-│       ├── generate_report.py # Report generation
-│       └── realtime_monitor.py # Live dashboard
-├── tests/                     # Test suite (976+ tests)
-│   ├── test_lazy_loader.py    # Lazy loading tests (Phase 4)
-│   ├── test_series_cache.py   # Caching tests (Phase 4)
-│   ├── test_parallel_mutator.py # Parallel processing tests (Phase 4)
-│   ├── test_series_detector.py # Series detection tests (Phase 1)
-│   ├── test_series_mutator.py # Series mutation tests (Phase 2)
-│   ├── test_viewer_launcher_3d.py # Viewer testing tests (Phase 3)
-│   └── ...                    # 970+ other tests
-├── examples/                  # Example scripts
-│   ├── demo/                  # Demonstration scripts
-│   │   ├── README.md          # Demo documentation
-│   │   ├── demo_simple.py     # Simple workflow demo
-│   │   └── demo_workflow.py   # Full framework demo
-│   ├── demo_fuzzing.py        # Basic fuzzing demo
-│   ├── fuzz_dicom_viewer.py   # Viewer fuzzing example
-│   └── coverage_guided_fuzzing_demo.py
-├── output/                    # Fuzzing outputs (gitignored)
-│   ├── crashes/               # Crash files
-│   ├── logs/                  # Fuzzing logs
-│   ├── fuzzed/                # Fuzzed DICOM files
-│   ├── corpus/                # Test corpus
-│   ├── campaigns/             # Campaign results
-│   └── reports/               # Generated reports
-├── configs/                   # Configuration
-│   ├── targets/               # Target configurations
-│   │   ├── dcmtk_dcmdump.json # DCMTK target
-│   │   └── orthanc_api.json   # Orthanc target
-│   ├── seeds/                 # Seed DICOM files
-│   ├── dictionaries/          # Fuzzing dictionaries
-│   └── viewer_profiles.yaml   # Viewer configurations (Phase 3)
-├── docs/                      # Documentation
-│   ├── README.md              # Documentation index
-│   ├── archive/               # Historical documentation
-│   ├── COVERAGE.md            # Test coverage analysis
-│   ├── FUZZING_GUIDE.md       # Fuzzing methodology
-│   ├── CRASH_INTELLIGENCE.md  # Crash intelligence guide (v1.2.0)
-│   ├── TESTING.md             # Testing guide
-│   ├── REPORTING.md           # Reporting system
-│   ├── 3D_FUZZING_ROADMAP.md  # 3D fuzzing roadmap (Phase 1-4)
-│   ├── VIEWER_TESTING_3D.md   # 3D viewer testing guide (Phase 3)
-│   └── PERFORMANCE_3D.md      # Performance optimization guide (Phase 4)
-├── scripts/                   # Build/deployment scripts
-│   └── benchmark_3d_fuzzing.py # Performance benchmarking (Phase 4)
-├── pyproject.toml             # Project configuration
-├── requirements.txt           # Dependencies
-├── CHANGELOG.md               # Version history
-├── LICENSE                    # MIT License
-└── README.md                  # This file
+dicom-fuzzer/
+├── dicom_fuzzer/           # Main package (70 modules, ~24k LOC)
+│   ├── core/               # Core fuzzing engine (parser, mutator, crash analysis)
+│   ├── strategies/         # Mutation strategies (metadata, pixel, header, 3D series)
+│   ├── harness/            # Test harnesses (viewer integration)
+│   ├── utils/              # Utilities and helpers
+│   ├── analytics/          # Campaign analytics and visualization
+│   └── cli/                # Command-line interfaces
+├── tests/                  # Test suite (2,591 tests, 56.10% coverage)
+├── examples/               # Example scripts and demos
+├── docs/                   # Documentation
+└── configs/                # Configuration templates
 ```
+
+See [STRUCTURE.md](docs/STRUCTURE.md) for detailed repository organization.
 
 ## Installation
 
-### Prerequisites
-
-- Python 3.11 or higher
-- [uv](https://github.com/astral-sh/uv) (recommended) or pip
-
-### Quick Start
+**Prerequisites**: Python 3.11+
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/DICOM-Fuzzer.git
-cd DICOM-Fuzzer
-
-# Install with uv (recommended - fast, modern Python package manager)
-uv sync
-
-# Activate virtual environment
-# Windows:
-.venv\Scripts\activate
-# Linux/Mac:
-source .venv/bin/activate
-```
-
-### Development Setup
-
-```bash
-# Install all dependencies (using modern dependency-groups)
+git clone https://github.com/Dashtid/dicom-fuzzer.git
+cd dicom-fuzzer
 uv sync --all-extras
-
-# Install pre-commit hooks
-uv run pre-commit install
-
-# Run tests
-uv run pytest tests/ -v
-
-# Run with coverage
-uv run pytest tests/ --cov=dicom_fuzzer --cov-report=html
 ```
 
-### Modern Tooling (2025)
-
-This project uses modern Python development tools:
-
-- **[uv](https://github.com/astral-sh/uv)** - Fast Python package manager and resolver
-- **[Hatchling](https://github.com/pypa/hatch)** - Modern build backend (replaces setuptools)
-- **[Ruff](https://github.com/astral-sh/ruff)** - Fast linter and formatter (replaces black, isort, flake8, pylint)
-- **[just](https://just.systems/)** - Modern task runner with 30+ recipes
-
-**Using Just Task Runner** (optional, but recommended):
-
-```bash
-# Install just (cross-platform)
-# Windows (via winget):
-winget install Casey.Just
-# macOS (via homebrew):
-brew install just
-# Linux (via cargo):
-cargo install just
-
-# View all available tasks
-just
-
-# Common tasks
-just install          # Install all dependencies
-just test             # Run all tests
-just test-cov         # Run tests with coverage
-just lint             # Run linter
-just format-check     # Check formatting
-just fix              # Auto-fix linting issues
-just check            # Run all quality checks
-just build            # Build package
-just clean            # Clean cache and artifacts
-```
-
-### VSCode Development Setup (Recommended)
-
-This project includes VSCode configuration for optimal development experience:
-
-**Pre-configured Features:**
-
-- **Pylance/Pyright**: Fast type checking (3-5x faster than mypy)
-- **Ruff Integration**: Auto-format and auto-fix on save
-- **Pytest Integration**: Discover and run tests from Test Explorer
-- **EditorConfig**: Consistent formatting across all editors
-
-**Quick Setup:**
-
-```bash
-# 1. Open project in VSCode
-code .
-
-# 2. Install recommended extensions (VSCode will prompt automatically)
-# Or install manually:
-# - Python (ms-python.python)
-# - Pylance (ms-python.vscode-pylance)
-# - Ruff (charliermarsh.ruff)
-# - EditorConfig (editorconfig.editorconfig)
-
-# 3. Python version is automatically detected from .python-version (3.13)
-
-# 4. Dependencies are automatically installed via uv.lock
-```
-
-**What's Configured:**
-
-- Format on save with Ruff
-- Organize imports on save
-- Type checking in editor (basic mode)
-- Test discovery and execution
-- Inlay hints for function return types and variables
-- Excluded files (.venv, **pycache**, caches)
-
-See [.vscode/settings.json](.vscode/settings.json) and [.vscode/extensions.json](.vscode/extensions.json) for full configuration.
-
-**Type Checking:**
-
-This project uses **dual type checking** for comprehensive coverage:
-
-- **mypy** (pre-commit hook): Strict validation before commits
-- **Pyright** (VSCode/Pylance): Real-time feedback in editor
-
-Run type checkers manually:
-
-```bash
-uv run mypy dicom_fuzzer/           # Mypy (strict)
-uv run pyright dicom_fuzzer/        # Pyright (fast)
-```
+See [QUICKSTART.md](docs/QUICKSTART.md) for detailed installation options and [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
 
 ## Usage
 
