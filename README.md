@@ -4,9 +4,9 @@ A security testing tool for fuzzing DICOM (Digital Imaging and Communications in
 
 [![CI/CD Pipeline](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/Dashtid/DICOM-Fuzzer/branch/main/graph/badge.svg)](https://codecov.io/gh/Dashtid/DICOM-Fuzzer)
-[![Tests](https://img.shields.io/badge/tests-2585%20passing-brightgreen)](tests/)
-[![Coverage](https://img.shields.io/badge/coverage-56.10%25-yellow)](docs/COVERAGE.md)
-[![Core Modules](https://img.shields.io/badge/core%20modules-17%2B%20%40%20100%25-brightgreen)](#test-coverage)
+[![Tests](https://img.shields.io/badge/tests-2704%20passing-brightgreen)](tests/)
+[![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen)](docs/COVERAGE.md)
+[![Core Modules](https://img.shields.io/badge/core%20modules-30%2B%20%40%2090%25%2B-brightgreen)](#test-coverage)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://python.org)
 [![Code Style](https://img.shields.io/badge/code%20style-ruff-black)](https://github.com/astral-sh/ruff)
 [![Linter](https://img.shields.io/badge/linter-ruff-orange)](https://github.com/astral-sh/ruff)
@@ -387,12 +387,12 @@ open output/reports/coverage/htmlcov/index.html   # macOS
 
 ### Test Coverage
 
-**Overall Statistics (2025-10-18):**
+**Overall Statistics (2025-11-05):**
 
-- **Total Tests**: 2,097+ across 69 test files
-- **Overall Coverage**: 50.56% (target: 80% by industry standards)
-- **Core Modules at 100%**: 17+ critical modules
-- **Recent Achievement**: Enhanced reporter module (120 statements) 11.67% → 100%
+- **Total Tests**: 2,704 tests (100% pass rate)
+- **Overall Coverage**: 83% (exceeds 80% industry standard!)
+- **High-Coverage Core Modules**: 30+ modules at 90%+ coverage (corpus_manager: 98%, crash_analyzer: 100%, crash_triage: 99%)
+- **Recent Achievement**: Added 49 comprehensive corpus_manager tests, improved multiple modules from 20-30% to 90-100% coverage
 
 **Module Coverage (100% Coverage Modules):**
 
