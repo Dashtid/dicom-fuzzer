@@ -9,6 +9,8 @@ This directory contains comprehensive documentation for the DICOM Fuzzer project
 Start here if you're new to DICOM Fuzzer:
 
 - **[Main README](../README.md)** - Project overview, installation, and quick start
+- **[QUICKSTART.md](QUICKSTART.md)** - 5-minute quick start guide for new users
+- **[EXAMPLES.md](EXAMPLES.md)** - Practical examples and use cases
 - **[FUZZING_GUIDE.md](FUZZING_GUIDE.md)** - Comprehensive fuzzing methodology and best practices
 - **[CRASH_INTELLIGENCE.md](CRASH_INTELLIGENCE.md)** - Crash triaging, minimization, and stability tracking
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
@@ -32,21 +34,23 @@ Start here if you're new to DICOM Fuzzer:
 
 For contributors and developers:
 
+- **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Contribution guidelines and development setup
+- **[SECURITY.md](../SECURITY.md)** - Security policy and responsible disclosure
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and technical architecture
 - **[STRUCTURE.md](STRUCTURE.md)** - Repository organization and architecture
 - **[TEST_COVERAGE.md](TEST_COVERAGE.md)** - Test coverage details and goals
-- **[PROJECT_PLAN.md](PROJECT_PLAN.md)** - Development plan and milestones
-- **[PROJECT_STATUS.md](PROJECT_STATUS.md)** - Current project status
-- **[TASK_BREAKDOWN.md](TASK_BREAKDOWN.md)** - Task breakdown and tracking
+- **[PROJECT_STATUS.md](PROJECT_STATUS.md)** - Current project status (historical tracking)
 - **[PERFORMANCE.md](PERFORMANCE.md)** - Performance benchmarking and optimization
 
 ## Documentation Categories
 
 ### [+] By Purpose
 
-- **Getting Started**: Main README, FUZZING_GUIDE.md
-- **Using Features**: CRASH_INTELLIGENCE.md, STABILITY.md, REPORTING.md
+- **Getting Started**: QUICKSTART.md, Main README, EXAMPLES.md
+- **Using Features**: FUZZING_GUIDE.md, CRASH_INTELLIGENCE.md, STABILITY.md, REPORTING.md
 - **Troubleshooting**: TROUBLESHOOTING.md
-- **Contributing**: STRUCTURE.md, TESTING.md, TEST_COVERAGE.md
+- **Contributing**: CONTRIBUTING.md, ARCHITECTURE.md, STRUCTURE.md, TESTING.md
+- **Security**: SECURITY.md
 
 ### [+] By Component
 
@@ -61,6 +65,8 @@ For contributors and developers:
 Historical documentation and session notes are stored in:
 
 - **[archive/sessions/](archive/sessions/)** - Development session notes and logs
+- **[archive/PROJECT_PLAN.md](archive/PROJECT_PLAN.md)** - Original 8-week development plan (archived)
+- **[archive/TASK_BREAKDOWN.md](archive/TASK_BREAKDOWN.md)** - Original task breakdown (archived)
 
 These files are kept for historical reference but are not part of the active documentation.
 
