@@ -105,7 +105,7 @@ def sample_dicom_series(test_workspace):
         ds.PixelData = b"\x00" * (256 * 256 * 2)
 
         file_path = test_workspace["input"] / f"slice_{i:03d}.dcm"
-        ds.save_as(str(file_path))
+        ds.save_as(str(file_path), implicit_vr=True, little_endian=True)
         files.append(file_path)
 
     return files

@@ -8,9 +8,13 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
+# Skip all tests in this module if matplotlib is not installed
+pytest.importorskip("matplotlib")
+
 import matplotlib
 import matplotlib.pyplot as plt
-import pytest
 
 # Force non-interactive backend for tests
 matplotlib.use("Agg")
