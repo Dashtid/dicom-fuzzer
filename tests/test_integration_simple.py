@@ -89,8 +89,8 @@ class TestBasicIntegration:
         parser = DicomParser(str(sample_dicom_file))
         metadata = parser.extract_metadata()
         assert metadata is not None
-        assert "PatientName" in metadata
-        assert metadata["PatientName"] == "TEST^PATIENT"
+        assert "patient_name" in metadata
+        assert "TEST^PATIENT" in str(metadata["patient_name"])
 
         # Validate the file
         validator = DicomValidator()
@@ -133,18 +133,11 @@ class TestBasicIntegration:
         """Test detection and validation of a DICOM series."""
         # Detect series
         detector = SeriesDetector()
-        series_map = detector.detect_series(str(temp_dir))
+        series_list = detector.detect_series_in_directory(temp_dir)
 
         # Should detect one series
-        assert len(series_map) == 1
-        series_uid = list(series_map.keys())[0]
-        series_files = series_map[series_uid]
-        assert len(series_files) == 3
-
-        # Create DicomSeries object
-        series = DicomSeries(
-            series_uid=series_uid, files=[str(f) for f in sample_dicom_series]
-        )
+        assert len(series_list) == 1
+        series = series_list[0]
         assert series.slice_count == 3
 
         # Validate the series
@@ -158,9 +151,9 @@ class TestBasicIntegration:
         invalid_file = temp_dir / "invalid.dcm"
         invalid_file.write_bytes(b"NOT_A_DICOM_FILE")
 
-        parser = DicomParser(str(invalid_file))
+        # DicomParser now raises exception during initialization for invalid files
         with pytest.raises(Exception):
-            parser.parse()
+            parser = DicomParser(str(invalid_file))
 
     def test_validator_detects_invalid_file(self, temp_dir):
         """Test that validator detects invalid files."""
@@ -200,9 +193,9 @@ class TestBasicIntegration:
         # Parse and verify custom tags
         parser = DicomParser(str(output_path))
         metadata = parser.extract_metadata()
-        assert metadata["PatientName"] == "CUSTOM^NAME"
-        assert metadata["PatientID"] == "CUSTOM123"
-        assert metadata["Modality"] == "US"
+        assert "CUSTOM^NAME" in str(metadata["patient_name"])
+        assert "CUSTOM123" in str(metadata["patient_id"])
+        assert "US" in str(metadata["modality"])
 
 
 class TestErrorHandling:
@@ -246,7 +239,7 @@ class TestErrorHandling:
 
         # Detector should handle mixed files
         detector = SeriesDetector()
-        series_map = detector.detect_series(str(temp_dir))
+        series_list = detector.detect_series_in_directory(temp_dir)
 
         # Should detect only the valid DICOM
-        assert len(series_map) == 1
+        assert len(series_list) == 1

@@ -139,7 +139,7 @@ class TestCompleteWorkflowIntegration:
         parser = DicomParser(str(sample_dicom_file))
         metadata = parser.extract_metadata()
         assert metadata is not None
-        assert "PatientName" in metadata
+        assert "patient_name" in metadata
 
         # Validate the file
         validator = DicomValidator()
