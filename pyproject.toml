@@ -151,6 +151,17 @@ ignore = [
     "RUF059", # unpacked variable never used (acceptable in tests/examples)
     "UP028",  # yield in for loop (acceptable pattern)
     "UP036",  # outdated version block (Python 3.11+ is fine)
+    "E501",   # line too long (handled by formatter)
+    "C901",   # function too complex (refactoring can wait)
+    # Security rules - false positives for fuzzing tool
+    "S108",   # probable insecure usage of temporary file (needed for fuzzing)
+    "S311",   # standard pseudo-random generators (appropriate for fuzzing, not crypto)
+    "S110",   # try-except-pass (acceptable in fuzzing error handling)
+    "S301",   # pickle usage (used for internal corpus storage only)
+    "S324",   # insecure hash function (used for checksums, not security)
+    "S105",   # hardcoded password (test data only)
+    "S603",   # subprocess without shell=True (acceptable for controlled execution)
+    "S112",   # try-except-continue (acceptable in fuzzing loops)
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -306,7 +306,7 @@ def identify_crash_prone_modules(
     """
     module_counts = defaultdict(int)
 
-    for coverage_id, crash_rate in correlation.dangerous_paths:
+    for coverage_id, _crash_rate in correlation.dangerous_paths:
         # Extract module/file name
         if ":" in coverage_id:
             # Format: "file.py:line" or "file.py:function"

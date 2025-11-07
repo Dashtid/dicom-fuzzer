@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate 3D DICOM Series Fuzzing Reports
+r"""Generate 3D DICOM Series Fuzzing Reports
 
 This CLI tool generates comprehensive reports for 3D DICOM series fuzzing campaigns,
 including HTML reports, JSON exports, and interactive visualizations.
@@ -253,7 +253,7 @@ class Report3DGenerator:
             )
 
         # Generate recommendations
-        recommendations = self.analyzer.generate_recommendations()
+        self.analyzer.generate_recommendations()
 
         # Export analytics
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

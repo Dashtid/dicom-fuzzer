@@ -89,7 +89,7 @@ class ReportGenerator:
             "generated_at": datetime.now().isoformat(),
             "summary": {
                 "total_crashes": len(crashes),
-                "unique_crashes": len(set(c.crash_hash for c in crashes)),
+                "unique_crashes": len({c.crash_hash for c in crashes}),
                 "by_type": summary,
                 "by_severity": {},
             },

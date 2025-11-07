@@ -497,7 +497,7 @@ class DicomMutator:
             "start_time": session.start_time.isoformat(),
             "mutations_applied": len(session.mutations),
             "successful_mutations": session.successful_mutations,
-            "strategies_used": list(set(m.strategy_name for m in session.mutations)),
+            "strategies_used": list({m.strategy_name for m in session.mutations}),
         }
 
 

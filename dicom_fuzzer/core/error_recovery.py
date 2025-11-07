@@ -586,6 +586,6 @@ def with_error_recovery(
                     logger.error(
                         f"Failed after {max_retries} retries in {func.__name__}: {e}"
                     )
-                    raise last_exception
+                    raise last_exception from e
 
     return wrapper
