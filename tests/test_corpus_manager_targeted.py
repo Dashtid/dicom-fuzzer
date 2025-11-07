@@ -63,8 +63,12 @@ class TestSeedDataclass:
     def test_seed_comparison_by_priority(self):
         """Test seeds are compared by priority first."""
         coverage = CoverageInfo()
-        critical = Seed(id="1", data=b"a", coverage=coverage, priority=SeedPriority.CRITICAL)
-        normal = Seed(id="2", data=b"b", coverage=coverage, priority=SeedPriority.NORMAL)
+        critical = Seed(
+            id="1", data=b"a", coverage=coverage, priority=SeedPriority.CRITICAL
+        )
+        normal = Seed(
+            id="2", data=b"b", coverage=coverage, priority=SeedPriority.NORMAL
+        )
 
         assert critical < normal  # Lower value = higher priority
 
@@ -288,7 +292,7 @@ class TestAddSeed:
 
         # Add 6 seeds to exceed limit
         for i in range(6):
-            coverage = CoverageInfo(edges={(f"edge{i}", i, f"dest{i}", i+1)})
+            coverage = CoverageInfo(edges={(f"edge{i}", i, f"dest{i}", i + 1)})
             manager.add_seed(f"data{i}".encode(), coverage)
 
         # Should trigger minimization
@@ -322,6 +326,7 @@ class TestGetNextSeed:
         # Rebuild heap
         manager.seed_queue = []
         import heapq
+
         for seed in manager.seeds.values():
             heapq.heappush(manager.seed_queue, seed)
 
@@ -353,6 +358,7 @@ class TestGetNextSeed:
         # Rebuild heap
         manager.seed_queue = []
         import heapq
+
         heapq.heappush(manager.seed_queue, seed)
 
         initial_queue_size = len(manager.seed_queue)
@@ -616,7 +622,10 @@ class TestCoverageMethods:
         coverage2 = CoverageInfo(edges={("a", 1, "b", 2)})
 
         # Should be rejected as not unique
-        with patch("dicom_fuzzer.core.corpus_manager.calculate_coverage_distance", return_value=0.0):
+        with patch(
+            "dicom_fuzzer.core.corpus_manager.calculate_coverage_distance",
+            return_value=0.0,
+        ):
             assert manager._is_coverage_unique(coverage2) is False
 
 
@@ -629,7 +638,7 @@ class TestMinimizeCorpus:
 
         # Add 4 seeds to trigger minimization
         for i in range(4):
-            coverage = CoverageInfo(edges={(f"edge{i}", i, f"dest{i}", i+1)})
+            coverage = CoverageInfo(edges={(f"edge{i}", i, f"dest{i}", i + 1)})
             manager.add_seed(f"data{i}".encode(), coverage)
 
         # Should have minimized to max_corpus_size
