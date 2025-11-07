@@ -6,7 +6,6 @@ pre-flight checks, and system resource validation.
 
 from unittest.mock import Mock, patch
 
-
 from dicom_fuzzer.core.config_validator import ConfigValidator, ValidationResult
 
 

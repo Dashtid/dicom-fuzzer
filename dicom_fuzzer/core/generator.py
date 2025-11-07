@@ -81,7 +81,7 @@ class DICOMGenerator:
         generated_files = []
         self.stats = GenerationStats()
 
-        for i in range(count):
+        for _i in range(count):
             result = self._generate_single_file(base_dataset, active_fuzzers)
             if result is not None:
                 generated_files.append(result)

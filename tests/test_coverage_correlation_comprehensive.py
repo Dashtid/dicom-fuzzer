@@ -502,7 +502,7 @@ class TestIntegrationScenarios:
         assert "func_dangerous" in dangerous_ids
 
         # Verify crash rate
-        dangerous_rates = {path: rate for path, rate in correlation.dangerous_paths}
+        dangerous_rates = dict(correlation.dangerous_paths)
         assert dangerous_rates["func_dangerous"] == pytest.approx(0.8, rel=0.01)
 
     def test_module_grouping(self):

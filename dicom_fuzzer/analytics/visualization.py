@@ -176,7 +176,7 @@ class FuzzingVisualizer:
             yaxis_title="Effectiveness Score",
             yaxis_range=[0, 1.0],
             template="plotly_white",
-            font=dict(size=12),
+            font={"size": 12},
             hovermode="x unified",
         )
 
@@ -284,7 +284,7 @@ class FuzzingVisualizer:
                 x=0.5,
                 y=0.5,
                 showarrow=False,
-                font=dict(size=14, color="gray"),
+                font={"size": 14, "color": "gray"},
             )
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_path = self.output_dir / f"crash_trend_{timestamp}.html"
@@ -306,8 +306,8 @@ class FuzzingVisualizer:
                     x=timestamps,
                     y=cumulative_crashes,
                     mode="lines+markers",
-                    line=dict(color=self.colors["danger"], width=2),
-                    marker=dict(size=8),
+                    line={"color": self.colors["danger"], "width": 2},
+                    marker={"size": 8},
                     hovertemplate=(
                         "<b>Time:</b> %{x}<br>"
                         + "<b>Cumulative Crashes:</b> %{y}<br>"
@@ -323,7 +323,7 @@ class FuzzingVisualizer:
             xaxis_title="Time",
             yaxis_title="Cumulative Crashes",
             template="plotly_white",
-            font=dict(size=12),
+            font={"size": 12},
             hovermode="x unified",
         )
 
@@ -399,7 +399,7 @@ class FuzzingVisualizer:
         # Add text annotations
         for i in range(len(strategies)):
             for j in range(len(metrics)):
-                text = ax.text(
+                ax.text(
                     j,
                     i,
                     f"{data[i][j]:.2f}",
@@ -463,7 +463,7 @@ class FuzzingVisualizer:
                     + "<b>Score:</b> %{z:.2f}<br>"
                     + "<extra></extra>"
                 ),
-                colorbar=dict(title="Score (0-1)"),
+                colorbar={"title": "Score (0-1)"},
             )
         )
 
@@ -473,7 +473,7 @@ class FuzzingVisualizer:
             xaxis_title="Metrics",
             yaxis_title="Mutation Strategy",
             template="plotly_white",
-            font=dict(size=12),
+            font={"size": 12},
         )
 
         # Save HTML
@@ -570,7 +570,7 @@ class FuzzingVisualizer:
             performance_data.cpu_utilization,
             performance_data.cache_hit_rate,
         ]
-        bars = ax4.bar(
+        ax4.bar(
             utilization_metrics,
             utilization_values,
             color=[self.colors["secondary"], self.colors["success"]],
@@ -693,7 +693,7 @@ class FuzzingVisualizer:
             title_text="Performance Dashboard",
             showlegend=False,
             template="plotly_white",
-            font=dict(size=12),
+            font={"size": 12},
             height=800,
         )
 

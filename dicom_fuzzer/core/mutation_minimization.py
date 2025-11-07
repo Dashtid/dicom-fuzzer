@@ -260,7 +260,7 @@ class MutationMinimizer:
         # Apply each mutation
         # NOTE: This is simplified - actual implementation needs to
         # replay mutations from their recorded parameters
-        for mutation in mutations:
+        for _mutation in mutations:
             # This would need to be implemented based on how mutations
             # are recorded in the MutationRecord
             pass
