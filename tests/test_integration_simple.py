@@ -8,7 +8,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from pydicom import Dataset
 from pydicom.uid import generate_uid
 
 # Import only the core classes we need that are exported
@@ -16,7 +15,6 @@ from dicom_fuzzer.core import (
     DICOMGenerator,
     DicomMutator,
     DicomParser,
-    DicomSeries,
     DicomValidator,
     SeriesDetector,
     SeriesValidator,
@@ -33,48 +31,97 @@ def temp_dir():
 @pytest.fixture
 def sample_dicom_file(temp_dir):
     """Create a sample DICOM file for testing."""
-    ds = Dataset()
+    from pydicom.dataset import FileDataset, FileMetaDataset
+
+    # Create file meta
+    file_meta = FileMetaDataset()
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # Implicit VR Little Endian
+    file_meta.ImplementationClassUID = generate_uid()
+
+    # Create dataset
+    ds = FileDataset(
+        str(temp_dir / "sample.dcm"), {}, file_meta=file_meta, preamble=b"\x00" * 128
+    )
+
     ds.PatientName = "TEST^PATIENT"
     ds.PatientID = "12345"
     ds.StudyInstanceUID = generate_uid()
     ds.SeriesInstanceUID = generate_uid()
-    ds.SOPInstanceUID = generate_uid()
-    ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+    ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+    ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
     ds.Modality = "CT"
     ds.Rows = 128
     ds.Columns = 128
     ds.BitsAllocated = 16
+    ds.BitsStored = 16
+    ds.HighBit = 15
+    ds.PixelRepresentation = 0
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
     ds.PixelData = b"\x00" * (128 * 128 * 2)
 
     file_path = temp_dir / "sample.dcm"
-    ds.save_as(str(file_path), implicit_vr=True, little_endian=True)
+    ds.save_as(str(file_path), write_like_original=False)
     return file_path
 
 
 @pytest.fixture
 def sample_dicom_series(temp_dir):
     """Create a sample DICOM series with multiple slices."""
+    from pydicom.dataset import FileDataset, FileMetaDataset
+
     series_uid = generate_uid()
     study_uid = generate_uid()
 
     files = []
     for i in range(3):
-        ds = Dataset()
+        # Create file meta
+        file_meta = FileMetaDataset()
+        file_meta.MediaStorageSOPClassUID = (
+            "1.2.840.10008.5.1.4.1.1.4"  # MR Image Storage
+        )
+        file_meta.MediaStorageSOPInstanceUID = generate_uid()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # Implicit VR Little Endian
+        file_meta.ImplementationClassUID = generate_uid()
+
+        # Create dataset
+        ds = FileDataset(
+            str(temp_dir / f"slice_{i:03d}.dcm"),
+            {},
+            file_meta=file_meta,
+            preamble=b"\x00" * 128,
+        )
+
         ds.PatientName = "SERIES^TEST"
         ds.PatientID = "54321"
         ds.StudyInstanceUID = study_uid
         ds.SeriesInstanceUID = series_uid
-        ds.SOPInstanceUID = generate_uid()
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.4"  # MR Image Storage
+        ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+        ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
         ds.InstanceNumber = i + 1
         ds.Modality = "MR"
         ds.Rows = 256
         ds.Columns = 256
         ds.BitsAllocated = 16
+        ds.BitsStored = 16
+        ds.HighBit = 15
+        ds.PixelRepresentation = 0
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+
+        # Add proper slice geometry
+        ds.SliceThickness = 1.0
+        ds.SliceLocation = float(i)
+        ds.ImagePositionPatient = [0, 0, float(i)]
+        ds.ImageOrientationPatient = [1, 0, 0, 0, 1, 0]
+        ds.PixelSpacing = [1.0, 1.0]
+
         ds.PixelData = b"\x00" * (256 * 256 * 2)
 
         file_path = temp_dir / f"slice_{i:03d}.dcm"
-        ds.save_as(str(file_path), implicit_vr=True, little_endian=True)
+        ds.save_as(str(file_path), write_like_original=False)
         files.append(file_path)
 
     return files
@@ -142,7 +189,7 @@ class TestBasicIntegration:
 
         # Validate the series
         validator = SeriesValidator()
-        validation_result = validator.validate(series)
+        validation_result = validator.validate_series(series)
         assert validation_result.is_valid
         assert len(validation_result.issues) == 0
 
@@ -225,13 +272,30 @@ class TestErrorHandling:
 
     def test_series_detector_with_mixed_files(self, temp_dir):
         """Test series detector with mixed DICOM and non-DICOM files."""
+        from pydicom.dataset import FileDataset, FileMetaDataset
+
         # Create a valid DICOM
-        ds = Dataset()
+        file_meta = FileMetaDataset()
+        file_meta.MediaStorageSOPClassUID = (
+            "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+        )
+        file_meta.MediaStorageSOPInstanceUID = generate_uid()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # Implicit VR Little Endian
+        file_meta.ImplementationClassUID = generate_uid()
+
+        ds = FileDataset(
+            str(temp_dir / "valid.dcm"), {}, file_meta=file_meta, preamble=b"\x00" * 128
+        )
+
         ds.SeriesInstanceUID = generate_uid()
-        ds.SOPInstanceUID = generate_uid()
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+        ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+        ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+        ds.Modality = "CT"
+        ds.PatientName = "TEST"
+        ds.PatientID = "123"
+
         valid_file = temp_dir / "valid.dcm"
-        ds.save_as(str(valid_file), implicit_vr=True, little_endian=True)
+        ds.save_as(str(valid_file), write_like_original=False)
 
         # Create a non-DICOM file
         invalid_file = temp_dir / "invalid.txt"

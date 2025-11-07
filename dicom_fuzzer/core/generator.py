@@ -3,6 +3,8 @@ import struct
 import uuid
 from pathlib import Path
 
+from pydicom.uid import generate_uid
+
 from dicom_fuzzer.core.parser import DicomParser
 from dicom_fuzzer.strategies.header_fuzzer import HeaderFuzzer
 from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
@@ -55,6 +57,71 @@ class DICOMGenerator:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.skip_write_errors = skip_write_errors
         self.stats = GenerationStats()
+
+    def generate(self, output_path: str, tags: dict | None = None) -> Path:
+        """Generate a single DICOM file from scratch.
+
+        Args:
+            output_path: Path where the DICOM file should be saved
+            tags: Optional dictionary of DICOM tags to override defaults
+
+        Returns:
+            Path to the generated file
+
+        """
+        from pydicom.dataset import FileDataset, FileMetaDataset
+
+        # Create file meta
+        file_meta = FileMetaDataset()
+        file_meta.MediaStorageSOPClassUID = (
+            "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+        )
+        file_meta.MediaStorageSOPInstanceUID = generate_uid()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # Implicit VR Little Endian
+        file_meta.ImplementationClassUID = generate_uid()
+
+        # Create dataset
+        ds = FileDataset(
+            str(output_path), {}, file_meta=file_meta, preamble=b"\x00" * 128
+        )
+
+        # Set required DICOM tags
+        ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+        ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+        ds.StudyInstanceUID = generate_uid()
+        ds.SeriesInstanceUID = generate_uid()
+
+        # Set default patient/study information
+        ds.PatientName = "TEST^PATIENT"
+        ds.PatientID = "12345"
+        ds.StudyDate = "20240101"
+        ds.StudyTime = "120000"
+        ds.Modality = "CT"
+
+        # Set image properties
+        ds.Rows = 128
+        ds.Columns = 128
+        ds.BitsAllocated = 16
+        ds.BitsStored = 16
+        ds.HighBit = 15
+        ds.PixelRepresentation = 0
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+
+        # Create dummy pixel data
+        ds.PixelData = b"\x00" * (128 * 128 * 2)
+
+        # Apply custom tags if provided
+        if tags:
+            for key, value in tags.items():
+                if hasattr(ds, key):
+                    setattr(ds, key, value)
+
+        # Save the file
+        output = Path(output_path)
+        ds.save_as(str(output), write_like_original=False)
+
+        return output
 
     def generate_batch(
         self,
