@@ -143,7 +143,7 @@ class TestCompleteWorkflowIntegration:
 
         # Validate the file
         validator = DicomValidator()
-        validation_result = validator.validate_file(sample_dicom_file)
+        validation_result, _ = validator.validate_file(sample_dicom_file)
         assert validation_result.is_valid
 
         # Set up corpus
@@ -441,7 +441,7 @@ class TestErrorHandlingIntegration:
 
         # Validator should detect corruption
         validator = DicomValidator()
-        result = validator.validate_file(corrupted_file)
+        result, _ = validator.validate_file(corrupted_file)
         assert not result.is_valid
 
     def test_resource_exhaustion_handling(self, test_workspace, fuzzer_config):
@@ -588,7 +588,7 @@ class TestPerformanceIntegration:
             parser = DicomParser(str(file_path))
             metadata = parser.extract_metadata()
             validator = DicomValidator()
-            validation = validator.validate_file(file_path)
+            validation, _ = validator.validate_file(file_path)
             return {"file": str(file_path), "valid": validation.is_valid}
 
         # Sequential processing
