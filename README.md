@@ -56,6 +56,7 @@ DICOM Fuzzer is a security testing framework for DICOM medical imaging implement
 
 - **Mutation-Based Fuzzing**: Intelligent mutations of DICOM metadata, headers, pixel data, and file structure
 - **Coverage-Guided Fuzzing**: Track code coverage to guide mutation strategies
+- **Security Patterns (v1.3.0)**: CVE-specific vulnerability patterns including CVE-2025-5943 (MicroDicom out-of-bounds write), heap spray patterns, and integer overflow detection
 - **Crash Intelligence**: Automated crash triaging with severity assessment, test case minimization (DDMIN algorithm), and stability tracking
 - **3D Series Fuzzing**: Specialized mutations for multi-slice CT (Computed Tomography) and MRI (Magnetic Resonance Imaging) series with viewer integration and performance optimization
 - **Production Stability**: Resource management, checkpoint/resume, circuit breaker pattern, and graceful error handling
@@ -246,6 +247,49 @@ for signature, crashes in unique_crashes.items():
 
     print(f"Crash {signature}: {len(minimal)} mutations needed")
 ```
+
+### Security Vulnerability Patterns (v1.3.0)
+
+Test for specific CVE patterns and vulnerability classes:
+
+```python
+from dicom_fuzzer.strategies import SecurityPatternFuzzer
+import pydicom
+
+# Initialize security pattern fuzzer
+fuzzer = SecurityPatternFuzzer()
+
+# Load target DICOM file
+dataset = pydicom.dcmread("sample.dcm")
+
+# Apply CVE-2025-5943 patterns (MicroDicom out-of-bounds write)
+mutated = fuzzer.apply_cve_2025_5943_pattern(dataset)
+mutated.save_as("cve_2025_5943_test.dcm")
+
+# Apply heap spray patterns for exploitation
+mutated = fuzzer.apply_heap_spray_pattern(dataset)
+mutated.save_as("heap_spray_test.dcm")
+
+# Apply all security patterns randomly
+mutated = fuzzer.apply_all_patterns(dataset)
+mutated.save_as("security_test.dcm")
+
+# Test specific viewers for vulnerabilities
+test_files = []
+for i in range(100):
+    mutated = fuzzer.apply_cve_2025_5943_pattern(dataset)
+    filename = f"security/cve_test_{i:03d}.dcm"
+    mutated.save_as(filename)
+    test_files.append(filename)
+
+# Analyze results for crashes
+for file in test_files:
+    result = test_viewer("viewer.exe", file)
+    if result.crashed:
+        print(f"Potential CVE-2025-5943 vulnerability: {file}")
+```
+
+See [SECURITY_PATTERNS.md](docs/SECURITY_PATTERNS.md) for detailed documentation on available security patterns and responsible disclosure guidelines.
 
 ### Crash Intelligence (v1.2.0)
 
@@ -641,9 +685,23 @@ This software is provided for educational and security testing purposes. Users a
 
 ## Project Status
 
-**Current Phase**: Production-ready with advanced crash intelligence
+**Current Phase**: Production-ready with security vulnerability patterns
 
-**Latest Updates** - v1.2.0 Crash Intelligence Release (January 2025):
+**Latest Updates** - v1.3.0 Security Patterns Release (November 2025):
+
+- **Security Vulnerability Patterns** (`security_patterns.py`): CVE-specific vulnerability detection
+  - CVE-2025-5943 (MicroDicom out-of-bounds write) implementation
+  - Heap spray patterns for memory corruption exploitation
+  - Integer overflow detection in size calculations
+  - Malformed VR (Value Representation) patterns
+  - Deep sequence nesting for stack overflow detection
+  - Encoding confusion patterns for string handling vulnerabilities
+  - 84% test coverage with comprehensive test suite
+- **Documentation**: Complete security patterns guide (274 lines) with ethical guidelines
+- **Test Coverage**: Improved CLI modules from 0% to targeted coverage
+- **Integration**: Security patterns integrated into main fuzzing strategies
+
+**Previous Updates** - v1.2.0 Crash Intelligence Release (January 2025):
 
 - **Crash Triaging** (`crash_triage.py`): Automated crash analysis and prioritization
   - 5 severity levels (CRITICAL, HIGH, MEDIUM, LOW, INFO)
