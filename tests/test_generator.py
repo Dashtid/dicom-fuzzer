@@ -360,7 +360,7 @@ class TestIntegration:
         # Verify all files exist and are unique
         all_files = batch1 + batch2
         assert len(all_files) == 8
-        assert len(set(f.name for f in all_files)) == 8  # All unique
+        assert len({f.name for f in all_files}) == 8  # All unique
 
         # Verify all files are valid DICOM
         from dicom_fuzzer.core.parser import DicomParser

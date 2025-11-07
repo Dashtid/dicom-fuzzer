@@ -213,7 +213,7 @@ class DicomParser:
             "series_instance_uid": (Tag(0x0020, 0x000E), "SeriesInstanceUID"),
         }
 
-        for field_name, (tag, keyword) in metadata_fields.items():
+        for field_name, (tag, _keyword) in metadata_fields.items():
             try:
                 value = self.dataset.get(tag, None)
                 if value is not None:

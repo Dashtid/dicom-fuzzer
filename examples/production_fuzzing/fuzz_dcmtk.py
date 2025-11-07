@@ -274,7 +274,7 @@ class DCMTKFuzzer:
         json_path = html_path.with_suffix(".json")
 
         # HTML report
-        html_content = reporter.generate_html_report(
+        reporter.generate_html_report(
             session=self.session, output_path=html_path
         )
 

@@ -3,9 +3,9 @@
 Targets specific uncovered lines in corpus.py (92% -> 100%).
 """
 
+from unittest.mock import patch
+
 import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
 

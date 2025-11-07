@@ -61,7 +61,7 @@ def profile_mutations():
 
     # Run mutations
     for _ in range(100):
-        mutated = mutator.apply_mutations(
+        mutator.apply_mutations(
             dataset.copy(), num_mutations=3, severity=MutationSeverity.MODERATE
         )
 
@@ -100,7 +100,7 @@ def profile_parsing():
         # Run parsing
         for _ in range(100):
             parser = DicomParser(tmp_path, security_checks=False)
-            metadata = parser.extract_metadata()
+            parser.extract_metadata()
 
         profiler.disable()
 
@@ -144,8 +144,8 @@ def profile_corpus():
 
         # Get entries
         for _ in range(20):
-            best = manager.get_best_entries(count=10)
-            random_entry = manager.get_random_entry()
+            manager.get_best_entries(count=10)
+            manager.get_random_entry()
 
         profiler.disable()
 
@@ -193,7 +193,7 @@ def profile_end_to_end():
 
             # Occasionally retrieve entries
             if i % 10 == 0:
-                best = manager.get_best_entries(count=5)
+                manager.get_best_entries(count=5)
 
         profiler.disable()
 

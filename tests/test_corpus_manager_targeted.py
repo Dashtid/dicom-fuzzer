@@ -3,10 +3,7 @@
 Focuses on testing the current API (not the old disabled tests).
 """
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from dicom_fuzzer.core.corpus_manager import (
     CorpusManager,
