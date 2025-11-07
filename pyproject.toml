@@ -94,6 +94,11 @@ network = [
     "pynetdicom[apps]>=2.0.0",
 ]
 
+viz = [
+    "matplotlib>=3.5.0",  # Visualization for analytics and reporting
+    "plotly>=5.0.0",      # Interactive visualizations (optional)
+]
+
 # UV configuration (modern Python package management)
 [tool.uv]
 # Configuration for uv package manager

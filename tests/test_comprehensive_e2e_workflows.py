@@ -63,49 +63,97 @@ def test_workspace(tmp_path):
 @pytest.fixture
 def sample_dicom_file(test_workspace):
     """Create a sample DICOM file for testing."""
-    ds = Dataset()
+    from pydicom.dataset import FileDataset, FileMetaDataset
+
+    # Create file meta information with required Transfer Syntax UID
+    file_meta = FileMetaDataset()
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # Implicit VR Little Endian
+    file_meta.ImplementationClassUID = generate_uid()
+
+    file_path = test_workspace["input"] / "sample.dcm"
+
+    # Create dataset with proper file meta
+    ds = FileDataset(
+        str(file_path),
+        {},
+        file_meta=file_meta,
+        preamble=b"\x00" * 128
+    )
+
     ds.PatientName = "TEST^PATIENT"
     ds.PatientID = "12345"
     ds.StudyInstanceUID = generate_uid()
     ds.SeriesInstanceUID = generate_uid()
-    ds.SOPInstanceUID = generate_uid()
+    ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+    ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
     ds.Modality = "CT"
     ds.Rows = 512
     ds.Columns = 512
     ds.BitsAllocated = 16
+    ds.BitsStored = 16
+    ds.HighBit = 15
+    ds.PixelRepresentation = 0
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
     ds.PixelData = b"\x00" * (512 * 512 * 2)
 
-    file_path = test_workspace["input"] / "sample.dcm"
-    ds.save_as(str(file_path))
+    ds.save_as(str(file_path), write_like_original=False)
     return file_path
 
 
 @pytest.fixture
 def sample_dicom_series(test_workspace):
     """Create a sample DICOM series with multiple slices."""
+    from pydicom.dataset import FileDataset, FileMetaDataset
+
     series_uid = generate_uid()
     study_uid = generate_uid()
 
     files = []
     for i in range(5):
-        ds = Dataset()
+        # Create file meta for each file
+        file_meta = FileMetaDataset()
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.4"  # MR Image Storage
+        file_meta.MediaStorageSOPInstanceUID = generate_uid()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # Implicit VR Little Endian
+        file_meta.ImplementationClassUID = generate_uid()
+
+        file_path = test_workspace["input"] / f"slice_{i:03d}.dcm"
+
+        # Create dataset with proper file meta
+        ds = FileDataset(
+            str(file_path),
+            {},
+            file_meta=file_meta,
+            preamble=b"\x00" * 128
+        )
+
         ds.PatientName = "SERIES^TEST"
         ds.PatientID = "54321"
         ds.StudyInstanceUID = study_uid
         ds.SeriesInstanceUID = series_uid
-        ds.SOPInstanceUID = generate_uid()
+        ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+        ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
         ds.InstanceNumber = i + 1
         ds.SliceLocation = i * 2.5
         ds.ImagePositionPatient = [0, 0, i * 2.5]
         ds.ImageOrientationPatient = [1, 0, 0, 0, 1, 0]
+        ds.PixelSpacing = [1.0, 1.0]
+        ds.SliceThickness = 2.5
         ds.Modality = "MR"
         ds.Rows = 256
         ds.Columns = 256
         ds.BitsAllocated = 16
+        ds.BitsStored = 16
+        ds.HighBit = 15
+        ds.PixelRepresentation = 0
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
         ds.PixelData = b"\x00" * (256 * 256 * 2)
 
-        file_path = test_workspace["input"] / f"slice_{i:03d}.dcm"
-        ds.save_as(str(file_path), implicit_vr=True, little_endian=True)
+        ds.save_as(str(file_path), write_like_original=False)
         files.append(file_path)
 
     return files
@@ -115,16 +163,14 @@ def sample_dicom_series(test_workspace):
 def fuzzer_config(test_workspace):
     """Create a fuzzer configuration for testing."""
     return FuzzingConfig(
-        input_dir=str(test_workspace["input"]),
-        output_dir=str(test_workspace["output"]),
-        corpus_dir=str(test_workspace["corpus"]),
-        crash_dir=str(test_workspace["crashes"]),
-        max_iterations=100,
-        timeout=5,
-        enable_coverage=True,
-        enable_crash_analysis=True,
-        mutation_probability=0.8,
-        max_corpus_size=1000,
+        metadata_probability=0.8,
+        header_probability=0.6,
+        pixel_probability=0.3,
+        max_mutations_per_file=3,
+        max_files_per_campaign=100,
+        max_campaign_duration_minutes=5,
+        batch_size=10,
+        parallel_workers=1,  # Single worker for tests
     )
 
 
@@ -148,10 +194,16 @@ class TestCompleteWorkflowIntegration:
 
         # Set up corpus
         corpus = CorpusManager(str(test_workspace["corpus"]))
+
+        # Load the DICOM dataset for corpus entry
+        import pydicom
+        dataset = pydicom.dcmread(str(sample_dicom_file))
+
+        # Create corpus entry with proper arguments
         entry = CorpusEntry(
-            file_path=sample_dicom_file,
+            entry_id="test_entry_001",
+            dataset=dataset,
             metadata=metadata,
-            coverage_signature="initial",
         )
         corpus.add_entry(entry)
 
