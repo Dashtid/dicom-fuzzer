@@ -333,6 +333,7 @@ class SeedDownloader:
 
 
 def main():
+    """Download public DICOM samples for fuzzing seed corpus."""
     parser = argparse.ArgumentParser(
         description="Download public DICOM samples for fuzzing seed corpus",
         formatter_class=argparse.RawDescriptionHelpFormatter,

@@ -108,7 +108,7 @@ class CoverageCorrelator:
             "file_id": file_id,
             "mutations_count": len(mutations),
             "mutation_types": list(
-                set(m.get("mutation_type", "unknown") for m in mutations)
+                {m.get("mutation_type", "unknown") for m in mutations}
             ),
             "severity": crash.get("severity"),
             "crash_type": crash.get("crash_type"),

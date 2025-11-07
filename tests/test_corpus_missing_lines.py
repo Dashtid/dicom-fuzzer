@@ -3,9 +3,9 @@
 Targets specific uncovered lines in corpus.py (92% -> 100%).
 """
 
+from unittest.mock import patch
+
 import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
 
@@ -86,7 +86,7 @@ class TestCorpusManagerMissingLines:
         entry = CorpusEntry(entry_id="test_none", dataset=None)
 
         # Mock get_dataset to return None
-        with patch.object(entry, 'get_dataset', return_value=None):
+        with patch.object(entry, "get_dataset", return_value=None):
             # Lines 416-417: Should log error and return early
             manager._save_entry(entry)
 

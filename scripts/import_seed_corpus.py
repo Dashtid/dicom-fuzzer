@@ -360,6 +360,7 @@ def parse_size(size_str: str) -> int:
 
 
 def main():
+    """Import real DICOM files as fuzzing seed corpus."""
     parser = argparse.ArgumentParser(
         description="Import real DICOM files as fuzzing seed corpus",
         formatter_class=argparse.RawDescriptionHelpFormatter,

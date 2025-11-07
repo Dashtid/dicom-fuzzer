@@ -6,7 +6,7 @@ Missing lines: 196-199, 204, 206-207, 211-226, 263-268
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
@@ -96,9 +96,10 @@ class TestCoverageGuidedFuzzerMissingLines:
         - Increment interesting_inputs_found (line 207)
         - Add entry to corpus (lines 211-226)
         """
+
         # Create fuzzer with target function
         def simple_target(ds):
-            if hasattr(ds, 'PatientName'):
+            if hasattr(ds, "PatientName"):
                 return "processed"
             return "default"
 
@@ -166,6 +167,7 @@ class TestCoverageGuidedFuzzerMissingLines:
         This ensures lines 210-229 are tested when is_interesting = False,
         meaning the function returns None instead of adding to corpus.
         """
+
         # Create fuzzer with simple target
         def simple_target(ds):
             return "processed"

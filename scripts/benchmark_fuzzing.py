@@ -77,7 +77,7 @@ def benchmark_mutations(iterations: int = 100) -> dict:
     start_time = time.time()
     for _ in range(iterations):
         iter_start = time.time()
-        mutated = mutator.apply_mutations(
+        mutator.apply_mutations(
             dataset.copy(), num_mutations=3, severity=MutationSeverity.MODERATE
         )
         iter_time = time.time() - iter_start
@@ -128,7 +128,7 @@ def benchmark_parsing(iterations: int = 100) -> dict:
         for _ in range(iterations):
             iter_start = time.time()
             parser = DicomParser(tmp_path, security_checks=False)
-            metadata = parser.extract_metadata()
+            parser.extract_metadata()
             iter_time = time.time() - iter_start
             times.append(iter_time)
 

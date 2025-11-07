@@ -528,7 +528,7 @@ class FuzzingSession:
                 ("TransferSyntaxUID", "TransferSyntaxUID"),
             ]
 
-            for name, tag in key_tags:
+            for name, _tag in key_tags:
                 try:
                     if hasattr(ds, name):
                         value = getattr(ds, name)

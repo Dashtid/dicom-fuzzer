@@ -280,9 +280,7 @@ class CorpusManager:
         seed_values.sort(reverse=True)
 
         # Keep top seeds
-        seeds_to_keep = set(
-            seed_id for _, seed_id in seed_values[: self.max_corpus_size]
-        )
+        seeds_to_keep = {seed_id for _, seed_id in seed_values[: self.max_corpus_size]}
 
         # Remove low-value seeds
         seeds_to_remove = set(self.seeds.keys()) - seeds_to_keep
@@ -336,7 +334,7 @@ class CorpusManager:
         return {
             "total_seeds": self.stats.total_seeds,
             "unique_coverage_signatures": len(
-                set(s.coverage.get_coverage_hash() for s in self.seeds.values())
+                {s.coverage.get_coverage_hash() for s in self.seeds.values()}
             ),
             "total_edges_covered": self.stats.total_edges_covered,
             "total_executions": self.stats.total_executions,
