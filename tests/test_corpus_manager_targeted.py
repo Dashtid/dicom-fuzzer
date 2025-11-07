@@ -492,7 +492,7 @@ class TestMutationWeights:
         assert weights["bitflip"] > weights["byteflip"]
 
 
-class TestCorpusStats_Manager:
+class TestCorpusStatsManager:
     """Test get_corpus_stats() method."""
 
     def test_get_corpus_stats(self):

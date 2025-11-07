@@ -6,49 +6,37 @@ integrating multiple modules to improve overall coverage and verify system behav
 
 import json
 import shutil
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
-from pydicom import Dataset, dcmread
+from pydicom import Dataset
 from pydicom.uid import generate_uid
 
 # Import what's available from __init__.py
 from dicom_fuzzer.core import (
+    DicomMutator,
     DicomParser,
     DicomValidator,
-    DicomMutator,
-    DICOMGenerator,
-    DicomSeries,
+    SeriesCache,
     SeriesDetector,
     SeriesValidator,
     SeriesWriter,
-    SeriesCache,
 )
-
-# Import directly from specific modules since they're not in __init__.py
-from dicom_fuzzer.core.fuzzing_session import FuzzingSession
-from dicom_fuzzer.core.statistics import MutationStatistics
-from dicom_fuzzer.core.reporter import ReportGenerator
+from dicom_fuzzer.core.config import FuzzingConfig
 from dicom_fuzzer.core.corpus import CorpusEntry, CorpusManager
-from dicom_fuzzer.core.corpus_manager import HistoricalCorpusManager
 from dicom_fuzzer.core.coverage_correlation import CoverageCorrelator
-from dicom_fuzzer.core.coverage_fuzzer import CoverageGuidedFuzzer as CoverageFuzzer
-from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer
 from dicom_fuzzer.core.coverage_guided_mutator import CoverageGuidedMutator
 from dicom_fuzzer.core.coverage_instrumentation import CoverageInstrumentation
 from dicom_fuzzer.core.coverage_tracker import CoverageTracker
 from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
-from dicom_fuzzer.core.config import FuzzingConfig
 
-# Try importing strategies - may need adjustment
-try:
-    from dicom_fuzzer.strategies import MetadataFuzzer, PixelFuzzer
-except ImportError:
-    # Fall back to specific strategy imports
-    from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
-    from dicom_fuzzer.strategies.pixel_fuzzer import PixelFuzzer
+# Import directly from specific modules since they're not in __init__.py
+from dicom_fuzzer.core.fuzzing_session import FuzzingSession
+from dicom_fuzzer.core.reporter import ReportGenerator
+from dicom_fuzzer.core.statistics import MutationStatistics
+
+# Strategies are imported when needed in specific tests
 
 
 @pytest.fixture
@@ -197,7 +185,7 @@ class TestCompleteWorkflowIntegration:
         assert stats.total_executions == 1
 
         # Generate report
-        reporter = Reporter(output_dir=str(test_workspace["reports"]))
+        reporter = ReportGenerator(output_dir=str(test_workspace["reports"]))
         report_data = {
             "total_mutations": stats.total_mutations,
             "total_executions": stats.total_executions,
@@ -274,7 +262,7 @@ class TestCompleteWorkflowIntegration:
 
         # Perform mutations with coverage tracking
         with patch.object(tracker, "track_execution") as mock_track:
-            mock_track.return_value = {"edges": set([1, 2, 3]), "blocks": set([10, 11])}
+            mock_track.return_value = {"edges": {1, 2, 3}, "blocks": {10, 11}}
 
             for i in range(5):
                 # Get seed from corpus
@@ -283,8 +271,8 @@ class TestCompleteWorkflowIntegration:
 
                 # Mutate with coverage guidance
                 mutated = cg_mutator.mutate(
-                    seed.data if hasattr(seed, 'data') else b"test",
-                    coverage_info={"new_edges": i > 2}
+                    seed.data if hasattr(seed, "data") else b"test",
+                    coverage_info={"new_edges": i > 2},
                 )
 
                 # Track coverage
@@ -316,7 +304,9 @@ class TestCompleteWorkflowIntegration:
             (OSError("Segmentation fault"), "segfault", "high"),
         ]
 
-        for i, (exception, expected_type, expected_severity) in enumerate(crash_samples):
+        for i, (exception, expected_type, expected_severity) in enumerate(
+            crash_samples
+        ):
             # Create crash artifact
             crash_file = test_workspace["crashes"] / f"crash_{i:03d}.dcm"
             shutil.copy(sample_dicom_file, crash_file)
@@ -349,7 +339,7 @@ class TestCompleteWorkflowIntegration:
         with patch.object(session, "execute_target") as mock_execute:
             mock_execute.return_value = {
                 "exit_code": 0,
-                "coverage": {"edges": set([1, 2, 3])},
+                "coverage": {"edges": {1, 2, 3}},
                 "crash": None,
             }
 
@@ -489,7 +479,6 @@ class TestErrorHandlingIntegration:
 
     def test_timeout_handling(self, sample_dicom_file, test_workspace, fuzzer_config):
         """Test timeout handling in fuzzing operations."""
-        import signal
         import time
 
         def slow_operation():
@@ -509,7 +498,7 @@ class TestErrorHandlingIntegration:
 
     def test_concurrent_access_handling(self, sample_dicom_file, test_workspace):
         """Test handling of concurrent file access."""
-        from threading import Thread, Lock
+        from threading import Lock, Thread
 
         results = []
         lock = Lock()
@@ -527,8 +516,7 @@ class TestErrorHandlingIntegration:
 
         # Create threads
         threads = [
-            Thread(target=access_file, args=(sample_dicom_file, i))
-            for i in range(5)
+            Thread(target=access_file, args=(sample_dicom_file, i)) for i in range(5)
         ]
 
         # Start all threads
@@ -576,6 +564,7 @@ class TestPerformanceIntegration:
 
         # Add many seeds
         import time
+
         start_time = time.time()
 
         for i in range(100):
@@ -599,7 +588,7 @@ class TestPerformanceIntegration:
 
         def process_file(file_path):
             """Process a single file."""
-            parser = Parser(file_path)
+            parser = DicomParser(file_path)
             metadata = parser.parse()
             validator = DicomValidator()
             validation = validator.validate_file(file_path)

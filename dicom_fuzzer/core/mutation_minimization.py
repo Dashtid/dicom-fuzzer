@@ -139,7 +139,7 @@ class MutationMinimizer:
 
             if not found_smaller:
                 # Try complement sets (remove one subset at a time)
-                for i, subset in enumerate(subsets):
+                for i, _ in enumerate(subsets):
                     complement = [
                         m for j, sub in enumerate(subsets) for m in sub if j != i
                     ]

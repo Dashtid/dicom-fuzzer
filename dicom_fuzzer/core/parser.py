@@ -81,7 +81,7 @@ class DicomParser:
                 f"Failed to parse DICOM file: {e}",
                 error_code="PARSE_FAILED",
                 context={"file_path": str(self.file_path)},
-            )
+            ) from e
 
     def _perform_security_checks(self) -> None:
         """Perform comprehensive security validation on the DICOM file.
@@ -129,7 +129,7 @@ class DicomParser:
         except (OSError, pydicom.errors.InvalidDicomError) as e:
             raise ParsingError(
                 f"Invalid DICOM file format: {e}", error_code="INVALID_DICOM_FORMAT"
-            )
+            ) from e
 
     def _validate_dataset(self) -> None:
         """Validate the parsed DICOM dataset structure.
@@ -330,7 +330,7 @@ class DicomParser:
                 raise ValidationError(
                     f"Pixel data validation failed: {e}",
                     error_code="PIXEL_DATA_INVALID",
-                )
+                ) from e
             return None
 
     def _validate_pixel_data(self, pixel_array: np.ndarray) -> None:

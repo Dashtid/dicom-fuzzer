@@ -6,7 +6,6 @@ all complex dependencies.
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 from pydicom import Dataset
@@ -14,11 +13,11 @@ from pydicom.uid import generate_uid
 
 # Import only the core classes we need that are exported
 from dicom_fuzzer.core import (
-    DicomParser,
-    DicomValidator,
-    DicomMutator,
     DICOMGenerator,
+    DicomMutator,
+    DicomParser,
     DicomSeries,
+    DicomValidator,
     SeriesDetector,
     SeriesValidator,
 )
@@ -103,7 +102,7 @@ class TestBasicIntegration:
         mutated_ds = mutator.mutate(str(sample_dicom_file))
         assert mutated_ds is not None
         # The mutated dataset should be different in some way
-        assert hasattr(mutated_ds, 'PatientName')
+        assert hasattr(mutated_ds, "PatientName")
 
     def test_generator_creates_valid_dicom(self, temp_dir):
         """Test that DICOMGenerator creates valid DICOM files."""
@@ -117,6 +116,7 @@ class TestBasicIntegration:
 
         # Parse the generated file
         parser = DicomParser(str(output_path))
+        metadata = parser.parse()
         assert metadata is not None
 
         # Validate the generated file
@@ -138,8 +138,7 @@ class TestBasicIntegration:
 
         # Create DicomSeries object
         series = DicomSeries(
-            series_uid=series_uid,
-            files=[str(f) for f in sample_dicom_series]
+            series_uid=series_uid, files=[str(f) for f in sample_dicom_series]
         )
         assert series.slice_count == 3
 
@@ -173,10 +172,10 @@ class TestBasicIntegration:
         mutated_ds = mutator.mutate(str(sample_dicom_file))
 
         # Check that essential tags are preserved
-        assert hasattr(mutated_ds, 'StudyInstanceUID')
-        assert hasattr(mutated_ds, 'SeriesInstanceUID')
-        assert hasattr(mutated_ds, 'SOPInstanceUID')
-        assert hasattr(mutated_ds, 'Modality')
+        assert hasattr(mutated_ds, "StudyInstanceUID")
+        assert hasattr(mutated_ds, "SeriesInstanceUID")
+        assert hasattr(mutated_ds, "SOPInstanceUID")
+        assert hasattr(mutated_ds, "Modality")
 
     def test_generator_with_custom_tags(self, temp_dir):
         """Test generator with custom tags."""
@@ -186,7 +185,7 @@ class TestBasicIntegration:
         tags = {
             "PatientName": "CUSTOM^NAME",
             "PatientID": "CUSTOM123",
-            "Modality": "US"
+            "Modality": "US",
         }
         generator.generate(str(output_path), tags=tags)
 
@@ -205,7 +204,7 @@ class TestErrorHandling:
         """Test parser with corrupted DICOM header."""
         corrupted = temp_dir / "corrupted.dcm"
         # Start with DICM but corrupt the rest
-        corrupted.write_bytes(b"DICM" + b"\xFF" * 100)
+        corrupted.write_bytes(b"DICM" + b"\xff" * 100)
 
         parser = DicomParser(str(corrupted))
         with pytest.raises(Exception):

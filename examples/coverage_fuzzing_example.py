@@ -76,8 +76,8 @@ def vulnerable_dicom_parser(data: bytes) -> bool:
                 spacing = ds.PixelSpacing
                 if len(spacing) >= 2:
                     _ = float(spacing[0]) / float(spacing[1])
-            except (ZeroDivisionError, ValueError, TypeError):
-                raise ZeroDivisionError("Division by zero in pixel spacing")
+            except (ZeroDivisionError, ValueError, TypeError) as e:
+                raise ZeroDivisionError("Division by zero in pixel spacing") from e
 
         return True
 
