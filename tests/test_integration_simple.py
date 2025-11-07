@@ -87,7 +87,7 @@ class TestBasicIntegration:
         """Test the basic workflow of parsing, validating, and mutating a DICOM file."""
         # Parse the file
         parser = DicomParser(str(sample_dicom_file))
-        metadata = parser.parse()
+        metadata = parser.extract_metadata()
         assert metadata is not None
         assert "PatientName" in metadata
         assert metadata["PatientName"] == "TEST^PATIENT"
@@ -116,7 +116,7 @@ class TestBasicIntegration:
 
         # Parse the generated file
         parser = DicomParser(str(output_path))
-        metadata = parser.parse()
+        metadata = parser.extract_metadata()
         assert metadata is not None
 
         # Validate the generated file
@@ -191,7 +191,7 @@ class TestBasicIntegration:
 
         # Parse and verify custom tags
         parser = DicomParser(str(output_path))
-        metadata = parser.parse()
+        metadata = parser.extract_metadata()
         assert metadata["PatientName"] == "CUSTOM^NAME"
         assert metadata["PatientID"] == "CUSTOM123"
         assert metadata["Modality"] == "US"

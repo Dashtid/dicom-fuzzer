@@ -27,7 +27,6 @@ from dicom_fuzzer.core.config import FuzzingConfig
 from dicom_fuzzer.core.corpus import CorpusEntry, CorpusManager
 from dicom_fuzzer.core.coverage_correlation import CoverageCorrelator
 from dicom_fuzzer.core.coverage_guided_mutator import CoverageGuidedMutator
-from dicom_fuzzer.core.coverage_instrumentation import CoverageInstrumentation
 from dicom_fuzzer.core.coverage_tracker import CoverageTracker
 from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
 
@@ -137,8 +136,8 @@ class TestCompleteWorkflowIntegration:
     ):
         """Test complete workflow for fuzzing a single DICOM file."""
         # Parse and validate input
-        parser = DicomParser()
-        metadata = parser.parse(str(sample_dicom_file))
+        parser = DicomParser(str(sample_dicom_file))
+        metadata = parser.extract_metadata()
         assert metadata is not None
         assert "PatientName" in metadata
 
@@ -240,7 +239,6 @@ class TestCompleteWorkflowIntegration:
     ):
         """Test coverage-guided fuzzing workflow."""
         # Initialize coverage components
-        instrumentation = CoverageInstrumentation()
         tracker = CoverageTracker()
 
         # Set up corpus manager
@@ -438,9 +436,8 @@ class TestErrorHandlingIntegration:
         corrupted_file.write_bytes(b"NOT_A_DICOM_FILE")
 
         # Try to parse
-        parser = DicomParser()
         with pytest.raises(Exception):
-            parser.parse(str(corrupted_file))
+            parser = DicomParser(str(corrupted_file))
 
         # Validator should detect corruption
         validator = DicomValidator()
@@ -506,8 +503,8 @@ class TestErrorHandlingIntegration:
         def access_file(file_path, index):
             """Access file concurrently."""
             try:
-                parser = DicomParser()
-                metadata = parser.parse(str(file_path))
+                parser = DicomParser(str(file_path))
+                metadata = parser.extract_metadata()
                 with lock:
                     results.append({"index": index, "success": True})
             except Exception as e:
@@ -588,8 +585,8 @@ class TestPerformanceIntegration:
 
         def process_file(file_path):
             """Process a single file."""
-            parser = DicomParser(file_path)
-            metadata = parser.parse()
+            parser = DicomParser(str(file_path))
+            metadata = parser.extract_metadata()
             validator = DicomValidator()
             validation = validator.validate_file(file_path)
             return {"file": str(file_path), "valid": validation.is_valid}
