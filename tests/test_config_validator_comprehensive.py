@@ -567,6 +567,7 @@ class TestValidateAll:
     def test_validate_all_logs_info(self, tmp_path, caplog):
         """Test validate_all logs info messages."""
         import logging
+
         caplog.set_level(logging.INFO)
 
         validator = ConfigValidator(strict=False)
@@ -575,7 +576,10 @@ class TestValidateAll:
             validator.validate_all()
 
         # Check log contains expected messages
-        assert any("Pre-flight" in record.message or "pre-flight" in record.message.lower() for record in caplog.records)
+        assert any(
+            "Pre-flight" in record.message or "pre-flight" in record.message.lower()
+            for record in caplog.records
+        )
 
     def test_validate_all_logs_warnings(self, tmp_path, caplog):
         """Test validate_all logs warning messages."""

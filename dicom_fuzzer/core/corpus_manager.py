@@ -280,9 +280,7 @@ class CorpusManager:
         seed_values.sort(reverse=True)
 
         # Keep top seeds
-        seeds_to_keep = {
-            seed_id for _, seed_id in seed_values[: self.max_corpus_size]
-        }
+        seeds_to_keep = {seed_id for _, seed_id in seed_values[: self.max_corpus_size]}
 
         # Remove low-value seeds
         seeds_to_remove = set(self.seeds.keys()) - seeds_to_keep

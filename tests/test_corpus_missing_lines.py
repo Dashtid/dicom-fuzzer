@@ -86,7 +86,7 @@ class TestCorpusManagerMissingLines:
         entry = CorpusEntry(entry_id="test_none", dataset=None)
 
         # Mock get_dataset to return None
-        with patch.object(entry, 'get_dataset', return_value=None):
+        with patch.object(entry, "get_dataset", return_value=None):
             # Lines 416-417: Should log error and return early
             manager._save_entry(entry)
 
