@@ -23,6 +23,7 @@ BEST PRACTICES (2025):
 
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import pydicom
 
@@ -39,7 +40,7 @@ class SeriesDetector:
     objects, properly sorting slices by their spatial position.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the series detector."""
         self._series_cache: dict[str, DicomSeries] = {}
 
@@ -186,7 +187,7 @@ class SeriesDetector:
 
     def _group_by_series_uid(
         self, dicom_files: list[Path]
-    ) -> dict[str, dict[str, any]]:
+    ) -> dict[str, dict[str, Any]]:
         """Group DICOM files by SeriesInstanceUID.
 
         Args:
@@ -215,8 +216,13 @@ class SeriesDetector:
 
                 # Extract required attributes
                 if not hasattr(ds, "SeriesInstanceUID"):
+                    file_name = (
+                        file_path.name
+                        if isinstance(file_path, Path)
+                        else Path(file_path).name
+                    )
                     logger.warning(
-                        f"File {file_path.name} missing SeriesInstanceUID, skipping"
+                        f"File {file_name} missing SeriesInstanceUID, skipping"
                     )
                     continue
 
@@ -237,7 +243,12 @@ class SeriesDetector:
                     series_groups[series_uid]["modality"] = modality
 
             except Exception as e:
-                logger.warning(f"Error reading {file_path.name}: {e}")
+                file_name = (
+                    file_path.name
+                    if isinstance(file_path, Path)
+                    else Path(file_path).name
+                )
+                logger.warning(f"Error reading {file_name}: {e}")
                 continue
 
         return dict(series_groups)
@@ -322,7 +333,12 @@ class SeriesDetector:
                 file_positions.append((file_path, z_pos, instance_num))
 
             except Exception as e:
-                logger.warning(f"Error reading position for {file_path.name}: {e}")
+                file_name = (
+                    file_path.name
+                    if isinstance(file_path, Path)
+                    else Path(file_path).name
+                )
+                logger.warning(f"Error reading position for {file_name}: {e}")
                 file_positions.append((file_path, 0.0, 0))
 
         # Sort by z_position (descending for superior to inferior)
@@ -335,7 +351,7 @@ class SeriesDetector:
         sorted_files = [fp[0] for fp in file_positions]
         return sorted_files
 
-    def get_series_summary(self, series_list: list[DicomSeries]) -> dict[str, any]:
+    def get_series_summary(self, series_list: list[DicomSeries]) -> dict[str, Any]:
         """Generate summary statistics for detected series.
 
         Args:

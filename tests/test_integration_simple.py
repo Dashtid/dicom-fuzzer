@@ -94,12 +94,17 @@ class TestBasicIntegration:
 
         # Validate the file
         validator = DicomValidator()
-        is_valid = validator.validate(str(sample_dicom_file))
-        assert is_valid
+        result, _ = validator.validate_file(sample_dicom_file)
+        assert result.is_valid
 
         # Mutate the file
         mutator = DicomMutator()
-        mutated_ds = mutator.mutate(str(sample_dicom_file))
+        # First load the dataset
+        import pydicom
+
+        dataset = pydicom.dcmread(str(sample_dicom_file))
+        # Apply mutations
+        mutated_ds = mutator.apply_mutations(dataset)
         assert mutated_ds is not None
         # The mutated dataset should be different in some way
         assert hasattr(mutated_ds, "PatientName")
@@ -121,8 +126,8 @@ class TestBasicIntegration:
 
         # Validate the generated file
         validator = DicomValidator()
-        is_valid = validator.validate(str(output_path))
-        assert is_valid
+        result, _ = validator.validate_file(output_path)
+        assert result.is_valid
 
     def test_series_detection_and_validation(self, sample_dicom_series, temp_dir):
         """Test detection and validation of a DICOM series."""
@@ -163,13 +168,16 @@ class TestBasicIntegration:
         invalid_file.write_bytes(b"NOT_A_DICOM_FILE")
 
         validator = DicomValidator()
-        is_valid = validator.validate(str(invalid_file))
-        assert not is_valid
+        result, _ = validator.validate_file(invalid_file)
+        assert not result.is_valid
 
     def test_mutator_preserves_required_tags(self, sample_dicom_file):
         """Test that mutator preserves required DICOM tags."""
+        import pydicom
+
         mutator = DicomMutator()
-        mutated_ds = mutator.mutate(str(sample_dicom_file))
+        dataset = pydicom.dcmread(str(sample_dicom_file))
+        mutated_ds = mutator.apply_mutations(dataset)
 
         # Check that essential tags are preserved
         assert hasattr(mutated_ds, "StudyInstanceUID")
@@ -206,18 +214,21 @@ class TestErrorHandling:
         # Start with DICM but corrupt the rest
         corrupted.write_bytes(b"DICM" + b"\xff" * 100)
 
-        parser = DicomParser(str(corrupted))
+        # DicomParser now raises exception during initialization for corrupted files
         with pytest.raises(Exception):
-            parser.parse()
+            parser = DicomParser(str(corrupted))
 
     def test_mutator_with_empty_file(self, temp_dir):
         """Test mutator with empty file."""
+        import pydicom
+
         empty_file = temp_dir / "empty.dcm"
         empty_file.write_bytes(b"")
 
         mutator = DicomMutator()
         with pytest.raises(Exception):
-            mutator.mutate(str(empty_file))
+            dataset = pydicom.dcmread(str(empty_file))
+            mutator.apply_mutations(dataset)
 
     def test_series_detector_with_mixed_files(self, temp_dir):
         """Test series detector with mixed DICOM and non-DICOM files."""
