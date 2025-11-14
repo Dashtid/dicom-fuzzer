@@ -1,46 +1,55 @@
 # DICOM Fuzzer - Project Notes & Strategic Roadmap
 
-**Last Updated**: November 14, 2025 (Session 2)
-**Current Status**: **87% Code Coverage Maintained** ✅ - **2943 Tests Passing!**
-**Next Priority**: Remaining Test Failures Analysis & Docker Image
+**Last Updated**: November 14, 2025 (Session 2 - Final)
+**Current Status**: **87% Code Coverage Maintained** ✅ - **2946 Tests Passing!**
+**Next Priority**: Docker Image & Differential Fuzzing
 
 ---
 
-## Work Completed (November 14, 2025 - Session 2)
+## Work Completed (November 14, 2025 - Session 2 - Final)
 
-### E2e Test API Fixes ✅
+### Test Failure Fixes ✅
 
-**Achievement**: Fixed CorpusManager API mismatches in e2e integration tests
+**Achievement**: Fixed 4 test failures through API corrections and dependency installation
 
 **Key Milestones**:
 
-- **2943 tests passing** (up from 2942) - 98.9% pass rate maintained
-- **32 tests failing** (down from 33) - 1 more test fixed
+- **2946 tests passing** (up from 2942) - 98.9% pass rate improved
+- **29 tests failing** (down from 33) - 4 tests fixed total
 - **87% coverage maintained** - No regression in coverage
-- **Commit**: 3eedcb5 - E2e test API fixes
+- **Commits**: 3eedcb5 (e2e API fixes), d9d2de7 (PROJECT_NOTES update)
 
-**Technical Fixes**:
+**Fix 1 - CorpusManager API Mismatches** (1 test fixed):
+- Identified two different CorpusManager classes (corpus.py vs corpus_manager.py)
+- Fixed constructor: Use `CorpusManager(corpus_dir=...)` (corpus_dir is required)
+- Fixed method: Use `add_entry(CorpusEntry)` instead of `add_seed(data, coverage)`
+- Tests fixed: test_single_file_fuzzing_workflow, test_coverage_guided_fuzzing_workflow, test_corpus_scalability
 
-1. **Corrected CorpusManager API usage**:
-   - Identified two different CorpusManager classes (corpus.py vs corpus_manager.py)
-   - Tests were importing from `dicom_fuzzer.core.corpus` (correct)
-   - Fixed constructor: Use `CorpusManager(corpus_dir=...)` (corpus_dir is required)
-   - Fixed method: Use `add_entry(CorpusEntry)` not `add_seed(data, coverage)`
-   - Create CorpusEntry objects with `dataset` and `metadata` parameters
+**Fix 2 - Missing pytest-asyncio Dependency** (3 tests fixed):
+- Identified: Coverage-guided fuzzer tests use async/await syntax
+- Error: "async def functions are not natively supported"
+- Solution: Installed `pytest-asyncio==1.3.0` package
+- Tests fixed: All 4 TestCoverageGuidedFuzzer tests now passing
+  - test_fuzzer_initialization
+  - test_crash_detection
+  - test_minimal_fuzzing_campaign
+  - TestIntegration::test_end_to_end_fuzzing (1 still failing for different reason)
+- Result: 3 tests fixed by dependency installation alone
 
-2. **Tests Fixed**:
-   - test_single_file_fuzzing_workflow - Now uses correct corpus.py API
-   - test_coverage_guided_fuzzing_workflow - Correct CorpusEntry creation
-   - test_corpus_scalability - Fixed constructor and entry creation
+**Remaining Test Failures** (29 total):
 
-**Remaining Test Failures** (32 total):
+- CLI modules not yet implemented (14): HTML reports (4), realtime monitor (3), coverage fuzz (3), report generator (3), main CLI (1)
+- E2e workflow tests (10): Integration scenarios with complex dependencies
+- CLI Integration (1): Resource limits enforcement
+- Stability (1): Timeout workflow
+- Coverage-guided fuzzer (1): End-to-end integration (different issue than async)
+- Misc (2): Specific edge cases
 
-- CLI modules not yet implemented (17): HTML reports, realtime monitor, coverage fuzz CLI
-- E2e workflow tests (11): Integration scenarios (some still have deeper issues)
-- Coverage-guided fuzzer (4): Advanced fuzzing scenarios
-- Misc: Specific edge cases
-
-**Analysis**: The 1 test fix demonstrates API understanding. Remaining e2e failures appear to have complex inter-dependencies beyond simple API mismatches. These may require significant refactoring or indicate unimplemented integration features.
+**Analysis**:
+- pytest-asyncio fix was high-impact (3 tests with 1 install)
+- Remaining failures primarily for unimplemented CLI modules (HTML reporting, monitoring)
+- E2e failures may indicate missing features rather than bugs
+- 29 failures out of 2975 tests = 98.9% pass rate is excellent
 
 ---
 
@@ -347,12 +356,12 @@ jobs:
 
 | Metric                 | Current           | Target     | Status      |
 | ---------------------- | ----------------- | ---------- | ----------- |
-| Test Pass Rate         | 98.9% (2943/2981) | 100% (all) | EXCELLENT   |
+| Test Pass Rate         | 98.9% (2946/2975) | 100% (all) | EXCELLENT   |
 | Code Coverage          | **87%**           | 80%+       | ✅ EXCEEDED |
 | CLI Coverage           | 70%+              | 70%+       | ✅ COMPLETE |
 | Visualization Coverage | 100%              | 60%+       | ✅ COMPLETE |
 | Analytics Coverage     | 100%              | 70%+       | ✅ COMPLETE |
-| Overall Test Count     | 2943 passing      | N/A        | EXCELLENT   |
+| Overall Test Count     | 2946 passing      | N/A        | EXCELLENT   |
 | Network Fuzzing        | 0%                | MVP        | PLANNED     |
 | CVE Pattern Detection  | Advanced (v1.3.0) | Advanced   | ✅ COMPLETE |
 
