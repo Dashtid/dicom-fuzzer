@@ -75,12 +75,7 @@ def sample_dicom_file(test_workspace):
     file_path = test_workspace["input"] / "sample.dcm"
 
     # Create dataset with proper file meta
-    ds = FileDataset(
-        str(file_path),
-        {},
-        file_meta=file_meta,
-        preamble=b"\x00" * 128
-    )
+    ds = FileDataset(str(file_path), {}, file_meta=file_meta, preamble=b"\x00" * 128)
 
     ds.PatientName = "TEST^PATIENT"
     ds.PatientID = "12345"
@@ -115,7 +110,9 @@ def sample_dicom_series(test_workspace):
     for i in range(5):
         # Create file meta for each file
         file_meta = FileMetaDataset()
-        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.4"  # MR Image Storage
+        file_meta.MediaStorageSOPClassUID = (
+            "1.2.840.10008.5.1.4.1.1.4"  # MR Image Storage
+        )
         file_meta.MediaStorageSOPInstanceUID = generate_uid()
         file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"  # Implicit VR Little Endian
         file_meta.ImplementationClassUID = generate_uid()
@@ -124,10 +121,7 @@ def sample_dicom_series(test_workspace):
 
         # Create dataset with proper file meta
         ds = FileDataset(
-            str(file_path),
-            {},
-            file_meta=file_meta,
-            preamble=b"\x00" * 128
+            str(file_path), {}, file_meta=file_meta, preamble=b"\x00" * 128
         )
 
         ds.PatientName = "SERIES^TEST"
@@ -192,19 +186,21 @@ class TestCompleteWorkflowIntegration:
         validation_result, _ = validator.validate_file(sample_dicom_file)
         assert validation_result.is_valid
 
-        # Set up corpus
-        corpus = CorpusManager(str(test_workspace["corpus"]))
+        # Set up corpus manager with correct API from corpus.py
+        corpus = CorpusManager(corpus_dir=test_workspace["corpus"], max_corpus_size=100)
 
         # Load the DICOM dataset for corpus entry
         import pydicom
+
         dataset = pydicom.dcmread(str(sample_dicom_file))
 
-        # Create corpus entry with proper arguments
+        # Create corpus entry with proper arguments (CorpusEntry from corpus.py)
         entry = CorpusEntry(
             entry_id="test_entry_001",
             dataset=dataset,
             metadata=metadata,
         )
+        # Add entry to corpus (corpus.py has add_entry method)
         corpus.add_entry(entry)
 
         # Initialize mutator
@@ -293,19 +289,24 @@ class TestCompleteWorkflowIntegration:
         # Initialize coverage components
         tracker = CoverageTracker()
 
-        # Set up corpus manager
+        # Set up corpus manager with correct API from corpus.py
         corpus_manager = CorpusManager(
-            corpus_dir=str(test_workspace["corpus"]),
-            max_size=100,
+            corpus_dir=test_workspace["corpus"], max_corpus_size=100
         )
 
-        # Add seed
-        seed_id = corpus_manager.add_seed(
-            sample_dicom_file,
-            coverage_signature="seed_001",
+        # Load the DICOM dataset
+        import pydicom
+
+        dataset = pydicom.dcmread(str(sample_dicom_file))
+
+        # Create corpus entry
+        entry = CorpusEntry(
+            entry_id="seed_001",
+            dataset=dataset,
             metadata={"source": "initial"},
         )
-        assert seed_id is not None
+        corpus_manager.add_entry(entry)
+        assert corpus_manager.size() > 0
 
         # Initialize coverage-guided mutator
         cg_mutator = CoverageGuidedMutator()
@@ -331,11 +332,13 @@ class TestCompleteWorkflowIntegration:
 
                 # Update corpus if interesting
                 if i > 2:  # Simulate interesting input
-                    corpus_manager.add_seed(
-                        mutated,
-                        coverage_signature=f"mutation_{i}",
+                    # Create a mutated corpus entry
+                    mutated_entry = CorpusEntry(
+                        entry_id=f"mutation_{i}",
+                        dataset=dataset,  # Use existing dataset for test
                         metadata={"generation": i},
                     )
+                    corpus_manager.add_entry(mutated_entry)
 
         # Verify corpus growth
         assert corpus_manager.size() >= 1
@@ -606,9 +609,10 @@ class TestPerformanceIntegration:
 
     def test_corpus_scalability(self, test_workspace):
         """Test corpus manager with large number of seeds."""
+        from pydicom import Dataset
+
         corpus_manager = CorpusManager(
-            corpus_dir=str(test_workspace["corpus"]),
-            max_size=1000,
+            corpus_dir=test_workspace["corpus"], max_corpus_size=1000
         )
 
         # Add many seeds
@@ -617,12 +621,15 @@ class TestPerformanceIntegration:
         start_time = time.time()
 
         for i in range(100):
-            seed_data = f"seed_{i:04d}".encode()
-            corpus_manager.add_seed(
-                seed_data,
-                coverage_signature=f"sig_{i:04d}",
-                metadata={"index": i},
+            # Create minimal dataset for each seed
+            ds = Dataset()
+            ds.PatientName = f"TEST_{i:04d}"
+            ds.PatientID = f"{i:04d}"
+
+            entry = CorpusEntry(
+                entry_id=f"seed_{i:04d}", dataset=ds, metadata={"index": i}
             )
+            corpus_manager.add_entry(entry)
 
         elapsed = time.time() - start_time
 
