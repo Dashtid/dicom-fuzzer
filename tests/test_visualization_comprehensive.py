@@ -1,17 +1,18 @@
 """Comprehensive Unit Tests for Visualization Module
 
-Tests the FuzzingVisualizer, InteractiveVisualizer, and HTMLReportGenerator
-classes to improve coverage from 1% to 80%+.
+Tests the FuzzingVisualizer class to improve coverage from 1% to 80%+.
+Aligned with actual visualization.py API (v1.3.0).
 """
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
 # Skip all tests in this module if matplotlib is not installed
 pytest.importorskip("matplotlib")
+pytest.importorskip("plotly")
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -24,11 +25,7 @@ from dicom_fuzzer.analytics.campaign_analytics import (
     PerformanceMetrics,
     TrendAnalysis,
 )
-from dicom_fuzzer.analytics.visualization import (
-    FuzzingVisualizer,
-    HTMLReportGenerator,
-    InteractiveVisualizer,
-)
+from dicom_fuzzer.analytics.visualization import FuzzingVisualizer
 
 
 @pytest.fixture
@@ -40,58 +37,105 @@ def output_dir(tmp_path):
 
 
 @pytest.fixture
+def sample_effectiveness_data():
+    """Create sample effectiveness data for strategies."""
+    return {
+        "metadata_fuzzer": {
+            "effectiveness_score": 0.85,
+            "crashes_per_mutation": 0.15,
+            "coverage_contribution": 45.0,
+            "time_efficiency": 120.5,
+            "usage_count": 150,
+            "avg_mutations_per_series": 8.3,
+        },
+        "pixel_fuzzer": {
+            "effectiveness_score": 0.72,
+            "crashes_per_mutation": 0.09,
+            "coverage_contribution": 30.0,
+            "time_efficiency": 98.2,
+            "usage_count": 120,
+            "avg_mutations_per_series": 5.6,
+        },
+        "header_fuzzer": {
+            "effectiveness_score": 0.68,
+            "crashes_per_mutation": 0.07,
+            "coverage_contribution": 25.0,
+            "time_efficiency": 105.1,
+            "usage_count": 100,
+            "avg_mutations_per_series": 6.2,
+        },
+    }
+
+
+@pytest.fixture
 def sample_coverage_correlation():
     """Create sample coverage correlation data."""
-    correlation = CoverageCorrelation()
-    correlation.coverage_to_crashes = {
-        "metadata_fuzzer": 0.85,
-        "pixel_fuzzer": 0.72,
-        "header_fuzzer": 0.68,
+    return {
+        "metadata_fuzzer": CoverageCorrelation(
+            strategy="metadata_fuzzer",
+            coverage_increase=45.0,
+            unique_paths=85,
+            crash_correlation=0.85,
+            sample_size=150,
+        ),
+        "pixel_fuzzer": CoverageCorrelation(
+            strategy="pixel_fuzzer",
+            coverage_increase=30.0,
+            unique_paths=60,
+            crash_correlation=0.72,
+            sample_size=120,
+        ),
+        "header_fuzzer": CoverageCorrelation(
+            strategy="header_fuzzer",
+            coverage_increase=25.0,
+            unique_paths=50,
+            crash_correlation=0.68,
+            sample_size=100,
+        ),
     }
-    correlation.hotspot_functions = [
-        ("parse_header", 0.95),
-        ("decode_pixels", 0.82),
-        ("validate_tags", 0.75),
-    ]
-    correlation.edge_discovery_rate = 0.65
-    return correlation
 
 
 @pytest.fixture
 def sample_performance_metrics():
     """Create sample performance metrics."""
-    metrics = PerformanceMetrics()
-    metrics.avg_exec_speed = 150.5
-    metrics.peak_memory_mb = 512.0
-    metrics.cpu_utilization = 75.0
-    metrics.cache_hit_rate = 85.0
-    metrics.bottleneck = "I/O operations"
-    return metrics
+    return PerformanceMetrics(
+        mutations_per_second=150.5,
+        peak_memory_mb=512.0,
+        avg_memory_mb=256.0,
+        cpu_utilization=75.0,
+        disk_io_mb_per_sec=10.5,
+        cache_hit_rate=85.0,
+    )
 
 
 @pytest.fixture
 def sample_trend_analysis():
     """Create sample trend analysis data."""
-    trend = TrendAnalysis()
-    trend.crashes_over_time = [
-        (datetime.now() - timedelta(hours=i), 10 - i) for i in range(10)
-    ]
-    trend.coverage_over_time = [
-        (datetime.now() - timedelta(hours=i), 50 + i * 2) for i in range(10)
-    ]
-    trend.is_plateauing_flag = False
-    trend.predicted_plateau = None
-    return trend
+    now = datetime.now()
+    return TrendAnalysis(
+        campaign_name="Test Campaign",
+        start_time=now - timedelta(hours=10),
+        end_time=now,
+        total_duration=timedelta(hours=10),
+        crashes_over_time=[(now - timedelta(hours=i), i) for i in range(10, 0, -1)],
+        coverage_over_time=[
+            (now - timedelta(hours=i), 50 + i * 2.0) for i in range(10, 0, -1)
+        ],
+        mutations_over_time=[(now - timedelta(hours=i), i * 10) for i in range(10, 0, -1)],
+    )
 
 
-class TestFuzzingVisualizer:
-    """Test the FuzzingVisualizer class."""
+class TestFuzzingVisualizerInitialization:
+    """Test FuzzingVisualizer initialization."""
 
     def test_initialization(self, output_dir):
         """Test visualizer initialization."""
         viz = FuzzingVisualizer(output_dir=output_dir)
         assert viz.output_dir == Path(output_dir)
         assert viz.output_dir.exists()
+        assert isinstance(viz.colors, dict)
+        assert "primary" in viz.colors
+        assert "secondary" in viz.colors
 
     def test_initialization_creates_directory(self, tmp_path):
         """Test that initialization creates the output directory if it doesn't exist."""
@@ -99,411 +143,437 @@ class TestFuzzingVisualizer:
         viz = FuzzingVisualizer(output_dir=str(new_dir))
         assert new_dir.exists()
 
+    def test_color_scheme_defined(self, output_dir):
+        """Test that color scheme is properly defined."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
+        required_colors = ["primary", "secondary", "success", "warning", "danger", "info"]
+        for color in required_colors:
+            assert color in viz.colors
+            assert isinstance(viz.colors[color], str)
+            assert viz.colors[color].startswith("#")
+
+
+class TestStrategyEffectivenessPlots:
+    """Test strategy effectiveness plotting methods."""
+
     @patch("matplotlib.pyplot.savefig")
-    def test_plot_strategy_effectiveness(
-        self, mock_savefig, output_dir, sample_coverage_correlation
+    def test_plot_strategy_effectiveness_matplotlib_png(
+        self, mock_savefig, output_dir, sample_effectiveness_data
     ):
-        """Test plotting strategy effectiveness bar chart."""
+        """Test plotting strategy effectiveness bar chart with Matplotlib (PNG)."""
         viz = FuzzingVisualizer(output_dir=output_dir)
 
-        # Create strategy data
-        strategy_data = {
-            "metadata_fuzzer": {"crashes": 10, "coverage": 0.75},
-            "pixel_fuzzer": {"crashes": 5, "coverage": 0.60},
-            "header_fuzzer": {"crashes": 8, "coverage": 0.70},
-        }
+        chart_path = viz.plot_strategy_effectiveness(sample_effectiveness_data, output_format="png")
 
-        chart_path = viz.plot_strategy_effectiveness(strategy_data)
-
-        # Check that the file path was created
         assert chart_path.suffix == ".png"
         assert "strategy_effectiveness" in str(chart_path)
-
-        # Verify matplotlib was called
         assert mock_savefig.called
-        plt.close("all")  # Clean up
+        plt.close("all")
 
     @patch("matplotlib.pyplot.savefig")
-    def test_plot_crash_trend(self, mock_savefig, output_dir, sample_trend_analysis):
-        """Test plotting crash discovery trend line."""
+    def test_plot_strategy_effectiveness_matplotlib_svg(
+        self, mock_savefig, output_dir, sample_effectiveness_data
+    ):
+        """Test plotting strategy effectiveness with SVG output."""
         viz = FuzzingVisualizer(output_dir=output_dir)
 
-        chart_path = viz.plot_crash_trend(sample_trend_analysis)
+        chart_path = viz.plot_strategy_effectiveness(sample_effectiveness_data, output_format="svg")
+
+        assert chart_path.suffix == ".svg"
+        assert mock_savefig.called
+        plt.close("all")
+
+    @patch("plotly.graph_objects.Figure.write_html")
+    def test_plot_strategy_effectiveness_plotly_html(
+        self, mock_write_html, output_dir, sample_effectiveness_data
+    ):
+        """Test plotting strategy effectiveness with Plotly (HTML)."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
+
+        chart_path = viz.plot_strategy_effectiveness(sample_effectiveness_data, output_format="html")
+
+        assert chart_path.suffix == ".html"
+        assert "strategy_effectiveness" in str(chart_path)
+        assert mock_write_html.called
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_plot_empty_strategy_data(self, mock_savefig, output_dir):
+        """Test plotting with empty strategy data."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
+
+        chart_path = viz.plot_strategy_effectiveness({}, output_format="png")
+        assert chart_path is not None
+        assert chart_path.suffix == ".png"
+        plt.close("all")
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_plot_single_strategy(self, mock_savefig, output_dir):
+        """Test plotting with a single strategy."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
+
+        strategy_data = {
+            "metadata_fuzzer": {"effectiveness_score": 0.75, "usage_count": 100}
+        }
+
+        chart_path = viz.plot_strategy_effectiveness(strategy_data, output_format="png")
+        assert chart_path is not None
+        plt.close("all")
+
+
+class TestCrashTrendPlots:
+    """Test crash trend plotting methods."""
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_plot_crash_trend_matplotlib(
+        self, mock_savefig, output_dir, sample_trend_analysis
+    ):
+        """Test plotting crash discovery trend line with Matplotlib."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
+
+        chart_path = viz.plot_crash_trend(sample_trend_analysis, output_format="png")
 
         assert chart_path.suffix == ".png"
         assert "crash_trend" in str(chart_path)
         assert mock_savefig.called
         plt.close("all")
 
-    @patch("matplotlib.pyplot.savefig")
-    def test_plot_coverage_heatmap(
-        self, mock_savefig, output_dir, sample_coverage_correlation
+    @patch("plotly.graph_objects.Figure.write_html")
+    def test_plot_crash_trend_plotly(
+        self, mock_write_html, output_dir, sample_trend_analysis
     ):
-        """Test plotting coverage correlation heatmap."""
+        """Test plotting crash trend with Plotly."""
         viz = FuzzingVisualizer(output_dir=output_dir)
 
-        chart_path = viz.plot_coverage_heatmap(sample_coverage_correlation)
+        chart_path = viz.plot_crash_trend(sample_trend_analysis, output_format="html")
+
+        assert chart_path.suffix == ".html"
+        assert "crash_trend" in str(chart_path)
+        assert mock_write_html.called
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_plot_crash_trend_no_data(self, mock_savefig, output_dir):
+        """Test plotting crash trend with no crash data."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
+
+        # Create empty trend data
+        now = datetime.now()
+        empty_trend = TrendAnalysis(
+            campaign_name="Empty",
+            start_time=now - timedelta(hours=1),
+            end_time=now,
+            total_duration=timedelta(hours=1),
+            crashes_over_time=[],
+            coverage_over_time=[],
+            mutations_over_time=[],
+        )
+
+        chart_path = viz.plot_crash_trend(empty_trend, output_format="png")
+        assert chart_path is not None
+        assert chart_path.exists() or mock_savefig.called
+        plt.close("all")
+
+    @patch("plotly.graph_objects.Figure.write_html")
+    def test_plot_crash_trend_no_data_plotly(self, mock_write_html, output_dir):
+        """Test plotting crash trend with no data using Plotly."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
+
+        now = datetime.now()
+        empty_trend = TrendAnalysis(
+            campaign_name="Empty",
+            start_time=now,
+            end_time=now,
+            total_duration=timedelta(0),
+            crashes_over_time=[],
+            coverage_over_time=[],
+            mutations_over_time=[],
+        )
+
+        chart_path = viz.plot_crash_trend(empty_trend, output_format="html")
+        assert chart_path is not None
+        assert mock_write_html.called
+
+
+class TestCoverageHeatmapPlots:
+    """Test coverage correlation heatmap plotting methods."""
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_plot_coverage_heatmap_matplotlib(
+        self, mock_savefig, output_dir, sample_coverage_correlation
+    ):
+        """Test plotting coverage correlation heatmap with Matplotlib."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
+
+        chart_path = viz.plot_coverage_heatmap(sample_coverage_correlation, output_format="png")
 
         assert chart_path.suffix == ".png"
         assert "coverage_heatmap" in str(chart_path)
         assert mock_savefig.called
         plt.close("all")
 
-    @patch("matplotlib.pyplot.savefig")
-    def test_plot_performance_dashboard(
-        self, mock_savefig, output_dir, sample_performance_metrics
+    @patch("plotly.graph_objects.Figure.write_html")
+    def test_plot_coverage_heatmap_plotly(
+        self, mock_write_html, output_dir, sample_coverage_correlation
     ):
-        """Test plotting performance metrics dashboard."""
+        """Test plotting coverage heatmap with Plotly."""
         viz = FuzzingVisualizer(output_dir=output_dir)
 
-        chart_path = viz.plot_performance_dashboard(sample_performance_metrics)
+        chart_path = viz.plot_coverage_heatmap(sample_coverage_correlation, output_format="html")
+
+        assert chart_path.suffix == ".html"
+        assert "coverage_heatmap" in str(chart_path)
+        assert mock_write_html.called
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_plot_coverage_heatmap_single_strategy(self, mock_savefig, output_dir):
+        """Test coverage heatmap with single strategy."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
+
+        single_correlation = {
+            "metadata_fuzzer": CoverageCorrelation(
+                strategy="metadata_fuzzer",
+                coverage_increase=50.0,
+                unique_paths=75,
+                crash_correlation=0.80,
+                sample_size=100,
+            )
+        }
+
+        chart_path = viz.plot_coverage_heatmap(single_correlation, output_format="png")
+        assert chart_path is not None
+        plt.close("all")
+
+
+class TestPerformanceDashboardPlots:
+    """Test performance dashboard plotting methods."""
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_plot_performance_dashboard_matplotlib(
+        self, mock_savefig, output_dir, sample_performance_metrics
+    ):
+        """Test plotting performance metrics dashboard with Matplotlib."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
+
+        chart_path = viz.plot_performance_dashboard(
+            sample_performance_metrics, output_format="png"
+        )
 
         assert chart_path.suffix == ".png"
         assert "performance_dashboard" in str(chart_path)
         assert mock_savefig.called
         plt.close("all")
 
-    def test_plot_empty_strategy_data(self, output_dir):
-        """Test plotting with empty strategy data."""
-        viz = FuzzingVisualizer(output_dir=output_dir)
-
-        with patch("matplotlib.pyplot.savefig"):
-            # Should handle empty data gracefully
-            chart_path = viz.plot_strategy_effectiveness({})
-            assert chart_path is not None
-            plt.close("all")
-
-    def test_plot_single_strategy(self, output_dir):
-        """Test plotting with a single strategy."""
-        viz = FuzzingVisualizer(output_dir=output_dir)
-
-        strategy_data = {"metadata_fuzzer": {"crashes": 10, "coverage": 0.75}}
-
-        with patch("matplotlib.pyplot.savefig"):
-            chart_path = viz.plot_strategy_effectiveness(strategy_data)
-            assert chart_path is not None
-            plt.close("all")
-
-
-class TestInteractiveVisualizer:
-    """Test the InteractiveVisualizer class."""
-
-    def test_initialization(self, output_dir):
-        """Test interactive visualizer initialization."""
-        viz = InteractiveVisualizer(output_dir=output_dir)
-        assert viz.output_dir == Path(output_dir)
-
     @patch("plotly.graph_objects.Figure.write_html")
-    def test_create_3d_coverage_plot(self, mock_write_html, output_dir):
-        """Test creating 3D coverage scatter plot."""
-        viz = InteractiveVisualizer(output_dir=output_dir)
-
-        # Create sample 3D data
-        coverage_points = [
-            {"x": 1, "y": 2, "z": 3, "label": "Point 1"},
-            {"x": 4, "y": 5, "z": 6, "label": "Point 2"},
-        ]
-
-        chart_path = viz.create_3d_coverage_plot(coverage_points)
-
-        assert chart_path.suffix == ".html"
-        assert "3d_coverage" in str(chart_path)
-        assert mock_write_html.called
-
-    @patch("plotly.graph_objects.Figure.write_html")
-    def test_create_time_series_plot(
-        self, mock_write_html, output_dir, sample_trend_analysis
-    ):
-        """Test creating interactive time series plot."""
-        viz = InteractiveVisualizer(output_dir=output_dir)
-
-        chart_path = viz.create_time_series_plot(sample_trend_analysis)
-
-        assert chart_path.suffix == ".html"
-        assert "time_series" in str(chart_path)
-        assert mock_write_html.called
-
-    @patch("plotly.graph_objects.Figure.write_html")
-    def test_create_strategy_sunburst(self, mock_write_html, output_dir):
-        """Test creating strategy hierarchy sunburst chart."""
-        viz = InteractiveVisualizer(output_dir=output_dir)
-
-        # Create hierarchical strategy data
-        strategy_hierarchy = {
-            "root": {
-                "metadata": {"crashes": 5, "coverage": 0.6},
-                "pixel": {"crashes": 3, "coverage": 0.4},
-            }
-        }
-
-        chart_path = viz.create_strategy_sunburst(strategy_hierarchy)
-
-        assert chart_path.suffix == ".html"
-        assert "strategy_sunburst" in str(chart_path)
-        assert mock_write_html.called
-
-    @patch("plotly.graph_objects.Figure.write_html")
-    def test_create_parallel_coordinates(
+    def test_plot_performance_dashboard_plotly(
         self, mock_write_html, output_dir, sample_performance_metrics
     ):
-        """Test creating parallel coordinates plot for metrics."""
-        viz = InteractiveVisualizer(output_dir=output_dir)
+        """Test plotting performance dashboard with Plotly."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
 
-        # Create multi-dimensional metrics data
-        metrics_data = [
-            {"speed": 100, "memory": 512, "cpu": 75, "cache": 85},
-            {"speed": 150, "memory": 256, "cpu": 60, "cache": 90},
-        ]
-
-        chart_path = viz.create_parallel_coordinates(metrics_data)
+        chart_path = viz.plot_performance_dashboard(
+            sample_performance_metrics, output_format="html"
+        )
 
         assert chart_path.suffix == ".html"
-        assert "parallel_coords" in str(chart_path)
+        assert "performance_dashboard" in str(chart_path)
         assert mock_write_html.called
 
+    @patch("matplotlib.pyplot.savefig")
+    def test_plot_performance_high_throughput(self, mock_savefig, output_dir):
+        """Test performance dashboard with high throughput metrics."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
 
-class TestHTMLReportGenerator:
-    """Test the HTMLReportGenerator class."""
+        high_perf = PerformanceMetrics(
+            mutations_per_second=250.0,
+            peak_memory_mb=1024.0,
+            avg_memory_mb=512.0,
+            cpu_utilization=95.0,
+            disk_io_mb_per_sec=50.0,
+            cache_hit_rate=98.0,
+        )
 
-    def test_initialization(self, output_dir):
-        """Test HTML report generator initialization."""
-        gen = HTMLReportGenerator(output_dir=output_dir)
-        assert gen.output_dir == Path(output_dir)
-        assert (
-            gen.template_dir.exists() or True
-        )  # Template dir might not exist in tests
+        chart_path = viz.plot_performance_dashboard(high_perf, output_format="png")
+        assert chart_path is not None
+        plt.close("all")
 
-    def test_generate_report(
-        self,
-        output_dir,
-        sample_coverage_correlation,
-        sample_performance_metrics,
-        sample_trend_analysis,
-    ):
-        """Test generating complete HTML report."""
-        gen = HTMLReportGenerator(output_dir=output_dir)
+    @patch("matplotlib.pyplot.savefig")
+    def test_plot_performance_low_throughput(self, mock_savefig, output_dir):
+        """Test performance dashboard with low throughput metrics."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
 
-        # Create sample report data
-        report_data = {
-            "title": "Test Fuzzing Report",
-            "campaign_name": "Test Campaign",
-            "start_time": datetime.now() - timedelta(hours=24),
-            "end_time": datetime.now(),
-            "total_crashes": 42,
-            "total_coverage": 0.75,
-            "coverage_correlation": sample_coverage_correlation,
-            "performance_metrics": sample_performance_metrics,
-            "trend_analysis": sample_trend_analysis,
-        }
+        low_perf = PerformanceMetrics(
+            mutations_per_second=10.0,
+            peak_memory_mb=128.0,
+            avg_memory_mb=64.0,
+            cpu_utilization=25.0,
+            disk_io_mb_per_sec=1.0,
+            cache_hit_rate=40.0,
+        )
 
-        # Mock chart generation
-        with patch.object(gen, "_generate_charts", return_value={}):
-            report_path = gen.generate_report(report_data)
+        chart_path = viz.plot_performance_dashboard(low_perf, output_format="png")
+        assert chart_path is not None
+        plt.close("all")
 
-            assert report_path.suffix == ".html"
-            assert report_path.exists()
 
-            # Verify HTML content
-            html_content = report_path.read_text()
-            assert "Test Fuzzing Report" in html_content
-            assert "Test Campaign" in html_content
+class TestHTMLReportGeneration:
+    """Test HTML report generation methods."""
 
-    def test_generate_charts(
-        self,
-        output_dir,
-        sample_coverage_correlation,
-        sample_performance_metrics,
-        sample_trend_analysis,
-    ):
-        """Test chart generation for HTML report."""
-        gen = HTMLReportGenerator(output_dir=output_dir)
+    def test_create_summary_report_html(self, output_dir, tmp_path):
+        """Test creating HTML snippet embedding all charts."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
 
-        report_data = {
-            "coverage_correlation": sample_coverage_correlation,
-            "performance_metrics": sample_performance_metrics,
-            "trend_analysis": sample_trend_analysis,
-            "strategy_data": {"metadata_fuzzer": {"crashes": 10, "coverage": 0.75}},
-        }
+        # Create dummy chart paths
+        strategy_chart = tmp_path / "strategy.png"
+        trend_chart = tmp_path / "trend.png"
+        coverage_chart = tmp_path / "coverage.png"
+        performance_chart = tmp_path / "performance.png"
 
-        with patch("matplotlib.pyplot.savefig"):
-            charts = gen._generate_charts(report_data)
+        html = viz.create_summary_report_html(
+            strategy_chart, trend_chart, coverage_chart, performance_chart
+        )
 
-            # Check that charts were generated
-            assert "strategy_chart" in charts
-            assert "trend_chart" in charts
-            assert "heatmap_chart" in charts
-            assert "performance_chart" in charts
-            plt.close("all")
+        assert "<html" in html or "<div" in html
+        assert "strategy.png" in html
+        assert "trend.png" in html
+        assert "coverage.png" in html
+        assert "performance.png" in html
+        assert "<style>" in html or "style=" in html
 
-    def test_format_html_template(self, output_dir):
-        """Test HTML template formatting."""
-        gen = HTMLReportGenerator(output_dir=output_dir)
+    def test_html_contains_chart_sections(self, output_dir, tmp_path):
+        """Test that HTML contains proper chart sections."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
 
-        # Create minimal template data
-        template_data = {
-            "title": "Test Report",
-            "content": "<p>Test content</p>",
-            "charts": {"test_chart": Path("test.png")},
-            "timestamp": datetime.now(),
-        }
+        chart1 = tmp_path / "chart1.png"
+        chart2 = tmp_path / "chart2.png"
+        chart3 = tmp_path / "chart3.png"
+        chart4 = tmp_path / "chart4.png"
 
-        html = gen._format_html_template(template_data)
+        html = viz.create_summary_report_html(chart1, chart2, chart3, chart4)
 
-        assert "<html" in html
-        assert "Test Report" in html
-        assert "Test content" in html
+        assert "Strategy Effectiveness" in html
+        assert "Crash Discovery Trend" in html
+        assert "Coverage Correlation" in html
+        assert "Performance Metrics" in html
 
-    def test_embed_chart_as_base64(self, output_dir, tmp_path):
-        """Test embedding chart as base64 in HTML."""
-        gen = HTMLReportGenerator(output_dir=output_dir)
+    def test_html_responsive_styling(self, output_dir, tmp_path):
+        """Test that HTML includes responsive styling."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
 
-        # Create a dummy image file
-        img_path = tmp_path / "test.png"
-        img_path.write_bytes(b"fake_image_data")
+        chart = tmp_path / "chart.png"
+        html = viz.create_summary_report_html(chart, chart, chart, chart)
 
-        base64_img = gen._embed_chart_as_base64(img_path)
-
-        assert base64_img.startswith("data:image/png;base64,")
-        assert len(base64_img) > 30
-
-    def test_create_summary_table(self, output_dir):
-        """Test creating HTML summary table."""
-        gen = HTMLReportGenerator(output_dir=output_dir)
-
-        summary_data = {
-            "Total Crashes": 42,
-            "Coverage": "75%",
-            "Duration": "24 hours",
-            "Status": "Completed",
-        }
-
-        html_table = gen._create_summary_table(summary_data)
-
-        assert "<table" in html_table
-        assert "Total Crashes" in html_table
-        assert "42" in html_table
-        assert "75%" in html_table
-
-    def test_generate_report_with_missing_data(self, output_dir):
-        """Test report generation with missing optional data."""
-        gen = HTMLReportGenerator(output_dir=output_dir)
-
-        # Minimal report data
-        report_data = {
-            "title": "Minimal Report",
-            "campaign_name": "Test",
-        }
-
-        with patch.object(gen, "_generate_charts", return_value={}):
-            report_path = gen.generate_report(report_data)
-
-            assert report_path.exists()
-            html_content = report_path.read_text()
-            assert "Minimal Report" in html_content
-
-    def test_css_styling_included(self, output_dir):
-        """Test that CSS styling is included in the HTML report."""
-        gen = HTMLReportGenerator(output_dir=output_dir)
-
-        report_data = {"title": "Style Test"}
-
-        with patch.object(gen, "_generate_charts", return_value={}):
-            report_path = gen.generate_report(report_data)
-
-            html_content = report_path.read_text()
-            assert "<style>" in html_content or "style=" in html_content
-
-    def test_responsive_design_markers(self, output_dir):
-        """Test that responsive design elements are included."""
-        gen = HTMLReportGenerator(output_dir=output_dir)
-
-        report_data = {"title": "Responsive Test"}
-
-        with patch.object(gen, "_generate_charts", return_value={}):
-            report_path = gen.generate_report(report_data)
-
-            html_content = report_path.read_text()
-            # Check for viewport meta tag or responsive CSS
-            assert "viewport" in html_content or "max-width" in html_content
+        # Should include responsive CSS
+        assert "max-width: 100%" in html or "max-width:100%" in html
 
 
 class TestIntegrationScenarios:
     """Test integration scenarios for visualization module."""
 
+    @patch("matplotlib.pyplot.savefig")
+    @patch("plotly.graph_objects.Figure.write_html")
     def test_complete_visualization_workflow(
         self,
+        mock_plotly,
+        mock_matplotlib,
         output_dir,
+        sample_effectiveness_data,
         sample_coverage_correlation,
         sample_performance_metrics,
         sample_trend_analysis,
     ):
-        """Test complete visualization workflow from data to HTML report."""
-        # Create visualizers
-        static_viz = FuzzingVisualizer(output_dir=output_dir)
-        interactive_viz = InteractiveVisualizer(output_dir=output_dir)
-        report_gen = HTMLReportGenerator(output_dir=output_dir)
+        """Test complete visualization workflow from data to charts."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
 
-        # Generate static charts
-        with patch("matplotlib.pyplot.savefig"):
-            strategy_chart = static_viz.plot_strategy_effectiveness(
-                {"fuzzer1": {"crashes": 10, "coverage": 0.5}}
-            )
-            trend_chart = static_viz.plot_crash_trend(sample_trend_analysis)
-            plt.close("all")
+        # Generate all chart types
+        strategy_png = viz.plot_strategy_effectiveness(
+            sample_effectiveness_data, output_format="png"
+        )
+        strategy_html = viz.plot_strategy_effectiveness(
+            sample_effectiveness_data, output_format="html"
+        )
 
-        # Generate interactive charts
-        with patch("plotly.graph_objects.Figure.write_html"):
-            time_series = interactive_viz.create_time_series_plot(sample_trend_analysis)
+        trend_png = viz.plot_crash_trend(sample_trend_analysis, output_format="png")
+        trend_html = viz.plot_crash_trend(sample_trend_analysis, output_format="html")
 
-        # Generate HTML report
-        report_data = {
-            "title": "Integration Test Report",
-            "campaign_name": "Full Workflow Test",
-            "coverage_correlation": sample_coverage_correlation,
-            "performance_metrics": sample_performance_metrics,
-            "trend_analysis": sample_trend_analysis,
-            "charts": {
-                "strategy": strategy_chart,
-                "trend": trend_chart,
-                "time_series": time_series,
-            },
-        }
+        heatmap_png = viz.plot_coverage_heatmap(
+            sample_coverage_correlation, output_format="png"
+        )
+        heatmap_html = viz.plot_coverage_heatmap(
+            sample_coverage_correlation, output_format="html"
+        )
 
-        with patch.object(
-            report_gen, "_generate_charts", return_value=report_data["charts"]
-        ):
-            report_path = report_gen.generate_report(report_data)
+        perf_png = viz.plot_performance_dashboard(
+            sample_performance_metrics, output_format="png"
+        )
+        perf_html = viz.plot_performance_dashboard(
+            sample_performance_metrics, output_format="html"
+        )
 
-            assert report_path.exists()
-            assert report_path.suffix == ".html"
+        # Verify all charts created
+        assert all(
+            [
+                strategy_png.suffix == ".png",
+                strategy_html.suffix == ".html",
+                trend_png.suffix == ".png",
+                trend_html.suffix == ".html",
+                heatmap_png.suffix == ".png",
+                heatmap_html.suffix == ".html",
+                perf_png.suffix == ".png",
+                perf_html.suffix == ".html",
+            ]
+        )
 
-    def test_large_dataset_handling(self, output_dir):
+        plt.close("all")
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_large_dataset_handling(self, mock_savefig, output_dir):
         """Test handling of large datasets in visualization."""
         viz = FuzzingVisualizer(output_dir=output_dir)
 
         # Create large dataset
         large_strategy_data = {
-            f"fuzzer_{i}": {"crashes": i * 2, "coverage": i / 100.0} for i in range(100)
+            f"fuzzer_{i}": {
+                "effectiveness_score": i / 100.0,
+                "usage_count": i * 10,
+            }
+            for i in range(100)
         }
 
-        with patch("matplotlib.pyplot.savefig"):
-            # Should handle large dataset without crashing
-            chart_path = viz.plot_strategy_effectiveness(large_strategy_data)
-            assert chart_path is not None
-            plt.close("all")
+        # Should handle large dataset without crashing
+        chart_path = viz.plot_strategy_effectiveness(
+            large_strategy_data, output_format="png"
+        )
+        assert chart_path is not None
+        plt.close("all")
 
-    def test_error_handling_in_visualization(self, output_dir):
-        """Test error handling in visualization methods."""
+    @patch("matplotlib.pyplot.savefig")
+    def test_edge_case_zero_values(self, mock_savefig, output_dir):
+        """Test handling of zero values in metrics."""
         viz = FuzzingVisualizer(output_dir=output_dir)
 
-        # Test with invalid data
-        with patch("matplotlib.pyplot.savefig", side_effect=Exception("Plot error")):
-            # Should handle error gracefully
-            try:
-                chart_path = viz.plot_strategy_effectiveness({})
-                # If it doesn't raise, that's acceptable
-            except Exception as e:
-                # Should be a meaningful error
-                assert "Plot error" in str(e) or True
-            finally:
-                plt.close("all")
+        zero_perf = PerformanceMetrics(
+            mutations_per_second=0.0,
+            peak_memory_mb=0.0,
+            avg_memory_mb=0.0,
+            cpu_utilization=0.0,
+            disk_io_mb_per_sec=0.0,
+            cache_hit_rate=0.0,
+        )
+
+        chart_path = viz.plot_performance_dashboard(zero_perf, output_format="png")
+        assert chart_path is not None
+        plt.close("all")
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_special_characters_in_strategy_names(self, mock_savefig, output_dir):
+        """Test handling of special characters in strategy names."""
+        viz = FuzzingVisualizer(output_dir=output_dir)
+
+        special_data = {
+            "fuzzer-with-dash": {"effectiveness_score": 0.5, "usage_count": 10},
+            "fuzzer_with_underscore": {"effectiveness_score": 0.6, "usage_count": 20},
+            "fuzzer.with.dot": {"effectiveness_score": 0.7, "usage_count": 30},
+        }
+
+        chart_path = viz.plot_strategy_effectiveness(special_data, output_format="png")
+        assert chart_path is not None
+        plt.close("all")
