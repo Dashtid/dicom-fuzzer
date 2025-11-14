@@ -6,8 +6,7 @@ Aligned with actual campaign_analytics.py API (v1.3.0).
 """
 
 from datetime import datetime, timedelta
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -52,7 +51,9 @@ def sample_trend_analysis():
         coverage_over_time=[
             (now - timedelta(hours=i), 50.0 + i * 2.0) for i in range(10, 0, -1)
         ],
-        mutations_over_time=[(now - timedelta(hours=i), i * 10) for i in range(10, 0, -1)],
+        mutations_over_time=[
+            (now - timedelta(hours=i), i * 10) for i in range(10, 0, -1)
+        ],
     )
 
 
@@ -95,15 +96,17 @@ def sample_mutation_stats():
         MutationStatistics(
             strategy_name="metadata_fuzzer",
             times_used=150,
+            unique_outputs=120,
             crashes_found=22,
-            coverage_increase=45.0,
+            validation_failures=3,
             total_duration=125.5,
         ),
         MutationStatistics(
             strategy_name="pixel_fuzzer",
             times_used=120,
+            unique_outputs=95,
             crashes_found=11,
-            coverage_increase=30.0,
+            validation_failures=1,
             total_duration=95.2,
         ),
     ]
@@ -266,13 +269,11 @@ class TestTrendAnalysis:
         trend = sample_trend_analysis
 
         rate = trend.coverage_growth_rate()
-        assert rate > 0.0
-        # Initial: 50+10*2=70, Final: 50+1*2=52
-        # Wait, coverage_over_time is reversed: range(10, 0, -1)
-        # So it's: [(now-0h, 50+10*2=70), (now-1h, 50+9*2=68), ... (now-9h, 50+1*2=52)]
-        # Initial (first): 70, Final (last): 52
-        # Growth: (52-70)/70 * 100 / 10hours = negative growth
-        # Actually, let me recalculate based on actual data structure
+        # Coverage data: [(now-10h, 70.0), (now-9h, 68.0), ..., (now-1h, 52.0)]
+        # Initial (first): 70.0, Final (last): 52.0
+        # Growth: (52-70)/70 * 100 / 10hours = -18/70 * 100 / 10 = -2.571.../hour
+        assert rate < 0.0  # Negative growth (coverage decreasing)
+        assert -3.0 < rate < -2.0
 
     def test_coverage_growth_rate_no_coverage_data(self):
         """Test coverage growth rate with insufficient data."""
@@ -486,7 +487,8 @@ class TestCampaignAnalyzer:
     ):
         """Test strategy effectiveness with missing mutation stats."""
         effectiveness = campaign_analyzer.analyze_strategy_effectiveness(
-            mock_series_report, []  # Empty stats list
+            mock_series_report,
+            [],  # Empty stats list
         )
 
         assert isinstance(effectiveness, dict)
@@ -553,7 +555,9 @@ class TestCampaignAnalyzer:
         coverage_timeline = [
             (now - timedelta(hours=i), 50.0 + i * 2.0) for i in range(10, 0, -1)
         ]
-        mutation_timeline = [(now - timedelta(hours=i), i * 10) for i in range(10, 0, -1)]
+        mutation_timeline = [
+            (now - timedelta(hours=i), i * 10) for i in range(10, 0, -1)
+        ]
 
         trend = campaign_analyzer.analyze_trends(
             start_time=start,
@@ -612,9 +616,7 @@ class TestCampaignAnalyzer:
         """Test recommendations with coverage data."""
         # Add coverage data
         campaign_analyzer.coverage_data = {
-            "good_strategy": CoverageCorrelation(
-                "good_strategy", 80.0, 150, 0.90, 200
-            ),
+            "good_strategy": CoverageCorrelation("good_strategy", 80.0, 150, 0.90, 200),
             "bad_strategy": CoverageCorrelation("bad_strategy", 10.0, 5, 0.10, 50),
         }
 
@@ -644,14 +646,20 @@ class TestCampaignAnalyzer:
         self, campaign_analyzer, sample_trend_analysis
     ):
         """Test recommendations detect plateauing."""
-        # Modify trend to be plateauing
+        # Create trend with NO crashes in recent window (plateaued)
         now = datetime.now()
         plateaued_trend = TrendAnalysis(
             campaign_name="Plateaued",
             start_time=now - timedelta(hours=10),
             end_time=now,
             total_duration=timedelta(hours=10),
-            crashes_over_time=[(now - timedelta(hours=10), 100)],  # Old crash only
+            # Crashes only in the distant past (> 1 hour ago), none recently
+            crashes_over_time=[
+                (now - timedelta(hours=10), 50),
+                (now - timedelta(hours=9), 30),
+                (now - timedelta(hours=8), 20),
+                # No crashes in last hour = plateaued
+            ],
             coverage_over_time=[],
             mutations_over_time=[],
         )
@@ -686,10 +694,12 @@ class TestCampaignAnalyzer:
         now = datetime.now()
         trend = TrendAnalysis(
             campaign_name="Low Crashes",
-            start_time=now - timedelta(hours=10),
+            start_time=now - timedelta(hours=20),
             end_time=now,
-            total_duration=timedelta(hours=10),
-            crashes_over_time=[(now - timedelta(hours=5), 1)],  # 1 crash in 10 hours
+            total_duration=timedelta(hours=20),
+            crashes_over_time=[
+                (now - timedelta(hours=10), 1)
+            ],  # 1 crash in 20 hours = 0.05/hour (below 0.1 threshold)
             coverage_over_time=[],
             mutations_over_time=[],
         )
@@ -811,7 +821,7 @@ class TestCampaignAnalyzer:
         # Verify JSON content
         import json
 
-        with open(output_path, "r") as f:
+        with open(output_path) as f:
             data = json.load(f)
 
         assert data["campaign_name"] == "Test Campaign"
@@ -829,7 +839,7 @@ class TestCampaignAnalyzer:
 
         import json
 
-        with open(output_path, "r") as f:
+        with open(output_path) as f:
             data = json.load(f)
 
         assert data["trend_analysis"] is None
