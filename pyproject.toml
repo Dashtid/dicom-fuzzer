@@ -97,6 +97,7 @@ network = [
 viz = [
     "matplotlib>=3.5.0",  # Visualization for analytics and reporting
     "plotly>=5.0.0",      # Interactive visualizations (optional)
+    "seaborn>=0.12.0",    # Statistical data visualization (required by visualization.py)
 ]
 
 # UV configuration (modern Python package management)
