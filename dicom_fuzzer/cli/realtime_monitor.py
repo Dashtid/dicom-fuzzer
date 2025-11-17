@@ -19,11 +19,13 @@ from pathlib import Path
 
 # Import rich at module level for test compatibility
 try:
+    import rich
     from rich.console import Console
     from rich.live import Live
 except ImportError:
     Console = None
     Live = None
+    rich = None
 
 
 # Mock class for test compatibility
