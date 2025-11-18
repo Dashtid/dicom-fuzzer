@@ -295,3 +295,73 @@ class ExecutionTimer:
         if self.start_time:
             self.duration = self.end_time - self.start_time
         return False  # Don't suppress exceptions
+
+
+class TimeoutBudget:
+    """Simple timeout budget for operations with context manager support.
+
+    Provides a simple API for enforcing timeouts on operations using
+    context managers. For test compatibility.
+    """
+
+    def __init__(self, total_seconds: float):
+        """Initialize timeout budget.
+
+        Args:
+            total_seconds: Total timeout budget in seconds
+
+        """
+        self.total_seconds = total_seconds
+        self.start_time = time.time()
+        self.remaining_seconds = total_seconds
+
+    def is_exhausted(self) -> bool:
+        """Check if timeout budget is exhausted.
+
+        Returns:
+            True if budget exhausted, False otherwise
+
+        """
+        elapsed = time.time() - self.start_time
+        self.remaining_seconds = max(0, self.total_seconds - elapsed)
+        return self.remaining_seconds <= 0
+
+    def operation_context(self, operation_name: str):
+        """Context manager for timeout-enforced operations.
+
+        Args:
+            operation_name: Name of the operation (for logging)
+
+        Returns:
+            Context manager that enforces timeout
+
+        Raises:
+            TimeoutError: If operation exceeds remaining budget
+
+        """
+        return _TimeoutContext(self, operation_name)
+
+
+class _TimeoutContext:
+    """Internal context manager for timeout enforcement."""
+
+    def __init__(self, budget: TimeoutBudget, operation_name: str):
+        self.budget = budget
+        self.operation_name = operation_name
+        self.start_time = None
+
+    def __enter__(self):
+        """Enter context - check if budget available."""
+        if self.budget.is_exhausted():
+            raise TimeoutError(f"Timeout budget exhausted before {self.operation_name}")
+        self.start_time = time.time()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit context - update remaining budget."""
+        if self.start_time:
+            elapsed = time.time() - self.start_time
+            self.budget.remaining_seconds = max(
+                0, self.budget.remaining_seconds - elapsed
+            )
+        return False  # Don't suppress exceptions

@@ -212,11 +212,22 @@ class DictionaryFuzzer:
                                 int_value = max(
                                     -2147483648, min(2147483647, int_value)
                                 )  # Clamp
-                            value = str(int_value)  # type: ignore[assignment]
+                            value = int_value  # Keep as integer for pydicom
                         else:
-                            value = "0"
-                    elif vr in {"IS", "DS", "FL", "FD"}:
-                        # Decimal types
+                            value = 0  # Default to integer 0
+                    elif vr in {"FL", "FD"}:
+                        # Float types - keep as float for pydicom
+                        value = (  # type: ignore[assignment]
+                            float(value)
+                            if value.replace(".", "")
+                            .replace("-", "")
+                            .replace("e", "")
+                            .replace("E", "")
+                            .isdigit()
+                            else 0.0
+                        )
+                    elif vr in {"IS", "DS"}:
+                        # Integer String and Decimal String - keep as string
                         value = (  # type: ignore[assignment]
                             str(
                                 float(value)

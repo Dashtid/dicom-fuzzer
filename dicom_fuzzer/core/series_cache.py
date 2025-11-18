@@ -29,6 +29,7 @@ USAGE:
 """
 
 import hashlib
+import pickle
 import time
 from collections import OrderedDict
 from collections.abc import Callable
@@ -65,16 +66,23 @@ class SeriesCache:
     Caches parsed metadata (NOT pixel data) to avoid redundant I/O.
     """
 
-    def __init__(self, max_size_mb: int = 100, max_entries: int = 1000):
+    def __init__(
+        self,
+        max_size_mb: int = 100,
+        max_entries: int = 1000,
+        cache_dir: str | None = None,
+    ):
         """Initialize series cache.
 
         Args:
             max_size_mb: Maximum cache size in megabytes
             max_entries: Maximum number of cached entries
+            cache_dir: Optional directory for persistent disk-based caching
 
         """
         self.max_size_bytes = max_size_mb * 1024 * 1024
         self.max_entries = max_entries
+        self.cache_dir = Path(cache_dir) if cache_dir else None
 
         # OrderedDict for LRU (oldest entries at start)
         self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
@@ -85,9 +93,14 @@ class SeriesCache:
         self._evictions = 0
         self._total_size_bytes = 0
 
+        # Create cache directory if specified
+        if self.cache_dir:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+
         logger.info(
             f"SeriesCache initialized: max_size={max_size_mb}MB, "
-            f"max_entries={max_entries}"
+            f"max_entries={max_entries}, "
+            f"cache_dir={self.cache_dir or 'memory-only'}"
         )
 
     def get(
@@ -273,3 +286,67 @@ class SeriesCache:
             f"Cache EVICT: {entry.file_path.name} "
             f"(accesses={entry.access_count}, age={time.time() - entry.last_access:.1f}s)"
         )
+
+    # Disk-based series caching methods
+    def cache_series(self, series: "DicomSeries") -> None:
+        """Cache a DICOM series to disk.
+
+        Args:
+            series: DicomSeries object to cache
+
+        """
+        if not self.cache_dir:
+            logger.warning("cache_dir not configured, cannot cache series")
+            return
+
+        series_path = self.cache_dir / f"{series.series_uid}.pkl"
+        try:
+            with open(series_path, "wb") as f:
+                pickle.dump(series, f)
+            logger.debug(f"Cached series {series.series_uid} to {series_path}")
+        except Exception as e:
+            logger.error(f"Failed to cache series {series.series_uid}: {e}")
+
+    def is_cached(self, series_uid: str) -> bool:
+        """Check if a series is cached on disk.
+
+        Args:
+            series_uid: SeriesInstanceUID to check
+
+        Returns:
+            True if cached, False otherwise
+
+        """
+        if not self.cache_dir:
+            return False
+
+        series_path = self.cache_dir / f"{series_uid}.pkl"
+        return series_path.exists()
+
+    def load_series(self, series_uid: str) -> "DicomSeries | None":
+        """Load a cached series from disk.
+
+        Args:
+            series_uid: SeriesInstanceUID to load
+
+        Returns:
+            DicomSeries object if found, None otherwise
+
+        """
+        if not self.cache_dir:
+            logger.warning("cache_dir not configured, cannot load series")
+            return None
+
+        series_path = self.cache_dir / f"{series_uid}.pkl"
+        if not series_path.exists():
+            logger.debug(f"Series {series_uid} not found in cache")
+            return None
+
+        try:
+            with open(series_path, "rb") as f:
+                series = pickle.load(f)
+            logger.debug(f"Loaded series {series_uid} from {series_path}")
+            return series
+        except Exception as e:
+            logger.error(f"Failed to load series {series_uid}: {e}")
+            return None

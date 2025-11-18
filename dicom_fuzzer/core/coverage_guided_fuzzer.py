@@ -384,9 +384,9 @@ class CoverageGuidedFuzzer:
             try:
                 from io import BytesIO
 
-                ds = pydicom.dcmread(BytesIO(data))
-                # Try to access some attributes to trigger parsing
-                _ = ds.PatientName
+                ds = pydicom.dcmread(BytesIO(data), force=True)
+                # Try to access some attributes to trigger parsing (use get() for optional attrs)
+                _ = ds.get("PatientName", "")
                 _ = ds.pixel_array if hasattr(ds, "PixelData") else None
                 return True
             except Exception:

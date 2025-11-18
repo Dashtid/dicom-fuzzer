@@ -45,18 +45,24 @@ class SeriesDetector:
         self._series_cache: dict[str, DicomSeries] = {}
 
     def detect_series(
-        self, dicom_files: list[Path], validate: bool = True
+        self, dicom_files: list[Path] | Path, validate: bool = True
     ) -> list[DicomSeries]:
-        """Detect all series in a list of DICOM files.
+        """Detect all series in a list of DICOM files or a directory.
 
         Args:
-            dicom_files: List of paths to DICOM files
+            dicom_files: List of paths to DICOM files OR a directory path
             validate: If True, validate series consistency after grouping
 
         Returns:
             List of DicomSeries objects, one per unique SeriesInstanceUID
 
         """
+        # Handle directory path (backward compatibility)
+        if isinstance(dicom_files, Path):
+            return self.detect_series_in_directory(
+                dicom_files, recursive=True, validate=validate
+            )
+
         if not dicom_files:
             logger.warning("No DICOM files provided to detect_series")
             return []
