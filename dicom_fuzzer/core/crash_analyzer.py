@@ -162,6 +162,30 @@ class CrashAnalyzer:
 
         return report
 
+    def analyze_crash(self, crash_file: Path, exception: Exception) -> dict:
+        """Analyze a crash and return results as dictionary.
+
+        This method provides compatibility with test expectations.
+
+        Args:
+            crash_file: Path to file that caused crash
+            exception: Exception that occurred
+
+        Returns:
+            Dictionary with crash analysis results
+
+        """
+        report = self.analyze_exception(exception, str(crash_file))
+
+        return {
+            "severity": report.severity.value,
+            "type": report.crash_type.value,
+            "exploitable": report.severity
+            in [CrashSeverity.CRITICAL, CrashSeverity.HIGH],
+            "crash_id": report.crash_id,
+            "crash_hash": report.crash_hash,
+        }
+
     def _classify_exception(self, exception: Exception) -> CrashType:
         """Classify exception type.
 
