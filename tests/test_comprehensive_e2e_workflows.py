@@ -206,7 +206,7 @@ class TestCompleteWorkflowIntegration:
 
         # Initialize mutator
         mutator = DicomMutator()
-        mutated_ds = mutator.mutate_file(sample_dicom_file)
+        mutated_ds = mutator.apply_mutations(dataset)
         assert mutated_ds is not None
 
         # Save mutated file
@@ -430,9 +430,11 @@ class TestCompleteWorkflowIntegration:
 
         def fuzz_file(file_path):
             """Fuzz a single file."""
+            import pydicom
             mutator = DicomMutator()
             try:
-                mutated = mutator.mutate_file(file_path)
+                dataset = pydicom.dcmread(file_path)
+                mutated = mutator.apply_mutations(dataset)
                 output_path = test_workspace["output"] / f"parallel_{file_path.name}"
                 mutated.save_as(str(output_path))
                 return {"file": str(file_path), "status": "success"}
@@ -526,7 +528,9 @@ class TestErrorHandlingIntegration:
                 mock_check.return_value = False  # Resources exhausted
 
                 # Should handle gracefully
-                result = mutator.mutate_file(large_file)
+                import pydicom
+                dataset = pydicom.dcmread(large_file)
+                result = mutator.apply_mutations(dataset)
                 # Depending on implementation, might return None or original
                 assert result is not None or result == ds
 
@@ -593,12 +597,16 @@ class TestPerformanceIntegration:
         """Test fuzzing throughput with small files."""
         import time
 
+        import pydicom
         mutator = DicomMutator()
         start_time = time.time()
+        
+        # Load dataset once before loop
+        dataset = pydicom.dcmread(sample_dicom_file)
 
         mutations = []
         for i in range(50):
-            mutated = mutator.mutate_file(sample_dicom_file)
+            mutated = mutator.apply_mutations(dataset)
             mutations.append(mutated)
 
         elapsed = time.time() - start_time
