@@ -79,7 +79,7 @@ class DictionaryFuzzer:
         0x00080058,  # Failed SOP Instance UID List
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the dictionary fuzzer."""
         self.dictionaries = DICOMDictionaries()
         self.edge_cases = DICOMDictionaries.get_edge_cases()
@@ -136,7 +136,9 @@ class DictionaryFuzzer:
 
         return mutated
 
-    def _mutate_tag(self, dataset: Dataset, tag: int, severity: MutationSeverity):
+    def _mutate_tag(
+        self, dataset: Dataset, tag: int, severity: MutationSeverity
+    ) -> None:
         """Mutate a specific tag using dictionary values.
 
         CONCEPT: We choose a value from the appropriate dictionary based on
@@ -174,7 +176,7 @@ class DictionaryFuzzer:
             # Skip binary/complex VR types that require bytes or special handling
             # OB = Other Byte, OW = Other Word (pixel data), OD = Other Double
             # OF = Other Float, OL = Other Long, OV = Other 64-bit Very Long
-            binary_vrs = {'OB', 'OW', 'OD', 'OF', 'OL', 'OV', 'UN'}
+            binary_vrs = {"OB", "OW", "OD", "OF", "OL", "OV", "UN"}
             if vr in binary_vrs:
                 logger.debug(f"Skipping mutation of binary VR tag {tag:08X} (VR={vr})")
                 return
@@ -182,37 +184,55 @@ class DictionaryFuzzer:
             # For numeric VRs, skip string-only mutations to avoid save errors
             # US = Unsigned Short, SS = Signed Short, UL = Unsigned Long, SL = Signed Long
             # IS = Integer String, DS = Decimal String, FL = Float, FD = Double
-            numeric_vrs = {'US', 'SS', 'UL', 'SL', 'IS', 'DS', 'FL', 'FD', 'AT'}
+            numeric_vrs = {"US", "SS", "UL", "SL", "IS", "DS", "FL", "FD", "AT"}
 
             if vr in numeric_vrs and isinstance(value, str):
                 # Try to convert string to appropriate numeric type
                 try:
-                    if vr in {'US', 'SS', 'UL', 'SL'}:
+                    if vr in {"US", "SS", "UL", "SL"}:
                         # Integer types with range checking
-                        if value.replace('.', '').replace('-', '').isdigit():
+                        if value.replace(".", "").replace("-", "").isdigit():
                             int_value = int(float(value))
                             # Validate ranges for each VR type
-                            if vr == 'US' and not (0 <= int_value <= 65535):
-                                int_value = abs(int_value) % 65536  # Wrap to valid range
-                            elif vr == 'SS' and not (-32768 <= int_value <= 32767):
-                                int_value = max(-32768, min(32767, int_value))  # Clamp to range
-                            elif vr == 'UL' and not (0 <= int_value <= 4294967295):
-                                int_value = abs(int_value) % 4294967296  # Wrap to valid range
-                            elif vr == 'SL' and not (-2147483648 <= int_value <= 2147483647):
-                                int_value = max(-2147483648, min(2147483647, int_value))  # Clamp
-                            value = int_value
+                            if vr == "US" and not (0 <= int_value <= 65535):
+                                int_value = (
+                                    abs(int_value) % 65536
+                                )  # Wrap to valid range
+                            elif vr == "SS" and not (-32768 <= int_value <= 32767):
+                                int_value = max(
+                                    -32768, min(32767, int_value)
+                                )  # Clamp to range
+                            elif vr == "UL" and not (0 <= int_value <= 4294967295):
+                                int_value = (
+                                    abs(int_value) % 4294967296
+                                )  # Wrap to valid range
+                            elif vr == "SL" and not (
+                                -2147483648 <= int_value <= 2147483647
+                            ):
+                                int_value = max(
+                                    -2147483648, min(2147483647, int_value)
+                                )  # Clamp
+                            value = str(int_value)  # type: ignore[assignment]
                         else:
-                            value = 0
-                    elif vr in {'IS', 'DS', 'FL', 'FD'}:
+                            value = "0"
+                    elif vr in {"IS", "DS", "FL", "FD"}:
                         # Decimal types
-                        value = float(value) if value.replace('.', '').replace('-', '').isdigit() else 0.0
-                    elif vr == 'AT':
+                        value = (  # type: ignore[assignment]
+                            str(
+                                float(value)
+                                if value.replace(".", "").replace("-", "").isdigit()
+                                else 0.0
+                            )
+                        )
+                    elif vr == "AT":
                         # Attribute Tag - needs special handling, skip for now
                         logger.debug(f"Skipping mutation of AT tag {tag:08X}")
                         return
                 except (ValueError, AttributeError):
                     # If conversion fails, skip this mutation
-                    logger.debug(f"Skipped tag {tag:08X}: cannot convert '{value}' to {vr}")
+                    logger.debug(
+                        f"Skipped tag {tag:08X}: cannot convert '{value}' to {vr}"
+                    )
                     return
 
             dataset[tag].value = value

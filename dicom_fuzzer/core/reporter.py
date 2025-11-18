@@ -139,7 +139,10 @@ class ReportGenerator:
         return report_path
 
     def generate_report(
-        self, report_data: dict, format: str = "json", campaign_name: str = "DICOM Fuzzing"
+        self,
+        report_data: dict,
+        format: str = "json",
+        campaign_name: str = "DICOM Fuzzing",
     ) -> Path:
         """Generate a general report (for test compatibility).
 

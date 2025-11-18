@@ -197,6 +197,43 @@ class CorpusManager:
 
         return seed
 
+    def add_entry(self, entry, dataset=None) -> None:
+        """Add a corpus entry (compatibility method for tests).
+
+        Args:
+            entry: CorpusEntry object with entry_id and dataset
+            dataset: Optional dataset if entry doesn't have one
+
+        """
+        from dicom_fuzzer.core.corpus import CorpusEntry
+
+        # Handle both old-style (entry only) and new-style (entry, dataset) calls
+        if dataset is None and hasattr(entry, "dataset"):
+            dataset_to_use = entry.dataset
+        elif dataset is not None:
+            dataset_to_use = dataset
+        else:
+            # Entry doesn't have dataset attribute, use as dataset
+            dataset_to_use = entry
+
+        # Serialize dataset to bytes
+        import io
+
+        from pydicom import Dataset
+
+        if isinstance(dataset_to_use, Dataset):
+            output = io.BytesIO()
+            dataset_to_use.save_as(output, write_like_original=False)
+            data = output.getvalue()
+        else:
+            data = b""  # Empty data
+
+        # Create minimal coverage info
+        coverage = CoverageInfo(edges=set(), blocks=set())
+
+        # Add as seed
+        self.add_seed(data, coverage)
+
     def get_next_seed(self) -> Seed | None:
         """Get the next seed for fuzzing based on priority.
 

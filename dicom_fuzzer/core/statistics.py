@@ -270,7 +270,7 @@ class StatisticsCollector:
 
         return self.total_iterations
 
-    def get_strategy_ranking(self) -> list[tuple]:
+    def get_strategy_ranking(self) -> list[tuple[str, float]]:
         """Get strategies ranked by effectiveness.
 
         Returns:
