@@ -47,13 +47,16 @@ class MutationStatistics:
     - How long did it take?
     """
 
-    strategy_name: str
+    strategy_name: str = ""
     times_used: int = 0
     unique_outputs: int = 0
     crashes_found: int = 0
     validation_failures: int = 0
     total_duration: float = 0.0
     file_sizes: list[int] = field(default_factory=list)
+    # For compatibility with test expectations
+    total_mutations: int = 0
+    total_executions: int = 0
 
     def effectiveness_score(self) -> float:
         """Calculate effectiveness score (0-1).
@@ -94,6 +97,27 @@ class MutationStatistics:
         if self.file_sizes:
             return sum(self.file_sizes) // len(self.file_sizes)
         return 0
+
+    def record_mutation(self, strategy: str) -> None:
+        """Record a mutation operation (for test compatibility).
+
+        Args:
+            strategy: Name of mutation strategy used
+
+        """
+        self.strategy_name = strategy
+        self.times_used += 1
+        self.total_mutations += 1
+
+    def record_execution(self, duration: float) -> None:
+        """Record an execution (for test compatibility).
+
+        Args:
+            duration: Execution duration in seconds
+
+        """
+        self.total_executions += 1
+        self.total_duration += duration
 
 
 class StatisticsCollector:

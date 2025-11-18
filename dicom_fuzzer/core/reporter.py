@@ -138,6 +138,40 @@ class ReportGenerator:
 
         return report_path
 
+    def generate_report(
+        self, report_data: dict, format: str = "json", campaign_name: str = "DICOM Fuzzing"
+    ) -> Path:
+        """Generate a general report (for test compatibility).
+
+        Args:
+            report_data: Dictionary with report data
+            format: Report format ('json' or 'html')
+            campaign_name: Name of fuzzing campaign
+
+        Returns:
+            Path to generated report
+
+        """
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        if format == "json":
+            report_path = self.output_dir / f"report_{timestamp}.json"
+            with open(report_path, "w", encoding="utf-8") as f:
+                json.dump(report_data, f, indent=2)
+        else:  # html
+            report_path = self.output_dir / f"report_{timestamp}.html"
+            html = self._generate_html_header(campaign_name)
+            html += "<div class='section'><h2>Report Data</h2>"
+            html += "<table border='1' style='width: 100%; border-collapse: collapse;'>"
+            for key, value in report_data.items():
+                html += f"<tr><td style='padding: 8px;'><strong>{key}</strong></td><td style='padding: 8px;'>{value}</td></tr>"
+            html += "</table></div>"
+            html += self._generate_html_footer()
+            with open(report_path, "w", encoding="utf-8") as f:
+                f.write(html)
+
+        return report_path
+
     def _crash_to_dict(self, crash: CrashReport) -> dict:
         """Convert CrashReport to dictionary."""
         return {
