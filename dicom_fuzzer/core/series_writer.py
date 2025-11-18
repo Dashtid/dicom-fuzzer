@@ -74,6 +74,15 @@ class SeriesMetadata:
         data["output_directory"] = str(self.output_directory)
         return data
 
+    def get_output_paths(self) -> list[Path]:
+        """Get list of full output file paths.
+
+        Returns:
+            List of Path objects to written DICOM files
+
+        """
+        return [self.output_directory / fname for fname in self.slice_files]
+
 
 class SeriesWriter:
     """Write DICOM series to disk with comprehensive metadata tracking.
@@ -96,7 +105,7 @@ class SeriesWriter:
     def write_series(
         self,
         series: DicomSeries,
-        datasets: list[Dataset],
+        datasets: list[Dataset] | None = None,
         mutation_strategy: str | None = None,
         mutations_applied: list[dict] | None = None,
         original_series: DicomSeries | None = None,
@@ -105,7 +114,8 @@ class SeriesWriter:
 
         Args:
             series: DicomSeries object with metadata
-            datasets: List of pydicom Dataset objects to write (one per slice)
+            datasets: List of pydicom Dataset objects to write (one per slice).
+                     If None, loads datasets from series.slices paths.
             mutation_strategy: Name of mutation strategy applied (if any)
             mutations_applied: List of mutation records (if any)
             original_series: Original series before fuzzing (for comparison)
@@ -118,6 +128,19 @@ class SeriesWriter:
             IOError: If write fails
 
         """
+        # Load datasets from series if not provided
+        if datasets is None:
+            import pydicom
+
+            datasets = []
+            for slice_path in series.slices:
+                try:
+                    ds = pydicom.dcmread(slice_path)
+                    datasets.append(ds)
+                except Exception as e:
+                    logger.error(f"Failed to read slice {slice_path}: {e}")
+                    raise OSError(f"Failed to read slice {slice_path}: {e}") from e
+
         if len(datasets) != series.slice_count:
             raise ValueError(
                 f"Dataset count ({len(datasets)}) does not match series slice count "

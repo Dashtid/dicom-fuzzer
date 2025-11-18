@@ -31,13 +31,19 @@ except ImportError:
 # Mock class for test compatibility
 class FuzzingSession:
     """Mock fuzzing session class for test compatibility."""
+
     pass
 
 
 class RealtimeMonitor:
     """Real-time monitoring of fuzzing campaigns."""
 
-    def __init__(self, session_dir: Path = None, refresh_interval: int = 1, session_id: str = None):
+    def __init__(
+        self,
+        session_dir: Path = None,
+        refresh_interval: int = 1,
+        session_id: str = None,
+    ):
         """Initialize real-time monitor.
 
         Args:
@@ -211,16 +217,22 @@ def main():
 
 # Additional functions for test compatibility
 
-def display_stats(stats: dict):
+
+def display_stats(stats: dict, console=None):
     """Display statistics in a formatted table.
 
     Args:
         stats: Dictionary containing fuzzing statistics
+        console: Optional Console instance (for dependency injection/testing)
+
     """
     if Console is not None:
         from rich.table import Table
 
-        console = Console()
+        # Use injected console or create new one
+        if console is None:
+            console = Console()
+
         table = Table(title="Fuzzing Statistics")
 
         table.add_column("Metric", style="cyan")
@@ -248,6 +260,7 @@ def monitor_loop(session_id: str, update_interval: int = 1):
 
     Raises:
         KeyboardInterrupt: When user stops monitoring
+
     """
     while True:
         stats = get_session_stats(session_id)
@@ -263,15 +276,11 @@ def get_session_stats(session_id: str) -> dict:
 
     Returns:
         dict: Session statistics
+
     """
     # Mock implementation for test compatibility
     # In production, this would read from actual session storage
-    return {
-        "iterations": 0,
-        "crashes": 0,
-        "coverage": 0.0,
-        "exec_speed": 0.0
-    }
+    return {"iterations": 0, "crashes": 0, "coverage": 0.0, "exec_speed": 0.0}
 
 
 if __name__ == "__main__":

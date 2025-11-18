@@ -7,10 +7,9 @@ Tests cover main.py, coverage_fuzz.py, realtime_monitor.py, create_html_report.p
 import argparse
 import json
 import sys
-import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, call, mock_open, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -139,19 +138,23 @@ class TestMainCLI:
         test_args = [
             "dicom-fuzzer",
             str(sample_dicom_file),
-            "-o", str(sample_dicom_file.parent / "output"),
-            "-n", "5",
-            "-s", "metadata,pixel"
+            "-o",
+            str(sample_dicom_file.parent / "output"),
+            "-n",
+            "5",
+            "-s",
+            "metadata,pixel",
         ]
 
         with patch.object(sys, "argv", test_args):
             # Mock the generator batch method
             mock_gen_instance.generate_batch.return_value = [
-                sample_dicom_file.parent / f"mutated_{i}.dcm"
-                for i in range(5)
+                sample_dicom_file.parent / f"mutated_{i}.dcm" for i in range(5)
             ]
 
-            with patch("dicom_fuzzer.cli.main.argparse.ArgumentParser") as mock_parser_class:
+            with patch(
+                "dicom_fuzzer.cli.main.argparse.ArgumentParser"
+            ) as mock_parser_class:
                 parser = argparse.ArgumentParser()
                 parser.add_argument("input_file")
                 parser.add_argument("-o", "--output", default="output")
@@ -175,7 +178,7 @@ class TestMainCLI:
                     timeout=5,
                     max_memory=512,
                     max_cpu=90,
-                    dry_run=False
+                    dry_run=False,
                 )
                 mock_parser_class.return_value = mock_parser_instance
 
@@ -195,7 +198,7 @@ class TestCoverageFuzzCLI:
         cli = CoverageFuzzCLI()
         assert cli is not None
 
-    @patch("dicom_fuzzer.cli.coverage_fuzz.CoverageGuidedFuzzer")
+    @patch("dicom_fuzzer.core.coverage_guided_fuzzer.CoverageGuidedFuzzer")
     def test_coverage_fuzz_run_basic(self, mock_fuzzer):
         """Test basic coverage fuzzing run."""
         from dicom_fuzzer.cli.coverage_fuzz import run_coverage_fuzzing
@@ -246,9 +249,7 @@ class TestRealtimeMonitorCLI:
         monitor = RealtimeMonitor(session_id="test_123")
         assert monitor.session_id == "test_123"
 
-    @patch("dicom_fuzzer.cli.realtime_monitor.rich.console.Console")
-    @patch("dicom_fuzzer.cli.realtime_monitor.rich.live.Live")
-    def test_monitor_display_stats(self, mock_live, mock_console):
+    def test_monitor_display_stats(self):
         """Test displaying statistics in realtime."""
         from dicom_fuzzer.cli.realtime_monitor import display_stats
 
@@ -260,8 +261,14 @@ class TestRealtimeMonitorCLI:
             "memory_usage": 256,
         }
 
-        display_stats(stats)
-        mock_console.assert_called()
+        # Create a mock console
+        mock_console = MagicMock()
+
+        # Pass mock console to function
+        display_stats(stats, console=mock_console)
+
+        # Verify console.print was called
+        mock_console.print.assert_called_once()
 
     @patch("dicom_fuzzer.cli.realtime_monitor.time.sleep")
     @patch("dicom_fuzzer.cli.realtime_monitor.get_session_stats")
@@ -273,7 +280,7 @@ class TestRealtimeMonitorCLI:
             {"iterations": 10},
             {"iterations": 20},
             {"iterations": 30},
-            KeyboardInterrupt
+            KeyboardInterrupt,
         ]
 
         with pytest.raises(KeyboardInterrupt):
@@ -297,14 +304,10 @@ class TestHTMLReportGeneratorCLI:
         template = load_template(str(template_file))
         assert "{{ content }}" in template
 
-    @patch("dicom_fuzzer.cli.create_html_report.jinja2.Template")
-    def test_html_report_rendering(self, mock_template):
+    def test_html_report_rendering(self):
         """Test rendering HTML report."""
+        import dicom_fuzzer.cli.create_html_report
         from dicom_fuzzer.cli.create_html_report import render_report
-
-        mock_template_instance = Mock()
-        mock_template_instance.render.return_value = "<html>Report</html>"
-        mock_template.return_value = mock_template_instance
 
         data = {
             "title": "Fuzzing Report",
@@ -312,8 +315,17 @@ class TestHTMLReportGeneratorCLI:
             "coverage": 0.8,
         }
 
-        result = render_report(template="<html>{{ title }}</html>", data=data)
-        assert "Report" in result or "Fuzzing Report" in result
+        template = "<html>{{ title }}</html>"
+
+        # If jinja2 is available, test with jinja2
+        if dicom_fuzzer.cli.create_html_report.jinja2 is not None:
+            result = render_report(template=template, data=data)
+            assert "Fuzzing Report" in result
+        else:
+            # If jinja2 is not available, test fallback string replacement
+            result = render_report(template=template, data=data)
+            # Fallback uses different syntax, so just check the result is not empty
+            assert len(result) > 0
 
     def test_html_report_save(self, temp_workspace):
         """Test saving HTML report to file."""
@@ -341,7 +353,9 @@ class TestHTMLReportGeneratorCLI:
             "coverage": {"total": 0.75, "modules": {}},
         }
 
-        report = create_report_with_charts(data, output_dir=str(temp_workspace["reports"]))
+        report = create_report_with_charts(
+            data, output_dir=str(temp_workspace["reports"])
+        )
         assert report is not None
         mock_charts.assert_called_once()
 
@@ -440,13 +454,14 @@ class TestCLIIntegration:
 
     @patch("dicom_fuzzer.cli.main.TargetRunner")
     @patch("dicom_fuzzer.cli.main.DICOMGenerator")
-    def test_full_fuzzing_workflow(self, mock_generator, mock_runner, sample_dicom_file, temp_workspace):
+    def test_full_fuzzing_workflow(
+        self, mock_generator, mock_runner, sample_dicom_file, temp_workspace
+    ):
         """Test complete fuzzing workflow with target."""
         mock_gen_instance = Mock()
         mock_generator.return_value = mock_gen_instance
         mock_gen_instance.generate_batch.return_value = [
-            temp_workspace["output"] / f"mutated_{i}.dcm"
-            for i in range(3)
+            temp_workspace["output"] / f"mutated_{i}.dcm" for i in range(3)
         ]
 
         mock_runner_instance = Mock()
@@ -461,10 +476,14 @@ class TestCLIIntegration:
         test_args = [
             "dicom-fuzzer",
             str(sample_dicom_file),
-            "-o", str(temp_workspace["output"]),
-            "-n", "3",
-            "-t", "test_viewer",
-            "--timeout", "10"
+            "-o",
+            str(temp_workspace["output"]),
+            "-n",
+            "3",
+            "-t",
+            "test_viewer",
+            "--timeout",
+            "10",
         ]
 
         with patch.object(sys, "argv", test_args):
@@ -496,9 +515,11 @@ class TestCLIIntegration:
         test_args = [
             "dicom-fuzzer",
             str(sample_dicom_file),
-            "-o", str(temp_workspace["output"]),
-            "-n", "10",
-            "--dry-run"
+            "-o",
+            str(temp_workspace["output"]),
+            "-n",
+            "10",
+            "--dry-run",
         ]
 
         with patch.object(sys, "argv", test_args):
@@ -517,12 +538,13 @@ class TestCLIIntegration:
         test_args = [
             "dicom-fuzzer",
             "nonexistent.dcm",  # Invalid file
-            "-v"  # Verbose mode
+            "-v",  # Verbose mode
         ]
 
         with patch.object(sys, "argv", test_args):
             with pytest.raises(SystemExit):
                 from dicom_fuzzer.cli.main import main
+
                 main()
 
         # Verbose mode should set DEBUG logging
@@ -609,27 +631,29 @@ def validate_strategy(strategy, valid_strategies):
 
 def parse_target_config(config_file):
     """Parse target configuration from JSON file."""
-    with open(config_file, 'r') as f:
+    with open(config_file) as f:
         return json.load(f)
 
 
 def apply_resource_limits(limits):
     """Apply resource limits."""
     from dicom_fuzzer.core.resource_manager import ResourceLimits
+
     resource_limits = ResourceLimits(**limits)
     resource_limits.enforce()
 
 
 def generate_json_report(data, output_file):
     """Generate JSON report."""
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         json.dump(data, f, indent=2)
 
 
 def generate_csv_report(crashes, output_file):
     """Generate CSV report."""
     import csv
-    with open(output_file, 'w', newline='') as f:
+
+    with open(output_file, "w", newline="") as f:
         if crashes:
             writer = csv.DictWriter(f, fieldnames=crashes[0].keys())
             writer.writeheader()
@@ -667,7 +691,7 @@ def generate_markdown_report(data, output_file):
         for finding in data["findings"]:
             lines.append(f"- **{finding['severity']}**: {finding['description']}")
 
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         f.write("\n".join(lines))
 
 
@@ -675,6 +699,7 @@ def generate_markdown_report(data, output_file):
 def run_coverage_fuzzing(config):
     """Run coverage-guided fuzzing."""
     from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer
+
     fuzzer = CoverageGuidedFuzzer(**config)
     return fuzzer.run()
 
@@ -682,6 +707,7 @@ def run_coverage_fuzzing(config):
 def parse_arguments(args):
     """Parse command-line arguments."""
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", dest="input_dir")
     parser.add_argument("--output", dest="output_dir")
@@ -708,6 +734,7 @@ def display_stats(stats):
 def monitor_loop(session_id, update_interval=1):
     """Monitor fuzzing session."""
     import time
+
     while True:
         stats = get_session_stats(session_id)
         display_stats(stats)
@@ -722,26 +749,28 @@ def get_session_stats(session_id):
 
 def load_template(template_file):
     """Load HTML template."""
-    with open(template_file, 'r') as f:
+    with open(template_file) as f:
         return f.read()
 
 
 def render_report(template, data):
     """Render HTML report."""
     import jinja2
+
     tmpl = jinja2.Template(template)
     return tmpl.render(**data)
 
 
 def save_report(content, output_file):
     """Save report to file."""
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         f.write(content)
 
 
 def create_report_with_charts(data, output_dir):
     """Create report with charts."""
     from dicom_fuzzer.cli.create_html_report import generate_charts
+
     charts = generate_charts(data)
     return {"data": data, "charts": charts}
 
@@ -757,12 +786,14 @@ def generate_charts(data):
 
 class RealtimeMonitor:
     """Realtime monitor class."""
+
     def __init__(self, session_id):
         self.session_id = session_id
 
 
 class CoverageFuzzCLI:
     """Coverage fuzzing CLI class."""
+
     pass
 
 

@@ -165,7 +165,8 @@ class CrashAnalyzer:
     def analyze_crash(self, crash_file: Path, exception: Exception) -> dict:
         """Analyze a crash and return results as dictionary.
 
-        This method provides compatibility with test expectations.
+        This method provides compatibility with test expectations and uses
+        the mockable alias methods for testing.
 
         Args:
             crash_file: Path to file that caused crash
@@ -175,15 +176,32 @@ class CrashAnalyzer:
             Dictionary with crash analysis results
 
         """
-        report = self.analyze_exception(exception, str(crash_file))
+        # Use mockable alias methods for test compatibility
+        crash_type_str = self._get_crash_type(exception)
+        severity_str = self._calculate_severity(crash_type_str, exception)
+
+        # Get stack trace for hash generation
+        stack_trace = "".join(
+            traceback.format_exception(
+                type(exception), exception, exception.__traceback__
+            )
+        )
+
+        # Create crash hash
+        crash_hash = self._generate_crash_hash(stack_trace, str(exception))
+
+        # Generate unique crash ID
+        crash_id = f"crash_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{crash_hash[:8]}"
+
+        # Check exploitability
+        exploitable = severity_str in ["critical", "high"]
 
         return {
-            "severity": report.severity.value,
-            "type": report.crash_type.value,
-            "exploitable": report.severity
-            in [CrashSeverity.CRITICAL, CrashSeverity.HIGH],
-            "crash_id": report.crash_id,
-            "crash_hash": report.crash_hash,
+            "type": crash_type_str,
+            "severity": severity_str,
+            "exploitable": exploitable,
+            "crash_id": crash_id,
+            "crash_hash": crash_hash,
         }
 
     def _classify_exception(self, exception: Exception) -> CrashType:
@@ -258,6 +276,33 @@ class CrashAnalyzer:
 
         # Default
         return CrashSeverity.MEDIUM
+
+    def _get_crash_type(self, exception: Exception) -> str:
+        """Alias for _classify_exception for test compatibility.
+
+        Args:
+            exception: Exception to classify
+
+        Returns:
+            Crash type as string
+
+        """
+        return self._classify_exception(exception).value
+
+    def _calculate_severity(self, crash_type_str: str, exception: Exception) -> str:
+        """Alias for _determine_severity for test compatibility.
+
+        Args:
+            crash_type_str: Crash type string
+            exception: Exception
+
+        Returns:
+            Severity as string
+
+        """
+        # Convert string back to CrashType enum
+        crash_type = CrashType(crash_type_str)
+        return self._determine_severity(crash_type, exception).value
 
     def _generate_crash_hash(self, stack_trace: str, exception_msg: str) -> str:
         """Generate hash for crash deduplication.
