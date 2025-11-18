@@ -22,6 +22,7 @@ class CoverageCorrelator:
         """
         self.coverage_file = coverage_file or Path("reports/coverage/.coverage")
         self.coverage_data = {}
+        self.data_points = []  # For incremental data collection
 
         if self.coverage_file.exists():
             self._load_coverage()
@@ -181,6 +182,126 @@ class CoverageCorrelator:
         if len(hotspots) > 3:
             recommendations.append(
                 f"Diversify mutation strategies - {len(hotspots)} different areas showing vulnerabilities"
+            )
+
+        return recommendations
+
+    def add_data_point(
+        self, mutation_type: str, coverage: float, crash_found: bool
+    ) -> None:
+        """Add a data point for incremental correlation analysis.
+
+        Args:
+            mutation_type: Type of mutation applied
+            coverage: Coverage percentage achieved (0.0-1.0)
+            crash_found: Whether a crash was triggered
+
+        """
+        self.data_points.append(
+            {
+                "mutation_type": mutation_type,
+                "coverage": coverage,
+                "crash_found": crash_found,
+            }
+        )
+
+    def analyze(self) -> dict:
+        """Analyze collected data points for mutation effectiveness.
+
+        Returns:
+            Analysis dictionary with mutation effectiveness and coverage trends
+
+        """
+        if not self.data_points:
+            return {"mutation_effectiveness": {}, "coverage_trends": {}}
+
+        # Group by mutation type
+        mutation_stats = {}
+        for point in self.data_points:
+            mut_type = point["mutation_type"]
+            if mut_type not in mutation_stats:
+                mutation_stats[mut_type] = {
+                    "total_runs": 0,
+                    "crashes": 0,
+                    "total_coverage": 0.0,
+                    "avg_coverage": 0.0,
+                    "crash_rate": 0.0,
+                }
+
+            stats = mutation_stats[mut_type]
+            stats["total_runs"] += 1
+            if point["crash_found"]:
+                stats["crashes"] += 1
+            stats["total_coverage"] += point["coverage"]
+
+        # Calculate averages
+        for stats in mutation_stats.values():
+            stats["avg_coverage"] = stats["total_coverage"] / stats["total_runs"]
+            stats["crash_rate"] = stats["crashes"] / stats["total_runs"]
+            del stats["total_coverage"]  # Remove intermediate value
+
+        # Coverage trends (overall)
+        total_coverage = sum(p["coverage"] for p in self.data_points)
+        avg_coverage = total_coverage / len(self.data_points)
+        total_crashes = sum(1 for p in self.data_points if p["crash_found"])
+
+        coverage_trends = {
+            "average_coverage": avg_coverage,
+            "total_data_points": len(self.data_points),
+            "total_crashes": total_crashes,
+            "overall_crash_rate": total_crashes / len(self.data_points),
+        }
+
+        return {
+            "mutation_effectiveness": mutation_stats,
+            "coverage_trends": coverage_trends,
+        }
+
+    def get_recommendations(self) -> list[str]:
+        """Get fuzzing recommendations based on collected data.
+
+        Returns:
+            List of recommendation strings
+
+        """
+        analysis = self.analyze()
+        recommendations = []
+
+        mutation_stats = analysis.get("mutation_effectiveness", {})
+        if not mutation_stats:
+            return ["Collect more data to generate recommendations"]
+
+        # Find most effective mutation (highest crash rate)
+        best_mutation = max(
+            mutation_stats.items(), key=lambda x: x[1]["crash_rate"], default=None
+        )
+
+        if best_mutation:
+            mut_type, stats = best_mutation
+            crash_rate = stats["crash_rate"] * 100
+            recommendations.append(
+                f"Focus on {mut_type} mutations - {crash_rate:.1f}% crash rate "
+                f"({stats['crashes']}/{stats['total_runs']} runs)"
+            )
+
+        # Find best coverage
+        best_coverage = max(
+            mutation_stats.items(), key=lambda x: x[1]["avg_coverage"], default=None
+        )
+
+        if best_coverage and best_coverage != best_mutation:
+            mut_type, stats = best_coverage
+            avg_cov = stats["avg_coverage"] * 100
+            recommendations.append(
+                f"{mut_type} mutations achieve best coverage ({avg_cov:.1f}% average)"
+            )
+
+        # Overall trends
+        trends = analysis.get("coverage_trends", {})
+        overall_crash_rate = trends.get("overall_crash_rate", 0) * 100
+        if overall_crash_rate > 50:
+            recommendations.append(
+                f"High crash rate detected ({overall_crash_rate:.1f}%) - consider more stability testing"
             )
 
         return recommendations
