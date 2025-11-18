@@ -194,14 +194,15 @@ class TestCompleteWorkflowIntegration:
 
         dataset = pydicom.dcmread(str(sample_dicom_file))
 
-        # Create corpus entry with proper arguments (CorpusEntry from corpus.py)
-        entry = CorpusEntry(
+        # Add entry to corpus using correct API
+        # CorpusManager.add_entry expects: (entry_id, dataset, coverage, parent_id, crash_triggered)
+        corpus.add_entry(
             entry_id="test_entry_001",
             dataset=dataset,
-            metadata=metadata,
+            coverage=None,
+            parent_id=None,
+            crash_triggered=False
         )
-        # Add entry to corpus (corpus.py has add_entry method)
-        corpus.add_entry(entry)
 
         # Initialize mutator
         mutator = DicomMutator()
