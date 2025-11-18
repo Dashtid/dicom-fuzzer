@@ -274,6 +274,18 @@ class CoverageTracker:
 
             self.total_executions += 1
 
+    def track_execution(self, test_case_id: str):
+        """Alias for trace_execution for test compatibility.
+
+        Args:
+            test_case_id: Identifier for this test case
+
+        Yields:
+            CoverageSnapshot after execution completes
+
+        """
+        return self.trace_execution(test_case_id)
+
     def is_interesting(self, snapshot: CoverageSnapshot) -> bool:
         """Determine if a coverage snapshot is interesting (provides new coverage).
 

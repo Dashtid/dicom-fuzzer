@@ -6,7 +6,7 @@ Learns which mutations are most effective for discovering new code paths.
 
 import random
 import struct
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -60,12 +60,13 @@ class MutationStrategy:
     mutation_type: MutationType
     success_count: int = 0
     total_count: int = 0
-    coverage_gains: list[int] = None
+    coverage_gains: list[int] = field(default_factory=list)
     weight: float = 1.0
     enabled: bool = True
 
-    def __post_init__(self):
-        if self.coverage_gains is None:
+    def __post_init__(self) -> None:
+        """Initialize coverage gains list if needed."""
+        if not self.coverage_gains:
             self.coverage_gains = []
 
     @property
@@ -183,12 +184,12 @@ class CoverageGuidedMutator:
                 self.strategies[mutation_type].enabled = False
 
     def mutate(
-        self, seed: Seed, coverage_info: CoverageInfo | None = None
+        self, seed: Seed | bytes, coverage_info: CoverageInfo | None = None
     ) -> list[tuple[bytes, MutationType]]:
         """Mutate a seed to generate new test cases.
 
         Args:
-            seed: Seed to mutate
+            seed: Seed object or raw bytes to mutate
             coverage_info: Optional coverage information for guided mutations
 
         Returns:
@@ -196,11 +197,18 @@ class CoverageGuidedMutator:
 
         """
         mutations = []
-        data = bytearray(seed.data)
+
+        # Handle both Seed objects and raw bytes
+        if isinstance(seed, bytes):
+            data = bytearray(seed)
+            energy = 1.0  # Default energy for bytes input
+        else:
+            data = bytearray(seed.data)
+            energy = seed.energy
 
         # Determine number of mutations based on seed energy
         num_mutations = min(
-            self.max_mutations, max(1, int(seed.energy * random.randint(1, 5)))
+            self.max_mutations, max(1, int(energy * random.randint(1, 5)))
         )
 
         for _ in range(num_mutations):
@@ -245,7 +253,8 @@ class CoverageGuidedMutator:
         else:
             weights = [1.0 / len(strategies)] * len(strategies)
 
-        return np.random.choice(strategies, p=weights)
+        chosen = np.random.choice(strategies, p=weights)
+        return MutationType(chosen) if not isinstance(chosen, MutationType) else chosen
 
     def _apply_mutation(
         self, data: bytearray, mutation_type: MutationType

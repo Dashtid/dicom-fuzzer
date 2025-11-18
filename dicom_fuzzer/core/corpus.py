@@ -115,6 +115,27 @@ class CorpusEntry:
         if path:
             self._dataset_path = path
 
+    @property
+    def data(self) -> bytes:
+        """Get the dataset as bytes for mutation.
+
+        Used by coverage-guided mutation to access raw DICOM bytes.
+
+        Returns:
+            Serialized DICOM dataset as bytes
+
+        """
+        import io
+
+        dataset = self.get_dataset()
+        if dataset is None:
+            return b""
+
+        # Serialize dataset to bytes
+        output = io.BytesIO()
+        dataset.save_as(output, write_like_original=False)
+        return output.getvalue()
+
     def to_dict(self) -> dict[str, Any]:
         """Convert entry to dictionary (for JSON serialization).
 
@@ -189,8 +210,8 @@ class CorpusManager:
 
     def add_entry(
         self,
-        entry_id: str,
-        dataset: Dataset,
+        entry_id: str | CorpusEntry,
+        dataset: Dataset | None = None,
         coverage: CoverageSnapshot | None = None,
         parent_id: str | None = None,
         crash_triggered: bool = False,
@@ -200,9 +221,11 @@ class CorpusManager:
         CONCEPT: We only add test cases that provide value - either new coverage,
         or crash-triggering capabilities.
 
+        Supports both new API (individual parameters) and old API (CorpusEntry object).
+
         Args:
-            entry_id: Unique identifier for this entry
-            dataset: DICOM dataset to add
+            entry_id: Unique identifier OR CorpusEntry object
+            dataset: DICOM dataset to add (optional if entry_id is CorpusEntry)
             coverage: Coverage snapshot for this test case
             parent_id: Parent entry ID if this is a mutation
             crash_triggered: Whether this test case caused a crash
@@ -211,6 +234,27 @@ class CorpusManager:
             True if entry was added, False if rejected
 
         """
+        # Handle CorpusEntry object for backward compatibility
+        if isinstance(entry_id, CorpusEntry):
+            entry = entry_id
+            entry_id = entry.entry_id
+            dataset = entry.dataset
+            coverage = entry.coverage if hasattr(entry, "coverage") else coverage
+            parent_id = (
+                entry.metadata.get("parent_id")
+                if hasattr(entry, "metadata") and entry.metadata
+                else parent_id
+            )
+            crash_triggered = (
+                entry.metadata.get("crash_triggered", False)
+                if hasattr(entry, "metadata") and entry.metadata
+                else crash_triggered
+            )
+
+        # Validate dataset
+        if dataset is None:
+            raise ValueError("dataset is required")
+
         # Calculate fitness score
         fitness = self._calculate_fitness(dataset, coverage, crash_triggered)
 
@@ -304,6 +348,19 @@ class CorpusManager:
         )
         return sorted_entries[:count]
 
+    def get_best_seed(self) -> CorpusEntry | None:
+        """Get the best seed for mutation.
+
+        CONCEPT: Returns the single best entry for mutation purposes.
+        Used in coverage-guided fuzzing workflows.
+
+        Returns:
+            Best corpus entry, or None if corpus is empty
+
+        """
+        best = self.get_best_entries(count=1)
+        return best[0] if best else None
+
     def get_random_entry(self) -> CorpusEntry | None:
         """Get a random entry from the corpus.
 
@@ -325,6 +382,15 @@ class CorpusManager:
     def get_entry(self, entry_id: str) -> CorpusEntry | None:
         """Get a specific entry by ID."""
         return self.corpus.get(entry_id)
+
+    def size(self) -> int:
+        """Get the current size of the corpus.
+
+        Returns:
+            Number of entries in the corpus
+
+        """
+        return len(self.corpus)
 
     def _calculate_fitness(
         self, dataset: Dataset, coverage: CoverageSnapshot | None, crash: bool
