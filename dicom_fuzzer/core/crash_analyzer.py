@@ -24,6 +24,8 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
+from dicom_fuzzer.utils.identifiers import generate_crash_id
+
 
 class CrashSeverity(Enum):
     """Crash severity classification.
@@ -142,7 +144,7 @@ class CrashAnalyzer:
         crash_hash = self._generate_crash_hash(stack_trace, str(exception))
 
         # Generate unique crash ID
-        crash_id = f"crash_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{crash_hash[:8]}"
+        crash_id = generate_crash_id(crash_hash)
 
         # Create crash report
         report = CrashReport(
@@ -191,7 +193,7 @@ class CrashAnalyzer:
         crash_hash = self._generate_crash_hash(stack_trace, str(exception))
 
         # Generate unique crash ID
-        crash_id = f"crash_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{crash_hash[:8]}"
+        crash_id = generate_crash_id(crash_hash)
 
         # Check exploitability
         exploitable = severity_str in ["critical", "high"]
