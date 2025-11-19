@@ -274,6 +274,211 @@ class TestEdgeCases:
         assert ds1.PatientName == ds2.PatientName == ds3.PatientName
         assert ds1.SeriesInstanceUID == ds2.SeriesInstanceUID == ds3.SeriesInstanceUID
 
+    def test_load_pixels_already_loaded(self, sample_dicom_file):
+        """Test load_pixels when dataset already has pixel data (lines 121-122)."""
+        loader = LazyDicomLoader(metadata_only=False)
+
+        # Load full dataset with pixel data
+        ds = loader.load(sample_dicom_file)
+        assert hasattr(ds, "PixelData")
+        assert isinstance(ds.PixelData, bytes)
+
+        # Attempting to load pixels again should return existing pixel data
+        # and log a warning (lines 121-122)
+        pixel_data = loader.load_pixels(ds, sample_dicom_file)
+        assert pixel_data == ds.PixelData
+        assert len(pixel_data) == 64 * 64 * 2
+
+    def test_load_pixels_nonexistent_file(self, tmp_path):
+        """Test load_pixels with non-existent file (line 125)."""
+        loader = LazyDicomLoader(metadata_only=True)
+
+        # Create a minimal dataset
+        ds = Dataset()
+        ds.PatientName = "Test^Patient"
+
+        # Try to load pixels from non-existent file
+        nonexistent_path = tmp_path / "nonexistent.dcm"
+        with pytest.raises(FileNotFoundError):
+            loader.load_pixels(ds, nonexistent_path)
+
+    def test_load_pixels_exception_handling(self, tmp_path):
+        """Test load_pixels exception handling (lines 143-145)."""
+        loader = LazyDicomLoader(metadata_only=True, force=False)
+
+        # Create a completely invalid file that cannot be read even with force=False
+        invalid_file = tmp_path / "invalid.dcm"
+        invalid_file.write_bytes(
+            b"\x00" * 100
+        )  # Binary garbage that pydicom cannot parse
+
+        # Create a minimal dataset
+        ds = Dataset()
+        ds.PatientName = "Test^Patient"
+
+        # Attempting to load pixels from invalid file should raise exception
+        with pytest.raises(Exception):
+            loader.load_pixels(ds, invalid_file)
+
+    def test_load_exception_handling(self, tmp_path):
+        """Test load exception handling (lines 102-103)."""
+        loader = LazyDicomLoader(metadata_only=False, force=False)
+
+        # Create a corrupted DICOM file
+        corrupted_file = tmp_path / "corrupted.dcm"
+        corrupted_file.write_bytes(b"DICM" + b"\x00" * 100)  # Invalid DICOM data
+
+        # Attempting to load corrupted file should raise exception
+        with pytest.raises(Exception):
+            loader.load(corrupted_file)
+
+
+class TestBatchLoading:
+    """Test batch loading functionality (lines 157-171)."""
+
+    def test_load_batch_success(self, tmp_path):
+        """Test successful batch loading of multiple files (lines 157-169)."""
+        # Create multiple DICOM files
+        file_paths = []
+        for i in range(3):
+            file_meta = FileMetaDataset()
+            file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+            file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+            file_meta.MediaStorageSOPInstanceUID = generate_uid()
+            file_meta.ImplementationClassUID = generate_uid()
+
+            ds = Dataset()
+            ds.file_meta = file_meta
+            ds.is_implicit_VR = True
+            ds.is_little_endian = True
+            ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+            ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+            ds.PatientName = f"Patient^{i}"
+            ds.PatientID = str(i)
+            ds.SeriesInstanceUID = generate_uid()
+            ds.StudyInstanceUID = generate_uid()
+            ds.Modality = "CT"
+
+            # Add pixel data
+            ds.Rows = 32
+            ds.Columns = 32
+            ds.BitsAllocated = 16
+            ds.BitsStored = 16
+            ds.HighBit = 15
+            ds.SamplesPerPixel = 1
+            ds.PixelRepresentation = 0
+            ds.PhotometricInterpretation = "MONOCHROME2"
+            ds.PixelData = b"\x00" * (32 * 32 * 2)
+
+            file_path = tmp_path / f"file_{i}.dcm"
+            ds.save_as(file_path, write_like_original=False)
+            file_paths.append(file_path)
+
+        # Batch load with metadata-only
+        loader = LazyDicomLoader(metadata_only=True)
+        datasets = loader.load_batch(file_paths)
+
+        # All files should be loaded
+        assert len(datasets) == 3
+        for i, ds in enumerate(datasets):
+            assert ds.PatientName == f"Patient^{i}"
+            assert ds.PatientID == str(i)
+
+    def test_load_batch_with_invalid_files(self, tmp_path):
+        """Test batch loading with some invalid files (lines 162-164)."""
+        # Create mix of valid and invalid files
+        file_paths = []
+
+        # Valid file 1
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = generate_uid()
+        file_meta.ImplementationClassUID = generate_uid()
+
+        ds = Dataset()
+        ds.file_meta = file_meta
+        ds.is_implicit_VR = True
+        ds.is_little_endian = True
+        ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+        ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+        ds.PatientName = "Valid^Patient"
+        ds.PatientID = "123"
+        ds.SeriesInstanceUID = generate_uid()
+        ds.StudyInstanceUID = generate_uid()
+        ds.Modality = "CT"
+
+        valid_file = tmp_path / "valid.dcm"
+        ds.save_as(valid_file, write_like_original=False)
+        file_paths.append(valid_file)
+
+        # Invalid file
+        invalid_file = tmp_path / "invalid.dcm"
+        invalid_file.write_bytes(b"NOT_DICOM")
+        file_paths.append(invalid_file)
+
+        # Non-existent file
+        file_paths.append(tmp_path / "nonexistent.dcm")
+
+        # Batch load - should skip invalid files and continue
+        loader = LazyDicomLoader(metadata_only=True, force=False)
+        datasets = loader.load_batch(file_paths)
+
+        # Only the valid file should be loaded (1 out of 3)
+        assert len(datasets) == 1
+        assert datasets[0].PatientName == "Valid^Patient"
+
+    def test_load_batch_empty_list(self):
+        """Test batch loading with empty list (lines 166-169)."""
+        loader = LazyDicomLoader(metadata_only=True)
+        datasets = loader.load_batch([])
+
+        # Should return empty list
+        assert datasets == []
+
+    def test_load_batch_full_loading(self, tmp_path):
+        """Test batch loading with full pixel data loading (line 168)."""
+        # Create DICOM file with pixel data
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = generate_uid()
+        file_meta.ImplementationClassUID = generate_uid()
+
+        ds = Dataset()
+        ds.file_meta = file_meta
+        ds.is_implicit_VR = True
+        ds.is_little_endian = True
+        ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+        ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+        ds.PatientName = "Test^Patient"
+        ds.SeriesInstanceUID = generate_uid()
+        ds.StudyInstanceUID = generate_uid()
+        ds.Modality = "CT"
+
+        # Add pixel data
+        ds.Rows = 16
+        ds.Columns = 16
+        ds.BitsAllocated = 16
+        ds.BitsStored = 16
+        ds.HighBit = 15
+        ds.SamplesPerPixel = 1
+        ds.PixelRepresentation = 0
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.PixelData = b"\x00" * (16 * 16 * 2)
+
+        file_path = tmp_path / "test.dcm"
+        ds.save_as(file_path, write_like_original=False)
+
+        # Batch load with full loading (metadata_only=False)
+        loader = LazyDicomLoader(metadata_only=False)
+        datasets = loader.load_batch([file_path])
+
+        # Should have pixel data loaded
+        assert len(datasets) == 1
+        assert hasattr(datasets[0], "PixelData")
+        assert isinstance(datasets[0].PixelData, bytes)
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
