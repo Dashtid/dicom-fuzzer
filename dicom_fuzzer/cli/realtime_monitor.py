@@ -40,10 +40,10 @@ class RealtimeMonitor:
 
     def __init__(
         self,
-        session_dir: Path = None,
+        session_dir: Path | None = None,
         refresh_interval: int = 1,
-        session_id: str = None,
-    ):
+        session_id: str | None = None,
+    ) -> None:
         """Initialize real-time monitor.
 
         Args:
@@ -57,7 +57,7 @@ class RealtimeMonitor:
         self.start_time = time.time()
         self.session_id = session_id
 
-    def monitor(self):
+    def monitor(self) -> None:
         """Start monitoring loop."""
         print("\n" + "=" * 80)
         print("DICOM FUZZER - REAL-TIME MONITOR")
@@ -73,7 +73,7 @@ class RealtimeMonitor:
         except KeyboardInterrupt:
             print("\n\nMonitoring stopped by user")
 
-    def _refresh_display(self):
+    def _refresh_display(self) -> None:
         """Refresh the display with current statistics."""
         # Find latest session JSON
         reports_dir = Path("./reports/json")
@@ -96,12 +96,12 @@ class RealtimeMonitor:
         except Exception as e:
             print(f"Error reading session: {e}")
 
-    def _print_waiting(self):
+    def _print_waiting(self) -> None:
         """Print waiting message."""
         elapsed = time.time() - self.start_time
         print(f"\rWaiting for session data... ({elapsed:.0f}s)", end="", flush=True)
 
-    def _display_stats(self, data: dict):
+    def _display_stats(self, data: dict) -> None:
         """Display statistics from session data."""
         # Clear screen (platform independent)
         print("\033[2J\033[H", end="")
@@ -189,7 +189,7 @@ class RealtimeMonitor:
         print("Press Ctrl+C to stop")
 
 
-def main():
+def main() -> None:
     """Parse arguments and run real-time monitor."""
     parser = argparse.ArgumentParser(
         description="Real-time monitoring for DICOM fuzzing campaigns"
@@ -218,7 +218,7 @@ def main():
 # Additional functions for test compatibility
 
 
-def display_stats(stats: dict, console=None):
+def display_stats(stats: dict, console=None) -> None:
     """Display statistics in a formatted table.
 
     Args:

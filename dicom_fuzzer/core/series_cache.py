@@ -35,10 +35,14 @@ from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from dicom_fuzzer.core.dicom_series import DicomSeries
 
 logger = get_logger(__name__)
 

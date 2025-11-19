@@ -578,9 +578,9 @@ class TestCLIHelpers:
 
         valid_strategies = ["metadata", "pixel", "header", "structure"]
 
-        assert validate_strategy("metadata", valid_strategies) == True
-        assert validate_strategy("invalid", valid_strategies) == False
-        assert validate_strategy("all", valid_strategies) == True
+        assert validate_strategy("metadata", valid_strategies)
+        assert not validate_strategy("invalid", valid_strategies)
+        assert validate_strategy("all", valid_strategies)
 
     def test_parse_target_config(self, temp_workspace):
         """Test parsing target configuration."""
