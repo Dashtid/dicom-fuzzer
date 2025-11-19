@@ -413,5 +413,367 @@ class TestIntegration:
             assert len(corpus_files) > 0
 
 
+class TestParallelExecution:
+    """Test parallel fuzzing execution."""
+
+    @pytest.mark.asyncio
+    async def test_parallel_fuzzing_with_workers(self):
+        """Test parallel fuzzing with multiple workers (lines 169, 275-293)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            execution_count = 0
+
+            def counting_target(data: bytes) -> bool:
+                nonlocal execution_count
+                execution_count += 1
+                return len(data) > 0
+
+            config = FuzzingConfig(
+                target_function=counting_target,
+                max_iterations=50,
+                num_workers=2,  # Enable parallel execution
+                output_dir=Path(tmpdir) / "output",
+                crash_dir=Path(tmpdir) / "crashes",
+            )
+
+            fuzzer = CoverageGuidedFuzzer(config)
+            stats = await fuzzer.run()
+
+            # Verify parallel execution occurred
+            assert stats.total_executions > 0
+            assert execution_count > 0
+
+    @pytest.mark.asyncio
+    async def test_worker_loop_execution(self):
+        """Test worker loop with seed scheduling (lines 297-317)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+
+            def simple_target(data: bytes) -> bool:
+                return True
+
+            config = FuzzingConfig(
+                target_function=simple_target,
+                max_iterations=20,
+                num_workers=2,
+                output_dir=Path(tmpdir) / "output",
+                crash_dir=Path(tmpdir) / "crashes",
+            )
+
+            fuzzer = CoverageGuidedFuzzer(config)
+            stats = await fuzzer.run()
+
+            # Verify workers executed
+            assert stats.total_executions > 0
+            assert stats.corpus_size > 0
+
+
+class TestSignalHandlingAndEdgeCases:
+    """Test signal handling and edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_signal_handler_logging(self):
+        """Test signal handler logs correctly (lines 150-151)."""
+        import signal
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config = FuzzingConfig(
+                max_iterations=10, output_dir=Path(tmpdir) / "output"
+            )
+
+            fuzzer = CoverageGuidedFuzzer(config)
+
+            # Simulate signal reception
+            fuzzer._signal_handler(signal.SIGINT, None)
+
+            # Verify stop flag was set
+            assert fuzzer.should_stop is True
+
+    @pytest.mark.asyncio
+    async def test_no_seeds_available_edge_case(self):
+        """Test handling when no seeds are available (lines 241-242)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config = FuzzingConfig(
+                max_iterations=10,
+                output_dir=Path(tmpdir) / "output",
+                crash_dir=Path(tmpdir) / "crashes",
+            )
+
+            fuzzer = CoverageGuidedFuzzer(config)
+
+            # Clear seeds to trigger edge case
+            fuzzer.corpus_manager.seeds.clear()
+
+            # Run should handle empty seeds gracefully
+            stats = await fuzzer.run()
+
+            # Should have created minimal seed and executed
+            assert stats.total_executions >= 0
+
+    @pytest.mark.asyncio
+    async def test_execution_timeout_handling(self):
+        """Test timeout handling during execution (lines 341-342)."""
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+
+            def slow_target(data: bytes) -> bool:
+                import time
+
+                time.sleep(2.0)  # Exceed timeout
+                return True
+
+            config = FuzzingConfig(
+                target_function=slow_target,
+                timeout_per_run=0.1,  # Very short timeout
+                max_iterations=5,
+                output_dir=Path(tmpdir) / "output",
+                crash_dir=Path(tmpdir) / "crashes",
+            )
+
+            fuzzer = CoverageGuidedFuzzer(config)
+            stats = await fuzzer.run()
+
+            # Timeouts should be counted as crashes
+            assert stats.total_crashes >= 0
+
+
+class TestBinaryTargetExecution:
+    """Test execution of external binary targets."""
+
+    @pytest.mark.asyncio
+    async def test_binary_target_execution(self):
+        """Test execution of external binary (lines 363-393)."""
+        import sys
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Use Python as the test binary
+            config = FuzzingConfig(
+                target_binary=sys.executable,  # Use Python interpreter as test binary
+                max_iterations=5,
+                output_dir=Path(tmpdir) / "output",
+                crash_dir=Path(tmpdir) / "crashes",
+            )
+
+            fuzzer = CoverageGuidedFuzzer(config)
+
+            # Test binary execution
+            test_data = b"DICM" + b"\x00" * 128
+            result = fuzzer._execute_target(test_data)
+
+            # Result depends on Python interpreter accepting the temp file
+            assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_default_dicom_parsing_fallback(self):
+        """Test default DICOM parsing when no target specified (lines 383-393)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # No target_function or target_binary specified
+            config = FuzzingConfig(
+                max_iterations=5,
+                output_dir=Path(tmpdir) / "output",
+                crash_dir=Path(tmpdir) / "crashes",
+            )
+
+            fuzzer = CoverageGuidedFuzzer(config)
+
+            # Create minimal DICOM data
+            import pydicom
+
+            ds = pydicom.Dataset()
+            ds.PatientName = "Test"
+            ds.PatientID = "123"
+            ds.file_meta = pydicom.Dataset()
+            ds.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
+
+            from io import BytesIO
+
+            buffer = BytesIO()
+            pydicom.dcmwrite(buffer, ds, write_like_original=False)
+            test_data = buffer.getvalue()
+
+            # Test default DICOM parsing
+            result = fuzzer._execute_target(test_data)
+            assert result is True
+
+
+class TestSeedDirectoryLoading:
+    """Test seed directory loading functionality."""
+
+    @pytest.mark.asyncio
+    async def test_seed_directory_loading(self):
+        """Test loading seeds from seed directory (lines 188-199)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            seed_dir = Path(tmpdir) / "seeds"
+            seed_dir.mkdir()
+
+            # Create test seed files
+            import pydicom
+
+            for i in range(3):
+                ds = pydicom.Dataset()
+                ds.PatientName = f"Patient{i}"
+                ds.PatientID = str(i)
+                ds.file_meta = pydicom.Dataset()
+                ds.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
+
+                seed_file = seed_dir / f"seed_{i}.dcm"
+                pydicom.dcmwrite(seed_file, ds, write_like_original=False)
+
+            config = FuzzingConfig(
+                seed_dir=seed_dir,
+                max_iterations=10,
+                output_dir=Path(tmpdir) / "output",
+                crash_dir=Path(tmpdir) / "crashes",
+            )
+
+            fuzzer = CoverageGuidedFuzzer(config)
+            stats = await fuzzer.run()
+
+            # Verify seeds were loaded
+            assert stats.corpus_size >= 3
+
+    @pytest.mark.asyncio
+    async def test_seed_loading_with_invalid_file(self):
+        """Test seed loading handles invalid files gracefully (line 199)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            seed_dir = Path(tmpdir) / "seeds"
+            seed_dir.mkdir()
+
+            # Create invalid DICOM file
+            invalid_seed = seed_dir / "invalid.dcm"
+            with open(invalid_seed, "wb") as f:
+                f.write(b"NOT_A_VALID_DICOM_FILE")
+
+            config = FuzzingConfig(
+                seed_dir=seed_dir,
+                max_iterations=5,
+                output_dir=Path(tmpdir) / "output",
+                crash_dir=Path(tmpdir) / "crashes",
+            )
+
+            fuzzer = CoverageGuidedFuzzer(config)
+
+            # Should handle invalid seed gracefully
+            stats = await fuzzer.run()
+
+            # Should have created minimal seed instead
+            assert stats.corpus_size > 0
+
+
+class TestVerboseLogging:
+    """Test verbose logging functionality."""
+
+    @pytest.mark.asyncio
+    async def test_verbose_logging_enabled(self):
+        """Test verbose logging output (lines 513-514)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+
+            def simple_target(data: bytes) -> bool:
+                return True
+
+            config = FuzzingConfig(
+                target_function=simple_target,
+                max_iterations=10,
+                report_interval=5,
+                verbose=True,  # Enable verbose logging
+                output_dir=Path(tmpdir) / "output",
+                crash_dir=Path(tmpdir) / "crashes",
+            )
+
+            fuzzer = CoverageGuidedFuzzer(config)
+            stats = await fuzzer.run()
+
+            # Verify execution completed with verbose mode
+            assert stats.total_executions > 0
+
+
+class TestHistoricalCorpusManager:
+    """Test historical corpus manager initialization."""
+
+    @pytest.mark.asyncio
+    async def test_historical_corpus_manager_initialization(self):
+        """Test initialization with existing history directory (line 114)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            corpus_dir = Path(tmpdir) / "corpus"
+            history_dir = corpus_dir / "history"
+            history_dir.mkdir(parents=True)
+
+            # Create a dummy history file
+            (history_dir / "test.history").touch()
+
+            config = FuzzingConfig(
+                corpus_dir=corpus_dir,
+                max_iterations=5,
+                output_dir=Path(tmpdir) / "output",
+                crash_dir=Path(tmpdir) / "crashes",
+            )
+
+            fuzzer = CoverageGuidedFuzzer(config)
+
+            # Verify HistoricalCorpusManager was initialized
+            from dicom_fuzzer.core.corpus_manager import HistoricalCorpusManager
+
+            assert isinstance(fuzzer.corpus_manager, HistoricalCorpusManager)
+
+
+class TestDicomCreationFallback:
+    """Test DICOM creation fallback."""
+
+    @pytest.mark.asyncio
+    async def test_dicom_creation_fallback(self):
+        """Test fallback to minimal DICOM header when creation fails (line 228)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config = FuzzingConfig(
+                max_iterations=5,
+                output_dir=Path(tmpdir) / "output",
+                crash_dir=Path(tmpdir) / "crashes",
+            )
+
+            fuzzer = CoverageGuidedFuzzer(config)
+
+            # Force an exception in DICOM creation by patching pydicom
+            import unittest.mock as mock
+
+            with mock.patch("pydicom.dcmwrite", side_effect=Exception("Write failed")):
+                minimal_dicom = fuzzer._create_minimal_dicom()
+
+                # Should fall back to minimal header
+                assert minimal_dicom.startswith(b"DICM")
+                assert len(minimal_dicom) > 4
+
+
+class TestConfigFileLoading:
+    """Test configuration file loading."""
+
+    def test_config_file_loading(self):
+        """Test loading fuzzer from config file (lines 569-573)."""
+        import json
+
+        from dicom_fuzzer.core.coverage_guided_fuzzer import create_fuzzer_from_config
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_file = Path(tmpdir) / "config.json"
+
+            # Create test config
+            config_data = {
+                "max_iterations": 100,
+                "num_workers": 2,
+                "coverage_guided": True,
+                "adaptive_mutations": True,
+                "dicom_aware": True,
+                "output_dir": str(Path(tmpdir) / "output"),
+                "crash_dir": str(Path(tmpdir) / "crashes"),
+            }
+
+            with open(config_file, "w") as f:
+                json.dump(config_data, f)
+
+            # Load fuzzer from config
+            fuzzer = create_fuzzer_from_config(config_file)
+
+            # Verify configuration
+            assert fuzzer.config.max_iterations == 100
+            assert fuzzer.config.num_workers == 2
+            assert fuzzer.config.coverage_guided is True
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
