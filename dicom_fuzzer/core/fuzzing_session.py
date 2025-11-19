@@ -13,16 +13,24 @@ Key capabilities:
 import hashlib
 import json
 import shutil
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import pydicom
 
+from dicom_fuzzer.utils.identifiers import (
+    generate_crash_id,
+    generate_file_id,
+    generate_session_id,
+)
+
+from .serialization import SerializableMixin
+
 
 @dataclass
-class MutationRecord:
+class MutationRecord(SerializableMixin):
     """Record of a single mutation applied to a DICOM file.
 
     Tracks exactly what was changed, enabling reproduction and analysis.
@@ -38,15 +46,9 @@ class MutationRecord:
     mutated_value: str | None = None  # Value after mutation
     parameters: dict[str, Any] = field(default_factory=dict)  # Strategy parameters
 
-    def to_dict(self) -> dict:
-        """Convert to dictionary for JSON serialization."""
-        data = asdict(self)
-        data["timestamp"] = self.timestamp.isoformat()
-        return data
-
 
 @dataclass
-class FuzzedFileRecord:
+class FuzzedFileRecord(SerializableMixin):
     """Complete record of a fuzzed DICOM file.
 
     Contains everything needed to understand how the file was created
@@ -69,25 +71,9 @@ class FuzzedFileRecord:
     test_result: str | None = None  # success, crash, hang, error
     crash_details: dict | None = None
 
-    def to_dict(self) -> dict:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "file_id": self.file_id,
-            "source_file": self.source_file,
-            "output_file": self.output_file,
-            "timestamp": self.timestamp.isoformat(),
-            "file_hash": self.file_hash,
-            "severity": self.severity,
-            "mutations": [m.to_dict() for m in self.mutations],
-            "source_metadata": self.source_metadata,
-            "fuzzed_metadata": self.fuzzed_metadata,
-            "test_result": self.test_result,
-            "crash_details": self.crash_details,
-        }
-
 
 @dataclass
-class CrashRecord:
+class CrashRecord(SerializableMixin):
     """Detailed crash record with full forensic information.
 
     Links crash back to exact file and mutation history that caused it.
@@ -117,25 +103,6 @@ class CrashRecord:
 
     # Mutation tracking for deduplication
     mutation_sequence: list[tuple] = field(default_factory=list)
-
-    def to_dict(self) -> dict:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "crash_id": self.crash_id,
-            "timestamp": self.timestamp.isoformat(),
-            "crash_type": self.crash_type,
-            "severity": self.severity,
-            "fuzzed_file_id": self.fuzzed_file_id,
-            "fuzzed_file_path": self.fuzzed_file_path,
-            "return_code": self.return_code,
-            "exception_type": self.exception_type,
-            "exception_message": self.exception_message,
-            "stack_trace": self.stack_trace,
-            "crash_log_path": self.crash_log_path,
-            "preserved_sample_path": self.preserved_sample_path,
-            "reproduction_command": self.reproduction_command,
-            "mutation_sequence": self.mutation_sequence,
-        }
 
 
 class FuzzingSession:
@@ -169,15 +136,11 @@ class FuzzingSession:
             self.session_name = session_id
         elif session_name is not None:
             self.session_name = session_name
-            self.session_id = (
-                f"{session_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            )
+            self.session_id = generate_session_id(session_name)
         else:
             # Neither provided, generate a default
             self.session_name = "fuzzing_session"
-            self.session_id = (
-                f"fuzzing_session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            )
+            self.session_id = generate_session_id()
 
         self.config = config or {}
         self.start_time = datetime.now()
@@ -224,7 +187,7 @@ class FuzzingSession:
 
         """
         # Generate unique file ID
-        file_id = f"fuzz_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
+        file_id = generate_file_id()
 
         # Extract source metadata
         source_metadata = self._extract_metadata(source_file)
@@ -255,7 +218,7 @@ class FuzzingSession:
         original_value: Any | None = None,
         mutated_value: Any | None = None,
         parameters: dict | None = None,
-    ):
+    ) -> None:
         """Record a mutation applied to the current file.
 
         Args:
@@ -296,7 +259,7 @@ class FuzzingSession:
         self,
         output_file: Path,
         success: bool = True,
-    ):
+    ) -> None:
         """Finish tracking current fuzzed file.
 
         Args:
@@ -323,8 +286,8 @@ class FuzzingSession:
         self,
         file_id: str,
         result: str,
-        **details,
-    ):
+        **details: Any,
+    ) -> None:
         """Record test result for a fuzzed file.
 
         Args:
@@ -378,7 +341,7 @@ class FuzzingSession:
             raise KeyError(f"Unknown file ID: {file_id}")
 
         file_record = self.fuzzed_files[file_id]
-        crash_id = f"crash_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
+        crash_id = generate_crash_id()
 
         # Create crash log
         crash_log_path = self.crashes_dir / f"{crash_id}.log"
@@ -500,7 +463,7 @@ class FuzzingSession:
         duration = (end_time - self.start_time).total_seconds()
 
         # Calculate files per minute
-        files_per_minute = 0
+        files_per_minute = 0.0
         if duration > 0:
             files_per_minute = (self.stats["files_fuzzed"] / duration) * 60
 
@@ -516,7 +479,7 @@ class FuzzingSession:
             "successes": self.stats["successes"],
         }
 
-    def mark_test_result(self, file_id: str, result: str):
+    def mark_test_result(self, file_id: str, result: str) -> None:
         """Mark the test result for a file (alias for record_test_result).
 
         Args:
@@ -528,7 +491,7 @@ class FuzzingSession:
 
     def _extract_metadata(self, dicom_file: Path) -> dict[str, str]:
         """Extract key DICOM metadata from file."""
-        metadata = {}
+        metadata: dict[str, str] = {}
 
         try:
             if not dicom_file.exists():
@@ -595,7 +558,7 @@ class FuzzingSession:
         exception_type: str | None,
         exception_message: str | None,
         stack_trace: str | None,
-    ):
+    ) -> None:
         """Create detailed crash log file."""
         with open(log_path, "w", encoding="utf-8") as f:
             f.write("=" * 80 + "\n")
