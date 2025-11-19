@@ -857,10 +857,11 @@ class TestCoverageMissingLines:
 
         parser = DicomParser(sample_dicom_file)
 
-        # Mock getattr to raise exception
-        with patch("builtins.getattr", side_effect=RuntimeError("Mock error")):
+        # Mock getattr within the parser module scope instead of builtins
+        # This is safer and doesn't leave global state pollution
+        with patch("dicom_fuzzer.core.parser.getattr", side_effect=RuntimeError("Mock error")):
             result = parser.get_transfer_syntax()
-            assert result is None  # Line 347
+            assert result is None  # Line 374 (exception caught, returns None)
 
     def test_is_compressed_no_transfer_syntax_line_357(self, sample_dicom_file):
         """Test is_compressed returns False when no transfer syntax (line 357)."""
