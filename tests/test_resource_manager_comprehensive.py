@@ -564,6 +564,31 @@ class TestUnixSpecificResourceLimits:
     @patch("platform.system", return_value="Linux")
     @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
     @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    def test_file_descriptor_limit_exception(self, mock_resource, mock_platform):
+        """Test file descriptor limit setting with exception (lines 262-263)."""
+        # Setup mock
+        mock_resource.RLIMIT_AS = 9
+        mock_resource.RLIMIT_CPU = 0
+        mock_resource.RLIMIT_NOFILE = 7
+        mock_resource.getrlimit.return_value = (1000, 1100)
+
+        # Make setrlimit raise exception only for RLIMIT_NOFILE
+        def setrlimit_side_effect(limit_type, values):
+            if limit_type == mock_resource.RLIMIT_NOFILE:
+                raise OSError("Permission denied setting file descriptor limit")
+
+        mock_resource.setrlimit.side_effect = setrlimit_side_effect
+
+        limits = ResourceLimits(max_open_files=500, min_disk_space_mb=1)
+        manager = ResourceManager(limits)
+
+        # Should handle exception gracefully (lines 262-263)
+        with manager.limited_execution():
+            pass  # Should not raise
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
     def test_limit_restoration_on_exit(self, mock_resource, mock_platform):
         """Test that limits are restored on context exit (lines 270-278)."""
         # Setup mock
@@ -720,14 +745,33 @@ class TestUnixSpecificUsageTracking:
 
 
 class TestHasResourceModuleFlag:
-    """Test HAS_RESOURCE_MODULE flag initialization (line 24)."""
+    """Test HAS_RESOURCE_MODULE flag initialization.
 
-    def test_has_resource_module_when_available(self):
-        """Test that HAS_RESOURCE_MODULE is True when resource module available."""
-        # This test verifies line 24 is executed
+    NOTE: Line 24 (HAS_RESOURCE_MODULE = True) is executed at module import time
+    on Unix systems. On Windows, it's never executed (False path is taken).
+    This is platform-dependent behavior that cannot be easily tested through
+    normal means because the module is loaded before tests run.
+
+    The flag value is verified indirectly through all the Unix-specific tests
+    that check HAS_RESOURCE_MODULE before executing Unix-only code paths.
+    """
+
+    def test_has_resource_module_flag_is_boolean(self):
+        """Test that HAS_RESOURCE_MODULE is a boolean value."""
         from dicom_fuzzer.core import resource_manager
 
         # On Windows, HAS_RESOURCE_MODULE should be False
         # On Unix, it should be True
         # The actual value depends on the platform
         assert isinstance(resource_manager.HAS_RESOURCE_MODULE, bool)
+
+    def test_has_resource_module_consistency_with_sys_resource(self):
+        """Test HAS_RESOURCE_MODULE is consistent with sys_resource availability."""
+        from dicom_fuzzer.core import resource_manager
+
+        # If HAS_RESOURCE_MODULE is True, sys_resource should not be None
+        # If HAS_RESOURCE_MODULE is False, sys_resource should be None
+        if resource_manager.HAS_RESOURCE_MODULE:
+            assert resource_manager.sys_resource is not None
+        else:
+            assert resource_manager.sys_resource is None
