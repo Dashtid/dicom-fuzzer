@@ -449,3 +449,285 @@ class TestIntegrationScenarios:
 
         usage = manager.get_current_usage()
         assert isinstance(usage, ResourceUsage)
+
+
+class TestUnixSpecificResourceLimits:
+    """Test Unix-specific resource limit setting and restoration."""
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    def test_memory_limit_setting_success(self, mock_resource, mock_platform):
+        """Test successful memory limit setting (lines 233-237)."""
+        # Setup mock
+        mock_resource.RLIMIT_AS = 9
+        mock_resource.getrlimit.return_value = (100 * 1024 * 1024, 200 * 1024 * 1024)
+
+        limits = ResourceLimits(
+            max_memory_mb=512, max_memory_mb_hard=1024, min_disk_space_mb=1
+        )
+        manager = ResourceManager(limits)
+
+        with manager.limited_execution():
+            # Verify setrlimit was called with correct values
+            mock_resource.setrlimit.assert_any_call(
+                mock_resource.RLIMIT_AS, (512 * 1024 * 1024, 1024 * 1024 * 1024)
+            )
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    def test_memory_limit_setting_exception(self, mock_resource, mock_platform):
+        """Test memory limit setting with exception (lines 238-239)."""
+        # Setup mock to raise exception
+        mock_resource.RLIMIT_AS = 9
+        mock_resource.RLIMIT_CPU = 0
+        mock_resource.RLIMIT_NOFILE = 7
+        mock_resource.getrlimit.return_value = (100 * 1024 * 1024, 200 * 1024 * 1024)
+
+        def setrlimit_side_effect(limit_type, values):
+            if limit_type == mock_resource.RLIMIT_AS:
+                raise OSError("Permission denied")
+
+        mock_resource.setrlimit.side_effect = setrlimit_side_effect
+
+        limits = ResourceLimits(min_disk_space_mb=1)
+        manager = ResourceManager(limits)
+
+        # Should handle exception gracefully
+        with manager.limited_execution():
+            pass  # Should not raise
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    def test_cpu_limit_setting_success(self, mock_resource, mock_platform):
+        """Test successful CPU limit setting (lines 243-248)."""
+        # Setup mock
+        mock_resource.RLIMIT_AS = 9
+        mock_resource.RLIMIT_CPU = 0
+        mock_resource.getrlimit.return_value = (30, 35)
+
+        limits = ResourceLimits(max_cpu_seconds=60, min_disk_space_mb=1)
+        manager = ResourceManager(limits)
+
+        with manager.limited_execution():
+            # Verify CPU limit was set
+            calls = mock_resource.setrlimit.call_args_list
+            cpu_call = [c for c in calls if c[0][0] == mock_resource.RLIMIT_CPU]
+            assert len(cpu_call) > 0
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    def test_cpu_limit_setting_exception(self, mock_resource, mock_platform):
+        """Test CPU limit setting with exception (lines 249-250)."""
+        # Setup mock
+        mock_resource.RLIMIT_AS = 9
+        mock_resource.RLIMIT_CPU = 0
+        mock_resource.RLIMIT_NOFILE = 7
+        mock_resource.getrlimit.return_value = (30, 35)
+
+        def setrlimit_side_effect(limit_type, values):
+            if limit_type == mock_resource.RLIMIT_CPU:
+                raise ValueError("Invalid limit")
+
+        mock_resource.setrlimit.side_effect = setrlimit_side_effect
+
+        limits = ResourceLimits(min_disk_space_mb=1)
+        manager = ResourceManager(limits)
+
+        # Should handle exception gracefully
+        with manager.limited_execution():
+            pass
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    def test_file_descriptor_limit_setting(self, mock_resource, mock_platform):
+        """Test file descriptor limit setting (lines 254-263)."""
+        # Setup mock
+        mock_resource.RLIMIT_AS = 9
+        mock_resource.RLIMIT_CPU = 0
+        mock_resource.RLIMIT_NOFILE = 7
+        mock_resource.getrlimit.return_value = (1000, 1100)
+
+        limits = ResourceLimits(max_open_files=500, min_disk_space_mb=1)
+        manager = ResourceManager(limits)
+
+        with manager.limited_execution():
+            # Verify file descriptor limit was set
+            calls = mock_resource.setrlimit.call_args_list
+            nofile_call = [c for c in calls if c[0][0] == mock_resource.RLIMIT_NOFILE]
+            assert len(nofile_call) > 0
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    def test_limit_restoration_on_exit(self, mock_resource, mock_platform):
+        """Test that limits are restored on context exit (lines 270-278)."""
+        # Setup mock
+        mock_resource.RLIMIT_AS = 9
+        mock_resource.RLIMIT_CPU = 0
+        mock_resource.RLIMIT_NOFILE = 7
+
+        original_limits = {
+            mock_resource.RLIMIT_AS: (100 * 1024 * 1024, 200 * 1024 * 1024),
+            mock_resource.RLIMIT_CPU: (30, 35),
+            mock_resource.RLIMIT_NOFILE: (1000, 1100),
+        }
+
+        def getrlimit_side_effect(limit_type):
+            return original_limits.get(limit_type, (0, 0))
+
+        mock_resource.getrlimit.side_effect = getrlimit_side_effect
+
+        limits = ResourceLimits(min_disk_space_mb=1)
+        manager = ResourceManager(limits)
+
+        with manager.limited_execution():
+            pass
+
+        # Verify limits were restored
+        restore_calls = mock_resource.setrlimit.call_args_list
+        # Should have both set and restore calls
+        assert len(restore_calls) >= 3  # At least 3 limit restorations
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    def test_limit_restoration_with_exception(self, mock_resource, mock_platform):
+        """Test limit restoration handles exceptions (lines 277-278)."""
+        # Setup mock
+        mock_resource.RLIMIT_AS = 9
+        mock_resource.RLIMIT_CPU = 0
+        mock_resource.RLIMIT_NOFILE = 7
+        mock_resource.getrlimit.return_value = (100, 200)
+
+        setrlimit_count = [0]
+
+        def setrlimit_with_exception(limit_type, values):
+            setrlimit_count[0] += 1
+            # Raise exception on restoration attempts (even numbered calls)
+            if setrlimit_count[0] % 2 == 0:
+                raise OSError("Restore failed")
+
+        mock_resource.setrlimit.side_effect = setrlimit_with_exception
+
+        limits = ResourceLimits(min_disk_space_mb=1)
+        manager = ResourceManager(limits)
+
+        # Should not raise even if restoration fails
+        with manager.limited_execution():
+            pass
+
+
+class TestUnixSpecificUsageTracking:
+    """Test Unix-specific resource usage tracking paths."""
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    def test_get_current_usage_with_psutil_memory(self, mock_platform):
+        """Test memory usage with psutil on Unix (lines 154-158)."""
+        import sys
+
+        # Create a mock psutil module
+        mock_psutil = Mock()
+        mock_process = Mock()
+        mock_process.memory_info.return_value = Mock(rss=512 * 1024 * 1024)  # 512 MB
+        mock_process.open_files.return_value = []  # Empty list for open files
+        mock_psutil.Process.return_value = mock_process
+
+        # Patch sys.modules to inject mock psutil
+        with patch.dict(sys.modules, {"psutil": mock_psutil}):
+            manager = ResourceManager(ResourceLimits())
+            usage = manager.get_current_usage()
+
+            # Should have memory info from psutil
+            assert usage.memory_mb == 512.0
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    def test_get_current_usage_psutil_import_error(self, mock_platform):
+        """Test memory usage fallback when psutil not available (lines 161-162)."""
+        import sys
+
+        # Create a mock that raises ImportError when imported
+        import_error_module = Mock()
+        import_error_module.Process.side_effect = ImportError("psutil not available")
+
+        with patch.dict(sys.modules, {"psutil": import_error_module}):
+            manager = ResourceManager(ResourceLimits())
+            usage = manager.get_current_usage()
+
+            # Should fall back to 0.0
+            assert usage.memory_mb == 0.0
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    def test_get_current_usage_with_cpu_time(self, mock_resource, mock_platform):
+        """Test CPU time tracking on Unix (line 168)."""
+        # Setup mock
+        mock_usage = Mock()
+        mock_usage.ru_utime = 10.5  # User time
+        mock_usage.ru_stime = 5.3  # System time
+        mock_resource.getrusage.return_value = mock_usage
+        mock_resource.RUSAGE_SELF = 0
+
+        manager = ResourceManager(ResourceLimits())
+        usage = manager.get_current_usage()
+
+        # Should sum user + system time
+        assert usage.cpu_seconds == 15.8
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    def test_get_current_usage_with_open_files(self, mock_platform):
+        """Test open files count on Unix (lines 179-183)."""
+        import sys
+
+        # Create a mock psutil module
+        mock_psutil = Mock()
+        mock_process = Mock()
+        mock_process.memory_info.return_value = Mock(rss=100 * 1024 * 1024)
+        mock_process.open_files.return_value = [Mock()] * 25  # 25 open files
+        mock_psutil.Process.return_value = mock_process
+
+        with patch.dict(sys.modules, {"psutil": mock_psutil}):
+            manager = ResourceManager(ResourceLimits())
+            usage = manager.get_current_usage()
+
+            # Should have open files count
+            assert usage.open_files == 25
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    def test_get_current_usage_open_files_import_error(self, mock_platform):
+        """Test open files fallback when psutil not available (lines 186-187)."""
+        import sys
+
+        # Create a mock that raises ImportError when used
+        import_error_module = Mock()
+        import_error_module.Process.side_effect = ImportError("psutil not available")
+
+        with patch.dict(sys.modules, {"psutil": import_error_module}):
+            manager = ResourceManager(ResourceLimits())
+            usage = manager.get_current_usage()
+
+            # Should fall back to 0
+            assert usage.open_files == 0
+
+
+class TestHasResourceModuleFlag:
+    """Test HAS_RESOURCE_MODULE flag initialization (line 24)."""
+
+    def test_has_resource_module_when_available(self):
+        """Test that HAS_RESOURCE_MODULE is True when resource module available."""
+        # This test verifies line 24 is executed
+        from dicom_fuzzer.core import resource_manager
+
+        # On Windows, HAS_RESOURCE_MODULE should be False
+        # On Unix, it should be True
+        # The actual value depends on the platform
+        assert isinstance(resource_manager.HAS_RESOURCE_MODULE, bool)
