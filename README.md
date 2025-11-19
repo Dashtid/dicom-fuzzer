@@ -4,7 +4,7 @@ A security testing tool for fuzzing DICOM (Digital Imaging and Communications in
 
 [![CI/CD Pipeline](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/Dashtid/DICOM-Fuzzer/branch/main/graph/badge.svg)](https://codecov.io/gh/Dashtid/DICOM-Fuzzer)
-[![Tests](https://img.shields.io/badge/tests-2704%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-2975%20passing-brightgreen)](tests/)
 [![Coverage](https://img.shields.io/badge/coverage-57%25-yellow)](docs/COVERAGE.md)
 [![Core Modules](https://img.shields.io/badge/core%20modules-30%2B%20%40%2090%25%2B-brightgreen)](#test-coverage)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://python.org)
@@ -431,12 +431,12 @@ open output/reports/coverage/htmlcov/index.html   # macOS
 
 ### Test Coverage
 
-**Overall Statistics (2025-11-05):**
+**Overall Statistics (2025-11-19):**
 
-- **Total Tests**: 2,704 tests (100% pass rate)
+- **Total Tests**: 2,975 tests (100% pass rate)
 - **Overall Coverage**: 83% (exceeds 80% industry standard!)
 - **High-Coverage Core Modules**: 30+ modules at 90%+ coverage (corpus_manager: 98%, crash_analyzer: 100%, crash_triage: 99%)
-- **Recent Achievement**: Added 49 comprehensive corpus_manager tests, improved multiple modules from 20-30% to 90-100% coverage
+- **Recent Achievement**: Resolved flaky test issues and achieved 100% stable test pass rate with zero intermittent failures
 
 **Module Coverage (100% Coverage Modules):**
 

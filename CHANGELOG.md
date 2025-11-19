@@ -326,6 +326,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - 2025-11-19
+
+#### Test Stability Improvements
+- **Fixed Flaky Test**: Resolved `test_get_transfer_syntax_exception_lines_345_347` intermittent failure
+  - Changed from unsafe `builtins.getattr` patching to module-scoped `dicom_fuzzer.core.parser.getattr` patching
+  - Eliminated global state pollution that caused test order dependencies
+  - Verified with pytest-randomly: 100% pass rate across multiple random test orderings
+  - Test now passes reliably both individually and in full test suite
+- **100% Test Pass Rate Achieved**: All 2,975 tests passing with zero flaky tests
+  - Increased from 2,704 to 2,975 tests (271 new tests added)
+  - Maintained 100% stability with and without test randomization
+
+#### Code Quality & Linting
+- **Fixed Ruff E712 Errors**: Removed non-Pythonic boolean comparisons
+  - Changed `== True/False` to direct boolean checks and `not` operator
+  - Affected file: `tests/test_cli_comprehensive.py`
+- **Fixed Ruff F821 Errors**: Resolved undefined type hint references
+  - Added TYPE_CHECKING import block for DicomSeries type
+  - Affected file: `dicom_fuzzer/core/series_cache.py`
+- **Fixed MyPy Type Annotation Errors**: Added PEP 484 compliant type hints
+  - Added explicit Optional types (`Type | None`) instead of implicit Optional
+  - Added return type annotations (`-> None`) for 7 functions
+  - Affected file: `dicom_fuzzer/cli/realtime_monitor.py`
+- **Linting Compliance**: All code now passes ruff and mypy checks without errors
+
 ### Added - 2025-10-22
 
 #### Performance Optimizations
