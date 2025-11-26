@@ -6,6 +6,8 @@ dictionaries with proper handling of datetime objects and nested structures.
 
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
+from enum import Enum
+from pathlib import Path
 from typing import Any
 
 
@@ -14,25 +16,38 @@ class SerializableMixin:
 
     This mixin provides a standardized to_dict() method that handles:
     - Datetime conversion to ISO format strings
+    - Enum conversion to values
+    - Path conversion to strings
     - Nested dataclass serialization
     - List and dict handling
+    - Custom computed fields via _custom_serialization() hook
 
     Usage:
         @dataclass
         class MyRecord(SerializableMixin):
             timestamp: datetime
+            status: MyEnum
+            output_path: Path
             data: dict[str, Any]
 
-        record = MyRecord(datetime.now(), {"key": "value"})
+        record = MyRecord(datetime.now(), MyEnum.ACTIVE, Path("/tmp"), {"key": "value"})
         json_dict = record.to_dict()
+
+    Custom Fields:
+        Override _custom_serialization() to add computed fields:
+
+        def _custom_serialization(self, data: dict[str, Any]) -> dict[str, Any]:
+            data["computed_field"] = self.calculate_something()
+            return data
     """
 
     def to_dict(self) -> dict[str, Any]:
         """Convert dataclass to JSON-serializable dictionary.
 
         Returns:
-            Dictionary with all datetime objects converted to ISO format strings
-            and nested dataclasses recursively serialized.
+            Dictionary with all datetime objects converted to ISO format strings,
+            enums converted to values, paths converted to strings, and nested
+            dataclasses recursively serialized.
 
         """
         if not is_dataclass(self):
@@ -42,7 +57,13 @@ class SerializableMixin:
             )
 
         data = asdict(self)  # type: ignore[unreachable]
-        return self._serialize_value(data)
+        serialized = self._serialize_value(data)
+
+        # Allow subclasses to add custom computed fields
+        if hasattr(self, "_custom_serialization"):
+            serialized = self._custom_serialization(serialized)
+
+        return serialized
 
     def _serialize_value(self, value: Any) -> Any:
         """Recursively serialize a value to JSON-compatible format.
@@ -51,12 +72,21 @@ class SerializableMixin:
             value: Value to serialize
 
         Returns:
-            Serialized value (primitives, datetime as ISO string, etc.)
+            Serialized value (primitives, datetime as ISO string, enum as value,
+            Path as string, etc.)
 
         """
         # Handle datetime objects
         if isinstance(value, datetime):
             return value.isoformat()
+
+        # Handle enum objects - convert to their value
+        if isinstance(value, Enum):
+            return value.value
+
+        # Handle Path objects - convert to string
+        if isinstance(value, Path):
+            return str(value)
 
         # Handle dictionaries recursively
         if isinstance(value, dict):

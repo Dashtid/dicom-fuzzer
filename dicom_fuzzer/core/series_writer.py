@@ -26,20 +26,21 @@ Invalid structure causes early rejection, never reaching vulnerable code paths.
 
 import json
 import shutil
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.dicom_series import DicomSeries
+from dicom_fuzzer.core.serialization import SerializableMixin
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 @dataclass
-class SeriesMetadata:
+class SeriesMetadata(SerializableMixin):
     """Metadata about a written DICOM series.
 
     Tracks both original and fuzzed series characteristics for debugging,
@@ -66,13 +67,6 @@ class SeriesMetadata:
     # File info
     slice_files: list[str] = field(default_factory=list)
     total_size_bytes: int = 0
-
-    def to_dict(self) -> dict:
-        """Convert metadata to dictionary for JSON serialization."""
-        data = asdict(self)
-        # Convert Path to string
-        data["output_directory"] = str(self.output_directory)
-        return data
 
     def get_output_paths(self) -> list[Path]:
         """Get list of full output file paths.

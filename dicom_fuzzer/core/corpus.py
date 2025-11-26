@@ -22,13 +22,14 @@ import pydicom
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.coverage_tracker import CoverageSnapshot
+from dicom_fuzzer.core.serialization import SerializableMixin
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 @dataclass
-class CorpusEntry:
+class CorpusEntry(SerializableMixin):
     """Represents a single test case in the corpus.
 
     CONCEPT: Each entry is like a record card that stores not just the test case,
@@ -136,23 +137,25 @@ class CorpusEntry:
         dataset.save_as(output, write_like_original=False)
         return output.getvalue()
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert entry to dictionary (for JSON serialization).
+    def _custom_serialization(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Add computed fields and exclude dataset from serialization.
 
         Note: DICOM dataset is stored separately as .dcm file
         """
-        return {
-            "entry_id": self.entry_id,
-            "fitness_score": self.fitness_score,
-            "generation": self.generation,
-            "parent_id": self.parent_id,
-            "crash_triggered": self.crash_triggered,
-            "timestamp": self.timestamp.isoformat(),
-            "metadata": self.metadata,
-            "coverage_lines": (
-                len(self.coverage.lines_covered) if self.coverage else 0
-            ),
-        }
+        # Add computed coverage_lines field
+        data["coverage_lines"] = (
+            len(self.coverage.lines_covered) if self.coverage else 0
+        )
+
+        # Exclude dataset and lazy-loading fields from serialization
+        data.pop("dataset", None)
+        data.pop("_dataset_path", None)
+        data.pop("_dataset_cache", None)
+
+        # Exclude coverage snapshot (too large, stored separately)
+        data.pop("coverage", None)
+
+        return data
 
 
 class CorpusManager:
