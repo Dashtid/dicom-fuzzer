@@ -15,10 +15,12 @@ import json
 import logging
 import signal
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any
+
+from dicom_fuzzer.core.serialization import SerializableMixin
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +37,7 @@ class CampaignStatus(Enum):
 
 
 @dataclass
-class CampaignCheckpoint:
+class CampaignCheckpoint(SerializableMixin):
     """Checkpoint state for resumable fuzzing campaigns.
 
     CONCEPT: Captures enough state to resume a campaign after interruption
@@ -56,12 +58,6 @@ class CampaignCheckpoint:
     output_dir: str
     crash_dir: str
     metadata: dict[str, Any]  # Additional campaign-specific data
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert checkpoint to dictionary for serialization."""
-        data = asdict(self)
-        data["status"] = self.status.value  # Convert enum to string
-        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "CampaignCheckpoint":
