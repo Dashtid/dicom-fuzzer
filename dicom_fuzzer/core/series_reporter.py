@@ -19,6 +19,7 @@ from pathlib import Path
 from dicom_fuzzer.strategies.series_mutator import (
     SeriesMutationRecord,
 )
+from dicom_fuzzer.utils.identifiers import generate_timestamp_id
 
 
 @dataclass
@@ -167,7 +168,7 @@ class Series3DReportGenerator:
         html += self._generate_html_footer()
 
         # Save report
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         report_path = self.output_dir / f"series3d_report_{timestamp}.html"
 
         with open(report_path, "w", encoding="utf-8") as f:
@@ -432,7 +433,7 @@ class Series3DReportGenerator:
         }
 
         # Save JSON report
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         report_path = self.output_dir / f"series3d_report_{timestamp}.json"
 
         with open(report_path, "w", encoding="utf-8") as f:
