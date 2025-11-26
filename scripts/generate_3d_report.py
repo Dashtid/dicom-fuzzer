@@ -33,7 +33,6 @@ This tool is for DEFENSIVE security testing only.
 
 import argparse
 import sys
-from datetime import datetime
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -51,6 +50,7 @@ from dicom_fuzzer.core.series_reporter import (
 )
 from dicom_fuzzer.core.statistics import MutationStatistics
 from dicom_fuzzer.strategies.series_mutator import SeriesMutationStrategy
+from dicom_fuzzer.utils.identifiers import generate_timestamp_id
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -256,7 +256,7 @@ class Report3DGenerator:
         self.analyzer.generate_recommendations()
 
         # Export analytics
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         analytics_path = self.output_dir / f"analytics_{timestamp}.json"
 
         self.analyzer.export_to_json(analytics_path)

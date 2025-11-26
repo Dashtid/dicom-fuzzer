@@ -81,6 +81,7 @@ from dicom_fuzzer.core.types import MutationSeverity
 from dicom_fuzzer.core.validator import DicomValidator
 
 # from dicom_fuzzer.strategies.dictionary_fuzzer import DictionaryFuzzer
+from dicom_fuzzer.utils.identifiers import generate_session_id, generate_timestamp_id
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -133,7 +134,7 @@ class ViewerFuzzer:
         self.current_file_id: str | None = None
 
         if self.use_enhanced_reporting:
-            session_name = f"viewer_fuzzing_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            session_name = generate_session_id("viewer_fuzzing")
             self.fuzzing_session = FuzzingSession(
                 session_name=session_name,
                 output_dir=str(self.output_dir),
@@ -538,7 +539,6 @@ class ViewerFuzzer:
     def save_json_report(self):
         """Save fuzzing results to JSON report."""
         import json
-        from datetime import datetime
 
         # Create report data
         report = {
@@ -573,7 +573,7 @@ class ViewerFuzzer:
                 ) * 100
 
         # Save to reports directory with organized structure
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
 
         # Create reports subdirectories
         reports_dir = Path("reports")

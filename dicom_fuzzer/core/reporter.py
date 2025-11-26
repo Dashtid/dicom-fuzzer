@@ -17,6 +17,7 @@ from datetime import datetime
 from pathlib import Path
 
 from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer, CrashReport
+from dicom_fuzzer.utils.identifiers import generate_timestamp_id
 
 
 class ReportGenerator:
@@ -59,7 +60,7 @@ class ReportGenerator:
         html += self._generate_html_footer()
 
         # Save report
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         report_path = self.output_dir / f"crash_report_{timestamp}.html"
 
         with open(report_path, "w", encoding="utf-8") as f:
@@ -104,7 +105,7 @@ class ReportGenerator:
             )
 
         # Save report
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         report_path = self.output_dir / f"crash_report_{timestamp}.json"
 
         with open(report_path, "w", encoding="utf-8") as f:
@@ -130,7 +131,7 @@ class ReportGenerator:
         html += self._generate_html_footer()
 
         # Save report
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         report_path = self.output_dir / f"performance_report_{timestamp}.html"
 
         with open(report_path, "w", encoding="utf-8") as f:
@@ -155,7 +156,7 @@ class ReportGenerator:
             Path to generated report
 
         """
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
 
         if format == "json":
             report_path = self.output_dir / f"report_{timestamp}.json"

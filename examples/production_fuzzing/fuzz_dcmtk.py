@@ -34,7 +34,6 @@ import argparse
 import json
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
 
 # Add project root to path
@@ -44,6 +43,7 @@ from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
 from dicom_fuzzer.core.fuzzing_session import FuzzingSession
 from dicom_fuzzer.core.mutator import DicomMutator, MutationSeverity
 from dicom_fuzzer.core.target_runner import TargetConfig, TargetRunner
+from dicom_fuzzer.utils.identifiers import generate_timestamp_id
 
 try:
     import pydicom
@@ -267,10 +267,7 @@ class DCMTKFuzzer:
         reporter = EnhancedReportGenerator()
 
         # Generate reports
-        html_path = (
-            self.reports_dir
-            / f"fuzzing_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-        )
+        html_path = self.reports_dir / f"fuzzing_report_{generate_timestamp_id()}.html"
         json_path = html_path.with_suffix(".json")
 
         # HTML report

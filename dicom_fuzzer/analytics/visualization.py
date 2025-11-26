@@ -16,7 +16,6 @@ Based on 2025 best practices from data visualization (Plotly Dash, Matplotlib)
 and fuzzing tools (AFL++, LibFuzzer coverage visualization).
 """
 
-from datetime import datetime
 from pathlib import Path
 
 import matplotlib
@@ -32,6 +31,7 @@ from dicom_fuzzer.analytics.campaign_analytics import (
     PerformanceMetrics,
     TrendAnalysis,
 )
+from dicom_fuzzer.utils.identifiers import generate_timestamp_id
 
 # Seaborn style configuration
 sns.set_theme(style="whitegrid")
@@ -128,7 +128,7 @@ class FuzzingVisualizer:
         plt.tight_layout()
 
         # Save figure
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         output_path = (
             self.output_dir / f"strategy_effectiveness_{timestamp}.{output_format}"
         )
@@ -181,7 +181,7 @@ class FuzzingVisualizer:
         )
 
         # Save HTML
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         output_path = self.output_dir / f"strategy_effectiveness_{timestamp}.html"
         fig.write_html(str(output_path))
 
@@ -224,7 +224,7 @@ class FuzzingVisualizer:
             ax.set_xlim(0, 1)
             ax.set_ylim(0, 1)
             ax.axis("off")
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = generate_timestamp_id()
             output_path = self.output_dir / f"crash_trend_{timestamp}.{output_format}"
             plt.savefig(output_path, dpi=300, bbox_inches="tight")
             plt.close()
@@ -265,7 +265,7 @@ class FuzzingVisualizer:
         plt.tight_layout()
 
         # Save figure
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         output_path = self.output_dir / f"crash_trend_{timestamp}.{output_format}"
         plt.savefig(output_path, dpi=300, bbox_inches="tight")
         plt.close()
@@ -286,7 +286,7 @@ class FuzzingVisualizer:
                 showarrow=False,
                 font={"size": 14, "color": "gray"},
             )
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = generate_timestamp_id()
             output_path = self.output_dir / f"crash_trend_{timestamp}.html"
             fig.write_html(str(output_path))
             return output_path
@@ -328,7 +328,7 @@ class FuzzingVisualizer:
         )
 
         # Save HTML
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         output_path = self.output_dir / f"crash_trend_{timestamp}.html"
         fig.write_html(str(output_path))
 
@@ -416,7 +416,7 @@ class FuzzingVisualizer:
         plt.tight_layout()
 
         # Save figure
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         output_path = self.output_dir / f"coverage_heatmap_{timestamp}.{output_format}"
         plt.savefig(output_path, dpi=300, bbox_inches="tight")
         plt.close()
@@ -477,7 +477,7 @@ class FuzzingVisualizer:
         )
 
         # Save HTML
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         output_path = self.output_dir / f"coverage_heatmap_{timestamp}.html"
         fig.write_html(str(output_path))
 
@@ -584,7 +584,7 @@ class FuzzingVisualizer:
         plt.tight_layout()
 
         # Save figure
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         output_path = (
             self.output_dir / f"performance_dashboard_{timestamp}.{output_format}"
         )
@@ -703,7 +703,7 @@ class FuzzingVisualizer:
         fig.update_yaxes(title_text="Percentage (%)", range=[0, 100], row=2, col=2)
 
         # Save HTML
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         output_path = self.output_dir / f"performance_dashboard_{timestamp}.html"
         fig.write_html(str(output_path))
 
