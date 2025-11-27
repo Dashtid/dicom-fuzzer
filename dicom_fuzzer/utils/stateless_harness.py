@@ -10,11 +10,11 @@ has hidden state, stability can drop, indicating nondeterministic behavior."
 """
 
 import gc
-import hashlib
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from dicom_fuzzer.utils.hashing import hash_any
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -88,25 +88,7 @@ def _hash_result(result: Any) -> str:
         Hash string
 
     """
-    if result is None:
-        return hashlib.sha256(b"None").hexdigest()
-
-    if isinstance(result, bytes):
-        return hashlib.sha256(result).hexdigest()
-
-    if isinstance(result, str):
-        return hashlib.sha256(result.encode()).hexdigest()
-
-    if isinstance(result, (int, float, bool)):
-        return hashlib.sha256(str(result).encode()).hexdigest()
-
-    # For complex objects, convert to string representation
-    try:
-        result_str = str(result)
-        return hashlib.sha256(result_str.encode()).hexdigest()
-    except Exception:
-        # Last resort - use repr
-        return hashlib.sha256(repr(result).encode()).hexdigest()
+    return hash_any(result)
 
 
 def create_stateless_test_wrapper(test_function: Callable) -> Callable:

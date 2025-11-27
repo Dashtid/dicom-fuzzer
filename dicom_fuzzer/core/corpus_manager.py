@@ -4,7 +4,6 @@ Intelligent seed selection, prioritization, and corpus evolution
 based on coverage feedback and historical learning.
 """
 
-import hashlib
 import heapq
 import json
 import pickle  # nosec B403 - pickle used for internal corpus serialization only (trusted data)
@@ -14,6 +13,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
+
+from dicom_fuzzer.utils.hashing import short_hash
 
 from .coverage_instrumentation import CoverageInfo, calculate_coverage_distance
 
@@ -54,7 +55,7 @@ class Seed:
 
     def calculate_hash(self) -> str:
         """Calculate unique hash for this seed."""
-        return hashlib.sha256(self.data).hexdigest()[:16]
+        return short_hash(self.data)
 
     def update_priority(self, coverage_gain: bool = False) -> None:
         """Update seed priority based on performance."""
@@ -149,7 +150,7 @@ class CorpusManager:
             Seed object if added, None if rejected
 
         """
-        seed_hash = hashlib.sha256(data).hexdigest()[:16]
+        seed_hash = short_hash(data)
 
         # Check if seed already exists
         if seed_hash in self.seeds:
@@ -205,8 +206,6 @@ class CorpusManager:
             dataset: Optional dataset if entry doesn't have one
 
         """
-        from dicom_fuzzer.core.corpus import CorpusEntry
-
         # Handle both old-style (entry only) and new-style (entry, dataset) calls
         if dataset is None and hasattr(entry, "dataset"):
             dataset_to_use = entry.dataset

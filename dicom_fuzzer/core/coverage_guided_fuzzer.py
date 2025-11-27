@@ -5,7 +5,6 @@ and adaptive mutations to maximize code coverage and bug discovery.
 """
 
 import asyncio
-import hashlib
 import json
 import signal
 import time
@@ -17,6 +16,7 @@ from typing import Any
 
 import pydicom
 
+from dicom_fuzzer.utils.hashing import short_hash
 from dicom_fuzzer.utils.logger import get_logger
 
 from .corpus_manager import CorpusManager, HistoricalCorpusManager
@@ -410,7 +410,7 @@ class CoverageGuidedFuzzer:
             self.stats.total_crashes += 1
 
             # Create crash info
-            crash_hash = hashlib.sha256(data).hexdigest()[:16]
+            crash_hash = short_hash(data)
             is_unique = self.crash_analyzer.is_unique_crash(crash_hash)
 
             if is_unique:

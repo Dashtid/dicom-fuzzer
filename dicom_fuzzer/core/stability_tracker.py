@@ -12,12 +12,12 @@ or entropy sources that make fuzzing less effective.
 Ideal stability: 100% (same input → same coverage every time)
 """
 
-import hashlib
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
+from dicom_fuzzer.utils.hashing import hash_file_quick, md5_hash
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -258,11 +258,10 @@ class StabilityTracker:
             file_path: Path to file
 
         Returns:
-            SHA256 hash of file content
+            SHA256 hash of file content (16 chars)
 
         """
-        content = file_path.read_bytes()
-        return hashlib.sha256(content).hexdigest()[:16]  # Use first 16 chars
+        return hash_file_quick(file_path, 16)
 
 
 def generate_execution_signature(
@@ -290,7 +289,7 @@ def generate_execution_signature(
     if coverage:
         # Sort coverage for consistency
         coverage_str = ",".join(sorted(str(c) for c in coverage))
-        parts.append(hashlib.md5(coverage_str.encode()).hexdigest()[:8])
+        parts.append(md5_hash(coverage_str, 8))
 
     return "|".join(parts)
 

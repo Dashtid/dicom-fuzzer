@@ -10,7 +10,6 @@ Key capabilities:
 - Generate detailed forensic reports
 """
 
-import hashlib
 import json
 import shutil
 from dataclasses import dataclass, field
@@ -20,6 +19,7 @@ from typing import Any
 
 import pydicom
 
+from dicom_fuzzer.utils.hashing import hash_file
 from dicom_fuzzer.utils.identifiers import (
     generate_crash_id,
     generate_file_id,
@@ -527,13 +527,7 @@ class FuzzingSession:
 
     def _calculate_file_hash(self, file_path: Path) -> str:
         """Calculate SHA256 hash of file."""
-        sha256_hash = hashlib.sha256()
-
-        with open(file_path, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-
-        return sha256_hash.hexdigest()
+        return hash_file(file_path)
 
     def _value_to_string(self, value: Any) -> str | None:
         """Convert value to string representation."""
