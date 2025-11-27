@@ -576,17 +576,22 @@ class TestBinaryTargetExecution:
 
             # Create minimal DICOM data
             import pydicom
+            from pydicom.uid import generate_uid
 
             ds = pydicom.Dataset()
             ds.PatientName = "Test"
             ds.PatientID = "123"
+            ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+            ds.SOPInstanceUID = generate_uid()
             ds.file_meta = pydicom.Dataset()
+            ds.file_meta.MediaStorageSOPClassUID = ds.SOPClassUID
+            ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
             ds.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
 
             from io import BytesIO
 
             buffer = BytesIO()
-            pydicom.dcmwrite(buffer, ds, write_like_original=False)
+            pydicom.dcmwrite(buffer, ds, enforce_file_format=True)
             test_data = buffer.getvalue()
 
             # Test default DICOM parsing
@@ -606,16 +611,21 @@ class TestSeedDirectoryLoading:
 
             # Create test seed files
             import pydicom
+            from pydicom.uid import generate_uid
 
             for i in range(3):
                 ds = pydicom.Dataset()
                 ds.PatientName = f"Patient{i}"
                 ds.PatientID = str(i)
+                ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+                ds.SOPInstanceUID = generate_uid()
                 ds.file_meta = pydicom.Dataset()
+                ds.file_meta.MediaStorageSOPClassUID = ds.SOPClassUID
+                ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
                 ds.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
 
                 seed_file = seed_dir / f"seed_{i}.dcm"
-                pydicom.dcmwrite(seed_file, ds, write_like_original=False)
+                pydicom.dcmwrite(seed_file, ds, enforce_file_format=True)
 
             config = FuzzingConfig(
                 seed_dir=seed_dir,
