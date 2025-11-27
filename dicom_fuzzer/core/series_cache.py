@@ -348,7 +348,8 @@ class SeriesCache:
 
         try:
             with open(series_path, "rb") as f:
-                series = pickle.load(f)
+                # B301: pickle.load - trusted data from internal corpus cache
+                series = pickle.load(f)  # nosec B301
             logger.debug(f"Loaded series {series_uid} from {series_path}")
             return series
         except Exception as e:
