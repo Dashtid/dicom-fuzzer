@@ -25,9 +25,18 @@ except ImportError:
     HAS_RESOURCE_MODULE = False
     sys_resource = None
 
+from dicom_fuzzer.core.exceptions import ResourceExhaustedError
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Re-export for backwards compatibility
+__all__ = [
+    "ResourceManager",
+    "ResourceLimits",
+    "ResourceUsage",
+    "ResourceExhaustedError",
+]
 
 
 @dataclass
@@ -68,12 +77,6 @@ class ResourceUsage:
     disk_free_mb: float
     open_files: int
     timestamp: float
-
-
-class ResourceExhaustedError(Exception):
-    """Raised when resource limits are exceeded."""
-
-    pass
 
 
 class ResourceManager:
