@@ -7,7 +7,6 @@ and adaptive mutations to maximize code coverage and bug discovery.
 import asyncio
 import hashlib
 import json
-import logging
 import signal
 import time
 from collections.abc import Callable
@@ -18,17 +17,15 @@ from typing import Any
 
 import pydicom
 
+from dicom_fuzzer.utils.logger import get_logger
+
 from .corpus_manager import CorpusManager, HistoricalCorpusManager
 from .coverage_guided_mutator import CoverageGuidedMutator, MutationType
 from .coverage_instrumentation import CoverageInfo, CoverageTracker
 from .crash_analyzer import CrashAnalyzer
 from .reporter import ReportGenerator
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

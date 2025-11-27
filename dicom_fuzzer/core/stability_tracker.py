@@ -13,13 +13,14 @@ Ideal stability: 100% (same input → same coverage every time)
 """
 
 import hashlib
-import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class InstabilityCause(Enum):

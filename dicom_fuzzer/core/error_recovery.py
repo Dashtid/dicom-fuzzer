@@ -12,7 +12,6 @@ STABILITY FEATURES:
 """
 
 import json
-import logging
 import signal
 import time
 from dataclasses import dataclass
@@ -21,8 +20,9 @@ from pathlib import Path
 from typing import Any
 
 from dicom_fuzzer.core.serialization import SerializableMixin
+from dicom_fuzzer.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class CampaignStatus(Enum):

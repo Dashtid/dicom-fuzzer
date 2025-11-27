@@ -7,11 +7,12 @@ STABILITY: Adaptive timeout adjustment prevents wasting resources on
 consistently slow or hanging inputs.
 """
 
-import logging
 import time
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass

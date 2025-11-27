@@ -10,11 +10,12 @@ RESEARCH: "Examining which lines are executed is helpful for understanding
 the effectiveness of your fuzzer." (2025 Best Practices)
 """
 
-import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-logger = logging.getLogger(__name__)
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass

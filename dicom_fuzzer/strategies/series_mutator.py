@@ -38,6 +38,7 @@ from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
 
 from dicom_fuzzer.core.dicom_series import DicomSeries
+from dicom_fuzzer.core.serialization import SerializableMixin
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -54,7 +55,7 @@ class SeriesMutationStrategy(Enum):
 
 
 @dataclass
-class SeriesMutationRecord:
+class SeriesMutationRecord(SerializableMixin):
     """Record of a series-level mutation.
 
     Extends MutationRecord with series-specific information.
@@ -68,17 +69,14 @@ class SeriesMutationRecord:
     severity: str = "moderate"
     details: dict = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
-        """Convert to dictionary for JSON serialization."""
-        return {
-            "strategy": self.strategy,
-            "slice_index": self.slice_index,
-            "tag": self.tag,
-            "original_value": str(self.original_value) if self.original_value else None,
-            "mutated_value": str(self.mutated_value) if self.mutated_value else None,
-            "severity": self.severity,
-            "details": self.details,
-        }
+    def _custom_serialization(self, data: dict) -> dict:
+        """Ensure values are converted to strings for JSON serialization."""
+        # Convert values to strings if present (handles non-string types)
+        if data.get("original_value") is not None:
+            data["original_value"] = str(data["original_value"])
+        if data.get("mutated_value") is not None:
+            data["mutated_value"] = str(data["mutated_value"])
+        return data
 
 
 class Series3DMutator:

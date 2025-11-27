@@ -11,13 +11,13 @@ may be simple assertion failures or benign crashes.
 Based on 2025 best practices for automated crash triaging systems.
 """
 
-import logging
 from dataclasses import dataclass, field
 from enum import Enum
 
 from dicom_fuzzer.core.fuzzing_session import CrashRecord
+from dicom_fuzzer.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class Severity(Enum):

@@ -11,14 +11,15 @@ STABILITY: Prevents wasted time by validating everything upfront:
 - Python dependencies
 """
 
-import logging
 import os
 import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass

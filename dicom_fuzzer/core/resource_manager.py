@@ -8,7 +8,6 @@ SECURITY: Prevents denial-of-service through resource exhaustion by enforcing
 hard limits on memory, CPU time, and disk usage.
 """
 
-import logging
 import os
 import platform
 import shutil
@@ -26,7 +25,9 @@ except ImportError:
     HAS_RESOURCE_MODULE = False
     sys_resource = None
 
-logger = logging.getLogger(__name__)
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass

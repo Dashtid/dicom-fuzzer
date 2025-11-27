@@ -8,11 +8,12 @@ performed to ensure that the fuzzer initializes faster and easier with a
 smaller corpus." (2025 Best Practices)
 """
 
-import logging
 import shutil
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def minimize_corpus_for_campaign(

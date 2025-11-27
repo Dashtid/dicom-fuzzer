@@ -11,12 +11,13 @@ has hidden state, stability can drop, indicating nondeterministic behavior."
 
 import gc
 import hashlib
-import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def validate_determinism(
