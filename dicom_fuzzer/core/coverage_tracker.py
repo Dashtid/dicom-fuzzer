@@ -12,7 +12,6 @@ fuzzing is intelligent - it learns which inputs are interesting and focuses on t
 This dramatically increases the effectiveness of fuzzing.
 """
 
-import hashlib
 import sys
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -20,6 +19,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from dicom_fuzzer.utils.hashing import hash_string
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -71,7 +71,7 @@ class CoverageSnapshot:
             for filename, line, branch in sorted(self.branches_covered)
         )
         combined = f"{lines_str}|{branches_str}"
-        return hashlib.sha256(combined.encode()).hexdigest()
+        return hash_string(combined)
 
     def new_coverage_vs(self, other: "CoverageSnapshot") -> set[tuple[str, int]]:
         """Find lines covered by this snapshot but not the other.

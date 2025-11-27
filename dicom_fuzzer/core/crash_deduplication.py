@@ -8,11 +8,11 @@ by analyzing multiple crash characteristics:
 - Configurable weighting and thresholds
 """
 
-import hashlib
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
 from dicom_fuzzer.core.fuzzing_session import CrashRecord
+from dicom_fuzzer.utils.hashing import hash_string
 
 
 @dataclass
@@ -545,7 +545,7 @@ class CrashDeduplicator:
             sig_parts.append(normalized[:500])
 
         sig_str = "|".join(sig_parts)
-        return hashlib.sha256(sig_str.encode()).hexdigest()
+        return hash_string(sig_str)
 
 
 def deduplicate_session_crashes(
