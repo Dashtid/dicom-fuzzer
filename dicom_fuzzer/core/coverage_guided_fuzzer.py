@@ -6,6 +6,7 @@ and adaptive mutations to maximize code coverage and bug discovery.
 
 import asyncio
 import json
+import platform
 import signal
 import time
 from collections.abc import Callable
@@ -15,6 +16,9 @@ from pathlib import Path
 from typing import Any
 
 import pydicom
+
+# Platform detection for parallel execution support
+IS_WINDOWS = platform.system() == "Windows"
 
 from dicom_fuzzer.utils.hashing import short_hash
 from dicom_fuzzer.utils.logger import get_logger
@@ -162,9 +166,17 @@ class CoverageGuidedFuzzer:
             await self._load_initial_seeds()
 
             # Main fuzzing loop
-            if self.config.num_workers > 1:
+            # Note: Parallel execution using ThreadPoolExecutor with asyncio.run()
+            # is problematic on Windows due to event loop restrictions.
+            # Fall back to sequential execution on Windows.
+            if self.config.num_workers > 1 and not IS_WINDOWS:
                 await self._run_parallel()
             else:
+                if self.config.num_workers > 1 and IS_WINDOWS:
+                    logger.warning(
+                        "Parallel execution is not supported on Windows due to "
+                        "asyncio event loop limitations. Falling back to sequential execution."
+                    )
                 await self._run_single()
 
         finally:

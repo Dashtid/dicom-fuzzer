@@ -417,19 +417,20 @@ class TestIntegration:
 class TestParallelExecution:
     """Test parallel fuzzing execution.
 
-    Note: These tests are skipped on Windows due to asyncio event loop
-    issues when creating new event loops in ThreadPoolExecutor workers.
-    The parallel execution functionality is tested manually and in CI on Linux.
+    Note: On Windows, parallel execution falls back to sequential mode
+    due to asyncio event loop limitations with ThreadPoolExecutor workers.
+    The tests verify that the fallback mechanism works correctly.
+    True parallel execution is tested in CI on Linux.
     """
 
     @pytest.mark.asyncio
     @pytest.mark.timeout(60)
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="Parallel worker tests hang on Windows due to asyncio event loop issues",
-    )
     async def test_parallel_fuzzing_with_workers(self):
-        """Test parallel fuzzing with multiple workers (lines 169, 275-293)."""
+        """Test parallel fuzzing with multiple workers (lines 169, 275-293).
+
+        On Windows, this tests the fallback to sequential execution.
+        On Linux/macOS, this tests actual parallel execution.
+        """
         with tempfile.TemporaryDirectory() as tmpdir:
             execution_count = 0
 
@@ -441,7 +442,7 @@ class TestParallelExecution:
             config = FuzzingConfig(
                 target_function=counting_target,
                 max_iterations=50,
-                num_workers=2,  # Enable parallel execution
+                num_workers=2,  # Request parallel execution
                 timeout_per_run=2.0,  # Increase timeout for parallel workers
                 output_dir=Path(tmpdir) / "output",
                 crash_dir=Path(tmpdir) / "crashes",
@@ -450,18 +451,18 @@ class TestParallelExecution:
             fuzzer = CoverageGuidedFuzzer(config)
             stats = await fuzzer.run()
 
-            # Verify parallel execution occurred
+            # Verify execution occurred (parallel on Linux, sequential fallback on Windows)
             assert stats.total_executions > 0
             assert execution_count > 0
 
     @pytest.mark.asyncio
     @pytest.mark.timeout(60)
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="Parallel worker tests hang on Windows due to asyncio event loop issues",
-    )
     async def test_worker_loop_execution(self):
-        """Test worker loop with seed scheduling (lines 297-317)."""
+        """Test worker loop with seed scheduling (lines 297-317).
+
+        On Windows, this tests the fallback to sequential execution.
+        On Linux/macOS, this tests actual parallel worker loop.
+        """
         with tempfile.TemporaryDirectory() as tmpdir:
 
             def simple_target(data: bytes) -> bool:
@@ -479,7 +480,7 @@ class TestParallelExecution:
             fuzzer = CoverageGuidedFuzzer(config)
             stats = await fuzzer.run()
 
-            # Verify workers executed
+            # Verify execution occurred (with fallback on Windows)
             assert stats.total_executions > 0
             assert stats.corpus_size > 0
 
