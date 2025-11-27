@@ -217,7 +217,7 @@ def pre_campaign_health_check(
         verbose: Enable verbose output
 
     Returns:
-        Tuple of (passed: bool, issues: List[str])
+        tuple of (passed: bool, issues: list[str])
 
     """
     issues = []
@@ -407,17 +407,21 @@ def main() -> None:
     resource_limits = None
     if any(
         [
-            getattr(args, 'max_memory', None),
-            getattr(args, 'max_memory_hard', None),
-            getattr(args, 'max_cpu_time', None),
-            getattr(args, 'min_disk_space', None)
+            getattr(args, "max_memory", None),
+            getattr(args, "max_memory_hard", None),
+            getattr(args, "max_cpu_time", None),
+            getattr(args, "min_disk_space", None),
         ]
     ):
         resource_limits = ResourceLimits(
-            max_memory_mb=getattr(args, 'max_memory', None) or getattr(args, 'max_memory_hard', None) or 1024,
-            max_memory_mb_hard=getattr(args, 'max_memory_hard', None) or 2048,
-            max_cpu_seconds=getattr(args, 'max_cpu_time', None) or getattr(args, 'max_cpu', None) or 30,
-            min_disk_space_mb=getattr(args, 'min_disk_space', None) or 1024,
+            max_memory_mb=getattr(args, "max_memory", None)
+            or getattr(args, "max_memory_hard", None)
+            or 1024,
+            max_memory_mb_hard=getattr(args, "max_memory_hard", None) or 2048,
+            max_cpu_seconds=getattr(args, "max_cpu_time", None)
+            or getattr(args, "max_cpu", None)
+            or 30,
+            min_disk_space_mb=getattr(args, "min_disk_space", None) or 1024,
         )
         logger.info(f"Resource limits configured: {resource_limits}")
 
@@ -461,7 +465,7 @@ def main() -> None:
     print(f"  Input:      {input_path.name}")
     print(f"  Output:     {args.output}")
     # Handle both 'count' and 'num_mutations' for test compatibility
-    num_files = getattr(args, 'count', None) or getattr(args, 'num_mutations', 100)
+    num_files = getattr(args, "count", None) or getattr(args, "num_mutations", 100)
     print(f"  Target:     {num_files} files")
     if selected_strategies:
         print(f"  Strategies: {', '.join(selected_strategies)}")
@@ -509,7 +513,11 @@ def main() -> None:
         print("  Campaign Results")
         print("=" * 70)
         print(f"  [+] Successfully generated: {len(files)} files")
-        skipped = getattr(generator.stats, 'skipped_due_to_write_errors', 0) if hasattr(generator, 'stats') else 0
+        skipped = (
+            getattr(generator.stats, "skipped_due_to_write_errors", 0)
+            if hasattr(generator, "stats")
+            else 0
+        )
         print(f"  [!] Skipped (write errors): {skipped}")
         files_per_sec = len(files) / elapsed_time
         print(
@@ -517,7 +525,7 @@ def main() -> None:
         )
 
         # Check if stats exist and strategies_used is a dict (for test compatibility)
-        if hasattr(generator, 'stats') and hasattr(generator.stats, 'strategies_used'):
+        if hasattr(generator, "stats") and hasattr(generator.stats, "strategies_used"):
             strategies_used = generator.stats.strategies_used
             if isinstance(strategies_used, dict) and strategies_used:
                 print("\n  Strategy Usage:")
