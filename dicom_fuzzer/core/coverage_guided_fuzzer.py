@@ -566,5 +566,11 @@ def create_fuzzer_from_config(config_path: Path) -> CoverageGuidedFuzzer:
     with open(config_path) as f:
         config_dict = json.load(f)
 
+    # Convert string paths to Path objects
+    path_fields = ["output_dir", "crash_dir", "corpus_dir", "seed_dir"]
+    for field in path_fields:
+        if field in config_dict and config_dict[field] is not None:
+            config_dict[field] = Path(config_dict[field])
+
     config = FuzzingConfig(**config_dict)
     return CoverageGuidedFuzzer(config)
