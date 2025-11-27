@@ -404,9 +404,9 @@ class TestReportGeneratorCLI:
         assert "high" in content
         assert "segfault" in content
 
-    @patch("dicom_fuzzer.cli.generate_report.matplotlib.pyplot")
-    def test_generate_coverage_chart(self, mock_plt, temp_workspace):
+    def test_generate_coverage_chart(self, temp_workspace):
         """Test coverage chart generation."""
+        from dicom_fuzzer.cli import generate_report
         from dicom_fuzzer.cli.generate_report import generate_coverage_chart
 
         coverage_data = {
@@ -417,10 +417,21 @@ class TestReportGeneratorCLI:
         }
 
         output_file = temp_workspace["reports"] / "coverage.png"
-        generate_coverage_chart(coverage_data, str(output_file))
 
-        mock_plt.savefig.assert_called_once()
-        mock_plt.close.assert_called_once()
+        # Check if matplotlib is available in the module
+        if generate_report.matplotlib is None:
+            # matplotlib not available - test fallback behavior
+            generate_coverage_chart(coverage_data, str(output_file))
+            # Fallback creates empty file
+            assert output_file.exists()
+        else:
+            # matplotlib available - mock and test chart generation
+            with patch.object(
+                generate_report.matplotlib, "pyplot"
+            ) as mock_plt:
+                generate_coverage_chart(coverage_data, str(output_file))
+                mock_plt.savefig.assert_called_once()
+                mock_plt.close.assert_called_once()
 
     def test_markdown_report_generation(self, temp_workspace):
         """Test Markdown report generation."""
