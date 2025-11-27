@@ -90,3 +90,13 @@ class ConfigurationError(DicomFuzzingError):
     """
 
     pass
+
+
+class ResourceExhaustedError(DicomFuzzingError):
+    """Raised when system resources are exhausted.
+
+    This exception occurs when the fuzzer cannot continue due to
+    insufficient system resources (disk space, memory, etc.).
+    """
+
+    pass
