@@ -4,7 +4,6 @@ This module provides secure parsing capabilities for DICOM files,
 with extensive validation, error handling, and security considerations.
 """
 
-import logging
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -14,9 +13,11 @@ import pydicom
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
+from dicom_fuzzer.utils.logger import get_logger
+
 from .exceptions import ParsingError, SecurityViolationError, ValidationError
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DicomParser:

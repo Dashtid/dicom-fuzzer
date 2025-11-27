@@ -18,7 +18,6 @@ STABILITY ENHANCEMENTS:
 - Circuit breaker pattern for failing targets
 """
 
-import logging
 import subprocess
 import time
 from dataclasses import dataclass
@@ -27,8 +26,9 @@ from pathlib import Path
 
 from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
 from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
+from dicom_fuzzer.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ExecutionStatus(Enum):

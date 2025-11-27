@@ -12,13 +12,14 @@ Based on Andreas Zeller's delta debugging algorithm (2002) and modern
 improvements from 2025 fuzzing frameworks.
 """
 
-import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class MinimizationStrategy(Enum):
