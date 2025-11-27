@@ -10,7 +10,7 @@ except ImportError:
     jinja2 = None
 
 
-def create_html_report(json_path: str, html_path: str = None):
+def create_html_report(json_path: str, html_path: str | None = None) -> None:
     """Create HTML report from JSON fuzzing results."""
     # Read JSON report
     with open(json_path) as f:

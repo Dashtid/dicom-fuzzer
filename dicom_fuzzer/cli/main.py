@@ -12,9 +12,10 @@ import shutil
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 from dicom_fuzzer.core.generator import DICOMGenerator
-from dicom_fuzzer.core.resource_manager import ResourceLimits
+from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
 from dicom_fuzzer.core.target_runner import TargetRunner
 
 try:
@@ -92,7 +93,7 @@ def validate_strategy(strategy: str, valid_strategies: list[str]) -> bool:
     return strategy in valid_strategies or strategy == "all"
 
 
-def parse_target_config(config_path: str) -> dict[str, any]:
+def parse_target_config(config_path: str) -> dict[str, Any]:
     """Parse target configuration from JSON file.
 
     Args:
@@ -111,12 +112,12 @@ def parse_target_config(config_path: str) -> dict[str, any]:
         raise FileNotFoundError(f"Config file not found: {config_path}")
 
     with open(path) as f:
-        config: dict[str, any] = json.load(f)
+        config: dict[str, Any] = json.load(f)
 
     return config
 
 
-def apply_resource_limits(resource_limits: dict | ResourceLimits) -> None:
+def apply_resource_limits(resource_limits: dict | ResourceLimits | None) -> None:
     """Apply resource limits to current process.
 
     Args:
@@ -124,16 +125,22 @@ def apply_resource_limits(resource_limits: dict | ResourceLimits) -> None:
 
     Note:
         This is a wrapper for testing. Actual resource limiting
-        is handled by ResourceLimits class and target_runner.
+        is handled by ResourceManager class using context manager.
+        This function just validates resources are available.
 
     """
+    if resource_limits is None:
+        return
+
     # If dict is passed, create ResourceLimits instance for test compatibility
     if isinstance(resource_limits, dict):
         limits = ResourceLimits(**resource_limits)
-        limits.enforce()
-    elif isinstance(resource_limits, ResourceLimits):
-        resource_limits.enforce()
-    # Otherwise, it's a no-op (None or other)
+    else:
+        limits = resource_limits
+
+    # Use ResourceManager to check available resources
+    manager = ResourceManager(limits)
+    manager.check_available_resources()
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -305,8 +312,13 @@ def pre_campaign_health_check(
     return passed, issues + warnings
 
 
-def main() -> None:
-    """Execute DICOM fuzzing campaign with specified parameters."""
+def main() -> int:
+    """Execute DICOM fuzzing campaign with specified parameters.
+
+    Returns:
+        Exit code (0 for success, non-zero for errors)
+
+    """
     parser = argparse.ArgumentParser(
         description="DICOM Fuzzer - Security testing tool for medical imaging systems",
         epilog="Example: %(prog)s input.dcm -c 50 -o ./output -s metadata,header -v",
@@ -465,7 +477,9 @@ def main() -> None:
     print(f"  Input:      {input_path.name}")
     print(f"  Output:     {args.output}")
     # Handle both 'count' and 'num_mutations' for test compatibility
-    num_files = getattr(args, "count", None) or getattr(args, "num_mutations", 100)
+    _count = getattr(args, "count", None)
+    _num_mutations = getattr(args, "num_mutations", None)
+    num_files: int = _count if _count is not None else (_num_mutations if _num_mutations is not None else 100)
     print(f"  Target:     {num_files} files")
     if selected_strategies:
         print(f"  Strategies: {', '.join(selected_strategies)}")
