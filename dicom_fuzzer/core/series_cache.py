@@ -28,7 +28,6 @@ USAGE:
     print(f"Hit rate: {stats['hit_rate']:.1%}")
 """
 
-import hashlib
 import pickle
 import time
 from collections import OrderedDict
@@ -39,6 +38,7 @@ from typing import TYPE_CHECKING
 
 from pydicom.dataset import Dataset
 
+from dicom_fuzzer.utils.hashing import md5_hash
 from dicom_fuzzer.utils.logger import get_logger
 
 if TYPE_CHECKING:
@@ -214,7 +214,7 @@ class SeriesCache:
         """Generate cache key from file path."""
         # Use hash of absolute path for consistent keys
         abs_path = str(file_path.absolute())
-        return hashlib.md5(abs_path.encode()).hexdigest()
+        return md5_hash(abs_path)
 
     def _estimate_size(self, dataset: Dataset) -> int:
         """Estimate memory size of dataset (metadata only).

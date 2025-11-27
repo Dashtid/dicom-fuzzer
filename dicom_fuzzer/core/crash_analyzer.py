@@ -17,13 +17,13 @@ WHY: Crash analysis automates vulnerability discovery:
 - Prioritizes crashes by severity
 """
 
-import hashlib
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
+from dicom_fuzzer.utils.hashing import hash_string
 from dicom_fuzzer.utils.identifiers import generate_crash_id
 
 
@@ -327,7 +327,7 @@ class CrashAnalyzer:
         crash_signature = f"{stack_trace}\n{exception_msg}"
 
         # Create SHA256 hash
-        return hashlib.sha256(crash_signature.encode()).hexdigest()
+        return hash_string(crash_signature)
 
     def is_unique_crash(self, crash_hash: str) -> bool:
         """Check if this is a unique crash (not seen before).

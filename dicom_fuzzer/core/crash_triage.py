@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from dicom_fuzzer.core.fuzzing_session import CrashRecord
+from dicom_fuzzer.utils.hashing import md5_hash
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -482,8 +483,6 @@ class CrashTriageEngine:
             Crash ID string
 
         """
-        import hashlib
-
         # Use crash characteristics to generate ID
         id_parts = [
             crash.crash_type,
@@ -492,7 +491,7 @@ class CrashTriageEngine:
             crash.stack_trace[:500] if crash.stack_trace else "",
         ]
         id_str = "|".join(id_parts)
-        return hashlib.md5(id_str.encode()).hexdigest()
+        return md5_hash(id_str)
 
 
 def triage_session_crashes(crashes: list[CrashRecord]) -> dict:
