@@ -9,6 +9,7 @@ consistently slow or hanging inputs.
 
 import time
 from dataclasses import dataclass
+from typing import Any
 
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -107,7 +108,7 @@ class TimeoutBudgetManager:
 
     def record_execution(
         self, duration: float, timed_out: bool, start_time: float | None = None
-    ):
+    ) -> None:
         """Record execution result and update statistics.
 
         Args:
@@ -164,7 +165,7 @@ class TimeoutBudgetManager:
         """
         return self.current_timeout
 
-    def _adjust_timeout(self):
+    def _adjust_timeout(self) -> None:
         """Adjust timeout based on recent statistics.
 
         CONCEPT: If spending too much time on timeouts, reduce timeout.
@@ -212,7 +213,7 @@ class TimeoutBudgetManager:
         """
         return self.stats
 
-    def reset_statistics(self):
+    def reset_statistics(self) -> None:
         """Reset statistics (for new campaign or phase)."""
         self.stats = TimeoutStatistics()
         self.executions_since_adjustment = 0
@@ -279,18 +280,23 @@ class ExecutionTimer:
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize timer."""
         self.start_time: float | None = None
         self.end_time: float | None = None
         self.duration: float = 0.0
 
-    def __enter__(self):
+    def __enter__(self) -> "ExecutionTimer":
         """Start timer."""
         self.start_time = time.time()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> bool:
         """Stop timer."""
         self.end_time = time.time()
         if self.start_time:
@@ -327,7 +333,7 @@ class TimeoutBudget:
         self.remaining_seconds = max(0, self.total_seconds - elapsed)
         return self.remaining_seconds <= 0
 
-    def operation_context(self, operation_name: str):
+    def operation_context(self, operation_name: str) -> "_TimeoutContext":
         """Context manager for timeout-enforced operations.
 
         Args:
@@ -346,21 +352,26 @@ class TimeoutBudget:
 class _TimeoutContext:
     """Internal context manager for timeout enforcement."""
 
-    def __init__(self, budget: TimeoutBudget, operation_name: str):
+    def __init__(self, budget: TimeoutBudget, operation_name: str) -> None:
         self.budget = budget
         self.operation_name = operation_name
-        self.start_time = None
+        self.start_time: float | None = None
 
-    def __enter__(self):
+    def __enter__(self) -> "_TimeoutContext":
         """Enter context - check if budget available."""
         if self.budget.is_exhausted():
             raise TimeoutError(f"Timeout budget exhausted before {self.operation_name}")
         self.start_time = time.time()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> bool:
         """Exit context - update remaining budget."""
-        if self.start_time:
+        if self.start_time is not None:
             elapsed = time.time() - self.start_time
             self.budget.remaining_seconds = max(
                 0, self.budget.remaining_seconds - elapsed

@@ -13,10 +13,14 @@ This helps with both development and production deployment.
 """
 
 import time
+from collections.abc import Callable, Generator
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import Any, TypeVar
 
-import psutil
+import psutil  # type: ignore[import-untyped]
+
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 @dataclass
@@ -97,19 +101,24 @@ class PerformanceProfiler:
         print(profiler.metrics.throughput_per_second())
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize profiler."""
         self.metrics = FuzzingMetrics()
         self.process = psutil.Process()
         self._cpu_monitor_interval = 1.0  # seconds
 
-    def __enter__(self):
+    def __enter__(self) -> "PerformanceProfiler":
         """Start profiling session."""
         self.metrics.start_time = datetime.now()
         self._start_cpu_monitoring()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> bool:
         """End profiling session and finalize metrics."""
         self.metrics.end_time = datetime.now()
         self.metrics.total_duration = (
@@ -118,12 +127,12 @@ class PerformanceProfiler:
         self._finalize_cpu_metrics()
         return False
 
-    def _start_cpu_monitoring(self):
+    def _start_cpu_monitoring(self) -> None:
         """Start monitoring CPU usage."""
         # Take initial CPU sample
         self.process.cpu_percent(interval=None)
 
-    def _sample_resources(self):
+    def _sample_resources(self) -> None:
         """Sample current resource usage."""
         # Memory
         memory_info = self.process.memory_info()
@@ -135,14 +144,14 @@ class PerformanceProfiler:
         cpu_percent = self.process.cpu_percent(interval=None)
         self.metrics.cpu_samples.append(cpu_percent)
 
-    def _finalize_cpu_metrics(self):
+    def _finalize_cpu_metrics(self) -> None:
         """Calculate final CPU metrics."""
         if self.metrics.cpu_samples:
             self.metrics.avg_cpu_percent = sum(self.metrics.cpu_samples) / len(
                 self.metrics.cpu_samples
             )
 
-    def record_file_generated(self, strategy: str | None = None):
+    def record_file_generated(self, strategy: str | None = None) -> None:
         """Record that a file was generated.
 
         Args:
@@ -160,7 +169,7 @@ class PerformanceProfiler:
         if self.metrics.files_generated % 10 == 0:
             self._sample_resources()
 
-    def record_mutation(self, strategy: str, duration: float = 0.0):
+    def record_mutation(self, strategy: str, duration: float = 0.0) -> None:
         """Record that a mutation was applied.
 
         Args:
@@ -178,11 +187,11 @@ class PerformanceProfiler:
                 self.metrics.strategy_timing.get(strategy, 0.0) + duration
             )
 
-    def record_validation(self):
+    def record_validation(self) -> None:
         """Record that a validation was performed."""
         self.metrics.validations_performed += 1
 
-    def record_crash(self):
+    def record_crash(self) -> None:
         """Record that a crash was found."""
         self.metrics.crashes_found += 1
 
@@ -227,7 +236,7 @@ class PerformanceProfiler:
 
         return "\n".join(report)
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """Get metrics summary as dictionary.
 
         Returns:
@@ -264,7 +273,7 @@ class StrategyTimer:
         # Time automatically recorded
     """
 
-    def __init__(self, profiler: PerformanceProfiler, strategy: str):
+    def __init__(self, profiler: PerformanceProfiler, strategy: str) -> None:
         """Initialize timer.
 
         Args:
@@ -276,19 +285,24 @@ class StrategyTimer:
         self.strategy = strategy
         self.start_time = 0.0
 
-    def __enter__(self):
+    def __enter__(self) -> "StrategyTimer":
         """Start timing."""
         self.start_time = time.time()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> bool:
         """End timing and record."""
         duration = time.time() - self.start_time
         self.profiler.record_mutation(self.strategy, duration)
         return False
 
 
-def profile_function(strategy: str):
+def profile_function(strategy: str) -> Callable[[F], F]:
     """Decorator to profile a function.
 
     CONCEPT: Decorator pattern for automatic profiling.
@@ -300,8 +314,8 @@ def profile_function(strategy: str):
             pass
     """
 
-    def decorator(func):
-        def wrapper(*args, **kwargs):
+    def decorator(func: F) -> F:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             start_time = time.time()
             result = func(*args, **kwargs)
             duration = time.time() - start_time
@@ -311,6 +325,6 @@ def profile_function(strategy: str):
 
             return result
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     return decorator

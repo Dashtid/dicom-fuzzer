@@ -8,6 +8,7 @@ Correlates fuzzing results with code coverage data to identify:
 
 import json
 from pathlib import Path
+from typing import Any
 
 
 class CoverageCorrelator:
@@ -21,13 +22,13 @@ class CoverageCorrelator:
 
         """
         self.coverage_file = coverage_file or Path("reports/coverage/.coverage")
-        self.coverage_data = {}
-        self.data_points = []  # For incremental data collection
+        self.coverage_data: dict[str, Any] = {}
+        self.data_points: list[dict[str, Any]] = []  # For incremental data collection
 
         if self.coverage_file.exists():
             self._load_coverage()
 
-    def _load_coverage(self):
+    def _load_coverage(self) -> None:
         """Load coverage data from file."""
         try:
             # Coverage.py stores data in JSON format
@@ -43,7 +44,9 @@ class CoverageCorrelator:
                 "coverage_file_not_loaded", file=str(self.coverage_file), reason=str(e)
             )
 
-    def correlate_crashes(self, crashes: list[dict], fuzzing_session: dict) -> dict:
+    def correlate_crashes(
+        self, crashes: list[dict[str, Any]], fuzzing_session: dict[str, Any]
+    ) -> dict[str, Any]:
         """Correlate crashes with coverage data.
 
         Args:
@@ -54,7 +57,7 @@ class CoverageCorrelator:
             Correlation analysis dictionary
 
         """
-        results = {
+        results: dict[str, Any] = {
             "crashes_with_coverage": [],
             "coverage_hotspots": {},  # Code areas with many crashes
             "uncovered_mutations": [],  # Mutations that didn't trigger coverage
@@ -79,7 +82,9 @@ class CoverageCorrelator:
 
         return results
 
-    def _analyze_crash_coverage(self, crash: dict, session: dict) -> dict | None:
+    def _analyze_crash_coverage(
+        self, crash: dict[str, Any], session: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Analyze coverage for a specific crash.
 
         Args:
@@ -115,7 +120,9 @@ class CoverageCorrelator:
             "crash_type": crash.get("crash_type"),
         }
 
-    def _identify_hotspots(self, crash_coverage: list[dict]) -> dict:
+    def _identify_hotspots(
+        self, crash_coverage: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Identify code areas with multiple crashes.
 
         Args:
@@ -125,7 +132,7 @@ class CoverageCorrelator:
             Hotspot dictionary
 
         """
-        hotspots = {}
+        hotspots: dict[str, Any] = {}
 
         # Group by mutation types
         for analysis in crash_coverage:
@@ -150,7 +157,7 @@ class CoverageCorrelator:
             sorted(hotspots.items(), key=lambda x: x[1]["crash_count"], reverse=True)
         )
 
-    def _generate_recommendations(self, results: dict) -> list[str]:
+    def _generate_recommendations(self, results: dict[str, Any]) -> list[str]:
         """Generate coverage-guided fuzzing recommendations.
 
         Args:
@@ -205,7 +212,7 @@ class CoverageCorrelator:
             }
         )
 
-    def analyze(self) -> dict:
+    def analyze(self) -> dict[str, Any]:
         """Analyze collected data points for mutation effectiveness.
 
         Returns:

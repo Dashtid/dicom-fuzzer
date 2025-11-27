@@ -12,9 +12,14 @@ import os
 import platform
 import shutil
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    pass
 
 # resource module is Unix-only
 try:
@@ -23,7 +28,7 @@ try:
     HAS_RESOURCE_MODULE = True
 except ImportError:
     HAS_RESOURCE_MODULE = False
-    sys_resource = None
+    sys_resource = None  # type: ignore[assignment]
 
 from dicom_fuzzer.core.exceptions import ResourceExhaustedError
 from dicom_fuzzer.utils.logger import get_logger
@@ -156,7 +161,7 @@ class ResourceManager:
         # Get memory usage (works on Unix-like systems)
         try:
             if not self.is_windows:
-                import psutil
+                import psutil  # type: ignore[import-untyped]
 
                 process = psutil.Process(os.getpid())
                 memory_mb = process.memory_info().rss / (1024 * 1024)
@@ -167,7 +172,7 @@ class ResourceManager:
 
         # Get CPU time (works on Unix-like systems)
         try:
-            if not self.is_windows:
+            if not self.is_windows and sys_resource is not None:
                 usage = sys_resource.getrusage(sys_resource.RUSAGE_SELF)
                 cpu_seconds = usage.ru_utime + usage.ru_stime
             else:
@@ -181,7 +186,7 @@ class ResourceManager:
         # Get open file count (Unix only)
         try:
             if not self.is_windows:
-                import psutil
+                import psutil  # type: ignore[import-untyped]
 
                 process = psutil.Process(os.getpid())
                 open_files = len(process.open_files())
@@ -199,7 +204,7 @@ class ResourceManager:
         )
 
     @contextmanager
-    def limited_execution(self):
+    def limited_execution(self) -> Generator[None, None, None]:
         """Context manager for resource-limited execution.
 
         Sets resource limits before entering context and restores them on exit.
@@ -218,14 +223,14 @@ class ResourceManager:
         # Pre-flight check
         self.check_available_resources()
 
-        if self.is_windows:
+        if self.is_windows or sys_resource is None:
             # Windows doesn't support resource limits via resource module
             logger.debug("Skipping resource limits on Windows")
             yield
             return
 
         # Save current limits
-        saved_limits = {}
+        saved_limits: dict[str, tuple[int, int]] = {}
 
         try:
             # Set memory limit (RLIMIT_AS - virtual memory)
@@ -361,7 +366,7 @@ def resource_limited(
     max_memory_mb: int = 1024,
     max_cpu_seconds: int = 30,
     min_disk_space_mb: int = 1024,
-):
+) -> Generator[ResourceManager, None, None]:
     """Convenience context manager for resource-limited execution.
 
     Args:
