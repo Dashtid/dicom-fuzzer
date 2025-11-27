@@ -26,9 +26,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
 
 # Import matplotlib at module level for test compatibility
+# Using types.ModuleType | None for type safety
+from types import ModuleType
+
+matplotlib: ModuleType | None
 try:
-    import matplotlib
-    import matplotlib.pyplot
+    import matplotlib as _mpl  # noqa: F401
+    import matplotlib.pyplot  # noqa: F401
+    matplotlib = _mpl
 except ImportError:
     matplotlib = None
 
@@ -37,13 +42,16 @@ def generate_reports(
     session_json_path: Path,
     output_html: Path | None = None,
     keep_json: bool = False,
-) -> None:
+) -> Path:
     """Generate HTML (and optionally JSON) reports from session data.
 
     Args:
         session_json_path: Path to session JSON file
         output_html: Path for HTML output (auto-generated if None)
         keep_json: Whether to keep the JSON alongside HTML
+
+    Returns:
+        Path to the generated HTML report
 
     """
     print(f"📊 Loading session data from: {session_json_path}")
@@ -93,7 +101,7 @@ def generate_reports(
     return html_path
 
 
-def main():
+def main() -> None:
     """Generate comprehensive HTML reports from fuzzing session data."""
     parser = argparse.ArgumentParser(
         description="Generate comprehensive HTML reports from fuzzing session data",
@@ -166,7 +174,7 @@ The generated HTML report includes:
 
 # Additional functions for test compatibility
 
-def generate_json_report(data: dict, output_file: str):
+def generate_json_report(data: dict, output_file: str) -> None:
     """Generate JSON report from campaign data.
 
     Args:
@@ -178,7 +186,7 @@ def generate_json_report(data: dict, output_file: str):
         json.dump(data, f, indent=2)
 
 
-def generate_csv_report(crashes: list, output_file: str):
+def generate_csv_report(crashes: list, output_file: str) -> None:
     """Generate CSV report from crash data.
 
     Args:
@@ -193,7 +201,7 @@ def generate_csv_report(crashes: list, output_file: str):
             writer.writerows(crashes)
 
 
-def generate_coverage_chart(coverage_data: dict, output_file: str):
+def generate_coverage_chart(coverage_data: dict, output_file: str) -> None:
     """Generate coverage chart from coverage timeline data.
 
     Args:
@@ -216,7 +224,7 @@ def generate_coverage_chart(coverage_data: dict, output_file: str):
         Path(output_file).touch()
 
 
-def generate_markdown_report(data: dict, output_file: str):
+def generate_markdown_report(data: dict, output_file: str) -> None:
     """Generate Markdown report from campaign data.
 
     Args:
