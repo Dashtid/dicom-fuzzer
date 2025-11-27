@@ -454,7 +454,7 @@ class DicomMutator:
         """LEARNING: End the current mutation session and return statistics
 
         Returns:
-            Optional[MutationSession]: The completed session with all records
+            MutationSession | None: The completed session with all records
 
         """
         if not self.current_session:
@@ -486,7 +486,7 @@ class DicomMutator:
         """LEARNING: Get a summary of the current session
 
         Returns:
-            Optional[Dict]: Summary information about the session
+            dict[str, Any] | None: Summary information about the session
 
         """
         if not self.current_session:

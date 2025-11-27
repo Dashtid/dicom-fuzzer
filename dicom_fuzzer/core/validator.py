@@ -219,7 +219,7 @@ class DicomValidator:
             parse_dataset: Whether to parse and validate the dataset
 
         Returns:
-            Tuple of (ValidationResult, Optional[Dataset])
+            tuple of (ValidationResult, Dataset | None)
 
         """
         result = ValidationResult()
@@ -473,7 +473,7 @@ class DicomValidator:
             stop_on_first_error: Whether to stop on first error
 
         Returns:
-            List[ValidationResult]: Results for each dataset
+            list[ValidationResult]: Results for each dataset
 
         """
         results = []
