@@ -203,7 +203,7 @@ class DicomMutator:
         logger.debug(f"Registered mutation strategy: {strategy.get_strategy_name()}")
 
     def start_session(
-        self, original_dataset: Dataset, file_info: dict[str, Any] = None
+        self, original_dataset: Dataset | None, file_info: dict[str, Any] | None = None
     ) -> str:
         """LEARNING: Start a new mutation session for tracking purposes
 
@@ -462,7 +462,8 @@ class DicomMutator:
             return None
 
         # LEARNING: Mark the end time
-        self.current_session.end_time = datetime.now(UTC)
+        end_time = datetime.now(UTC)
+        self.current_session.end_time = end_time
 
         # LEARNING: Log session summary
         session = self.current_session
@@ -472,7 +473,7 @@ class DicomMutator:
             session_id=session.session_id,
             total_mutations=session.total_mutations,
             successful_mutations=session.successful_mutations,
-            duration_seconds=(session.end_time - session.start_time).total_seconds(),
+            duration_seconds=(end_time - session.start_time).total_seconds(),
             success_rate=session.successful_mutations / max(session.total_mutations, 1),
         )
 

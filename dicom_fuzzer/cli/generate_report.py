@@ -35,9 +35,9 @@ except ImportError:
 
 def generate_reports(
     session_json_path: Path,
-    output_html: Path = None,
+    output_html: Path | None = None,
     keep_json: bool = False,
-):
+) -> None:
     """Generate HTML (and optionally JSON) reports from session data.
 
     Args:

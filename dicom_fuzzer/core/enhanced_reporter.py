@@ -34,10 +34,9 @@ class EnhancedReportGenerator:
 
         # Initialize crash triage engine
         self.enable_triage = enable_triage
+        self.triage_engine: CrashTriageEngine | None = None
         if enable_triage:
             self.triage_engine = CrashTriageEngine()
-        else:
-            self.triage_engine = None
 
     def _enrich_crashes_with_triage(self, session_data: dict) -> dict:
         """Enrich crash records with automated triage analysis.
@@ -786,7 +785,7 @@ class EnhancedReportGenerator:
 
         return html
 
-    def _html_mutation_analysis(self, fuzzed_files: dict, crashes: list = None) -> str:
+    def _html_mutation_analysis(self, fuzzed_files: dict, crashes: list | None = None) -> str:
         """Generate mutation strategy analysis."""
         if not fuzzed_files:
             return ""
@@ -796,8 +795,8 @@ class EnhancedReportGenerator:
             crashes = []
 
         # Analyze mutation strategies used
-        strategy_counts = {}
-        mutation_type_counts = {}
+        strategy_counts: dict[str, int] = {}
+        mutation_type_counts: dict[str, int] = {}
 
         for file_record in fuzzed_files.values():
             for mutation in file_record.get("mutations", []):
