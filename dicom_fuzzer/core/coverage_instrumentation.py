@@ -4,7 +4,6 @@ Provides lightweight coverage tracking using Python's tracing capabilities.
 Tracks edge coverage (branch transitions) to guide fuzzing decisions.
 """
 
-import hashlib
 import sys
 import threading
 import time
@@ -13,6 +12,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from dicom_fuzzer.utils.hashing import hash_string, short_hash
 
 
 @dataclass
@@ -38,7 +39,7 @@ class CoverageInfo:
         """Generate a unique hash for this coverage signature."""
         coverage_data = sorted(self.edges) + sorted(self.branches)
         coverage_str = str(coverage_data)
-        return hashlib.sha256(coverage_str.encode()).hexdigest()[:16]
+        return hash_string(coverage_str, 16)
 
 
 class CoverageTracker:
@@ -146,9 +147,7 @@ class CoverageTracker:
         self.current_coverage = CoverageInfo()
 
         if input_data:
-            self.current_coverage.input_hash = hashlib.sha256(input_data).hexdigest()[
-                :16
-            ]
+            self.current_coverage.input_hash = short_hash(input_data)
 
         # Start tracing
         start_time = time.time()
