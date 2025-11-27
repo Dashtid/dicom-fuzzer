@@ -158,5 +158,6 @@ def md5_hash(data: bytes | str, length: int | None = None) -> str:
     """
     if isinstance(data, str):
         data = data.encode()
-    digest = hashlib.md5(data).hexdigest()
+    # usedforsecurity=False: MD5 used for cache keys, not security
+    digest = hashlib.md5(data, usedforsecurity=False).hexdigest()
     return digest[:length] if length else digest
