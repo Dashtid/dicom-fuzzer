@@ -4,7 +4,68 @@ Provides standardized functions for generating unique, timestamp-based
 identifiers used throughout the fuzzing framework.
 """
 
+import uuid
 from datetime import datetime
+
+
+def generate_short_id(length: int = 8) -> str:
+    """Generate a short unique identifier using UUID4.
+
+    Creates a hex-based unique ID suitable for embedding in file names,
+    corpus entry IDs, campaign IDs, etc.
+
+    Args:
+        length: Number of hex characters (default 8)
+
+    Returns:
+        Short hex string like "a1b2c3d4"
+
+    Examples:
+        >>> len(generate_short_id())
+        8
+
+        >>> len(generate_short_id(12))
+        12
+
+    """
+    return uuid.uuid4().hex[:length]
+
+
+def generate_campaign_id() -> str:
+    """Generate a unique campaign identifier.
+
+    Returns:
+        Campaign ID - short 8-character hex string
+
+    Examples:
+        >>> len(generate_campaign_id())
+        8
+
+    """
+    return generate_short_id(8)
+
+
+def generate_seed_id() -> str:
+    """Generate a unique seed identifier.
+
+    Returns:
+        Seed ID like "seed_a1b2c3d4"
+
+    """
+    return f"seed_{generate_short_id(8)}"
+
+
+def generate_corpus_entry_id(generation: int = 0) -> str:
+    """Generate a unique corpus entry identifier.
+
+    Args:
+        generation: Mutation generation number (0 for seeds)
+
+    Returns:
+        Entry ID like "gen0_a1b2c3d4" or "gen1_b2c3d4e5"
+
+    """
+    return f"gen{generation}_{generate_short_id(8)}"
 
 
 def generate_timestamp_id(prefix: str = "", include_microseconds: bool = False) -> str:

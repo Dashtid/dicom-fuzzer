@@ -11,7 +11,6 @@ UPDATED: Now includes dictionary-based fuzzing for intelligent, domain-aware mut
 
 # LEARNING: Import necessary modules
 import random
-import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,6 +19,7 @@ from typing import Any, Protocol
 # LEARNING: Import our logging system with fallback for direct execution
 try:
     # Try relative import first (when imported as a module)
+    from ..utils.identifiers import generate_short_id
     from ..utils.logger import SecurityEventLogger, get_logger
 except ImportError:
     # Fall back to absolute import (when running directly)
@@ -27,6 +27,7 @@ except ImportError:
 
     # Add the parent directory to the path so we can import utils
     sys.path.append(str(Path(__file__).parent.parent))
+    from dicom_fuzzer.utils.identifiers import generate_short_id
     from dicom_fuzzer.utils.logger import SecurityEventLogger, get_logger
 
 # LEARNING: Import DICOM libraries
@@ -81,7 +82,7 @@ class MutationRecord:
     WHY: We need to track mutations for debugging, analysis, and compliance.
     """
 
-    mutation_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    mutation_id: str = field(default_factory=generate_short_id)
     strategy_name: str = ""
     severity: MutationSeverity = MutationSeverity.MINIMAL
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -98,7 +99,7 @@ class MutationSession:
     Like a medical procedure where multiple treatments are applied.
     """
 
-    session_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    session_id: str = field(default_factory=generate_short_id)
     original_file_info: dict[str, Any] = field(default_factory=dict)
     mutations: list[MutationRecord] = field(default_factory=list)
     start_time: datetime = field(default_factory=lambda: datetime.now(UTC))

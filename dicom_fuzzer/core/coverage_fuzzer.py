@@ -12,7 +12,6 @@ libFuzzer, and Hongfuzz. It's dramatically more effective than random fuzzing.
 """
 
 import random
-import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -24,6 +23,11 @@ from pydicom.dataset import Dataset
 from dicom_fuzzer.core.corpus import CorpusEntry, CorpusManager
 from dicom_fuzzer.core.coverage_tracker import CoverageSnapshot, CoverageTracker
 from dicom_fuzzer.core.mutator import DicomMutator, MutationSeverity
+from dicom_fuzzer.utils.identifiers import (
+    generate_campaign_id,
+    generate_corpus_entry_id,
+    generate_seed_id,
+)
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -47,7 +51,7 @@ class FuzzingCampaignStats:
 
     """
 
-    campaign_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    campaign_id: str = field(default_factory=generate_campaign_id)
     start_time: datetime = field(default_factory=lambda: datetime.now(UTC))
     total_iterations: int = 0
     unique_crashes: int = 0
@@ -146,7 +150,7 @@ class CoverageGuidedFuzzer:
 
         """
         if seed_id is None:
-            seed_id = f"seed_{uuid.uuid4().hex[:8]}"
+            seed_id = generate_seed_id()
 
         # Execute seed to get initial coverage
         coverage = None
@@ -184,7 +188,7 @@ class CoverageGuidedFuzzer:
         mutated_dataset = self._mutate_input(parent.dataset)
 
         # Generate entry ID
-        entry_id = f"gen{parent.generation + 1}_{uuid.uuid4().hex[:8]}"
+        entry_id = generate_corpus_entry_id(parent.generation + 1)
 
         # Execute and track coverage
         coverage = None

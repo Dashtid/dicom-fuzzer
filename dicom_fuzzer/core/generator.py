@@ -1,6 +1,5 @@
 import random
 import struct
-import uuid
 from pathlib import Path
 
 from pydicom.uid import generate_uid
@@ -10,6 +9,7 @@ from dicom_fuzzer.strategies.header_fuzzer import HeaderFuzzer
 from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
 from dicom_fuzzer.strategies.pixel_fuzzer import PixelFuzzer
 from dicom_fuzzer.strategies.structure_fuzzer import StructureFuzzer
+from dicom_fuzzer.utils.identifiers import generate_short_id
 
 
 class GenerationStats:
@@ -241,7 +241,7 @@ class DICOMGenerator:
         self, mutated_dataset, strategies_applied: list[str]
     ) -> Path | None:
         """Save mutated dataset to file. Returns path or None on error."""
-        filename = f"fuzzed_{uuid.uuid4().hex[:8]}.dcm"
+        filename = f"fuzzed_{generate_short_id()}.dcm"
         output_path = self.output_dir / filename
 
         try:
