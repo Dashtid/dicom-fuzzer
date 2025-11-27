@@ -367,21 +367,23 @@ class StatisticsCollector:
         # Print severity statistics
         if self.severity_stats:
             print("\n--- Severity Distribution ---")
-            for severity, stats in sorted(self.severity_stats.items()):
+            for severity, sev_stats in sorted(self.severity_stats.items()):
                 avg_mutations = (
-                    stats["mutations"] / stats["count"] if stats["count"] > 0 else 0
+                    sev_stats["mutations"] / sev_stats["count"]
+                    if sev_stats["count"] > 0
+                    else 0
                 )
                 print(
-                    f"  {severity.capitalize()}: {stats['count']} iterations, "
+                    f"  {severity.capitalize()}: {sev_stats['count']} iterations, "
                     f"avg {avg_mutations:.1f} mutations/iter"
                 )
 
         print("\n--- Strategy Effectiveness Rankings ---")
         for rank, (strategy, score) in enumerate(self.get_strategy_ranking(), 1):
-            stats = self.strategies[strategy]
+            strat_stats = self.strategies[strategy]
             print(
                 f"{rank}. {strategy}: {score:.3f} "
-                f"(used {stats.times_used}x, {stats.crashes_found} crashes)"
+                f"(used {strat_stats.times_used}x, {strat_stats.crashes_found} crashes)"
             )
 
         print("\n--- Top Mutated Tags ---")

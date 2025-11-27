@@ -7,12 +7,13 @@ random data generation, and validation.
 import random
 import string
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from pydicom.tag import Tag
+from pydicom.tag import BaseTag, Tag
 
 # File size constants
 KB = 1024
@@ -93,12 +94,15 @@ def safe_file_read(
     """
     path = validate_file_path(file_path, must_exist=True, max_size=max_size)
 
-    mode = "rb" if binary else "r"
-    with open(path, mode) as f:
-        return f.read()
+    if binary:
+        with open(path, "rb") as f:
+            return f.read()
+    else:
+        with open(path) as f:
+            return f.read()
 
 
-def tag_to_hex(tag: Tag) -> str:
+def tag_to_hex(tag: BaseTag) -> str:
     """Convert DICOM tag to hex string format.
 
     Args:
@@ -116,7 +120,7 @@ def tag_to_hex(tag: Tag) -> str:
     return f"({tag.group:04X}, {tag.element:04X})"
 
 
-def hex_to_tag(hex_string: str) -> Tag:
+def hex_to_tag(hex_string: str) -> BaseTag:
     """Parse hex string to DICOM tag.
 
     Args:
@@ -147,7 +151,7 @@ def hex_to_tag(hex_string: str) -> Tag:
         raise ValueError(f"Invalid hex string format: {hex_string}") from e
 
 
-def is_private_tag(tag: Tag) -> bool:
+def is_private_tag(tag: BaseTag) -> bool:
     """Check if DICOM tag is a private tag.
 
     Args:
@@ -157,7 +161,7 @@ def is_private_tag(tag: Tag) -> bool:
         True if tag is private (odd group number)
 
     """
-    return tag.group % 2 == 1
+    return bool(tag.group % 2 == 1)
 
 
 def random_string(
@@ -395,7 +399,9 @@ def format_duration(seconds: float) -> str:
 
 
 @contextmanager
-def timing(operation: str = "Operation", logger=None):
+def timing(
+    operation: str = "Operation", logger: Any = None
+) -> Generator[dict[str, float], None, None]:
     """Context manager for timing operations.
 
     Args:
@@ -411,7 +417,7 @@ def timing(operation: str = "Operation", logger=None):
         >>> print(f"Took {t['duration_ms']}ms")
 
     """
-    result = {}
+    result: dict[str, float] = {}
     start_time = time.perf_counter()
 
     try:
@@ -490,7 +496,7 @@ if __name__ == "__main__":
 
     print("File operations:")
     print(f"  100 MB = {format_bytes(100 * MB)}")
-    print(f"  1.5 GB = {format_bytes(1.5 * GB)}")
+    print(f"  1.5 GB = {format_bytes(int(1.5 * GB))}")
 
     print("\nRandom data generation:")
     print(f"  Random date: {random_dicom_date(1980, 2000)}")
