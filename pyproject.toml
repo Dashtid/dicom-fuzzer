@@ -172,7 +172,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["D", "S101", "B", "F841", "PT011"]  # Relax docstring, assert, and pytest fixture returns in tests
+"tests/**/*.py" = ["D", "S101", "S607", "B", "F841", "PT011"]  # Relax docstring, assert, subprocess path, and pytest in tests
 "examples/**/*.py" = ["D", "S"]  # Relax docstring and security rules in examples
 
 [tool.mypy]
