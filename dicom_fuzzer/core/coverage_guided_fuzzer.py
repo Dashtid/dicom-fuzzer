@@ -17,9 +17,6 @@ from typing import Any
 
 import pydicom
 
-# Platform detection for parallel execution support
-IS_WINDOWS = platform.system() == "Windows"
-
 from dicom_fuzzer.utils.hashing import short_hash
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -28,6 +25,9 @@ from .coverage_guided_mutator import CoverageGuidedMutator, MutationType
 from .coverage_instrumentation import CoverageInfo, CoverageTracker
 from .crash_analyzer import CrashAnalyzer
 from .reporter import ReportGenerator
+
+# Platform detection for parallel execution support
+IS_WINDOWS = platform.system() == "Windows"
 
 logger = get_logger(__name__)
 
@@ -111,6 +111,7 @@ class CoverageGuidedFuzzer:
 
         # Use historical corpus manager if history exists
         history_dir = config.corpus_dir / "history" if config.corpus_dir else None
+        self.corpus_manager: CorpusManager | HistoricalCorpusManager
         if history_dir and history_dir.exists():
             self.corpus_manager = HistoricalCorpusManager(
                 history_dir=history_dir, max_corpus_size=config.max_corpus_size
@@ -146,7 +147,7 @@ class CoverageGuidedFuzzer:
         if self.config.corpus_dir:
             self.config.corpus_dir.mkdir(parents=True, exist_ok=True)
 
-    def _signal_handler(self, signum, frame) -> None:
+    def _signal_handler(self, signum: int, frame: Any) -> None:
         """Handle interrupt signals gracefully."""
         logger.info(f"Received signal {signum}, stopping fuzzer...")
         self.should_stop = True
@@ -226,7 +227,7 @@ class CoverageGuidedFuzzer:
             ds = pydicom.Dataset()
             ds.PatientName = "Test"
             ds.PatientID = "123"
-            ds.file_meta = pydicom.Dataset()
+            ds.file_meta = pydicom.filereader.FileMetaDataset()
             ds.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
 
             # Convert to bytes
@@ -255,7 +256,7 @@ class CoverageGuidedFuzzer:
 
             for mutated_data, mutation_type in mutations:
                 if self.should_stop:
-                    break
+                    break  # type: ignore[unreachable]  # Signal handler can set should_stop
 
                 # Execute with coverage tracking
                 coverage, crashed = await self._execute_with_coverage(mutated_data)
@@ -315,7 +316,7 @@ class CoverageGuidedFuzzer:
 
             for mutated_data, mutation_type in mutations:
                 if self.should_stop:
-                    break
+                    break  # type: ignore[unreachable]  # Signal handler can set should_stop
 
                 # Execute with coverage
                 coverage, crashed = asyncio.run(
@@ -580,9 +581,9 @@ def create_fuzzer_from_config(config_path: Path) -> CoverageGuidedFuzzer:
 
     # Convert string paths to Path objects
     path_fields = ["output_dir", "crash_dir", "corpus_dir", "seed_dir"]
-    for field in path_fields:
-        if field in config_dict and config_dict[field] is not None:
-            config_dict[field] = Path(config_dict[field])
+    for path_field in path_fields:
+        if path_field in config_dict and config_dict[path_field] is not None:
+            config_dict[path_field] = Path(config_dict[path_field])
 
     config = FuzzingConfig(**config_dict)
     return CoverageGuidedFuzzer(config)

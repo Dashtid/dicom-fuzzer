@@ -80,16 +80,13 @@ class LazyDicomLoader:
             raise FileNotFoundError(f"DICOM file not found: {file_path}")
 
         try:
-            # Build pydicom.dcmread kwargs based on strategy
-            kwargs = {
-                "force": self.force,
-                "stop_before_pixels": self.metadata_only,
-            }
-
-            if self.defer_size is not None:
-                kwargs["defer_size"] = self.defer_size
-
-            ds = pydicom.dcmread(file_path, **kwargs)
+            # Load with the appropriate strategy
+            ds = pydicom.dcmread(
+                file_path,
+                force=self.force,
+                stop_before_pixels=self.metadata_only,
+                defer_size=self.defer_size,
+            )
 
             logger.debug(
                 f"Loaded {file_path.name}: "
@@ -119,7 +116,7 @@ class LazyDicomLoader:
         """
         if hasattr(dataset, "PixelData") and dataset.PixelData is not None:
             logger.warning(f"Dataset {file_path.name} already has pixel data loaded")
-            return dataset.PixelData
+            return bytes(dataset.PixelData)
 
         if not file_path.exists():
             raise FileNotFoundError(f"DICOM file not found: {file_path}")
@@ -135,7 +132,7 @@ class LazyDicomLoader:
                 # Attach to original dataset
                 dataset.PixelData = pixel_data
                 logger.debug(f"Loaded pixel data for {file_path.name}")
-                return pixel_data
+                return bytes(pixel_data)
             else:
                 logger.warning(f"No pixel data in {file_path.name}")
                 return b""

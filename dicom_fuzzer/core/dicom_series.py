@@ -19,6 +19,7 @@ This makes series-level fuzzing critical for security testing.
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pydicom
@@ -53,9 +54,9 @@ class DicomSeries:
     slices: list[Path] = field(default_factory=list)
     slice_spacing: float | None = None
     orientation: tuple[float, ...] | None = None
-    metadata: dict[str, any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate series after initialization."""
         if not self.series_uid:
             raise ValueError("SeriesInstanceUID cannot be empty")

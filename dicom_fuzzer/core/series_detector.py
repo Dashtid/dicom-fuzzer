@@ -211,7 +211,7 @@ class SeriesDetector:
             }
 
         """
-        series_groups = defaultdict(
+        series_groups: dict[str, dict[str, Any]] = defaultdict(
             lambda: {"files": [], "study_uid": None, "modality": None}
         )
 
@@ -241,7 +241,8 @@ class SeriesDetector:
                 modality = ds.Modality if hasattr(ds, "Modality") else "UNKNOWN"
 
                 # Add to group
-                series_groups[series_uid]["files"].append(file_path)
+                files_list: list[Path] = series_groups[series_uid]["files"]
+                files_list.append(file_path)
 
                 # Set study_uid and modality from first file in series
                 if series_groups[series_uid]["study_uid"] is None:
@@ -376,7 +377,7 @@ class SeriesDetector:
                 "single_slice_series": 0,
             }
 
-        modality_counts = defaultdict(int)
+        modality_counts: dict[str, int] = defaultdict(int)
         total_slices = 0
         multislice = 0
         single_slice = 0

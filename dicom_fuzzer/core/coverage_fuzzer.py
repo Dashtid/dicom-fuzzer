@@ -61,7 +61,7 @@ class FuzzingCampaignStats:
     interesting_inputs_found: int = 0
     avg_fitness: float = 0.0
 
-    def update_from_campaign(self, campaign: "CoverageGuidedFuzzer"):
+    def update_from_campaign(self, campaign: "CoverageGuidedFuzzer") -> None:
         """Update stats from a fuzzing campaign."""
         elapsed = (datetime.now(UTC) - self.start_time).total_seconds()
         self.executions_per_second = (
@@ -184,8 +184,14 @@ class CoverageGuidedFuzzer:
             logger.warning("No corpus entries available for fuzzing")
             return None
 
-        # Mutate it
-        mutated_dataset = self._mutate_input(parent.dataset)
+        # Mutate it - use get_dataset() for lazy-loading support
+        parent_dataset = parent.get_dataset()
+        if parent_dataset is None:
+            logger.warning(
+                "Parent dataset is None, skipping iteration", parent_id=parent.entry_id
+            )
+            return None
+        mutated_dataset = self._mutate_input(parent_dataset)
 
         # Generate entry ID
         entry_id = generate_corpus_entry_id(parent.generation + 1)
@@ -377,7 +383,7 @@ class CoverageGuidedFuzzer:
 
     def _record_crash(
         self, entry_id: str, parent_id: str, dataset: Dataset, exception: Exception
-    ):
+    ) -> None:
         """Record a crash for analysis.
 
         CONCEPT: Crashes are the most valuable finds in fuzzing.
@@ -452,7 +458,7 @@ Crashes Found:
 
         return report.strip()
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset fuzzer state (keeps corpus)."""
         self.coverage_tracker.reset()
         self.stats = FuzzingCampaignStats()
