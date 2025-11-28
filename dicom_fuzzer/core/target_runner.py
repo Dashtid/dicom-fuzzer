@@ -178,7 +178,7 @@ class TargetRunner:
 
         return True
 
-    def _update_circuit_breaker(self, success: bool):
+    def _update_circuit_breaker(self, success: bool) -> None:
         """Update circuit breaker state after execution.
 
         Args:
@@ -244,11 +244,13 @@ class TargetRunner:
 
         return ExecutionStatus.ERROR
 
-    def execute_test(self, test_file: Path, retry_count: int = 0) -> ExecutionResult:
+    def execute_test(
+        self, test_file: Path | str, retry_count: int = 0
+    ) -> ExecutionResult:
         """Execute target application with a test file.
 
         Args:
-            test_file: Path to DICOM file to test
+            test_file: Path to DICOM file to test (str or Path)
             retry_count: Current retry attempt number
 
         Returns:
@@ -263,14 +265,13 @@ class TargetRunner:
         6. Enforces resource limits
 
         """
-        # Convert to Path if string provided
-        if isinstance(test_file, str):
-            test_file = Path(test_file)
+        # Normalize to Path for consistent handling
+        test_file_path = Path(test_file) if isinstance(test_file, str) else test_file
 
         # Check circuit breaker
         if not self._check_circuit_breaker():
             return ExecutionResult(
-                test_file=test_file,
+                test_file=test_file_path,
                 result=ExecutionStatus.SKIPPED,
                 exit_code=None,
                 execution_time=0.0,
@@ -280,13 +281,13 @@ class TargetRunner:
             )
 
         start_time = time.time()
-        logger.debug(f"Testing file: {test_file.name} (attempt {retry_count + 1})")
+        logger.debug(f"Testing file: {test_file_path.name} (attempt {retry_count + 1})")
 
         try:
             # Launch target application with test file
             # SECURITY: Use subprocess for isolation
             result = subprocess.run(
-                [str(self.target_executable), str(test_file)],
+                [str(self.target_executable), str(test_file_path)],
                 timeout=self.timeout,
                 capture_output=True,
                 text=True,
@@ -314,10 +315,10 @@ class TargetRunner:
                         f"({retry_count + 1}/{self.max_retries})"
                     )
                     time.sleep(0.1)  # Brief delay before retry
-                    return self.execute_test(test_file, retry_count + 1)
+                    return self.execute_test(test_file_path, retry_count + 1)
 
             return ExecutionResult(
-                test_file=test_file,
+                test_file=test_file_path,
                 result=test_result,
                 exit_code=result.returncode,
                 execution_time=execution_time,
@@ -333,13 +334,13 @@ class TargetRunner:
             # Record hang as potential DoS vulnerability
             crash_report = self.crash_analyzer.analyze_exception(
                 Exception(f"Timeout after {self.timeout}s"),
-                test_case_path=str(test_file),
+                test_case_path=str(test_file_path),
             )
 
             self._update_circuit_breaker(success=False)
 
             return ExecutionResult(
-                test_file=test_file,
+                test_file=test_file_path,
                 result=ExecutionStatus.HANG,
                 exit_code=None,
                 execution_time=execution_time,
@@ -353,12 +354,12 @@ class TargetRunner:
         except MemoryError as e:
             # Out of memory in fuzzer itself
             execution_time = time.time() - start_time
-            logger.error(f"Fuzzer OOM while testing {test_file.name}: {e}")
+            logger.error(f"Fuzzer OOM while testing {test_file_path.name}: {e}")
 
             self._update_circuit_breaker(success=False)
 
             return ExecutionResult(
-                test_file=test_file,
+                test_file=test_file_path,
                 result=ExecutionStatus.OOM,
                 exit_code=None,
                 execution_time=execution_time,
@@ -371,7 +372,7 @@ class TargetRunner:
         except Exception as e:
             # Unexpected error during test execution
             execution_time = time.time() - start_time
-            logger.error(f"Unexpected error testing {test_file.name}: {e}")
+            logger.error(f"Unexpected error testing {test_file_path.name}: {e}")
 
             self._update_circuit_breaker(success=False)
 
@@ -382,10 +383,10 @@ class TargetRunner:
                     f"({retry_count + 1}/{self.max_retries})"
                 )
                 time.sleep(0.1)
-                return self.execute_test(test_file, retry_count + 1)
+                return self.execute_test(test_file_path, retry_count + 1)
 
             return ExecutionResult(
-                test_file=test_file,
+                test_file=test_file_path,
                 result=ExecutionStatus.ERROR,
                 exit_code=None,
                 execution_time=execution_time,

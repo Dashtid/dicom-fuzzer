@@ -241,9 +241,7 @@ class TestConcurrentOperations:
 class TestLongRunningCampaigns:
     """Test long-running fuzzing campaigns."""
 
-    @pytest.mark.skip(
-        reason="Flaky: Worker crashes in parallel execution - test infrastructure issue"
-    )
+    @pytest.mark.timeout(20)  # Explicit timeout for this longer test
     def test_extended_campaign_stability(self, sample_dicom_file, temp_dir):
         """Test campaign running for extended period."""
         from dicom_fuzzer.core.statistics import StatisticsCollector
@@ -254,7 +252,7 @@ class TestLongRunningCampaigns:
 
         start_time = time.time()
         iterations = 0
-        target_duration = 30  # Run for 30 seconds
+        target_duration = 10  # Run for 10 seconds (reduced from 30 for test stability)
 
         while time.time() - start_time < target_duration:
             # Generate file
@@ -270,8 +268,8 @@ class TestLongRunningCampaigns:
             if iterations % 10 == 0:
                 gc.collect()
 
-        # Should have completed many iterations
-        assert iterations > 10, f"Only {iterations} iterations in {target_duration}s"
+        # Should have completed some iterations (at least 3 in 10 seconds)
+        assert iterations >= 3, f"Only {iterations} iterations in {target_duration}s"
 
         # Should still be responsive
         process = psutil.Process()

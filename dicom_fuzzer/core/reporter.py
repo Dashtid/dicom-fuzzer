@@ -84,6 +84,12 @@ class ReportGenerator:
         crashes = analyzer.crashes
         summary = analyzer.get_crash_summary()
 
+        # Count by severity
+        by_severity: dict[str, int] = {}
+        for crash in crashes:
+            severity = crash.severity.value
+            by_severity[severity] = by_severity.get(severity, 0) + 1
+
         # Build JSON structure
         report_data = {
             "campaign_name": campaign_name,
@@ -92,17 +98,10 @@ class ReportGenerator:
                 "total_crashes": len(crashes),
                 "unique_crashes": len({c.crash_hash for c in crashes}),
                 "by_type": summary,
-                "by_severity": {},
+                "by_severity": by_severity,
             },
             "crashes": [self._crash_to_dict(crash) for crash in crashes],
         }
-
-        # Count by severity
-        for crash in crashes:
-            severity = crash.severity.value
-            report_data["summary"]["by_severity"][severity] = (
-                report_data["summary"]["by_severity"].get(severity, 0) + 1
-            )
 
         # Save report
         timestamp = generate_timestamp_id()

@@ -68,7 +68,7 @@ class CorpusEntry(SerializableMixin):
     _dataset_path: Path | None = field(default=None, repr=False)
     _dataset_cache: Dataset | None = field(default=None, init=False, repr=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """OPTIMIZATION: Handle lazy loading initialization.
 
         If a dataset is provided directly, cache it.
@@ -104,7 +104,7 @@ class CorpusEntry(SerializableMixin):
         # No dataset available
         return None
 
-    def set_dataset(self, dataset: Dataset, path: Path | None = None):
+    def set_dataset(self, dataset: Dataset, path: Path | None = None) -> None:
         """Set the dataset for this entry.
 
         Args:
@@ -437,7 +437,7 @@ class CorpusManager:
 
         return min(base_fitness, 1.0)
 
-    def _evict_lowest_fitness(self):
+    def _evict_lowest_fitness(self) -> None:
         """Remove the lowest fitness entries when corpus is too large.
 
         CONCEPT: We have limited resources, so we keep only the best test cases.
@@ -474,7 +474,7 @@ class CorpusManager:
 
         logger.info(f"Evicted {num_to_evict} low-fitness entries from corpus")
 
-    def _save_entry(self, entry: CorpusEntry):
+    def _save_entry(self, entry: CorpusEntry) -> None:
         """Save a corpus entry to disk."""
         # Save DICOM dataset
         dcm_path = self.corpus_dir / f"{entry.entry_id}.dcm"
@@ -501,7 +501,7 @@ class CorpusManager:
         except Exception as e:
             logger.error(f"Failed to save metadata for {entry.entry_id}: {e}")
 
-    def _load_corpus(self):
+    def _load_corpus(self) -> None:
         """OPTIMIZATION: Load corpus metadata from disk using lazy loading.
 
         Instead of loading all DICOM datasets into memory immediately,
@@ -579,7 +579,7 @@ class CorpusManager:
             ),
         }
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all corpus entries."""
         # Remove files
         if self.corpus_dir.exists():

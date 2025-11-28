@@ -34,7 +34,7 @@ from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from pydicom.dataset import Dataset
 
@@ -349,7 +349,7 @@ class SeriesCache:
         try:
             with open(series_path, "rb") as f:
                 # B301: pickle.load - trusted data from internal corpus cache
-                series = pickle.load(f)  # nosec B301
+                series: DicomSeries = cast("DicomSeries", pickle.load(f))  # nosec B301
             logger.debug(f"Loaded series {series_uid} from {series_path}")
             return series
         except Exception as e:

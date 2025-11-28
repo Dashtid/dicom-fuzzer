@@ -253,8 +253,9 @@ class CoverageGuidedMutator:
         else:
             weights = [1.0 / len(strategies)] * len(strategies)
 
-        chosen = np.random.choice(strategies, p=weights)
-        return MutationType(chosen) if not isinstance(chosen, MutationType) else chosen
+        # Convert to indices for numpy choice, then map back to MutationType
+        idx = np.random.choice(len(strategies), p=weights)
+        return strategies[idx]
 
     def _apply_mutation(
         self, data: bytearray, mutation_type: MutationType

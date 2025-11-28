@@ -16,6 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -149,8 +150,8 @@ class TestMinimizer:
             minimized_content = self._linear(original_content)
         elif self.strategy == MinimizationStrategy.BLOCK:
             minimized_content = self._block_removal(original_content)
-        else:
-            minimized_content = original_content
+        else:  # pragma: no cover - all strategies handled above
+            minimized_content = original_content  # type: ignore[unreachable]
 
         minimized_size = len(minimized_content)
 
@@ -365,7 +366,7 @@ class TestMinimizer:
 
 def minimize_crash_case(
     crash_file: Path,
-    target_runner,
+    target_runner: Any,
     output_dir: Path,
     strategy: MinimizationStrategy = MinimizationStrategy.DDMIN,
 ) -> MinimizationResult:

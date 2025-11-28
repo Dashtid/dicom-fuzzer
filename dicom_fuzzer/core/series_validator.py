@@ -24,6 +24,7 @@ Series with validation errors are more likely to trigger vulnerabilities.
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pydicom
@@ -62,7 +63,7 @@ class ValidationIssue:
     message: str
     slice_index: int | None = None
     slice_path: Path | None = None
-    details: dict[str, any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
     def __repr__(self) -> str:
         """String representation for logging."""

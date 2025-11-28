@@ -32,7 +32,7 @@ class CoverageInsight:
     crash_rate: float = 0.0
     unique_crashes: set[str] = field(default_factory=set)
 
-    def update_crash_rate(self):
+    def update_crash_rate(self) -> None:
         """Recalculate crash rate based on current hits."""
         if self.total_hits == 0:
             self.crash_rate = 0.0
@@ -82,7 +82,9 @@ def correlate_crashes_with_coverage(
     correlation = CrashCoverageCorrelation()
 
     # Build coverage insights
-    coverage_tracker = defaultdict(CoverageInsight)
+    coverage_tracker: dict[str, CoverageInsight] = defaultdict(
+        lambda: CoverageInsight(identifier="")
+    )
 
     # Track safe coverage (baseline)
     safe_coverage: set[str] = set()
@@ -305,7 +307,7 @@ def identify_crash_prone_modules(
         Dict mapping module name -> dangerous path count
 
     """
-    module_counts = defaultdict(int)
+    module_counts: dict[str, int] = defaultdict(int)
 
     for coverage_id, _crash_rate in correlation.dangerous_paths:
         # Extract module/file name

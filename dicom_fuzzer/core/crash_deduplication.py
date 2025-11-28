@@ -37,7 +37,7 @@ class DeduplicationConfig:
     # Overall similarity threshold for considering crashes duplicates
     overall_threshold: float = 0.75
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration."""
         total_weight = (
             self.stack_trace_weight + self.exception_weight + self.mutation_weight
@@ -468,7 +468,7 @@ class CrashDeduplicator:
         )
 
         # Combine Jaccard (type overlap) and cosine (frequency similarity)
-        return 0.5 * jaccard + 0.5 * cosine
+        return float(0.5 * jaccard + 0.5 * cosine)
 
     def _compare_strategy_frequency(
         self, seq1: list[tuple], seq2: list[tuple]
@@ -520,7 +520,7 @@ class CrashDeduplicator:
         )
 
         # Combine Jaccard and cosine
-        return 0.5 * jaccard + 0.5 * cosine
+        return float(0.5 * jaccard + 0.5 * cosine)
 
     def _generate_signature(self, crash: CrashRecord) -> str:
         """Generate unique signature for crash group.

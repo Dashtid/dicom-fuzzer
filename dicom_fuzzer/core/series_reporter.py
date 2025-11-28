@@ -38,7 +38,7 @@ class SeriesMutationSummary:
     severity_distribution: dict[str, int] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
 
-    def add_mutation(self, record: SeriesMutationRecord):
+    def add_mutation(self, record: SeriesMutationRecord) -> None:
         """Add a mutation record to the summary."""
         self.total_mutations += 1
 
@@ -81,7 +81,7 @@ class Series3DReport:
     crash_details: list[dict] = field(default_factory=list)
     generated_at: datetime = field(default_factory=datetime.now)
 
-    def add_series_summary(self, summary: SeriesMutationSummary):
+    def add_series_summary(self, summary: SeriesMutationSummary) -> None:
         """Add a series mutation summary to the report."""
         self.series_summaries.append(summary)
         self.total_series_fuzzed += 1

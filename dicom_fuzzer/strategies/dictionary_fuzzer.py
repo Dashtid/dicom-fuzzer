@@ -153,6 +153,8 @@ class DictionaryFuzzer:
         tag_int = int(tag)
 
         # Determine mutation strategy based on severity
+        # Value can be str (from dictionaries) or int/float (after numeric conversion)
+        value: str | int | float
         if severity == MutationSeverity.MINIMAL:
             value = self._get_valid_value(tag_int)
         elif severity == MutationSeverity.MODERATE:
@@ -217,9 +219,10 @@ class DictionaryFuzzer:
                             value = 0  # Default to integer 0
                     elif vr in {"FL", "FD"}:
                         # Float types - keep as float for pydicom
-                        value = (  # type: ignore[assignment]
-                            float(value)
-                            if value.replace(".", "")
+                        str_value = str(value)
+                        value = (
+                            float(str_value)
+                            if str_value.replace(".", "")
                             .replace("-", "")
                             .replace("e", "")
                             .replace("E", "")
@@ -228,12 +231,11 @@ class DictionaryFuzzer:
                         )
                     elif vr in {"IS", "DS"}:
                         # Integer String and Decimal String - keep as string
-                        value = (  # type: ignore[assignment]
-                            str(
-                                float(value)
-                                if value.replace(".", "").replace("-", "").isdigit()
-                                else 0.0
-                            )
+                        str_value = str(value)
+                        value = str(
+                            float(str_value)
+                            if str_value.replace(".", "").replace("-", "").isdigit()
+                            else 0.0
                         )
                     elif vr == "AT":
                         # Attribute Tag - needs special handling, skip for now
