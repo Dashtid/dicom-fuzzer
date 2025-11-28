@@ -129,7 +129,7 @@ class ConfigValidator:
         logger.info("All pre-flight checks passed")
         return True
 
-    def _check_python_version(self):
+    def _check_python_version(self) -> None:
         """Check Python version meets requirements."""
         required_version = (3, 11)
         current_version = sys.version_info[:2]
@@ -154,7 +154,7 @@ class ConfigValidator:
                 )
             )
 
-    def _check_dependencies(self):
+    def _check_dependencies(self) -> None:
         """Check that required dependencies are installed."""
         required = ["pydicom", "pytest"]
         optional = ["tqdm", "psutil"]
@@ -193,7 +193,7 @@ class ConfigValidator:
                 )
             )
 
-    def _validate_input_file(self, input_file: Path):
+    def _validate_input_file(self, input_file: Path) -> None:
         """Validate input DICOM file."""
         # Check existence
         if not input_file.exists():
@@ -268,7 +268,7 @@ class ConfigValidator:
                 )
             )
 
-    def _validate_output_dir(self, output_dir: Path):
+    def _validate_output_dir(self, output_dir: Path) -> None:
         """Validate output directory."""
         # If it doesn't exist, check parent is writable
         if not output_dir.exists():
@@ -330,7 +330,7 @@ class ConfigValidator:
                 )
             )
 
-    def _validate_target_executable(self, target_exe: Path):
+    def _validate_target_executable(self, target_exe: Path) -> None:
         """Validate target executable."""
         if not target_exe.exists():
             self.errors.append(
@@ -372,7 +372,7 @@ class ConfigValidator:
             )
         )
 
-    def _check_disk_space(self, output_dir: Path, min_mb: float, num_files: int):
+    def _check_disk_space(self, output_dir: Path, min_mb: float, num_files: int) -> None:
         """Check available disk space."""
         try:
             stat = shutil.disk_usage(
@@ -422,7 +422,7 @@ class ConfigValidator:
                 )
             )
 
-    def _check_system_resources(self):
+    def _check_system_resources(self) -> None:
         """Check system resources (RAM, CPU)."""
         try:
             import psutil

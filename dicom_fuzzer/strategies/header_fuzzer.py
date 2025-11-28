@@ -9,6 +9,7 @@ with edge cases and invalid data, we test parser robustness and error handling.
 
 import random
 
+from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
 
@@ -22,7 +23,7 @@ class HeaderFuzzer:
     - Boundary values (edge cases)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize header fuzzer with attack patterns."""
         # DICOM required tags that can be safely removed for testing
         # Note: We exclude SOPClassUID and SOPInstanceUID as they break parsing
@@ -33,7 +34,7 @@ class HeaderFuzzer:
             "SeriesInstanceUID",  # (0020,000E)
         ]
 
-    def mutate_tags(self, dataset):
+    def mutate_tags(self, dataset: Dataset) -> Dataset:
         """Mutate DICOM tags with edge cases.
 
         Args:
@@ -54,7 +55,7 @@ class HeaderFuzzer:
             dataset = mutation(dataset)
         return dataset
 
-    def _overlong_strings(self, dataset):
+    def _overlong_strings(self, dataset: Dataset) -> Dataset:
         """Insert extremely long strings to test buffer handling.
 
         SECURITY: Tests for buffer overflow vulnerabilities.
@@ -77,7 +78,7 @@ class HeaderFuzzer:
 
         return dataset
 
-    def _missing_required_tags(self, dataset):
+    def _missing_required_tags(self, dataset: Dataset) -> Dataset:
         """Remove required DICOM tags to test compliance.
 
         CONCEPT: DICOM defines required tags (Type 1) that must be present.
@@ -101,7 +102,7 @@ class HeaderFuzzer:
 
         return dataset
 
-    def _invalid_vr_values(self, dataset):
+    def _invalid_vr_values(self, dataset: Dataset) -> Dataset:
         """Insert invalid Value Representation (VR) values.
 
         CONCEPT: Each DICOM tag has a specific VR (data type):
@@ -170,7 +171,7 @@ class HeaderFuzzer:
 
         return dataset
 
-    def _boundary_values(self, dataset):
+    def _boundary_values(self, dataset: Dataset) -> Dataset:
         """Insert boundary and edge case values.
 
         CONCEPT: Boundary values often expose off-by-one errors

@@ -1,20 +1,22 @@
 import random
 from datetime import datetime, timedelta
 
+from pydicom.dataset import Dataset
+
 
 class MetadataFuzzer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.fake_names = ["Smith^John", "Doe^Jane", "Johnson^Mike"]
         self.fake_ids = [f"PAT{i:06d}" for i in range(1000, 9999)]
 
-    def mutate_patient_info(self, dataset):
+    def mutate_patient_info(self, dataset: Dataset) -> Dataset:
         """Generate believable but fake patient data"""
         dataset.PatientID = random.choice(self.fake_ids)
         dataset.PatientName = random.choice(self.fake_names)
         dataset.PatientBirthDate = self._random_date()
         return dataset
 
-    def _random_date(self):
+    def _random_date(self) -> str:
         """Generate random but valid DICOM date"""
         start_date = datetime(1950, 1, 1)
         end_date = datetime(2010, 12, 31)

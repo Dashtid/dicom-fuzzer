@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, TypeVar
 
-import psutil  # type: ignore[import-untyped]
+import psutil
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -118,14 +118,13 @@ class PerformanceProfiler:
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: Any,
-    ) -> bool:
+    ) -> None:
         """End profiling session and finalize metrics."""
         self.metrics.end_time = datetime.now()
         self.metrics.total_duration = (
             self.metrics.end_time - self.metrics.start_time
         ).total_seconds()
         self._finalize_cpu_metrics()
-        return False
 
     def _start_cpu_monitoring(self) -> None:
         """Start monitoring CPU usage."""
@@ -295,11 +294,10 @@ class StrategyTimer:
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: Any,
-    ) -> bool:
+    ) -> None:
         """End timing and record."""
         duration = time.time() - self.start_time
         self.profiler.record_mutation(self.strategy, duration)
-        return False
 
 
 def profile_function(strategy: str) -> Callable[[F], F]:

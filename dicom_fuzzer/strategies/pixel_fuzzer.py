@@ -1,8 +1,9 @@
 import numpy as np
+from pydicom.dataset import Dataset
 
 
 class PixelFuzzer:
-    def mutate_pixels(self, dataset):
+    def mutate_pixels(self, dataset: Dataset) -> Dataset:
         """Introduce subtle pixel corruptions.
 
         NOTE: If the dataset has been mutated by header_fuzzer with invalid

@@ -16,16 +16,16 @@ import argparse
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 # Import rich at module level for test compatibility
 try:
-    import rich
-    from rich.console import Console
-    from rich.live import Live
+    from rich.console import Console  # noqa: F401
+    from rich.live import Live  # noqa: F401
+
+    HAS_RICH = True
 except ImportError:
-    Console = None
-    Live = None
-    rich = None
+    HAS_RICH = False
 
 
 # Mock class for test compatibility
@@ -218,7 +218,7 @@ def main() -> None:
 # Additional functions for test compatibility
 
 
-def display_stats(stats: dict, console=None) -> None:
+def display_stats(stats: dict[str, Any], console: Any = None) -> None:
     """Display statistics in a formatted table.
 
     Args:
@@ -226,7 +226,8 @@ def display_stats(stats: dict, console=None) -> None:
         console: Optional Console instance (for dependency injection/testing)
 
     """
-    if Console is not None:
+    if HAS_RICH:
+        from rich.console import Console
         from rich.table import Table
 
         # Use injected console or create new one
@@ -251,7 +252,7 @@ def display_stats(stats: dict, console=None) -> None:
         print("-" * 50)
 
 
-def monitor_loop(session_id: str, update_interval: int = 1):
+def monitor_loop(session_id: str, update_interval: int = 1) -> None:
     """Monitor fuzzing session with periodic updates.
 
     Args:
