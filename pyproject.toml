@@ -83,6 +83,9 @@ dev = [
     "pip-audit>=2.7.0",        # Dependency vulnerability scanning (2025 best practice)
     "pre-commit>=4.3.0",       # Git hooks for quality gates
     "types-aiofiles>=25.0.0",  # Type stubs
+    "types-seaborn>=0.13.0",   # Type stubs for seaborn
+    "types-tqdm>=4.67.0",      # Type stubs for tqdm
+    "types-psutil>=7.0.0",     # Type stubs for psutil
 ]
 
 docs = [
@@ -195,6 +198,9 @@ module = [
     "pydicom.*",
     "pynetdicom.*",
     "numpy.*",
+    "plotly.*",   # No type stubs available
+    "jinja2.*",   # Optional dependency for HTML reports
+    "atheris.*",  # Optional dependency for coverage-guided fuzzing
 ]
 ignore_missing_imports = true
 
