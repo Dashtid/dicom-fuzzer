@@ -5,6 +5,18 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added - Test Coverage
+- `tests/test_identifiers.py` - 37 comprehensive tests for identifier generation utilities
+- `tests/test_hashing.py` - 39 comprehensive tests for hashing utilities (SHA256, MD5)
+- `tests/test_serialization.py` - 19 tests for SerializableMixin dataclass serialization
+- `tests/test_header_fuzzer_comprehensive.py` - Added exception handling test for delattr failures
+
+### Fixed
+- Resolved all Bandit security warnings in test files
+- Fixed Windows path assertion issues in serialization tests (OS-dependent path separators)
+
 ## [1.2.0] - 2025-10-27 - Documentation Overhaul & Repository Modernization
 
 ### Added - Documentation
