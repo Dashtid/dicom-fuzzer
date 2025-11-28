@@ -401,3 +401,156 @@ class TestSeriesWriterIntegration:
         # Verify reproduce.py
         script_path = series_dir / "reproduce.py"
         assert script_path.exists()
+
+
+class TestSeriesWriterErrorHandling:
+    """Test error handling in SeriesWriter."""
+
+    @patch("dicom_fuzzer.core.series_writer.Dataset.save_as")
+    def test_write_series_save_failure(
+        self, mock_save_as, temp_output_dir, sample_series, sample_datasets
+    ):
+        """Test that save_as failure raises OSError."""
+        mock_save_as.side_effect = Exception("Simulated save failure")
+
+        writer = SeriesWriter(temp_output_dir)
+
+        with pytest.raises(OSError, match="Failed to write slice"):
+            writer.write_series(sample_series, sample_datasets)
+
+    @patch("dicom_fuzzer.core.series_writer.Dataset.save_as")
+    def test_write_single_slice_save_failure(
+        self, mock_save_as, temp_output_dir, sample_datasets
+    ):
+        """Test that single slice save failure raises OSError."""
+        mock_save_as.side_effect = Exception("Simulated save failure")
+
+        writer = SeriesWriter(temp_output_dir)
+
+        with pytest.raises(OSError, match="Failed to write"):
+            writer.write_single_slice(sample_datasets[0], "test.dcm")
+
+    def test_write_series_loads_datasets_from_paths(self, temp_output_dir):
+        """Test write_series when datasets=None loads from series.slices paths."""
+        # Create actual DICOM files for the test
+        from pydicom.dataset import FileDataset, FileMetaDataset
+        from pydicom.uid import ExplicitVRLittleEndian, generate_uid
+
+        slice_dir = temp_output_dir / "input_slices"
+        slice_dir.mkdir()
+
+        slice_paths = []
+        for i in range(2):
+            slice_path = slice_dir / f"slice_{i}.dcm"
+            slice_paths.append(slice_path)
+
+            # Create minimal valid DICOM file
+            file_meta = FileMetaDataset()
+            file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+            file_meta.MediaStorageSOPInstanceUID = generate_uid()
+            file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+
+            ds = FileDataset(
+                str(slice_path), {}, file_meta=file_meta, preamble=b"\0" * 128
+            )
+            ds.is_little_endian = True
+            ds.is_implicit_VR = False
+            ds.SeriesInstanceUID = "1.2.3.4.5"
+            ds.StudyInstanceUID = "1.2.3.4.6"
+            ds.Modality = "CT"
+            ds.SOPInstanceUID = generate_uid()
+            ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+            ds.save_as(slice_path)
+
+        # Create series pointing to these files
+        series = DicomSeries(
+            series_uid="1.2.3.4.5",
+            study_uid="1.2.3.4.6",
+            modality="CT",
+            slices=slice_paths,
+            slice_spacing=1.0,
+        )
+
+        output_dir = temp_output_dir / "output"
+        writer = SeriesWriter(output_dir)
+
+        # Write without providing datasets - should load from paths
+        metadata = writer.write_series(series, datasets=None)
+
+        assert metadata.slice_count == 2
+        assert len(metadata.slice_files) == 2
+
+    def test_write_series_load_failure_raises_oserror(self, temp_output_dir):
+        """Test that failure to load from series.slices raises OSError."""
+        # Create series with non-existent slice paths
+        series = DicomSeries(
+            series_uid="1.2.3.4.5",
+            study_uid="1.2.3.4.6",
+            modality="CT",
+            slices=[Path("/nonexistent/slice1.dcm"), Path("/nonexistent/slice2.dcm")],
+            slice_spacing=1.0,
+        )
+
+        writer = SeriesWriter(temp_output_dir)
+
+        with pytest.raises(OSError, match="Failed to read slice"):
+            writer.write_series(series, datasets=None)
+
+
+class TestSeriesMetadataGetOutputPaths:
+    """Test SeriesMetadata.get_output_paths method."""
+
+    def test_get_output_paths_returns_full_paths(self, temp_output_dir):
+        """Test that get_output_paths returns complete Path objects."""
+        metadata = SeriesMetadata(
+            series_uid="1.2.3.4.5",
+            study_uid="1.2.3.4.6",
+            modality="CT",
+            slice_count=3,
+            output_directory=temp_output_dir,
+            slice_files=["slice_001.dcm", "slice_002.dcm", "slice_003.dcm"],
+        )
+
+        paths = metadata.get_output_paths()
+
+        assert len(paths) == 3
+        assert all(isinstance(p, Path) for p in paths)
+        assert paths[0] == temp_output_dir / "slice_001.dcm"
+        assert paths[1] == temp_output_dir / "slice_002.dcm"
+        assert paths[2] == temp_output_dir / "slice_003.dcm"
+
+
+class TestCleanupOldSeriesEdgeCases:
+    """Test cleanup_old_series edge cases."""
+
+    def test_cleanup_skips_files(self, temp_output_dir):
+        """Test that cleanup skips regular files, only deletes directories."""
+        writer = SeriesWriter(temp_output_dir)
+
+        # Create a file (not directory) in output root
+        test_file = temp_output_dir / "test_file.txt"
+        test_file.write_text("test content")
+
+        # Cleanup should not fail and should not delete the file
+        deleted_count = writer.cleanup_old_series(days=0)
+
+        assert test_file.exists()  # File should still exist
+        assert deleted_count >= 0
+
+    def test_cleanup_handles_permission_error(self, temp_output_dir):
+        """Test that cleanup handles permission errors gracefully."""
+        writer = SeriesWriter(temp_output_dir)
+
+        # Create a directory
+        old_dir = temp_output_dir / "series_old"
+        old_dir.mkdir()
+
+        # Mock shutil.rmtree to simulate permission error
+        with patch("dicom_fuzzer.core.series_writer.shutil.rmtree") as mock_rmtree:
+            mock_rmtree.side_effect = PermissionError("Cannot delete")
+
+            # Should not raise, just log warning
+            deleted_count = writer.cleanup_old_series(days=0)
+
+            # No successful deletions due to permission error
+            assert deleted_count == 0
