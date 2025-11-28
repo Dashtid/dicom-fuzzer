@@ -10,6 +10,7 @@ smaller corpus." (2025 Best Practices)
 
 import shutil
 from pathlib import Path
+from typing import Any
 
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -19,7 +20,7 @@ logger = get_logger(__name__)
 def minimize_corpus_for_campaign(
     corpus_dir: Path,
     output_dir: Path,
-    coverage_tracker=None,
+    coverage_tracker: Any | None = None,
     max_corpus_size: int | None = 1000,
 ) -> list[Path]:
     """Minimize corpus before fuzzing campaign.

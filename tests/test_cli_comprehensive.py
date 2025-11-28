@@ -426,9 +426,7 @@ class TestReportGeneratorCLI:
             assert output_file.exists()
         else:
             # matplotlib available - mock and test chart generation
-            with patch.object(
-                generate_report.matplotlib, "pyplot"
-            ) as mock_plt:
+            with patch.object(generate_report.matplotlib, "pyplot") as mock_plt:
                 generate_coverage_chart(coverage_data, str(output_file))
                 mock_plt.savefig.assert_called_once()
                 mock_plt.close.assert_called_once()
@@ -503,23 +501,25 @@ class TestCLIIntegration:
                 result = mock_main()
                 assert result == 0
 
-    @patch("dicom_fuzzer.cli.main.ResourceLimits")
-    def test_resource_limits_enforcement(self, mock_limits):
+    @patch("dicom_fuzzer.cli.main.ResourceManager")
+    def test_resource_limits_enforcement(self, mock_manager_cls):
         """Test resource limits are properly enforced."""
         from dicom_fuzzer.cli.main import apply_resource_limits
 
-        mock_limits_instance = Mock()
-        mock_limits.return_value = mock_limits_instance
+        # Create a mock manager instance
+        mock_manager = Mock()
+        mock_manager_cls.return_value = mock_manager
 
         limits = {
             "max_memory_mb": 1024,
-            "max_cpu_percent": 80,
-            "max_disk_mb": 5000,
+            "max_cpu_seconds": 30,
+            "min_disk_space_mb": 5000,
         }
 
         apply_resource_limits(limits)
-        mock_limits.assert_called_once_with(**limits)
-        mock_limits_instance.enforce.assert_called_once()
+        # Verify ResourceManager was created and check_available_resources called
+        mock_manager_cls.assert_called_once()
+        mock_manager.check_available_resources.assert_called_once()
 
     def test_dry_run_mode(self, sample_dicom_file, temp_workspace):
         """Test dry run mode doesn't create files."""

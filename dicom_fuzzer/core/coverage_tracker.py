@@ -13,11 +13,17 @@ This dramatically increases the effectiveness of fuzzing.
 """
 
 import sys
-from contextlib import contextmanager
+from collections.abc import Callable, Generator
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from types import FrameType
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    # Type alias for trace function return type (recursive type)
+    _TraceFunctionType = Callable[[FrameType, str, Any], "_TraceFunctionType"] | None
 
 from dicom_fuzzer.utils.hashing import hash_string
 from dicom_fuzzer.utils.logger import get_logger
@@ -47,7 +53,7 @@ class CoverageSnapshot:
     total_lines: int = 0
     total_branches: int = 0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Calculate totals after initialization."""
         self.total_lines = len(self.lines_covered)
         self.total_branches = len(self.branches_covered)
@@ -185,7 +191,9 @@ class CoverageTracker:
 
         return False
 
-    def _trace_function(self, frame, event, arg):
+    def _trace_function(
+        self, frame: FrameType, event: str, arg: Any
+    ) -> "_TraceFunctionType":
         """Tracing function called by sys.settrace.
 
         LEARNING: Python's sys.settrace calls this function for every line of code executed.
@@ -212,7 +220,7 @@ class CoverageTracker:
         return self._trace_function
 
     @contextmanager
-    def trace_execution(self, test_case_id: str):
+    def trace_execution(self, test_case_id: str) -> Generator[None, None, None]:
         """Context manager to track coverage during code execution.
 
         LEARNING: Context managers (with/as) ensure cleanup happens even if errors occur.
@@ -274,7 +282,7 @@ class CoverageTracker:
 
             self.total_executions += 1
 
-    def track_execution(self, test_case_id: str):
+    def track_execution(self, test_case_id: str) -> AbstractContextManager[None]:
         """Alias for trace_execution for test compatibility.
 
         Args:
@@ -360,7 +368,7 @@ Coverage History: {len(self.coverage_history)} snapshots
 
         return report.strip()
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset all coverage data."""
         self.global_coverage.clear()
         self.current_coverage.clear()

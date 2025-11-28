@@ -7,7 +7,7 @@ Tracks edge coverage (branch transitions) to guide fuzzing decisions.
 import sys
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -133,7 +133,9 @@ class CoverageTracker:
         return self._trace_function
 
     @contextmanager
-    def track_coverage(self, input_data: bytes | None = None):
+    def track_coverage(
+        self, input_data: bytes | None = None
+    ) -> Generator[CoverageInfo, None, None]:
         """Context manager to track coverage for a code block.
 
         Args:
@@ -280,7 +282,9 @@ class HybridCoverageTracker(CoverageTracker):
                 print("Atheris not available, falling back to pure Python coverage")
 
     @contextmanager
-    def track_coverage(self, input_data: bytes | None = None):
+    def track_coverage(
+        self, input_data: bytes | None = None
+    ) -> Generator[CoverageInfo, None, None]:
         """Track coverage with Atheris integration if available."""
         if self.atheris_available and self.use_atheris:
             # Use Atheris coverage tracking

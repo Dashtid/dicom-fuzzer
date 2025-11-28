@@ -257,24 +257,31 @@ class FuzzingSession:
 
     def end_file_fuzzing(
         self,
-        output_file: Path,
+        output_file: Path | str,
         success: bool = True,
     ) -> None:
         """Finish tracking current fuzzed file.
 
         Args:
-            output_file: Path to saved fuzzed file
+            output_file: Path to saved fuzzed file (str or Path)
             success: Whether file was successfully created
 
         """
         if not self.current_file_record:
             raise RuntimeError("No active file fuzzing session")
 
+        # Normalize to Path for consistent handling
+        output_file_path = (
+            Path(output_file) if isinstance(output_file, str) else output_file
+        )
+
         # Calculate file hash
-        if success and output_file.exists():
-            self.current_file_record.file_hash = self._calculate_file_hash(output_file)
+        if success and output_file_path.exists():
+            self.current_file_record.file_hash = self._calculate_file_hash(
+                output_file_path
+            )
             self.current_file_record.fuzzed_metadata = self._extract_metadata(
-                output_file
+                output_file_path
             )
 
         # Store the record

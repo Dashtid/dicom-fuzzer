@@ -56,10 +56,9 @@ class SerializableMixin:
                 f"got {type(self).__name__}"
             )
 
-        # Use type: ignore for mypy's incomplete dataclass narrowing after is_dataclass()
-        # The check above guarantees self is a dataclass instance
-        data: dict[str, Any] = asdict(self)  # type: ignore[arg-type]
-        serialized: dict[str, Any] = self._serialize_value(data)  # type: ignore[union-attr]
+        # After the is_dataclass check above, mypy knows self is a dataclass instance
+        data: dict[str, Any] = asdict(self)  # type: ignore[unreachable]
+        serialized: dict[str, Any] = self._serialize_value(data)
 
         # Allow subclasses to add custom computed fields
         custom_method = getattr(self, "_custom_serialization", None)

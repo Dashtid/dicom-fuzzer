@@ -105,7 +105,7 @@ class CrashTriageEngine:
         "file not found",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize triage engine."""
         self.triage_cache: dict[str, CrashTriage] = {}
 

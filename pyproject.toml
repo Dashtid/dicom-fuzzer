@@ -80,8 +80,12 @@ dev = [
     "ruff>=0.14.1",            # Fast linter/formatter (replaces black/flake8)
     "mypy>=1.13.0",            # Type checking with latest improvements
     "bandit>=1.8.0",           # Security vulnerability scanning
+    "pip-audit>=2.7.0",        # Dependency vulnerability scanning (2025 best practice)
     "pre-commit>=4.3.0",       # Git hooks for quality gates
     "types-aiofiles>=25.0.0",  # Type stubs
+    "types-seaborn>=0.13.0",   # Type stubs for seaborn
+    "types-tqdm>=4.67.0",      # Type stubs for tqdm
+    "types-psutil>=7.0.0",     # Type stubs for psutil
 ]
 
 docs = [
@@ -171,7 +175,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["D", "S101", "B", "F841", "PT011"]  # Relax docstring, assert, and pytest fixture returns in tests
+"tests/**/*.py" = ["D", "S101", "S607", "B", "F841", "PT011"]  # Relax docstring, assert, subprocess path, and pytest in tests
 "examples/**/*.py" = ["D", "S"]  # Relax docstring and security rules in examples
 
 [tool.mypy]
@@ -194,6 +198,9 @@ module = [
     "pydicom.*",
     "pynetdicom.*",
     "numpy.*",
+    "plotly.*",   # No type stubs available
+    "jinja2.*",   # Optional dependency for HTML reports
+    "atheris.*",  # Optional dependency for coverage-guided fuzzing
 ]
 ignore_missing_imports = true
 
@@ -291,4 +298,11 @@ output = "reports/coverage/coverage.xml"
 
 [tool.bandit]
 exclude_dirs = ["tests"]
-skips = ["B101"]  # Skip assert_used test
+# B101: assert_used - acceptable in production code for invariant checks
+# B110: try_except_pass - acceptable in fuzzing error handling
+# B112: try_except_continue - acceptable in fuzzing loops
+# B311: random - standard pseudo-random generators are appropriate for fuzzing (not crypto)
+# B403: pickle import - used for internal corpus cache only (trusted data)
+# B404: subprocess import - required for target execution
+# B603: subprocess without shell - controlled execution of target binaries
+skips = ["B101", "B110", "B112", "B311", "B403", "B404", "B603"]

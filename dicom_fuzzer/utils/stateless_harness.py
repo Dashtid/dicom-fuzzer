@@ -107,7 +107,7 @@ def create_stateless_test_wrapper(test_function: Callable) -> Callable:
 
     """
 
-    def stateless_wrapper(*args, **kwargs):
+    def stateless_wrapper(*args: Any, **kwargs: Any) -> Any:
         """Stateless test wrapper."""
         # Force cleanup before test
         gc.collect()
@@ -126,7 +126,7 @@ def create_stateless_test_wrapper(test_function: Callable) -> Callable:
 
 def detect_state_leaks(
     harness_function: Callable[[Path], Any], test_files: list[Path]
-) -> dict:
+) -> dict[str, bool | list[str]]:
     """Detect state leaks between harness executions.
 
     CONCEPT: Run multiple test files and check if earlier tests affect later ones.
@@ -139,7 +139,13 @@ def detect_state_leaks(
         Dictionary with leak detection results
 
     """
-    results = {"leaked": False, "evidence": [], "affected_files": []}
+    evidence: list[str] = []
+    affected_files: list[str] = []
+    results: dict[str, bool | list[str]] = {
+        "leaked": False,
+        "evidence": evidence,
+        "affected_files": affected_files,
+    }
 
     if len(test_files) < 2:
         logger.warning("Need at least 2 test files to detect state leaks")
@@ -176,8 +182,8 @@ def detect_state_leaks(
         if baseline_hash != test_hash:
             # State leak detected!
             results["leaked"] = True
-            results["affected_files"].append(str(test_file))
-            results["evidence"].append(
+            affected_files.append(str(test_file))
+            evidence.append(
                 f"{test_file.name}: Result differs when run after other tests"
             )
 
@@ -186,9 +192,9 @@ def detect_state_leaks(
                 f"result when run after other tests"
             )
 
-    if results["leaked"]:
+    if affected_files:
         logger.error(
-            f"State leaks detected in {len(results['affected_files'])} test(s). "
+            f"State leaks detected in {len(affected_files)} test(s). "
             "Harness is NOT stateless!"
         )
     else:

@@ -65,7 +65,7 @@ class GrammarFuzzer:
     - State machine violations
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize grammar fuzzer with DICOM rules."""
         self.rules = self._load_dicom_rules()
         self.sop_class_requirements = self._load_sop_class_requirements()
