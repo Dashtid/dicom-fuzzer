@@ -80,6 +80,7 @@ dev = [
     "ruff>=0.14.1",            # Fast linter/formatter (replaces black/flake8)
     "mypy>=1.13.0",            # Type checking with latest improvements
     "bandit>=1.8.0",           # Security vulnerability scanning
+    "pip-audit>=2.7.0",        # Dependency vulnerability scanning (2025 best practice)
     "pre-commit>=4.3.0",       # Git hooks for quality gates
     "types-aiofiles>=25.0.0",  # Type stubs
 ]
