@@ -116,7 +116,7 @@ class Series3DMutator:
     def mutate_series(
         self,
         series: DicomSeries,
-        strategy: str | None = None,
+        strategy: str | SeriesMutationStrategy | None = None,
         mutation_count: int | None = None,
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
         """Mutate a complete DICOM series using specified strategy.
@@ -182,7 +182,7 @@ class Series3DMutator:
             List of pydicom Dataset objects (deep copies)
 
         """
-        datasets = []
+        datasets: list[Dataset] = []
         for slice_path in series.slices:
             try:
                 ds = pydicom.dcmread(slice_path)
@@ -344,7 +344,7 @@ class Series3DMutator:
                         slice_index=slice_idx,
                         tag="Modality",
                         original_value=original,
-                        mutated_value=ds.Modality,
+                        mutated_value=str(ds.Modality),  # Convert int to str for record
                         severity=self.severity,
                         details={"corruption_type": corruption_type},
                     )
@@ -563,15 +563,15 @@ class Series3DMutator:
 
                 # Apply heavy corruption
                 if hasattr(ds, "SeriesInstanceUID"):
-                    original = ds.SeriesInstanceUID
+                    original_uid = str(ds.SeriesInstanceUID)
                     ds.SeriesInstanceUID = generate_uid() + ".BOUNDARY_FUZZ"
                     records.append(
                         SeriesMutationRecord(
                             strategy="boundary_slice_targeting",
                             slice_index=idx,
                             tag="SeriesInstanceUID",
-                            original_value=original,
-                            mutated_value=ds.SeriesInstanceUID,
+                            original_value=original_uid,
+                            mutated_value=str(ds.SeriesInstanceUID),
                             severity=self.severity,
                             details={"boundary_type": boundary_type},
                         )

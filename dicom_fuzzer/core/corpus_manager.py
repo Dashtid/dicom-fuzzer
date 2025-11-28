@@ -47,7 +47,7 @@ class Seed:
     mutation_history: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    def __lt__(self, other):
+    def __lt__(self, other: "Seed") -> bool:
         """Compare seeds by priority and energy."""
         if self.priority.value != other.priority.value:
             return self.priority.value < other.priority.value
@@ -198,7 +198,7 @@ class CorpusManager:
 
         return seed
 
-    def add_entry(self, entry, dataset=None) -> None:
+    def add_entry(self, entry: Any, dataset: Any = None) -> None:
         """Add a corpus entry (compatibility method for tests).
 
         Args:
@@ -228,7 +228,7 @@ class CorpusManager:
             data = b""  # Empty data
 
         # Create minimal coverage info
-        coverage = CoverageInfo(edges=set(), blocks=set())
+        coverage = CoverageInfo(edges=set())
 
         # Add as seed
         self.add_seed(data, coverage)
@@ -442,7 +442,7 @@ class HistoricalCorpusManager(CorpusManager):
     Uses data from previous fuzzing campaigns to improve seed selection.
     """
 
-    def __init__(self, history_dir: Path | None = None, **kwargs):
+    def __init__(self, history_dir: Path | None = None, **kwargs: Any) -> None:
         """Initialize with historical data."""
         super().__init__(**kwargs)
         self.history_dir = history_dir
@@ -453,6 +453,8 @@ class HistoricalCorpusManager(CorpusManager):
 
     def _load_historical_data(self) -> None:
         """Load historical fuzzing results."""
+        if self.history_dir is None:
+            return
         for campaign_dir in self.history_dir.iterdir():
             if campaign_dir.is_dir():
                 corpus_manager = CorpusManager()

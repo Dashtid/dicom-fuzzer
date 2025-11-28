@@ -10,6 +10,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -305,9 +306,10 @@ def create_config_from_args(args: argparse.Namespace) -> FuzzingConfig:
             import importlib.util
 
             spec = importlib.util.spec_from_file_location("target", args.target)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            config.target_function = getattr(module, "fuzz_target", None)
+            if spec is not None and spec.loader is not None:
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                config.target_function = getattr(module, "fuzz_target", None)
         else:
             config.target_binary = args.target
 
@@ -345,7 +347,7 @@ def create_config_from_args(args: argparse.Namespace) -> FuzzingConfig:
     return config
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     parser = create_parser()
     args = parser.parse_args()
@@ -397,12 +399,14 @@ def main():
 
 # Additional classes and functions for test compatibility
 
+
 class CoverageFuzzCLI:
     """Coverage fuzzing CLI class for test compatibility."""
+
     pass
 
 
-def run_coverage_fuzzing(config: dict):
+def run_coverage_fuzzing(config: dict[str, Any]) -> dict[str, Any]:
     """Run coverage-guided fuzzing.
 
     Args:
@@ -410,8 +414,12 @@ def run_coverage_fuzzing(config: dict):
 
     Returns:
         dict: Results with coverage and crashes information
+
     """
-    from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
+    from dicom_fuzzer.core.coverage_guided_fuzzer import (
+        CoverageGuidedFuzzer,
+        FuzzingConfig,
+    )
 
     # Convert dict config to FuzzingConfig
     fuzz_config = FuzzingConfig()
@@ -435,21 +443,24 @@ def run_coverage_fuzzing(config: dict):
     # Otherwise it's a coroutine, run it with asyncio
     import asyncio
     import inspect
+
     if inspect.iscoroutine(result):
         stats = asyncio.run(result)
         return {
             "crashes": stats.total_crashes,
-            "coverage": stats.max_coverage / 1000 if stats.max_coverage > 0 else 0.5
+            "coverage": stats.max_coverage / 1000 if stats.max_coverage > 0 else 0.5,
         }
 
     # If it's a FuzzingStatistics object, extract data
     return {
-        "crashes": result.total_crashes if hasattr(result, 'total_crashes') else 0,
-        "coverage": result.max_coverage / 1000 if hasattr(result, 'max_coverage') and result.max_coverage > 0 else 0.5
+        "crashes": result.total_crashes if hasattr(result, "total_crashes") else 0,
+        "coverage": result.max_coverage / 1000
+        if hasattr(result, "max_coverage") and result.max_coverage > 0
+        else 0.5,
     }
 
 
-def parse_arguments(args: list):
+def parse_arguments(args: list[str]) -> argparse.Namespace:
     """Parse command-line arguments.
 
     Args:
@@ -457,6 +468,7 @@ def parse_arguments(args: list):
 
     Returns:
         Namespace with parsed arguments
+
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", dest="input_dir")
