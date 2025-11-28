@@ -10,7 +10,7 @@ except ImportError:
     jinja2 = None
 
 
-def create_html_report(json_path: str, html_path: str | None = None) -> None:
+def create_html_report(json_path: str, html_path: str | None = None) -> str:
     """Create HTML report from JSON fuzzing results."""
     # Read JSON report
     with open(json_path) as f:
@@ -290,6 +290,7 @@ def create_html_report(json_path: str, html_path: str | None = None) -> None:
 
 # Additional functions for test compatibility
 
+
 def load_template(template_file: str) -> str:
     """Load HTML template from file.
 
@@ -298,8 +299,9 @@ def load_template(template_file: str) -> str:
 
     Returns:
         str: Template content
+
     """
-    with open(template_file, 'r', encoding='utf-8') as f:
+    with open(template_file, encoding="utf-8") as f:
         return f.read()
 
 
@@ -312,10 +314,12 @@ def render_report(template: str, data: dict) -> str:
 
     Returns:
         str: Rendered HTML content
+
     """
     if jinja2 is not None:
         tmpl = jinja2.Template(template)
-        return tmpl.render(**data)
+        rendered: str = tmpl.render(**data)
+        return rendered
     else:
         # Fallback: simple string replacement
         result = template
@@ -324,14 +328,15 @@ def render_report(template: str, data: dict) -> str:
         return result
 
 
-def save_report(content: str, output_file: str):
+def save_report(content: str, output_file: str) -> None:
     """Save report content to file.
 
     Args:
         content: HTML content to save
         output_file: Output file path
+
     """
-    with open(output_file, 'w', encoding='utf-8') as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         f.write(content)
 
 
@@ -344,13 +349,10 @@ def create_report_with_charts(data: dict, output_dir: str) -> dict:
 
     Returns:
         dict: Report data with charts
+
     """
     charts = generate_charts(data)
-    return {
-        "data": data,
-        "charts": charts,
-        "output_dir": output_dir
-    }
+    return {"data": data, "charts": charts, "output_dir": output_dir}
 
 
 def generate_charts(data: dict) -> dict:
@@ -361,6 +363,7 @@ def generate_charts(data: dict) -> dict:
 
     Returns:
         dict: Dictionary of chart names to base64-encoded images
+
     """
     # Mock implementation for test compatibility
     # In production, this would use matplotlib/plotly to generate actual charts

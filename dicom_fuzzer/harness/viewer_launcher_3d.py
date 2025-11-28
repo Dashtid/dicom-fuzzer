@@ -202,13 +202,11 @@ class ViewerLauncher3D:
             else:
                 # Just wait for timeout
                 try:
-                    stdout_data, stderr_data = process.communicate(
+                    stdout_bytes, stderr_bytes = process.communicate(
                         timeout=self.config.timeout_seconds
                     )
-                    if isinstance(stdout_data, bytes):
-                        stdout_data = stdout_data.decode("utf-8", errors="replace")
-                    if isinstance(stderr_data, bytes):
-                        stderr_data = stderr_data.decode("utf-8", errors="replace")
+                    stdout_data = stdout_bytes.decode("utf-8", errors="replace")
+                    stderr_data = stderr_bytes.decode("utf-8", errors="replace")
                 except subprocess.TimeoutExpired:
                     timed_out = True
                     if self.kill_on_timeout:

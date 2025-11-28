@@ -134,7 +134,7 @@ def configure_logging(
         processors.append(structlog.dev.ConsoleRenderer())
 
     structlog.configure(
-        processors=processors,
+        processors=processors,  # type: ignore[arg-type]
         wrapper_class=structlog.make_filtering_bound_logger(
             getattr(logging, log_level.upper())
         ),
@@ -165,7 +165,8 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
         >>> logger.info("operation_complete", duration_ms=123, status="success")
 
     """
-    return structlog.get_logger(name)
+    logger: structlog.stdlib.BoundLogger = structlog.get_logger(name)
+    return logger
 
 
 class SecurityEventLogger:

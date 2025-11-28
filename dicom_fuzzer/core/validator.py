@@ -153,7 +153,7 @@ class DicomValidator:
 
     def validate(
         self,
-        dataset: Dataset,
+        dataset: Dataset | None,
         check_required_tags: bool = True,
         check_values: bool = True,
         check_security: bool = True,
@@ -163,7 +163,7 @@ class DicomValidator:
         LEARNING: This method orchestrates multiple validation checks.
 
         Args:
-            dataset: DICOM dataset to validate
+            dataset: DICOM dataset to validate (can be None)
             check_required_tags: Whether to check for required tags
             check_values: Whether to validate tag values
             check_security: Whether to perform security checks
@@ -173,6 +173,11 @@ class DicomValidator:
 
         """
         result = ValidationResult()
+
+        # Handle None dataset
+        if dataset is None:
+            result.add_error("Dataset is None")
+            return result
 
         # Check basic structure
         if not self._validate_structure(dataset, result):
@@ -289,11 +294,6 @@ class DicomValidator:
             bool: Whether structure is valid (continue validation)
 
         """
-        # Check that dataset is not None
-        if dataset is None:
-            result.add_error("Dataset is None")
-            return False
-
         # Check that dataset has some elements
         if len(dataset) == 0:
             result.add_error("Dataset is empty")
