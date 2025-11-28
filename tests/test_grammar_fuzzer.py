@@ -414,30 +414,49 @@ class TestGrammarFuzzerEdgeCases:
         assert len(mutated.StudyDate) == 8
 
     def test_violate_value_constraints_uid_exception(self, sample_dicom_dataset):
-        """Test UID constraint violations with exception handling (lines 357-359)."""
+        """Test UID constraint violations with exception handling (lines 352-354)."""
+        from unittest.mock import patch
+
         fuzzer = GrammarFuzzer()
         dataset = sample_dicom_dataset.copy()
 
         # Ensure StudyInstanceUID exists
         dataset.StudyInstanceUID = "1.2.3.4.5"
 
-        # Create a dataset mock that raises ValueError on StudyInstanceUID assignment
-        original_setitem = dataset.__setitem__
+        # Mock setattr on the dataset to raise ValueError when setting StudyInstanceUID
+        original_setattr = type(dataset).__setattr__
 
-        def mock_setitem(key, value):
-            # Intercept StudyInstanceUID assignment and raise
-            if hasattr(key, "keyword") and key.keyword == "StudyInstanceUID":
+        def mock_setattr(self, name, value):
+            if name == "StudyInstanceUID":
                 raise ValueError("Invalid UID")
-            return original_setitem(key, value)
+            return original_setattr(self, name, value)
 
-        dataset.__setitem__ = mock_setitem
+        # Patch the setattr to trigger the exception path (lines 352-354)
+        with patch.object(type(dataset), "__setattr__", mock_setattr):
+            mutated = fuzzer.violate_value_constraints(dataset)
+            assert mutated is not None
 
-        # This should handle exceptions gracefully (lines 357-359)
-        mutated = fuzzer.violate_value_constraints(dataset)
-        assert mutated is not None
+    def test_violate_value_constraints_uid_typeerror(self, sample_dicom_dataset):
+        """Test UID constraint violations with TypeError exception (lines 352-354)."""
+        from unittest.mock import patch
 
-        # Restore
-        dataset.__setitem__ = original_setitem
+        fuzzer = GrammarFuzzer()
+        dataset = sample_dicom_dataset.copy()
+
+        # Ensure StudyInstanceUID exists
+        dataset.StudyInstanceUID = "1.2.3.4.5"
+
+        # Patch setattr to raise TypeError
+        original_setattr = type(dataset).__setattr__
+
+        def mock_setattr(self, name, value):
+            if name == "StudyInstanceUID":
+                raise TypeError("Invalid type for UID")
+            return original_setattr(self, name, value)
+
+        with patch.object(type(dataset), "__setattr__", mock_setattr):
+            mutated = fuzzer.violate_value_constraints(dataset)
+            assert mutated is not None
 
     def test_violate_value_constraints_series_number_exception(
         self, sample_dicom_dataset
