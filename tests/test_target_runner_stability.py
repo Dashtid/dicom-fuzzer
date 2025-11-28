@@ -766,14 +766,13 @@ class TestPropertyBasedTargetRunner:
             assert result.stdout == stdout_data
             assert result.stderr == stderr_data
 
-    @pytest.mark.skip(
-        reason="Flaky: Worker crashes in pytest-xdist parallel execution with hypothesis"
-    )
+    @pytest.mark.timeout(60)  # Longer timeout for property-based test
     @settings(
         suppress_health_check=[HealthCheck.function_scoped_fixture],
-        deadline=None,  # Disable deadline - test can be slow with large numbers
+        deadline=None,  # Disable deadline - test can be slow
+        max_examples=10,  # Reduced examples for test stability
     )
-    @given(num_successes=st.integers(0, 100), num_failures=st.integers(0, 100))
+    @given(num_successes=st.integers(0, 5), num_failures=st.integers(0, 5))
     def test_campaign_statistics_property(
         self, mock_executable, tmp_path, num_successes, num_failures
     ):
@@ -782,9 +781,10 @@ class TestPropertyBasedTargetRunner:
             target_executable=str(mock_executable),
             crash_dir=str(tmp_path / "crashes"),
             enable_circuit_breaker=False,  # Disable to test full counts
+            timeout=1.0,  # Shorter timeout for faster tests
         )
 
-        # Create test files
+        # Create test files (limited range for stability)
         test_files = []
         for i in range(num_successes + num_failures):
             f = tmp_path / f"test_{i}.dcm"
