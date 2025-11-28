@@ -296,12 +296,12 @@ class ExecutionTimer:
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: Any,
-    ) -> bool:
+    ) -> None:
         """Stop timer."""
         self.end_time = time.time()
         if self.start_time:
             self.duration = self.end_time - self.start_time
-        return False  # Don't suppress exceptions
+        # Don't suppress exceptions
 
 
 class TimeoutBudget:
@@ -369,11 +369,11 @@ class _TimeoutContext:
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: Any,
-    ) -> bool:
+    ) -> None:
         """Exit context - update remaining budget."""
         if self.start_time is not None:
             elapsed = time.time() - self.start_time
             self.budget.remaining_seconds = max(
                 0, self.budget.remaining_seconds - elapsed
             )
-        return False  # Don't suppress exceptions
+        # Don't suppress exceptions
