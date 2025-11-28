@@ -13,7 +13,7 @@ This helps with both development and production deployment.
 """
 
 import time
-from collections.abc import Callable, Generator
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, TypeVar

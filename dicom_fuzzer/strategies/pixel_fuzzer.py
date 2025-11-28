@@ -18,7 +18,8 @@ class PixelFuzzer:
 
                 # Random noise injection
                 noise_mask = np.random.random(pixels.shape) < 0.01  # 1% corruption
-                pixels[noise_mask] = np.random.randint(0, 255, np.sum(noise_mask))
+                noise_count = int(np.sum(noise_mask))
+                pixels[noise_mask] = np.random.randint(0, 255, noise_count)
 
                 dataset.PixelData = pixels.tobytes()
             except (ValueError, AttributeError, TypeError):

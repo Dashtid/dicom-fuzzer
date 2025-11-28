@@ -21,6 +21,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from dicom_fuzzer.core.series_reporter import Series3DReport
 from dicom_fuzzer.core.statistics import MutationStatistics
@@ -460,7 +461,7 @@ class CampaignAnalyzer:
             Path to exported file
 
         """
-        data = {
+        data: dict[str, Any] = {
             "campaign_name": self.campaign_name,
             "generated_at": datetime.now().isoformat(),
             "coverage_correlation": {

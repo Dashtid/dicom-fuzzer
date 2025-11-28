@@ -23,19 +23,20 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
-
 # Import matplotlib at module level for test compatibility
 # Using types.ModuleType | None for type safety
 from types import ModuleType
 
-matplotlib: ModuleType | None
+from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
+
+_matplotlib: ModuleType | None
 try:
-    import matplotlib as _mpl  # noqa: F401
-    import matplotlib.pyplot  # noqa: F401
-    matplotlib = _mpl
+    import matplotlib as _mpl
+    import matplotlib.pyplot
+
+    _matplotlib = _mpl
 except ImportError:
-    matplotlib = None
+    _matplotlib = None
 
 
 def generate_reports(
@@ -174,15 +175,18 @@ The generated HTML report includes:
 
 # Additional functions for test compatibility
 
+
 def generate_json_report(data: dict, output_file: str) -> None:
     """Generate JSON report from campaign data.
 
     Args:
         data: Campaign data dictionary
         output_file: Output file path for JSON report
+
     """
     import json
-    with open(output_file, 'w', encoding='utf-8') as f:
+
+    with open(output_file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
 
@@ -192,10 +196,12 @@ def generate_csv_report(crashes: list, output_file: str) -> None:
     Args:
         crashes: List of crash dictionaries
         output_file: Output file path for CSV report
+
     """
     import csv
+
     if crashes:
-        with open(output_file, 'w', newline='', encoding='utf-8') as f:
+        with open(output_file, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=crashes[0].keys())
             writer.writeheader()
             writer.writerows(crashes)
@@ -207,18 +213,19 @@ def generate_coverage_chart(coverage_data: dict, output_file: str) -> None:
     Args:
         coverage_data: Dictionary mapping iterations to coverage values
         output_file: Output file path for chart image
+
     """
-    if matplotlib is not None:
+    if _matplotlib is not None:
         iterations = list(coverage_data.keys())
         coverage = list(coverage_data.values())
 
-        matplotlib.pyplot.figure(figsize=(10, 6))
-        matplotlib.pyplot.plot(iterations, coverage)
-        matplotlib.pyplot.xlabel("Iteration")
-        matplotlib.pyplot.ylabel("Coverage")
-        matplotlib.pyplot.title("Coverage Over Time")
-        matplotlib.pyplot.savefig(output_file)
-        matplotlib.pyplot.close()
+        _matplotlib.pyplot.figure(figsize=(10, 6))
+        _matplotlib.pyplot.plot(iterations, coverage)
+        _matplotlib.pyplot.xlabel("Iteration")
+        _matplotlib.pyplot.ylabel("Coverage")
+        _matplotlib.pyplot.title("Coverage Over Time")
+        _matplotlib.pyplot.savefig(output_file)
+        _matplotlib.pyplot.close()
     else:
         # Fallback: create empty file if matplotlib not available
         Path(output_file).touch()
@@ -230,6 +237,7 @@ def generate_markdown_report(data: dict, output_file: str) -> None:
     Args:
         data: Campaign data dictionary with title, summary, findings
         output_file: Output file path for markdown report
+
     """
     lines = [f"# {data['title']}", ""]
 
@@ -244,7 +252,7 @@ def generate_markdown_report(data: dict, output_file: str) -> None:
         for finding in data["findings"]:
             lines.append(f"- **{finding['severity']}**: {finding['description']}")
 
-    with open(output_file, 'w', encoding='utf-8') as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
 
