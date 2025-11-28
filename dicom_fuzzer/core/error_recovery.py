@@ -14,13 +14,18 @@ STABILITY FEATURES:
 import json
 import signal
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from types import FrameType
+from typing import Any, TypeVar
 
 from dicom_fuzzer.core.serialization import SerializableMixin
 from dicom_fuzzer.utils.logger import get_logger
+
+# Type variable for generic function wrapper
+F = TypeVar("F", bound=Callable[..., Any])
 
 logger = get_logger(__name__)
 
@@ -368,7 +373,7 @@ class CampaignRecovery:
 
         return interrupted
 
-    def mark_completed(self, campaign_id: str):
+    def mark_completed(self, campaign_id: str) -> None:
         """Mark campaign as completed and clean up checkpoint.
 
         Args:
@@ -388,7 +393,7 @@ class CampaignRecovery:
 
         logger.info(f"Campaign marked as completed: {campaign_id}")
 
-    def mark_failed(self, campaign_id: str, reason: str):
+    def mark_failed(self, campaign_id: str, reason: str) -> None:
         """Mark campaign as failed.
 
         Args:
@@ -407,7 +412,7 @@ class CampaignRecovery:
 
         logger.error(f"Campaign marked as failed: {campaign_id} - {reason}")
 
-    def mark_interrupted(self, campaign_id: str):
+    def mark_interrupted(self, campaign_id: str) -> None:
         """Mark campaign as interrupted (for graceful shutdown).
 
         Args:
@@ -424,7 +429,7 @@ class CampaignRecovery:
 
         logger.warning(f"Campaign marked as interrupted: {campaign_id}")
 
-    def cleanup_checkpoint(self, campaign_id: str):
+    def cleanup_checkpoint(self, campaign_id: str) -> None:
         """Remove checkpoint file for completed/failed campaign.
 
         Args:
@@ -442,7 +447,7 @@ class CampaignRecovery:
 
     def update_progress(
         self, processed: int, successful: int, failed: int, crashes: int
-    ):
+    ) -> None:
         """Update progress counters and trigger checkpoint if needed.
 
         Args:
@@ -482,12 +487,15 @@ class SignalHandler:
         """
         self.recovery_manager = recovery_manager
         self.interrupted = False
-        self.original_sigint = None
-        self.original_sigterm = None
+        # Signal handlers can be callable, int (SIG_DFL/SIG_IGN), or None
+        self.original_sigint: Callable[[int, FrameType | None], Any] | int | None = None
+        self.original_sigterm: Callable[[int, FrameType | None], Any] | int | None = (
+            None
+        )
 
         logger.debug("SignalHandler initialized")
 
-    def install(self):
+    def install(self) -> None:
         """Install signal handlers."""
         self.original_sigint = signal.signal(signal.SIGINT, self._handle_signal)
 
@@ -497,17 +505,17 @@ class SignalHandler:
 
         logger.info("Signal handlers installed (SIGINT/SIGTERM)")
 
-    def uninstall(self):
+    def uninstall(self) -> None:
         """Restore original signal handlers."""
-        if self.original_sigint:
+        if self.original_sigint is not None:
             signal.signal(signal.SIGINT, self.original_sigint)
 
-        if self.original_sigterm and hasattr(signal, "SIGTERM"):
+        if self.original_sigterm is not None and hasattr(signal, "SIGTERM"):
             signal.signal(signal.SIGTERM, self.original_sigterm)
 
         logger.debug("Signal handlers uninstalled")
 
-    def _handle_signal(self, signum, frame):
+    def _handle_signal(self, signum: int, frame: FrameType | None) -> None:
         """Handle interrupt signal.
 
         Args:
@@ -544,11 +552,11 @@ class SignalHandler:
 
 # Convenience function for handling errors with recovery
 def with_error_recovery(
-    func,
+    func: F,
     max_retries: int = 3,
     retry_delay: float = 1.0,
     backoff_factor: float = 2.0,
-):
+) -> F:
     """Decorator for adding error recovery with exponential backoff.
 
     Args:
@@ -562,9 +570,9 @@ def with_error_recovery(
 
     """
 
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         delay = retry_delay
-        last_exception = None
+        last_exception: Exception | None = None
 
         for attempt in range(max_retries + 1):
             try:
@@ -583,5 +591,6 @@ def with_error_recovery(
                         f"Failed after {max_retries} retries in {func.__name__}: {e}"
                     )
                     raise last_exception from e
+        return None  # Unreachable but satisfies type checker
 
-    return wrapper
+    return wrapper  # type: ignore[return-value]

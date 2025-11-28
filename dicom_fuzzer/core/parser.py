@@ -4,6 +4,7 @@ This module provides secure parsing capabilities for DICOM files,
 with extensive validation, error handling, and security considerations.
 """
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -192,7 +193,7 @@ class DicomParser:
         if self._metadata_cache is not None:
             return self._metadata_cache
 
-        metadata = {}
+        metadata: dict[str, Any] = {}
 
         # Standard metadata extraction with error handling
         metadata_fields = {
@@ -216,10 +217,10 @@ class DicomParser:
 
         for field_name, (tag, _keyword) in metadata_fields.items():
             try:
-                value = self.dataset.get(tag, None)
-                if value is not None:
+                if tag in self.dataset:
+                    value = self.dataset[tag].value
                     # Convert to string and sanitize
-                    metadata[field_name] = str(value).strip()
+                    metadata[field_name] = str(value).strip() if value else ""
                 else:
                     metadata[field_name] = ""
             except Exception as e:
@@ -291,10 +292,8 @@ class DicomParser:
                 try:
                     private_tags[str(tag)] = {
                         "value": str(element.value) if element.value else "",
-                        "vr": element.VR if hasattr(element, "VR") else "UN",
-                        "keyword": (
-                            element.keyword if hasattr(element, "keyword") else ""
-                        ),
+                        "vr": getattr(element, "VR", "UN"),
+                        "keyword": getattr(element, "keyword", ""),
                     }
                 except Exception as e:
                     logger.warning(f"Failed to extract private tag {tag}: {e}")
@@ -369,7 +368,11 @@ class DicomParser:
 
         """
         try:
-            return getattr(self.dataset, "file_meta", {}).get("TransferSyntaxUID", None)
+            file_meta = getattr(self.dataset, "file_meta", None)
+            if file_meta is None:
+                return None
+            transfer_syntax = file_meta.get("TransferSyntaxUID", None)
+            return str(transfer_syntax) if transfer_syntax is not None else None
         except Exception as e:
             logger.warning(f"Failed to get transfer syntax: {e}")
             return None
@@ -423,7 +426,7 @@ class DicomParser:
         return critical_data
 
     @contextmanager
-    def temporary_mutation(self):
+    def temporary_mutation(self) -> Generator[Dataset, None, None]:
         """Context manager for temporary dataset mutations.
 
         This allows safe temporary modifications that are automatically
@@ -444,11 +447,16 @@ class DicomParser:
             # Clear metadata cache
             self._metadata_cache = None
 
-    def __enter__(self):
+    def __enter__(self) -> "DicomParser":
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
         """Context manager exit with cleanup."""
         # Clear caches and references
         self._metadata_cache = None
