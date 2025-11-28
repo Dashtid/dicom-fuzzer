@@ -179,6 +179,33 @@ class TestMissingRequiredTags:
 
         assert isinstance(mutated, Dataset)
 
+    @patch("random.sample")
+    @patch("random.randint")
+    def test_delattr_exception_handling(self, mock_randint, mock_sample):
+        """Test exception handling when delattr fails (lines 99-101)."""
+        mock_randint.return_value = 1
+        mock_sample.return_value = ["PatientName"]
+
+        fuzzer = HeaderFuzzer()
+        ds = Dataset()
+        ds.PatientName = "Test^Patient"
+
+        # Mock delattr to raise an exception
+        original_delattr = Dataset.__delattr__
+
+        def mock_delattr_raises(self, name):
+            if name == "PatientName":
+                raise AttributeError("Cannot delete attribute")
+            return original_delattr(self, name)
+
+        with patch.object(Dataset, "__delattr__", mock_delattr_raises):
+            # Should not raise error due to try/except
+            mutated = fuzzer._missing_required_tags(ds)
+
+        assert isinstance(mutated, Dataset)
+        # PatientName should still exist since delete failed
+        assert hasattr(mutated, "PatientName")
+
 
 class TestInvalidVRValues:
     """Test suite for invalid VR value mutations."""
