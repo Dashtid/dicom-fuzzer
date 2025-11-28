@@ -564,24 +564,21 @@ class TestValidateAll:
         # Should pass (warnings don't fail in non-strict mode)
         assert len(validator.warnings) > 0
 
-    def test_validate_all_logs_info(self, tmp_path, caplog):
+    def test_validate_all_logs_info(self, tmp_path, capture_logs):
         """Test validate_all logs info messages."""
-        import logging
-
-        caplog.set_level(logging.INFO)
-
         validator = ConfigValidator(strict=False)
 
         with patch("sys.version_info", (3, 11, 0)):
             validator.validate_all()
 
-        # Check log contains expected messages
+        # Check log contains expected messages (structlog captures event dicts)
         assert any(
-            "Pre-flight" in record.message or "pre-flight" in record.message.lower()
-            for record in caplog.records
+            "pre-flight" in str(log.get("event", "")).lower()
+            or "Pre-flight" in str(log.get("event", ""))
+            for log in capture_logs
         )
 
-    def test_validate_all_logs_warnings(self, tmp_path, caplog):
+    def test_validate_all_logs_warnings(self, tmp_path, capture_logs):
         """Test validate_all logs warning messages."""
         validator = ConfigValidator(strict=False)
         empty_file = tmp_path / "empty.dcm"
@@ -590,12 +587,10 @@ class TestValidateAll:
         with patch("sys.version_info", (3, 11, 0)):
             validator.validate_all(input_file=empty_file)
 
-        # Check warnings are logged
-        assert any(
-            record.levelname == "WARNING" for record in caplog.records if record.message
-        )
+        # Check warnings are logged (structlog captures event dicts with 'level' key)
+        assert any(log.get("level") == "warning" for log in capture_logs)
 
-    def test_validate_all_logs_errors(self, tmp_path, caplog):
+    def test_validate_all_logs_errors(self, tmp_path, capture_logs):
         """Test validate_all logs error messages."""
         validator = ConfigValidator()
         non_existent = tmp_path / "nonexistent.dcm"
@@ -603,10 +598,8 @@ class TestValidateAll:
         with patch("sys.version_info", (3, 11, 0)):
             validator.validate_all(input_file=non_existent)
 
-        # Check errors are logged
-        assert any(
-            record.levelname == "ERROR" for record in caplog.records if record.message
-        )
+        # Check errors are logged (structlog captures event dicts with 'level' key)
+        assert any(log.get("level") == "error" for log in capture_logs)
 
 
 class TestGetSummary:

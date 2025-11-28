@@ -83,7 +83,7 @@ repos:
         types_or: [markdown, yaml, json]
         exclude: ^(CHANGELOG\.md|\.github/|artifacts/|data/)
 
-  # Local pytest check (run on push only to avoid slowing down commits)
+  # Local hooks (run on push only to avoid slowing down commits)
   - repo: local
     hooks:
       - id: pytest-quick
@@ -93,10 +93,16 @@ repos:
         pass_filenames: false
         stages: [pre-push]
         args: [tests/, --tb=short, -q, --no-cov, -x]
+      - id: pip-audit
+        name: pip-audit (vulnerability scan)
+        entry: python -m pip_audit
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
 
 # Configuration
 default_language_version:
-  python: python3.13  # Python 3.14 is alpha, use stable 3.13
+  python: python3.13 # Python 3.14 is alpha, use stable 3.13
 
 # CI settings
 ci:
@@ -108,5 +114,5 @@ ci:
   autoupdate_branch: ""
   autoupdate_commit_msg: "chore: pre-commit autoupdate"
   autoupdate_schedule: weekly
-  skip: [pytest-quick] # Skip pytest in CI (covered by GitHub Actions)
+  skip: [pytest-quick, pip-audit] # Skip in CI (covered by GitHub Actions)
   submodules: false
