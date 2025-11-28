@@ -11,27 +11,29 @@ hard limits on memory, CPU time, and disk usage.
 import os
 import platform
 import shutil
+import sys
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    pass
-
-# resource module is Unix-only
-try:
-    import resource as sys_resource
-
-    HAS_RESOURCE_MODULE = True
-except ImportError:
-    HAS_RESOURCE_MODULE = False
-    sys_resource = None  # type: ignore[assignment]
+from typing import Any
 
 from dicom_fuzzer.core.exceptions import ResourceExhaustedError
 from dicom_fuzzer.utils.logger import get_logger
+
+# resource module is Unix-only
+IS_WINDOWS = sys.platform == "win32"
+HAS_RESOURCE_MODULE = False
+sys_resource: Any = None
+
+if not IS_WINDOWS:
+    try:
+        import resource as sys_resource
+
+        HAS_RESOURCE_MODULE = True
+    except ImportError:
+        pass
 
 logger = get_logger(__name__)
 
@@ -158,21 +160,18 @@ class ResourceManager:
         """
         check_path = output_dir or Path.cwd()
 
-        # Get memory usage (works on Unix-like systems)
+        # Get memory usage
         try:
-            if not self.is_windows:
-                import psutil  # type: ignore[import-untyped]
+            import psutil
 
-                process = psutil.Process(os.getpid())
-                memory_mb = process.memory_info().rss / (1024 * 1024)
-            else:
-                memory_mb = 0.0  # Not available on Windows without psutil
+            process = psutil.Process(os.getpid())
+            memory_mb = process.memory_info().rss / (1024 * 1024)
         except ImportError:
             memory_mb = 0.0
 
         # Get CPU time (works on Unix-like systems)
         try:
-            if not self.is_windows and sys_resource is not None:
+            if HAS_RESOURCE_MODULE and sys_resource is not None:
                 usage = sys_resource.getrusage(sys_resource.RUSAGE_SELF)
                 cpu_seconds = usage.ru_utime + usage.ru_stime
             else:
@@ -183,15 +182,12 @@ class ResourceManager:
         # Get disk space
         disk_free_mb = self._get_disk_space_mb(check_path)
 
-        # Get open file count (Unix only)
+        # Get open file count
         try:
-            if not self.is_windows:
-                import psutil  # type: ignore[import-untyped]
+            import psutil
 
-                process = psutil.Process(os.getpid())
-                open_files = len(process.open_files())
-            else:
-                open_files = 0
+            process = psutil.Process(os.getpid())
+            open_files = len(process.open_files())
         except ImportError:
             open_files = 0
 
@@ -223,9 +219,9 @@ class ResourceManager:
         # Pre-flight check
         self.check_available_resources()
 
-        if self.is_windows or sys_resource is None:
+        if not HAS_RESOURCE_MODULE or sys_resource is None:
             # Windows doesn't support resource limits via resource module
-            logger.debug("Skipping resource limits on Windows")
+            logger.debug("Skipping resource limits (resource module not available)")
             yield
             return
 
