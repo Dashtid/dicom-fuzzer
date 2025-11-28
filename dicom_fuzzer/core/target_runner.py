@@ -178,7 +178,7 @@ class TargetRunner:
 
         return True
 
-    def _update_circuit_breaker(self, success: bool):
+    def _update_circuit_breaker(self, success: bool) -> None:
         """Update circuit breaker state after execution.
 
         Args:
@@ -263,10 +263,6 @@ class TargetRunner:
         6. Enforces resource limits
 
         """
-        # Convert to Path if string provided
-        if isinstance(test_file, str):
-            test_file = Path(test_file)
-
         # Check circuit breaker
         if not self._check_circuit_breaker():
             return ExecutionResult(
