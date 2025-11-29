@@ -4,7 +4,7 @@ A security testing tool for fuzzing DICOM (Digital Imaging and Communications in
 
 [![CI/CD Pipeline](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/Dashtid/DICOM-Fuzzer/branch/main/graph/badge.svg)](https://codecov.io/gh/Dashtid/DICOM-Fuzzer)
-[![Tests](https://img.shields.io/badge/tests-3055%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-3175%20passing-brightgreen)](tests/)
 [![Coverage](https://img.shields.io/badge/coverage-60%25-yellow)](docs/COVERAGE.md)
 [![Core Modules](https://img.shields.io/badge/core%20modules-30%2B%20%40%2090%25%2B-brightgreen)](#test-coverage)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://python.org)

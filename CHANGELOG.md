@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Resolved all Bandit security warnings in test files
 - Fixed Windows path assertion issues in serialization tests (OS-dependent path separators)
+- Added `crashes_dir` parameter to `FuzzingSession` class to allow custom crash directory paths
+- Fixed test failures caused by hardcoded relative crash directory path
 
 ## [1.2.0] - 2025-10-27 - Documentation Overhaul & Repository Modernization
 
