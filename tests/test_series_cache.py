@@ -375,5 +375,192 @@ class TestLRUOrdering:
         assert stats["hits"] >= 1
 
 
+class TestDiskCaching:
+    """Test disk-based series caching methods."""
+
+    def test_cache_series_without_cache_dir(self, sample_dicom_files, simple_loader):
+        """Test cache_series when cache_dir not configured."""
+        from unittest.mock import Mock
+
+        cache = SeriesCache(max_size_mb=10, max_entries=100, cache_dir=None)
+
+        # Create mock DicomSeries
+        mock_series = Mock()
+        mock_series.series_uid = "1.2.3.4.5"
+
+        # Should warn and not crash
+        cache.cache_series(mock_series)
+
+    def test_cache_series_with_cache_dir(self, tmp_path, sample_dicom_files, simple_loader):
+        """Test cache_series with cache_dir configured."""
+        from unittest.mock import Mock
+
+        cache_dir = tmp_path / "series_cache"
+        cache = SeriesCache(max_size_mb=10, max_entries=100, cache_dir=str(cache_dir))
+
+        # Create mock DicomSeries
+        mock_series = Mock()
+        mock_series.series_uid = "1.2.3.4.5"
+
+        cache.cache_series(mock_series)
+
+        # Check file was created
+        series_path = cache_dir / "1.2.3.4.5.pkl"
+        assert series_path.exists()
+
+    def test_cache_series_exception(self, tmp_path):
+        """Test cache_series handles exceptions."""
+        from unittest.mock import Mock, patch
+
+        cache_dir = tmp_path / "series_cache"
+        cache = SeriesCache(max_size_mb=10, max_entries=100, cache_dir=str(cache_dir))
+
+        # Create mock series that fails to pickle
+        mock_series = Mock()
+        mock_series.series_uid = "1.2.3.4.5"
+
+        with patch("builtins.open", side_effect=Exception("Write error")):
+            # Should not raise
+            cache.cache_series(mock_series)
+
+    def test_is_cached_without_cache_dir(self):
+        """Test is_cached when cache_dir not configured."""
+        cache = SeriesCache(max_size_mb=10, max_entries=100, cache_dir=None)
+
+        result = cache.is_cached("1.2.3.4.5")
+        assert result is False
+
+    def test_is_cached_with_cache_dir(self, tmp_path):
+        """Test is_cached with cache_dir configured."""
+        cache_dir = tmp_path / "series_cache"
+        cache_dir.mkdir()
+        cache = SeriesCache(max_size_mb=10, max_entries=100, cache_dir=str(cache_dir))
+
+        # Initially not cached
+        assert cache.is_cached("1.2.3.4.5") is False
+
+        # Create cache file
+        series_path = cache_dir / "1.2.3.4.5.pkl"
+        series_path.write_bytes(b"dummy")
+
+        # Now cached
+        assert cache.is_cached("1.2.3.4.5") is True
+
+    def test_load_series_without_cache_dir(self):
+        """Test load_series when cache_dir not configured."""
+        cache = SeriesCache(max_size_mb=10, max_entries=100, cache_dir=None)
+
+        result = cache.load_series("1.2.3.4.5")
+        assert result is None
+
+    def test_load_series_not_found(self, tmp_path):
+        """Test load_series when series not in cache."""
+        cache_dir = tmp_path / "series_cache"
+        cache_dir.mkdir()
+        cache = SeriesCache(max_size_mb=10, max_entries=100, cache_dir=str(cache_dir))
+
+        result = cache.load_series("1.2.3.4.5")
+        assert result is None
+
+    def test_load_series_success(self, tmp_path):
+        """Test successful series loading from cache."""
+        import pickle
+
+        from dicom_fuzzer.core.dicom_series import DicomSeries
+
+        cache_dir = tmp_path / "series_cache"
+        cache_dir.mkdir()
+        cache = SeriesCache(max_size_mb=10, max_entries=100, cache_dir=str(cache_dir))
+
+        # Create a real DicomSeries
+        series = DicomSeries(
+            series_uid="1.2.3.4.5",
+            study_uid="1.1.1.1",
+            modality="CT",
+            slices=[],
+        )
+
+        series_path = cache_dir / "1.2.3.4.5.pkl"
+        with open(series_path, "wb") as f:
+            pickle.dump(series, f)
+
+        # Load from cache
+        loaded = cache.load_series("1.2.3.4.5")
+        assert loaded is not None
+        assert loaded.series_uid == "1.2.3.4.5"
+
+    def test_load_series_exception(self, tmp_path):
+        """Test load_series handles corrupted cache file."""
+        cache_dir = tmp_path / "series_cache"
+        cache_dir.mkdir()
+        cache = SeriesCache(max_size_mb=10, max_entries=100, cache_dir=str(cache_dir))
+
+        # Create corrupted cache file
+        series_path = cache_dir / "1.2.3.4.5.pkl"
+        series_path.write_bytes(b"not a valid pickle")
+
+        # Should return None, not raise
+        result = cache.load_series("1.2.3.4.5")
+        assert result is None
+
+
+class TestMoreEdgeCases:
+    """Additional edge case tests."""
+
+    def test_cache_dir_creation(self, tmp_path):
+        """Test that cache_dir is created if it doesn't exist."""
+        cache_dir = tmp_path / "new_cache_dir" / "nested"
+        assert not cache_dir.exists()
+
+        cache = SeriesCache(max_size_mb=10, max_entries=100, cache_dir=str(cache_dir))
+
+        assert cache_dir.exists()
+
+    def test_loader_exception(self, sample_dicom_files):
+        """Test handling when loader throws exception."""
+
+        def failing_loader(file_path):
+            raise Exception("Failed to load")
+
+        cache = SeriesCache(max_size_mb=10, max_entries=100)
+        file_path = sample_dicom_files[0]
+
+        result = cache.get(file_path, failing_loader)
+        assert result is None
+
+    def test_evict_lru_empty_cache(self):
+        """Test _evict_lru when cache is empty."""
+        cache = SeriesCache(max_size_mb=10, max_entries=100)
+
+        # Should not raise
+        cache._evict_lru()
+
+        stats = cache.get_statistics()
+        assert stats["evictions"] == 0
+
+    def test_add_entry_forces_break_when_empty(self):
+        """Test _add_entry break condition when cache empty but size exceeded."""
+        from pydicom.dataset import Dataset
+
+        # Cache with very small size
+        cache = SeriesCache(max_size_mb=0, max_entries=0)
+
+        # Manually call _add_entry
+        ds = Dataset()
+        ds.PatientName = "Test"
+
+        # This should hit the break condition since cache is empty but size limit is 0
+        from pathlib import Path
+        from unittest.mock import Mock
+
+        mock_path = Mock(spec=Path)
+        mock_path.stat.return_value.st_mtime = 12345.0
+
+        cache._add_entry(mock_path, ds)
+
+        # Should have added one entry despite size constraints
+        assert len(cache._cache) == 1
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
