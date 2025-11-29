@@ -8,10 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added - Test Coverage
+
+- `tests/test_realtime_monitor.py` - 39 comprehensive tests for real-time monitoring CLI (0% -> 98%)
+- `tests/test_generate_report.py` - 29 comprehensive tests for report generation CLI (0% -> 98%)
 - `tests/test_identifiers.py` - 37 comprehensive tests for identifier generation utilities
 - `tests/test_hashing.py` - 39 comprehensive tests for hashing utilities (SHA256, MD5)
 - `tests/test_serialization.py` - 19 tests for SerializableMixin dataclass serialization
 - `tests/test_header_fuzzer_comprehensive.py` - Added exception handling test for delattr failures
+
+### Changed
+
+- Overall test coverage increased from 60% to 67%
+- Total tests increased from 3175 to 3243
 
 ### Fixed
 - Resolved all Bandit security warnings in test files
