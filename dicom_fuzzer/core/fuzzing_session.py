@@ -119,6 +119,7 @@ class FuzzingSession:
         reports_dir: str = "./reports",
         config: dict | None = None,
         session_id: str | None = None,
+        crashes_dir: str | None = None,
     ):
         """Initialize fuzzing session tracker.
 
@@ -128,6 +129,7 @@ class FuzzingSession:
             reports_dir: Directory for reports
             config: Fuzzer configuration (optional)
             session_id: Explicit session ID (overrides auto-generated)
+            crashes_dir: Directory for crash files (default: ./crashes/<session_id>)
 
         """
         # Support both old (session_name) and new (session_id) API
@@ -148,7 +150,10 @@ class FuzzingSession:
         # Directory structure
         self.output_dir = Path(output_dir)
         self.reports_dir = Path(reports_dir)
-        self.crashes_dir = Path("crashes") / self.session_id
+        if crashes_dir is not None:
+            self.crashes_dir = Path(crashes_dir)
+        else:
+            self.crashes_dir = Path("crashes") / self.session_id
 
         # Create directories
         self.output_dir.mkdir(parents=True, exist_ok=True)

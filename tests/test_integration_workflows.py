@@ -50,6 +50,7 @@ class TestCompleteFuzzingWorkflows:
                 "corpus": base / "corpus",
                 "output": base / "output",
                 "reports": base / "reports",
+                "crashes": base / "crashes",
             }
             for d in dirs.values():
                 d.mkdir(parents=True, exist_ok=True)
@@ -61,6 +62,7 @@ class TestCompleteFuzzingWorkflows:
             session_name="mutation_test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         mutator = DicomMutator(
@@ -202,6 +204,7 @@ class TestCompleteFuzzingWorkflows:
             session_name="full_workflow",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Fuzz multiple files

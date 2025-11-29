@@ -239,6 +239,7 @@ class TestFuzzingSessionInitialization:
                 session_name="test_session",
                 output_dir=str(tmp_path / "output"),
                 reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
             )
 
             assert session.session_name == "test_session"
@@ -251,6 +252,7 @@ class TestFuzzingSessionInitialization:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         assert session.output_dir.exists()
@@ -263,6 +265,7 @@ class TestFuzzingSessionInitialization:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         assert session.stats["files_fuzzed"] == 0
@@ -277,6 +280,7 @@ class TestFuzzingSessionInitialization:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         assert len(session.fuzzed_files) == 0
@@ -296,6 +300,7 @@ class TestFileFuzzingTracking:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         source = tmp_path / "source.dcm"
@@ -317,6 +322,7 @@ class TestFileFuzzingTracking:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         source = tmp_path / "source.dcm"
@@ -342,6 +348,7 @@ class TestFileFuzzingTracking:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         with pytest.raises(RuntimeError, match="No active file fuzzing session"):
@@ -358,6 +365,7 @@ class TestFileFuzzingTracking:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         source = tmp_path / "source.dcm"
@@ -384,6 +392,7 @@ class TestTestResultRecording:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         source = tmp_path / "source.dcm"
@@ -404,6 +413,7 @@ class TestTestResultRecording:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         source = tmp_path / "source.dcm"
@@ -423,6 +433,7 @@ class TestTestResultRecording:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         with pytest.raises(KeyError, match="Unknown file ID"):
@@ -441,6 +452,7 @@ class TestCrashRecording:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         source = tmp_path / "source.dcm"
@@ -472,6 +484,7 @@ class TestCrashRecording:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         source = tmp_path / "source.dcm"
@@ -508,6 +521,7 @@ class TestReportGeneration:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         report = session.generate_session_report()
@@ -526,6 +540,7 @@ class TestReportGeneration:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         report_path = session.save_session_report()
@@ -546,6 +561,7 @@ class TestReportGeneration:
             session_name="test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         summary = session.get_session_summary()
@@ -569,6 +585,7 @@ class TestIntegrationScenarios:
             session_name="integration_test",
             output_dir=str(tmp_path / "output"),
             reports_dir=str(tmp_path / "reports"),
+        crashes_dir=str(tmp_path / "crashes"),
         )
 
         # Create test files

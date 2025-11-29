@@ -65,10 +65,8 @@ def fuzzing_session(temp_workspace):
         session_name="test_session",
         output_dir=str(temp_workspace / "output"),
         reports_dir=str(temp_workspace / "reports"),
+        crashes_dir=str(temp_workspace / "crashes"),
     )
-    # Override crashes_dir to use temp workspace
-    session.crashes_dir = temp_workspace / "crashes" / session.session_id
-    session.crashes_dir.mkdir(parents=True, exist_ok=True)
     return session
 
 
@@ -435,6 +433,7 @@ class TestFuzzingSessionIntegration:
                 session_name=f"concurrent_{i}",
                 output_dir=str(temp_workspace / "output" / f"session_{i}"),
                 reports_dir=str(temp_workspace / "reports"),
+                crashes_dir=str(temp_workspace / "crashes" / f"session_{i}"),
             )
             sessions.append(session)
 
@@ -525,6 +524,7 @@ class TestEdgeCases:
             session_name="invalid_test",
             output_dir=str(temp_workspace / "nonexistent" / "deep" / "path"),
             reports_dir=str(temp_workspace / "another" / "deep" / "path"),
+            crashes_dir=str(temp_workspace / "crashes" / "invalid"),
         )
 
         # Directories should be created
