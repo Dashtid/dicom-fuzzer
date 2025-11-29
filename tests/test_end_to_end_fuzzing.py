@@ -66,6 +66,8 @@ class TestEndToEndFuzzingWorkflow:
         session = FuzzingSession(
             session_name="e2e_test_campaign",
             output_dir=str(fuzzing_workspace["outputs"]),
+            reports_dir=str(fuzzing_workspace["reports"]),
+            crashes_dir=str(fuzzing_workspace["crashes"]),
         )
 
         # Step 3: Fuzz each seed file
@@ -148,7 +150,10 @@ class TestEndToEndFuzzingWorkflow:
         """
         # Step 1: Create fuzzing session
         session = FuzzingSession(
-            session_name="crash_test", output_dir=str(fuzzing_workspace["outputs"])
+            session_name="crash_test",
+            output_dir=str(fuzzing_workspace["outputs"]),
+            reports_dir=str(fuzzing_workspace["reports"]),
+            crashes_dir=str(fuzzing_workspace["crashes"]),
         )
 
         crash_analyzer = CrashAnalyzer(crash_dir=fuzzing_workspace["crashes"])
@@ -222,7 +227,10 @@ class TestEndToEndFuzzingWorkflow:
 
         # Step 2: Create session and statistics collector
         session = FuzzingSession(
-            session_name="multi_file_test", output_dir=str(fuzzing_workspace["outputs"])
+            session_name="multi_file_test",
+            output_dir=str(fuzzing_workspace["outputs"]),
+            reports_dir=str(fuzzing_workspace["reports"]),
+            crashes_dir=str(fuzzing_workspace["crashes"]),
         )
         statistics = StatisticsCollector()
 
@@ -297,7 +305,10 @@ class TestEndToEndFuzzingWorkflow:
         """
         # Step 1: Create session with data
         session = FuzzingSession(
-            session_name="reporter_test", output_dir=str(fuzzing_workspace["outputs"])
+            session_name="reporter_test",
+            output_dir=str(fuzzing_workspace["outputs"]),
+            reports_dir=str(fuzzing_workspace["reports"]),
+            crashes_dir=str(fuzzing_workspace["crashes"]),
         )
 
         # Add some fuzzing data

@@ -388,6 +388,9 @@ class TestCompleteWorkflowIntegration:
         session = FuzzingSession(
             config=fuzzer_config,
             session_id="test_session_001",
+            output_dir=str(test_workspace["output"]),
+            reports_dir=str(test_workspace["reports"]),
+            crashes_dir=str(test_workspace["crashes"]),
         )
 
         # Mock execution to avoid actual process spawning

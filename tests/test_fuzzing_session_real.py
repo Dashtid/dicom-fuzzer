@@ -75,6 +75,7 @@ class TestFuzzingSessionInitialization:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         assert session.session_name == "test_session"
@@ -88,6 +89,7 @@ class TestFuzzingSessionInitialization:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         assert session.output_dir.exists()
@@ -100,6 +102,7 @@ class TestFuzzingSessionInitialization:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         assert session.stats["files_fuzzed"] == 0
@@ -114,6 +117,7 @@ class TestFuzzingSessionInitialization:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         assert len(session.fuzzed_files) == 0
@@ -130,6 +134,7 @@ class TestFileFuzzingWorkflow:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -152,6 +157,7 @@ class TestFileFuzzingWorkflow:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -171,6 +177,7 @@ class TestFileFuzzingWorkflow:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -198,6 +205,7 @@ class TestFileFuzzingWorkflow:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         with pytest.raises(RuntimeError, match="No active file fuzzing session"):
@@ -212,6 +220,7 @@ class TestFileFuzzingWorkflow:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         # Create actual output file
@@ -236,6 +245,7 @@ class TestFileFuzzingWorkflow:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         with pytest.raises(RuntimeError, match="No active file fuzzing session"):
@@ -336,6 +346,7 @@ class TestTestResults:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -357,6 +368,7 @@ class TestTestResults:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -378,6 +390,7 @@ class TestTestResults:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         with pytest.raises(KeyError, match="Unknown file ID"):
@@ -389,6 +402,7 @@ class TestTestResults:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -413,6 +427,7 @@ class TestCrashRecording:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         # Create actual output file
@@ -445,6 +460,7 @@ class TestCrashRecording:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -476,6 +492,7 @@ class TestCrashRecording:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -508,6 +525,7 @@ class TestCrashRecording:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -540,6 +558,7 @@ class TestCrashRecording:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         with pytest.raises(KeyError, match="Unknown file ID"):
@@ -559,6 +578,7 @@ class TestSessionReporting:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -582,6 +602,7 @@ class TestSessionReporting:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -606,6 +627,7 @@ class TestSessionReporting:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -634,6 +656,7 @@ class TestSessionReporting:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -656,6 +679,7 @@ class TestSessionReporting:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"
@@ -686,6 +710,7 @@ class TestHelperMethods:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         metadata = session._extract_metadata(sample_dicom_file)
@@ -700,6 +725,7 @@ class TestHelperMethods:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         metadata = session._extract_metadata(Path("/nonexistent/file.dcm"))
@@ -713,6 +739,7 @@ class TestHelperMethods:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         hash1 = session._calculate_file_hash(sample_dicom_file)
@@ -727,6 +754,7 @@ class TestHelperMethods:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         result = session._value_to_string(None)
@@ -739,6 +767,7 @@ class TestHelperMethods:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         result = session._value_to_string(b"\x01\x02\x03")
@@ -751,6 +780,7 @@ class TestHelperMethods:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         long_bytes = b"\x00" * 100
@@ -769,6 +799,7 @@ class TestIntegrationScenarios:
             session_name="test_campaign",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         # Fuzz first file
@@ -820,6 +851,7 @@ class TestIntegrationScenarios:
             session_name="test_session",
             output_dir=str(temp_session_dirs["output"]),
             reports_dir=str(temp_session_dirs["reports"]),
+        crashes_dir=str(temp_session_dirs["crashes"]),
         )
 
         output_file = temp_session_dirs["output"] / "fuzzed_001.dcm"

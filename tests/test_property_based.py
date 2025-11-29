@@ -179,6 +179,8 @@ class TestFuzzingSessionProperties:
             session = FuzzingSession(
                 session_name=session_name,
                 output_dir=tmpdir,
+            reports_dir=tmpdir + "/reports",
+            crashes_dir=tmpdir + "/crashes",
             )
 
             # Track multiple files
@@ -215,6 +217,8 @@ class TestFuzzingSessionProperties:
             session = FuzzingSession(
                 session_name="test",
                 output_dir=tmpdir,
+            reports_dir=tmpdir + "/reports",
+            crashes_dir=tmpdir + "/crashes",
             )
 
             session.start_file_fuzzing(
@@ -254,6 +258,8 @@ class TestFuzzingSessionProperties:
             session = FuzzingSession(
                 session_name="stats_test",
                 output_dir=tmpdir,
+            reports_dir=tmpdir + "/reports",
+            crashes_dir=tmpdir + "/crashes",
             )
 
             # Record crashes
@@ -327,6 +333,8 @@ class TestSecurityProperties:
             session = FuzzingSession(
                 session_name="security_test",
                 output_dir=tmpdir,
+            reports_dir=tmpdir + "/reports",
+            crashes_dir=tmpdir + "/crashes",
             )
 
             session.start_file_fuzzing(
@@ -383,6 +391,8 @@ class TestSecurityProperties:
             session = FuzzingSession(
                 session_name="path_test",
                 output_dir=tmpdir,
+            reports_dir=tmpdir + "/reports",
+            crashes_dir=tmpdir + "/crashes",
             )
 
             for attempt in path_traversal_attempts:
@@ -424,6 +434,8 @@ class TestDataIntegrity:
             session = FuzzingSession(
                 session_name="preservation_test",
                 output_dir=tmpdir,
+            reports_dir=tmpdir + "/reports",
+            crashes_dir=tmpdir + "/crashes",
             )
 
             session.start_file_fuzzing(

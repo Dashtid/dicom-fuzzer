@@ -74,6 +74,7 @@ class TestCompleteCrashAnalysisPipeline:
             session_name="e2e_crash_test",
             output_dir=str(crash_workspace["output"]),
             reports_dir=str(crash_workspace["reports"]),
+        crashes_dir=str(crash_workspace["crashes"]),
         )
 
         # Step 2: Generate fuzzed files
@@ -265,6 +266,7 @@ class TestSessionPersistenceWorkflow:
         workspace = {
             "output": tmp_path / "output",
             "reports": tmp_path / "reports",
+            "crashes": tmp_path / "crashes",
         }
         for directory in workspace.values():
             directory.mkdir(parents=True, exist_ok=True)
@@ -281,6 +283,7 @@ class TestSessionPersistenceWorkflow:
             session_name="resumable_session",
             output_dir=str(session_workspace["output"]),
             reports_dir=str(session_workspace["reports"]),
+            crashes_dir=str(session_workspace["crashes"]),
         )
 
         # Simulate some fuzzing activity
@@ -327,6 +330,7 @@ class TestSessionPersistenceWorkflow:
             session_name="resumable_session",
             output_dir=str(session_workspace["output"]),
             reports_dir=str(session_workspace["reports"]),
+            crashes_dir=str(session_workspace["crashes"]),
         )
 
         # Continue fuzzing
