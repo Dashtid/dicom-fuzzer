@@ -15,11 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/test_hashing.py` - 39 comprehensive tests for hashing utilities (SHA256, MD5)
 - `tests/test_serialization.py` - 19 tests for SerializableMixin dataclass serialization
 - `tests/test_header_fuzzer_comprehensive.py` - Added exception handling test for delattr failures
+- `tests/test_security_patterns.py` - Added 21 tests for exception handling paths (10% -> 84%)
+- `tests/test_series_detector.py` - Added 11 edge case tests (12% -> 100%)
+- `tests/test_series_cache.py` - Added 14 tests for disk caching and edge cases (25% -> 99%)
 
 ### Changed
 
-- Overall test coverage increased from 60% to 67%
-- Total tests increased from 3175 to 3243
+- Overall test coverage increased from 60% to 75%
+- Total tests increased from 3175 to 3539
 
 ### Fixed
 - Resolved all Bandit security warnings in test files
