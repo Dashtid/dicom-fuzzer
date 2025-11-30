@@ -911,3 +911,354 @@ class TestIntegrationScenarios:
         assert loaded2.total_files == 3
         assert loaded1.output_dir == "/tmp/output1"
         assert loaded2.output_dir == "/tmp/output2"
+
+
+class TestMissingCoveragePaths:
+    """Tests for uncovered lines in error_recovery.py."""
+
+    def test_save_checkpoint_write_error_with_temp_cleanup(
+        self, temp_checkpoint_dir, sample_test_files
+    ):
+        """Test lines 231-239: Exception during save and temp file cleanup."""
+        from unittest.mock import mock_open, patch
+
+        recovery = CampaignRecovery(checkpoint_dir=str(temp_checkpoint_dir))
+
+        checkpoint = recovery.create_checkpoint(
+            campaign_id="test_campaign",
+            total_files=5,
+            processed_files=2,
+            successful=1,
+            failed=0,
+            crashes=1,
+            current_file_index=2,
+            test_files=sample_test_files,
+            output_dir="/tmp/output",
+            crash_dir="/tmp/crashes",
+        )
+
+        # Mock open to raise exception after creating temp file
+        with patch("builtins.open", mock_open()) as mocked_open:
+            # Make json.dump fail after file is "opened"
+            mocked_open.return_value.write.side_effect = OSError("Disk full")
+
+            with pytest.raises(IOError, match="Disk full"):
+                recovery.save_checkpoint(checkpoint)
+
+    def test_load_checkpoint_validation_fails(
+        self, temp_checkpoint_dir, sample_test_files
+    ):
+        """Test lines 267-270: Load checkpoint that fails validation."""
+        recovery = CampaignRecovery(checkpoint_dir=str(temp_checkpoint_dir))
+
+        # Create checkpoint with invalid data (processed > total)
+        checkpoint_file = temp_checkpoint_dir / "invalid_checkpoint.json"
+        invalid_data = {
+            "campaign_id": "invalid",
+            "status": "running",
+            "start_time": 1000.0,
+            "last_update": 1100.0,
+            "total_files": 5,
+            "processed_files": 100,  # Invalid: more than total
+            "successful": 0,
+            "failed": 0,
+            "crashes": 0,
+            "current_file_index": 0,
+            "test_files": ["file.dcm"],
+            "output_dir": "/tmp/output",
+            "crash_dir": "/tmp/crashes",
+            "metadata": {},
+        }
+
+        import json
+
+        with open(checkpoint_file, "w") as f:
+            json.dump(invalid_data, f)
+
+        # Load should return None due to validation failure
+        loaded = recovery.load_checkpoint("invalid")
+        assert loaded is None
+
+    def test_load_checkpoint_generic_exception(self, temp_checkpoint_dir):
+        """Test lines 283-285: Generic exception during load."""
+        from unittest.mock import patch
+
+        recovery = CampaignRecovery(checkpoint_dir=str(temp_checkpoint_dir))
+
+        # Create valid checkpoint file
+        checkpoint_file = temp_checkpoint_dir / "error_campaign_checkpoint.json"
+        checkpoint_file.write_text('{"campaign_id": "error"}')
+
+        # Mock json.load to raise generic exception
+        with patch("json.load", side_effect=RuntimeError("Unexpected error")):
+            loaded = recovery.load_checkpoint("error_campaign")
+
+        assert loaded is None
+
+    def test_validate_checkpoint_negative_file_index(self, temp_checkpoint_dir):
+        """Test lines 325-326: Validation fails with negative file index."""
+        recovery = CampaignRecovery(checkpoint_dir=str(temp_checkpoint_dir))
+
+        checkpoint = CampaignCheckpoint(
+            campaign_id="test_campaign",
+            status=CampaignStatus.RUNNING,
+            start_time=1000.0,
+            last_update=1100.0,
+            total_files=5,
+            processed_files=2,
+            successful=2,
+            failed=0,
+            crashes=0,
+            current_file_index=-5,  # Invalid: negative
+            test_files=["file1.dcm"],
+            output_dir="/tmp/output",
+            crash_dir="/tmp/crashes",
+            metadata={},
+        )
+
+        assert recovery._validate_checkpoint(checkpoint) is False
+
+    def test_validate_checkpoint_exception_during_validation(self, temp_checkpoint_dir):
+        """Test lines 343-345: Exception during validation returns False."""
+        from unittest.mock import Mock
+
+        recovery = CampaignRecovery(checkpoint_dir=str(temp_checkpoint_dir))
+
+        # Create a mock checkpoint that raises exception when accessing attributes
+        mock_checkpoint = Mock()
+        mock_checkpoint.processed_files = Mock(side_effect=RuntimeError("Test error"))
+
+        # Validation should catch exception and return False
+        assert recovery._validate_checkpoint(mock_checkpoint) is False
+
+    def test_list_interrupted_campaigns_corrupted_file(
+        self, temp_checkpoint_dir, sample_test_files
+    ):
+        """Test lines 371-372: Exception when loading corrupted checkpoint file."""
+        recovery = CampaignRecovery(checkpoint_dir=str(temp_checkpoint_dir))
+
+        # Create a valid running campaign checkpoint
+        checkpoint = recovery.create_checkpoint(
+            campaign_id="valid_campaign",
+            total_files=5,
+            processed_files=2,
+            successful=2,
+            failed=0,
+            crashes=0,
+            current_file_index=2,
+            test_files=sample_test_files,
+            output_dir="/tmp/output",
+            crash_dir="/tmp/crashes",
+        )
+        recovery.save_checkpoint(checkpoint)
+
+        # Create corrupted checkpoint file
+        corrupted_file = temp_checkpoint_dir / "corrupted_checkpoint.json"
+        corrupted_file.write_text("not valid json {{{")
+
+        # Should return only valid checkpoint, skip corrupted
+        interrupted = recovery.list_interrupted_campaigns()
+
+        assert len(interrupted) == 1
+        assert interrupted[0].campaign_id == "valid_campaign"
+
+    def test_cleanup_checkpoint_permission_error(self, temp_checkpoint_dir):
+        """Test lines 445-446: Exception during checkpoint cleanup."""
+        from pathlib import Path
+        from unittest.mock import patch
+
+        recovery = CampaignRecovery(checkpoint_dir=str(temp_checkpoint_dir))
+
+        # Create checkpoint file
+        checkpoint_file = temp_checkpoint_dir / "test_campaign_checkpoint.json"
+        checkpoint_file.write_text("{}")
+
+        # Mock Path.unlink to raise exception
+        original_unlink = Path.unlink
+
+        def mock_unlink(self):
+            if "test_campaign" in str(self):
+                raise PermissionError("No permission")
+            return original_unlink(self)
+
+        with patch.object(Path, "unlink", mock_unlink):
+            # Should not raise, just log warning
+            recovery.cleanup_checkpoint("test_campaign")
+
+        # File should still exist since unlink failed
+        assert checkpoint_file.exists()
+
+    def test_signal_handler_install_and_uninstall(self):
+        """Test lines 500-506, 510-516: SignalHandler install/uninstall."""
+
+        handler = SignalHandler()
+
+        # Install signal handlers
+        handler.install()
+
+        # Verify handlers were installed
+        assert handler.original_sigint is not None
+
+        # Uninstall and verify original handlers restored
+        handler.uninstall()
+
+    def test_signal_handler_handle_signal(self, temp_checkpoint_dir, sample_test_files):
+        """Test lines 526-541: Signal handler handles interrupt signal."""
+        import signal
+
+        recovery = CampaignRecovery(checkpoint_dir=str(temp_checkpoint_dir))
+
+        # Create a checkpoint so signal handler has something to save
+        recovery.create_checkpoint(
+            campaign_id="signal_test",
+            total_files=5,
+            processed_files=2,
+            successful=2,
+            failed=0,
+            crashes=0,
+            current_file_index=2,
+            test_files=sample_test_files,
+            output_dir="/tmp/output",
+            crash_dir="/tmp/crashes",
+        )
+
+        handler = SignalHandler(recovery_manager=recovery)
+        handler.install()
+
+        try:
+            # Manually call the signal handler
+            handler._handle_signal(signal.SIGINT, None)
+
+            # Verify interrupted flag is set
+            assert handler.interrupted is True
+            assert handler.check_interrupted() is True
+
+            # Verify checkpoint was saved with interrupted status
+            assert recovery.current_checkpoint.status == CampaignStatus.INTERRUPTED
+        finally:
+            handler.uninstall()
+
+    def test_signal_handler_handle_signal_without_recovery(self):
+        """Test signal handler handles signal without recovery manager."""
+        import signal
+
+        handler = SignalHandler(recovery_manager=None)
+        handler.install()
+
+        try:
+            # Call signal handler without recovery manager
+            handler._handle_signal(signal.SIGINT, None)
+
+            # Should set interrupted flag
+            assert handler.interrupted is True
+        finally:
+            handler.uninstall()
+
+    def test_signal_handler_handle_signal_without_checkpoint(self, temp_checkpoint_dir):
+        """Test signal handler with recovery but no current checkpoint."""
+        import signal
+
+        recovery = CampaignRecovery(checkpoint_dir=str(temp_checkpoint_dir))
+        # No checkpoint created
+
+        handler = SignalHandler(recovery_manager=recovery)
+        handler.install()
+
+        try:
+            # Call signal handler
+            handler._handle_signal(signal.SIGINT, None)
+
+            # Should set interrupted flag but not crash
+            assert handler.interrupted is True
+        finally:
+            handler.uninstall()
+
+    def test_save_checkpoint_temp_file_cleanup_on_error(
+        self, temp_checkpoint_dir, sample_test_files
+    ):
+        """Test lines 235-238: Temp file cleanup when save fails with existing temp file."""
+        from pathlib import Path
+        from unittest.mock import patch
+
+        recovery = CampaignRecovery(checkpoint_dir=str(temp_checkpoint_dir))
+
+        checkpoint = recovery.create_checkpoint(
+            campaign_id="cleanup_test",
+            total_files=5,
+            processed_files=2,
+            successful=1,
+            failed=0,
+            crashes=1,
+            current_file_index=2,
+            test_files=sample_test_files,
+            output_dir="/tmp/output",
+            crash_dir="/tmp/crashes",
+        )
+
+        # Create the temp file manually to simulate partial write
+        temp_file = temp_checkpoint_dir / "cleanup_test_checkpoint.tmp"
+        temp_file.write_text("partial data")
+
+        # Mock rename to fail, which triggers temp file cleanup
+        original_rename = Path.rename
+
+        def mock_rename(self, target):
+            if ".tmp" in str(self):
+                raise OSError("Rename failed")
+            return original_rename(self, target)
+
+        with patch.object(Path, "rename", mock_rename):
+            with pytest.raises(OSError, match="Rename failed"):
+                recovery.save_checkpoint(checkpoint)
+
+        # Temp file should be cleaned up
+        assert not temp_file.exists()
+
+    def test_validate_checkpoint_results_exceed_processed(self, temp_checkpoint_dir):
+        """Test line 317: Warning when results exceed processed count."""
+        recovery = CampaignRecovery(checkpoint_dir=str(temp_checkpoint_dir))
+
+        # Create checkpoint where results > processed (triggers warning but passes)
+        checkpoint = CampaignCheckpoint(
+            campaign_id="test_campaign",
+            status=CampaignStatus.RUNNING,
+            start_time=1000.0,
+            last_update=1100.0,
+            total_files=10,
+            processed_files=5,
+            successful=3,
+            failed=2,
+            crashes=2,  # 3+2+2=7 > 5 processed (results mismatch)
+            current_file_index=5,
+            test_files=["file1.dcm"] * 10,
+            output_dir="/tmp/output",
+            crash_dir="/tmp/crashes",
+            metadata={},
+        )
+
+        # Should pass validation (with warning) since results > processed is accepted
+        result = recovery._validate_checkpoint(checkpoint)
+        assert result is True
+
+    def test_validate_checkpoint_invalid_timestamps(self, temp_checkpoint_dir):
+        """Test lines 337-338: last_update before start_time validation."""
+        recovery = CampaignRecovery(checkpoint_dir=str(temp_checkpoint_dir))
+
+        checkpoint = CampaignCheckpoint(
+            campaign_id="test_campaign",
+            status=CampaignStatus.RUNNING,
+            start_time=2000.0,  # Started later
+            last_update=1000.0,  # Updated earlier (impossible)
+            total_files=5,
+            processed_files=2,
+            successful=2,
+            failed=0,
+            crashes=0,
+            current_file_index=2,
+            test_files=["file1.dcm"] * 5,
+            output_dir="/tmp/output",
+            crash_dir="/tmp/crashes",
+            metadata={},
+        )
+
+        assert recovery._validate_checkpoint(checkpoint) is False

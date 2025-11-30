@@ -592,3 +592,106 @@ class TestIntegrationScenarios:
 
         summary = runner.get_summary(results)
         assert "Total test cases: 5" in summary
+
+
+class TestMissingCoveragePaths:
+    """Tests for uncovered lines 425-427, 535, 547 in target_runner.py."""
+
+    @patch("subprocess.run")
+    def test_run_campaign_resource_check_exception(self, mock_run, tmp_path):
+        """Test lines 425-427: Exception during pre-flight resource check.
+
+        The resource manager's check_available_resources should be mocked
+        to raise an exception, triggering the error handling path.
+        """
+        exe = tmp_path / "target.exe"
+        exe.touch()
+
+        test_files = [tmp_path / "test.dcm"]
+        test_files[0].touch()
+
+        mock_run.return_value = Mock(returncode=0, stdout="Success", stderr="")
+
+        runner = TargetRunner(target_executable=str(exe), crash_dir=str(tmp_path))
+
+        # Mock the resource manager to raise exception on check
+        with patch.object(
+            runner.resource_manager,
+            "check_available_resources",
+            side_effect=Exception("Resource check failed"),
+        ):
+            # Campaign should proceed even with resource check failure
+            results = runner.run_campaign(test_files)
+
+        # Should still complete successfully
+        assert len(results[ExecutionStatus.SUCCESS]) == 1
+
+    def test_get_summary_with_many_oom_entries(self, tmp_path):
+        """Test line 535: OOM summary truncation with >5 entries.
+
+        When there are more than 5 OOM results, the summary should truncate
+        and show '... and X more' message.
+        """
+        exe = tmp_path / "target.exe"
+        exe.touch()
+
+        runner = TargetRunner(target_executable=str(exe), crash_dir=str(tmp_path))
+
+        # Create results with 8 OOM entries (more than the 5 limit)
+        oom_results = [
+            Mock(test_file=Path(f"oom_test{i}.dcm"), exit_code=None, retry_count=0)
+            for i in range(8)
+        ]
+
+        results = {
+            ExecutionStatus.SUCCESS: [],
+            ExecutionStatus.CRASH: [],
+            ExecutionStatus.HANG: [],
+            ExecutionStatus.ERROR: [],
+            ExecutionStatus.OOM: oom_results,
+            ExecutionStatus.SKIPPED: [],
+            ExecutionStatus.RESOURCE_EXHAUSTED: [],
+        }
+
+        summary = runner.get_summary(results)
+
+        # Line 535: Should show truncation message
+        assert "OUT OF MEMORY" in summary
+        assert "... and 3 more" in summary
+        # Should only list first 5 OOM entries
+        assert "oom_test0.dcm" in summary
+        assert "oom_test4.dcm" in summary
+
+    def test_get_summary_with_circuit_breaker_open(self, tmp_path):
+        """Test line 547: Circuit breaker OPEN status in summary.
+
+        When circuit breaker is open, the summary should show
+        'Status: OPEN (target failing consistently)' message.
+        """
+        exe = tmp_path / "target.exe"
+        exe.touch()
+
+        runner = TargetRunner(target_executable=str(exe), crash_dir=str(tmp_path))
+
+        # Set circuit breaker to open state
+        runner.circuit_breaker.is_open = True
+        runner.circuit_breaker.failure_count = 10
+        runner.circuit_breaker.success_count = 2
+
+        results = {
+            ExecutionStatus.SUCCESS: [],
+            ExecutionStatus.CRASH: [],
+            ExecutionStatus.HANG: [],
+            ExecutionStatus.ERROR: [],
+            ExecutionStatus.OOM: [],
+            ExecutionStatus.SKIPPED: [],
+            ExecutionStatus.RESOURCE_EXHAUSTED: [],
+        }
+
+        summary = runner.get_summary(results)
+
+        # Line 547: Should show OPEN status
+        assert "Circuit Breaker Stats:" in summary
+        assert "Status: OPEN (target failing consistently)" in summary
+        assert "Successes: 2" in summary
+        assert "Failures: 10" in summary

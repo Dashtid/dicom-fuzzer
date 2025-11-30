@@ -22,11 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/test_coverage_instrumentation_comprehensive.py` - Added 8 tests for missing paths (84% -> 91%)
 - `tests/test_corpus_minimization_real.py` - Added 2 tests for pydicom exception paths (94% -> 100%)
 - `tests/test_generator.py` - Added 9 tests for generate() method (74% -> 100%)
+- `tests/test_target_runner_comprehensive.py` - Added 3 tests for resource check, OOM truncation, circuit breaker (97% -> 100%)
+- `tests/test_error_recovery_real.py` - Added 14 tests for signal handling, checkpoint validation, cleanup (80% -> 99%)
 
 ### Changed
 
 - Overall test coverage increased from 60% to 80%
-- Total tests increased from 3175 to 3569
+- Total tests increased from 3175 to 3589
 
 ### Fixed
 - Resolved all Bandit security warnings in test files
