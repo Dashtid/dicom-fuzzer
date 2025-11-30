@@ -25,11 +25,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/test_target_runner_comprehensive.py` - Added 3 tests for resource check, OOM truncation, circuit breaker (97% -> 100%)
 - `tests/test_error_recovery_real.py` - Added 14 tests for signal handling, checkpoint validation, cleanup (80% -> 99%)
 - `tests/test_reporter.py` - Added 4 tests for generic report generation (84% -> 100%)
+- `tests/test_coverage_fuzzer_comprehensive.py` - Added 34 comprehensive tests targeting all uncovered lines
+- `tests/test_coverage_tracker_comprehensive.py` - Added 61 comprehensive tests for coverage tracking methods
+
+### Notes
+
+- Coverage metrics for `coverage_fuzzer.py` and `coverage_tracker.py` are affected by pytest-cov instrumentation issues
+- These modules use `sys.settrace()` which interferes with pytest-cov's tracer
+- Tests verify code execution through direct method calls and assertions
+- All code paths run correctly when tested directly via Python interpreter
 
 ### Changed
 
 - Overall test coverage increased from 60% to 80%
-- Total tests increased from 3175 to 3590
+- Total tests increased from 3175 to 3685
 
 ### Fixed
 - Resolved all Bandit security warnings in test files
