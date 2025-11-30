@@ -1,0 +1,43 @@
+{
+  "duration": 0.02156662940979004,
+  "total_executions": 7,
+  "exec_per_sec": 0.0,
+  "crashes": {
+    "total": 0,
+    "unique": 0
+  },
+  "coverage": {
+    "edges": 719,
+    "max_edges": 719,
+    "increases": 2
+  },
+  "corpus": {
+    "size": 3,
+    "stats": {
+      "total_seeds": 3,
+      "unique_coverage_signatures": 3,
+      "total_edges_covered": 719,
+      "total_executions": 10,
+      "coverage_plateaus": 0,
+      "time_since_coverage_increase": 0.01589226722717285,
+      "mutation_success_rates": {
+        "arithmetic_random": 1.0,
+        "byte_insert": 1.0
+      },
+      "seed_priorities": {
+        "CRITICAL": 3,
+        "HIGH": 0,
+        "NORMAL": 0,
+        "LOW": 0,
+        "MINIMAL": 0
+      }
+    }
+  },
+  "mutations": {},
+  "config": {
+    "max_iterations": 10,
+    "workers": 1,
+    "adaptive": true,
+    "dicom_aware": true
+  }
+}
