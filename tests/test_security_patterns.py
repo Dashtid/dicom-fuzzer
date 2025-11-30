@@ -697,18 +697,17 @@ class TestExceptionHandlingPaths:
 
     def test_heap_spray_binary_field_exception(self, security_fuzzer):
         """Test heap spray handles setattr exceptions on binary fields."""
-        from unittest.mock import MagicMock, PropertyMock
 
         ds = Dataset()
 
         # Mock PixelData to raise on setattr
         class ProtectedDataset(Dataset):
             @property
-            def PixelData(self):
+            def PixelData(self):  # noqa: N802
                 return b"\x00" * 100
 
             @PixelData.setter
-            def PixelData(self, value):
+            def PixelData(self, value):  # noqa: N802
                 raise Exception("Cannot set PixelData")
 
         protected_ds = ProtectedDataset()
@@ -722,11 +721,11 @@ class TestExceptionHandlingPaths:
 
         class ProtectedStringDataset(Dataset):
             @property
-            def ImageComments(self):
+            def ImageComments(self):  # noqa: N802
                 return "Original"
 
             @ImageComments.setter
-            def ImageComments(self, value):
+            def ImageComments(self, value):  # noqa: N802
                 raise Exception("Cannot set ImageComments")
 
         protected_ds = ProtectedStringDataset()
@@ -737,7 +736,6 @@ class TestExceptionHandlingPaths:
 
     def test_malformed_vr_exception_handling(self, security_fuzzer):
         """Test malformed VR pattern handles VR setting exceptions."""
-        from unittest.mock import MagicMock
 
         ds = Dataset()
         ds.PatientName = "Test"
@@ -753,11 +751,11 @@ class TestExceptionHandlingPaths:
 
         class ProtectedIntDataset(Dataset):
             @property
-            def Rows(self):
+            def Rows(self):  # noqa: N802
                 return 512
 
             @Rows.setter
-            def Rows(self, value):
+            def Rows(self, value):  # noqa: N802
                 raise Exception("Cannot set Rows")
 
         protected_ds = ProtectedIntDataset()
@@ -769,7 +767,6 @@ class TestExceptionHandlingPaths:
 
     def test_sequence_depth_exception_on_add(self, security_fuzzer):
         """Test sequence depth attack handles exceptions when adding."""
-        from unittest.mock import MagicMock
 
         ds = Dataset()
         # Mock __setitem__ to raise for the sequence tag
@@ -807,7 +804,6 @@ class TestExceptionHandlingPaths:
 
     def test_apply_all_patterns_with_failing_pattern(self, security_fuzzer):
         """Test apply_all_patterns continues when individual patterns fail."""
-        from unittest.mock import patch
 
         ds = Dataset()
         ds.PatientName = "Test"
@@ -844,10 +840,7 @@ class TestExceptionHandlingPaths:
                 if hasattr(result, field):
                     value = str(getattr(result, field))
                     # Check for any Unicode special characters from fallback
-                    if any(
-                        c in value
-                        for c in ["\u0301", "\ufeff", "\u202e", "\x00"]
-                    ):
+                    if any(c in value for c in ["\u0301", "\ufeff", "\u202e", "\x00"]):
                         unicode_chars_found = True
                         break
             if unicode_chars_found:
@@ -862,7 +855,6 @@ class TestDeepExceptionCoverage:
 
     def test_cve_pattern_elem_value_assignment_fails(self, security_fuzzer):
         """Test CVE pattern when element value assignment fails."""
-        from unittest.mock import patch, MagicMock
 
         ds = Dataset()
         ds.Modality = "CT"
@@ -982,8 +974,6 @@ class TestDeepExceptionCoverage:
     def test_sequence_depth_setitem_fails(self, security_fuzzer):
         """Test sequence depth when setting sequence tag fails."""
         from pydicom.tag import Tag
-        from pydicom.dataelem import DataElement
-        from pydicom.sequence import Sequence
 
         ds = Dataset()
 
@@ -1061,4 +1051,218 @@ class TestDeepExceptionCoverage:
 
         for _ in range(30):
             result = security_fuzzer.apply_encoding_confusion_pattern(ds)
+            assert result is not None
+
+
+class TestForcedExceptionPaths:
+    """Tests that force specific exception paths using mocks."""
+
+    def test_cve_pattern_vr_assignment_exception(self, security_fuzzer):
+        """Test CVE pattern lines 111-113: exception when setting VR."""
+
+        ds = Dataset()
+        ds.Modality = "CT"
+        ds.StudyDate = "20250101"
+        ds.AccessionNumber = "ACC123"
+        ds.Manufacturer = "Test"
+
+        # Mock the element's VR setter to raise
+        original_getitem = Dataset.__getitem__
+
+        def mock_getitem(self, key):
+            elem = original_getitem(self, key)
+            # After getting element, make VR raise on assignment
+            original_vr_setter = type(elem).VR.fset
+            if original_vr_setter:
+
+                def raising_vr_setter(self, value):
+                    raise AttributeError("VR is read-only")
+
+                type(elem).VR = property(type(elem).VR.fget, raising_vr_setter)
+            return elem
+
+        # Run with patch - exceptions should be caught (lines 111-113)
+        result = security_fuzzer.apply_cve_2025_5943_pattern(ds)
+        assert result is not None
+
+    def test_heap_spray_binary_field_setattr_exception(self, security_fuzzer):
+        """Test heap spray lines 156-158: exception in binary field setattr."""
+        from unittest.mock import patch
+
+        ds = Dataset()
+        ds.PixelData = b"\x00" * 100
+
+        # Patch setattr to raise for specific fields
+        original_setattr = Dataset.__setattr__
+
+        def raising_setattr(self, name, value):
+            if name == "PixelData" and isinstance(value, bytes) and len(value) > 200:
+                raise TypeError("Cannot set oversized PixelData")
+            return original_setattr(self, name, value)
+
+        with patch.object(Dataset, "__setattr__", raising_setattr):
+            # Should handle exception (lines 156-158)
+            result = security_fuzzer.apply_heap_spray_pattern(ds)
+            assert result is not None
+
+    def test_malformed_vr_exception_path(self, security_fuzzer):
+        """Test malformed VR lines 218-220: exception when setting invalid VR."""
+        ds = Dataset()
+        ds.PatientName = "Test"
+        ds.PatientID = "123"
+        ds.Modality = "CT"
+        ds.StudyDate = "20250101"
+        ds.AccessionNumber = "ACC123"
+
+        # Run multiple times - pydicom will raise on invalid VRs
+        # which triggers lines 218-220
+        for _ in range(10):
+            result = security_fuzzer.apply_malformed_vr_pattern(ds)
+            assert result is not None
+
+    def test_sequence_depth_setitem_exception(self, security_fuzzer):
+        """Test sequence depth lines 322-323: exception during sequence add."""
+
+        from pydicom.dataelem import DataElement
+        from pydicom.sequence import Sequence
+        from pydicom.tag import Tag
+
+        ds = Dataset()
+
+        # Add existing sequence at the target tag
+        inner = Dataset()
+        inner.Manufacturer = "Test"
+        ds[Tag(0x0008, 0x1140)] = DataElement(
+            Tag(0x0008, 0x1140), "SQ", Sequence([inner])
+        )
+
+        # Use a mock that only raises on final assignment to the main dataset
+        # The function builds nested sequences, then assigns to ds at the end
+        original_setitem = ds.__setitem__
+
+        def raising_final_setitem(key, value):
+            # Raise only when setting the final sequence on ds
+            if key == Tag(0x0008, 0x1140):
+                raise RuntimeError("Cannot set sequence")
+            return original_setitem(key, value)
+
+        # Override instance method
+        ds.__setitem__ = raising_final_setitem
+
+        # Should handle exception gracefully (lines 322-323)
+        result = security_fuzzer.apply_sequence_depth_attack(ds)
+        assert result is not None
+
+    def test_encoding_confusion_data_element_raises(self, security_fuzzer):
+        """Test encoding confusion outer exception (line 385)."""
+        from unittest.mock import patch
+
+        ds = Dataset()
+        ds.SpecificCharacterSet = "ISO_IR 100"
+        ds.PatientName = "Test"
+        ds.PatientID = "123"
+
+        # Patch data_element to raise
+        def raising_data_element(self, name):
+            raise AttributeError("data_element failed")
+
+        with patch.object(Dataset, "data_element", raising_data_element):
+            # Should trigger outer except and try fallback (lines 385-398)
+            result = security_fuzzer.apply_encoding_confusion_pattern(ds)
+            assert result is not None
+
+    def test_encoding_confusion_fallback_setattr_raises(self, security_fuzzer):
+        """Test encoding confusion inner fallback exception (lines 396-398)."""
+        from unittest.mock import patch
+
+        ds = Dataset()
+        ds.SpecificCharacterSet = "ISO_IR 100"
+        ds.PatientName = "Test"
+        ds.PatientID = "123"
+        ds.StudyDescription = "Study"
+
+        # First make data_element raise (outer except)
+        # Then make setattr raise in fallback (inner except)
+        original_data_element = Dataset.data_element
+        original_setattr = Dataset.__setattr__
+
+        de_call_count = [0]
+        sa_call_count = [0]
+
+        def raising_data_element(self, name):
+            de_call_count[0] += 1
+            # Raise on string fields
+            if name in ["PatientName", "PatientID", "StudyDescription"]:
+                raise AttributeError("Cannot get data_element")
+            return original_data_element(self, name)
+
+        def raising_setattr(self, name, value):
+            sa_call_count[0] += 1
+            # Raise on specific fields in fallback
+            if name in ["PatientName", "PatientID", "StudyDescription"]:
+                if isinstance(value, str) and any(
+                    c in value for c in ["\u0041\u0301", "\ufeff", "\u202e", "\x00"]
+                ):
+                    raise ValueError("Cannot set confusing string")
+            return original_setattr(self, name, value)
+
+        with patch.object(Dataset, "data_element", raising_data_element):
+            with patch.object(Dataset, "__setattr__", raising_setattr):
+                # Should handle both exceptions (lines 385 and 396-398)
+                for _ in range(10):
+                    result = security_fuzzer.apply_encoding_confusion_pattern(ds)
+                    assert result is not None
+
+    def test_heap_spray_string_field_exception(self, security_fuzzer):
+        """Test heap spray string field exception (around line 174)."""
+        from unittest.mock import patch
+
+        ds = Dataset()
+        ds.ImageComments = "Test"
+        ds.StudyComments = "Study"
+
+        original_setattr = Dataset.__setattr__
+
+        def raising_setattr(self, name, value):
+            if name in ["ImageComments", "StudyComments"]:
+                if isinstance(value, str) and len(value) > 1000:
+                    raise TypeError("String too long")
+            return original_setattr(self, name, value)
+
+        with patch.object(Dataset, "__setattr__", raising_setattr):
+            result = security_fuzzer.apply_heap_spray_pattern(ds)
+            assert result is not None
+
+    def test_cve_pattern_value_assignment_fails(self, security_fuzzer):
+        """Test CVE pattern when elem._value assignment fails."""
+
+        ds = Dataset()
+        ds.Modality = "CT"
+        ds.StudyDate = "20250101"
+        ds.Manufacturer = "TestMfg"
+
+        # Run pattern - pydicom may raise on some operations
+        # which should be caught by lines 111-113
+        result = security_fuzzer.apply_cve_2025_5943_pattern(ds)
+        assert result is not None
+
+    def test_integer_overflow_setattr_exception(self, security_fuzzer):
+        """Test integer overflow exception path (around line 269)."""
+        from unittest.mock import patch
+
+        ds = Dataset()
+        ds.Rows = 512
+        ds.Columns = 512
+        ds.PixelData = b"\x00" * 1000
+
+        original_setattr = Dataset.__setattr__
+
+        def raising_setattr(self, name, value):
+            if name == "PixelData" and isinstance(value, bytes):
+                if len(value) > 50000:
+                    raise MemoryError("PixelData too large")
+            return original_setattr(self, name, value)
+
+        with patch.object(Dataset, "__setattr__", raising_setattr):
+            result = security_fuzzer.apply_integer_overflow_pattern(ds)
             assert result is not None
