@@ -367,5 +367,80 @@ class TestIntegration:
             assert html_report.parent == json_report.parent == perf_report.parent
 
 
+class TestGenerateReport:
+    """Test generic generate_report method (lines 158-176)."""
+
+    def test_generate_json_report(self):
+        """Test generating generic JSON report."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reporter = ReportGenerator(output_dir=tmpdir)
+
+            report_data = {
+                "key1": "value1",
+                "key2": 123,
+                "key3": ["a", "b", "c"],
+            }
+
+            report_path = reporter.generate_report(report_data, format="json")
+
+            assert report_path.exists()
+            assert report_path.suffix == ".json"
+
+            # Verify JSON content
+            with open(report_path) as f:
+                data = json.load(f)
+
+            assert data["key1"] == "value1"
+            assert data["key2"] == 123
+            assert data["key3"] == ["a", "b", "c"]
+
+    def test_generate_html_report(self):
+        """Test generating generic HTML report."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reporter = ReportGenerator(output_dir=tmpdir)
+
+            report_data = {
+                "title": "Test Report",
+                "count": 42,
+                "status": "success",
+            }
+
+            report_path = reporter.generate_report(report_data, format="html")
+
+            assert report_path.exists()
+            assert report_path.suffix == ".html"
+
+            # Verify HTML content
+            content = report_path.read_text(encoding="utf-8")
+            assert "<!DOCTYPE html>" in content
+            assert "title" in content
+            assert "Test Report" in content
+            assert "42" in content
+            assert "success" in content
+
+    def test_generate_html_report_with_custom_campaign(self):
+        """Test generic HTML report with custom campaign name."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reporter = ReportGenerator(output_dir=tmpdir)
+
+            report_data = {"data": "test"}
+
+            report_path = reporter.generate_report(
+                report_data, format="html", campaign_name="Custom Test Campaign"
+            )
+
+            content = report_path.read_text(encoding="utf-8")
+            assert "Custom Test Campaign" in content
+
+    def test_generate_report_default_format_is_json(self):
+        """Test that default format is JSON."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            reporter = ReportGenerator(output_dir=tmpdir)
+
+            report_path = reporter.generate_report({"test": "data"})
+
+            assert report_path.suffix == ".json"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

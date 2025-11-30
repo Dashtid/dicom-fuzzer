@@ -24,11 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/test_generator.py` - Added 9 tests for generate() method (74% -> 100%)
 - `tests/test_target_runner_comprehensive.py` - Added 3 tests for resource check, OOM truncation, circuit breaker (97% -> 100%)
 - `tests/test_error_recovery_real.py` - Added 14 tests for signal handling, checkpoint validation, cleanup (80% -> 99%)
+- `tests/test_reporter.py` - Added 4 tests for generic report generation (84% -> 100%)
 
 ### Changed
 
 - Overall test coverage increased from 60% to 80%
-- Total tests increased from 3175 to 3589
+- Total tests increased from 3175 to 3590
 
 ### Fixed
 - Resolved all Bandit security warnings in test files
