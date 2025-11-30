@@ -20,11 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/test_series_cache.py` - Added 14 tests for disk caching and edge cases (25% -> 99%)
 - `tests/test_viewer_launcher_3d.py` - Added 11 edge case and exception tests (84% -> 98%)
 - `tests/test_coverage_instrumentation_comprehensive.py` - Added 8 tests for missing paths (84% -> 91%)
+- `tests/test_corpus_minimization_real.py` - Added 2 tests for pydicom exception paths (94% -> 100%)
+- `tests/test_generator.py` - Added 9 tests for generate() method (74% -> 100%)
 
 ### Changed
 
-- Overall test coverage increased from 60% to 78%
-- Total tests increased from 3175 to 3558
+- Overall test coverage increased from 60% to 80%
+- Total tests increased from 3175 to 3569
 
 ### Fixed
 - Resolved all Bandit security warnings in test files
