@@ -205,8 +205,14 @@ class TestCoverageGuidedMutator:
         """Test basic mutation operations."""
         mutator = CoverageGuidedMutator()
 
-        # Create a seed
-        seed = Seed(id="test", data=b"Hello World", coverage=CoverageInfo(), energy=1.0)
+        # Create a seed with sufficient data for all mutation types to work
+        # (some mutations require minimum data sizes, e.g., BLOCK_SHUFFLE needs >= 20 bytes)
+        seed = Seed(
+            id="test",
+            data=bytes(range(256)),  # 256 bytes of varied data
+            coverage=CoverageInfo(),
+            energy=1.0,
+        )
 
         # Generate mutations
         mutations = mutator.mutate(seed)
