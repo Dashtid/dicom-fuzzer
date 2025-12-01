@@ -554,3 +554,85 @@ class TestCleanupOldSeriesEdgeCases:
 
             # No successful deletions due to permission error
             assert deleted_count == 0
+
+    def test_cleanup_deletes_old_directories_successfully(self, temp_output_dir):
+        """Test that cleanup successfully deletes old directories."""
+        import os
+        import time
+
+        writer = SeriesWriter(temp_output_dir)
+
+        # Create an old directory
+        old_dir = temp_output_dir / "series_old_to_delete"
+        old_dir.mkdir()
+
+        # Set modification time to 10 days ago
+        old_time = time.time() - (10 * 86400)
+        os.utime(old_dir, (old_time, old_time))
+
+        # Cleanup directories older than 7 days
+        deleted_count = writer.cleanup_old_series(days=7)
+
+        assert deleted_count == 1
+        assert not old_dir.exists()
+
+
+class TestWriteMetadataJsonExceptionHandling:
+    """Test _write_metadata_json exception handling."""
+
+    def test_write_metadata_json_handles_write_exception(
+        self, temp_output_dir, sample_series
+    ):
+        """Test that _write_metadata_json handles write exceptions gracefully."""
+        writer = SeriesWriter(temp_output_dir)
+
+        metadata = SeriesMetadata(
+            series_uid=sample_series.series_uid,
+            study_uid=sample_series.study_uid,
+            modality=sample_series.modality,
+            slice_count=3,
+            output_directory=temp_output_dir / "test_series",
+        )
+
+        series_dir = temp_output_dir / "test_series"
+        series_dir.mkdir()
+
+        # Mock open to raise an exception
+        with patch("builtins.open", side_effect=OSError("Disk full")):
+            # Should not raise, just log warning
+            writer._write_metadata_json(series_dir, metadata)
+
+        # Verify metadata.json was not created
+        metadata_path = series_dir / "metadata.json"
+        assert not metadata_path.exists()
+
+
+class TestCreateReproductionScriptExceptionHandling:
+    """Test _create_reproduction_script exception handling."""
+
+    def test_create_reproduction_script_handles_write_exception(
+        self, temp_output_dir, sample_series
+    ):
+        """Test that _create_reproduction_script handles write exceptions gracefully."""
+        writer = SeriesWriter(temp_output_dir)
+
+        metadata = SeriesMetadata(
+            series_uid=sample_series.series_uid,
+            study_uid=sample_series.study_uid,
+            modality=sample_series.modality,
+            slice_count=3,
+            output_directory=temp_output_dir / "test_series",
+            slice_files=["slice_001.dcm", "slice_002.dcm", "slice_003.dcm"],
+        )
+
+        series_dir = temp_output_dir / "test_series"
+        series_dir.mkdir()
+
+        # Mock open to raise an exception
+        with patch("builtins.open", side_effect=OSError("Cannot write script")):
+            # Should not raise, just log warning
+            writer._create_reproduction_script(series_dir, metadata)
+
+        # Verify reproduce.py was not created
+        script_path = series_dir / "reproduce.py"
+        assert not script_path.exists()
