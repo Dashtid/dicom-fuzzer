@@ -13,8 +13,9 @@ from datetime import datetime, timedelta
 
 import pytest
 
-# Skip entire module if matplotlib not available (optional dependency for visualization)
-pytest.importorskip("matplotlib")
+# Skip entire module if visualization dependencies not available (optional)
+pytest.importorskip("matplotlib", reason="matplotlib not installed")
+pytest.importorskip("plotly", reason="plotly not installed")
 
 from dicom_fuzzer.analytics.campaign_analytics import (
     CampaignAnalyzer,

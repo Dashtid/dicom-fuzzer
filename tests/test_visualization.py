@@ -2,9 +2,11 @@
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
+
+# Skip the entire module if plotly is not available
+pytest.importorskip("plotly", reason="plotly not installed")
 
 from dicom_fuzzer.analytics.campaign_analytics import (
     CoverageCorrelation,

@@ -86,6 +86,8 @@ dev = [
     "types-seaborn>=0.13.0",   # Type stubs for seaborn
     "types-tqdm>=4.67.0",      # Type stubs for tqdm
     "types-psutil>=7.0.0",     # Type stubs for psutil
+    # Optional dependencies for testing HTML reports
+    "jinja2>=3.1.0",           # Template engine for HTML report tests
 ]
 
 docs = [
@@ -263,6 +265,40 @@ markers = [
 # Timeout configuration
 timeout = 30
 timeout_method = "thread"
+# Filter expected warnings during test execution
+filterwarnings = [
+    # Ignore pydicom VR length warnings (intentional in fuzzing - malformed data is expected)
+    "ignore:The value length.*exceeds the maximum length:UserWarning",
+    "ignore:The PN component length.*exceeds the maximum allowed length:UserWarning",
+    # Ignore pydicom deprecation warnings (will address in future pydicom v4 migration)
+    "ignore:.*write_like_original.*is deprecated:DeprecationWarning",
+    "ignore:.*is_implicit_VR.*will be removed in v4.0:DeprecationWarning",
+    "ignore:.*is_little_endian.*will be removed in v4.0:DeprecationWarning",
+    # Ignore pydicom camel case attribute warnings (acceptable in test scenarios)
+    "ignore:Camel case attribute.*not in the element keyword data dictionary:UserWarning",
+    # Ignore pytest-benchmark warnings when running with xdist (expected behavior)
+    "ignore:Benchmarks are automatically disabled because xdist plugin is active:pytest_benchmark.logger.PytestBenchmarkWarning",
+    # Ignore struct.error during fuzzing (intentional malformed data)
+    "ignore:.*struct.*error:UserWarning",
+    # Ignore additional pydicom warnings that can occur during fuzzing
+    "ignore:Invalid value for VR:UserWarning",
+    "ignore:Invalid value.*a value for a tag with VR:UserWarning",
+    "ignore:A value of type.*cannot be assigned to a tag with VR:UserWarning",
+    "ignore:The VR.*is being changed:UserWarning",
+    # Ignore encoding warnings during fuzzing (intentional malformed data)
+    "ignore:Failed to encode value with encodings:UserWarning",
+    "ignore:Incorrect value for Specific Character Set:UserWarning",
+    # Ignore pydicom file reading warnings (intentional corrupted files)
+    "ignore:End of file reached before delimiter:UserWarning",
+    "ignore:Expected implicit VR.*found explicit VR:UserWarning",
+    "ignore:Expected explicit VR.*found implicit VR:UserWarning",
+    # Ignore structlog processor chain warning (acceptable configuration)
+    "ignore:Remove.*format_exc_info.*from your processor chain:UserWarning",
+    # Ignore pytest collection warning for TestMinimizer class (production code, not test)
+    "ignore:cannot collect test class 'TestMinimizer':pytest.PytestCollectionWarning",
+    # Ignore coroutine never awaited warnings (acceptable in mocking scenarios)
+    "ignore:coroutine.*was never awaited:RuntimeWarning",
+]
 
 [tool.coverage.run]
 source = ["dicom_fuzzer"]
