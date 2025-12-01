@@ -530,3 +530,210 @@ class TestValidateSeriesIntegration:
         report = validator.validate_series(series)
 
         assert report.validation_time >= 0.0
+
+
+class TestValidateGeometryEdgeCases:
+    """Test edge cases in geometry validation for 100% coverage."""
+
+    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    def test_insufficient_position_data_warning(self, mock_dcmread):
+        """Test warning when series has slices but get_slice_positions returns <2 positions.
+
+        This tests lines 300-307 in series_validator.py.
+        """
+        # Mock dataset with no ImagePositionPatient to simulate insufficient positions
+        ds = Mock()
+        ds.SeriesInstanceUID = "1.2.3.4.5"
+        ds.StudyInstanceUID = "1.2.3.4"
+        ds.Modality = "CT"
+        ds.InstanceNumber = 1
+        # No ImagePositionPatient attribute
+        ds.configure_mock(**{"ImagePositionPatient": None})
+        mock_dcmread.return_value = ds
+
+        # Create series with multiple slices
+        series = DicomSeries(
+            series_uid="1.2.3.4.5",
+            study_uid="1.2.3.4",
+            modality="CT",
+            slices=[Path(f"/tmp/slice{i}.dcm") for i in range(3)],
+        )
+
+        # Mock get_slice_positions to return only 1 position
+        with patch.object(
+            series, "get_slice_positions", return_value=[(0.0, 0.0, 0.0)]
+        ):
+            validator = SeriesValidator()
+            report = validator.validate_series(series)
+
+            # Should have warning about insufficient position data
+            geometry_warnings = [
+                issue
+                for issue in report.issues
+                if issue.category == "geometry"
+                and issue.severity == ValidationSeverity.WARNING
+            ]
+            assert any(
+                "Insufficient position data" in issue.message
+                for issue in geometry_warnings
+            ), (
+                f"Expected 'Insufficient position data' warning, got: {[i.message for i in geometry_warnings]}"
+            )
+
+    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    def test_non_uniform_spacing_warning(self, mock_dcmread):
+        """Test warning for non-uniform slice spacing (coefficient of variation > 0.01).
+
+        This tests line 323 in series_validator.py.
+        """
+        # Mock datasets with non-uniform spacing
+        # Spacings: 5, 10, 5 - mean=6.67, std=2.36, cv=0.35 > 0.01
+        mock_datasets = []
+        z_positions = [0.0, 5.0, 15.0, 20.0]  # Spacings: 5, 10, 5
+        for i, z in enumerate(z_positions):
+            ds = Mock()
+            ds.ImagePositionPatient = [0.0, 0.0, z]
+            ds.SeriesInstanceUID = "1.2.3.4.5"
+            ds.StudyInstanceUID = "1.2.3.4"
+            ds.Modality = "CT"
+            ds.InstanceNumber = i + 1
+            mock_datasets.append(ds)
+
+        mock_dcmread.side_effect = mock_datasets * 3  # Called multiple times
+
+        series = DicomSeries(
+            series_uid="1.2.3.4.5",
+            study_uid="1.2.3.4",
+            modality="CT",
+            slices=[Path(f"/tmp/slice{i}.dcm") for i in range(4)],
+        )
+
+        validator = SeriesValidator()
+        report = validator.validate_series(series)
+
+        # Check for non-uniform spacing warning
+        geometry_warnings = [
+            issue
+            for issue in report.issues
+            if issue.category == "geometry"
+            and issue.severity == ValidationSeverity.WARNING
+        ]
+        assert any("Non-uniform" in issue.message for issue in geometry_warnings), (
+            f"Expected 'Non-uniform' spacing warning, got: {[i.message for i in geometry_warnings]}"
+        )
+
+    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    def test_large_spacing_warning_over_50mm(self, mock_dcmread):
+        """Test warning for unusually large spacing (>50mm).
+
+        This tests line 349 in series_validator.py.
+        """
+        # Mock datasets with >50mm spacing between slices
+        mock_datasets = []
+        z_positions = [0.0, 55.0, 110.0]  # Spacing is 55mm > 50mm threshold
+        for i, z in enumerate(z_positions):
+            ds = Mock()
+            ds.ImagePositionPatient = [0.0, 0.0, z]
+            ds.SeriesInstanceUID = "1.2.3.4.5"
+            ds.StudyInstanceUID = "1.2.3.4"
+            ds.Modality = "CT"
+            ds.InstanceNumber = i + 1
+            mock_datasets.append(ds)
+
+        mock_dcmread.side_effect = mock_datasets * 3
+
+        series = DicomSeries(
+            series_uid="1.2.3.4.5",
+            study_uid="1.2.3.4",
+            modality="CT",
+            slices=[Path(f"/tmp/slice{i}.dcm") for i in range(3)],
+        )
+
+        validator = SeriesValidator()
+        report = validator.validate_series(series)
+
+        # Check for large spacing warning
+        geometry_warnings = [
+            issue
+            for issue in report.issues
+            if issue.category == "geometry"
+            and issue.severity == ValidationSeverity.WARNING
+        ]
+        assert any(
+            "large spacing" in issue.message.lower() for issue in geometry_warnings
+        ), (
+            f"Expected 'large spacing' warning, got: {[i.message for i in geometry_warnings]}"
+        )
+
+    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    def test_empty_positions_list(self, mock_dcmread):
+        """Test when get_slice_positions returns empty list.
+
+        This ensures the insufficient position data path is hit (lines 299-307).
+        """
+        ds = Mock()
+        ds.SeriesInstanceUID = "1.2.3.4.5"
+        ds.StudyInstanceUID = "1.2.3.4"
+        ds.Modality = "CT"
+        ds.InstanceNumber = 1
+        mock_dcmread.return_value = ds
+
+        series = DicomSeries(
+            series_uid="1.2.3.4.5",
+            study_uid="1.2.3.4",
+            modality="CT",
+            slices=[Path(f"/tmp/slice{i}.dcm") for i in range(3)],
+        )
+
+        # Mock get_slice_positions to return empty list
+        with patch.object(series, "get_slice_positions", return_value=[]):
+            validator = SeriesValidator()
+            report = validator.validate_series(series)
+
+            # Should have warning about insufficient position data
+            geometry_warnings = [
+                issue
+                for issue in report.issues
+                if issue.category == "geometry"
+                and "Insufficient position data" in issue.message
+            ]
+            assert len(geometry_warnings) == 1, (
+                f"Expected exactly 1 'Insufficient position data' warning, got {len(geometry_warnings)}"
+            )
+
+    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    def test_single_position_insufficient_data(self, mock_dcmread):
+        """Test when series has multiple slices but only one valid position.
+
+        This specifically targets the len(positions) < 2 check (lines 299-307).
+        """
+        ds = Mock()
+        ds.SeriesInstanceUID = "1.2.3.4.5"
+        ds.StudyInstanceUID = "1.2.3.4"
+        ds.Modality = "CT"
+        ds.InstanceNumber = 1
+        mock_dcmread.return_value = ds
+
+        series = DicomSeries(
+            series_uid="1.2.3.4.5",
+            study_uid="1.2.3.4",
+            modality="CT",
+            slices=[Path(f"/tmp/slice{i}.dcm") for i in range(5)],
+        )
+
+        # Mock get_slice_positions to return exactly 1 position
+        with patch.object(
+            series, "get_slice_positions", return_value=[(100.0, 200.0, 50.0)]
+        ):
+            validator = SeriesValidator()
+            report = validator.validate_series(series)
+
+            # Should have warning about insufficient position data
+            insufficient_warnings = [
+                issue
+                for issue in report.issues
+                if "Insufficient position data" in issue.message
+            ]
+            assert len(insufficient_warnings) >= 1, (
+                "Expected 'Insufficient position data' warning"
+            )
