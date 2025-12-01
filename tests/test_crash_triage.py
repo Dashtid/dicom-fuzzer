@@ -351,3 +351,113 @@ class TestCrashTriageStringRepresentation:
         # Should contain severity, priority, and description
         assert len(triage_str) > 20
         assert triage.severity.value.upper() in triage_str
+
+
+class TestSeverityEdgeCases:
+    """Test edge cases for severity assessment.
+
+    These tests cover lines 231-233 and 240 in crash_triage.py.
+    """
+
+    @pytest.fixture
+    def engine(self):
+        """Create a CrashTriageEngine instance."""
+        return CrashTriageEngine()
+
+    def test_stack_category_returns_medium_severity(self, engine):
+        """Test that 'stack' category keywords return MEDIUM severity.
+
+        Covers line 233: return Severity.MEDIUM for non-heap/memory/control_flow
+        """
+        from datetime import datetime
+
+        # Stack category keywords: ["stack", "buffer overflow", "stack smash", "canary"]
+        # "stack smash" should trigger stack category but not heap/memory/control_flow
+        crash = CrashRecord(
+            crash_id="stack_category_test",
+            timestamp=datetime.now(),
+            crash_type="UNKNOWN",  # Not a critical crash type
+            severity="medium",
+            fuzzed_file_id="file_stack",
+            fuzzed_file_path="test.dcm",
+            exception_type="StackError",
+            exception_message="canary value corrupted",  # Stack category keyword
+            stack_trace="",
+        )
+
+        triage = engine.triage_crash(crash)
+        # Should return MEDIUM because "canary" is a stack keyword
+        # and stack is not in ["heap", "memory", "control_flow"]
+        assert triage.severity == Severity.MEDIUM
+
+    def test_type_confusion_category_returns_medium_severity(self, engine):
+        """Test that 'type_confusion' category keywords return MEDIUM severity.
+
+        Covers line 233: return Severity.MEDIUM for non-heap/memory/control_flow
+        """
+        from datetime import datetime
+
+        crash = CrashRecord(
+            crash_id="type_confusion_test",
+            timestamp=datetime.now(),
+            crash_type="UNKNOWN",
+            severity="medium",
+            fuzzed_file_id="file_type",
+            fuzzed_file_path="test.dcm",
+            exception_type="TypeError",
+            exception_message="type confusion detected in object",  # Type confusion keyword
+            stack_trace="polymorphic call failed",  # Another type_confusion keyword
+        )
+
+        triage = engine.triage_crash(crash)
+        # Should return MEDIUM because type_confusion is not in
+        # ["heap", "memory", "control_flow"]
+        assert triage.severity == Severity.MEDIUM
+
+    def test_default_medium_severity_no_patterns(self, engine):
+        """Test default MEDIUM severity when no patterns match.
+
+        Covers line 240: return Severity.MEDIUM (default)
+        """
+        from datetime import datetime
+
+        crash = CrashRecord(
+            crash_id="unknown_crash_test",
+            timestamp=datetime.now(),
+            crash_type="UNKNOWN",  # Not critical
+            severity="medium",
+            fuzzed_file_id="file_unknown",
+            fuzzed_file_path="test.dcm",
+            exception_type="UnexpectedError",
+            exception_message="something random happened xyz123",  # No keywords match
+            stack_trace="at function foo bar baz",  # No patterns
+        )
+
+        triage = engine.triage_crash(crash)
+        # Should return MEDIUM as default
+        assert triage.severity == Severity.MEDIUM
+
+    def test_heap_keyword_non_signal_crash_returns_high(self, engine):
+        """Test HIGH severity for heap keywords without critical signal.
+
+        Covers line 232: return Severity.HIGH for heap/memory/control_flow
+        when the crash is not a critical signal type.
+        """
+        from datetime import datetime
+
+        # Use non-signal crash type with heap keyword
+        crash = CrashRecord(
+            crash_id="heap_non_signal_test",
+            timestamp=datetime.now(),
+            crash_type="ERROR",  # Not SIGSEGV/SIGBUS/etc
+            severity="medium",
+            fuzzed_file_id="file_heap",
+            fuzzed_file_path="test.dcm",
+            exception_type="MemoryError",
+            exception_message="heap corruption detected",  # Heap category keyword
+            stack_trace="",
+        )
+
+        triage = engine.triage_crash(crash)
+        # Should return HIGH because heap is in ["heap", "memory", "control_flow"]
+        assert triage.severity == Severity.HIGH

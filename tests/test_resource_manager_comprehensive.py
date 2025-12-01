@@ -775,3 +775,113 @@ class TestHasResourceModuleFlag:
             assert resource_manager.sys_resource is not None
         else:
             assert resource_manager.sys_resource is None
+
+
+class TestResourceUsageCPUExceptionHandling:
+    """Test CPU usage exception handling in get_current_usage.
+
+    This specifically targets lines 179-180 in resource_manager.py.
+    """
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    def test_getrusage_exception_returns_zero_cpu(self, mock_resource, mock_platform):
+        """Test that getrusage exception is handled gracefully (lines 179-180).
+
+        When sys_resource.getrusage raises an exception, cpu_seconds should be 0.0.
+        """
+        # Setup mock to raise exception on getrusage
+        mock_resource.RUSAGE_SELF = 0
+        mock_resource.getrusage.side_effect = OSError(
+            "Resource temporarily unavailable"
+        )
+
+        manager = ResourceManager(ResourceLimits(min_disk_space_mb=1))
+        usage = manager.get_current_usage()
+
+        # Should return 0.0 for cpu_seconds due to exception
+        assert usage.cpu_seconds == 0.0
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    def test_getrusage_runtime_error_returns_zero_cpu(
+        self, mock_resource, mock_platform
+    ):
+        """Test that RuntimeError in getrusage is handled (lines 179-180)."""
+        mock_resource.RUSAGE_SELF = 0
+        mock_resource.getrusage.side_effect = RuntimeError("Unexpected error")
+
+        manager = ResourceManager(ResourceLimits(min_disk_space_mb=1))
+        usage = manager.get_current_usage()
+
+        assert usage.cpu_seconds == 0.0
+
+    @patch("platform.system", return_value="Linux")
+    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    def test_getrusage_value_error_returns_zero_cpu(self, mock_resource, mock_platform):
+        """Test that ValueError in getrusage is handled (lines 179-180)."""
+        mock_resource.RUSAGE_SELF = 0
+        mock_resource.getrusage.side_effect = ValueError("Invalid RUSAGE value")
+
+        manager = ResourceManager(ResourceLimits(min_disk_space_mb=1))
+        usage = manager.get_current_usage()
+
+        assert usage.cpu_seconds == 0.0
+
+
+class TestUnixResourceModuleImport:
+    """Test Unix-specific resource module import paths.
+
+    NOTE: Lines 31-36 are executed at module import time on Unix systems.
+    These lines handle the dynamic import of the 'resource' module which
+    is only available on Unix-like systems. On Windows, IS_WINDOWS is True
+    so the import block is never entered.
+
+    Since this code runs at module load time (before any tests), we cannot
+    directly test the import path. However, we can verify the behavior
+    through the module's public interface.
+    """
+
+    def test_unix_import_path_coverage_note(self):
+        """Document that lines 31-36 are platform-specific import code.
+
+        Lines 31-36 contain:
+            if not IS_WINDOWS:
+                try:
+                    import resource as sys_resource
+                    HAS_RESOURCE_MODULE = True
+                except ImportError:
+                    pass
+
+        This code path:
+        - Is executed on Unix/Linux/macOS at module import time
+        - Sets HAS_RESOURCE_MODULE to True if import succeeds
+        - Silently handles ImportError if resource module is unavailable
+        - Is NEVER executed on Windows (IS_WINDOWS == True)
+
+        Testing this would require:
+        1. Running on a Unix system where resource module exists
+        2. Or mocking the import system at a very low level
+
+        The functionality is verified indirectly by all tests that check
+        HAS_RESOURCE_MODULE and sys_resource behavior.
+        """
+        import sys
+
+        from dicom_fuzzer.core import resource_manager
+
+        if sys.platform == "win32":
+            # On Windows, the import block is skipped
+            assert resource_manager.IS_WINDOWS is True
+            assert resource_manager.HAS_RESOURCE_MODULE is False
+            assert resource_manager.sys_resource is None
+        else:
+            # On Unix, the import block should have run
+            assert resource_manager.IS_WINDOWS is False
+            # HAS_RESOURCE_MODULE depends on whether resource imported successfully
+            # It should be True on most Unix systems
+            if resource_manager.HAS_RESOURCE_MODULE:
+                assert resource_manager.sys_resource is not None
