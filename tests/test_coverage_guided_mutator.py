@@ -934,8 +934,9 @@ class TestIntegration:
         """Test a full mutation cycle with feedback."""
         mutator = CoverageGuidedMutator(max_mutations=5)
 
-        # Create test data
-        data = b"\x00" * 200
+        # Create test data with varied content (not all zeros which can produce
+        # identical mutations due to bit flips on zero bytes)
+        data = bytes(range(256)) * 2  # 512 bytes with varied content
 
         # Perform mutations
         mutations = mutator.mutate(data)
