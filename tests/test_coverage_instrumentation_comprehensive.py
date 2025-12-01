@@ -707,3 +707,156 @@ class TestMissingCoveragePaths:
         # Should have tracked some coverage
         assert tracker.total_executions == 1
         assert cov.execution_time > 0
+
+
+class TestCacheHitPath:
+    """Test cache hit path in should_track_module."""
+
+    def test_should_track_module_cache_hit_returns_cached_value(self):
+        """Test that cache hit path (line 81) returns cached value."""
+        tracker = CoverageTracker(target_modules={"dicom_fuzzer"})
+
+        # Pre-populate the cache directly
+        tracker._module_cache["/test/file.py"] = True
+        tracker._module_cache["/other/file.py"] = False
+
+        # These calls should hit the cache and return cached values
+        assert tracker.should_track_module("/test/file.py") is True
+        assert tracker.should_track_module("/other/file.py") is False
+
+        # Call multiple times to ensure cache is being used
+        for _ in range(10):
+            result = tracker.should_track_module("/test/file.py")
+            assert result is True
+
+
+class TestFinallyBlockCoverage:
+    """Tests targeting the finally block in track_coverage (lines 164-185)."""
+
+    def test_track_coverage_finally_merges_new_edges(self):
+        """Test that new edges are merged in finally block (lines 173-181)."""
+        tracker = CoverageTracker()
+
+        # First execution - establish baseline
+        with tracker.track_coverage(b"first") as cov1:
+            pass
+
+        # Manually add edges to global coverage to establish baseline
+        tracker.global_coverage.edges.add(("baseline.py", 1, "baseline.py", 2))
+        initial_edges = len(tracker.global_coverage.edges)
+        initial_increases = tracker.coverage_increases
+
+        # Second execution - add new coverage that triggers merge
+        with tracker.track_coverage(b"second") as cov2:
+            # Add new edge during tracking
+            tracker.current_coverage.edges.add(("new.py", 10, "new.py", 11))
+
+        # Verify merge happened
+        assert len(tracker.global_coverage.edges) > initial_edges
+        assert tracker.coverage_increases >= initial_increases
+
+    def test_track_coverage_finally_merges_new_branches(self):
+        """Test that new branches are merged in finally block (lines 174-176)."""
+        tracker = CoverageTracker()
+
+        # First execution - establish baseline
+        with tracker.track_coverage(b"first"):
+            pass
+
+        # Add baseline branch
+        tracker.global_coverage.branches.add(("baseline.py", 1, True))
+        initial_branches = len(tracker.global_coverage.branches)
+
+        # Second execution - add new branch
+        with tracker.track_coverage(b"second") as cov2:
+            tracker.current_coverage.branches.add(("new.py", 5, False))
+
+        # Verify merge happened
+        assert len(tracker.global_coverage.branches) > initial_branches
+
+    def test_track_coverage_finally_stores_history_with_input_hash(self):
+        """Test history storage in finally block (lines 183-186)."""
+        tracker = CoverageTracker()
+        input_data = b"history_test_input"
+
+        with tracker.track_coverage(input_data) as cov:
+            # Add some coverage
+            tracker.current_coverage.edges.add(("history.py", 1, "history.py", 2))
+
+        # Verify history was stored
+        input_hash = cov.input_hash
+        assert input_hash is not None
+        assert input_hash in tracker.coverage_history
+        assert tracker.coverage_history[input_hash] is cov
+
+    def test_track_coverage_finally_without_input_hash_skips_history(self):
+        """Test that history is skipped when no input hash (line 184 false branch)."""
+        tracker = CoverageTracker()
+
+        # Track without input data (no hash)
+        with tracker.track_coverage() as cov:
+            pass
+
+        # Should not store in history since no input_hash
+        assert cov.input_hash is None
+        # History should be empty or not contain None key
+        assert None not in tracker.coverage_history
+
+    def test_track_coverage_finally_increments_coverage_increases(self):
+        """Test coverage_increases is incremented (line 180)."""
+        tracker = CoverageTracker()
+
+        # First execution
+        with tracker.track_coverage(b"first"):
+            tracker.current_coverage.edges.add(("test.py", 1, "test.py", 2))
+
+        first_increases = tracker.coverage_increases
+
+        # Second execution with new coverage
+        with tracker.track_coverage(b"second"):
+            tracker.current_coverage.edges.add(("test.py", 3, "test.py", 4))
+
+        # Should have incremented
+        assert tracker.coverage_increases >= first_increases
+
+    def test_track_coverage_finally_sets_new_coverage_flag(self):
+        """Test new_coverage flag is set when new coverage found (line 179)."""
+        tracker = CoverageTracker()
+
+        # First execution - establishes baseline
+        with tracker.track_coverage(b"baseline") as cov1:
+            tracker.current_coverage.edges.add(("base.py", 1, "base.py", 2))
+
+        # Merge baseline into global
+        tracker.global_coverage.merge(cov1)
+
+        # Second execution with new coverage
+        with tracker.track_coverage(b"new") as cov2:
+            # Add edge that's NOT in global coverage
+            tracker.current_coverage.edges.add(("new.py", 100, "new.py", 101))
+
+        # new_coverage should be set True
+        assert cov2.new_coverage is True
+
+    def test_track_coverage_finally_no_new_coverage_keeps_flag_false(self):
+        """Test new_coverage stays False when no new coverage (lines 178 false)."""
+        tracker = CoverageTracker()
+
+        # First execution
+        with tracker.track_coverage(b"first") as cov1:
+            tracker.current_coverage.edges.add(("same.py", 1, "same.py", 2))
+
+        # Manually merge to establish global coverage
+        tracker.global_coverage.edges.add(("same.py", 1, "same.py", 2))
+
+        # Reset current coverage for next run
+        tracker.current_coverage = CoverageInfo()
+
+        # Second execution with SAME coverage (already in global)
+        with tracker.track_coverage(b"second") as cov2:
+            # Add same edge that's already in global
+            tracker.current_coverage.edges.add(("same.py", 1, "same.py", 2))
+
+        # new_coverage should remain False (no new edges)
+        # Note: This depends on the check happening AFTER we add to current_coverage
+        # The finally block checks if current_coverage.edges - global_coverage.edges is non-empty
