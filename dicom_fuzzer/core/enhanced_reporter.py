@@ -61,8 +61,6 @@ class EnhancedReportGenerator:
             # Parse timestamp (could be string or datetime)
             timestamp_val = crash.get("timestamp", "")
             if isinstance(timestamp_val, str) and timestamp_val:
-                from datetime import datetime
-
                 try:
                     timestamp_obj = datetime.fromisoformat(timestamp_val)
                 except (ValueError, AttributeError):
@@ -70,8 +68,6 @@ class EnhancedReportGenerator:
             elif isinstance(timestamp_val, datetime):
                 timestamp_obj = timestamp_val
             else:
-                from datetime import datetime
-
                 timestamp_obj = datetime.now()
 
             # Create CrashRecord from dict (simplified for triage)
@@ -785,7 +781,9 @@ class EnhancedReportGenerator:
 
         return html
 
-    def _html_mutation_analysis(self, fuzzed_files: dict, crashes: list | None = None) -> str:
+    def _html_mutation_analysis(
+        self, fuzzed_files: dict, crashes: list | None = None
+    ) -> str:
         """Generate mutation strategy analysis."""
         if not fuzzed_files:
             return ""

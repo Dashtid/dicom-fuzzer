@@ -9,14 +9,16 @@ import faulthandler
 import json
 import logging
 import shutil
+import subprocess
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from dicom_fuzzer.core.generator import DICOMGenerator
 from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
-from dicom_fuzzer.core.target_runner import TargetRunner
+from dicom_fuzzer.core.target_runner import ExecutionStatus, TargetRunner
 
 try:
     from tqdm import tqdm
@@ -25,9 +27,339 @@ try:
 except ImportError:
     HAS_TQDM = False
 
+try:
+    import psutil
+
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
+
 # Enable faulthandler for debugging silent crashes and segfaults
 # This will dump Python tracebacks on crashes (SIGSEGV, SIGFPE, SIGABRT, etc.)
 faulthandler.enable(file=sys.stderr, all_threads=True)
+
+
+@dataclass
+class GUIExecutionResult:
+    """Result from executing a GUI application with a test file.
+
+    For GUI applications that don't exit naturally, we track:
+    - Whether it crashed before timeout (actual crash)
+    - Memory usage during execution
+    - Whether it was killed due to timeout (expected for GUI apps)
+    """
+
+    test_file: Path
+    status: ExecutionStatus
+    exit_code: int | None
+    execution_time: float
+    peak_memory_mb: float
+    crashed: bool  # True only if app crashed BEFORE timeout
+    timed_out: bool  # True if we killed it after timeout (normal for GUI)
+    stdout: str = ""
+    stderr: str = ""
+
+    def __bool__(self) -> bool:
+        """Test succeeded if app didn't crash (timeout is OK for GUI apps)."""
+        return not self.crashed
+
+
+class GUITargetRunner:
+    """Runner for GUI applications that don't exit after processing files.
+
+    Unlike TargetRunner which expects apps to exit with a return code,
+    GUITargetRunner:
+    - Launches the app with a test file
+    - Monitors memory usage
+    - Kills the app after timeout
+    - Reports SUCCESS if app didn't crash before timeout
+    - Reports CRASH only if app crashed before timeout
+
+    This is appropriate for DICOM viewers like Hermes Affinity, MicroDicom,
+    RadiAnt, etc. that open a window and wait for user interaction.
+    """
+
+    def __init__(
+        self,
+        target_executable: str,
+        timeout: float = 10.0,
+        crash_dir: str = "./crashes",
+        memory_limit_mb: int | None = None,
+    ):
+        """Initialize GUI target runner.
+
+        Args:
+            target_executable: Path to GUI application
+            timeout: Seconds to wait before killing the app
+            crash_dir: Directory to save crash reports
+            memory_limit_mb: Optional memory limit (kills if exceeded)
+
+        Raises:
+            FileNotFoundError: If target executable doesn't exist
+            ImportError: If psutil is not installed
+
+        """
+        if not HAS_PSUTIL:
+            raise ImportError(
+                "GUI mode requires psutil. Install with: pip install psutil"
+            )
+
+        self.target_executable = Path(target_executable)
+        if not self.target_executable.exists():
+            raise FileNotFoundError(f"Target executable not found: {target_executable}")
+
+        self.timeout = timeout
+        self.crash_dir = Path(crash_dir)
+        self.crash_dir.mkdir(parents=True, exist_ok=True)
+        self.memory_limit_mb = memory_limit_mb
+
+        # Statistics
+        self.total_tests = 0
+        self.crashes = 0
+        self.timeouts = 0  # Normal for GUI apps
+        self.memory_exceeded = 0
+
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"GUITargetRunner initialized: target={target_executable}, "
+            f"timeout={timeout}s, memory_limit={memory_limit_mb}MB"
+        )
+
+    def execute_test(self, test_file: Path | str) -> GUIExecutionResult:
+        """Execute GUI application with a test file.
+
+        Args:
+            test_file: Path to DICOM file to test
+
+        Returns:
+            GUIExecutionResult with execution details
+
+        """
+        test_file_path = Path(test_file) if isinstance(test_file, str) else test_file
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Testing file: {test_file_path.name}")
+
+        self.total_tests += 1
+        start_time = time.time()
+        peak_memory = 0.0
+        crashed = False
+        timed_out = False
+        exit_code = None
+        stdout_data = ""
+        stderr_data = ""
+
+        process = None
+        try:
+            # Launch GUI application with test file
+            process = subprocess.Popen(
+                [str(self.target_executable), str(test_file_path)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+                if sys.platform == "win32"
+                else 0,
+            )
+
+            # Monitor process until timeout or crash
+            poll_interval = 0.1
+            while True:
+                elapsed = time.time() - start_time
+
+                # Check if process exited (crash or normal exit)
+                exit_code = process.poll()
+                if exit_code is not None:
+                    # Process exited before timeout - this is a crash for GUI apps
+                    if exit_code != 0:
+                        crashed = True
+                        self.crashes += 1
+                        logger.warning(
+                            f"GUI app crashed: {test_file_path.name} "
+                            f"(exit_code={exit_code})"
+                        )
+                    break
+
+                # Check timeout
+                if elapsed >= self.timeout:
+                    timed_out = True
+                    self.timeouts += 1
+                    break
+
+                # Monitor memory
+                try:
+                    ps_process = psutil.Process(process.pid)
+                    mem_info = ps_process.memory_info()
+                    mem_mb = mem_info.rss / (1024 * 1024)
+                    peak_memory = max(peak_memory, mem_mb)
+
+                    # Check memory limit
+                    if self.memory_limit_mb and mem_mb > self.memory_limit_mb:
+                        logger.warning(
+                            f"Memory limit exceeded: {mem_mb:.1f}MB > "
+                            f"{self.memory_limit_mb}MB"
+                        )
+                        self.memory_exceeded += 1
+                        crashed = True  # Treat as crash
+                        break
+                except psutil.NoSuchProcess:
+                    # Process died during monitoring
+                    crashed = True
+                    self.crashes += 1
+                    break
+
+                time.sleep(poll_interval)
+
+        except Exception as e:
+            logger.error(f"Error testing {test_file_path.name}: {e}")
+            crashed = True
+            stderr_data = str(e)
+
+        finally:
+            execution_time = time.time() - start_time
+
+            # Kill process if still running
+            if process and process.poll() is None:
+                self._kill_process_tree(process)
+
+            # Capture any output
+            if process:
+                try:
+                    raw_stdout, raw_stderr = process.communicate(timeout=1)
+                    if isinstance(raw_stdout, bytes):
+                        stdout_data = raw_stdout.decode("utf-8", errors="replace")
+                    if isinstance(raw_stderr, bytes):
+                        stderr_data = raw_stderr.decode("utf-8", errors="replace")
+                except Exception:
+                    pass
+
+        # Determine status
+        if crashed:
+            status = ExecutionStatus.CRASH
+        elif timed_out:
+            status = ExecutionStatus.SUCCESS  # Timeout is SUCCESS for GUI apps
+        else:
+            status = ExecutionStatus.SUCCESS
+
+        return GUIExecutionResult(
+            test_file=test_file_path,
+            status=status,
+            exit_code=exit_code,
+            execution_time=execution_time,
+            peak_memory_mb=peak_memory,
+            crashed=crashed,
+            timed_out=timed_out,
+            stdout=stdout_data,
+            stderr=stderr_data,
+        )
+
+    def _kill_process_tree(self, process: subprocess.Popen) -> None:
+        """Kill process and all its children."""
+        try:
+            parent = psutil.Process(process.pid)
+            children = parent.children(recursive=True)
+
+            # Kill children first
+            for child in children:
+                try:
+                    child.kill()
+                except psutil.NoSuchProcess:
+                    pass
+
+            # Kill parent
+            try:
+                parent.kill()
+            except psutil.NoSuchProcess:
+                pass
+
+            # Wait for termination
+            psutil.wait_procs([parent] + children, timeout=3)
+
+        except psutil.NoSuchProcess:
+            pass
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to kill process tree: {e}")
+
+    def run_campaign(
+        self, test_files: list[Path], stop_on_crash: bool = False
+    ) -> dict[ExecutionStatus, list[GUIExecutionResult]]:
+        """Run fuzzing campaign against GUI target.
+
+        Args:
+            test_files: List of DICOM files to test
+            stop_on_crash: Stop on first crash
+
+        Returns:
+            Dictionary mapping status to results
+
+        """
+        results: dict[ExecutionStatus, list[GUIExecutionResult]] = {
+            status: [] for status in ExecutionStatus
+        }
+
+        logger = logging.getLogger(__name__)
+        logger.info(f"Starting GUI fuzzing campaign with {len(test_files)} files")
+
+        for i, test_file in enumerate(test_files, 1):
+            logger.debug(f"[{i}/{len(test_files)}] Testing {test_file.name}")
+
+            result = self.execute_test(test_file)
+            results[result.status].append(result)
+
+            if result.crashed:
+                logger.warning(
+                    f"[{i}/{len(test_files)}] CRASH: {test_file.name} "
+                    f"(exit={result.exit_code}, mem={result.peak_memory_mb:.1f}MB)"
+                )
+                if stop_on_crash:
+                    logger.info("Stopping on first crash")
+                    break
+
+        return results
+
+    def get_summary(
+        self, results: dict[ExecutionStatus, list[GUIExecutionResult]]
+    ) -> str:
+        """Generate summary of campaign results."""
+        total = sum(len(r) for r in results.values())
+        crashes = len(results[ExecutionStatus.CRASH])
+        success = len(results[ExecutionStatus.SUCCESS])
+
+        # Calculate average memory
+        all_results = [r for rs in results.values() for r in rs]
+        avg_memory = (
+            sum(r.peak_memory_mb for r in all_results) / len(all_results)
+            if all_results
+            else 0
+        )
+        max_memory = max((r.peak_memory_mb for r in all_results), default=0)
+
+        lines = [
+            "=" * 70,
+            "  GUI Fuzzing Campaign Summary",
+            "=" * 70,
+            f"  Total tests:     {total}",
+            f"  Successful:      {success} (app ran without crashing)",
+            f"  Crashes:         {crashes} (app crashed before timeout)",
+            f"  Memory exceeded: {self.memory_exceeded}",
+            "",
+            f"  Avg memory:      {avg_memory:.1f} MB",
+            f"  Peak memory:     {max_memory:.1f} MB",
+            "=" * 70,
+        ]
+
+        if crashes > 0:
+            lines.append("\n  CRASHES DETECTED:")
+            crash_results = results[ExecutionStatus.CRASH]
+            for result in crash_results[:10]:
+                lines.append(
+                    f"    - {result.test_file.name} "
+                    f"(exit={result.exit_code}, mem={result.peak_memory_mb:.1f}MB)"
+                )
+            if len(crash_results) > 10:
+                lines.append(f"    ... and {len(crash_results) - 10} more")
+
+        lines.append("")
+        return "\n".join(lines)
 
 
 # CLI Helper Functions
@@ -379,6 +711,25 @@ def main() -> int:
         action="store_true",
         help="Stop testing on first crash detected",
     )
+    parser.add_argument(
+        "--gui-mode",
+        action="store_true",
+        help=(
+            "Enable GUI application mode. Use this for DICOM viewers that don't "
+            "exit after processing (e.g., Hermes Affinity, MicroDicom, RadiAnt). "
+            "In GUI mode, the app is killed after timeout and SUCCESS means "
+            "the app didn't crash before timeout. Requires psutil."
+        ),
+    )
+    parser.add_argument(
+        "--memory-limit",
+        type=int,
+        metavar="MB",
+        help=(
+            "Memory limit for GUI mode in MB. Kill target if exceeded. "
+            "Only used with --gui-mode."
+        ),
+    )
 
     # Resource limit options
     resource_group = parser.add_argument_group(
@@ -479,7 +830,11 @@ def main() -> int:
     # Handle both 'count' and 'num_mutations' for test compatibility
     _count = getattr(args, "count", None)
     _num_mutations = getattr(args, "num_mutations", None)
-    num_files: int = _count if _count is not None else (_num_mutations if _num_mutations is not None else 100)
+    num_files: int = (
+        _count
+        if _count is not None
+        else (_num_mutations if _num_mutations is not None else 100)
+    )
     print(f"  Target:     {num_files} files")
     if selected_strategies:
         print(f"  Strategies: {', '.join(selected_strategies)}")
@@ -559,25 +914,55 @@ def main() -> int:
 
         # Target testing if --target specified
         if args.target:
+            gui_mode = getattr(args, "gui_mode", False)
+            memory_limit = getattr(args, "memory_limit", None)
+
             print("\n" + "=" * 70)
-            print("  Target Application Testing")
+            if gui_mode:
+                print("  GUI Application Testing (--gui-mode)")
+            else:
+                print("  Target Application Testing")
             print("=" * 70)
             print(f"  Target:     {args.target}")
             print(f"  Timeout:    {args.timeout}s")
             print(f"  Test files: {len(files)}")
+            if gui_mode:
+                print("  Mode:       GUI (app killed after timeout)")
+                if memory_limit:
+                    print(f"  Mem limit:  {memory_limit}MB")
             print("=" * 70 + "\n")
 
             try:
-                runner = TargetRunner(
-                    target_executable=args.target,
-                    timeout=args.timeout,
-                    crash_dir=str(output_path / "crashes"),
-                    resource_limits=resource_limits,
-                )
+                runner: GUITargetRunner | TargetRunner
+                if gui_mode:
+                    # Use GUITargetRunner for GUI applications
+                    if not HAS_PSUTIL:
+                        print(
+                            "[ERROR] GUI mode requires psutil. "
+                            "Install with: pip install psutil"
+                        )
+                        sys.exit(1)
 
-                logger.info("Starting target testing campaign...")
-                if resource_limits:
+                    runner = GUITargetRunner(
+                        target_executable=args.target,
+                        timeout=args.timeout,
+                        crash_dir=str(output_path / "crashes"),
+                        memory_limit_mb=memory_limit,
+                    )
+                    logger.info("Starting GUI fuzzing campaign...")
+                else:
+                    # Use standard TargetRunner for CLI applications
+                    runner = TargetRunner(
+                        target_executable=args.target,
+                        timeout=args.timeout,
+                        crash_dir=str(output_path / "crashes"),
+                        resource_limits=resource_limits,
+                    )
+                    logger.info("Starting target testing campaign...")
+
+                if resource_limits and not gui_mode:
                     logger.info("Resource limits will be enforced during testing")
+
                 test_start = time.time()
 
                 results = runner.run_campaign(
@@ -586,8 +971,8 @@ def main() -> int:
 
                 test_elapsed = time.time() - test_start
 
-                # Display results
-                summary = runner.get_summary(results)
+                # Display results (type mismatch between GUITargetRunner/TargetRunner result types)
+                summary = runner.get_summary(results)  # type: ignore[arg-type]
                 print(summary)
                 print(
                     f"\nTarget testing completed in {test_elapsed:.2f}s "
@@ -598,6 +983,10 @@ def main() -> int:
                 logger.error(f"Target executable not found: {e}")
                 print(f"\n[ERROR] Target executable not found: {args.target}")
                 print("Please verify the path and try again.")
+                sys.exit(1)
+            except ImportError as e:
+                logger.error(f"Missing dependency: {e}")
+                print(f"\n[ERROR] {e}")
                 sys.exit(1)
             except Exception as e:
                 logger.error(f"Target testing failed: {e}", exc_info=args.verbose)

@@ -183,6 +183,20 @@ class DictionaryFuzzer:
                 logger.debug(f"Skipping mutation of binary VR tag {tag:08X} (VR={vr})")
                 return
 
+            # UI (Unique Identifier) VR only supports ASCII digits, periods, and spaces
+            # Must not contain unicode or special characters
+            if vr == "UI":
+                # Generate a valid UID instead of using arbitrary values
+                root = random.choice(DICOMDictionaries.get_dictionary("uid_roots"))
+                value = DICOMDictionaries.generate_random_uid(root)
+                dataset[tag].value = value
+                logger.debug(
+                    f"Mutated UI tag {tag:08X}",
+                    old_value=str(dataset[tag].value)[:50],
+                    new_value=str(value)[:50],
+                )
+                return
+
             # For numeric VRs, skip string-only mutations to avoid save errors
             # US = Unsigned Short, SS = Signed Short, UL = Unsigned Long, SL = Signed Long
             # IS = Integer String, DS = Decimal String, FL = Float, FD = Double

@@ -9,13 +9,14 @@ from pathlib import Path
 # ============================================================================
 # DICOM Test Data
 # ============================================================================
-DICOM_INPUT_DIR = Path(r"C:\Data\Kiwi - Example Data - 20210423")
+DICOM_INPUT_DIR = Path(r"C:\Data\test-automation\Kiwi - Example Data - 20210423")
 
 # ============================================================================
-# DICOM Viewer
+# DICOM Viewer (Hermes Affinity - GUI application)
 # ============================================================================
 DICOM_VIEWER_PATH = Path(r"C:\Hermes\Affinity\Hermes.exe")
-VIEWER_TIMEOUT = 5
+VIEWER_TIMEOUT = 10  # Seconds before killing GUI app (use --gui-mode in CLI)
+VIEWER_MEMORY_LIMIT_MB = 2048  # Memory limit for GUI mode
 
 # ============================================================================
 # Output Directories

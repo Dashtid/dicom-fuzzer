@@ -235,14 +235,16 @@ minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
-    # Parallel execution with pytest-xdist (reduced to 4 workers for reliable coverage)
-    "-n=4",
+    # Parallel execution with pytest-xdist
+    # Using 'auto' lets xdist determine optimal worker count based on CPU cores
+    "-n=auto",
+    # loadscope distributes by test module/class for better isolation
     "--dist=loadscope",
-    # Coverage options
+    # Coverage options - use source_pkgs config from [tool.coverage.run]
     "--cov=dicom_fuzzer",
     "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
+    "--cov-report=html:reports/coverage/htmlcov",
+    "--cov-report=xml:reports/coverage/coverage.xml",
     # Show test durations (slowest 10 tests)
     "--durations=10",
     # Timeout for individual tests (prevents hanging)
@@ -250,8 +252,6 @@ addopts = [
     # NOTE: Coverage threshold removed from default options to allow individual test runs
     # For full suite coverage check, use: pytest --cov-fail-under=55
     # CI/CD enforces 55% minimum coverage threshold via GitHub Actions
-    # Current: ~80% coverage (when running full suite with all tests)
-    # Target: 85% coverage (industry standard for mature projects)
 ]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
@@ -305,18 +305,28 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["dicom_fuzzer"]
-data_file = "reports/coverage/.coverage"
+# Source package to measure - use source_pkgs for reliable detection with xdist
+source_pkgs = ["dicom_fuzzer"]
+# Let coverage.py manage data files - critical for xdist parallel workers
+# Do NOT set data_file when using xdist - it causes data combination issues
+branch = true
+# Enable parallel mode for proper worker data combination
 parallel = true
+# Handle SIGTERM gracefully (important for subprocess/worker cleanup)
+sigterm = true
+# Use relative paths for cross-worker compatibility
+relative_files = true
+# Concurrency modes - thread for async, multiprocessing for subprocess workers
 concurrency = ["thread", "multiprocessing"]
 omit = [
     "*/tests/*",
     "*/test_*",
     "*/__main__.py",
-    # Exclude only demo/example scripts not meant for production
 ]
 
 [tool.coverage.report]
+show_missing = true
+skip_covered = false
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

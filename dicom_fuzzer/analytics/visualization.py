@@ -241,9 +241,9 @@ class FuzzingVisualizer:
         # Create figure
         fig, ax = plt.subplots(figsize=(12, 6))
 
-        # Plot line (matplotlib accepts datetime lists, type stubs are incomplete)
+        # Plot line
         ax.plot(
-            timestamps,  # type: ignore[arg-type]
+            timestamps,
             cumulative_crashes,
             color=self.colors["danger"],
             linewidth=2,
