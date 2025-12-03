@@ -12,6 +12,7 @@ libFuzzer, and Hongfuzz. It's dramatically more effective than random fuzzing.
 """
 
 import random
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -125,6 +126,10 @@ class CoverageGuidedFuzzer:
         self.target_function = target_function
         self.mutation_severity = mutation_severity
 
+        # Thread safety lock for shared state access
+        # Protects: stats, crashes list
+        self._lock = threading.RLock()
+
         # Statistics
         self.stats = FuzzingCampaignStats()
         self.crashes: list[dict[str, Any]] = []
@@ -148,7 +153,21 @@ class CoverageGuidedFuzzer:
         Returns:
             Entry ID for the seed
 
+        Raises:
+            TypeError: If dataset is not a pydicom Dataset instance
+            ValueError: If dataset is empty (has no data elements)
+
         """
+        # Validate dataset parameter
+        if not isinstance(dataset, Dataset):
+            raise TypeError(
+                f"dataset must be a pydicom Dataset instance, got {type(dataset).__name__}"
+            )
+
+        # Validate that dataset has at least some content
+        if len(dataset) == 0:
+            raise ValueError("dataset must contain at least one data element")
+
         if seed_id is None:
             seed_id = generate_seed_id()
 
@@ -203,8 +222,28 @@ class CoverageGuidedFuzzer:
         try:
             if self.target_function:
                 coverage = self._execute_with_coverage(mutated_dataset, entry_id)
+        except KeyboardInterrupt:
+            # User requested stop - propagate immediately
+            raise
+        except SystemExit:
+            # System exit - propagate immediately
+            raise
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
+            # Target function crashed due to malformed input - this is what we want!
+            crash = True
+            self._record_crash(entry_id, parent.entry_id, mutated_dataset, e)
+        except OSError as e:
+            # I/O errors from file operations - likely input-triggered
+            crash = True
+            self._record_crash(entry_id, parent.entry_id, mutated_dataset, e)
         except Exception as e:
-            # This mutation triggered a crash!
+            # Catch other unexpected exceptions, but log them as potential fuzzer bugs
+            logger.warning(
+                "Unexpected exception during fuzzing - treating as crash",
+                exception_type=type(e).__name__,
+                error=str(e),
+                entry_id=entry_id,
+            )
             crash = True
             self._record_crash(entry_id, parent.entry_id, mutated_dataset, e)
 
@@ -214,7 +253,8 @@ class CoverageGuidedFuzzer:
             is_interesting = True
         elif coverage and self.coverage_tracker.is_interesting(coverage):
             is_interesting = True
-            self.stats.interesting_inputs_found += 1
+            with self._lock:
+                self.stats.interesting_inputs_found += 1
 
         # Add to corpus if interesting
         if is_interesting:
@@ -235,7 +275,8 @@ class CoverageGuidedFuzzer:
                 )
                 return self.corpus_manager.get_entry(entry_id)
 
-        self.stats.total_iterations += 1
+        with self._lock:
+            self.stats.total_iterations += 1
         return None
 
     def fuzz(
@@ -389,6 +430,8 @@ class CoverageGuidedFuzzer:
         CONCEPT: Crashes are the most valuable finds in fuzzing.
         We record all crash details for later analysis.
 
+        THREAD SAFETY: This method is thread-safe.
+
         Args:
             entry_id: ID of the crashing input
             parent_id: ID of the parent input
@@ -404,8 +447,9 @@ class CoverageGuidedFuzzer:
             "timestamp": datetime.now(UTC).isoformat(),
         }
 
-        self.crashes.append(crash_record)
-        self.stats.unique_crashes += 1
+        with self._lock:
+            self.crashes.append(crash_record)
+            self.stats.unique_crashes += 1
 
         logger.error(
             "Crash detected!",
@@ -459,8 +503,13 @@ Crashes Found:
         return report.strip()
 
     def reset(self) -> None:
-        """Reset fuzzer state (keeps corpus)."""
+        """Reset fuzzer state (keeps corpus).
+
+        THREAD SAFETY: This method is thread-safe.
+
+        """
         self.coverage_tracker.reset()
-        self.stats = FuzzingCampaignStats()
-        self.crashes.clear()
+        with self._lock:
+            self.stats = FuzzingCampaignStats()
+            self.crashes.clear()
         logger.info("Fuzzer state reset")

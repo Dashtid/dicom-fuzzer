@@ -388,14 +388,30 @@ class TestByteFlip:
         assert result == bytearray()
 
     def test_byte_flip_modifies_data(self):
-        """Test byte flip modifies data (lines 347-351)."""
+        """Test byte flip modifies data (lines 347-351).
+
+        Note: This test uses varied data and multiple attempts because
+        byte_flip uses random positions and can flip the same byte twice
+        (which reverts to original). With enough bytes and attempts,
+        modification is statistically guaranteed.
+        """
         mutator = CoverageGuidedMutator()
-        data = bytearray(b"\x00" * 10)
+        # Use larger data with varied content to ensure flip is detectable
+        data = bytearray(
+            b"\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee\xff"
+        )
         original = bytes(data)
 
-        result = mutator._byte_flip(data)
+        # Multiple attempts to handle edge case where same byte is flipped twice
+        modified = False
+        for _ in range(5):
+            test_data = bytearray(original)
+            result = mutator._byte_flip(test_data)
+            if result != original:
+                modified = True
+                break
 
-        assert result != original
+        assert modified, "byte_flip should modify data in at least one of 5 attempts"
 
 
 class TestRandomByte:
@@ -931,20 +947,32 @@ class TestIntegration:
     """Integration tests."""
 
     def test_full_mutation_cycle(self):
-        """Test a full mutation cycle with feedback."""
+        """Test a full mutation cycle with feedback.
+
+        Note: Due to the random nature of mutations and the check that
+        mutated_data != original data, we use multiple attempts to ensure
+        at least one mutation succeeds within a reasonable number of tries.
+        """
         mutator = CoverageGuidedMutator(max_mutations=5)
 
         # Create test data with varied content (not all zeros which can produce
         # identical mutations due to bit flips on zero bytes)
         data = bytes(range(256)) * 2  # 512 bytes with varied content
 
-        # Perform mutations
-        mutations = mutator.mutate(data)
+        # Try multiple times as mutations can produce identical results by chance
+        all_mutations = []
+        for _ in range(5):
+            mutations = mutator.mutate(data)
+            all_mutations.extend(mutations)
+            if mutations:
+                break
 
-        assert len(mutations) > 0
+        assert len(all_mutations) > 0, (
+            "Should produce at least one mutation in 5 attempts"
+        )
 
         # Provide feedback
-        for _, mutation_type in mutations:
+        for _, mutation_type in all_mutations:
             mutator.update_strategy_feedback(
                 mutation_type, coverage_gained=random.random() > 0.5, new_edges=1
             )

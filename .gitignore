@@ -447,3 +447,4 @@ README_*_insert.txt
 
 # Benchmark test data
 /benchmark_clean_test/
+coverage.json

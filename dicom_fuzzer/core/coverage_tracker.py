@@ -13,6 +13,8 @@ This dramatically increases the effectiveness of fuzzing.
 """
 
 import sys
+import threading
+from collections import deque
 from collections.abc import Callable, Generator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
@@ -21,12 +23,16 @@ from pathlib import Path
 from types import FrameType
 from typing import TYPE_CHECKING, Any
 
+from dicom_fuzzer.utils.hashing import hash_string
+from dicom_fuzzer.utils.logger import get_logger
+
+# Maximum number of coverage snapshots to keep in history
+# Prevents unbounded memory growth in long-running campaigns
+MAX_COVERAGE_HISTORY_SIZE = 10000
+
 if TYPE_CHECKING:
     # Type alias for trace function return type (recursive type)
     _TraceFunctionType = Callable[[FrameType, str, Any], "_TraceFunctionType"] | None
-
-from dicom_fuzzer.utils.hashing import hash_string
-from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -135,10 +141,18 @@ class CoverageTracker:
             "site-packages",
         ]
 
+        # Thread safety lock for coverage data access
+        # CRITICAL: All access to coverage data must be protected by this lock
+        # to prevent race conditions in multi-threaded fuzzing scenarios
+        self._lock = threading.RLock()
+
         # Coverage data
         self.global_coverage: set[tuple[str, int]] = set()
         self.current_coverage: set[tuple[str, int]] = set()
-        self.coverage_history: list[CoverageSnapshot] = []
+        # Use bounded deque instead of list to prevent unbounded memory growth
+        self.coverage_history: deque[CoverageSnapshot] = deque(
+            maxlen=MAX_COVERAGE_HISTORY_SIZE
+        )
 
         # Statistics
         self.total_executions = 0
@@ -236,9 +250,14 @@ class CoverageTracker:
         Yields:
             CoverageSnapshot after execution completes
 
+        THREAD SAFETY: This method is thread-safe. Each call acquires a lock
+        to ensure consistent coverage tracking in multi-threaded scenarios.
+
         """
-        # Clear current coverage
-        self.current_coverage = set()
+        # Acquire lock for thread-safe access to coverage data
+        with self._lock:
+            # Clear current coverage
+            self.current_coverage = set()
 
         # Start tracing
         sys.settrace(self._trace_function)
@@ -250,37 +269,39 @@ class CoverageTracker:
             # Stop tracing
             sys.settrace(None)
 
-            # Create snapshot
-            snapshot = CoverageSnapshot(
-                lines_covered=self.current_coverage.copy(),
-                test_case_id=test_case_id,
-            )
-
-            # Check if this is interesting (new coverage)
-            new_lines = snapshot.new_coverage_vs(
-                CoverageSnapshot(lines_covered=self.global_coverage)
-            )
-
-            if new_lines:
-                # This test case found new coverage!
-                self.global_coverage.update(snapshot.lines_covered)
-                self.coverage_history.append(snapshot)
-                self.interesting_cases += 1
-
-                logger.info(
-                    "New coverage discovered",
+            # Acquire lock for thread-safe access to coverage data
+            with self._lock:
+                # Create snapshot
+                snapshot = CoverageSnapshot(
+                    lines_covered=self.current_coverage.copy(),
                     test_case_id=test_case_id,
-                    new_lines=len(new_lines),
-                    total_coverage=len(self.global_coverage),
-                )
-            else:
-                self.redundant_cases += 1
-                logger.debug(
-                    f"No new coverage from test case: {test_case_id}",
-                    redundant_count=self.redundant_cases,
                 )
 
-            self.total_executions += 1
+                # Check if this is interesting (new coverage)
+                new_lines = snapshot.new_coverage_vs(
+                    CoverageSnapshot(lines_covered=self.global_coverage)
+                )
+
+                if new_lines:
+                    # This test case found new coverage!
+                    self.global_coverage.update(snapshot.lines_covered)
+                    self.coverage_history.append(snapshot)
+                    self.interesting_cases += 1
+
+                    logger.info(
+                        "New coverage discovered",
+                        test_case_id=test_case_id,
+                        new_lines=len(new_lines),
+                        total_coverage=len(self.global_coverage),
+                    )
+                else:
+                    self.redundant_cases += 1
+                    logger.debug(
+                        f"No new coverage from test case: {test_case_id}",
+                        redundant_count=self.redundant_cases,
+                    )
+
+                self.total_executions += 1
 
     def track_execution(self, test_case_id: str) -> AbstractContextManager[None]:
         """Alias for trace_execution for test compatibility.
@@ -306,22 +327,26 @@ class CoverageTracker:
         Returns:
             True if this snapshot provides new coverage
 
+        THREAD SAFETY: This method is thread-safe.
+
         """
         # Check coverage hash for quick deduplication
         coverage_hash = snapshot.coverage_hash()
-        if coverage_hash in self.seen_coverage_hashes:
+
+        with self._lock:
+            if coverage_hash in self.seen_coverage_hashes:
+                return False
+
+            # Check for new lines
+            new_lines = snapshot.new_coverage_vs(
+                CoverageSnapshot(lines_covered=self.global_coverage)
+            )
+
+            if new_lines:
+                self.seen_coverage_hashes.add(coverage_hash)
+                return True
+
             return False
-
-        # Check for new lines
-        new_lines = snapshot.new_coverage_vs(
-            CoverageSnapshot(lines_covered=self.global_coverage)
-        )
-
-        if new_lines:
-            self.seen_coverage_hashes.add(coverage_hash)
-            return True
-
-        return False
 
     def get_statistics(self) -> dict[str, Any]:
         """Get coverage tracking statistics.
@@ -329,19 +354,22 @@ class CoverageTracker:
         Returns:
             Dictionary with coverage statistics
 
+        THREAD SAFETY: This method is thread-safe.
+
         """
-        return {
-            "total_executions": self.total_executions,
-            "interesting_cases": self.interesting_cases,
-            "redundant_cases": self.redundant_cases,
-            "total_lines_covered": len(self.global_coverage),
-            "unique_coverage_patterns": len(self.seen_coverage_hashes),
-            "efficiency": (
-                self.interesting_cases / self.total_executions
-                if self.total_executions > 0
-                else 0.0
-            ),
-        }
+        with self._lock:
+            return {
+                "total_executions": self.total_executions,
+                "interesting_cases": self.interesting_cases,
+                "redundant_cases": self.redundant_cases,
+                "total_lines_covered": len(self.global_coverage),
+                "unique_coverage_patterns": len(self.seen_coverage_hashes),
+                "efficiency": (
+                    self.interesting_cases / self.total_executions
+                    if self.total_executions > 0
+                    else 0.0
+                ),
+            }
 
     def get_coverage_report(self) -> str:
         """Generate a human-readable coverage report.
@@ -349,8 +377,15 @@ class CoverageTracker:
         Returns:
             Formatted coverage report string
 
+        THREAD SAFETY: This method is thread-safe.
+
         """
+        # get_statistics() is already thread-safe, but we need to protect
+        # coverage_history access separately
         stats = self.get_statistics()
+
+        with self._lock:
+            history_len = len(self.coverage_history)
 
         report = f"""
 Coverage-Guided Fuzzing Report
@@ -363,18 +398,23 @@ Total Lines Covered:   {stats["total_lines_covered"]}
 Unique Patterns:       {stats["unique_coverage_patterns"]}
 Efficiency:            {stats["efficiency"]:.1%}
 
-Coverage History: {len(self.coverage_history)} snapshots
+Coverage History: {history_len} snapshots
         """
 
         return report.strip()
 
     def reset(self) -> None:
-        """Reset all coverage data."""
-        self.global_coverage.clear()
-        self.current_coverage.clear()
-        self.coverage_history.clear()
-        self.seen_coverage_hashes.clear()
-        self.total_executions = 0
-        self.interesting_cases = 0
-        self.redundant_cases = 0
+        """Reset all coverage data.
+
+        THREAD SAFETY: This method is thread-safe.
+
+        """
+        with self._lock:
+            self.global_coverage.clear()
+            self.current_coverage.clear()
+            self.coverage_history.clear()
+            self.seen_coverage_hashes.clear()
+            self.total_executions = 0
+            self.interesting_cases = 0
+            self.redundant_cases = 0
         logger.info("Coverage tracker reset")

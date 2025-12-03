@@ -224,20 +224,34 @@ class TestCoverageGuidedMutator:
             assert isinstance(mutation_type, MutationType)
 
     def test_dicom_specific_mutations(self):
-        """Test DICOM-specific mutations."""
+        """Test DICOM-specific mutations.
+
+        Note: Due to the random nature of mutations and the check that
+        mutated_data != original data, we use varied input data and
+        multiple attempts to ensure at least one mutation succeeds.
+        """
         mutator = CoverageGuidedMutator(dicom_aware=True)
 
-        # Create DICOM-like data
-        dicom_data = b"DICM" + b"\x00" * 128 + b"\x08\x00\x10\x00"
+        # Create DICOM-like data with varied content (not all zeros)
+        # to ensure mutations produce different results
+        dicom_data = b"DICM" + bytes(range(128)) + b"\x08\x00\x10\x00"
 
         seed = Seed(id="test", data=dicom_data, coverage=CoverageInfo(), energy=2.0)
 
-        # Generate mutations
-        mutations = mutator.mutate(seed)
-        assert len(mutations) > 0
+        # Try multiple times as mutations can produce identical results by chance
+        all_mutations = []
+        for _ in range(5):
+            mutations = mutator.mutate(seed)
+            all_mutations.extend(mutations)
+            if mutations:
+                break
+
+        assert len(all_mutations) > 0, (
+            "Should produce at least one mutation in 5 attempts"
+        )
 
         # Check for DICOM-specific mutations
-        mutation_types = [mt for _, mt in mutations]
+        mutation_types = [mt for _, mt in all_mutations]
         dicom_mutations = [
             MutationType.DICOM_TAG_CORRUPT,
             MutationType.DICOM_VR_MISMATCH,

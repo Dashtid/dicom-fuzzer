@@ -246,6 +246,9 @@ class MutationMinimizer:
     ) -> Dataset:
         """Apply list of mutations to dataset.
 
+        Replays recorded mutations to recreate the mutated state.
+        This is essential for delta debugging to work correctly.
+
         Args:
             dataset: Original dataset
             mutations: Mutations to apply
@@ -254,18 +257,79 @@ class MutationMinimizer:
             Mutated dataset
 
         """
-        # Deep copy to avoid modifying original
-        mutated = copy.deepcopy(dataset)
+        # Use Dataset.copy() if available - it's optimized for DICOM and 2-3x faster than deepcopy
+        # Fall back to deepcopy for mock objects or non-pydicom datasets
+        if hasattr(dataset, "copy"):
+            mutated = dataset.copy()
+        else:
+            mutated = copy.deepcopy(dataset)
 
-        # Apply each mutation
-        # NOTE: This is simplified - actual implementation needs to
-        # replay mutations from their recorded parameters
-        for _mutation in mutations:
-            # This would need to be implemented based on how mutations
-            # are recorded in the MutationRecord
-            pass
+        # Apply each mutation based on recorded parameters
+        for mutation in mutations:
+            try:
+                self._apply_single_mutation(mutated, mutation)
+            except Exception as e:
+                # Log but continue - partial mutation set may still trigger crash
+                import logging
+
+                mutation_id = getattr(mutation, "mutation_id", "unknown")
+                logging.getLogger(__name__).debug(
+                    f"Failed to apply mutation {mutation_id}: {e}"
+                )
 
         return mutated
+
+    def _apply_single_mutation(
+        self, dataset: Dataset, mutation: MutationRecord
+    ) -> None:
+        """Apply a single recorded mutation to dataset in-place.
+
+        Args:
+            dataset: Dataset to mutate (modified in-place)
+            mutation: Mutation record to replay
+
+        """
+        # Skip if no target tag specified
+        if not mutation.target_tag:
+            return
+
+        # Parse tag from string format "(GGGG,EEEE)" to pydicom Tag
+        try:
+            tag_str = mutation.target_tag.strip("()").replace(",", "")
+            tag = pydicom.tag.Tag(int(tag_str[:4], 16), int(tag_str[4:], 16))
+        except (ValueError, IndexError):
+            return
+
+        # Apply mutation based on type
+        mutation_type = mutation.mutation_type.lower()
+
+        if mutation_type == "delete":
+            # Delete the element if it exists
+            if tag in dataset:
+                del dataset[tag]
+
+        elif mutation_type in ("modify", "replace", "flip_bits", "insert"):
+            # Set to mutated value if available
+            if mutation.mutated_value is not None and tag in dataset:
+                try:
+                    # Try to set the value - may fail for incompatible types
+                    dataset[tag].value = mutation.mutated_value
+                except (ValueError, TypeError):
+                    # If direct assignment fails, try bytes for raw data
+                    if isinstance(mutation.mutated_value, str):
+                        dataset[tag].value = mutation.mutated_value.encode(
+                            "utf-8", errors="replace"
+                        )
+
+        elif mutation_type == "corrupt":
+            # For corruption, use mutated_value or corrupt with zeros
+            if tag in dataset:
+                if mutation.mutated_value is not None:
+                    try:
+                        dataset[tag].value = mutation.mutated_value
+                    except (ValueError, TypeError):
+                        # Fallback: set to empty or zeros based on VR
+                        dataset[tag].value = b"\x00" * 8
 
     def _split_list(self, lst: list, n: int) -> list[list]:
         """Split list into n roughly equal parts.

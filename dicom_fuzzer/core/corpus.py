@@ -11,6 +11,7 @@ WHY: The corpus is the "memory" of our fuzzer. Without it, we'd forget which
 inputs were valuable. With it, we build on previous discoveries.
 """
 
+import copy
 import json
 import shutil
 from dataclasses import dataclass, field
@@ -294,9 +295,12 @@ class CorpusManager:
             generation = self.corpus[parent_id].generation + 1
 
         # Create entry
+        # CRITICAL: Use deepcopy to ensure the stored dataset is completely independent
+        # of the original. Shallow copy (dataset.copy()) may share nested structures
+        # like sequences, which could be corrupted if the original is modified.
         entry = CorpusEntry(
             entry_id=entry_id,
-            dataset=dataset.copy(),
+            dataset=copy.deepcopy(dataset),
             coverage=coverage,
             fitness_score=fitness,
             generation=generation,

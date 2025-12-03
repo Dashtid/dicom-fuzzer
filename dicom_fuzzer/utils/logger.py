@@ -134,7 +134,7 @@ def configure_logging(
         processors.append(structlog.dev.ConsoleRenderer())
 
     structlog.configure(
-        processors=processors,  # type: ignore[arg-type]
+        processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(
             getattr(logging, log_level.upper())
         ),
