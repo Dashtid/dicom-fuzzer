@@ -1,14 +1,14 @@
 {
-  "duration": 0.04807615280151367,
-  "total_executions": 7,
+  "duration": 0.06865429878234863,
+  "total_executions": 5,
   "exec_per_sec": 0.0,
   "crashes": {
     "total": 0,
     "unique": 0
   },
   "coverage": {
-    "edges": 719,
-    "max_edges": 719,
+    "edges": 720,
+    "max_edges": 720,
     "increases": 2
   },
   "corpus": {
@@ -16,13 +16,13 @@
     "stats": {
       "total_seeds": 3,
       "unique_coverage_signatures": 3,
-      "total_edges_covered": 719,
+      "total_edges_covered": 720,
       "total_executions": 10,
       "coverage_plateaus": 0,
-      "time_since_coverage_increase": 0.03328990936279297,
+      "time_since_coverage_increase": 0.052249908447265625,
       "mutation_success_rates": {
-        "byte_flip": 1.0,
-        "arithmetic_random": 1.0
+        "arithmetic_random": 1.0,
+        "arithmetic_inc": 1.0
       },
       "seed_priorities": {
         "CRITICAL": 3,

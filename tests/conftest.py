@@ -1,5 +1,10 @@
 """
 Pytest configuration and shared fixtures for DICOM-Fuzzer tests.
+
+Optimizations for 4k+ tests:
+- Auto-cleanup of orphaned .coverage.* files
+- Worksteal distribution for parallel testing
+- Session-scoped fixtures for expensive setup
 """
 
 import tempfile
@@ -14,6 +19,28 @@ from pydicom.uid import generate_uid
 # Ignore production modules that have class names starting with "Test" but are not test classes
 # This prevents pytest from collecting them as tests
 collect_ignore_glob = ["**/dicom_fuzzer/core/test_minimizer.py"]
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Clean up orphaned coverage files before test session starts.
+
+    This prevents accumulation of .coverage.* files from interrupted xdist runs.
+    """
+    import glob
+    import os
+
+    project_root = Path(__file__).parent.parent
+    patterns = [
+        str(project_root / ".coverage.*"),  # Worker coverage files
+        str(project_root / ".coverage"),  # Main coverage file (will be recreated)
+    ]
+
+    for pattern in patterns:
+        for file_path in glob.glob(pattern):
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass  # Ignore errors (file in use, permissions, etc.)
 
 
 @pytest.fixture
