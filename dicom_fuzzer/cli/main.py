@@ -20,6 +20,40 @@ from dicom_fuzzer.core.generator import DICOMGenerator
 from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
 from dicom_fuzzer.core.target_runner import ExecutionStatus, TargetRunner
 
+# Import new modules for advanced fuzzing features
+try:
+    from dicom_fuzzer.core.gui_monitor import (
+        GUIMonitor,  # noqa: F401 - imported for future GUI fuzzing commands
+        MonitorConfig,  # noqa: F401 - imported for future GUI fuzzing commands
+        ResponseAwareFuzzer,  # noqa: F401 - imported for future GUI fuzzing commands
+    )
+
+    HAS_GUI_MONITOR = True
+except ImportError:
+    HAS_GUI_MONITOR = False
+
+try:
+    from dicom_fuzzer.core.network_fuzzer import (
+        DICOMNetworkConfig,
+        DICOMNetworkFuzzer,
+        FuzzingStrategy,
+    )
+
+    HAS_NETWORK_FUZZER = True
+except ImportError:
+    HAS_NETWORK_FUZZER = False
+
+try:
+    from dicom_fuzzer.strategies.medical_device_security import (
+        MedicalDeviceSecurityConfig,
+        MedicalDeviceSecurityFuzzer,
+        VulnerabilityClass,
+    )
+
+    HAS_SECURITY_FUZZER = True
+except ImportError:
+    HAS_SECURITY_FUZZER = False
+
 try:
     from tqdm import tqdm
 
@@ -760,6 +794,134 @@ def main() -> int:
         help="Minimum required free disk space in MB (default: 1024).",
     )
 
+    # Network fuzzing options
+    network_group = parser.add_argument_group(
+        "network fuzzing", "DICOM network protocol fuzzing options"
+    )
+    network_group.add_argument(
+        "--network-fuzz",
+        action="store_true",
+        help=(
+            "Enable DICOM network protocol fuzzing. Fuzz DICOM Association "
+            "(A-ASSOCIATE), C-STORE, C-FIND, C-MOVE operations. "
+            "Requires target host and port."
+        ),
+    )
+    network_group.add_argument(
+        "--host",
+        type=str,
+        default="localhost",
+        metavar="HOST",
+        help="Target DICOM server host for network fuzzing (default: localhost)",
+    )
+    network_group.add_argument(
+        "--port",
+        type=int,
+        default=11112,
+        metavar="PORT",
+        help="Target DICOM server port for network fuzzing (default: 11112)",
+    )
+    network_group.add_argument(
+        "--ae-title",
+        type=str,
+        default="FUZZ_SCU",
+        metavar="TITLE",
+        help="AE Title to use for network fuzzing (default: FUZZ_SCU)",
+    )
+    network_group.add_argument(
+        "--network-strategy",
+        type=str,
+        choices=[
+            "malformed_pdu",
+            "invalid_length",
+            "buffer_overflow",
+            "integer_overflow",
+            "null_bytes",
+            "unicode_injection",
+            "protocol_state",
+            "timing_attack",
+            "all",
+        ],
+        default="all",
+        metavar="STRAT",
+        help="Network fuzzing strategy (default: all). Options: malformed_pdu, invalid_length, "
+        "buffer_overflow, integer_overflow, null_bytes, unicode_injection, protocol_state, "
+        "timing_attack, all",
+    )
+
+    # Security testing options
+    security_group = parser.add_argument_group(
+        "security testing", "Medical device security vulnerability testing"
+    )
+    security_group.add_argument(
+        "--security-fuzz",
+        action="store_true",
+        help=(
+            "Enable medical device security fuzzing. Generates mutations targeting "
+            "CVE patterns (CVE-2025-35975, CVE-2025-36521, etc.) and vulnerability "
+            "classes (OOB read/write, buffer overflow, format string, etc.)."
+        ),
+    )
+    security_group.add_argument(
+        "--target-cves",
+        type=str,
+        metavar="CVES",
+        help=(
+            "Comma-separated list of CVE patterns to target. "
+            "Options: CVE-2025-35975, CVE-2025-36521, CVE-2025-5943, "
+            "CVE-2025-1001, CVE-2022-2119, CVE-2022-2120 (default: all)"
+        ),
+    )
+    security_group.add_argument(
+        "--vuln-classes",
+        type=str,
+        metavar="CLASSES",
+        help=(
+            "Comma-separated list of vulnerability classes to target. "
+            "Options: oob_write, oob_read, stack_overflow, heap_overflow, "
+            "integer_overflow, format_string, null_deref, dos (default: all)"
+        ),
+    )
+    security_group.add_argument(
+        "--security-report",
+        type=str,
+        metavar="FILE",
+        help="Output file for security fuzzing report (JSON format)",
+    )
+
+    # Response-aware GUI monitoring options
+    monitor_group = parser.add_argument_group(
+        "response monitoring", "Response-aware GUI monitoring options"
+    )
+    monitor_group.add_argument(
+        "--response-aware",
+        action="store_true",
+        help=(
+            "Enable response-aware fuzzing. Monitors GUI application for "
+            "error dialogs, warning popups, memory issues, and hangs. "
+            "Requires --gui-mode and pywinauto."
+        ),
+    )
+    monitor_group.add_argument(
+        "--detect-dialogs",
+        action="store_true",
+        help="Detect error dialogs and warning popups (requires pywinauto)",
+    )
+    monitor_group.add_argument(
+        "--memory-threshold",
+        type=int,
+        default=1024,
+        metavar="MB",
+        help="Memory threshold for spike detection in MB (default: 1024)",
+    )
+    monitor_group.add_argument(
+        "--hang-timeout",
+        type=float,
+        default=30.0,
+        metavar="SEC",
+        help="Timeout for hang detection in seconds (default: 30.0)",
+    )
+
     args = parser.parse_args()
 
     # Setup logging
@@ -912,6 +1074,195 @@ def main() -> int:
                 print(f"  ... and {len(files) - 10} more")
             print()
 
+        # Network fuzzing if --network-fuzz specified
+        if getattr(args, "network_fuzz", False):
+            if not HAS_NETWORK_FUZZER:
+                print("[ERROR] Network fuzzing module not available.")
+                print(
+                    "Please check that dicom_fuzzer.core.network_fuzzer is installed."
+                )
+                sys.exit(1)
+
+            print("\n" + "=" * 70)
+            print("  DICOM Network Protocol Fuzzing")
+            print("=" * 70)
+            print(f"  Host:       {args.host}:{args.port}")
+            print(f"  AE Title:   {args.ae_title}")
+            print(f"  Strategy:   {args.network_strategy}")
+            print("=" * 70 + "\n")
+
+            try:
+                network_config = DICOMNetworkConfig(
+                    target_host=args.host,
+                    target_port=args.port,
+                    calling_ae=args.ae_title,
+                    timeout=args.timeout,
+                )
+                network_fuzzer = DICOMNetworkFuzzer(network_config)
+
+                # Run network fuzzing with selected strategy
+                logger.info("Starting DICOM network protocol fuzzing...")
+                strategy_map = {
+                    "malformed_pdu": FuzzingStrategy.MALFORMED_PDU,
+                    "invalid_length": FuzzingStrategy.INVALID_LENGTH,
+                    "buffer_overflow": FuzzingStrategy.BUFFER_OVERFLOW,
+                    "integer_overflow": FuzzingStrategy.INTEGER_OVERFLOW,
+                    "null_bytes": FuzzingStrategy.NULL_BYTES,
+                    "unicode_injection": FuzzingStrategy.UNICODE_INJECTION,
+                    "protocol_state": FuzzingStrategy.PROTOCOL_STATE,
+                    "timing_attack": FuzzingStrategy.TIMING_ATTACK,
+                    "all": None,  # None means run all strategies
+                }
+                selected_strategy = strategy_map.get(args.network_strategy)
+                strategies = [selected_strategy] if selected_strategy else None
+                network_results = network_fuzzer.run_campaign(strategies=strategies)
+
+                # Print results
+                print("\n  Network Fuzzing Results:")
+                print(f"  Total PDUs sent:  {len(network_results)}")
+                errors = sum(1 for r in network_results if r.error)
+                print(f"  Errors detected:  {errors}")
+
+                # Print errors if any
+                if errors > 0 and args.verbose:
+                    print("\n  Errors:")
+                    for result in network_results:
+                        if result.error:
+                            print(f"    - {result.strategy.value}: {result.error}")
+
+                print("=" * 70 + "\n")
+
+            except Exception as e:
+                logger.error(f"Network fuzzing failed: {e}", exc_info=args.verbose)
+                print(f"\n[ERROR] Network fuzzing failed: {e}")
+                if args.verbose:
+                    import traceback
+
+                    traceback.print_exc()
+
+        # Security fuzzing if --security-fuzz specified
+        if getattr(args, "security_fuzz", False):
+            if not HAS_SECURITY_FUZZER:
+                print("[ERROR] Security fuzzing module not available.")
+                print(
+                    "Please check that dicom_fuzzer.strategies.medical_device_security is installed."
+                )
+                sys.exit(1)
+
+            print("\n" + "=" * 70)
+            print("  Medical Device Security Fuzzing")
+            print("=" * 70)
+
+            try:
+                import pydicom
+
+                # Load the input DICOM file
+                ds = pydicom.dcmread(str(input_path))
+
+                # Parse CVE targets if specified
+                target_cves = None
+                if getattr(args, "target_cves", None):
+                    from dicom_fuzzer.strategies.medical_device_security import (
+                        CVEPattern,
+                    )
+
+                    cve_map = {
+                        "CVE-2025-35975": CVEPattern.CVE_2025_35975,
+                        "CVE-2025-36521": CVEPattern.CVE_2025_36521,
+                        "CVE-2025-5943": CVEPattern.CVE_2025_5943,
+                        "CVE-2025-1001": CVEPattern.CVE_2025_1001,
+                        "CVE-2022-2119": CVEPattern.CVE_2022_2119,
+                        "CVE-2022-2120": CVEPattern.CVE_2022_2120,
+                    }
+                    target_cves = []
+                    for cve in args.target_cves.split(","):
+                        cve = cve.strip().upper()
+                        if cve in cve_map:
+                            target_cves.append(cve_map[cve])
+                        else:
+                            print(f"  [!] Unknown CVE: {cve}")
+
+                # Parse vulnerability classes if specified
+                target_vulns = None
+                if getattr(args, "vuln_classes", None):
+                    vuln_map = {
+                        "oob_write": VulnerabilityClass.OUT_OF_BOUNDS_WRITE,
+                        "oob_read": VulnerabilityClass.OUT_OF_BOUNDS_READ,
+                        "stack_overflow": VulnerabilityClass.STACK_BUFFER_OVERFLOW,
+                        "heap_overflow": VulnerabilityClass.HEAP_BUFFER_OVERFLOW,
+                        "integer_overflow": VulnerabilityClass.INTEGER_OVERFLOW,
+                        "format_string": VulnerabilityClass.FORMAT_STRING,
+                        "null_deref": VulnerabilityClass.NULL_POINTER_DEREF,
+                        "dos": VulnerabilityClass.DENIAL_OF_SERVICE,
+                    }
+                    target_vulns = []
+                    for vuln in args.vuln_classes.split(","):
+                        vuln = vuln.strip().lower()
+                        if vuln in vuln_map:
+                            target_vulns.append(vuln_map[vuln])
+                        else:
+                            print(f"  [!] Unknown vulnerability class: {vuln}")
+
+                # Create security fuzzer config
+                security_config = MedicalDeviceSecurityConfig(
+                    target_cves=target_cves
+                    if target_cves
+                    else list(CVEPattern)
+                    if "CVEPattern" in dir()
+                    else [],
+                    target_vulns=target_vulns
+                    if target_vulns
+                    else list(VulnerabilityClass),
+                )
+                security_fuzzer = MedicalDeviceSecurityFuzzer(security_config)
+
+                # Generate security mutations
+                mutations = security_fuzzer.generate_mutations(ds)
+                print(f"  Mutations generated: {len(mutations)}")
+
+                # Print summary
+                security_fuzzer.print_summary()
+
+                # Save report if specified
+                if getattr(args, "security_report", None):
+                    summary = security_fuzzer.get_summary()
+                    report_path = Path(args.security_report)
+                    with open(report_path, "w") as report_file:
+                        json.dump(summary, report_file, indent=2)
+                    print(f"  Report saved to: {report_path}")
+
+                # Apply mutations and save fuzzed files
+                if mutations and args.target:
+                    print(f"\n  Applying {len(mutations)} security mutations...")
+                    security_output = output_path / "security_fuzzed"
+                    security_output.mkdir(parents=True, exist_ok=True)
+
+                    for i, mutation in enumerate(mutations[:num_files]):
+                        try:
+                            ds_copy = pydicom.dcmread(str(input_path))
+                            mutated_ds = security_fuzzer.apply_mutation(
+                                ds_copy, mutation
+                            )
+                            output_file = (
+                                security_output
+                                / f"security_{i:04d}_{mutation.name}.dcm"
+                            )
+                            mutated_ds.save_as(str(output_file))
+                        except Exception as e:
+                            logger.debug(
+                                f"Failed to apply mutation {mutation.name}: {e}"
+                            )
+
+                    print(f"  Security-fuzzed files saved to: {security_output}")
+
+            except Exception as e:
+                logger.error(f"Security fuzzing failed: {e}", exc_info=args.verbose)
+                print(f"\n[ERROR] Security fuzzing failed: {e}")
+                if args.verbose:
+                    import traceback
+
+                    traceback.print_exc()
+
         # Target testing if --target specified
         if args.target:
             gui_mode = getattr(args, "gui_mode", False)
@@ -972,7 +1323,7 @@ def main() -> int:
                 test_elapsed = time.time() - test_start
 
                 # Display results (type mismatch between GUITargetRunner/TargetRunner result types)
-                summary = runner.get_summary(results)  # type: ignore[arg-type]
+                summary = runner.get_summary(results)  # type: ignore[arg-type,assignment]
                 print(summary)
                 print(
                     f"\nTarget testing completed in {test_elapsed:.2f}s "

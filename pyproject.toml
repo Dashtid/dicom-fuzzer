@@ -235,6 +235,8 @@ minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
+    # Modern import mode (pytest 2025 best practice for new projects)
+    "--import-mode=importlib",
     # Parallel execution with pytest-xdist (optimized for 4k+ tests)
     # Using 'auto' lets xdist determine optimal worker count based on CPU cores
     "-n=auto",
