@@ -235,11 +235,16 @@ minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
-    # Parallel execution with pytest-xdist
+    # Parallel execution with pytest-xdist (optimized for 4k+ tests)
     # Using 'auto' lets xdist determine optimal worker count based on CPU cores
     "-n=auto",
-    # loadscope distributes by test module/class for better isolation
-    "--dist=loadscope",
+    # worksteal distribution works better for tests with varying durations
+    # It allows idle workers to steal tests from busy workers
+    "--dist=worksteal",
+    # Reduce output verbosity for faster execution (less I/O overhead)
+    "-q",
+    # Short tracebacks reduce output processing time
+    "--tb=short",
     # Coverage options - use source_pkgs config from [tool.coverage.run]
     "--cov=dicom_fuzzer",
     "--cov-report=term-missing",

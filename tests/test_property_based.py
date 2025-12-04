@@ -328,6 +328,7 @@ class TestSecurityProperties:
             max_size=5,
         )
     )
+    @settings(deadline=None)  # Disable deadline - temp dir operations vary in duration
     def test_injection_payload_handling(self, injection_payloads):
         """Property: System handles injection payloads safely."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -360,11 +361,11 @@ class TestSecurityProperties:
 
             # Properties
             assert isinstance(report, dict)
-            assert (
-                len(session.current_file_record.mutations) == len(injection_payloads)
-                if session.current_file_record
-                else True
-            )
+            # After end_file_fuzzing, record is moved to fuzzed_files
+            # Check that mutations were recorded in the completed file record
+            assert len(session.fuzzed_files) >= 1
+            completed_record = list(session.fuzzed_files.values())[-1]
+            assert len(completed_record.mutations) == len(injection_payloads)
 
             # Report generation shouldn't fail with dangerous content
             report_path = session.save_session_report()

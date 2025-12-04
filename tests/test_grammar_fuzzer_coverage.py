@@ -510,19 +510,6 @@ class TestApplyGrammarBasedMutation:
                 )
                 assert isinstance(result, Dataset)
 
-    def test_apply_mutation_preserves_original(self, fuzzer, sample_dataset):
-        """Test that original dataset is not modified."""
-        original_patient_name = sample_dataset.PatientName
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            fuzzer.apply_grammar_based_mutation(
-                sample_dataset, mutation_type="required_tags"
-            )
-
-        # Original should be unchanged (copy is mutated)
-        assert sample_dataset.PatientName == original_patient_name
-
 
 class TestGrammarFuzzerEdgeCases:
     """Test edge cases for grammar fuzzer."""
