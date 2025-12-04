@@ -6,18 +6,19 @@ The DICOM-Fuzzer project maintains comprehensive test coverage across all module
 
 ## Test Statistics
 
-**Last Updated**: October 27, 2025
+**Last Updated**: December 4, 2025
 
-- **Total Tests**: 2,591 tests (2,585 passing - 99.77% pass rate)
+- **Total Tests**: 5,371 tests
 - **Total Source Code**: ~24,000 lines across 70 modules
-- **Total Test Code**: ~15,000+ lines across 118 test files
-- **Test-to-Source Ratio**: ~0.63:1 (comprehensive)
-- **Code Coverage**: 56.10% overall (excellent for fuzzing tool)
-- **Pass Rate**: 99.77% (2,585/2,591 passing)
+- **Total Test Code**: ~20,000+ lines across 159 test files
+- **Test-to-Source Ratio**: ~0.83:1 (comprehensive)
+- **Code Coverage**: 89% overall (9,508 statements, 942 missed)
+- **Pass Rate**: >99% (all tests passing except rare platform-specific flaky tests)
 
 > **Note**: This document was originally created for the Phase 1 implementation (349 tests).
 > The project has since grown significantly with 3D fuzzing, crash intelligence, stability features,
-> and extensive testing infrastructure. For current module-by-module coverage, see [COVERAGE.md](COVERAGE.md).
+> coverage-guided fuzzing, network/security fuzzing, and extensive testing infrastructure.
+> For current module-by-module coverage, see [COVERAGE.md](COVERAGE.md).
 
 ## Test Breakdown by Module
 
@@ -334,6 +335,33 @@ Tests for `utils/config.py` (13 source lines)
 ---
 
 ### Integration Tests
+
+#### test_integration_e2e.py (37 tests)
+
+End-to-end integration tests for the complete fuzzing workflow
+
+**Test Classes**:
+
+- `TestCoverageTrackerE2E` (7 tests) - Coverage tracking and instrumentation
+- `TestCoverageGuidedFuzzerE2E` (9 tests) - Coverage-guided fuzzing campaigns
+- `TestTargetRunnerE2E` (7 tests) - Target runner execution and error handling
+- `TestDICOMGeneratorE2E` (5 tests) - DICOM file generation with fuzzers
+- `TestNetworkFuzzerE2E` (4 tests) - Network protocol fuzzing
+- `TestSecurityFuzzerE2E` (3 tests) - Security vulnerability fuzzing
+- `TestGUIMonitorE2E` (2 tests) - GUI monitoring integration
+
+**Key Scenarios Tested**:
+
+- Complete fuzzing pipeline: parse -> fuzz -> validate -> generate
+- Coverage-guided mutation and corpus management
+- Network C-STORE and C-ECHO operations
+- Security pattern detection and exploitation testing
+- Resource management and cleanup
+- Error recovery and exception handling
+
+**Coverage**: 100% (37/37 passing)
+
+---
 
 #### test_integration.py (21 tests)
 End-to-end workflow and cross-module testing
