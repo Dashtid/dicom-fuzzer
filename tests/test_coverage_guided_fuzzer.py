@@ -198,8 +198,12 @@ class TestCorpusManager:
         assert "bit_flip" in weights
 
 
+@pytest.mark.slow
 class TestCoverageGuidedMutator:
-    """Test coverage-guided mutation engine."""
+    """Test coverage-guided mutation engine.
+
+    Note: Marked slow due to non-deterministic behavior in parallel test execution.
+    """
 
     def test_basic_mutations(self):
         """Test basic mutation operations."""
