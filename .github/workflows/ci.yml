@@ -194,7 +194,8 @@ jobs:
           hide-report: false
           create-new-comment: false
           hide-comment: false
-          report-only-changed-files: false
+          report-only-changed-files: true
+          remove-links-to-files: true
 
   build:
     name: Build Package
