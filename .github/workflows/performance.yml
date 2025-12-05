@@ -36,7 +36,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          uv run pytest tests/ -v -p no:xdist --benchmark-only --benchmark-autosave --benchmark-json=benchmark.json
+          uv run pytest tests/ -v -p no:xdist -o "addopts=" --benchmark-only --benchmark-autosave --benchmark-json=benchmark.json
 
       - name: Download previous benchmark data
         uses: actions/cache@v4
@@ -81,21 +81,31 @@ jobs:
         run: |
           # Create memory profiling script
           cat > profile_memory.py << 'EOF'
+          import tempfile
+          from pathlib import Path
           from memory_profiler import profile
-          from pydicom.dataset import Dataset, FileMetaDataset
+          from pydicom.dataset import Dataset, FileMetaDataset, FileDataset
           from pydicom.uid import generate_uid
           from dicom_fuzzer.core.parser import DicomParser
           from dicom_fuzzer.core.mutator import DicomMutator
 
-          def create_test_dataset():
-              """Create a minimal DICOM dataset for testing."""
-              ds = Dataset()
-              ds.file_meta = FileMetaDataset()
-              ds.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-              ds.file_meta.MediaStorageSOPInstanceUID = generate_uid()
-              ds.file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
-              ds.SOPClassUID = ds.file_meta.MediaStorageSOPClassUID
-              ds.SOPInstanceUID = ds.file_meta.MediaStorageSOPInstanceUID
+          def create_test_dicom_file():
+              """Create a minimal DICOM file for testing."""
+              # Create temp file
+              temp_dir = tempfile.mkdtemp()
+              temp_path = Path(temp_dir) / "test.dcm"
+
+              # Create file meta
+              file_meta = FileMetaDataset()
+              file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+              file_meta.MediaStorageSOPInstanceUID = generate_uid()
+              file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+              file_meta.ImplementationClassUID = generate_uid()
+
+              # Create dataset
+              ds = FileDataset(str(temp_path), {}, file_meta=file_meta, preamble=b"\x00" * 128)
+              ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+              ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
               ds.PatientName = "TEST^PATIENT"
               ds.PatientID = "12345"
               ds.Modality = "CT"
@@ -108,20 +118,23 @@ jobs:
               ds.SamplesPerPixel = 1
               ds.PhotometricInterpretation = "MONOCHROME2"
               ds.PixelData = b"\x00" * (64 * 64 * 2)
-              return ds
+
+              # Save to file
+              ds.save_as(str(temp_path), write_like_original=False)
+              return temp_path, ds
 
           @profile
           def test_parser_memory():
               """Profile DICOM parser memory usage."""
-              dataset = create_test_dataset()
-              parser = DicomParser(dataset)
+              temp_path, _ = create_test_dicom_file()
+              parser = DicomParser(str(temp_path))
               metadata = parser.extract_metadata()
               return metadata
 
           @profile
           def test_mutator_memory():
               """Profile DICOM mutator memory usage."""
-              dataset = create_test_dataset()
+              _, dataset = create_test_dicom_file()
               mutator = DicomMutator()
               mutator.start_session(dataset)
               for _ in range(100):
