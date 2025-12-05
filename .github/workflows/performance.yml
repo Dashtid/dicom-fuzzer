@@ -27,11 +27,11 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install 3.14
+        run: uv python install 3.13
 
       - name: Install dependencies
         run: |
-          uv sync --extra dev
+          uv sync --all-extras
           uv pip install pytest-benchmark memory-profiler
 
       - name: Run benchmarks
@@ -70,11 +70,11 @@ jobs:
           version: "latest"
 
       - name: Set up Python
-        run: uv python install 3.14
+        run: uv python install 3.13
 
       - name: Install dependencies
         run: |
-          uv sync --extra dev
+          uv sync --all-extras
           uv pip install memory-profiler matplotlib
 
       - name: Profile memory usage
@@ -135,11 +135,11 @@ jobs:
           version: "latest"
 
       - name: Set up Python
-        run: uv python install 3.14
+        run: uv python install 3.13
 
       - name: Install dependencies
         run: |
-          uv sync --extra dev
+          uv sync --all-extras
           uv pip install locust
 
       - name: Create load test script
@@ -201,11 +201,11 @@ jobs:
           version: "latest"
 
       - name: Set up Python
-        run: uv python install 3.14
+        run: uv python install 3.13
 
       - name: Install dependencies
         run: |
-          uv sync --extra dev
+          uv sync --all-extras
           uv pip install py-spy
 
       - name: CPU profiling with py-spy
