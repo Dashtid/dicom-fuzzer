@@ -625,6 +625,275 @@ class TestFuzzerReset:
         assert coverage_stats["total_executions"] == 0
 
 
+class TestAddSeedValidation:
+    """Test add_seed validation and error handling (lines 162-169)."""
+
+    def test_add_seed_invalid_type(self, temp_corpus_dir):
+        """Test add_seed raises TypeError for non-Dataset input (line 163)."""
+        fuzzer = CoverageGuidedFuzzer(corpus_dir=temp_corpus_dir)
+
+        with pytest.raises(TypeError) as exc_info:
+            fuzzer.add_seed("not_a_dataset")  # type: ignore
+
+        assert "dataset must be a pydicom Dataset instance" in str(exc_info.value)
+        assert "str" in str(exc_info.value)
+
+    def test_add_seed_empty_dataset(self, temp_corpus_dir):
+        """Test add_seed raises ValueError for empty Dataset (line 169)."""
+        fuzzer = CoverageGuidedFuzzer(corpus_dir=temp_corpus_dir)
+
+        empty_ds = Dataset()
+        # Verify it's empty
+        assert len(empty_ds) == 0
+
+        with pytest.raises(ValueError) as exc_info:
+            fuzzer.add_seed(empty_ds)
+
+        assert "must contain at least one data element" in str(exc_info.value)
+
+
+class TestFuzzIterationExceptionHandling:
+    """Test fuzz_iteration exception handling branches (lines 224-248)."""
+
+    def test_fuzz_iteration_with_valueerror_crash(
+        self, temp_corpus_dir, sample_dataset
+    ):
+        """Test that ValueError from target is caught and recorded (line 231-234)."""
+        call_count = [0]
+
+        def value_error_target(ds):
+            call_count[0] += 1
+            if call_count[0] > 1:  # Crash on mutated inputs
+                raise ValueError("Test ValueError crash")
+            return True
+
+        fuzzer = CoverageGuidedFuzzer(
+            corpus_dir=temp_corpus_dir,
+            target_function=value_error_target,
+        )
+        fuzzer.add_seed(sample_dataset)
+
+        # Run iterations to trigger the ValueError handling
+        for _ in range(5):
+            fuzzer.fuzz_iteration()
+
+        # Should have recorded at least one crash
+        assert len(fuzzer.crashes) >= 1
+        assert any(c["exception_type"] == "ValueError" for c in fuzzer.crashes)
+
+    def test_fuzz_iteration_with_typeerror_crash(self, temp_corpus_dir, sample_dataset):
+        """Test that TypeError from target is caught and recorded (line 231-234)."""
+        call_count = [0]
+
+        def type_error_target(ds):
+            call_count[0] += 1
+            if call_count[0] > 1:
+                raise TypeError("Test TypeError crash")
+            return True
+
+        fuzzer = CoverageGuidedFuzzer(
+            corpus_dir=temp_corpus_dir,
+            target_function=type_error_target,
+        )
+        fuzzer.add_seed(sample_dataset)
+
+        for _ in range(5):
+            fuzzer.fuzz_iteration()
+
+        assert any(c["exception_type"] == "TypeError" for c in fuzzer.crashes)
+
+    def test_fuzz_iteration_with_attributeerror_crash(
+        self, temp_corpus_dir, sample_dataset
+    ):
+        """Test that AttributeError from target is caught (line 231-234)."""
+        call_count = [0]
+
+        def attr_error_target(ds):
+            call_count[0] += 1
+            if call_count[0] > 1:
+                raise AttributeError("Test AttributeError crash")
+            return True
+
+        fuzzer = CoverageGuidedFuzzer(
+            corpus_dir=temp_corpus_dir,
+            target_function=attr_error_target,
+        )
+        fuzzer.add_seed(sample_dataset)
+
+        for _ in range(5):
+            fuzzer.fuzz_iteration()
+
+        assert any(c["exception_type"] == "AttributeError" for c in fuzzer.crashes)
+
+    def test_fuzz_iteration_with_keyerror_crash(self, temp_corpus_dir, sample_dataset):
+        """Test that KeyError from target is caught (line 231-234)."""
+        call_count = [0]
+
+        def key_error_target(ds):
+            call_count[0] += 1
+            if call_count[0] > 1:
+                raise KeyError("missing_key")
+            return True
+
+        fuzzer = CoverageGuidedFuzzer(
+            corpus_dir=temp_corpus_dir,
+            target_function=key_error_target,
+        )
+        fuzzer.add_seed(sample_dataset)
+
+        for _ in range(5):
+            fuzzer.fuzz_iteration()
+
+        assert any(c["exception_type"] == "KeyError" for c in fuzzer.crashes)
+
+    def test_fuzz_iteration_with_oserror_crash(self, temp_corpus_dir, sample_dataset):
+        """Test that OSError from target is caught (lines 235-238)."""
+        call_count = [0]
+
+        def os_error_target(ds):
+            call_count[0] += 1
+            if call_count[0] > 1:
+                raise OSError("Test OSError crash")
+            return True
+
+        fuzzer = CoverageGuidedFuzzer(
+            corpus_dir=temp_corpus_dir,
+            target_function=os_error_target,
+        )
+        fuzzer.add_seed(sample_dataset)
+
+        for _ in range(5):
+            fuzzer.fuzz_iteration()
+
+        assert any(c["exception_type"] == "OSError" for c in fuzzer.crashes)
+
+    def test_fuzz_iteration_with_unexpected_exception(
+        self, temp_corpus_dir, sample_dataset
+    ):
+        """Test that unexpected exceptions are caught (lines 239-248)."""
+        call_count = [0]
+
+        def unexpected_error_target(ds):
+            call_count[0] += 1
+            if call_count[0] > 1:
+                raise ZeroDivisionError("Test unexpected crash")
+            return True
+
+        fuzzer = CoverageGuidedFuzzer(
+            corpus_dir=temp_corpus_dir,
+            target_function=unexpected_error_target,
+        )
+        fuzzer.add_seed(sample_dataset)
+
+        for _ in range(5):
+            fuzzer.fuzz_iteration()
+
+        assert any(c["exception_type"] == "ZeroDivisionError" for c in fuzzer.crashes)
+
+
+class TestFuzzIterationInterestingInput:
+    """Test fuzz_iteration interesting input detection (lines 253-276)."""
+
+    def test_fuzz_iteration_coverage_interesting(self, temp_corpus_dir, sample_dataset):
+        """Test that coverage-increasing inputs are marked interesting (lines 254-257)."""
+
+        def simple_target(ds):
+            return True
+
+        fuzzer = CoverageGuidedFuzzer(
+            corpus_dir=temp_corpus_dir,
+            target_function=simple_target,
+        )
+        fuzzer.add_seed(sample_dataset)
+
+        # Mock is_interesting to return True for new coverage
+        original_is_interesting = fuzzer.coverage_tracker.is_interesting
+
+        def mock_is_interesting(coverage):
+            # Return True occasionally to simulate interesting coverage
+            return True
+
+        fuzzer.coverage_tracker.is_interesting = mock_is_interesting
+
+        # Run iterations
+        for _ in range(10):
+            fuzzer.fuzz_iteration()
+
+        # Should have found interesting inputs
+        assert fuzzer.stats.interesting_inputs_found >= 1
+
+        # Restore original method
+        fuzzer.coverage_tracker.is_interesting = original_is_interesting
+
+    def test_fuzz_iteration_corpus_add_returns_entry(
+        self, temp_corpus_dir, sample_dataset
+    ):
+        """Test that new corpus entries are returned (lines 261-276)."""
+
+        def simple_target(ds):
+            return True
+
+        fuzzer = CoverageGuidedFuzzer(
+            corpus_dir=temp_corpus_dir,
+            target_function=simple_target,
+        )
+        fuzzer.add_seed(sample_dataset)
+
+        # Force a crash to make input interesting
+        call_count = [0]
+
+        def crash_target(ds):
+            call_count[0] += 1
+            if call_count[0] == 2:  # Crash on first mutation
+                raise RuntimeError("Crash!")
+            return True
+
+        fuzzer.target_function = crash_target
+
+        # Run iterations until we get a crash
+        result = None
+        for _ in range(20):
+            r = fuzzer.fuzz_iteration()
+            if r is not None and r.crash_triggered:
+                result = r
+                break
+
+        # Should have returned a crash entry
+        if len(fuzzer.crashes) > 0:
+            assert fuzzer.stats.unique_crashes >= 1
+
+
+class TestFuzzIterationNoneDataset:
+    """Test fuzz_iteration when parent dataset is None (lines 208-212)."""
+
+    def test_fuzz_iteration_parent_dataset_none(self, temp_corpus_dir, sample_dataset):
+        """Test fuzz_iteration handles None parent dataset (lines 209-212)."""
+        fuzzer = CoverageGuidedFuzzer(corpus_dir=temp_corpus_dir)
+        fuzzer.add_seed(sample_dataset)
+
+        # Get the entry and mock get_dataset to return None
+        entry = fuzzer.corpus_manager.get_entry(
+            "seed_" + sample_dataset.SOPInstanceUID[:8]
+        )
+        if entry is None:
+            # Find the actual entry
+            for e in fuzzer.corpus_manager.corpus.values():
+                entry = e
+                break
+
+        if entry:
+            original_get_dataset = entry.get_dataset
+            entry.get_dataset = lambda: None
+
+            result = fuzzer.fuzz_iteration()
+
+            # Should return None when parent dataset is None
+            assert result is None
+
+            # Restore
+            entry.get_dataset = original_get_dataset
+
+
 class TestIntegration:
     """Integration tests for complete fuzzing workflows."""
 

@@ -70,6 +70,7 @@ dev = [
     "pytest-asyncio>=1.2.0",   # Async test support (latest stable)
     "pytest-xdist>=3.8.0",     # Parallel test execution
     "pytest-timeout>=2.4.0",   # Test timeouts
+    "pytest-rerunfailures>=14.0",  # Retry flaky tests (handles xdist race conditions)
     "pytest-benchmark>=5.0.0", # Performance regression testing
     "pytest-mock>=3.15.0",     # Better mocking utilities
     "pytest-snapshot>=0.9.0",  # Snapshot testing for outputs
