@@ -859,7 +859,9 @@ class TestCoverageMissingLines:
 
         # Mock getattr within the parser module scope instead of builtins
         # This is safer and doesn't leave global state pollution
-        with patch("dicom_fuzzer.core.parser.getattr", side_effect=RuntimeError("Mock error")):
+        with patch(
+            "dicom_fuzzer.core.parser.getattr", side_effect=RuntimeError("Mock error")
+        ):
             result = parser.get_transfer_syntax()
             assert result is None  # Line 374 (exception caught, returns None)
 

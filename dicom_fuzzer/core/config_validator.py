@@ -372,7 +372,9 @@ class ConfigValidator:
             )
         )
 
-    def _check_disk_space(self, output_dir: Path, min_mb: float, num_files: int) -> None:
+    def _check_disk_space(
+        self, output_dir: Path, min_mb: float, num_files: int
+    ) -> None:
         """Check available disk space."""
         try:
             stat = shutil.disk_usage(
