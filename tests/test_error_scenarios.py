@@ -106,6 +106,7 @@ class TestCorruptedFileHandling:
         assert not result.is_valid or len(result.warnings) > 0
 
 
+@pytest.mark.slow
 class TestDiskSpaceErrors:
     """Test handling disk space exhaustion."""
 
@@ -262,6 +263,7 @@ class TestPermissionErrors:
                 ensure_directory(temp_dir / "forbidden" / "nested")
 
 
+@pytest.mark.slow
 class TestResourceExhaustion:
     """Test handling system resource exhaustion."""
 
@@ -367,6 +369,7 @@ class TestInvalidInputData:
         with pytest.raises(ValueError):
             validate_file_path(temp_dir, must_exist=True)
 
+    @pytest.mark.slow
     def test_oversized_file(self, temp_dir):
         """Test handling file exceeding size limit."""
         large_file = temp_dir / "large.dcm"
