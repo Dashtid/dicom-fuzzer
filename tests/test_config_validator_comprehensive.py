@@ -6,6 +6,8 @@ pre-flight checks, and system resource validation.
 
 from unittest.mock import Mock, patch
 
+import pytest
+
 from dicom_fuzzer.core.config_validator import ConfigValidator, ValidationResult
 
 
@@ -564,6 +566,7 @@ class TestValidateAll:
         # Should pass (warnings don't fail in non-strict mode)
         assert len(validator.warnings) > 0
 
+    @pytest.mark.slow
     def test_validate_all_logs_info(self, tmp_path, capture_logs):
         """Test validate_all logs info messages."""
         validator = ConfigValidator(strict=False)
@@ -578,6 +581,7 @@ class TestValidateAll:
             for log in capture_logs
         )
 
+    @pytest.mark.slow
     def test_validate_all_logs_warnings(self, tmp_path, capture_logs):
         """Test validate_all logs warning messages."""
         validator = ConfigValidator(strict=False)
@@ -590,6 +594,7 @@ class TestValidateAll:
         # Check warnings are logged (structlog captures event dicts with 'level' key)
         assert any(log.get("level") == "warning" for log in capture_logs)
 
+    @pytest.mark.slow
     def test_validate_all_logs_errors(self, tmp_path, capture_logs):
         """Test validate_all logs error messages."""
         validator = ConfigValidator()

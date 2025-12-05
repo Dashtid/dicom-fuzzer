@@ -507,6 +507,7 @@ class TestTargetRunnerIntegration:
         assert "Total test cases: 1" in summary
 
 
+@pytest.mark.slow
 class TestDICOMGeneratorIntegration:
     """Integration tests for DICOM generator."""
 
