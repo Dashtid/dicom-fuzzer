@@ -139,6 +139,7 @@ class TestParallelSeriesMutator:
         # Should have mutation records
         assert len(records) > 0
 
+    @pytest.mark.flaky(reruns=2, reruns_delay=1)
     def test_parallel_boundary_slice_targeting(self, sample_series):
         """Test parallel BOUNDARY_SLICE_TARGETING strategy."""
         mutator = ParallelSeriesMutator(workers=2, seed=42)

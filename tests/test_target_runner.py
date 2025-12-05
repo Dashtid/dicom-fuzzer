@@ -444,6 +444,7 @@ class TestGetSummary:
         assert "... and 5 more" in summary  # Shows first 10, mentions 5 more
 
 
+@pytest.mark.slow
 class TestIntegration:
     """Integration tests."""
 

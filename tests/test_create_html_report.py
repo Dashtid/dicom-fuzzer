@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -521,7 +521,6 @@ class TestMainModule:
 
         # Import and run main
         import sys
-        from importlib import reload
 
         old_argv = sys.argv
         try:
@@ -716,30 +715,30 @@ class TestJinja2Integration:
     def test_render_with_jinja2_loops(self):
         """Test jinja2 loop rendering."""
         try:
-            import jinja2
-
-            template = "{% for item in items %}{{ item }},{% endfor %}"
-            data = {"items": [1, 2, 3]}
-
-            result = render_report(template, data)
-
-            assert "1" in result
-            assert "2" in result
-            assert "3" in result
+            import jinja2  # noqa: F401 - imported to check availability
         except ImportError:
             pytest.skip("jinja2 not installed")
+
+        template = "{% for item in items %}{{ item }},{% endfor %}"
+        data = {"items": [1, 2, 3]}
+
+        result = render_report(template, data)
+
+        assert "1" in result
+        assert "2" in result
+        assert "3" in result
 
     def test_render_with_jinja2_conditionals(self):
         """Test jinja2 conditional rendering."""
         try:
-            import jinja2
-
-            template = "{% if show %}Visible{% else %}Hidden{% endif %}"
-            data = {"show": True}
-
-            result = render_report(template, data)
-
-            assert "Visible" in result
-            assert "Hidden" not in result
+            import jinja2  # noqa: F401 - imported to check availability
         except ImportError:
             pytest.skip("jinja2 not installed")
+
+        template = "{% if show %}Visible{% else %}Hidden{% endif %}"
+        data = {"show": True}
+
+        result = render_report(template, data)
+
+        assert "Visible" in result
+        assert "Hidden" not in result
