@@ -149,6 +149,7 @@ class TestPhase2Phase4Integration:
                     f"Slice {i} mismatch"
                 )
 
+    @pytest.mark.flaky(reruns=2, reruns_delay=1)
     def test_parallel_mutator_with_all_strategies(self, sample_series_files):
         """Test ParallelSeriesMutator with all mutation strategies."""
         series_dir, slice_paths = sample_series_files

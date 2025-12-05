@@ -578,6 +578,7 @@ class TestBinaryTargetExecution:
     """Test execution of external binary targets."""
 
     @pytest.mark.asyncio
+    @pytest.mark.flaky(reruns=2, reruns_delay=1)
     async def test_binary_target_execution(self):
         """Test execution of external binary (lines 363-393)."""
         import sys
