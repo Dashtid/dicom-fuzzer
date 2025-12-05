@@ -1,11 +1,17 @@
 """Generate HTML report from JSON fuzzing results."""
 
+from __future__ import annotations
+
 import json
 import sys
+from types import ModuleType
 
 # Import jinja2 at module level for test compatibility
+jinja2: ModuleType | None
 try:
-    import jinja2
+    import jinja2 as _jinja2
+
+    jinja2 = _jinja2
 except ImportError:
     jinja2 = None
 
