@@ -331,9 +331,13 @@ class DicomMutator:
         """
         # OPTIMIZATION: Create cache key from dataset features
         # This avoids re-checking strategy applicability for similar datasets
+        # NOTE: Convert Modality to str to avoid pydicom MultiValue hashing issues
+        # (MultiValue objects are unhashable in Python 3.11+ / pydicom 3.0+)
+        modality_value = dataset.get("Modality", None)
+        modality_str = str(modality_value) if modality_value is not None else None
         cache_key = (
             tuple(sorted(dataset.dir())),  # Tags present in dataset
-            dataset.get("Modality", None),  # Modality type
+            modality_str,  # Modality type (converted to string for hashability)
             bool(hasattr(dataset, "PixelData")),  # Has pixel data
             tuple(sorted(strategy_names))
             if strategy_names
