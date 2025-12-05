@@ -433,6 +433,7 @@ class TestIntegration:
             assert len(corpus_files) > 0
 
 
+@pytest.mark.slow
 @pytest.mark.xdist_group(name="serial_parallel")
 class TestParallelExecution:
     """Test parallel fuzzing execution.
