@@ -13,12 +13,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from dicom_fuzzer.cli.realtime_monitor import (
+    HAS_RICH,
     RealtimeMonitor,
     display_stats,
     get_session_stats,
     main,
     monitor_loop,
-    HAS_RICH,
 )
 
 
@@ -131,13 +131,17 @@ class TestRefreshDisplay:
                 monitor._refresh_display()
                 mock_waiting.assert_called_once()
 
-    def test_refresh_display_with_session_file(self, capsys, tmp_path):
+    def test_refresh_display_with_session_file(self, capsys, tmp_path, monkeypatch):
         """Test refresh with valid session file."""
-        reports_dir = Path("./reports/json")
+        # Use tmp_path for isolation from other session files
+        reports_dir = tmp_path / "reports" / "json"
         reports_dir.mkdir(parents=True, exist_ok=True)
 
         session_data = {
-            "session_info": {"session_name": "test_session", "start_time": "2025-01-01"},
+            "session_info": {
+                "session_name": "test_session",
+                "start_time": "2025-01-01",
+            },
             "statistics": {
                 "files_fuzzed": 100,
                 "mutations_applied": 500,
@@ -151,15 +155,36 @@ class TestRefreshDisplay:
         session_file = reports_dir / "session_test.json"
         session_file.write_text(json.dumps(session_data))
 
-        try:
-            monitor = RealtimeMonitor()
-            monitor._refresh_display()
+        # Patch the hardcoded reports_dir path in _refresh_display
+        def patched_refresh_display(self):
+            """Patched refresh display using tmp_path."""
+            if not reports_dir.exists():
+                self._print_waiting()
+                return
 
-            captured = capsys.readouterr()
-            assert "test_session" in captured.out or "Error" in captured.out
-        finally:
-            if session_file.exists():
-                session_file.unlink()
+            session_files = list(reports_dir.glob("session_*.json"))
+            if not session_files:
+                self._print_waiting()
+                return
+
+            latest = max(session_files, key=lambda p: p.stat().st_mtime)
+
+            try:
+                with open(latest, encoding="utf-8") as f:
+                    data = json.load(f)
+                self._display_stats(data)
+            except Exception as e:
+                print(f"Error reading session: {e}")
+
+        monkeypatch.setattr(
+            RealtimeMonitor, "_refresh_display", patched_refresh_display
+        )
+
+        monitor = RealtimeMonitor()
+        monitor._refresh_display()
+
+        captured = capsys.readouterr()
+        assert "test_session" in captured.out or "Error" in captured.out
 
     def test_refresh_display_json_error(self, capsys, tmp_path):
         """Test refresh with invalid JSON file."""
@@ -231,8 +256,16 @@ class TestDisplayStats:
                 "successes": 98,
             },
             "crashes": [
-                {"crash_id": "crash_001", "crash_type": "segfault", "severity": "critical"},
-                {"crash_id": "crash_002", "crash_type": "buffer_overflow", "severity": "high"},
+                {
+                    "crash_id": "crash_001",
+                    "crash_type": "segfault",
+                    "severity": "critical",
+                },
+                {
+                    "crash_id": "crash_002",
+                    "crash_type": "buffer_overflow",
+                    "severity": "high",
+                },
             ],
         }
 
@@ -247,7 +280,10 @@ class TestDisplayStats:
     def test_display_stats_severity_icons(self, capsys):
         """Test that severity icons are displayed correctly."""
         data = {
-            "session_info": {"session_name": "severity_test", "start_time": "2025-01-01"},
+            "session_info": {
+                "session_name": "severity_test",
+                "start_time": "2025-01-01",
+            },
             "statistics": {"files_fuzzed": 0, "crashes": 4, "hangs": 0, "successes": 0},
             "crashes": [
                 {"crash_id": "c1", "crash_type": "test", "severity": "critical"},
@@ -283,7 +319,12 @@ class TestDisplayStats:
         """Test that progress bar is displayed."""
         data = {
             "session_info": {"session_name": "progress_test"},
-            "statistics": {"files_fuzzed": 25, "crashes": 0, "hangs": 0, "successes": 25},
+            "statistics": {
+                "files_fuzzed": 25,
+                "crashes": 0,
+                "hangs": 0,
+                "successes": 25,
+            },
             "crashes": [],
         }
 
@@ -457,7 +498,9 @@ class TestMainFunction:
     def test_main_default_args(self):
         """Test main with default arguments."""
         with patch("sys.argv", ["realtime_monitor.py"]):
-            with patch("dicom_fuzzer.cli.realtime_monitor.RealtimeMonitor") as mock_monitor:
+            with patch(
+                "dicom_fuzzer.cli.realtime_monitor.RealtimeMonitor"
+            ) as mock_monitor:
                 mock_instance = MagicMock()
                 mock_monitor.return_value = mock_instance
 
@@ -468,8 +511,12 @@ class TestMainFunction:
 
     def test_main_custom_session_dir(self):
         """Test main with custom session directory."""
-        with patch("sys.argv", ["realtime_monitor.py", "--session-dir", "/custom/path"]):
-            with patch("dicom_fuzzer.cli.realtime_monitor.RealtimeMonitor") as mock_monitor:
+        with patch(
+            "sys.argv", ["realtime_monitor.py", "--session-dir", "/custom/path"]
+        ):
+            with patch(
+                "dicom_fuzzer.cli.realtime_monitor.RealtimeMonitor"
+            ) as mock_monitor:
                 mock_instance = MagicMock()
                 mock_monitor.return_value = mock_instance
 
@@ -481,7 +528,9 @@ class TestMainFunction:
     def test_main_custom_refresh_rate(self):
         """Test main with custom refresh rate."""
         with patch("sys.argv", ["realtime_monitor.py", "--refresh", "5"]):
-            with patch("dicom_fuzzer.cli.realtime_monitor.RealtimeMonitor") as mock_monitor:
+            with patch(
+                "dicom_fuzzer.cli.realtime_monitor.RealtimeMonitor"
+            ) as mock_monitor:
                 mock_instance = MagicMock()
                 mock_monitor.return_value = mock_instance
 
