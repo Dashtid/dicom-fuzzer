@@ -55,7 +55,7 @@ def generate_reports(
         Path to the generated HTML report
 
     """
-    print(f"📊 Loading session data from: {session_json_path}")
+    print(f"[*] Loading session data from: {session_json_path}")
 
     # Load session data
     with open(session_json_path, encoding="utf-8") as f:
@@ -65,9 +65,9 @@ def generate_reports(
     reporter = EnhancedReportGenerator(output_dir="./reports")
 
     # Generate HTML report
-    print("🎨 Generating HTML report...")
+    print("[*] Generating HTML report...")
     html_path = reporter.generate_html_report(session_data, output_html)
-    print(f"✅ HTML report generated: {html_path}")
+    print(f"[+] HTML report generated: {html_path}")
 
     # Print summary
     stats = session_data.get("statistics", {})
@@ -84,20 +84,20 @@ def generate_reports(
     print("=" * 60)
 
     if crashes:
-        print(f"\n⚠️  {len(crashes)} crash(es) detected - see report for details")
+        print(f"\n[!] {len(crashes)} crash(es) detected - see report for details")
         print("\nCrash Artifacts:")
         for crash in crashes:
-            print(f"  • {crash.get('crash_id')}")
+            print(f"  - {crash.get('crash_id')}")
             print(f"    Sample: {crash.get('preserved_sample_path')}")
             print(f"    Log:    {crash.get('crash_log_path')}")
             if crash.get("reproduction_command"):
                 print(f"    Repro:  {crash['reproduction_command']}")
             print()
 
-    print(f"\n📄 Full report available at: {html_path}")
+    print(f"\n[i] Full report available at: {html_path}")
 
     if keep_json:
-        print(f"📄 JSON data saved at: {session_json_path}")
+        print(f"[i] JSON data saved at: {session_json_path}")
 
     return html_path
 
@@ -151,7 +151,7 @@ The generated HTML report includes:
 
     # Validate input file
     if not args.session_json.exists():
-        print(f"❌ Error: File not found: {args.session_json}", file=sys.stderr)
+        print(f"[-] Error: File not found: {args.session_json}", file=sys.stderr)
         sys.exit(1)
 
     try:
@@ -163,10 +163,10 @@ The generated HTML report includes:
         )
 
     except json.JSONDecodeError as e:
-        print(f"❌ Error: Invalid JSON file: {e}", file=sys.stderr)
+        print(f"[-] Error: Invalid JSON file: {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Error generating report: {e}", file=sys.stderr)
+        print(f"[-] Error generating report: {e}", file=sys.stderr)
         import traceback
 
         traceback.print_exc()

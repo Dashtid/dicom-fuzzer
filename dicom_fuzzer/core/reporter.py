@@ -310,7 +310,7 @@ class ReportGenerator:
         self, summary: dict[str, int], total_crashes: int
     ) -> str:
         """Generate summary section HTML."""
-        html = "<h2>📊 Summary</h2>\n<div class='summary-grid'>\n"
+        html = "<h2>Summary</h2>\n<div class='summary-grid'>\n"
 
         # Total crashes
         html += f"""
@@ -337,7 +337,7 @@ class ReportGenerator:
         if not crashes:
             return "<h2>No crashes found</h2>\n"
 
-        html = "<h2>🔍 Crash Details</h2>\n"
+        html = "<h2>Crash Details</h2>\n"
 
         for crash in crashes:
             severity_class = f"crash-{crash.severity.value.lower()}"
@@ -384,7 +384,7 @@ class ReportGenerator:
 
     def _generate_performance_section(self, metrics: dict) -> str:
         """Generate performance metrics section HTML."""
-        html = "<h2>⚡ Performance Metrics</h2>\n<div class='summary-grid'>\n"
+        html = "<h2>Performance Metrics</h2>\n<div class='summary-grid'>\n"
 
         # Key metrics
         metric_items = [
