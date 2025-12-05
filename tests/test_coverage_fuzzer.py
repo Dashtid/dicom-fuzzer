@@ -652,12 +652,8 @@ class TestAddSeedValidation:
         assert "must contain at least one data element" in str(exc_info.value)
 
 
-@pytest.mark.slow
 class TestFuzzIterationExceptionHandling:
-    """Test fuzz_iteration exception handling branches (lines 224-248).
-
-    Note: Marked slow due to pydicom MultiValue hashing issues in Python 3.11+
-    """
+    """Test fuzz_iteration exception handling branches (lines 224-248)."""
 
     def test_fuzz_iteration_with_valueerror_crash(
         self, temp_corpus_dir, sample_dataset
@@ -685,7 +681,6 @@ class TestFuzzIterationExceptionHandling:
         assert len(fuzzer.crashes) >= 1
         assert any(c["exception_type"] == "ValueError" for c in fuzzer.crashes)
 
-    @pytest.mark.slow
     def test_fuzz_iteration_with_typeerror_crash(self, temp_corpus_dir, sample_dataset):
         """Test that TypeError from target is caught and recorded (line 231-234)."""
         call_count = [0]

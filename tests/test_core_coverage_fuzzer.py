@@ -431,12 +431,8 @@ class TestStatisticsTracking:
         # Should have calculated exec/sec
         assert fuzzer.stats.executions_per_second >= 0
 
-    @pytest.mark.slow
     def test_crash_counting(self, tmp_path, sample_dataset):
-        """Test crash counting.
-
-        Note: Marked slow due to pydicom MultiValue hashing issues in Python 3.12+
-        """
+        """Test crash counting."""
         crash_count = [0]
 
         def sometimes_crashing_target(ds):
