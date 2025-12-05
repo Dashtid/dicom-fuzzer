@@ -333,10 +333,12 @@ class TestValidateCorpusQuality:
 class TestMissingCoveragePaths:
     """Tests for uncovered lines 162-165 in corpus_minimization.py."""
 
-    def test_validate_corrupted_file_exception_path(self, corpus_dir, create_dicom_file):
+    def test_validate_corrupted_file_exception_path(
+        self, corpus_dir, create_dicom_file
+    ):
         """Test lines 162-163: Exception when pydicom.dcmread fails."""
-        from unittest.mock import patch, MagicMock
         import builtins
+        from unittest.mock import MagicMock, patch
 
         # Create a valid DICOM file
         create_dicom_file(corpus_dir / "test.dcm")
@@ -367,8 +369,8 @@ class TestMissingCoveragePaths:
         Since pydicom is imported inside a try block in validate_corpus_quality,
         we need to make the import fail when the function runs.
         """
-        from unittest.mock import patch
         import builtins
+        from unittest.mock import patch
 
         # Create test corpus
         corpus_dir = tmp_path / "corpus"

@@ -121,7 +121,9 @@ def sample_trend_analysis():
         coverage_over_time=[
             (now - timedelta(hours=i), 50 + i * 2.0) for i in range(10, 0, -1)
         ],
-        mutations_over_time=[(now - timedelta(hours=i), i * 10) for i in range(10, 0, -1)],
+        mutations_over_time=[
+            (now - timedelta(hours=i), i * 10) for i in range(10, 0, -1)
+        ],
     )
 
 
@@ -146,7 +148,14 @@ class TestFuzzingVisualizerInitialization:
     def test_color_scheme_defined(self, output_dir):
         """Test that color scheme is properly defined."""
         viz = FuzzingVisualizer(output_dir=output_dir)
-        required_colors = ["primary", "secondary", "success", "warning", "danger", "info"]
+        required_colors = [
+            "primary",
+            "secondary",
+            "success",
+            "warning",
+            "danger",
+            "info",
+        ]
         for color in required_colors:
             assert color in viz.colors
             assert isinstance(viz.colors[color], str)
@@ -163,7 +172,9 @@ class TestStrategyEffectivenessPlots:
         """Test plotting strategy effectiveness bar chart with Matplotlib (PNG)."""
         viz = FuzzingVisualizer(output_dir=output_dir)
 
-        chart_path = viz.plot_strategy_effectiveness(sample_effectiveness_data, output_format="png")
+        chart_path = viz.plot_strategy_effectiveness(
+            sample_effectiveness_data, output_format="png"
+        )
 
         assert chart_path.suffix == ".png"
         assert "strategy_effectiveness" in str(chart_path)
@@ -177,7 +188,9 @@ class TestStrategyEffectivenessPlots:
         """Test plotting strategy effectiveness with SVG output."""
         viz = FuzzingVisualizer(output_dir=output_dir)
 
-        chart_path = viz.plot_strategy_effectiveness(sample_effectiveness_data, output_format="svg")
+        chart_path = viz.plot_strategy_effectiveness(
+            sample_effectiveness_data, output_format="svg"
+        )
 
         assert chart_path.suffix == ".svg"
         assert mock_savefig.called
@@ -190,7 +203,9 @@ class TestStrategyEffectivenessPlots:
         """Test plotting strategy effectiveness with Plotly (HTML)."""
         viz = FuzzingVisualizer(output_dir=output_dir)
 
-        chart_path = viz.plot_strategy_effectiveness(sample_effectiveness_data, output_format="html")
+        chart_path = viz.plot_strategy_effectiveness(
+            sample_effectiveness_data, output_format="html"
+        )
 
         assert chart_path.suffix == ".html"
         assert "strategy_effectiveness" in str(chart_path)
@@ -303,7 +318,9 @@ class TestCoverageHeatmapPlots:
         """Test plotting coverage correlation heatmap with Matplotlib."""
         viz = FuzzingVisualizer(output_dir=output_dir)
 
-        chart_path = viz.plot_coverage_heatmap(sample_coverage_correlation, output_format="png")
+        chart_path = viz.plot_coverage_heatmap(
+            sample_coverage_correlation, output_format="png"
+        )
 
         assert chart_path.suffix == ".png"
         assert "coverage_heatmap" in str(chart_path)
@@ -317,7 +334,9 @@ class TestCoverageHeatmapPlots:
         """Test plotting coverage heatmap with Plotly."""
         viz = FuzzingVisualizer(output_dir=output_dir)
 
-        chart_path = viz.plot_coverage_heatmap(sample_coverage_correlation, output_format="html")
+        chart_path = viz.plot_coverage_heatmap(
+            sample_coverage_correlation, output_format="html"
+        )
 
         assert chart_path.suffix == ".html"
         assert "coverage_heatmap" in str(chart_path)

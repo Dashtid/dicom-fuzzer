@@ -34,13 +34,13 @@ jobs:
           queries: security-extended,security-and-quality
           config: |
             paths:
-              - core
-              - strategies
-              - utils
+              - dicom_fuzzer
             paths-ignore:
               - tests
               - docs
               - .venv
+              - examples
+              - scripts
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
@@ -49,11 +49,4 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:${{matrix.language}}"
-          upload: true
-          output: sarif-results
-
-      - name: Upload SARIF results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: sarif-results/${{ matrix.language }}.sarif
+          # upload: true is default, results are uploaded automatically

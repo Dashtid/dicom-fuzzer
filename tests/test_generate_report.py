@@ -6,20 +6,18 @@ DICOM fuzzing campaigns including HTML, JSON, CSV, and Markdown reports.
 
 import csv
 import json
-import sys
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from dicom_fuzzer.cli.generate_report import (
+    _matplotlib,
     generate_coverage_chart,
     generate_csv_report,
     generate_json_report,
     generate_markdown_report,
     generate_reports,
     main,
-    _matplotlib,
 )
 
 

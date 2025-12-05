@@ -612,6 +612,7 @@ class TestErrorHandlingIntegration:
         assert success_count == 5
 
 
+@pytest.mark.slow
 class TestPerformanceIntegration:
     """Test performance characteristics of integrated components."""
 
