@@ -681,6 +681,7 @@ class TestFuzzIterationExceptionHandling:
         assert len(fuzzer.crashes) >= 1
         assert any(c["exception_type"] == "ValueError" for c in fuzzer.crashes)
 
+    @pytest.mark.slow
     def test_fuzz_iteration_with_typeerror_crash(self, temp_corpus_dir, sample_dataset):
         """Test that TypeError from target is caught and recorded (line 231-234)."""
         call_count = [0]
