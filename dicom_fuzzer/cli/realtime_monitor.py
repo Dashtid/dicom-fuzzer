@@ -119,7 +119,7 @@ class RealtimeMonitor:
         print("=" * 80)
 
         # Statistics Grid
-        print("\n📊 FUZZING STATISTICS")
+        print("\n[*] FUZZING STATISTICS")
         print("-" * 80)
 
         col_width = 25
@@ -131,7 +131,7 @@ class RealtimeMonitor:
         print(" | ".join(s.ljust(col_width) for s in row1))
 
         # Results Grid
-        print("\n🎯 TEST RESULTS")
+        print("\n[+] TEST RESULTS")
         print("-" * 80)
 
         crashes_count = stats.get("crashes", 0)
@@ -140,9 +140,9 @@ class RealtimeMonitor:
         total_tests = crashes_count + hangs_count + success_count
 
         row2 = [
-            f"✓ Success: {success_count}",
-            f"💥 Crashes: {crashes_count}",
-            f"⏱️ Hangs: {hangs_count}",
+            f"[OK] Success: {success_count}",
+            f"[X] Crashes: {crashes_count}",
+            f"[!] Hangs: {hangs_count}",
         ]
         print(" | ".join(s.ljust(col_width) for s in row2))
 
@@ -154,7 +154,7 @@ class RealtimeMonitor:
 
         # Recent Crashes
         if crashes:
-            print("\n🔥 RECENT CRASHES")
+            print("\n[-] RECENT CRASHES")
             print("-" * 80)
 
             for crash in crashes[-5:]:  # Last 5 crashes
@@ -163,11 +163,11 @@ class RealtimeMonitor:
                 severity = crash.get("severity", "unknown")
 
                 severity_icon = {
-                    "critical": "🔴",
-                    "high": "🟠",
-                    "medium": "🟡",
-                    "low": "🟢",
-                }.get(severity, "⚪")
+                    "critical": "[!!]",
+                    "high": "[!]",
+                    "medium": "[*]",
+                    "low": "[i]",
+                }.get(severity, "[ ]")
 
                 print(f"{severity_icon} {crash_id} | {crash_type} | {severity}")
 
@@ -176,9 +176,9 @@ class RealtimeMonitor:
         progress = min(stats.get("files_fuzzed", 0), expected_total)
         bar_width = 60
         filled = int((progress / expected_total) * bar_width)
-        bar = "█" * filled + "░" * (bar_width - filled)
+        bar = "#" * filled + "-" * (bar_width - filled)
 
-        print("\n📈 PROGRESS")
+        print("\n[>] PROGRESS")
         print("-" * 80)
         print(f"[{bar}] {progress}/{expected_total}")
 

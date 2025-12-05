@@ -9,7 +9,7 @@ should always follow the same code path and produce the same coverage.
 Instability indicates problems like uninitialized memory, race conditions,
 or entropy sources that make fuzzing less effective.
 
-Ideal stability: 100% (same input → same coverage every time)
+Ideal stability: 100% (same input -> same coverage every time)
 """
 
 from collections import defaultdict
