@@ -161,7 +161,7 @@ class TestMinimizer:
         minimized_path.write_bytes(minimized_content)
 
         logger.info(
-            f"Minimization complete: {original_size} → {minimized_size} bytes "
+            f"Minimization complete: {original_size} -> {minimized_size} bytes "
             f"({(1 - minimized_size / original_size) * 100:.1f}% reduction)"
         )
 

@@ -36,17 +36,17 @@ def create_html_report(json_path: str, html_path: str | None = None) -> str:
     alert_html = ""
     if hang_rate == 100.0:
         alert_html = """<div class="alert">
-            <strong>⚠️ CRITICAL SECURITY FINDING:</strong> 100% hang rate detected!
+            <strong>[!!] CRITICAL SECURITY FINDING:</strong> 100% hang rate detected!
             This indicates a serious Denial of Service (DoS) vulnerability in the DICOM viewer.
         </div>"""
     elif hang_rate >= 50:
         alert_html = f"""<div class="warning">
-            <strong>⚠️ WARNING:</strong> High hang rate ({hang_rate:.1f}%) detected.
+            <strong>[!] WARNING:</strong> High hang rate ({hang_rate:.1f}%) detected.
             This may indicate a DoS vulnerability.
         </div>"""
     elif total_tests > 0:
         alert_html = f"""<div class="success">
-            <strong>✓ INFO:</strong> Hang rate: {hang_rate:.1f}%
+            <strong>[i] INFO:</strong> Hang rate: {hang_rate:.1f}%
         </div>"""
 
     html_content = f"""<!DOCTYPE html>
@@ -167,12 +167,12 @@ def create_html_report(json_path: str, html_path: str | None = None) -> str:
 </head>
 <body>
     <div class="container">
-        <h1>🔍 DICOM Viewer Security Assessment</h1>
+        <h1>DICOM Viewer Security Assessment</h1>
         <p class="timestamp">Generated: {report["timestamp"]}</p>
 
         {alert_html}
 
-        <h2>📋 Test Configuration</h2>
+        <h2>Test Configuration</h2>
         <table class="config-table">
             <tr>
                 <th>Parameter</th>
@@ -196,7 +196,7 @@ def create_html_report(json_path: str, html_path: str | None = None) -> str:
             </tr>
         </table>
 
-        <h2>📊 Test Results</h2>
+        <h2>Test Results</h2>
         <div class="summary-grid">
             <div class="metric-card">
                 <div class="metric-value">{stats.get("files_processed", 0)}</div>
@@ -224,7 +224,7 @@ def create_html_report(json_path: str, html_path: str | None = None) -> str:
             </div>
         </div>
 
-        <h2>🔐 Security Findings Summary</h2>
+        <h2>Security Findings Summary</h2>
         <table class="config-table">
             <tr>
                 <th>Finding</th>
@@ -256,7 +256,7 @@ def create_html_report(json_path: str, html_path: str | None = None) -> str:
             </tr>
         </table>
 
-        <h2>💡 Recommendations</h2>
+        <h2>Recommendations</h2>
         <ul>
             <li>Investigate hang logs in <code>{config.get("output_dir", "output")}</code> for root cause analysis</li>
             <li>Test fuzzed files manually to reproduce and debug the issue</li>
@@ -266,7 +266,7 @@ def create_html_report(json_path: str, html_path: str | None = None) -> str:
             <li>Update error handling for malformed DICOM data structures</li>
         </ul>
 
-        <h2>📂 Output Files</h2>
+        <h2>Output Files</h2>
         <p>Fuzzed files and hang logs are available in: <code>{config.get("output_dir", "N/A")}</code></p>
         <p>Each hang event has a corresponding log file with details about the problematic DICOM file.</p>
 

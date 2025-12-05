@@ -7,7 +7,7 @@ MUTATION STRATEGIES:
 1. Series Metadata Corruption - Invalid UIDs, missing tags, type confusion
 2. Slice Position Attacks - Randomized ImagePositionPatient, duplicates, extreme values
 3. Boundary Slice Targeting - First/last/middle slice corruption, alternating patterns
-4. Gradient Mutations - Progressive corruption (clean → heavily mutated)
+4. Gradient Mutations - Progressive corruption (clean -> heavily mutated)
 5. Inconsistency Injection - Mixed modalities, conflicting orientations, varying pixel spacing
 
 SECURITY RATIONALE:

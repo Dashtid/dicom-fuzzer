@@ -12,12 +12,12 @@ KEY FEATURES:
 
 DIRECTORY STRUCTURE:
 output_dir/
-├── series_<series_uid>/
-│   ├── slice_001.dcm
-│   ├── slice_002.dcm
-│   ├── ...
-│   ├── metadata.json
-│   └── reproduce.py
++-- series_<series_uid>/
+    +-- slice_001.dcm
+    +-- slice_002.dcm
+    +-- ...
+    +-- metadata.json
+    +-- reproduce.py
 
 SECURITY NOTE: Based on CVE-2025-35975, CVE-2025-36521, CVE-2025-5943,
 fuzzed series must maintain valid DICOM structure to reach parser vulnerabilities.
