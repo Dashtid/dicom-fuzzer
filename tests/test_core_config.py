@@ -227,6 +227,8 @@ class TestSettings:
     def test_default_values(self, tmp_path, monkeypatch):
         """Test default settings."""
         monkeypatch.chdir(tmp_path)
+        # Clear ENVIRONMENT env var to test true defaults
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
         settings = Settings()
         assert settings.app_name == "DICOM-Fuzzer"
         assert settings.app_version == "1.0.0"
@@ -264,6 +266,8 @@ class TestSettings:
     def test_get_summary(self, tmp_path, monkeypatch):
         """Test get_summary method."""
         monkeypatch.chdir(tmp_path)
+        # Clear ENVIRONMENT env var to test true defaults
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
         settings = Settings()
         summary = settings.get_summary()
 
