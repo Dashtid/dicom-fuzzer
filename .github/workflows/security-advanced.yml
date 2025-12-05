@@ -25,6 +25,7 @@ jobs:
 
       - name: Run Semgrep
         uses: returntocorp/semgrep-action@v1
+        id: semgrep
         with:
           config: >-
             p/python
@@ -35,7 +36,7 @@ jobs:
 
       - name: Upload SARIF to GitHub
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('semgrep.sarif') != ''
         with:
           sarif_file: semgrep.sarif
 
@@ -186,7 +187,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Scorecard analysis
-        uses: ossf/scorecard-action@v2
+        uses: ossf/scorecard-action@v2.4.0
         with:
           results_file: results.sarif
           results_format: sarif
@@ -194,6 +195,7 @@ jobs:
 
       - name: Upload Scorecard results to GitHub
         uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('results.sarif') != ''
         with:
           sarif_file: results.sarif
 

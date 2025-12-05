@@ -325,7 +325,16 @@ jobs:
               main()
           EOF
 
-          uv run py-spy record -o cpu-profile.svg --format speedscope -- python cpu_profile.py
+          # py-spy may exit with non-zero when the profiled process exits
+          # Use || true to handle this gracefully
+          uv run py-spy record -o cpu-profile.svg --format speedscope -- python cpu_profile.py || true
+          # Verify profile was created
+          if [ -f cpu-profile.svg ]; then
+            echo "CPU profile created successfully"
+          else
+            echo "Warning: CPU profile not created, creating empty placeholder"
+            echo '<svg></svg>' > cpu-profile.svg
+          fi
 
       - name: Upload CPU profile
         uses: actions/upload-artifact@v4
