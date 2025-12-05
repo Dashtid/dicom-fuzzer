@@ -101,7 +101,7 @@ jobs:
             --enableExperimental
 
       - name: Upload Dependency-Check results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: dependency-check-report
@@ -166,7 +166,7 @@ jobs:
           python -m pip list --format=json > packages.json
 
       - name: Upload supply chain report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: supply-chain-report
@@ -236,7 +236,7 @@ jobs:
           pip-licenses | grep -E "GPL|AGPL" || echo "No copyleft licenses found"
 
       - name: Upload license report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: license-report
           path: |
