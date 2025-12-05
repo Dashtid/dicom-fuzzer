@@ -448,3 +448,7 @@ README_*_insert.txt
 # Benchmark test data
 /benchmark_clean_test/
 coverage.json
+
+# Fuzzing output directory (generated during fuzzing runs)
+/fuzzing_output/
+!/fuzzing_output/.gitkeep

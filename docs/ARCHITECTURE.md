@@ -117,10 +117,10 @@ dicom-fuzzer/
 
 ### Module Count
 
-- **Total Source Files**: 70 Python modules (~24,000 LOC)
-- **Core Modules**: 57 files (largest subsystem)
-- **Test Files**: 118 files (~15,000 LOC)
-- **Test Coverage**: 56.10% overall (excellent for fuzzing tool)
+- **Total Source Files**: 70+ Python modules (~24,000 LOC)
+- **Core Modules**: 57+ files (largest subsystem)
+- **Test Files**: 159 files (~20,000 LOC)
+- **Test Coverage**: 89% overall (9,508 statements covered)
 
 ---
 
@@ -269,6 +269,75 @@ Mutator
 - Campaign statistics
 - Crash summaries
 - Coverage visualization
+
+### 11. Network Fuzzer (`core/network_fuzzer.py`)
+
+**Responsibility**: Network protocol fuzzing for DICOM communications
+
+**Key Features**:
+
+- DICOM C-STORE fuzzing with malformed datasets
+- C-ECHO association testing
+- Protocol-level mutation (PDU manipulation)
+- Connection timeout and error handling
+- Network event logging
+
+**Architecture**:
+
+```text
+NetworkFuzzer
+├── DicomNetworkFuzzer
+│   ├── fuzz_c_store()      # Fuzz C-STORE operations
+│   ├── fuzz_c_echo()       # Fuzz C-ECHO associations
+│   └── fuzz_association()  # Fuzz DICOM associations
+└── NetworkMutator
+    ├── PDU mutations
+    └── Protocol violations
+```
+
+### 12. Security Fuzzer (`core/security_fuzzer.py`)
+
+**Responsibility**: Security-focused fuzzing for vulnerability detection
+
+**Key Features**:
+
+- Security pattern detection (buffer overflow, injection, DoS)
+- Exploit payload generation
+- CVE pattern testing
+- Security severity classification
+- Vulnerability reporting
+
+**Security Patterns Tested**:
+
+- Buffer overflow (oversized strings, deep nesting)
+- Null byte injection
+- Path traversal attempts
+- Integer overflow in length fields
+- Malformed transfer syntax
+- Private tag exploitation
+
+### 13. GUI Monitor (`core/gui_monitor.py`)
+
+**Responsibility**: Monitor GUI applications during fuzzing
+
+**Key Features**:
+
+- Window state monitoring
+- Crash detection via process monitoring
+- Screenshot capture on crash
+- Hang detection with configurable timeouts
+- Process lifecycle management
+
+**Integration**:
+
+```python
+monitor = GUIMonitor(target_process="viewer.exe", timeout=30)
+monitor.start()
+# ... fuzzing operations ...
+if monitor.detect_crash():
+    monitor.capture_screenshot()
+monitor.stop()
+```
 
 ---
 
@@ -671,7 +740,7 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution guidelines.
 
 ---
 
-**Last Updated**: October 27, 2025
-**Version**: 1.2.0
+**Last Updated**: December 5, 2025
+**Version**: 1.3.0
 
 For questions about architecture, open a GitHub issue or discussion.

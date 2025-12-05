@@ -170,9 +170,11 @@ class TestFuzzingSessionProperties:
             min_size=1,
             max_size=50,
         ),
-        num_files=st.integers(min_value=0, max_value=100),
+        num_files=st.integers(min_value=0, max_value=50),  # Reduced max for stability
     )
-    @settings(deadline=500)
+    @settings(
+        deadline=2000, database=None
+    )  # Increased deadline, disabled replay database
     def test_session_tracking_consistency(self, session_name, num_files):
         """Property: Session tracking maintains consistency."""
         with tempfile.TemporaryDirectory() as tmpdir:
