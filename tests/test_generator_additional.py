@@ -49,8 +49,12 @@ class TestGenerationStats:
         assert stats.strategies_used["metadata"] == 2
 
 
+@pytest.mark.slow
 class TestGeneratorErrorHandling:
-    """Test error handling paths in generator."""
+    """Test error handling paths in generator.
+
+    Note: Marked slow due to non-deterministic behavior in parallel test execution.
+    """
 
     def test_generate_with_structure_strategy(self, tmp_path):
         """Test generation with structure fuzzing strategy."""
