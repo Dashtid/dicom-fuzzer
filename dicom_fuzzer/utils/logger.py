@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from structlog.types import EventDict, WrappedLogger
+from structlog.types import EventDict, Processor, WrappedLogger
 
 SENSITIVE_FIELDS = {
     "patient_id",
@@ -117,7 +117,7 @@ def configure_logging(
         force=True,  # Force reconfiguration even if handlers exist
     )
 
-    processors = [
+    processors: list[Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
