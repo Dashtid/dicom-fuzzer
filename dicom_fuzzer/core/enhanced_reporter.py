@@ -463,7 +463,7 @@ class EnhancedReportGenerator:
         """Generate session overview section."""
         html = f"""
         <div class="header">
-            <h1>🔍 {session_info["session_name"]}</h1>
+            <h1>{session_info["session_name"]}</h1>
             <div class="subtitle">Fuzzing Session Report</div>
             <div class="timestamp">
                 Session ID: {session_info["session_id"]}<br>
@@ -472,7 +472,7 @@ class EnhancedReportGenerator:
         </div>
 
         <div class="content">
-            <h2>📊 Session Summary</h2>
+            <h2>Session Summary</h2>
 
             <div class="stats-grid">
                 <div class="stat-card">
@@ -514,7 +514,7 @@ class EnhancedReportGenerator:
         if crash_count > 0:
             html += f"""
             <div class="alert">
-                <span style="font-size: 2em;">⚠️</span>
+                <span style="font-size: 2em;">[!]</span>
                 <div>
                     <strong>SECURITY FINDING:</strong> {crash_count} crash(es) detected during fuzzing!
                     This indicates potential vulnerabilities that require investigation.
@@ -524,7 +524,7 @@ class EnhancedReportGenerator:
         if hang_count > 0:
             html += f"""
             <div class="warning">
-                <span style="font-size: 2em;">⏱️</span>
+                <span style="font-size: 2em;">[!]</span>
                 <div>
                     <strong>DoS RISK:</strong> {hang_count} hang(s)/timeout(s) detected!
                     This may indicate Denial of Service vulnerabilities.
@@ -539,13 +539,13 @@ class EnhancedReportGenerator:
         if not crashes:
             return """
             <div class="success">
-                <span style="font-size: 2em;">✓</span>
+                <span style="font-size: 2em;">[OK]</span>
                 <div><strong>No crashes detected!</strong> All tested files passed successfully.</div>
             </div>
 """
 
         html = """
-            <h2>🔥 Crash Summary</h2>
+            <h2>Crash Summary</h2>
             <table>
                 <tr>
                     <th>Crash ID</th>
@@ -591,7 +591,7 @@ class EnhancedReportGenerator:
             ]
             if critical_crashes:
                 html += """
-            <h3>🚨 Top Critical Crashes</h3>
+            <h3>Top Critical Crashes</h3>
             <table>
                 <tr>
                     <th>Priority</th>
@@ -629,7 +629,7 @@ class EnhancedReportGenerator:
             return ""
 
         html = """
-            <h2>🔍 Crash Details & Forensics</h2>
+            <h2>Crash Details and Forensics</h2>
             <p>Each crash includes complete mutation history and reproduction instructions.</p>
 """
 
@@ -676,7 +676,7 @@ class EnhancedReportGenerator:
 """
                 if triage.get("indicators"):
                     indicators_list = "<br>".join(
-                        f"• {ind}" for ind in triage["indicators"]
+                        f"- {ind}" for ind in triage["indicators"]
                     )
                     html += f"""
                     <div class="info-label">Triage Indicators:</div>
@@ -684,7 +684,7 @@ class EnhancedReportGenerator:
 """
                 if triage.get("recommendations"):
                     recommendations_list = "<br>".join(
-                        f"• {rec}" for rec in triage["recommendations"]
+                        f"- {rec}" for rec in triage["recommendations"]
                     )
                     html += f"""
                     <div class="info-label">Recommendations:</div>
@@ -759,7 +759,7 @@ class EnhancedReportGenerator:
             # Reproduction command
             if crash.get("reproduction_command"):
                 html += f"""
-                <h4>🔄 Reproduction Command:</h4>
+                <h4>Reproduction Command:</h4>
                 <div class="repro-command" onclick="navigator.clipboard.writeText(this.textContent.trim())">
                     {crash["reproduction_command"]}
                 </div>
@@ -807,7 +807,7 @@ class EnhancedReportGenerator:
                 )
 
         html = """
-            <h2>📈 Mutation Analysis</h2>
+            <h2>Mutation Analysis</h2>
             <h3>Strategy Usage</h3>
             <table>
                 <tr>
@@ -868,7 +868,7 @@ class EnhancedReportGenerator:
             ]
             if critical_crashes:
                 html += """
-            <h3>🚨 Top Critical Crashes</h3>
+            <h3>Top Critical Crashes</h3>
             <table>
                 <tr>
                     <th>Priority</th>
