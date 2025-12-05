@@ -34,13 +34,13 @@ jobs:
           queries: security-extended,security-and-quality
           config: |
             paths:
-              - core
-              - strategies
-              - utils
+              - dicom_fuzzer
             paths-ignore:
               - tests
               - docs
               - .venv
+              - examples
+              - scripts
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
