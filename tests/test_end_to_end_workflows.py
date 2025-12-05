@@ -74,7 +74,7 @@ class TestCompleteCrashAnalysisPipeline:
             session_name="e2e_crash_test",
             output_dir=str(crash_workspace["output"]),
             reports_dir=str(crash_workspace["reports"]),
-        crashes_dir=str(crash_workspace["crashes"]),
+            crashes_dir=str(crash_workspace["crashes"]),
         )
 
         # Step 2: Generate fuzzed files

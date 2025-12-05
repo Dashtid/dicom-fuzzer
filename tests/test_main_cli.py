@@ -4,7 +4,6 @@ This module tests the main CLI entry point and helper functions.
 Coverage target: cli/main.py from 9% to >90%
 """
 
-import argparse
 import json
 import logging
 import sys
@@ -181,9 +180,7 @@ class TestApplyResourceLimits:
             "max_memory_mb_hard": 2048,
             "max_cpu_seconds": 30,
         }
-        with patch(
-            "dicom_fuzzer.cli.main.ResourceManager"
-        ) as mock_manager_class:
+        with patch("dicom_fuzzer.cli.main.ResourceManager") as mock_manager_class:
             mock_manager = MagicMock()
             mock_manager_class.return_value = mock_manager
 
@@ -195,9 +192,7 @@ class TestApplyResourceLimits:
     def test_resource_limits_object(self):
         """Test with ResourceLimits object."""
         limits = ResourceLimits(max_memory_mb=512)
-        with patch(
-            "dicom_fuzzer.cli.main.ResourceManager"
-        ) as mock_manager_class:
+        with patch("dicom_fuzzer.cli.main.ResourceManager") as mock_manager_class:
             mock_manager = MagicMock()
             mock_manager_class.return_value = mock_manager
 
@@ -353,9 +348,7 @@ class TestPreCampaignHealthCheck:
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
-        passed, issues = pre_campaign_health_check(
-            output_dir=output_dir, verbose=False
-        )
+        passed, issues = pre_campaign_health_check(output_dir=output_dir, verbose=False)
 
         assert passed is True
 
@@ -363,9 +356,7 @@ class TestPreCampaignHealthCheck:
         """Test output directory is created if it doesn't exist."""
         output_dir = tmp_path / "new_output"
 
-        passed, issues = pre_campaign_health_check(
-            output_dir=output_dir, verbose=False
-        )
+        passed, issues = pre_campaign_health_check(output_dir=output_dir, verbose=False)
 
         assert passed is True
         assert output_dir.exists()
@@ -515,9 +506,7 @@ class TestMain:
 
     def test_main_invalid_input_file(self):
         """Test main fails with non-existent input file."""
-        with patch.object(
-            sys, "argv", ["dicom-fuzzer", "/nonexistent/file.dcm"]
-        ):
+        with patch.object(sys, "argv", ["dicom-fuzzer", "/nonexistent/file.dcm"]):
             with pytest.raises(SystemExit) as exc_info:
                 main()
             assert exc_info.value.code == 1
@@ -542,9 +531,7 @@ class TestMain:
                 str(output_dir),
             ],
         ):
-            with patch(
-                "dicom_fuzzer.cli.main.DICOMGenerator"
-            ) as mock_generator_class:
+            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
                     Path(output_dir / f"fuzzed_{i}.dcm") for i in range(5)
@@ -583,9 +570,7 @@ class TestMain:
                 "metadata,header",
             ],
         ):
-            with patch(
-                "dicom_fuzzer.cli.main.DICOMGenerator"
-            ) as mock_generator_class:
+            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
                     Path(output_dir / f"fuzzed_{i}.dcm") for i in range(5)
@@ -643,9 +628,7 @@ class TestMain:
                 "-v",
             ],
         ):
-            with patch(
-                "dicom_fuzzer.cli.main.DICOMGenerator"
-            ) as mock_generator_class:
+            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
                     Path(output_dir / f"fuzzed_{i}.dcm") for i in range(5)
@@ -684,9 +667,7 @@ class TestMain:
                 "2.0",
             ],
         ):
-            with patch(
-                "dicom_fuzzer.cli.main.DICOMGenerator"
-            ) as mock_generator_class:
+            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_generator_class:
                 mock_generator = MagicMock()
                 generated_files = [
                     Path(output_dir / f"fuzzed_{i}.dcm") for i in range(3)
@@ -697,9 +678,7 @@ class TestMain:
                 mock_generator.stats.strategies_used = {}
                 mock_generator_class.return_value = mock_generator
 
-                with patch(
-                    "dicom_fuzzer.cli.main.TargetRunner"
-                ) as mock_runner_class:
+                with patch("dicom_fuzzer.cli.main.TargetRunner") as mock_runner_class:
                     mock_runner = MagicMock()
                     mock_runner.run_campaign.return_value = []
                     mock_runner.get_summary.return_value = "Test Summary"
@@ -754,9 +733,7 @@ class TestMain:
                 "60",
             ],
         ):
-            with patch(
-                "dicom_fuzzer.cli.main.DICOMGenerator"
-            ) as mock_generator_class:
+            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
                     Path(output_dir / f"fuzzed_{i}.dcm") for i in range(3)
@@ -789,9 +766,7 @@ class TestMain:
                 str(output_dir),
             ],
         ):
-            with patch(
-                "dicom_fuzzer.cli.main.DICOMGenerator"
-            ) as mock_generator_class:
+            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_generator_class:
                 mock_generator_class.side_effect = KeyboardInterrupt()
 
                 with pytest.raises(SystemExit) as exc_info:
@@ -817,12 +792,8 @@ class TestMain:
                 str(output_dir),
             ],
         ):
-            with patch(
-                "dicom_fuzzer.cli.main.DICOMGenerator"
-            ) as mock_generator_class:
-                mock_generator_class.side_effect = RuntimeError(
-                    "Generator failed"
-                )
+            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_generator_class:
+                mock_generator_class.side_effect = RuntimeError("Generator failed")
 
                 with pytest.raises(SystemExit) as exc_info:
                     main()
@@ -851,9 +822,7 @@ class TestMain:
                 str(target_exe),
             ],
         ):
-            with patch(
-                "dicom_fuzzer.cli.main.DICOMGenerator"
-            ) as mock_generator_class:
+            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
                     Path(output_dir / f"fuzzed_{i}.dcm") for i in range(3)
@@ -863,12 +832,8 @@ class TestMain:
                 mock_generator.stats.strategies_used = {}
                 mock_generator_class.return_value = mock_generator
 
-                with patch(
-                    "dicom_fuzzer.cli.main.TargetRunner"
-                ) as mock_runner_class:
-                    mock_runner_class.side_effect = RuntimeError(
-                        "Runner failed"
-                    )
+                with patch("dicom_fuzzer.cli.main.TargetRunner") as mock_runner_class:
+                    mock_runner_class.side_effect = RuntimeError("Runner failed")
 
                     with pytest.raises(SystemExit) as exc_info:
                         main()
@@ -897,9 +862,7 @@ class TestMain:
                 str(target_exe),
             ],
         ):
-            with patch(
-                "dicom_fuzzer.cli.main.DICOMGenerator"
-            ) as mock_generator_class:
+            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
                     Path(output_dir / f"fuzzed_{i}.dcm") for i in range(3)
@@ -909,9 +872,7 @@ class TestMain:
                 mock_generator.stats.strategies_used = {}
                 mock_generator_class.return_value = mock_generator
 
-                with patch(
-                    "dicom_fuzzer.cli.main.TargetRunner"
-                ) as mock_runner_class:
+                with patch("dicom_fuzzer.cli.main.TargetRunner") as mock_runner_class:
                     mock_runner_class.side_effect = FileNotFoundError(
                         "Executable not found"
                     )
@@ -963,9 +924,7 @@ class TestMain:
                 "--stop-on-crash",
             ],
         ):
-            with patch(
-                "dicom_fuzzer.cli.main.DICOMGenerator"
-            ) as mock_generator_class:
+            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
                     Path(output_dir / f"fuzzed_{i}.dcm") for i in range(3)
@@ -975,9 +934,7 @@ class TestMain:
                 mock_generator.stats.strategies_used = {}
                 mock_generator_class.return_value = mock_generator
 
-                with patch(
-                    "dicom_fuzzer.cli.main.TargetRunner"
-                ) as mock_runner_class:
+                with patch("dicom_fuzzer.cli.main.TargetRunner") as mock_runner_class:
                     mock_runner = MagicMock()
                     mock_runner.run_campaign.return_value = []
                     mock_runner.get_summary.return_value = "Test Summary"
@@ -1016,9 +973,7 @@ class TestProgressBar:
                 str(output_dir),
             ],
         ):
-            with patch(
-                "dicom_fuzzer.cli.main.DICOMGenerator"
-            ) as mock_generator_class:
+            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
                     Path(output_dir / f"fuzzed_{i}.dcm") for i in range(50)
@@ -1034,9 +989,7 @@ class TestProgressBar:
                         mock_tqdm.return_value.__enter__ = MagicMock(
                             return_value=mock_pbar
                         )
-                        mock_tqdm.return_value.__exit__ = MagicMock(
-                            return_value=False
-                        )
+                        mock_tqdm.return_value.__exit__ = MagicMock(return_value=False)
 
                         result = main()
 
@@ -1061,9 +1014,7 @@ class TestProgressBar:
                 str(output_dir),
             ],
         ):
-            with patch(
-                "dicom_fuzzer.cli.main.DICOMGenerator"
-            ) as mock_generator_class:
+            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
                     Path(output_dir / f"fuzzed_{i}.dcm") for i in range(50)
@@ -1124,9 +1075,7 @@ class TestEdgeCases:
 
         with patch("shutil.disk_usage") as mock_disk_usage:
             # Return 500 MB free (between 100MB and 1GB)
-            mock_disk_usage.return_value = MagicMock(
-                free=500 * 1024 * 1024
-            )
+            mock_disk_usage.return_value = MagicMock(free=500 * 1024 * 1024)
 
             passed, issues = pre_campaign_health_check(
                 output_dir=output_dir, verbose=True

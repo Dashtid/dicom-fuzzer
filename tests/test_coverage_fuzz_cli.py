@@ -7,7 +7,7 @@ including argument parsing, configuration, and campaign execution.
 import argparse
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -240,7 +240,11 @@ class TestCreateMutationTable:
         """Test mutation table limits to top 10 strategies."""
         # Create more than 10 strategies
         mutation_stats = {
-            f"strategy_{i}": {"success_rate": i * 0.05, "total_count": i * 10, "weight": 1.0}
+            f"strategy_{i}": {
+                "success_rate": i * 0.05,
+                "total_count": i * 10,
+                "weight": 1.0,
+            }
             for i in range(15)
         }
         table = create_mutation_table(mutation_stats)
@@ -345,10 +349,14 @@ class TestCreateConfigFromArgs:
     def test_create_config_with_corpus_paths(self):
         """Test creating config with corpus paths."""
         parser = create_parser()
-        args = parser.parse_args([
-            "--corpus", "/path/to/corpus",
-            "--seeds", "/path/to/seeds",
-        ])
+        args = parser.parse_args(
+            [
+                "--corpus",
+                "/path/to/corpus",
+                "--seeds",
+                "/path/to/seeds",
+            ]
+        )
 
         config = create_config_from_args(args)
 
@@ -358,10 +366,14 @@ class TestCreateConfigFromArgs:
     def test_create_config_with_output_paths(self):
         """Test creating config with output paths."""
         parser = create_parser()
-        args = parser.parse_args([
-            "--output", "/path/to/output",
-            "--crashes", "/path/to/crashes",
-        ])
+        args = parser.parse_args(
+            [
+                "--output",
+                "/path/to/output",
+                "--crashes",
+                "/path/to/crashes",
+            ]
+        )
 
         config = create_config_from_args(args)
 
@@ -418,7 +430,9 @@ class TestMain:
         config_file = tmp_path / "config.json"
         config_file.write_text(json.dumps(config_data))
 
-        with patch("sys.argv", ["coverage_fuzz.py", "--config", str(config_file), "--dry-run"]):
+        with patch(
+            "sys.argv", ["coverage_fuzz.py", "--config", str(config_file), "--dry-run"]
+        ):
             main()
 
         captured = capsys.readouterr()
@@ -576,14 +590,21 @@ class TestParseArguments:
 
     def test_parse_arguments_all_options(self):
         """Test parsing with all options."""
-        args = parse_arguments([
-            "prog",
-            "--input", "/in",
-            "--output", "/out",
-            "--iterations", "1000",
-            "--timeout", "30",
-            "--workers", "16",
-        ])
+        args = parse_arguments(
+            [
+                "prog",
+                "--input",
+                "/in",
+                "--output",
+                "/out",
+                "--iterations",
+                "1000",
+                "--timeout",
+                "30",
+                "--workers",
+                "16",
+            ]
+        )
         assert args.input_dir == "/in"
         assert args.output_dir == "/out"
         assert args.iterations == 1000

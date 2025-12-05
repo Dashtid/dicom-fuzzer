@@ -446,7 +446,9 @@ class TestGetSeriesSummary:
 class TestEdgeCasesAndExceptionPaths:
     """Tests for edge cases and exception handling paths."""
 
-    @patch("dicom_fuzzer.core.series_detector.SeriesDetector.detect_series_in_directory")
+    @patch(
+        "dicom_fuzzer.core.series_detector.SeriesDetector.detect_series_in_directory"
+    )
     def test_detect_series_with_path_object(self, mock_detect_dir):
         """Test detect_series when called with Path object (directory)."""
         mock_series = Mock(spec=DicomSeries)
@@ -633,9 +635,10 @@ class TestEdgeCasesAndExceptionPaths:
 
         detector = SeriesDetector()
 
-        with patch.object(
-            detector, "_is_dicom_file", return_value=True
-        ), patch.object(Path, "glob", mock_glob):
+        with (
+            patch.object(detector, "_is_dicom_file", return_value=True),
+            patch.object(Path, "glob", mock_glob),
+        ):
             found = detector._find_dicom_files(Path("/tmp"), recursive=False)
 
         assert isinstance(found, list)

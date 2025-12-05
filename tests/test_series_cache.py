@@ -391,7 +391,9 @@ class TestDiskCaching:
         # Should warn and not crash
         cache.cache_series(mock_series)
 
-    def test_cache_series_with_cache_dir(self, tmp_path, sample_dicom_files, simple_loader):
+    def test_cache_series_with_cache_dir(
+        self, tmp_path, sample_dicom_files, simple_loader
+    ):
         """Test cache_series with cache_dir configured."""
         from unittest.mock import Mock
 
