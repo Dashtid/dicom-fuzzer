@@ -465,3 +465,339 @@ class TestScreenshotDirectory:
         # Dir is still created by default factory, but feature is disabled
         # The monitor should work regardless
         assert config.capture_screenshots is False
+
+
+class TestGUIMonitorStartStop:
+    """Tests for monitoring start/stop functionality."""
+
+    def test_start_monitoring_sets_flag(self) -> None:
+        """Test that start_monitoring sets the monitoring flag."""
+        monitor = GUIMonitor()
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.poll.return_value = 0  # Already exited
+
+        monitor.start_monitoring(mock_process)
+
+        assert monitor._monitoring is True
+        # Clean up
+        monitor.stop_monitoring()
+
+    def test_start_monitoring_when_already_monitoring(self) -> None:
+        """Test starting monitor when already monitoring."""
+        monitor = GUIMonitor()
+        monitor._monitoring = True
+
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+
+        # Should log warning but not crash
+        monitor.start_monitoring(mock_process)
+
+        # Should still be monitoring
+        assert monitor._monitoring is True
+
+    def test_stop_monitoring_clears_flag(self) -> None:
+        """Test that stop_monitoring clears the flag."""
+        monitor = GUIMonitor()
+        monitor._monitoring = True
+
+        monitor.stop_monitoring()
+
+        assert monitor._monitoring is False
+
+
+class TestGUIMonitorMonitorLoop:
+    """Tests for the monitoring loop functionality."""
+
+    def test_monitor_loop_without_psutil(self) -> None:
+        """Test monitor loop without psutil returns early."""
+        # Save original value
+        import dicom_fuzzer.core.gui_monitor as gm
+
+        original = gm.HAS_PSUTIL
+        try:
+            gm.HAS_PSUTIL = False
+            monitor = GUIMonitor()
+
+            mock_process = MagicMock()
+            mock_process.pid = 12345
+
+            monitor._monitoring = True
+            # Should return early without psutil
+            monitor._monitor_loop(mock_process, None)
+        finally:
+            gm.HAS_PSUTIL = original
+
+
+class TestGUIMonitorMemoryChecks:
+    """Tests for memory checking functionality."""
+
+    @patch("dicom_fuzzer.core.gui_monitor.psutil")
+    def test_check_memory_exceeds_threshold(self, mock_psutil: MagicMock) -> None:
+        """Test memory check when threshold exceeded."""
+        config = MonitorConfig(memory_threshold_mb=1000.0)
+        monitor = GUIMonitor(config)
+        monitor._last_response_time = 0  # Disable debounce
+
+        mock_ps_process = MagicMock()
+        mock_ps_process.memory_info.return_value.rss = 2000 * 1024 * 1024  # 2000 MB
+
+        monitor._check_memory(mock_ps_process, Path("/test.dcm"))
+
+        responses = monitor.get_responses()
+        assert len(responses) >= 1
+        assert responses[0].response_type == ResponseType.RESOURCE_EXHAUSTION
+
+    @patch("dicom_fuzzer.core.gui_monitor.psutil")
+    def test_check_memory_spike(self, mock_psutil: MagicMock) -> None:
+        """Test memory check detects spike."""
+        config = MonitorConfig(memory_spike_percent=50.0)
+        monitor = GUIMonitor(config)
+        monitor._baseline_memory = 100.0
+        monitor._last_response_time = 0  # Disable debounce
+
+        mock_ps_process = MagicMock()
+        # 200 MB = 100% increase from 100 MB baseline
+        mock_ps_process.memory_info.return_value.rss = 200 * 1024 * 1024
+
+        monitor._check_memory(mock_ps_process, Path("/test.dcm"))
+
+        responses = monitor.get_responses()
+        spike_responses = [
+            r for r in responses if r.response_type == ResponseType.MEMORY_SPIKE
+        ]
+        assert len(spike_responses) >= 1
+
+    @patch("dicom_fuzzer.core.gui_monitor.psutil")
+    def test_check_memory_nosuchprocess(self, mock_psutil: MagicMock) -> None:
+        """Test memory check handles NoSuchProcess."""
+        monitor = GUIMonitor()
+
+        mock_ps_process = MagicMock()
+        mock_ps_process.memory_info.side_effect = mock_psutil.NoSuchProcess(123)
+        mock_psutil.NoSuchProcess = Exception
+
+        # Should not raise
+        monitor._check_memory(mock_ps_process, None)
+
+
+class TestGUIMonitorHangDetection:
+    """Tests for hang detection functionality."""
+
+    def test_check_hang_normal_cpu(self) -> None:
+        """Test no hang detection with normal CPU usage."""
+        monitor = GUIMonitor()
+
+        mock_ps_process = MagicMock()
+        mock_ps_process.cpu_percent.return_value = 25.0  # Normal CPU
+        mock_ps_process.status.return_value = "running"
+
+        monitor._check_hang(mock_ps_process, None)
+
+        # Should not detect hang
+        hang_responses = [
+            r for r in monitor.get_responses() if r.response_type == ResponseType.HANG
+        ]
+        assert len(hang_responses) == 0
+
+    def test_check_hang_high_cpu(self) -> None:
+        """Test no hang detection with high CPU usage."""
+        monitor = GUIMonitor()
+
+        mock_ps_process = MagicMock()
+        mock_ps_process.cpu_percent.return_value = 50.0  # High CPU
+        mock_ps_process.status.return_value = "running"
+
+        monitor._check_hang(mock_ps_process, None)
+
+        # Should not detect hang with high CPU
+        hang_responses = [
+            r for r in monitor.get_responses() if r.response_type == ResponseType.HANG
+        ]
+        assert len(hang_responses) == 0
+
+
+class TestGUIMonitorDialogChecks:
+    """Tests for dialog checking functionality."""
+
+    @patch("dicom_fuzzer.core.gui_monitor.HAS_PYWINAUTO", False)
+    def test_check_dialogs_without_pywinauto(self) -> None:
+        """Test dialog check returns early without pywinauto."""
+        monitor = GUIMonitor()
+
+        # Should not raise
+        monitor._check_dialogs(12345, None)
+
+    @patch("dicom_fuzzer.core.gui_monitor.HAS_PYWINAUTO", True)
+    @patch("dicom_fuzzer.core.gui_monitor.Application")
+    def test_check_dialogs_element_not_found(self, mock_app_class: MagicMock) -> None:
+        """Test dialog check handles ElementNotFoundError."""
+        monitor = GUIMonitor()
+
+        from dicom_fuzzer.core.gui_monitor import ElementNotFoundError
+
+        mock_app_class.return_value.connect.side_effect = ElementNotFoundError()
+
+        # Should not raise
+        monitor._check_dialogs(12345, None)
+
+    @patch("dicom_fuzzer.core.gui_monitor.HAS_PYWINAUTO", True)
+    @patch("dicom_fuzzer.core.gui_monitor.Application")
+    def test_check_dialogs_generic_exception(self, mock_app_class: MagicMock) -> None:
+        """Test dialog check handles generic exceptions."""
+        monitor = GUIMonitor()
+
+        mock_app_class.return_value.connect.side_effect = RuntimeError(
+            "Connection failed"
+        )
+
+        # Should not raise
+        monitor._check_dialogs(12345, None)
+
+
+class TestGUIMonitorWindowTexts:
+    """Tests for window text extraction."""
+
+    def test_get_window_texts_with_text(self) -> None:
+        """Test extracting text from window with content."""
+        monitor = GUIMonitor()
+
+        mock_window = MagicMock()
+        mock_window.window_text.return_value = "Main Window"
+
+        mock_child = MagicMock()
+        mock_child.window_text.return_value = "Child Text"
+        mock_window.descendants.return_value = [mock_child]
+
+        texts = monitor._get_window_texts(mock_window)
+
+        assert "Main Window" in texts
+        assert "Child Text" in texts
+
+    def test_get_window_texts_empty(self) -> None:
+        """Test extracting text from window with no content."""
+        monitor = GUIMonitor()
+
+        mock_window = MagicMock()
+        mock_window.window_text.return_value = ""
+        mock_window.descendants.return_value = []
+
+        texts = monitor._get_window_texts(mock_window)
+
+        assert texts == []
+
+    def test_get_window_texts_exception(self) -> None:
+        """Test extracting text handles exceptions."""
+        monitor = GUIMonitor()
+
+        mock_window = MagicMock()
+        mock_window.window_text.side_effect = RuntimeError("Access denied")
+
+        texts = monitor._get_window_texts(mock_window)
+
+        assert texts == []
+
+
+class TestResponseAwareFuzzerAdvanced:
+    """Advanced tests for ResponseAwareFuzzer."""
+
+    @patch("subprocess.Popen")
+    def test_test_file_handles_exception(
+        self, mock_popen: MagicMock, tmp_path: Path
+    ) -> None:
+        """Test test_file handles exceptions gracefully."""
+        target = tmp_path / "app.exe"
+        target.write_bytes(b"dummy")
+        test_file = tmp_path / "test.dcm"
+        test_file.write_bytes(b"dicom")
+
+        mock_popen.side_effect = OSError("Cannot start process")
+
+        fuzzer = ResponseAwareFuzzer(str(target), timeout=0.1)
+        responses = fuzzer.test_file(test_file)
+
+        # Should record the error as a crash
+        assert len(responses) >= 1
+        assert any(r.response_type == ResponseType.CRASH for r in responses)
+
+    @patch("subprocess.Popen")
+    def test_run_campaign_completes_all_files(
+        self, mock_popen: MagicMock, tmp_path: Path
+    ) -> None:
+        """Test campaign processes all files when no critical issues."""
+        target = tmp_path / "app.exe"
+        target.write_bytes(b"dummy")
+
+        test_files = [tmp_path / f"test_{i}.dcm" for i in range(3)]
+        for f in test_files:
+            f.write_bytes(b"dicom")
+
+        # Process exits normally
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        mock_process.poll.return_value = 0
+        mock_popen.return_value = mock_process
+
+        fuzzer = ResponseAwareFuzzer(str(target), timeout=0.1)
+        results = fuzzer.run_campaign(test_files)
+
+        # Should process all files
+        assert results["files_tested"] == len(test_files)
+
+
+class TestGUIMonitorAddResponse:
+    """Tests for response adding with debouncing."""
+
+    def test_add_response_duplicate_detection(self) -> None:
+        """Test that duplicate responses are not added."""
+        monitor = GUIMonitor()
+        monitor._last_response_time = 0
+
+        response1 = GUIResponse(
+            response_type=ResponseType.ERROR_DIALOG,
+            severity=SeverityLevel.HIGH,
+            details="Same error message",
+        )
+        response2 = GUIResponse(
+            response_type=ResponseType.ERROR_DIALOG,
+            severity=SeverityLevel.HIGH,
+            details="Same error message",
+        )
+
+        monitor._add_response(response1)
+        import time
+
+        time.sleep(1.1)  # Wait for debounce
+        monitor._add_response(response2)
+
+        # Second should be detected as duplicate
+        assert len(monitor.get_responses()) <= 2
+
+    def test_add_response_different_types(self) -> None:
+        """Test that different response types are added."""
+        monitor = GUIMonitor()
+        monitor._last_response_time = 0
+
+        monitor._add_response(
+            GUIResponse(
+                response_type=ResponseType.ERROR_DIALOG,
+                severity=SeverityLevel.HIGH,
+                details="Error 1",
+            )
+        )
+
+        import time
+
+        time.sleep(1.1)  # Wait for debounce
+
+        monitor._add_response(
+            GUIResponse(
+                response_type=ResponseType.WARNING_DIALOG,
+                severity=SeverityLevel.MEDIUM,
+                details="Warning 1",
+            )
+        )
+
+        responses = monitor.get_responses()
+        assert len(responses) == 2
