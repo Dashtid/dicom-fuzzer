@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 import pytest
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from pydicom.tag import Tag
 
@@ -422,8 +422,9 @@ class TestPerformanceUtilities:
         result = chunk_list([], 2)
         assert result == []
 
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     @given(st.lists(st.integers()), st.integers(min_value=1, max_value=100))
-    def test_chunk_list_property(self, lst, chunk_size):
+    def test_chunk_list_property(self, lst: list[int], chunk_size: int) -> None:
         """Property test: all elements preserved in chunks."""
         chunks = chunk_list(lst, chunk_size)
         flattened = [item for chunk in chunks for item in chunk]

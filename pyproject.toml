@@ -111,6 +111,24 @@ viz = [
     "seaborn>=0.12.0",    # Statistical data visualization (required by visualization.py)
 ]
 
+dashboard = [
+    "fastapi>=0.115.0",   # Modern async web framework for dashboard API
+    "uvicorn>=0.32.0",    # ASGI server for FastAPI
+    "websockets>=14.0",   # WebSocket support for real-time updates
+]
+
+distributed = [
+    "redis>=5.2.0",       # Redis client for distributed task queue
+]
+
+metrics = [
+    "prometheus-client>=0.21.0",  # Prometheus metrics export
+]
+
+all = [
+    "dicom-fuzzer[viz,dashboard,distributed,metrics,network]",
+]
+
 # UV configuration (modern Python package management)
 [tool.uv]
 # Configuration for uv package manager
@@ -208,6 +226,10 @@ module = [
     "plotly.*",   # No type stubs available
     "jinja2.*",   # Optional dependency for HTML reports
     "atheris.*",  # Optional dependency for coverage-guided fuzzing
+    "fastapi.*",  # Optional dependency for dashboard
+    "uvicorn.*",  # Optional dependency for dashboard
+    "redis.*",    # Optional dependency for distributed fuzzing
+    "prometheus_client.*",  # Optional dependency for metrics
 ]
 ignore_missing_imports = true
 
