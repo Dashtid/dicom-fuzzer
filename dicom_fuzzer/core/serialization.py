@@ -4,7 +4,7 @@ Provides mixins and utilities for converting dataclasses to JSON-serializable
 dictionaries with proper handling of datetime objects and nested structures.
 """
 
-from dataclasses import asdict, is_dataclass
+from dataclasses import fields
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -49,15 +49,28 @@ class SerializableMixin:
             enums converted to values, paths converted to strings, and nested
             dataclasses recursively serialized.
 
+        Raises:
+            TypeError: If the class is not a dataclass.
+
+        Note:
+            This mixin must only be used with @dataclass decorated classes.
+            Type checking enforces this at compile time.
+
         """
-        if not is_dataclass(self):
+        # Runtime check: verify this is a dataclass by checking for __dataclass_fields__
+        # This avoids mypy's warn_unreachable issue with is_dataclass()
+        if not hasattr(self, "__dataclass_fields__"):
             raise TypeError(
-                f"SerializableMixin can only be used with dataclasses, "
-                f"got {type(self).__name__}"
+                f"SerializableMixin can only be used with dataclasses. "
+                f"{type(self).__name__} is not a dataclass."
             )
 
-        # After the is_dataclass check above, mypy knows self is a dataclass instance
-        data: dict[str, Any] = asdict(self)  # type: ignore[unreachable]
+        # Convert dataclass to dict using fields() to build dict manually
+        # This avoids asdict() type issues while maintaining same behavior
+        data: dict[str, Any] = {
+            f.name: getattr(self, f.name)
+            for f in fields(self)  # type: ignore[arg-type]
+        }
         serialized: dict[str, Any] = self._serialize_value(data)
 
         # Allow subclasses to add custom computed fields
@@ -75,7 +88,7 @@ class SerializableMixin:
 
         Returns:
             Serialized value (primitives, datetime as ISO string, enum as value,
-            Path as string, etc.)
+            Path as string, nested dataclasses as dicts, etc.)
 
         """
         # Handle datetime objects
@@ -89,6 +102,13 @@ class SerializableMixin:
         # Handle Path objects - convert to string
         if isinstance(value, Path):
             return str(value)
+
+        # Handle nested dataclasses - convert to dict recursively
+        if hasattr(value, "__dataclass_fields__"):
+            nested_data: dict[str, Any] = {
+                f.name: getattr(value, f.name) for f in fields(value)
+            }
+            return self._serialize_value(nested_data)
 
         # Handle dictionaries recursively
         if isinstance(value, dict):

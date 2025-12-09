@@ -303,32 +303,44 @@ class CoverageGuidedFuzzer:
             raise
 
     def _worker_loop(self) -> None:
-        """Worker loop for parallel fuzzing."""
-        while not self.should_stop:
-            # Get next seed
-            seed = self.corpus_manager.get_next_seed()
-            if not seed:
-                time.sleep(0.1)
-                continue
+        """Worker loop for parallel fuzzing.
 
-            # Mutate and test
-            mutations = self.mutator.mutate(seed)
+        NOTE: This runs in a ThreadPoolExecutor thread. We create a new event loop
+        for this thread since asyncio.run() is not safe to call from threads.
+        """
+        # Create a new event loop for this thread
+        # This is the correct pattern for running async code in a thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
-            for mutated_data, mutation_type in mutations:
-                if self.should_stop:
-                    break  # type: ignore[unreachable]  # Signal handler can set should_stop
+        try:
+            while not self.should_stop:
+                # Get next seed
+                seed = self.corpus_manager.get_next_seed()
+                if not seed:
+                    time.sleep(0.1)
+                    continue
 
-                # Execute with coverage
-                coverage, crashed = asyncio.run(
-                    self._execute_with_coverage(mutated_data)
-                )
+                # Mutate and test
+                mutations = self.mutator.mutate(seed)
 
-                # Process result
-                asyncio.run(
-                    self._process_result(
-                        mutated_data, coverage, crashed, seed.id, mutation_type
+                for mutated_data, mutation_type in mutations:
+                    if self.should_stop:
+                        break  # type: ignore[unreachable]  # Signal handler can set should_stop
+
+                    # Execute with coverage using the thread's event loop
+                    coverage, crashed = loop.run_until_complete(
+                        self._execute_with_coverage(mutated_data)
                     )
-                )
+
+                    # Process result
+                    loop.run_until_complete(
+                        self._process_result(
+                            mutated_data, coverage, crashed, seed.id, mutation_type
+                        )
+                    )
+        finally:
+            loop.close()
 
     async def _execute_with_coverage(self, data: bytes) -> tuple[CoverageInfo, bool]:
         """Execute target with coverage tracking.
