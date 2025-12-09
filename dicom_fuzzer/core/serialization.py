@@ -88,7 +88,7 @@ class SerializableMixin:
 
         Returns:
             Serialized value (primitives, datetime as ISO string, enum as value,
-            Path as string, etc.)
+            Path as string, nested dataclasses as dicts, etc.)
 
         """
         # Handle datetime objects
@@ -102,6 +102,13 @@ class SerializableMixin:
         # Handle Path objects - convert to string
         if isinstance(value, Path):
             return str(value)
+
+        # Handle nested dataclasses - convert to dict recursively
+        if hasattr(value, "__dataclass_fields__"):
+            nested_data: dict[str, Any] = {
+                f.name: getattr(value, f.name) for f in fields(value)
+            }
+            return self._serialize_value(nested_data)
 
         # Handle dictionaries recursively
         if isinstance(value, dict):
