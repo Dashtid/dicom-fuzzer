@@ -519,6 +519,82 @@ def setup_logging(verbose: bool = False) -> None:
     )
 
 
+def validate_input_path(input_path: str, recursive: bool = False) -> list[Path]:
+    """Validate input path and return list of DICOM files.
+
+    Args:
+        input_path: Path to input DICOM file or directory
+        recursive: If True and input is directory, scan recursively
+
+    Returns:
+        List of validated Path objects for DICOM files
+
+    Raises:
+        SystemExit: If path doesn't exist or no valid files found
+
+    """
+    path = Path(input_path)
+    if not path.exists():
+        print(f"Error: Input path '{input_path}' not found")
+        sys.exit(1)
+
+    if path.is_file():
+        return [path]
+
+    if path.is_dir():
+        # Find DICOM files in directory
+        dicom_extensions = {".dcm", ".dicom", ".dic", ""}  # Include no extension
+        files = []
+
+        if recursive:
+            # Recursive scan
+            for file_path in path.rglob("*"):
+                if file_path.is_file() and _is_potential_dicom(
+                    file_path, dicom_extensions
+                ):
+                    files.append(file_path)
+        else:
+            # Non-recursive scan (immediate children only)
+            for file_path in path.iterdir():
+                if file_path.is_file() and _is_potential_dicom(
+                    file_path, dicom_extensions
+                ):
+                    files.append(file_path)
+
+        if not files:
+            print(f"Error: No DICOM files found in '{input_path}'")
+            if not recursive:
+                print("Tip: Use --recursive to scan subdirectories")
+            sys.exit(1)
+
+        return sorted(files)
+
+    print(f"Error: '{input_path}' is not a file or directory")
+    sys.exit(1)
+
+
+def _is_potential_dicom(file_path: Path, extensions: set[str]) -> bool:
+    """Check if file might be a DICOM file based on extension or signature."""
+    # Check extension
+    if file_path.suffix.lower() in extensions:
+        # For files with .dcm/.dicom extension, assume DICOM
+        if file_path.suffix.lower() in {".dcm", ".dicom", ".dic"}:
+            return True
+
+        # For files without extension, check for DICOM signature
+        if file_path.suffix == "":
+            try:
+                with open(file_path, "rb") as f:
+                    # Check for DICM magic bytes at offset 128
+                    f.seek(128)
+                    magic = f.read(4)
+                    return magic == b"DICM"
+            except OSError:
+                return False
+
+    return False
+
+
 def validate_input_file(file_path: str) -> Path:
     """Validate that the input file exists and is a DICOM file.
 
@@ -530,6 +606,10 @@ def validate_input_file(file_path: str) -> Path:
 
     Raises:
         SystemExit: If file doesn't exist or isn't accessible
+
+    Note:
+        This function is kept for backwards compatibility.
+        Use validate_input_path for new code supporting directories.
 
     """
     path = Path(file_path)
@@ -685,14 +765,47 @@ def main() -> int:
         Exit code (0 for success, non-zero for errors)
 
     """
+    # Handle samples subcommand before main argument parsing
+    if len(sys.argv) > 1 and sys.argv[1] == "samples":
+        from dicom_fuzzer.cli.samples import main as samples_main
+
+        return samples_main(sys.argv[2:])
+
     parser = argparse.ArgumentParser(
         description="DICOM Fuzzer - Security testing tool for medical imaging systems",
-        epilog="Example: %(prog)s input.dcm -c 50 -o ./output -s metadata,header -v",
+        epilog="""
+Examples:
+  # Fuzz a single file
+  %(prog)s input.dcm -c 50 -o ./output
+
+  # Fuzz all DICOM files in a directory
+  %(prog)s ./dicom_folder/ -c 10 -o ./output
+
+  # Recursively scan directory for DICOM files
+  %(prog)s ./data/ --recursive -c 5 -o ./output
+
+  # Generate synthetic samples
+  %(prog)s samples --generate -c 10 -o ./samples
+
+  # Test with GUI application (e.g., Hermes Affinity)
+  %(prog)s input.dcm -c 20 -t viewer.exe --gui-mode --timeout 5
+""",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     # Required arguments
-    parser.add_argument("input_file", help="Path to original DICOM file to fuzz")
+    parser.add_argument(
+        "input_file",
+        help="Path to DICOM file or directory. Use 'samples' subcommand to generate test data.",
+    )
+
+    # Directory/recursive options
+    parser.add_argument(
+        "-r",
+        "--recursive",
+        action="store_true",
+        help="Recursively scan input directory for DICOM files",
+    )
 
     # Optional arguments
     parser.add_argument(
@@ -950,9 +1063,15 @@ def main() -> int:
         )
         logger.info(f"Resource limits configured: {resource_limits}")
 
-    # Validate input file
-    input_path = validate_input_file(args.input_file)
-    logger.info(f"Input file: {input_path}")
+    # Validate input path (file or directory)
+    recursive = getattr(args, "recursive", False)
+    input_files = validate_input_path(args.input_file, recursive=recursive)
+    is_directory_input = len(input_files) > 1 or Path(args.input_file).is_dir()
+
+    if is_directory_input:
+        logger.info(f"Found {len(input_files)} DICOM files in input directory")
+    else:
+        logger.info(f"Input file: {input_files[0]}")
 
     # Parse strategies if specified
     selected_strategies = None
@@ -983,59 +1102,102 @@ def main() -> int:
         print("Please resolve the issues above and try again.")
         sys.exit(1)
 
-    # Generate fuzzed files
-    print("\n" + "=" * 70)
-    print("  DICOM Fuzzer v1.2.0 - Fuzzing Campaign")
-    print("=" * 70)
-    print(f"  Input:      {input_path.name}")
-    print(f"  Output:     {args.output}")
     # Handle both 'count' and 'num_mutations' for test compatibility
     _count = getattr(args, "count", None)
     _num_mutations = getattr(args, "num_mutations", None)
-    num_files: int = (
+    num_files_per_input: int = (
         _count
         if _count is not None
         else (_num_mutations if _num_mutations is not None else 100)
     )
-    print(f"  Target:     {num_files} files")
+
+    # Generate fuzzed files
+    print("\n" + "=" * 70)
+    print("  DICOM Fuzzer v1.2.0 - Fuzzing Campaign")
+    print("=" * 70)
+    if is_directory_input:
+        print(f"  Input:      {args.input_file} ({len(input_files)} files)")
+        if recursive:
+            print("  Mode:       Recursive directory scan")
+        print(f"  Per-file:   {num_files_per_input} mutations each")
+        total_expected = num_files_per_input * len(input_files)
+        print(f"  Total:      ~{total_expected} files (max)")
+    else:
+        print(f"  Input:      {input_files[0].name}")
+        print(f"  Target:     {num_files_per_input} files")
+    print(f"  Output:     {args.output}")
     if selected_strategies:
         print(f"  Strategies: {', '.join(selected_strategies)}")
     else:
         print("  Strategies: all (metadata, header, pixel)")
     print("=" * 70 + "\n")
 
-    logger.info(f"Generating {num_files} fuzzed files...")
+    total_expected = num_files_per_input * len(input_files)
+    logger.info(f"Generating up to {total_expected} fuzzed files...")
     start_time = time.time()
 
     try:
         generator = DICOMGenerator(args.output, skip_write_errors=True)
+        files: list[Path] = []
 
-        # Use progress bar if available and file count is large enough
-        if HAS_TQDM and not args.verbose and num_files >= 20:
-            print("Generating fuzzed files...")
-            with tqdm(total=num_files, unit="file", ncols=70) as pbar:
-                # Generate in smaller batches to update progress
-                batch_size = max(1, num_files // 20)  # 20 updates
-                remaining = num_files
-                all_files = []
+        # Process each input file
+        if is_directory_input:
+            # Multiple input files from directory
+            print(f"Processing {len(input_files)} input files...")
+            if HAS_TQDM and not args.verbose:
+                from tqdm import tqdm as tqdm_iter
 
-                while remaining > 0:
-                    current_batch = min(batch_size, remaining)
-                    files = generator.generate_batch(
-                        str(input_path),
-                        count=current_batch,
+                input_iterator = tqdm_iter(
+                    input_files,
+                    desc="Input files",
+                    unit="file",
+                    ncols=70,
+                )
+            else:
+                input_iterator = input_files
+
+            for input_file in input_iterator:
+                try:
+                    batch_files = generator.generate_batch(
+                        str(input_file),
+                        count=num_files_per_input,
                         strategies=selected_strategies,
                     )
-                    all_files.extend(files)
-                    pbar.update(len(files))
-                    remaining -= current_batch
-
-                files = all_files
+                    files.extend(batch_files)
+                except Exception as e:
+                    logger.warning(f"Failed to process {input_file}: {e}")
+                    if args.verbose:
+                        print(f"  [!] Skipping {input_file.name}: {e}")
         else:
-            # No progress bar or small file count, generate all at once
-            files = generator.generate_batch(
-                str(input_path), count=num_files, strategies=selected_strategies
-            )
+            # Single input file - use original progress bar logic
+            input_path = input_files[0]
+            if HAS_TQDM and not args.verbose and num_files_per_input >= 20:
+                print("Generating fuzzed files...")
+                with tqdm(total=num_files_per_input, unit="file", ncols=70) as pbar:
+                    # Generate in smaller batches to update progress
+                    batch_size = max(1, num_files_per_input // 20)  # 20 updates
+                    remaining = num_files_per_input
+                    all_files: list[Path] = []
+
+                    while remaining > 0:
+                        current_batch = min(batch_size, remaining)
+                        batch_files = generator.generate_batch(
+                            str(input_path),
+                            count=current_batch,
+                            strategies=selected_strategies,
+                        )
+                        all_files.extend(batch_files)
+                        pbar.update(len(batch_files))
+                        remaining -= current_batch
+
+                    files = all_files
+            else:
+                # No progress bar or small file count, generate all at once
+                files = generator.generate_batch(
+                    str(input_path),
+                    count=num_files_per_input,
+                    strategies=selected_strategies,
+                )
 
         elapsed_time = time.time() - start_time
 
@@ -1156,8 +1318,9 @@ def main() -> int:
             try:
                 import pydicom
 
-                # Load the input DICOM file
-                ds = pydicom.dcmread(str(input_path))
+                # Load the first input DICOM file (for security fuzzing)
+                first_input = input_files[0]
+                ds = pydicom.dcmread(str(first_input))
 
                 # Parse CVE targets if specified
                 target_cves = None
@@ -1237,9 +1400,9 @@ def main() -> int:
                     security_output = output_path / "security_fuzzed"
                     security_output.mkdir(parents=True, exist_ok=True)
 
-                    for i, mutation in enumerate(mutations[:num_files]):
+                    for i, mutation in enumerate(mutations[:num_files_per_input]):
                         try:
-                            ds_copy = pydicom.dcmread(str(input_path))
+                            ds_copy = pydicom.dcmread(str(first_input))
                             mutated_ds = security_fuzzer.apply_mutation(
                                 ds_copy, mutation
                             )

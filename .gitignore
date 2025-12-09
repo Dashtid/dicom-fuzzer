@@ -452,3 +452,8 @@ coverage.json
 # Fuzzing output directory (generated during fuzzing runs)
 /fuzzing_output/
 !/fuzzing_output/.gitkeep
+
+# Test output directories (generated during testing)
+/test_*/
+/affinity_test*/
+!/tests/
