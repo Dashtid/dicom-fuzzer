@@ -202,11 +202,11 @@ done
 
 This tool is for **DEFENSIVE** security testing:
 
-- ✅ Test your own software
-- ✅ Test software you have permission to test
-- ✅ Responsible disclosure of findings
-- ❌ Never test software without permission
-- ❌ Never use for malicious purposes
+- [OK] Test your own software
+- [OK] Test software you have permission to test
+- [OK] Responsible disclosure of findings
+- [x] Never test software without permission
+- [x] Never use for malicious purposes
 
 ### Data Privacy
 
