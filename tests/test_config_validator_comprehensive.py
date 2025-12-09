@@ -567,8 +567,13 @@ class TestValidateAll:
         assert len(validator.warnings) > 0
 
     @pytest.mark.slow
+    @pytest.mark.xdist_group(name="structlog_config")
     def test_validate_all_logs_info(self, tmp_path, capture_logs):
-        """Test validate_all logs info messages."""
+        """Test validate_all logs info messages.
+
+        Note: Uses xdist_group to prevent parallel execution with other
+        structlog-configuring tests, avoiding race conditions on global config.
+        """
         validator = ConfigValidator(strict=False)
 
         with patch("sys.version_info", (3, 11, 0)):
@@ -582,8 +587,13 @@ class TestValidateAll:
         )
 
     @pytest.mark.slow
+    @pytest.mark.xdist_group(name="structlog_config")
     def test_validate_all_logs_warnings(self, tmp_path, capture_logs):
-        """Test validate_all logs warning messages."""
+        """Test validate_all logs warning messages.
+
+        Note: Uses xdist_group to prevent parallel execution with other
+        structlog-configuring tests, avoiding race conditions on global config.
+        """
         validator = ConfigValidator(strict=False)
         empty_file = tmp_path / "empty.dcm"
         empty_file.touch()
@@ -595,8 +605,13 @@ class TestValidateAll:
         assert any(log.get("level") == "warning" for log in capture_logs)
 
     @pytest.mark.slow
+    @pytest.mark.xdist_group(name="structlog_config")
     def test_validate_all_logs_errors(self, tmp_path, capture_logs):
-        """Test validate_all logs error messages."""
+        """Test validate_all logs error messages.
+
+        Note: Uses xdist_group to prevent parallel execution with other
+        structlog-configuring tests, avoiding race conditions on global config.
+        """
         validator = ConfigValidator()
         non_existent = tmp_path / "nonexistent.dcm"
 

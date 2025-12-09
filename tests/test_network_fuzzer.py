@@ -507,3 +507,358 @@ class TestNetworkFuzzerErrorHandling:
 
         assert result.success is False
         assert len(result.error) > 0
+
+
+class TestNetworkFuzzerTLS:
+    """Tests for TLS/SSL handling in network fuzzer."""
+
+    @patch("socket.socket")
+    @patch("ssl.create_default_context")
+    def test_create_socket_with_tls(
+        self, mock_ssl_context: MagicMock, mock_socket_class: MagicMock
+    ) -> None:
+        """Test socket creation with TLS enabled."""
+        mock_socket = MagicMock()
+        mock_socket_class.return_value = mock_socket
+
+        mock_context = MagicMock()
+        mock_ssl_context.return_value = mock_context
+        mock_wrapped_socket = MagicMock()
+        mock_context.wrap_socket.return_value = mock_wrapped_socket
+
+        config = DICOMNetworkConfig(use_tls=True)
+        fuzzer = DICOMNetworkFuzzer(config)
+        sock = fuzzer._create_socket()
+
+        mock_ssl_context.assert_called_once()
+        mock_context.wrap_socket.assert_called_once()
+        assert sock == mock_wrapped_socket
+
+    @patch("socket.socket")
+    @patch("ssl.create_default_context")
+    def test_create_socket_with_tls_no_verify(
+        self, mock_ssl_context: MagicMock, mock_socket_class: MagicMock
+    ) -> None:
+        """Test socket creation with TLS but no certificate verification."""
+        mock_socket = MagicMock()
+        mock_socket_class.return_value = mock_socket
+
+        mock_context = MagicMock()
+        mock_ssl_context.return_value = mock_context
+        mock_wrapped_socket = MagicMock()
+        mock_context.wrap_socket.return_value = mock_wrapped_socket
+
+        config = DICOMNetworkConfig(use_tls=True, verify_ssl=False)
+        fuzzer = DICOMNetworkFuzzer(config)
+        fuzzer._create_socket()
+
+        # Should disable hostname and certificate verification
+        assert mock_context.check_hostname is False
+
+
+class TestNetworkFuzzerSendReceive:
+    """Tests for send/receive functionality."""
+
+    @patch("socket.socket")
+    def test_send_receive_with_existing_socket(
+        self, mock_socket_class: MagicMock
+    ) -> None:
+        """Test send/receive with an existing socket."""
+        mock_socket = MagicMock()
+        mock_socket.recv.return_value = b"\x02\x00\x00\x00\x10"
+
+        fuzzer = DICOMNetworkFuzzer()
+        response, duration = fuzzer._send_receive(b"\x01\x00\x00\x00", mock_socket)
+
+        mock_socket.sendall.assert_called_once_with(b"\x01\x00\x00\x00")
+        mock_socket.recv.assert_called_once()
+        # Socket should NOT be closed since it was passed in
+        mock_socket.close.assert_not_called()
+        assert response == b"\x02\x00\x00\x00\x10"
+
+    @patch.object(DICOMNetworkFuzzer, "_create_socket")
+    def test_send_receive_creates_new_socket(
+        self, mock_create_socket: MagicMock
+    ) -> None:
+        """Test send/receive creates socket when none provided."""
+        mock_socket = MagicMock()
+        mock_socket.recv.return_value = b"\x02"
+        mock_create_socket.return_value = mock_socket
+
+        fuzzer = DICOMNetworkFuzzer()
+        response, duration = fuzzer._send_receive(b"\x01")
+
+        mock_create_socket.assert_called_once()
+        mock_socket.close.assert_called_once()
+
+
+class TestNetworkFuzzerUnexpectedResponses:
+    """Tests for handling unexpected server responses."""
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_valid_association_unexpected_response(
+        self, mock_send_receive: MagicMock
+    ) -> None:
+        """Test handling of unexpected response type."""
+        # Send an unknown PDU type
+        mock_send_receive.return_value = (b"\xff\x00\x00\x00", 0.1)
+
+        fuzzer = DICOMNetworkFuzzer()
+        result = fuzzer.test_valid_association()
+
+        assert result.success is False
+        assert result.anomaly_detected is True
+        assert "unexpected" in result.error.lower()
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_valid_association_empty_response(
+        self, mock_send_receive: MagicMock
+    ) -> None:
+        """Test handling of empty response."""
+        mock_send_receive.return_value = (b"", 0.1)
+
+        fuzzer = DICOMNetworkFuzzer()
+        result = fuzzer.test_valid_association()
+
+        # Empty response should be anomalous
+        assert result.success is False
+        assert result.anomaly_detected is True
+
+
+class TestNetworkFuzzerCampaignStrategies:
+    """Tests for campaign with specific strategies."""
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_run_campaign_single_strategy(self, mock_send_receive: MagicMock) -> None:
+        """Test running campaign with single strategy."""
+        mock_send_receive.return_value = (b"\x02\x00", 0.1)
+
+        fuzzer = DICOMNetworkFuzzer()
+        results = fuzzer.run_campaign(strategies=[FuzzingStrategy.INVALID_LENGTH])
+
+        # Should have valid association test plus length tests
+        assert len(results) >= 1
+        # Should include length tests
+        length_tests = [r for r in results if "length" in r.test_name]
+        assert len(length_tests) >= 5
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_run_campaign_multiple_strategies(
+        self, mock_send_receive: MagicMock
+    ) -> None:
+        """Test running campaign with multiple strategies."""
+        mock_send_receive.return_value = (b"\x02\x00", 0.1)
+
+        fuzzer = DICOMNetworkFuzzer()
+        results = fuzzer.run_campaign(
+            strategies=[FuzzingStrategy.INVALID_LENGTH, FuzzingStrategy.BUFFER_OVERFLOW]
+        )
+
+        # Should have tests from both strategies
+        length_tests = [r for r in results if "length" in r.test_name]
+        ae_tests = [r for r in results if "ae_title" in r.test_name]
+
+        assert len(length_tests) >= 5
+        assert len(ae_tests) >= 10
+
+
+class TestNetworkFuzzerCrashDetection:
+    """Tests for crash and anomaly detection."""
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_fuzz_pdu_length_detects_crash(self, mock_send_receive: MagicMock) -> None:
+        """Test that empty response is detected as potential crash."""
+        # Empty response indicates server may have crashed
+        mock_send_receive.return_value = (b"", 0.1)
+
+        fuzzer = DICOMNetworkFuzzer()
+        results = fuzzer.fuzz_pdu_length()
+
+        # At least some tests should detect crash
+        crashes = [r for r in results if r.crash_detected]
+        assert len(crashes) > 0
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_fuzz_ae_title_detects_crash(self, mock_send_receive: MagicMock) -> None:
+        """Test crash detection in AE title fuzzing."""
+        mock_send_receive.return_value = (b"", 0.1)
+
+        fuzzer = DICOMNetworkFuzzer()
+        results = fuzzer.fuzz_ae_title()
+
+        crashes = [r for r in results if r.crash_detected]
+        assert len(crashes) > 0
+
+
+class TestNetworkFuzzerExceptionHandling:
+    """Tests for various exception scenarios."""
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_fuzz_ae_title_exception_handling(
+        self, mock_send_receive: MagicMock
+    ) -> None:
+        """Test exception handling in AE title fuzzing."""
+        mock_send_receive.side_effect = OSError("Network error")
+
+        fuzzer = DICOMNetworkFuzzer()
+        results = fuzzer.fuzz_ae_title()
+
+        # All should fail but not crash the fuzzer
+        assert all(r.success is False for r in results)
+        # Error message should contain the OSError message
+        assert all(len(r.error) > 0 for r in results)
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_fuzz_presentation_context_exception(
+        self, mock_send_receive: MagicMock
+    ) -> None:
+        """Test exception handling in presentation context fuzzing."""
+        mock_send_receive.side_effect = ConnectionResetError("Reset")
+
+        fuzzer = DICOMNetworkFuzzer()
+        results = fuzzer.fuzz_presentation_context()
+
+        assert all(r.success is False for r in results)
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_fuzz_random_bytes_exception(self, mock_send_receive: MagicMock) -> None:
+        """Test exception handling in random bytes fuzzing."""
+        mock_send_receive.side_effect = BrokenPipeError("Pipe broken")
+
+        fuzzer = DICOMNetworkFuzzer()
+        results = fuzzer.fuzz_random_bytes(count=3)
+
+        assert len(results) == 3
+        assert all(r.success is False for r in results)
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_fuzz_protocol_state_exception(self, mock_send_receive: MagicMock) -> None:
+        """Test exception handling in protocol state fuzzing."""
+        mock_send_receive.side_effect = Exception("Unknown error")
+
+        fuzzer = DICOMNetworkFuzzer()
+        results = fuzzer.fuzz_protocol_state()
+
+        assert all(r.success is False for r in results)
+
+
+class TestNetworkFuzzerSummaryEdgeCases:
+    """Tests for summary generation edge cases."""
+
+    def test_summary_with_mixed_strategies(self) -> None:
+        """Test summary with results from different strategies."""
+        fuzzer = DICOMNetworkFuzzer()
+        fuzzer._results = [
+            NetworkFuzzResult(
+                strategy=FuzzingStrategy.BUFFER_OVERFLOW,
+                target_host="localhost",
+                target_port=11112,
+                test_name="test1",
+                success=True,
+                crash_detected=True,
+            ),
+            NetworkFuzzResult(
+                strategy=FuzzingStrategy.INVALID_LENGTH,
+                target_host="localhost",
+                target_port=11112,
+                test_name="test2",
+                success=False,
+                anomaly_detected=True,
+            ),
+            NetworkFuzzResult(
+                strategy=FuzzingStrategy.PROTOCOL_STATE,
+                target_host="localhost",
+                target_port=11112,
+                test_name="test3",
+                success=True,
+            ),
+            NetworkFuzzResult(
+                strategy=FuzzingStrategy.NULL_BYTES,
+                target_host="localhost",
+                target_port=11112,
+                test_name="test4",
+                success=True,
+                crash_detected=True,
+                anomaly_detected=True,
+            ),
+        ]
+
+        summary = fuzzer.get_summary()
+
+        assert summary["total_tests"] == 4
+        assert summary["successful"] == 3
+        assert summary["failed"] == 1
+        assert summary["crashes_detected"] == 2
+        assert summary["anomalies_detected"] == 2
+        assert len(summary["by_strategy"]) == 4
+        assert len(summary["critical_findings"]) == 3  # 2 crashes + 1 anomaly only
+
+    def test_summary_critical_findings_limit(self) -> None:
+        """Test that critical findings are limited in print output."""
+        fuzzer = DICOMNetworkFuzzer()
+        # Add more than 10 critical findings
+        fuzzer._results = [
+            NetworkFuzzResult(
+                strategy=FuzzingStrategy.BUFFER_OVERFLOW,
+                target_host="localhost",
+                target_port=11112,
+                test_name=f"crash_test_{i}",
+                crash_detected=True,
+            )
+            for i in range(15)
+        ]
+
+        summary = fuzzer.get_summary()
+
+        # All 15 should be in critical findings
+        assert len(summary["critical_findings"]) == 15
+
+
+class TestProtocolBuilderEdgeCases:
+    """Tests for protocol builder edge cases."""
+
+    def test_build_presentation_context_multiple_transfer_syntaxes(self) -> None:
+        """Test building presentation context with multiple transfer syntaxes."""
+        pres_ctx = DICOMProtocolBuilder._build_presentation_context(
+            context_id=3,
+            abstract_syntax=DICOMProtocolBuilder.CT_IMAGE_STORAGE,
+            transfer_syntaxes=[
+                DICOMProtocolBuilder.IMPLICIT_VR_LITTLE_ENDIAN,
+                DICOMProtocolBuilder.EXPLICIT_VR_LITTLE_ENDIAN,
+                DICOMProtocolBuilder.EXPLICIT_VR_BIG_ENDIAN,
+            ],
+        )
+
+        # Should contain all three transfer syntaxes
+        assert DICOMProtocolBuilder.IMPLICIT_VR_LITTLE_ENDIAN[:-1] in pres_ctx
+        assert DICOMProtocolBuilder.EXPLICIT_VR_LITTLE_ENDIAN[:-1] in pres_ctx
+
+    def test_build_a_associate_rq_with_custom_contexts(self) -> None:
+        """Test building A-ASSOCIATE-RQ with custom presentation contexts."""
+        custom_ctx = DICOMProtocolBuilder._build_presentation_context(
+            context_id=5,
+            abstract_syntax=DICOMProtocolBuilder.MR_IMAGE_STORAGE,
+            transfer_syntaxes=[DICOMProtocolBuilder.EXPLICIT_VR_LITTLE_ENDIAN],
+        )
+
+        pdu = DICOMProtocolBuilder.build_a_associate_rq(
+            calling_ae="CUSTOM_SCU",
+            called_ae="CUSTOM_SCP",
+            presentation_contexts=[custom_ctx],
+            max_pdu_size=32768,
+        )
+
+        assert pdu[0] == PDUType.A_ASSOCIATE_RQ.value
+        # Should contain MR Image Storage SOP class
+        assert b"1.2.840.10008.5.1.4.1.1.4" in pdu
+
+    def test_build_a_associate_rq_custom_application_context(self) -> None:
+        """Test building A-ASSOCIATE-RQ with custom application context."""
+        custom_app_ctx = b"1.2.3.4.5.6.7.8.9\x00"
+
+        pdu = DICOMProtocolBuilder.build_a_associate_rq(
+            application_context=custom_app_ctx,
+        )
+
+        assert pdu[0] == PDUType.A_ASSOCIATE_RQ.value
+        assert b"1.2.3.4.5.6.7.8.9" in pdu

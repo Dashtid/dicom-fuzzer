@@ -157,7 +157,7 @@ def small_file(temp_dir: Path) -> Path:
 
 @pytest.fixture
 def reset_structlog():
-    """Reset structlog configuration before each test.
+    """Reset structlog configuration before and after each test.
 
     This ensures tests don't interfere with each other's logging configuration.
     """
@@ -165,16 +165,24 @@ def reset_structlog():
 
     import structlog
 
+    def _cleanup():
+        """Clean up logging and structlog configuration."""
+        # Flush and close all logging handlers
+        for handler in logging.root.handlers[:]:
+            handler.flush()
+            handler.close()
+            logging.root.removeHandler(handler)
+
+        # Reset structlog to defaults
+        structlog.reset_defaults()
+
+    # Clean up BEFORE the test to ensure clean state
+    _cleanup()
+
     yield
 
-    # Flush and close all logging handlers before resetting
-    for handler in logging.root.handlers[:]:
-        handler.flush()
-        handler.close()
-        logging.root.removeHandler(handler)
-
-    # Reset to original after test
-    structlog.reset_defaults()
+    # Clean up AFTER the test
+    _cleanup()
 
 
 @pytest.fixture
@@ -183,6 +191,9 @@ def capture_logs(reset_structlog):
 
     Returns:
         List that will contain captured log entries
+
+    Note: This fixture uses reset_structlog to ensure clean state before
+    configuring structlog for log capture.
     """
     import logging
 
@@ -196,7 +207,9 @@ def capture_logs(reset_structlog):
         return event_dict
 
     # Configure structlog to capture logs
-    logging.basicConfig(level=logging.DEBUG)
+    # Note: basicConfig may be called multiple times but only takes effect once
+    # unless force=True is used
+    logging.basicConfig(level=logging.DEBUG, force=True)
 
     structlog.configure(
         processors=[
