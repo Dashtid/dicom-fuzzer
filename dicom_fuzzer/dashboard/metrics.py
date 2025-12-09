@@ -40,6 +40,7 @@ try:
     HAS_PROMETHEUS = True
 except ImportError:
     HAS_PROMETHEUS = False
+    # Set to None when prometheus_client not installed
     REGISTRY = None
     Counter = None
     Gauge = None
