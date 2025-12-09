@@ -32,24 +32,20 @@ jobs:
       - name: Install dependencies
         run: |
           uv venv
-          source .venv/bin/activate
-          uv pip install -e ".[dev]"
+          uv sync --group dev
 
       - name: Run full test suite
         run: |
-          source .venv/bin/activate
-          pytest tests/ -v --cov=dicom_fuzzer --cov-report=xml --cov-report=html
+          uv run pytest tests/ -v --cov=dicom_fuzzer --cov-report=xml --cov-report=html
 
       - name: Build distribution packages
         run: |
-          source .venv/bin/activate
-          python -m pip install build twine
-          python -m build
+          uv pip install build twine
+          uv run python -m build
 
       - name: Validate packages with twine
         run: |
-          source .venv/bin/activate
-          python -m twine check dist/*
+          uv run python -m twine check dist/*
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v4
