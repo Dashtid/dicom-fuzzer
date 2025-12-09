@@ -155,8 +155,17 @@ class FuzzingWorker:
 
         if self._worker_thread:
             self._worker_thread.join(timeout=10)
+            if self._worker_thread.is_alive():
+                logger.warning(
+                    f"Worker thread did not stop within timeout for {self.config.worker_id}"
+                )
+
         if self._heartbeat_thread:
             self._heartbeat_thread.join(timeout=5)
+            if self._heartbeat_thread.is_alive():
+                logger.warning(
+                    f"Heartbeat thread did not stop within timeout for {self.config.worker_id}"
+                )
 
         if self._queue:
             self._queue.disconnect()

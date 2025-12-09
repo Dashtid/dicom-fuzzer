@@ -254,10 +254,15 @@ class FuzzingCoordinator:
         """Stop the campaign."""
         self._running = False
 
-        if self._result_thread:
+        if self._result_thread and self._result_thread.is_alive():
             self._result_thread.join(timeout=5)
-        if self._maintenance_thread:
+            if self._result_thread.is_alive():
+                logger.warning("Result processor thread did not stop within timeout")
+
+        if self._maintenance_thread and self._maintenance_thread.is_alive():
             self._maintenance_thread.join(timeout=5)
+            if self._maintenance_thread.is_alive():
+                logger.warning("Maintenance thread did not stop within timeout")
 
         if self._queue:
             self._queue.disconnect()
@@ -353,15 +358,18 @@ class FuzzingCoordinator:
                 for result in results:
                     self._process_result(result)
 
-                # Calculate execution rate
-                if self._stats is not None:
-                    current_count = self._stats.completed_tasks
-                    elapsed = (datetime.now() - self._stats.start_time).total_seconds()
-                    if elapsed > 0:
-                        self._stats.executions_per_sec = (
-                            current_count - last_count
-                        ) / max(1, elapsed / 60)
-                    last_count = current_count
+                # Calculate execution rate (protected by lock since _stats is shared)
+                with self._lock:
+                    if self._stats is not None:
+                        current_count = self._stats.completed_tasks
+                        elapsed = (
+                            datetime.now() - self._stats.start_time
+                        ).total_seconds()
+                        if elapsed > 0:
+                            self._stats.executions_per_sec = (
+                                current_count - last_count
+                            ) / max(1, elapsed / 60)
+                        last_count = current_count
 
                 time.sleep(0.1)
 
