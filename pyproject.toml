@@ -51,10 +51,11 @@ dependencies = [
 
 
 [project.urls]
-Homepage = "https://github.com/Dashtid/DICOM-Fuzzer"
-Documentation = "https://dicom-fuzzer.readthedocs.io/"
-Repository = "https://github.com/Dashtid/DICOM-Fuzzer.git"
-"Bug Tracker" = "https://github.com/Dashtid/DICOM-Fuzzer/issues"
+Homepage = "https://github.com/Dashtid/dicom-fuzzer"
+Documentation = "https://github.com/Dashtid/dicom-fuzzer/tree/main/docs"
+Repository = "https://github.com/Dashtid/dicom-fuzzer.git"
+"Bug Tracker" = "https://github.com/Dashtid/dicom-fuzzer/issues"
+Changelog = "https://github.com/Dashtid/dicom-fuzzer/blob/main/CHANGELOG.md"
 
 [project.scripts]
 dicom-fuzzer = "dicom_fuzzer.cli.main:main"
