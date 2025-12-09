@@ -239,7 +239,7 @@ class TaskQueue:
         self.visibility_timeout = visibility_timeout
         self.max_retries = max_retries
 
-        self._client: redis.Redis | None = None
+        self._client: Any = None
         self._connected = False
 
         logger.info(f"Task queue initialized: {redis_url}")
@@ -251,7 +251,8 @@ class TaskQueue:
 
         try:
             self._client = redis.from_url(self.redis_url)
-            self._client.ping()
+            if self._client is not None:
+                self._client.ping()
             self._connected = True
             logger.info("Connected to Redis")
         except Exception as e:
@@ -265,7 +266,7 @@ class TaskQueue:
             self._connected = False
             logger.info("Disconnected from Redis")
 
-    def _get_client(self) -> redis.Redis[bytes]:
+    def _get_client(self) -> Any:
         """Get connected Redis client.
 
         Returns:
@@ -346,6 +347,7 @@ class TaskQueue:
         if not result:
             return None
 
+        # Result is list of (member, score) tuples
         task_id = result[0][0]
         if isinstance(task_id, bytes):
             task_id = task_id.decode()
@@ -438,18 +440,19 @@ class TaskQueue:
         results_count = client.llen(self.RESULTS_QUEUE)
         dead = client.llen(self.DEAD_LETTER_QUEUE)
 
-        stats = client.hgetall(self.STATS_KEY)
-        stats = {
-            k.decode() if isinstance(k, bytes) else k: int(v) for k, v in stats.items()
+        raw_stats = client.hgetall(self.STATS_KEY)
+        parsed_stats: dict[str, int] = {
+            k.decode() if isinstance(k, bytes) else k: int(v)
+            for k, v in raw_stats.items()
         }
 
         return {
-            "pending": pending,
-            "in_progress": in_progress,
-            "results": results_count,
-            "dead_letter": dead,
-            "completed": stats.get("completed", 0),
-            "crashes": stats.get("crashes", 0),
+            "pending": pending if isinstance(pending, int) else 0,
+            "in_progress": in_progress if isinstance(in_progress, int) else 0,
+            "results": results_count if isinstance(results_count, int) else 0,
+            "dead_letter": dead if isinstance(dead, int) else 0,
+            "completed": parsed_stats.get("completed", 0),
+            "crashes": parsed_stats.get("crashes", 0),
         }
 
     def requeue_stale_tasks(self) -> int:

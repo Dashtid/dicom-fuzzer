@@ -241,7 +241,7 @@ class FuzzingVisualizer:
         # Create figure
         fig, ax = plt.subplots(figsize=(12, 6))
 
-        # Plot line
+        # Plot line - matplotlib handles datetime lists automatically
         ax.plot(
             timestamps,
             cumulative_crashes,

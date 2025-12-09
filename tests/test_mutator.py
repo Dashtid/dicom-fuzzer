@@ -605,12 +605,16 @@ class TestSafetyChecks:
 class TestPropertyBasedTesting:
     """Property-based tests for robustness."""
 
-    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=500)
     @given(num_mutations=st.integers(min_value=1, max_value=10))
     def test_num_mutations_always_nonnegative(
         self, sample_dicom_dataset, num_mutations
     ):
-        """Property test: number of mutations is always non-negative."""
+        """Property test: number of mutations is always non-negative.
+
+        Note: Increased deadline from 200ms to 500ms due to variable execution
+        times when running in parallel with pytest-xdist.
+        """
         mutator = DicomMutator(config={"mutation_probability": 1.0})
 
         strategy = Mock()

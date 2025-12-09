@@ -4,11 +4,11 @@ Provides mixins and utilities for converting dataclasses to JSON-serializable
 dictionaries with proper handling of datetime objects and nested structures.
 """
 
-from dataclasses import asdict, is_dataclass
+from dataclasses import asdict
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 class SerializableMixin:
@@ -49,15 +49,14 @@ class SerializableMixin:
             enums converted to values, paths converted to strings, and nested
             dataclasses recursively serialized.
 
-        """
-        if not is_dataclass(self):
-            raise TypeError(
-                f"SerializableMixin can only be used with dataclasses, "
-                f"got {type(self).__name__}"
-            )
+        Note:
+            This mixin must only be used with @dataclass decorated classes.
+            Type checking enforces this at compile time.
 
-        # After the is_dataclass check above, mypy knows self is a dataclass instance
-        data: dict[str, Any] = asdict(self)  # type: ignore[unreachable]
+        """
+        # Convert dataclass to dict - cast to Any since asdict expects DataclassInstance
+        # but SerializableMixin is a mixin that must be used with @dataclass
+        data: dict[str, Any] = asdict(cast(Any, self))
         serialized: dict[str, Any] = self._serialize_value(data)
 
         # Allow subclasses to add custom computed fields

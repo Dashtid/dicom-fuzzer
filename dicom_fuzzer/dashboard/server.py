@@ -176,7 +176,7 @@ class DashboardServer:
             )
 
         @app.get("/", response_class=HTMLResponse)  # type: ignore[misc]
-        async def index() -> HTMLResponse:
+        async def index() -> HTMLResponse | FileResponse:
             """Serve the dashboard HTML page."""
             index_path = self.static_dir / "index.html"
             if index_path.exists():
