@@ -5,6 +5,47 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-12-09 - Synthetic DICOM & Directory Support
+
+### Added - Synthetic DICOM Generation
+
+- **Synthetic Generator** (`synthetic.py`): Generate valid DICOM files with fabricated data
+  - Support for 10 modalities: CT, MR, US, CR, DX, PT, NM, XA, RF, SC
+  - Realistic pixel data patterns per modality (anatomical structures, gradients)
+  - Series generation with consistent patient/study/series UIDs
+  - No PHI concerns - all data is completely synthetic
+
+- **Samples Subcommand** (`samples.py`): CLI for synthetic data and sample sources
+  - `dicom-fuzzer samples --generate`: Generate synthetic test files
+  - `dicom-fuzzer samples --list-sources`: List public DICOM sample sources
+  - Options: `-m MODALITY`, `-c COUNT`, `--series`, `--rows`, `--columns`, `--seed`
+
+### Added - Directory Input Support
+
+- **Directory Scanning**: Accept directories as fuzzing input (not just single files)
+  - `--recursive` / `-r` flag for recursive subdirectory scanning
+  - Automatic DICOM detection by extension (.dcm, .dicom, .dic) and magic bytes
+  - Progress tracking for batch processing with tqdm
+  - Per-file mutation count with total estimation
+
+### Added - Dashboard & Distributed Fuzzing
+
+- **Dashboard Module** (`dicom_fuzzer/dashboard/`): Real-time monitoring
+  - FastAPI WebSocket server with embedded HTML UI
+  - Prometheus metrics exporter for monitoring integration
+  - REST API endpoints for stats and crash information
+
+- **Distributed Fuzzing Module** (`dicom_fuzzer/distributed/`): Scalable fuzzing
+  - Redis-backed task queue with priority support and in-memory fallback
+  - Master coordinator for campaign management
+  - Worker nodes for distributed task execution
+  - Local worker pool for single-machine parallel fuzzing
+
+### Changed
+
+- Remove emojis from documentation for professional formatting
+- Update test coverage: network_fuzzer (97%), gui_monitor (69%)
+
 ## [1.2.0] - 2025-12-09 - PyPI Release
 
 This release marks the first public PyPI release of DICOM-Fuzzer with comprehensive documentation, crash intelligence features, performance optimizations, and 5,400+ tests.

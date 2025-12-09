@@ -836,7 +836,7 @@ Examples:
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging output"
     )
-    parser.add_argument("--version", action="version", version="DICOM Fuzzer v1.2.0")
+    parser.add_argument("--version", action="version", version="DICOM Fuzzer v1.3.0")
 
     # Target testing options
     parser.add_argument(
@@ -1113,7 +1113,7 @@ Examples:
 
     # Generate fuzzed files
     print("\n" + "=" * 70)
-    print("  DICOM Fuzzer v1.2.0 - Fuzzing Campaign")
+    print("  DICOM Fuzzer v1.3.0 - Fuzzing Campaign")
     print("=" * 70)
     if is_directory_input:
         print(f"  Input:      {args.input_file} ({len(input_files)} files)")
