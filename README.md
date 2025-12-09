@@ -13,6 +13,9 @@ DICOM Fuzzer identifies vulnerabilities in medical imaging systems, PACS servers
 **Features:**
 
 - Mutation-based fuzzing of DICOM metadata, headers, and pixel data
+- Directory input with recursive scanning for batch fuzzing
+- Synthetic DICOM generation (no PHI concerns)
+- GUI application testing mode for DICOM viewers
 - Coverage-guided fuzzing with code coverage tracking
 - Crash intelligence with automated triage, minimization, and stability tracking
 - 3D series fuzzing for CT/MRI multi-slice data
@@ -37,11 +40,33 @@ pip install -e .
 ### Command Line
 
 ```bash
-# Generate 100 fuzzed files
+# Generate 100 fuzzed files from a single DICOM
 dicom-fuzzer input.dcm -c 100 -o ./output
+
+# Fuzz all files in a directory
+dicom-fuzzer ./dicom_folder/ -c 10 -o ./output
+
+# Recursive directory scan
+dicom-fuzzer ./data/ --recursive -c 5 -o ./output
 
 # Test a DICOM viewer
 dicom-fuzzer input.dcm -c 500 -t ./viewer.exe --stop-on-crash
+
+# Test GUI applications (viewers that don't exit)
+dicom-fuzzer input.dcm -c 20 -t ./Affinity.exe --gui-mode --timeout 5
+```
+
+### Generate Synthetic Test Data
+
+```bash
+# Generate 10 synthetic CT images (no PHI)
+dicom-fuzzer samples --generate -c 10 -m CT -o ./samples
+
+# Generate a series of 20 MR slices
+dicom-fuzzer samples --generate --series -c 20 -m MR -o ./samples
+
+# List public DICOM sample sources
+dicom-fuzzer samples --list-sources
 ```
 
 ### Python API
