@@ -723,7 +723,7 @@ def main() -> int:
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging output"
     )
-    parser.add_argument("--version", action="version", version="DICOM Fuzzer v1.0.0")
+    parser.add_argument("--version", action="version", version="DICOM Fuzzer v1.2.0")
 
     # Target testing options
     parser.add_argument(
@@ -985,7 +985,7 @@ def main() -> int:
 
     # Generate fuzzed files
     print("\n" + "=" * 70)
-    print("  DICOM Fuzzer v1.0.0 - Fuzzing Campaign")
+    print("  DICOM Fuzzer v1.2.0 - Fuzzing Campaign")
     print("=" * 70)
     print(f"  Input:      {input_path.name}")
     print(f"  Output:     {args.output}")

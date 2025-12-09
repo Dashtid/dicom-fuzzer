@@ -1,6 +1,6 @@
 {
-  "duration": 0.036829233169555664,
-  "total_executions": 7,
+  "duration": 0.03281354904174805,
+  "total_executions": 10,
   "exec_per_sec": 0.0,
   "crashes": {
     "total": 0,
@@ -19,10 +19,10 @@
       "total_edges_covered": 719,
       "total_executions": 10,
       "coverage_plateaus": 0,
-      "time_since_coverage_increase": 0.02700018882751465,
+      "time_since_coverage_increase": 0.023324966430664062,
       "mutation_success_rates": {
-        "block_duplicate": 1.0,
-        "arithmetic_inc": 1.0
+        "arithmetic_dec": 1.0,
+        "block_remove": 1.0
       },
       "seed_priorities": {
         "CRITICAL": 3,
