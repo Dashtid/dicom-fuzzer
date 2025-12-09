@@ -302,8 +302,11 @@ class CrashAnalyzer:
             Severity as string
 
         """
-        # Convert string back to CrashType enum
-        crash_type = CrashType(crash_type_str)
+        # Convert string back to CrashType enum with fallback to UNKNOWN
+        try:
+            crash_type = CrashType(crash_type_str)
+        except ValueError:
+            crash_type = CrashType.UNKNOWN
         return self._determine_severity(crash_type, exception).value
 
     def _generate_crash_hash(self, stack_trace: str, exception_msg: str) -> str:

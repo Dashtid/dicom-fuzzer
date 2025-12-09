@@ -66,7 +66,39 @@ class CampaignCheckpoint(SerializableMixin):
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "CampaignCheckpoint":
-        """Create checkpoint from dictionary."""
+        """Create checkpoint from dictionary.
+
+        Args:
+            data: Dictionary representation of checkpoint
+
+        Returns:
+            CampaignCheckpoint instance
+
+        Raises:
+            KeyError: If required fields are missing
+
+        """
+        # Validate required fields
+        required_fields = [
+            "campaign_id",
+            "status",
+            "start_time",
+            "last_update",
+            "total_files",
+            "processed_files",
+            "successful",
+            "failed",
+            "crashes",
+            "current_file_index",
+            "test_files",
+            "output_dir",
+            "crash_dir",
+            "metadata",
+        ]
+        missing = [f for f in required_fields if f not in data]
+        if missing:
+            raise KeyError(f"Missing required fields in checkpoint data: {missing}")
+
         # Convert status string to enum
         data["status"] = CampaignStatus(data["status"])
         return cls(**data)

@@ -365,11 +365,20 @@ class TestBitFlip:
         assert result == bytearray()
 
     def test_bit_flip_modifies_data(self):
-        """Test bit flip modifies data (lines 335-340)."""
+        """Test bit flip modifies data (lines 335-340).
+
+        Note: Uses seeded random for deterministic behavior. Without seeding,
+        multiple flips at the same position/bit can cancel out (XOR twice = original).
+        """
+        import random
+
         mutator = CoverageGuidedMutator()
-        data = bytearray(b"\x00" * 10)
+        # Use non-zero data to ensure visible changes regardless of flip pattern
+        data = bytearray(b"\xaa\x55\xff\x00\x12\x34\x56\x78\x9a\xbc")
         original = bytes(data)
 
+        # Seed random for deterministic test behavior
+        random.seed(42)
         result = mutator._bit_flip(data)
 
         # Data should be modified

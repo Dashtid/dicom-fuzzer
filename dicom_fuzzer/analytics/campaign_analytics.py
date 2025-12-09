@@ -134,6 +134,10 @@ class TrendAnalysis:
         if not self.crashes_over_time or len(self.crashes_over_time) < 2:
             return False
 
+        # Guard against invalid threshold
+        if threshold_hours <= 0:
+            return False
+
         # Analyze recent time window
         threshold_delta = timedelta(hours=threshold_hours)
         recent_time = self.end_time - threshold_delta

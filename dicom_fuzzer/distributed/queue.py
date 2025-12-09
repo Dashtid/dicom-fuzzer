@@ -163,7 +163,15 @@ class TaskResult:
         Returns:
             TaskResult instance
 
+        Raises:
+            KeyError: If required fields (task_id, worker_id) are missing
+
         """
+        if "task_id" not in data:
+            raise KeyError("task_id is required in TaskResult data")
+        if "worker_id" not in data:
+            raise KeyError("worker_id is required in TaskResult data")
+
         return cls(
             task_id=data["task_id"],
             worker_id=data["worker_id"],

@@ -332,7 +332,8 @@ class CoverageGuidedFuzzer:
 
         # Final statistics
         self.stats.update_from_campaign(self)
-        self.stats.total_coverage = len(self.coverage_tracker.global_coverage)
+        with self._lock:
+            self.stats.total_coverage = len(self.coverage_tracker.global_coverage)
 
         logger.info(
             "Fuzzing campaign completed",

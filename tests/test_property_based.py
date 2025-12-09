@@ -432,6 +432,7 @@ class TestDataIntegrity:
             max_size=10,
         )
     )
+    @settings(database=None)  # Disable database to avoid parallel test conflicts
     def test_mutation_value_preservation(self, original_values):
         """Property: Original values are preserved in mutation records."""
         with tempfile.TemporaryDirectory() as tmpdir:

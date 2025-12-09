@@ -205,8 +205,10 @@ class DashboardServer:
         async def websocket_endpoint(websocket: WebSocket) -> None:
             """WebSocket endpoint for real-time updates."""
             await websocket.accept()
-            self._connected_clients.add(websocket)
-            logger.debug(f"Client connected. Total: {len(self._connected_clients)}")
+            with self._lock:
+                self._connected_clients.add(websocket)
+                client_count = len(self._connected_clients)
+            logger.debug(f"Client connected. Total: {client_count}")
 
             try:
                 # Send initial state
@@ -235,10 +237,10 @@ class DashboardServer:
             except WebSocketDisconnect:
                 pass
             finally:
-                self._connected_clients.discard(websocket)
-                logger.debug(
-                    f"Client disconnected. Total: {len(self._connected_clients)}"
-                )
+                with self._lock:
+                    self._connected_clients.discard(websocket)
+                    client_count = len(self._connected_clients)
+                logger.debug(f"Client disconnected. Total: {client_count}")
 
         return app
 

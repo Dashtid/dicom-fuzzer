@@ -369,6 +369,10 @@ class TargetRunner:
                 retry_count=retry_count,
             )
 
+        except (KeyboardInterrupt, SystemExit):
+            # User/system requested stop - propagate immediately without retry
+            raise
+
         except Exception as e:
             # Unexpected error during test execution
             execution_time = time.time() - start_time
