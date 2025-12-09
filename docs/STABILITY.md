@@ -376,21 +376,21 @@ if not passed:
 
 ## Platform Support
 
-| Feature             | Linux   | Windows            | macOS   |
-| ------------------- | ------- | ------------------ | ------- |
-| Memory Limits       | ✅ Full | ❌ No              | ✅ Full |
-| CPU Limits          | ✅ Full | ❌ No              | ✅ Full |
-| Disk Checks         | ✅ Full | ✅ Full            | ✅ Full |
-| File Descriptors    | ✅ Full | ❌ No              | ✅ Full |
-| Checkpoints         | ✅ Full | ✅ Full            | ✅ Full |
-| Signal Handling     | ✅ Full | ⚠️ SIGINT only     | ✅ Full |
-| Resource Monitoring | ✅ Full | ⚠️ Requires psutil | ✅ Full |
+| Feature             | Linux | Windows         | macOS |
+| ------------------- | ----- | --------------- | ----- |
+| Memory Limits       | Yes   | No              | Yes   |
+| CPU Limits          | Yes   | No              | Yes   |
+| Disk Checks         | Yes   | Yes             | Yes   |
+| File Descriptors    | Yes   | No              | Yes   |
+| Checkpoints         | Yes   | Yes             | Yes   |
+| Signal Handling     | Yes   | SIGINT only     | Yes   |
+| Resource Monitoring | Yes   | Requires psutil | Yes   |
 
 **Legend:**
 
-- ✅ Full: Complete support
-- ⚠️ Partial: Limited functionality
-- ❌ No: Not supported
+- Yes: Complete support
+- No: Not supported
+- Partial notes indicate limited functionality
 
 ## Troubleshooting
 
