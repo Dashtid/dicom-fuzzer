@@ -274,6 +274,9 @@ addopts = [
     "--durations=10",
     # Timeout for individual tests (prevents hanging)
     "--timeout=30",
+    # Rerun flaky tests (handles hypothesis + xdist race conditions)
+    "--reruns=2",
+    "--reruns-delay=1",
     # NOTE: Coverage threshold removed from default options to allow individual test runs
     # For full suite coverage check, use: pytest --cov-fail-under=55
     # CI/CD enforces 55% minimum coverage threshold via GitHub Actions

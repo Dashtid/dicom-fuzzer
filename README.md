@@ -2,9 +2,11 @@
 
 A security testing tool for fuzzing DICOM medical imaging implementations.
 
+[![CI/CD](https://github.com/Dashtid/dicom-fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/dicom-fuzzer/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/dicom-fuzzer)](https://pypi.org/project/dicom-fuzzer/)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/dicom-fuzzer)](https://pypi.org/project/dicom-fuzzer/)
+[![Downloads](https://img.shields.io/pypi/dm/dicom-fuzzer)](https://pypi.org/project/dicom-fuzzer/)
 
 ## Overview
 
