@@ -277,6 +277,116 @@ class MedicalDeviceSecurityFuzzer:
                 )
             )
 
+        # Add CVE-2025-5943 specific patterns (June 2025 CISA advisory)
+        mutations.extend(self._generate_cve_2025_5943_mutations(dataset))
+
+        return mutations
+
+    def _generate_cve_2025_5943_mutations(
+        self, dataset: Dataset
+    ) -> list[SecurityMutation]:
+        """Generate CVE-2025-5943 specific mutations (June 2025 MicroDicom vuln).
+
+        CVE-2025-5943 affects MicroDicom 3.0.0 to 3.9.6 and involves heap
+        corruption during DICOM header parsing. Attack vectors include:
+        - Malformed VR length fields causing heap overflow
+        - Transfer syntax confusion attacks
+        - Pixel data header misalignment
+        - File meta information corruption
+
+        Reference: CISA ICS-CERT Advisory ICSMA-25-160-01
+        """
+        mutations = []
+
+        # 1. VR Length Field Overflow Attacks
+        vr_length_attacks = [
+            (0xFFFF, "max_16bit_length"),
+            (0xFFFE, "boundary_16bit_length"),
+            (0x8000, "signed_boundary_length"),
+            (0x7FFF, "max_signed_16bit_length"),
+        ]
+
+        for length_val, name in vr_length_attacks:
+            mutations.append(
+                SecurityMutation(
+                    name=f"cve_2025_5943_vr_length_{name}",
+                    vulnerability_class=VulnerabilityClass.OUT_OF_BOUNDS_WRITE,
+                    cve_pattern=CVEPattern.CVE_2025_5943,
+                    tag=(0x0008, 0x0018),  # SOPInstanceUID
+                    mutated_value="X" * min(length_val, 0x8000),
+                    description=f"CVE-2025-5943: VR length overflow ({name})",
+                    severity=9,
+                    exploitability="exploitable",
+                )
+            )
+
+        # 2. Transfer Syntax Confusion Attacks
+        transfer_syntax_attacks = [
+            ("1.2.840.10008.1.2", "implicit_vr_le"),
+            ("1.2.840.10008.1.2.1", "explicit_vr_le"),
+            ("1.2.840.10008.1.2.2", "explicit_vr_be"),
+            ("1.2.840.10008.1.2.1.99", "invalid_ts"),
+        ]
+
+        for ts_uid, name in transfer_syntax_attacks:
+            mutations.append(
+                SecurityMutation(
+                    name=f"cve_2025_5943_transfer_syntax_{name}",
+                    vulnerability_class=VulnerabilityClass.OUT_OF_BOUNDS_WRITE,
+                    cve_pattern=CVEPattern.CVE_2025_5943,
+                    tag=(0x0002, 0x0010),  # TransferSyntaxUID
+                    mutated_value=ts_uid,
+                    description=f"CVE-2025-5943: Transfer syntax confusion ({name})",
+                    severity=8,
+                    exploitability="probably_exploitable",
+                )
+            )
+
+        # 3. Pixel Data Header Misalignment Attacks
+        if self.config.fuzz_pixel_data:
+            pixel_misalign_attacks = [
+                ({"rows": 0xFFFF, "cols": 0xFFFF, "data_size": 1024}, "max_dims"),
+                ({"rows": 0x8001, "cols": 0x8001, "data_size": 256}, "odd_boundary"),
+                ({"rows": 3, "cols": 3, "data_size": 0x10000}, "size_overflow"),
+            ]
+
+            for params, name in pixel_misalign_attacks:
+                mutations.append(
+                    SecurityMutation(
+                        name=f"cve_2025_5943_pixel_misalign_{name}",
+                        vulnerability_class=VulnerabilityClass.OUT_OF_BOUNDS_WRITE,
+                        cve_pattern=CVEPattern.CVE_2025_5943,
+                        tag=(0x7FE0, 0x0010),
+                        mutated_value=params,
+                        description=f"CVE-2025-5943: Pixel misalignment ({name})",
+                        severity=9,
+                        exploitability="exploitable",
+                    )
+                )
+
+        # 4. File Meta Information Corruption
+        file_meta_attacks = [
+            ((0x0002, 0x0000), "file_meta_length"),
+            ((0x0002, 0x0001), "file_meta_version"),
+            ((0x0002, 0x0002), "media_sop_class"),
+            ((0x0002, 0x0003), "media_sop_instance"),
+        ]
+
+        for tag, name in file_meta_attacks:
+            mutations.append(
+                SecurityMutation(
+                    name=f"cve_2025_5943_file_meta_{name}",
+                    vulnerability_class=VulnerabilityClass.OUT_OF_BOUNDS_WRITE,
+                    cve_pattern=CVEPattern.CVE_2025_5943,
+                    tag=tag,
+                    mutated_value="X" * 0x8000,
+                    description=f"CVE-2025-5943: File meta corruption ({name})",
+                    severity=9,
+                    exploitability="exploitable",
+                )
+            )
+
+        logger.info(f"Generated {len(mutations)} CVE-2025-5943 specific mutations")
         return mutations
 
     def _generate_oob_read_mutations(self, dataset: Dataset) -> list[SecurityMutation]:
