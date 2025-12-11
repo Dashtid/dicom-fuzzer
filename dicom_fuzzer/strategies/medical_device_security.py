@@ -2,17 +2,25 @@
 
 This module provides security-focused mutation patterns targeting common
 vulnerabilities in medical device DICOM implementations, based on:
+
+2025 CVEs (Latest Threats):
 - CVE-2025-35975: MicroDicom out-of-bounds write (CVSS 8.8)
 - CVE-2025-36521: MicroDicom out-of-bounds read (CVSS 8.8)
-- CVE-2025-5943: Additional MicroDicom vulnerability
-- CVE-2022-2119, CVE-2022-2120: Historical DICOM server vulnerabilities
-- CVE-2025-1001: RadiAnt DICOM Viewer vulnerability
+- CVE-2025-5943: MicroDicom additional vulnerability (June 2025)
+- CVE-2025-1001: RadiAnt DICOM Viewer MitM vulnerability (CVSS 5.7)
+- CVE-2025-1002: MicroDicom certificate verification bypass (CVSS 5.7)
+
+Historical CVEs (Still Relevant):
+- CVE-2022-2119, CVE-2022-2120: DICOM server DoS and RCE vulnerabilities
 
 References:
 - https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-121-01
+- https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-160-01
 - https://nvd.nist.gov/vuln/detail/cve-2025-35975
 - https://nvd.nist.gov/vuln/detail/CVE-2025-36521
+- https://nvd.nist.gov/vuln/detail/CVE-2025-5943
 - https://digital.nhs.uk/cyber-alerts/2025/cc-4650
+- https://digital.nhs.uk/cyber-alerts/2025/cc-4667
 
 SECURITY NOTE: This module is intended for authorized security testing only.
 Use only on systems you own or have explicit permission to test.
@@ -50,10 +58,13 @@ class VulnerabilityClass(Enum):
 class CVEPattern(Enum):
     """Specific CVE patterns to test for."""
 
-    CVE_2025_35975 = "CVE-2025-35975"  # MicroDicom OOB write
-    CVE_2025_36521 = "CVE-2025-36521"  # MicroDicom OOB read
-    CVE_2025_5943 = "CVE-2025-5943"  # MicroDicom additional
-    CVE_2025_1001 = "CVE-2025-1001"  # RadiAnt DICOM Viewer
+    # 2025 CVEs (most recent threats)
+    CVE_2025_35975 = "CVE-2025-35975"  # MicroDicom OOB write (CVSS 8.8)
+    CVE_2025_36521 = "CVE-2025-36521"  # MicroDicom OOB read (CVSS 8.8)
+    CVE_2025_5943 = "CVE-2025-5943"  # MicroDicom additional vuln (June 2025)
+    CVE_2025_1001 = "CVE-2025-1001"  # RadiAnt DICOM Viewer MitM (CVSS 5.7)
+    CVE_2025_1002 = "CVE-2025-1002"  # MicroDicom cert verification bypass (CVSS 5.7)
+    # Historical CVEs (still relevant)
     CVE_2022_2119 = "CVE-2022-2119"  # DICOM server DoS
     CVE_2022_2120 = "CVE-2022-2120"  # DICOM server RCE
 

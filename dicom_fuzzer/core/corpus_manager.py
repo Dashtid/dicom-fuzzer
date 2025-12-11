@@ -436,6 +436,223 @@ class CorpusManager:
         self.stats.total_edges_covered = len(self.global_coverage.edges)
 
 
+class CorpusMinimizer:
+    """AFL-cmin style corpus minimization.
+
+    Reduces corpus size while preserving coverage by finding the minimal
+    set of seeds that covers all discovered edges.
+
+    Algorithm:
+    1. Build edge -> seed mapping
+    2. Greedily select seeds that cover the most uncovered edges
+    3. Remove seeds that provide no unique coverage
+    """
+
+    def __init__(self, corpus: CorpusManager):
+        """Initialize minimizer with a corpus.
+
+        Args:
+            corpus: The corpus manager to minimize
+
+        """
+        self.corpus = corpus
+        self._edge_to_seeds: dict[tuple, set[str]] = defaultdict(set)
+        self._seed_to_edges: dict[str, set[tuple]] = {}
+
+    def build_coverage_map(self) -> None:
+        """Build mappings between edges and seeds."""
+        self._edge_to_seeds.clear()
+        self._seed_to_edges.clear()
+
+        for seed_id, seed in self.corpus.seeds.items():
+            edges = seed.coverage.edges
+            self._seed_to_edges[seed_id] = edges
+
+            for edge in edges:
+                self._edge_to_seeds[edge].add(seed_id)
+
+    def find_essential_seeds(self) -> set[str]:
+        """Find seeds that are the only ones covering certain edges.
+
+        Returns:
+            Set of essential seed IDs
+
+        """
+        essential = set()
+
+        for _edge, seed_ids in self._edge_to_seeds.items():
+            if len(seed_ids) == 1:
+                # This seed is the only one covering this edge
+                essential.update(seed_ids)
+
+        return essential
+
+    def minimize_greedy(self, target_size: int | None = None) -> list[str]:
+        """Perform greedy corpus minimization.
+
+        Args:
+            target_size: Optional target corpus size
+
+        Returns:
+            List of seed IDs to keep
+
+        """
+        self.build_coverage_map()
+
+        # Start with essential seeds
+        selected = self.find_essential_seeds()
+        covered_edges: set[tuple] = set()
+
+        # Add coverage from essential seeds
+        for seed_id in selected:
+            covered_edges.update(self._seed_to_edges.get(seed_id, set()))
+
+        # All edges we need to cover
+        all_edges = set(self._edge_to_seeds.keys())
+        uncovered = all_edges - covered_edges
+
+        # Greedily add seeds that cover the most uncovered edges
+        remaining_seeds = set(self.corpus.seeds.keys()) - selected
+
+        while uncovered and remaining_seeds:
+            # Find seed that covers most uncovered edges
+            best_seed = None
+            best_coverage = 0
+
+            for seed_id in remaining_seeds:
+                seed_edges = self._seed_to_edges.get(seed_id, set())
+                coverage = len(seed_edges & uncovered)
+
+                if coverage > best_coverage:
+                    best_coverage = coverage
+                    best_seed = seed_id
+
+            if best_seed is None or best_coverage == 0:
+                break
+
+            # Select this seed
+            selected.add(best_seed)
+            remaining_seeds.remove(best_seed)
+            covered_edges.update(self._seed_to_edges.get(best_seed, set()))
+            uncovered = all_edges - covered_edges
+
+            # Check target size
+            if target_size and len(selected) >= target_size:
+                break
+
+        return list(selected)
+
+    def minimize_weighted(self) -> list[str]:
+        """Minimize corpus using weighted selection.
+
+        Considers:
+        - Coverage contribution
+        - Execution time (prefer faster seeds)
+        - Discovery history (prefer productive seeds)
+
+        Returns:
+            List of seed IDs to keep
+
+        """
+        self.build_coverage_map()
+
+        # Calculate seed scores
+        scores: dict[str, float] = {}
+
+        for seed_id, seed in self.corpus.seeds.items():
+            edges = self._seed_to_edges.get(seed_id, set())
+
+            # Base score from unique coverage
+            unique_edges = sum(
+                1 for e in edges if len(self._edge_to_seeds.get(e, set())) == 1
+            )
+
+            # Bonus for discoveries
+            discovery_bonus = seed.discoveries * 0.5
+
+            # Penalty for slow seeds (normalized exec time)
+            # We don't have avg_exec_time stored, so skip this
+
+            # Bonus for crash-finding
+            crash_bonus = seed.crashes * 2
+
+            scores[seed_id] = unique_edges + discovery_bonus + crash_bonus
+
+        # Sort by score and greedily select
+        sorted_seeds = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+
+        selected = set()
+        covered_edges: set[tuple] = set()
+        all_edges = set(self._edge_to_seeds.keys())
+
+        for seed_id, _ in sorted_seeds:
+            seed_edges = self._seed_to_edges.get(seed_id, set())
+            new_coverage = seed_edges - covered_edges
+
+            if new_coverage:
+                selected.add(seed_id)
+                covered_edges.update(seed_edges)
+
+            if covered_edges >= all_edges:
+                break
+
+        return list(selected)
+
+    def get_redundant_seeds(self) -> list[str]:
+        """Find seeds that provide no unique coverage.
+
+        Returns:
+            List of redundant seed IDs that can be safely removed
+
+        """
+        self.build_coverage_map()
+
+        redundant = []
+
+        for seed_id in self.corpus.seeds:
+            edges = self._seed_to_edges.get(seed_id, set())
+
+            # Check if all edges are covered by other seeds
+            is_redundant = all(
+                len(self._edge_to_seeds.get(e, set())) > 1 for e in edges
+            )
+
+            if is_redundant and edges:  # Don't mark seeds with no coverage
+                redundant.append(seed_id)
+
+        return redundant
+
+    def get_coverage_stats(self) -> dict[str, int]:
+        """Get statistics about corpus coverage.
+
+        Returns:
+            Dictionary with coverage statistics
+
+        """
+        self.build_coverage_map()
+
+        essential = self.find_essential_seeds()
+        redundant = self.get_redundant_seeds()
+
+        # Edge frequency distribution
+        single_coverage = sum(
+            1 for seeds in self._edge_to_seeds.values() if len(seeds) == 1
+        )
+        multi_coverage = sum(
+            1 for seeds in self._edge_to_seeds.values() if len(seeds) > 1
+        )
+
+        return {
+            "total_seeds": len(self.corpus.seeds),
+            "total_edges": len(self._edge_to_seeds),
+            "essential_seeds": len(essential),
+            "redundant_seeds": len(redundant),
+            "single_coverage_edges": single_coverage,
+            "multi_coverage_edges": multi_coverage,
+            "potential_reduction": len(redundant),
+        }
+
+
 class HistoricalCorpusManager(CorpusManager):
     """Enhanced corpus manager with historical learning.
 
