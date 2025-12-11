@@ -119,6 +119,7 @@ class GUITargetRunner:
         timeout: float = 10.0,
         crash_dir: str = "./crashes",
         memory_limit_mb: int | None = None,
+        startup_delay: float = 0.0,
     ):
         """Initialize GUI target runner.
 
@@ -127,6 +128,7 @@ class GUITargetRunner:
             timeout: Seconds to wait before killing the app
             crash_dir: Directory to save crash reports
             memory_limit_mb: Optional memory limit (kills if exceeded)
+            startup_delay: Seconds to wait after launch before monitoring starts
 
         Raises:
             FileNotFoundError: If target executable doesn't exist
@@ -146,6 +148,7 @@ class GUITargetRunner:
         self.crash_dir = Path(crash_dir)
         self.crash_dir.mkdir(parents=True, exist_ok=True)
         self.memory_limit_mb = memory_limit_mb
+        self.startup_delay = startup_delay
 
         # Statistics
         self.total_tests = 0
@@ -156,7 +159,8 @@ class GUITargetRunner:
         logger = logging.getLogger(__name__)
         logger.info(
             f"GUITargetRunner initialized: target={target_executable}, "
-            f"timeout={timeout}s, memory_limit={memory_limit_mb}MB"
+            f"timeout={timeout}s, memory_limit={memory_limit_mb}MB, "
+            f"startup_delay={startup_delay}s"
         )
 
     def execute_test(self, test_file: Path | str) -> GUIExecutionResult:
@@ -193,6 +197,13 @@ class GUITargetRunner:
                 if sys.platform == "win32"
                 else 0,
             )
+
+            # Wait for startup delay if specified (allows app to load before monitoring)
+            if self.startup_delay > 0:
+                logger.debug(f"Waiting {self.startup_delay}s for app to start...")
+                time.sleep(self.startup_delay)
+                # Reset start time after delay so timeout is measured from app ready state
+                start_time = time.time()
 
             # Monitor process until timeout or crash
             poll_interval = 0.1
@@ -819,9 +830,9 @@ Examples:
     parser.add_argument(
         "-o",
         "--output",
-        default="./output",
+        default="./campaigns/output",
         metavar="DIR",
-        help="Output directory for fuzzed files (default: ./output)",
+        help="Output directory for fuzzed files (default: ./campaigns/output)",
     )
     parser.add_argument(
         "-s",
@@ -875,6 +886,17 @@ Examples:
         help=(
             "Memory limit for GUI mode in MB. Kill target if exceeded. "
             "Only used with --gui-mode."
+        ),
+    )
+    parser.add_argument(
+        "--startup-delay",
+        type=float,
+        default=0.0,
+        metavar="SEC",
+        help=(
+            "Delay in seconds after launching GUI app before monitoring starts. "
+            "Use this for applications that need time to load (e.g., 2.0 for Hermes). "
+            "Only used with --gui-mode. (default: 0.0)"
         ),
     )
 
@@ -1444,6 +1466,11 @@ Examples:
                 print("  Mode:       GUI (app killed after timeout)")
                 if memory_limit:
                     print(f"  Mem limit:  {memory_limit}MB")
+                startup_delay_display = getattr(args, "startup_delay", 0.0)
+                if startup_delay_display > 0:
+                    print(
+                        f"  Startup:    {startup_delay_display}s delay before monitoring"
+                    )
             print("=" * 70 + "\n")
 
             try:
@@ -1457,11 +1484,13 @@ Examples:
                         )
                         sys.exit(1)
 
+                    startup_delay = getattr(args, "startup_delay", 0.0)
                     runner = GUITargetRunner(
                         target_executable=args.target,
                         timeout=args.timeout,
                         crash_dir=str(output_path / "crashes"),
                         memory_limit_mb=memory_limit,
+                        startup_delay=startup_delay,
                     )
                     logger.info("Starting GUI fuzzing campaign...")
                 else:
