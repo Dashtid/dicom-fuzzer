@@ -451,7 +451,11 @@ class ByteMutator:
         pos = random.randint(0, len(result) - 2)
         value = random.choice(INTERESTING_16)
         use_be = random.random() < 0.5
-        fmt = ">h" if use_be else "<h"
+        # Use signed format for values in signed range, unsigned otherwise
+        if -32768 <= value <= 32767:
+            fmt = ">h" if use_be else "<h"
+        else:
+            fmt = ">H" if use_be else "<H"
 
         try:
             result[pos : pos + 2] = struct.pack(fmt, value)
@@ -477,7 +481,11 @@ class ByteMutator:
         pos = random.randint(0, len(result) - 4)
         value = random.choice(INTERESTING_32)
         use_be = random.random() < 0.5
-        fmt = ">i" if use_be else "<i"
+        # Use signed format for values in signed range, unsigned otherwise
+        if -2147483648 <= value <= 2147483647:
+            fmt = ">i" if use_be else "<i"
+        else:
+            fmt = ">I" if use_be else "<I"
 
         try:
             result[pos : pos + 4] = struct.pack(fmt, value)
