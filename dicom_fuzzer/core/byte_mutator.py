@@ -383,8 +383,8 @@ class ByteMutator:
                 result[pos : pos + 2],
                 f"Arithmetic16 {delta:+d} at position {pos} ({'BE' if use_be else 'LE'})",
             )
-        except struct.error:
-            pass
+        except struct.error as e:
+            logger.debug(f"Struct error in arithmetic16 at pos {pos}: {e}")
 
         return result
 
@@ -415,8 +415,8 @@ class ByteMutator:
                 result[pos : pos + 4],
                 f"Arithmetic32 {delta:+d} at position {pos} ({'BE' if use_be else 'LE'})",
             )
-        except struct.error:
-            pass
+        except struct.error as e:
+            logger.debug(f"Struct error in arithmetic32 at pos {pos}: {e}")
 
         return result
 
@@ -463,8 +463,8 @@ class ByteMutator:
                 result[pos : pos + 2],
                 f"Interesting16 value {value} at position {pos}",
             )
-        except struct.error:
-            pass
+        except struct.error as e:
+            logger.debug(f"Struct error in interesting16 at pos {pos}: {e}")
 
         return result
 
@@ -489,8 +489,8 @@ class ByteMutator:
                 result[pos : pos + 4],
                 f"Interesting32 value {value} at position {pos}",
             )
-        except struct.error:
-            pass
+        except struct.error as e:
+            logger.debug(f"Struct error in interesting32 at pos {pos}: {e}")
 
         return result
 
@@ -523,9 +523,9 @@ class ByteMutator:
             op = random.choice(havoc_ops)
             try:
                 result = op(result)
-            except (IndexError, ValueError):
+            except (IndexError, ValueError) as e:
                 # Some operations may fail on small inputs
-                pass
+                logger.debug(f"Havoc operation {op.__name__} failed: {e}")
 
         self.stats.havoc += 1
         return result
