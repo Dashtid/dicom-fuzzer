@@ -203,26 +203,38 @@ class DICOMElement:
 
         elif vr in ("SS",):
             try:
-                return struct.pack("<h", int(self.value))  # type: ignore[arg-type]
+                # Clamp to valid signed short range (-32768 to 32767) for fuzzed values
+                val = int(self.value)  # type: ignore[arg-type]
+                val = max(-32768, min(val, 32767))
+                return struct.pack("<h", val)
             except (ValueError, TypeError):
                 # Handle fuzzed data that doesn't match VR
                 return struct.pack("<h", 0)
 
         elif vr in ("US",):
             try:
-                return struct.pack("<H", int(self.value))  # type: ignore[arg-type]
+                # Clamp to valid unsigned short range (0-65535) for fuzzed values
+                val = int(self.value)  # type: ignore[arg-type]
+                val = max(0, min(val, 65535))
+                return struct.pack("<H", val)
             except (ValueError, TypeError):
                 return struct.pack("<H", 0)
 
         elif vr in ("SL",):
             try:
-                return struct.pack("<l", int(self.value))  # type: ignore[arg-type]
+                # Clamp to valid signed long range for fuzzed values
+                val = int(self.value)  # type: ignore[arg-type]
+                val = max(-2147483648, min(val, 2147483647))
+                return struct.pack("<l", val)
             except (ValueError, TypeError):
                 return struct.pack("<l", 0)
 
         elif vr in ("UL",):
             try:
-                return struct.pack("<L", int(self.value))  # type: ignore[arg-type]
+                # Clamp to valid unsigned long range for fuzzed values
+                val = int(self.value)  # type: ignore[arg-type]
+                val = max(0, min(val, 4294967295))
+                return struct.pack("<L", val)
             except (ValueError, TypeError):
                 return struct.pack("<L", 0)
 

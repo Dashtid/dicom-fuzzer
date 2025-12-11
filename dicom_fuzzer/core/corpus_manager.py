@@ -394,7 +394,8 @@ class CorpusManager:
         for seed_id, seed in self.seeds.items():
             seed_path = directory / f"{seed_id}.seed"
             with open(seed_path, "wb") as f:
-                pickle.dump(seed, f)
+                # nosemgrep: python.lang.security.deserialization.avoid-pickle
+                pickle.dump(seed, f)  # Internal corpus data, not user input
 
         # Save metadata
         metadata = {
@@ -415,6 +416,7 @@ class CorpusManager:
         for seed_path in directory.glob("*.seed"):
             with open(seed_path, "rb") as f:
                 # nosec B301 - pickle.load from internal corpus directory (trusted source)
+                # nosemgrep: python.lang.security.deserialization.avoid-pickle
                 seed = pickle.load(f)  # nosec
                 self.seeds[seed.id] = seed
                 self.global_coverage.merge(seed.coverage)

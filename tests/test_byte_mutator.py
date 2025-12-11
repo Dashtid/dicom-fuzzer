@@ -341,14 +341,18 @@ class TestByteMutatorInteresting:
 
     def test_interesting_16(self, mutator):
         """Test 16-bit interesting value substitution."""
-        data = bytearray(b"\x00" * 10)
+        # Use non-zero data to ensure mutation is always detectable
+        # (0 is a valid interesting value that would be invisible on zero-filled data)
+        data = bytearray(b"\x80\x80" * 5)
         result = mutator._interesting_16(data)
 
         assert result != data or len(data) < 2
 
     def test_interesting_32(self, mutator):
         """Test 32-bit interesting value substitution."""
-        data = bytearray(b"\x00" * 10)
+        # Use non-zero data to ensure mutation is always detectable
+        # (0 is a valid interesting value that would be invisible on zero-filled data)
+        data = bytearray(b"\x80\x80\x80\x80" * 3)
         result = mutator._interesting_32(data)
 
         assert result != data or len(data) < 4

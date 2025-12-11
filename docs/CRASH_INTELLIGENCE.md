@@ -75,37 +75,40 @@ print(f"Recommendations: {triage.recommendations}")
 
 ### Severity Levels
 
-| Level | Description | Priority Range |
-|-------|-------------|----------------|
-| **CRITICAL** | Likely exploitable (write access, heap corruption) | 85-100 |
-| **HIGH** | Potentially exploitable (read access, stack issues) | 65-85 |
-| **MEDIUM** | Stability issue (timeouts, resource exhaustion) | 40-65 |
-| **LOW** | Minor issue or edge case | 20-40 |
-| **INFO** | Informational only | 0-20 |
+| Level        | Description                                         | Priority Range |
+| ------------ | --------------------------------------------------- | -------------- |
+| **CRITICAL** | Likely exploitable (write access, heap corruption)  | 85-100         |
+| **HIGH**     | Potentially exploitable (read access, stack issues) | 65-85          |
+| **MEDIUM**   | Stability issue (timeouts, resource exhaustion)     | 40-65          |
+| **LOW**      | Minor issue or edge case                            | 20-40          |
+| **INFO**     | Informational only                                  | 0-20           |
 
 ### Exploitability Ratings
 
-| Rating | Description | Indicators |
-|--------|-------------|------------|
-| **EXPLOITABLE** | Definitely weaponizable | Heap corruption, write access violations, use-after-free, double-free |
-| **PROBABLY_EXPLOITABLE** | Likely weaponizable | Stack smashing, return address corruption, buffer overflows |
-| **PROBABLY_NOT_EXPLOITABLE** | Unlikely to be weaponized | Timeouts, resource exhaustion, assertion failures |
-| **UNKNOWN** | Cannot determine | Insufficient information |
+| Rating                       | Description               | Indicators                                                            |
+| ---------------------------- | ------------------------- | --------------------------------------------------------------------- |
+| **EXPLOITABLE**              | Definitely weaponizable   | Heap corruption, write access violations, use-after-free, double-free |
+| **PROBABLY_EXPLOITABLE**     | Likely weaponizable       | Stack smashing, return address corruption, buffer overflows           |
+| **PROBABLY_NOT_EXPLOITABLE** | Unlikely to be weaponized | Timeouts, resource exhaustion, assertion failures                     |
+| **UNKNOWN**                  | Cannot determine          | Insufficient information                                              |
 
 ### Key Features
 
 **Write vs Read Differentiation**:
+
 - Write access violations: Scored 20 points higher (likely exploitable)
 - Read access violations: Lower priority (less likely exploitable)
 
 **Indicator Extraction**:
 Automatically detects:
+
 - Heap issues: `malloc`, `free`, `heap corruption`, `use-after-free`, `double-free`
 - Stack issues: `stack smash`, `buffer overflow`, `canary detected`
 - Memory issues: `out-of-bounds`, `write access violation`
 - Control flow: `return address`, `function pointer`, `vtable`, `rip`, `eip`
 
 **Tag Generation**:
+
 - Crash type tags (SIGSEGV, SIGABRT, etc.)
 - Issue category tags (heap-related, memory-corruption, etc.)
 
@@ -171,12 +174,12 @@ if result.success:
 
 ### Minimization Strategies
 
-| Strategy | Description | Best For | Speed |
-|----------|-------------|----------|-------|
-| **DDMIN** | Delta debugging (recommended) | Most inputs, best results | Medium |
-| **BINARY_SEARCH** | Cut in half repeatedly | Large files, fast reduction | Fast |
-| **LINEAR** | Remove one byte at a time | Small files, thorough reduction | Slow |
-| **BLOCK** | Remove fixed-size chunks | Very large files | Fast |
+| Strategy          | Description                   | Best For                        | Speed  |
+| ----------------- | ----------------------------- | ------------------------------- | ------ |
+| **DDMIN**         | Delta debugging (recommended) | Most inputs, best results       | Medium |
+| **BINARY_SEARCH** | Cut in half repeatedly        | Large files, fast reduction     | Fast   |
+| **LINEAR**        | Remove one byte at a time     | Small files, thorough reduction | Slow   |
+| **BLOCK**         | Remove fixed-size chunks      | Very large files                | Fast   |
 
 ### How Delta Debugging (DDMIN) Works
 
@@ -187,6 +190,7 @@ if result.success:
 5. Repeat with smaller chunks until minimal
 
 **Example**:
+
 ```
 Original: AAAAXBBBB (9 bytes)
 Step 1: Try AAAA, XBBBB → Both don't crash
@@ -198,6 +202,7 @@ Result: X (1 byte) - 88.9% reduction
 ### Advanced Usage
 
 **Timeout Protection**:
+
 ```python
 minimizer = TestMinimizer(
     crash_predicate=my_predicate,
@@ -206,6 +211,7 @@ minimizer = TestMinimizer(
 ```
 
 **Iteration Limit**:
+
 ```python
 minimizer = TestMinimizer(
     crash_predicate=my_predicate,
@@ -214,6 +220,7 @@ minimizer = TestMinimizer(
 ```
 
 **Strategy Comparison**:
+
 ```python
 strategies = [
     MinimizationStrategy.DDMIN,
@@ -237,6 +244,7 @@ Stability tracking monitors whether your fuzzing campaign produces **consistent 
 - Stability percentage: 100%
 
 **Instability indicates problems**:
+
 - Uninitialized memory
 - Race conditions
 - Entropy sources (random numbers, timestamps)
@@ -287,6 +295,7 @@ else:
 ### Stability Metrics
 
 **Stability Percentage**:
+
 ```
 stability_percentage = (stable_executions / total_executions) * 100
 ```
@@ -331,6 +340,7 @@ for entry in report:
 ### Integration with Fuzzing
 
 **Retest Strategy**:
+
 ```python
 iteration = 0
 for test_file in corpus:
@@ -596,6 +606,7 @@ def detect_stability_issues(tracker: StabilityTracker) -> List[str]:
 **Issue**: Very low stability percentage
 
 **Solution**: Investigate target application for:
+
 - Uninitialized memory (use AddressSanitizer)
 - Race conditions (use ThreadSanitizer)
 - Entropy sources (timestamps, random numbers)
@@ -614,6 +625,7 @@ def detect_stability_issues(tracker: StabilityTracker) -> List[str]:
 ## Changelog
 
 ### v1.2.0 (2025-10-17)
+
 - Initial release of crash intelligence features
 - Crash triaging with exploitability assessment
 - Test case minimization with delta debugging
