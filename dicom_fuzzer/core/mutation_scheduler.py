@@ -13,10 +13,13 @@ Key concepts:
 - Pilot fuzzing phase explores operator effectiveness
 """
 
+import logging
 import random
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
+
+logger = logging.getLogger(__name__)
 
 
 class MutationOperator(Enum):
@@ -631,7 +634,7 @@ class MutationScheduler:
                 if op in self.weights:
                     self.weights[op] = weight
             except KeyError:
-                pass  # Skip unknown operators
+                logger.debug("Skipping unknown operator in weights: %s", op_name)
 
         # Restore statistics
         for op_name, stats_dict in state.get("stats", {}).items():
@@ -640,7 +643,7 @@ class MutationScheduler:
                 if op in self.stats:
                     self.stats[op] = OperatorStats(**stats_dict)
             except KeyError:
-                pass
+                logger.debug("Skipping unknown operator in stats: %s", op_name)
 
         # Restore global best
         for op_name, weight in state.get("global_best", {}).items():
@@ -649,7 +652,7 @@ class MutationScheduler:
                 if op in self.global_best:
                     self.global_best[op] = weight
             except KeyError:
-                pass
+                logger.debug("Skipping unknown operator in global_best: %s", op_name)
 
         self.global_best_fitness = state.get("global_best_fitness", 0.0)
 
