@@ -18,9 +18,14 @@ try:
         TrendAnalysis,
     )
     from dicom_fuzzer.analytics.visualization import FuzzingVisualizer
-except ImportError:
+except ImportError as _import_err:
     # Phase 5 dependencies not installed (matplotlib, plotly, seaborn)
-    pass
+    CampaignAnalyzer = None  # type: ignore[misc,assignment]
+    CoverageCorrelation = None  # type: ignore[misc,assignment]
+    PerformanceMetrics = None  # type: ignore[misc,assignment]
+    TrendAnalysis = None  # type: ignore[misc,assignment]
+    FuzzingVisualizer = None  # type: ignore[misc,assignment]
+    del _import_err  # Avoid unused variable warning
 from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
 from dicom_fuzzer.core.fuzzing_session import FuzzingSession
 from dicom_fuzzer.core.generator import DICOMGenerator
@@ -35,8 +40,11 @@ try:
         Series3DReportGenerator,
         SeriesMutationSummary,
     )
-except ImportError:
-    pass
+except ImportError as _import_err:
+    Series3DReport = None  # type: ignore[misc,assignment]
+    Series3DReportGenerator = None  # type: ignore[misc,assignment]
+    SeriesMutationSummary = None  # type: ignore[misc,assignment]
+    del _import_err  # Avoid unused variable warning
 from dicom_fuzzer.core.statistics import StatisticsCollector
 from dicom_fuzzer.core.validator import DicomValidator
 

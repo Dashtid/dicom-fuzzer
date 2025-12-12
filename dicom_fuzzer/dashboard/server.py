@@ -447,8 +447,9 @@ class DashboardServer:
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 asyncio.run_coroutine_threadsafe(self._async_broadcast(message), loop)
-        except RuntimeError:
-            pass
+        except RuntimeError as loop_err:
+            # No event loop available (e.g., during shutdown)
+            logger.debug("Cannot broadcast: no event loop available (%s)", loop_err)
 
     async def _async_broadcast(self, message: dict[str, Any]) -> None:
         """Async broadcast to all clients.
@@ -461,7 +462,8 @@ class DashboardServer:
         for client in self._connected_clients:
             try:
                 await client.send_json(message)
-            except Exception:
+            except Exception as send_err:
+                logger.debug("Client disconnected during broadcast: %s", send_err)
                 disconnected.add(client)
 
         self._connected_clients -= disconnected

@@ -356,7 +356,8 @@ class GUIMonitor:
                     )
 
         except psutil.NoSuchProcess:
-            pass
+            # Process exited during monitoring - expected race condition
+            logger.debug("Process exited during memory monitoring")
 
     def _check_dialogs(self, pid: int, test_file: Path | None) -> None:
         """Check for error/warning dialogs using pywinauto.
@@ -410,11 +411,13 @@ class GUIMonitor:
                             )
                             break
 
-                except Exception:
-                    pass
+                except Exception as window_err:
+                    # Window access error (closed, minimized, etc.)
+                    logger.debug(f"Window access error: {window_err}")
 
         except ElementNotFoundError:
-            pass
+            # Application not found or no longer running
+            logger.debug("Application window not found for dialog check")
         except Exception as e:
             logger.debug(f"Dialog check error: {e}")
 
@@ -444,9 +447,11 @@ class GUIMonitor:
                         if text:
                             texts.append(text)
                     except Exception:
-                        pass
-        except Exception:
-            pass
+                        # Control access failed - skip to next control
+                        continue
+        except Exception as text_err:
+            # Window text extraction failed - return what we have
+            logger.debug(f"Window text extraction error: {text_err}")
 
         return texts
 
@@ -478,11 +483,13 @@ class GUIMonitor:
                                 f"(CPU: {cpu_percent}%, Status: {status})",
                             )
                         )
-                except Exception:
-                    pass
+                except Exception as thread_err:
+                    # Thread info unavailable - skip hang detection for this check
+                    logger.debug(f"Could not get thread info: {thread_err}")
 
         except psutil.NoSuchProcess:
-            pass
+            # Process exited during hang check - not actually hung
+            logger.debug("Process exited during hang check")
 
     def _add_response(self, response: GUIResponse) -> None:
         """Add a response to the list (thread-safe).
@@ -620,7 +627,8 @@ class ResponseAwareFuzzer:
             try:
                 process.wait(timeout=self.timeout)
             except subprocess.TimeoutExpired:
-                pass
+                # Expected for GUI apps - they don't exit on their own
+                logger.debug("Process timeout expired - killing process")
 
             self.monitor.stop_monitoring()
 
@@ -634,8 +642,9 @@ class ResponseAwareFuzzer:
                         parent.kill()
                     else:
                         process.kill()
-                except Exception:
-                    pass
+                except Exception as kill_err:
+                    # Process may have exited during kill attempt
+                    logger.debug(f"Process kill error (may be expected): {kill_err}")
 
         except Exception as e:
             logger.error(f"Error testing {test_file}: {e}")

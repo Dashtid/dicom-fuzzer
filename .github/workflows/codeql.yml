@@ -9,6 +9,11 @@ on:
     - cron: '0 0 * * 1'  # Weekly on Monday at midnight
   workflow_dispatch:
 
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
 jobs:
   analyze:
     name: Analyze Code with CodeQL
@@ -25,10 +30,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@a4784f2dad6682d68cce8299ef20b1ca931bbdfb  # v4
         with:
           languages: ${{ matrix.language }}
           queries: security-extended,security-and-quality
@@ -43,10 +48,10 @@ jobs:
               - scripts
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v4
+        uses: github/codeql-action/autobuild@a4784f2dad6682d68cce8299ef20b1ca931bbdfb  # v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@a4784f2dad6682d68cce8299ef20b1ca931bbdfb  # v4
         with:
           category: "/language:${{matrix.language}}"
           # upload: true is default, results are uploaded automatically

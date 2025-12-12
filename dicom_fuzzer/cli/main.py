@@ -20,6 +20,9 @@ from dicom_fuzzer.core.generator import DICOMGenerator
 from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
 from dicom_fuzzer.core.target_runner import ExecutionStatus, TargetRunner
 
+# Module-level logger
+logger = logging.getLogger(__name__)
+
 # Import new modules for advanced fuzzing features
 try:
     from dicom_fuzzer.core.gui_monitor import (
@@ -273,8 +276,9 @@ class GUITargetRunner:
                         stdout_data = raw_stdout.decode("utf-8", errors="replace")
                     if isinstance(raw_stderr, bytes):
                         stderr_data = raw_stderr.decode("utf-8", errors="replace")
-                except Exception:
-                    pass
+                except Exception as comm_err:
+                    # Process communication failed (timeout, pipe broken, etc.)
+                    logger.debug(f"Failed to capture process output: {comm_err}")
 
         # Determine status
         if crashed:
@@ -307,21 +311,23 @@ class GUITargetRunner:
                 try:
                     child.kill()
                 except psutil.NoSuchProcess:
-                    pass
+                    # Child already terminated - continue with others
+                    continue
 
             # Kill parent
             try:
                 parent.kill()
             except psutil.NoSuchProcess:
-                pass
+                # Parent already terminated - expected race condition
+                logger.debug("Parent process already terminated")
 
             # Wait for termination
             psutil.wait_procs([parent] + children, timeout=3)
 
         except psutil.NoSuchProcess:
-            pass
+            # Process already terminated before we could kill it
+            logger.debug("Process tree already terminated")
         except Exception as e:
-            logger = logging.getLogger(__name__)
             logger.warning(f"Failed to kill process tree: {e}")
 
     def run_campaign(
@@ -507,7 +513,7 @@ def apply_resource_limits(resource_limits: dict | ResourceLimits | None) -> None
 
     """
     if resource_limits is None:
-        return
+        return None
 
     # If dict is passed, create ResourceLimits instance for test compatibility
     if isinstance(resource_limits, dict):
@@ -518,6 +524,7 @@ def apply_resource_limits(resource_limits: dict | ResourceLimits | None) -> None
     # Use ResourceManager to check available resources
     manager = ResourceManager(limits)
     manager.check_available_resources()
+    return None
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -580,7 +587,8 @@ def validate_input_path(input_path: str, recursive: bool = False) -> list[Path]:
 
         return sorted(files)
 
-    print(f"Error: '{input_path}' is not a file or directory")
+    # Path exists but is neither file nor directory (e.g., symlink, device)
+    print(f"Error: '{input_path}' is not a regular file or directory")
     sys.exit(1)
 
 
