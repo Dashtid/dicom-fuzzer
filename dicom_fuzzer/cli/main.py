@@ -580,7 +580,8 @@ def validate_input_path(input_path: str, recursive: bool = False) -> list[Path]:
 
         return sorted(files)
 
-    print(f"Error: '{input_path}' is not a file or directory")
+    # Path exists but is neither file nor directory (e.g., symlink, device)
+    print(f"Error: '{input_path}' is not a regular file or directory")
     sys.exit(1)
 
 

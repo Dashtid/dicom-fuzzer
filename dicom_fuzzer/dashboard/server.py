@@ -448,7 +448,8 @@ class DashboardServer:
             if loop.is_running():
                 asyncio.run_coroutine_threadsafe(self._async_broadcast(message), loop)
         except RuntimeError:
-            pass
+            # No event loop available (e.g., during shutdown)
+            logger.debug("Cannot broadcast: no event loop available")
 
     async def _async_broadcast(self, message: dict[str, Any]) -> None:
         """Async broadcast to all clients.
