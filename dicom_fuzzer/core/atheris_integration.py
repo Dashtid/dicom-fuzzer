@@ -496,9 +496,11 @@ class AtherisCustomMutator:
                 # Ensure we don't exceed max size
                 if len(result) <= max_size:
                     return result
-        except Exception:
+        except Exception as dicom_err:
             # DICOM-aware mutation failed, fall back to basic mutation
-            logger.debug("DICOM-aware mutation failed, using basic mutation")
+            logger.debug(
+                f"DICOM-aware mutation failed: {dicom_err}, using basic mutation"
+            )
 
         # Fall back to basic mutation
         return self._basic_mutate(data, max_size, seed)

@@ -642,8 +642,10 @@ class MutationScheduler:
                 op = MutationOperator[op_name]
                 if op in self.stats:
                     self.stats[op] = OperatorStats(**stats_dict)
-            except KeyError:
-                logger.debug("Skipping unknown operator in stats: %s", op_name)
+            except KeyError as stats_err:
+                logger.debug(
+                    "Skipping unknown operator in stats: %s (%s)", op_name, stats_err
+                )
 
         # Restore global best
         for op_name, weight in state.get("global_best", {}).items():
@@ -651,8 +653,12 @@ class MutationScheduler:
                 op = MutationOperator[op_name]
                 if op in self.global_best:
                     self.global_best[op] = weight
-            except KeyError:
-                logger.debug("Skipping unknown operator in global_best: %s", op_name)
+            except KeyError as best_err:
+                logger.debug(
+                    "Skipping unknown operator in global_best: %s (%s)",
+                    op_name,
+                    best_err,
+                )
 
         self.global_best_fitness = state.get("global_best_fitness", 0.0)
 

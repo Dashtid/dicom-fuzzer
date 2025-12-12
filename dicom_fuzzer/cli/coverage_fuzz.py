@@ -441,8 +441,7 @@ def run_coverage_fuzzing(config: dict[str, Any]) -> dict[str, Any]:
         return result
 
     # Otherwise it's a coroutine, run it with asyncio
-    import asyncio
-    import inspect
+    import inspect  # Local import for inspect module (not imported at module level)
 
     if inspect.iscoroutine(result):
         stats = asyncio.run(result)

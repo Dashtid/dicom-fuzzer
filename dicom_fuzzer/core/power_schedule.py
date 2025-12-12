@@ -145,7 +145,7 @@ class PowerSchedule(ABC):
             Energy value (higher = more mutations)
 
         """
-        ...
+        raise NotImplementedError("Subclasses must implement calculate_energy()")
 
     def update_global_stats(
         self,

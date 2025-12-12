@@ -32,8 +32,9 @@ if not IS_WINDOWS:
         import resource as sys_resource
 
         HAS_RESOURCE_MODULE = True
-    except ImportError:
-        pass
+    except ImportError as _import_err:
+        # resource module not available (unusual for non-Windows systems)
+        del _import_err  # Avoid unused variable warning
 
 logger = get_logger(__name__)
 

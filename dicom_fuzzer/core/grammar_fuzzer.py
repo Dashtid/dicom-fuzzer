@@ -19,6 +19,10 @@ This is more sophisticated than Phase 1's random mutations.
 
 from pydicom.dataset import Dataset
 
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class DicomGrammarRule:
     """Represents a DICOM grammar rule.
@@ -364,8 +368,9 @@ class GrammarFuzzer:
                 # Try a less invalid but still problematic value
                 try:
                     dataset.SeriesNumber = 999999999  # Very large number
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as fallback_err:
+                    # Fallback also rejected, continue with other mutations
+                    logger.debug(f"SeriesNumber mutation rejected: {fallback_err}")
 
         if hasattr(dataset, "SliceThickness"):
             try:
@@ -377,8 +382,9 @@ class GrammarFuzzer:
                 # Try a less invalid but still problematic value
                 try:
                     dataset.SliceThickness = "999999.999999"  # Very large decimal
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as fallback_err:
+                    # Fallback also rejected, continue with other mutations
+                    logger.debug(f"SliceThickness mutation rejected: {fallback_err}")
 
         return dataset
 

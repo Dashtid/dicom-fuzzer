@@ -768,7 +768,8 @@ def render_report(template, data):
     """Render HTML report."""
     import jinja2
 
-    tmpl = jinja2.Template(template)
+    # Enable autoescape to prevent XSS attacks in HTML output
+    tmpl = jinja2.Template(template, autoescape=True)
     return tmpl.render(**data)
 
 

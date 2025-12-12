@@ -291,8 +291,9 @@ class ViewerLauncher3D:
                         f.seek(128)
                         if f.read(4) == b"DICM":
                             count += 1
-                except Exception:
-                    pass
+                except Exception as read_err:
+                    # Skip unreadable files without breaking enumeration
+                    logger.debug(f"Could not read {file_path}: {read_err}")
 
         return count
 
@@ -343,7 +344,8 @@ class ViewerLauncher3D:
                 time.sleep(poll_interval)
 
         except psutil.NoSuchProcess:
-            pass
+            # Process exited during monitoring - expected race condition
+            logger.debug("Process exited during memory monitoring")
 
         return peak_memory
 
@@ -363,13 +365,15 @@ class ViewerLauncher3D:
                 try:
                     child.kill()
                 except psutil.NoSuchProcess:
-                    pass
+                    # Child already terminated - continue with others
+                    continue
 
             # Kill parent
             try:
                 parent.kill()
             except psutil.NoSuchProcess:
-                pass
+                # Parent already terminated - expected in race conditions
+                logger.debug("Parent process already terminated")
 
             # Wait for termination
             gone, alive = psutil.wait_procs(
@@ -379,7 +383,8 @@ class ViewerLauncher3D:
             logger.debug(f"Killed process tree (parent PID={process.pid})")
 
         except psutil.NoSuchProcess:
-            pass
+            # Process already terminated before we could kill it
+            logger.debug("Process tree already terminated")
         except Exception as e:
             logger.warning(f"Failed to kill process tree: {e}")
 
