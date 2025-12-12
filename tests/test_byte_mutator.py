@@ -225,6 +225,9 @@ class TestByteMutatorBitFlips:
 
     def test_walking_bit_flip_1(self, mutator):
         """Test single bit flip."""
+        import random
+
+        random.seed(42)  # Deterministic seed for reproducible tests
         data = bytearray(b"\x00" * 10)
         result = mutator._walking_bit_flip(data, 1)
 
@@ -234,6 +237,9 @@ class TestByteMutatorBitFlips:
 
     def test_walking_bit_flip_2(self, mutator):
         """Test double bit flip."""
+        import random
+
+        random.seed(42)  # Deterministic seed for reproducible tests
         data = bytearray(b"\x00" * 10)
         result = mutator._walking_bit_flip(data, 2)
 
@@ -243,6 +249,9 @@ class TestByteMutatorBitFlips:
 
     def test_walking_bit_flip_4(self, mutator):
         """Test quad bit flip."""
+        import random
+
+        random.seed(42)  # Deterministic seed for reproducible tests
         data = bytearray(b"\x00" * 10)
         result = mutator._walking_bit_flip(data, 4)
 
