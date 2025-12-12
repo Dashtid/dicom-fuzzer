@@ -307,7 +307,7 @@ class SeriesCache:
         try:
             with open(series_path, "wb") as f:
                 # nosemgrep: python.lang.security.deserialization.avoid-pickle
-                pickle.dump(series, f)  # Internal cache data, not user input
+                pickle.dump(series, f)
             logger.debug(f"Cached series {series.series_uid} to {series_path}")
         except Exception as e:
             logger.error(f"Failed to cache series {series.series_uid}: {e}")
@@ -349,7 +349,6 @@ class SeriesCache:
 
         try:
             with open(series_path, "rb") as f:
-                # B301: pickle.load - trusted data from internal corpus cache
                 # nosemgrep: python.lang.security.deserialization.avoid-pickle
                 series: DicomSeries = cast("DicomSeries", pickle.load(f))  # nosec B301
             logger.debug(f"Loaded series {series_uid} from {series_path}")

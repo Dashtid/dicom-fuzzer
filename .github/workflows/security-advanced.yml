@@ -24,15 +24,13 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Run Semgrep
-        uses: returntocorp/semgrep-action@v1
-        id: semgrep
+        uses: semgrep/semgrep-action@v1
         with:
           config: >-
             p/python
             p/security-audit
             p/owasp-top-ten
             p/ci
-          generateSarif: true
 
       - name: Upload SARIF to GitHub
         uses: github/codeql-action/upload-sarif@v3
@@ -176,6 +174,8 @@ jobs:
   security-scorecard:
     name: Security Scorecard
     runs-on: ubuntu-latest
+    # Security Scorecard is informational - don't fail pipeline on low scores
+    continue-on-error: true
     permissions:
       security-events: write
       id-token: write
