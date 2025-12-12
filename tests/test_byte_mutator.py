@@ -370,6 +370,13 @@ class TestByteMutatorInteresting:
 class TestByteMutatorHavocOps:
     """Tests for individual havoc operations."""
 
+    @pytest.fixture(autouse=True)
+    def seed_random(self):
+        """Seed random for deterministic tests."""
+        import random
+
+        random.seed(42)
+
     @pytest.fixture
     def mutator(self):
         """Create a ByteMutator instance."""
