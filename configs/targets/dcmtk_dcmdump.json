@@ -39,11 +39,7 @@
     "strip_pixel_data": true,
     "max_file_size_mb": 10,
     "min_file_size_bytes": 132,
-    "strategies": [
-      "metadata",
-      "header",
-      "structure"
-    ],
+    "strategies": ["metadata", "header", "structure"],
     "mutation_severity": "moderate",
     "mutations_per_file": 3
   },

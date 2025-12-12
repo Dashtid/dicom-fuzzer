@@ -157,7 +157,7 @@ def small_file(temp_dir: Path) -> Path:
 
 @pytest.fixture
 def reset_structlog():
-    """Reset structlog configuration before each test.
+    """Reset structlog configuration before and after each test.
 
     This ensures tests don't interfere with each other's logging configuration.
     """
@@ -165,57 +165,61 @@ def reset_structlog():
 
     import structlog
 
+    def _cleanup():
+        """Clean up logging and structlog configuration."""
+        # Flush and close all logging handlers
+        for handler in logging.root.handlers[:]:
+            handler.flush()
+            handler.close()
+            logging.root.removeHandler(handler)
+
+        # Reset structlog to defaults
+        structlog.reset_defaults()
+
+    # Clean up BEFORE the test to ensure clean state
+    _cleanup()
+
     yield
 
-    # Flush and close all logging handlers before resetting
-    for handler in logging.root.handlers[:]:
-        handler.flush()
-        handler.close()
-        logging.root.removeHandler(handler)
-
-    # Reset to original after test
-    structlog.reset_defaults()
+    # Clean up AFTER the test
+    _cleanup()
 
 
 @pytest.fixture
-def capture_logs(reset_structlog):
+def capture_logs():
     """Capture log output for testing.
 
     Returns:
         List that will contain captured log entries
+
+    Note: Uses structlog's official testing utilities which properly
+    handle in-place processor modification to preserve cached logger
+    references.
     """
-    import logging
-
     import structlog
+    import structlog.testing
 
-    captured = []
+    # Ensure structlog is configured before capturing
+    # This handles the case where no test has configured structlog yet
+    if not structlog.is_configured():
+        structlog.configure(
+            processors=[
+                structlog.stdlib.add_log_level,
+                structlog.stdlib.add_logger_name,
+                structlog.processors.JSONRenderer(),
+            ],
+            wrapper_class=structlog.stdlib.BoundLogger,
+            context_class=dict,
+            logger_factory=structlog.stdlib.LoggerFactory(),
+            cache_logger_on_first_use=False,
+        )
 
-    def capture_processor(logger, method_name, event_dict):
-        """Capture event dict before rendering."""
-        captured.append(event_dict.copy())
-        return event_dict
-
-    # Configure structlog to capture logs
-    logging.basicConfig(level=logging.DEBUG)
-
-    structlog.configure(
-        processors=[
-            structlog.contextvars.merge_contextvars,
-            structlog.stdlib.add_log_level,
-            structlog.stdlib.add_logger_name,
-            capture_processor,
-            structlog.processors.JSONRenderer(),
-        ],
-        wrapper_class=structlog.stdlib.BoundLogger,
-        context_class=dict,
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        cache_logger_on_first_use=False,
-    )
-
-    yield captured
-
-    # Clear captured logs
-    captured.clear()
+    # Use structlog's official capture_logs with add_log_level processor
+    # to ensure 'level' key is present in captured entries
+    with structlog.testing.capture_logs(
+        processors=[structlog.stdlib.add_log_level]
+    ) as captured:
+        yield captured
 
 
 @pytest.fixture

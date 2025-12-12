@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dicom-fuzzer"
-version = "1.2.0"
+version = "1.3.0"
 authors = [
     {name = "David Dashti", email = "david@dashti.se"},
 ]
@@ -51,10 +51,11 @@ dependencies = [
 
 
 [project.urls]
-Homepage = "https://github.com/Dashtid/DICOM-Fuzzer"
-Documentation = "https://dicom-fuzzer.readthedocs.io/"
-Repository = "https://github.com/Dashtid/DICOM-Fuzzer.git"
-"Bug Tracker" = "https://github.com/Dashtid/DICOM-Fuzzer/issues"
+Homepage = "https://github.com/Dashtid/dicom-fuzzer"
+Documentation = "https://github.com/Dashtid/dicom-fuzzer/tree/main/docs"
+Repository = "https://github.com/Dashtid/dicom-fuzzer.git"
+"Bug Tracker" = "https://github.com/Dashtid/dicom-fuzzer/issues"
+Changelog = "https://github.com/Dashtid/dicom-fuzzer/blob/main/CHANGELOG.md"
 
 [project.scripts]
 dicom-fuzzer = "dicom_fuzzer.cli.main:main"
@@ -95,12 +96,6 @@ dev = [
     "seaborn>=0.12.0",         # Required for visualization tests
 ]
 
-docs = [
-    "sphinx>=7.1.0",
-    "sphinx-rtd-theme>=1.3.0",
-    "myst-parser>=2.0.0",
-]
-
 network = [
     "pynetdicom[apps]>=2.0.0",
 ]
@@ -109,6 +104,24 @@ viz = [
     "matplotlib>=3.5.0",  # Visualization for analytics and reporting
     "plotly>=5.0.0",      # Interactive visualizations (optional)
     "seaborn>=0.12.0",    # Statistical data visualization (required by visualization.py)
+]
+
+dashboard = [
+    "fastapi>=0.115.0",   # Modern async web framework for dashboard API
+    "uvicorn>=0.32.0",    # ASGI server for FastAPI
+    "websockets>=14.0",   # WebSocket support for real-time updates
+]
+
+distributed = [
+    "redis>=5.2.0",       # Redis client for distributed task queue
+]
+
+metrics = [
+    "prometheus-client>=0.21.0",  # Prometheus metrics export
+]
+
+all = [
+    "dicom-fuzzer[viz,dashboard,distributed,metrics,network]",
 ]
 
 # UV configuration (modern Python package management)
@@ -208,6 +221,10 @@ module = [
     "plotly.*",   # No type stubs available
     "jinja2.*",   # Optional dependency for HTML reports
     "atheris.*",  # Optional dependency for coverage-guided fuzzing
+    "fastapi.*",  # Optional dependency for dashboard
+    "uvicorn.*",  # Optional dependency for dashboard
+    "redis.*",    # Optional dependency for distributed fuzzing
+    "prometheus_client.*",  # Optional dependency for metrics
 ]
 ignore_missing_imports = true
 
@@ -257,6 +274,9 @@ addopts = [
     "--durations=10",
     # Timeout for individual tests (prevents hanging)
     "--timeout=30",
+    # Rerun flaky tests (handles hypothesis + xdist race conditions)
+    "--reruns=2",
+    "--reruns-delay=1",
     # NOTE: Coverage threshold removed from default options to allow individual test runs
     # For full suite coverage check, use: pytest --cov-fail-under=55
     # CI/CD enforces 55% minimum coverage threshold via GitHub Actions

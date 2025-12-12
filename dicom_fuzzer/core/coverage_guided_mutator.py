@@ -235,8 +235,8 @@ class CoverageGuidedMutator:
             return random.choice(enabled_strategies)
 
         # Weighted selection based on success rates
-        weights = []
-        strategies = []
+        weights: list[float] = []
+        strategies: list[MutationType] = []
 
         for mutation_type, strategy in self.strategies.items():
             if strategy.enabled:
@@ -254,7 +254,7 @@ class CoverageGuidedMutator:
             weights = [1.0 / len(strategies)] * len(strategies)
 
         # Convert to indices for numpy choice, then map back to MutationType
-        idx = np.random.choice(len(strategies), p=weights)
+        idx = int(np.random.choice(len(strategies), p=weights))
         return strategies[idx]
 
     def _apply_mutation(

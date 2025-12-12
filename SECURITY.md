@@ -32,7 +32,7 @@ We take security vulnerabilities seriously. If you discover a security issue in 
 ### Reporting Process
 
 1. **DO NOT** create a public GitHub issue for security vulnerabilities
-2. **DO** email security reports to: [security contact email - placeholder]
+2. **DO** use [GitHub's private vulnerability reporting](https://github.com/Dashtid/dicom-fuzzer/security/advisories/new)
 3. Include the following information in your report:
    - Description of the vulnerability
    - Steps to reproduce
@@ -265,9 +265,8 @@ Users in healthcare must consider:
 
 ### Security Contact
 
-- **Email**: [security contact - placeholder]
-- **PGP Key**: [PGP key fingerprint - placeholder]
-- **Response Time**: 48 hours for initial response
+- **Primary**: [GitHub Private Vulnerability Reporting](https://github.com/Dashtid/dicom-fuzzer/security/advisories/new)
+- **Response Time**: Within 48 hours for initial response
 
 ### General Support
 
@@ -290,4 +289,4 @@ Security researchers who have responsibly disclosed vulnerabilities will be ackn
 **Last Updated**: October 27, 2025
 **Next Review**: January 27, 2026
 
-For questions about this security policy, contact [security email placeholder].
+For questions about this security policy, use [GitHub Discussions](https://github.com/Dashtid/dicom-fuzzer/discussions).

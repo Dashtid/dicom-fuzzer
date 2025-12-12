@@ -12,6 +12,10 @@ import random
 
 from pydicom.dataset import Dataset
 
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class StructureFuzzer:
     """Fuzzes the underlying DICOM file structure.
@@ -175,9 +179,9 @@ class StructureFuzzer:
             try:
                 # Try to add the unusual tag with garbage data
                 dataset.add_new(tag, "UN", b"\x00" * 100)
-            except Exception:
+            except Exception as e:
                 # If it fails, that's fine - some tags can't be added
-                pass
+                logger.debug(f"Failed to add unusual tag {tag}: {e}")
 
         return dataset
 
@@ -214,9 +218,9 @@ class StructureFuzzer:
                     # Modify the value slightly
                     new_value = str(original_element.value) + "_DUPLICATE"
                     dataset.add_new(tag_to_duplicate, original_element.VR, new_value)
-            except Exception:
+            except Exception as e:
                 # If duplication fails, continue
-                pass
+                logger.debug(f"Failed to duplicate tag {tag_to_duplicate}: {e}")
 
         return dataset
 

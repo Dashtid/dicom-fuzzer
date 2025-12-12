@@ -39,6 +39,14 @@ from .series_validator import (
 )
 from .series_writer import SeriesMetadata, SeriesWriter
 from .stability_tracker import StabilityMetrics, StabilityTracker
+from .synthetic import (
+    SyntheticDataGenerator,
+    SyntheticDicomGenerator,
+    SyntheticPatient,
+    SyntheticSeries,
+    SyntheticStudy,
+    generate_sample_files,
+)
 from .target_runner import ExecutionStatus, TargetRunner
 from .test_minimizer import MinimizationStrategy, TestMinimizer
 from .types import MutationSeverity
@@ -94,4 +102,11 @@ __all__ = [
     "Series3DReport",
     "Series3DReportGenerator",
     "SeriesMutationSummary",
+    # Synthetic DICOM Generation
+    "SyntheticDicomGenerator",
+    "SyntheticDataGenerator",
+    "SyntheticPatient",
+    "SyntheticStudy",
+    "SyntheticSeries",
+    "generate_sample_files",
 ]

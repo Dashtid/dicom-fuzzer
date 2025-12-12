@@ -13,6 +13,10 @@ import random
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class SecurityPatternFuzzer:
     """Implements specific security vulnerability patterns for DICOM fuzzing.
@@ -108,9 +112,9 @@ class SecurityPatternFuzzer:
                     if hasattr(elem, "VR"):
                         # Set invalid VR that might confuse length calculation
                         elem.VR = "UN"  # Unknown VR allows arbitrary length
-                except Exception:
+                except Exception as e:
                     # Some tags might be protected, skip them
-                    pass
+                    logger.debug(f"Failed to corrupt tag {tag}: {e}")
 
         return dataset
 
@@ -153,9 +157,9 @@ class SecurityPatternFuzzer:
 
                 try:
                     setattr(dataset, field_name, spray_pattern)
-                except Exception:
+                except Exception as e:
                     # Some fields might have strict validation
-                    pass
+                    logger.debug(f"Failed to set field {field_name}: {e}")
 
         # Also try to spray in string fields with large capacity
         string_spray_targets = [
@@ -171,8 +175,8 @@ class SecurityPatternFuzzer:
                 spray_str = "A" * 1024 + "B" * 1024 + "C" * 1024
                 try:
                     setattr(dataset, field_name, spray_str)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to spray field {field_name}: {e}")
 
         return dataset
 
@@ -215,9 +219,9 @@ class SecurityPatternFuzzer:
                     # Unknown VR can contain arbitrary data
                     elem._value = b"\x00" * 256 + b"\xff" * 256
 
-            except Exception:
+            except Exception as e:
                 # Expected - pydicom has protections
-                pass
+                logger.debug(f"VR malformation blocked by pydicom: {e}")
 
         return dataset
 
@@ -266,8 +270,8 @@ class SecurityPatternFuzzer:
                             # Create oversized data
                             dataset.PixelData = b"\xff" * 0x10000
 
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Integer overflow pattern failed: {e}")
 
         return dataset
 
@@ -319,8 +323,8 @@ class SecurityPatternFuzzer:
             dataset[Tag(0x0008, 0x1140)] = DataElement(
                 Tag(0x0008, 0x1140), "SQ", current_level
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Sequence depth attack failed: {e}")
 
         return dataset
 
@@ -382,8 +386,11 @@ class SecurityPatternFuzzer:
                     elem = dataset.data_element(field_name)
                     if elem is not None:
                         elem._value = attack_bytes
-                except Exception:
+                except Exception as e:
                     # Fall back to setting confusing but valid strings
+                    logger.debug(
+                        f"Raw bytes encoding attack failed for {field_name}: {e}"
+                    )
                     try:
                         # Unicode normalization attacks
                         confusing_strings = [
@@ -394,8 +401,10 @@ class SecurityPatternFuzzer:
                             "A" + "\x00" + "B",  # Null in middle
                         ]
                         setattr(dataset, field_name, random.choice(confusing_strings))
-                    except Exception:
-                        pass
+                    except Exception as e2:
+                        logger.debug(
+                            f"Unicode confusion fallback also failed for {field_name}: {e2}"
+                        )
 
         return dataset
 
@@ -426,8 +435,8 @@ class SecurityPatternFuzzer:
         for pattern_func in selected_patterns:
             try:
                 dataset = pattern_func(dataset)
-            except Exception:
+            except Exception as e:
                 # Continue with other patterns if one fails
-                pass
+                logger.debug(f"Pattern {pattern_func.__name__} failed: {e}")
 
         return dataset
