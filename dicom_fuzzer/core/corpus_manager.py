@@ -4,6 +4,7 @@ Intelligent seed selection, prioritization, and corpus evolution
 based on coverage feedback and historical learning.
 """
 
+import functools
 import heapq
 import json
 import pickle  # nosec B403 - pickle used for internal corpus serialization only (trusted data)
@@ -29,6 +30,7 @@ class SeedPriority(Enum):
     MINIMAL = 5  # Redundant/duplicate coverage
 
 
+@functools.total_ordering
 @dataclass
 class Seed:
     """Represents a single seed in the corpus."""

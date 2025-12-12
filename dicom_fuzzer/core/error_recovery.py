@@ -266,8 +266,10 @@ class CampaignRecovery:
             if temp_file.exists():
                 try:
                     temp_file.unlink()
-                except Exception:
-                    pass
+                except Exception as cleanup_err:
+                    logger.debug(
+                        f"Failed to cleanup temp file {temp_file}: {cleanup_err}"
+                    )
             raise
 
     def load_checkpoint(self, campaign_id: str) -> CampaignCheckpoint | None:
