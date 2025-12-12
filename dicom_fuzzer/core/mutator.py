@@ -60,15 +60,15 @@ class MutationStrategy(Protocol):
 
     def mutate(self, dataset: Dataset, severity: MutationSeverity) -> Dataset:
         """Apply mutation to the dataset"""
-        ...
+        raise NotImplementedError("Subclasses must implement mutate()")
 
     def get_strategy_name(self) -> str:
         """Get the name of this strategy"""
-        ...
+        raise NotImplementedError("Subclasses must implement get_strategy_name()")
 
     def can_mutate(self, dataset: Dataset) -> bool:
         """Check if this strategy can be applied to this dataset"""
-        ...
+        raise NotImplementedError("Subclasses must implement can_mutate()")
 
 
 # LEARNING: This is a dataclass - a special type of class for storing data

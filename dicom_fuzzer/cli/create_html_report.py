@@ -323,7 +323,8 @@ def render_report(template: str, data: dict) -> str:
 
     """
     if jinja2 is not None:
-        tmpl = jinja2.Template(template)
+        # Enable autoescape to prevent XSS attacks in HTML output
+        tmpl = jinja2.Template(template, autoescape=True)
         rendered: str = tmpl.render(**data)
         return rendered
     else:

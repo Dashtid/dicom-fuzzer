@@ -640,8 +640,9 @@ class InputToStateResolver:
                         break
                     positions.append(pos)
                     start = pos + 1
-            except (OverflowError, ValueError):
-                pass
+            except (OverflowError, ValueError) as conv_err:
+                # Value cannot be converted to bytes representation
+                logger.debug("Could not convert value %r to bytes: %s", value, conv_err)
 
         return positions
 

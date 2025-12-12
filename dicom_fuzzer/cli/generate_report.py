@@ -184,8 +184,6 @@ def generate_json_report(data: dict, output_file: str) -> None:
         output_file: Output file path for JSON report
 
     """
-    import json
-
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 

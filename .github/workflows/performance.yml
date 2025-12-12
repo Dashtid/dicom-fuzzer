@@ -7,6 +7,9 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 # Optimize concurrency
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
         with:
           version: "latest"
           enable-cache: true
@@ -55,14 +58,14 @@ jobs:
 
       - name: Download previous benchmark data
         if: steps.run-benchmarks.outputs.has_benchmarks == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
         with:
           path: ./cache
           key: ${{ runner.os }}-benchmark
 
       - name: Store benchmark result
         if: steps.run-benchmarks.outputs.has_benchmarks == 'true'
-        uses: benchmark-action/github-action-benchmark@v1
+        uses: benchmark-action/github-action-benchmark@d48d326b4ca9ba73ca0cd0d59f108f9e02a381c7  # v1.20.4
         with:
           name: Python Benchmark
           tool: 'pytest'
@@ -79,10 +82,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
         with:
           version: "latest"
 
@@ -168,7 +171,7 @@ jobs:
           uv run python -m memory_profiler profile_memory.py > memory-profile.txt
 
       - name: Upload memory profile
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
         with:
           name: memory-profile
           path: memory-profile.txt
@@ -178,10 +181,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
         with:
           version: "latest"
 
@@ -257,7 +260,7 @@ jobs:
           uv run locust -f locustfile.py --headless --users 10 --spawn-rate 2 --run-time 60s --html load-test-report.html
 
       - name: Upload load test report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
         with:
           name: load-test-report
           path: load-test-report.html
@@ -267,10 +270,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
         with:
           version: "latest"
 
@@ -337,7 +340,7 @@ jobs:
           fi
 
       - name: Upload CPU profile
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
         with:
           name: cpu-profile
           path: cpu-profile.svg
