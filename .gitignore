@@ -394,3 +394,41 @@ truncated*.dcm
 *SUMMARY*.md
 *STATUS*.md
 analyze_*.py
+
+# ============================================================================
+# Deep Clean Additions (2025-12-14)
+# ============================================================================
+
+# Duplicate/backup files (from various tools)
+*-dadaZBPG9*
+
+# Fuzzing campaign outputs
+/campaigns/
+/checkpoints/
+/crashes/
+/atheris_crashes/
+/atheris_output/
+/fuzzing_output/
+
+# Benchmark artifacts
+/benchmark_clean_test/
+/.benchmarks/
+benchmark_baseline.txt
+
+# Coverage artifacts
+coverage.json
+.coverage
+
+# Legacy directories
+/config/
+/logs/
+/node_modules/
+
+# Generated documentation builds
+/docs/build/
+/docs/source/_build/
+
+# Analysis files (auto-generated)
+ANALYSIS_SUMMARY.md
+PROJECT_ANALYSIS.md
+SESSION_NOTES*.md

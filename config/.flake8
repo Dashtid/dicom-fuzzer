@@ -1,9 +1,0 @@
-
-[flake8]
-max-line-length = 88
-exclude = .git,__pycache__,.pytest_cache,.hypothesis,.venv
-per-file-ignores =
-    core/reporter.py:E701,E702,E201,E202,E221,E222,D401
-    core/config.py:E221,E222
-    core/profiler.py:D401
-    tests/test_reporter.py:F841
