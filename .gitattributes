@@ -1,0 +1,80 @@
+# Git attributes for consistent line endings and language detection
+# See: https://git-scm.com/docs/gitattributes
+
+# Auto detect text files and normalize line endings to LF in repository
+* text=auto
+
+# Explicitly declare text files and normalize to LF
+*.py text eol=lf
+*.pyi text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Docker files
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
+*.dockerfile text eol=lf
+
+# Documentation
+*.rst text eol=lf
+LICENSE text eol=lf
+README* text eol=lf
+CHANGELOG* text eol=lf
+CONTRIBUTING* text eol=lf
+MIGRATION* text eol=lf
+
+# Binary files (do not normalize)
+*.dcm binary
+*.dicom binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.pyc binary
+*.pyo binary
+*.so binary
+*.dll binary
+*.exe binary
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+*.tgz binary
+*.bz2 binary
+*.7z binary
+
+# Fonts
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+
+# Language statistics (for GitHub)
+# Mark generated files as linguist-generated
+docs/_build/* linguist-generated
+docs/build/* linguist-generated
+*.pyc linguist-generated
+__pycache__/* linguist-generated
+
+# Documentation files
+*.md linguist-documentation
+
+# Vendor files (if any in future)
+# vendor/* linguist-vendored

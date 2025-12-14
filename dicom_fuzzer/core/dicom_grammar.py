@@ -1,0 +1,920 @@
+"""Formal DICOM grammar specification and mutation operators.
+
+Provides:
+- EBNF-style grammar rules for DICOM structure
+- Grammar mutation operators (insert/delete/replace)
+- Coverage-guided grammar exploration
+- Production rule synthesis
+
+References:
+- DICOM Standard Part 5: Data Structures and Encoding
+- Grammar Mutation for Testing Input Parsers (ACM TOSEM 2024)
+- Gmutator: Grammar-based mutation strategies
+
+"""
+
+from __future__ import annotations
+
+import random
+import struct
+from abc import ABC, abstractmethod
+from collections import defaultdict
+from dataclasses import dataclass, field
+from enum import Enum, auto
+from typing import Any, cast
+
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class VR(Enum):
+    """DICOM Value Representations."""
+
+    # String VRs
+    AE = "AE"  # Application Entity (16 chars max)
+    AS = "AS"  # Age String (4 chars)
+    CS = "CS"  # Code String (16 chars max)
+    DA = "DA"  # Date (8 chars)
+    DS = "DS"  # Decimal String (16 chars max)
+    DT = "DT"  # Date Time (26 chars max)
+    IS = "IS"  # Integer String (12 chars max)
+    LO = "LO"  # Long String (64 chars max)
+    LT = "LT"  # Long Text (10240 chars max)
+    PN = "PN"  # Person Name (64 chars per component)
+    SH = "SH"  # Short String (16 chars max)
+    ST = "ST"  # Short Text (1024 chars max)
+    TM = "TM"  # Time (16 chars max)
+    UC = "UC"  # Unlimited Characters
+    UI = "UI"  # Unique Identifier (64 chars max)
+    UR = "UR"  # Universal Resource Identifier
+    UT = "UT"  # Unlimited Text
+
+    # Binary VRs
+    AT = "AT"  # Attribute Tag (4 bytes)
+    FL = "FL"  # Floating Point Single (4 bytes)
+    FD = "FD"  # Floating Point Double (8 bytes)
+    OB = "OB"  # Other Byte
+    OD = "OD"  # Other Double
+    OF = "OF"  # Other Float
+    OL = "OL"  # Other Long
+    OV = "OV"  # Other 64-bit Very Long
+    OW = "OW"  # Other Word
+    SL = "SL"  # Signed Long (4 bytes)
+    SQ = "SQ"  # Sequence
+    SS = "SS"  # Signed Short (2 bytes)
+    SV = "SV"  # Signed 64-bit Very Long
+    UL = "UL"  # Unsigned Long (4 bytes)
+    UN = "UN"  # Unknown
+    US = "US"  # Unsigned Short (2 bytes)
+    UV = "UV"  # Unsigned 64-bit Very Long
+
+
+class RuleType(Enum):
+    """Types of grammar rules."""
+
+    TERMINAL = auto()  # Produces terminal value
+    NONTERMINAL = auto()  # References other rules
+    SEQUENCE = auto()  # Ordered sequence of rules
+    CHOICE = auto()  # One of multiple options
+    OPTIONAL = auto()  # Zero or one occurrence
+    REPEAT = auto()  # Zero or more occurrences
+    REPEAT_PLUS = auto()  # One or more occurrences
+
+
+@dataclass
+class GrammarRule:
+    """A single grammar rule/production.
+
+    Attributes:
+        name: Rule name (e.g., "DataElement", "Tag")
+        rule_type: Type of rule
+        children: Child rules for non-terminals
+        terminal_generator: Function to generate terminal value
+        constraints: Validation constraints
+        weight: Selection weight for choices
+        coverage_hits: Number of times rule was used
+
+    """
+
+    name: str
+    rule_type: RuleType
+    children: list[str] = field(default_factory=list)
+    terminal_generator: Any | None = None  # Callable[[], bytes]
+    constraints: dict[str, Any] = field(default_factory=dict)
+    weight: float = 1.0
+    coverage_hits: int = 0
+
+    def generate(self, grammar: DICOMGrammar) -> bytes:
+        """Generate output from this rule."""
+        self.coverage_hits += 1
+
+        if self.rule_type == RuleType.TERMINAL:
+            if self.terminal_generator:
+                return cast(bytes, self.terminal_generator())
+            return b""
+
+        elif self.rule_type == RuleType.SEQUENCE:
+            result = b""
+            for child_name in self.children:
+                child_rule = grammar.get_rule(child_name)
+                if child_rule:
+                    result += child_rule.generate(grammar)
+            return result
+
+        elif self.rule_type == RuleType.CHOICE:
+            if not self.children:
+                return b""
+            # Weighted random choice
+            weights: list[float] = []
+            for c in self.children:
+                rule = grammar.get_rule(c)
+                weights.append(rule.weight if rule else 1.0)
+            total = sum(weights)
+            r = random.random() * total
+            cumulative = 0.0
+            for i, w in enumerate(weights):
+                cumulative += w
+                if r <= cumulative:
+                    child_rule = grammar.get_rule(self.children[i])
+                    return child_rule.generate(grammar) if child_rule else b""
+            # Fallback
+            child_rule = grammar.get_rule(self.children[-1])
+            return child_rule.generate(grammar) if child_rule else b""
+
+        elif self.rule_type == RuleType.OPTIONAL:
+            if random.random() < 0.5 and self.children:
+                child_rule = grammar.get_rule(self.children[0])
+                return child_rule.generate(grammar) if child_rule else b""
+            return b""
+
+        elif self.rule_type in (RuleType.REPEAT, RuleType.REPEAT_PLUS):
+            result = b""
+            min_count = 1 if self.rule_type == RuleType.REPEAT_PLUS else 0
+            max_count = self.constraints.get("max_repeat", 10)
+            count = random.randint(min_count, max_count)
+            for _ in range(count):
+                if self.children:
+                    child_rule = grammar.get_rule(self.children[0])
+                    if child_rule:
+                        result += child_rule.generate(grammar)
+            return result
+
+        return b""
+
+
+@dataclass
+class TagDefinition:
+    """DICOM tag definition.
+
+    Attributes:
+        group: Tag group number
+        element: Tag element number
+        vr: Value representation
+        name: Human-readable name
+        vm: Value multiplicity
+        required: Whether tag is required
+        keyword: Tag keyword
+
+    """
+
+    group: int
+    element: int
+    vr: VR
+    name: str
+    vm: str = "1"
+    required: bool = False
+    keyword: str = ""
+
+    def tag_bytes(self, little_endian: bool = True) -> bytes:
+        """Get tag as bytes."""
+        if little_endian:
+            return struct.pack("<HH", self.group, self.element)
+        return struct.pack(">HH", self.group, self.element)
+
+
+class DICOMGrammar:
+    """Formal grammar specification for DICOM.
+
+    Defines production rules for DICOM structure including:
+    - File meta information
+    - Data elements
+    - Sequences and items
+    - Value representations
+    """
+
+    # Magic bytes
+    DICM_PREFIX = b"\x00" * 128 + b"DICM"
+
+    # Standard SOP Class UIDs
+    SOP_CLASSES = [
+        "1.2.840.10008.5.1.4.1.1.2",  # CT Image Storage
+        "1.2.840.10008.5.1.4.1.1.4",  # MR Image Storage
+        "1.2.840.10008.5.1.4.1.1.7",  # Secondary Capture
+        "1.2.840.10008.5.1.4.1.1.1",  # CR Image Storage
+    ]
+
+    # Standard Transfer Syntaxes
+    TRANSFER_SYNTAXES = [
+        "1.2.840.10008.1.2",  # Implicit VR Little Endian
+        "1.2.840.10008.1.2.1",  # Explicit VR Little Endian
+        "1.2.840.10008.1.2.2",  # Explicit VR Big Endian
+    ]
+
+    def __init__(self) -> None:
+        """Initialize DICOM grammar."""
+        self.rules: dict[str, GrammarRule] = {}
+        self.tag_definitions: dict[tuple[int, int], TagDefinition] = {}
+        self._build_standard_grammar()
+        self._build_tag_definitions()
+
+    def _build_standard_grammar(self) -> None:
+        """Build standard DICOM grammar rules."""
+        # File structure
+        self.add_rule(
+            GrammarRule(
+                name="DICOMFile",
+                rule_type=RuleType.SEQUENCE,
+                children=["Preamble", "Prefix", "FileMetaInfo", "DataSet"],
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="Preamble",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=lambda: b"\x00" * 128,
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="Prefix",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=lambda: b"DICM",
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="FileMetaInfo",
+                rule_type=RuleType.SEQUENCE,
+                children=[
+                    "FileMetaInfoGroupLength",
+                    "FileMetaInfoVersion",
+                    "MediaStorageSOPClassUID",
+                    "MediaStorageSOPInstanceUID",
+                    "TransferSyntaxUID",
+                ],
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="DataSet",
+                rule_type=RuleType.REPEAT,
+                children=["DataElement"],
+                constraints={"max_repeat": 100},
+            )
+        )
+
+        # Data element structure
+        self.add_rule(
+            GrammarRule(
+                name="DataElement",
+                rule_type=RuleType.SEQUENCE,
+                children=["Tag", "VR", "ValueLength", "Value"],
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="Tag",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=self._generate_tag,
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="VR",
+                rule_type=RuleType.CHOICE,
+                children=[f"VR_{vr.name}" for vr in VR],
+            )
+        )
+
+        # VR-specific rules
+        for vr in VR:
+            self.add_rule(
+                GrammarRule(
+                    name=f"VR_{vr.name}",
+                    rule_type=RuleType.TERMINAL,
+                    terminal_generator=lambda v=vr: v.value.encode("ascii"),
+                )
+            )
+
+        self.add_rule(
+            GrammarRule(
+                name="ValueLength",
+                rule_type=RuleType.CHOICE,
+                children=["ValueLength16", "ValueLength32"],
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="ValueLength16",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=lambda: struct.pack("<H", random.randint(0, 1000)),
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="ValueLength32",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=lambda: struct.pack("<I", random.randint(0, 10000)),
+            )
+        )
+
+        # Value generators
+        self.add_rule(
+            GrammarRule(
+                name="Value",
+                rule_type=RuleType.CHOICE,
+                children=[
+                    "StringValue",
+                    "NumericValue",
+                    "SequenceValue",
+                    "BinaryValue",
+                ],
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="StringValue",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=self._generate_string_value,
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="NumericValue",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=self._generate_numeric_value,
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="BinaryValue",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=self._generate_binary_value,
+            )
+        )
+
+        # Sequence structure
+        self.add_rule(
+            GrammarRule(
+                name="SequenceValue",
+                rule_type=RuleType.SEQUENCE,
+                children=["SequenceDelimitationItem"],
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="SequenceItem",
+                rule_type=RuleType.SEQUENCE,
+                children=[
+                    "ItemTag",
+                    "ItemLength",
+                    "ItemDataSet",
+                    "ItemDelimitationTag",
+                ],
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="ItemTag",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=lambda: struct.pack("<HH", 0xFFFE, 0xE000),
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="ItemDelimitationTag",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=lambda: struct.pack("<HH", 0xFFFE, 0xE00D),
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="SequenceDelimitationItem",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=lambda: struct.pack("<HH", 0xFFFE, 0xE0DD)
+                + struct.pack("<I", 0),
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="ItemLength",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=lambda: struct.pack(
+                    "<I", 0xFFFFFFFF
+                ),  # Undefined length
+            )
+        )
+
+        self.add_rule(
+            GrammarRule(
+                name="ItemDataSet",
+                rule_type=RuleType.REPEAT,
+                children=["DataElement"],
+                constraints={"max_repeat": 10},
+            )
+        )
+
+        # File meta info elements
+        self._add_meta_info_rules()
+
+    def _add_meta_info_rules(self) -> None:
+        """Add file meta information element rules."""
+        # (0002,0000) File Meta Information Group Length
+        self.add_rule(
+            GrammarRule(
+                name="FileMetaInfoGroupLength",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=lambda: (
+                    struct.pack("<HH", 0x0002, 0x0000)
+                    + b"UL"
+                    + struct.pack("<H", 4)
+                    + struct.pack("<I", 200)
+                ),
+            )
+        )
+
+        # (0002,0001) File Meta Information Version
+        self.add_rule(
+            GrammarRule(
+                name="FileMetaInfoVersion",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=lambda: (
+                    struct.pack("<HH", 0x0002, 0x0001)
+                    + b"OB"
+                    + b"\x00\x00"
+                    + struct.pack("<I", 2)
+                    + b"\x00\x01"
+                ),
+            )
+        )
+
+        # (0002,0002) Media Storage SOP Class UID
+        self.add_rule(
+            GrammarRule(
+                name="MediaStorageSOPClassUID",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=lambda: self._generate_uid_element(
+                    0x0002, 0x0002, random.choice(self.SOP_CLASSES)
+                ),
+            )
+        )
+
+        # (0002,0003) Media Storage SOP Instance UID
+        self.add_rule(
+            GrammarRule(
+                name="MediaStorageSOPInstanceUID",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=lambda: self._generate_uid_element(
+                    0x0002, 0x0003, self._generate_uid()
+                ),
+            )
+        )
+
+        # (0002,0010) Transfer Syntax UID
+        self.add_rule(
+            GrammarRule(
+                name="TransferSyntaxUID",
+                rule_type=RuleType.TERMINAL,
+                terminal_generator=lambda: self._generate_uid_element(
+                    0x0002, 0x0010, random.choice(self.TRANSFER_SYNTAXES)
+                ),
+            )
+        )
+
+    def _build_tag_definitions(self) -> None:
+        """Build standard tag definitions."""
+        # Patient Module
+        self._add_tag(0x0010, 0x0010, VR.PN, "Patient's Name", required=True)
+        self._add_tag(0x0010, 0x0020, VR.LO, "Patient ID", required=True)
+        self._add_tag(0x0010, 0x0030, VR.DA, "Patient's Birth Date")
+        self._add_tag(0x0010, 0x0040, VR.CS, "Patient's Sex")
+
+        # Study Module
+        self._add_tag(0x0008, 0x0020, VR.DA, "Study Date", required=True)
+        self._add_tag(0x0008, 0x0030, VR.TM, "Study Time")
+        self._add_tag(0x0020, 0x000D, VR.UI, "Study Instance UID", required=True)
+        self._add_tag(0x0008, 0x0050, VR.SH, "Accession Number")
+
+        # Series Module
+        self._add_tag(0x0008, 0x0060, VR.CS, "Modality", required=True)
+        self._add_tag(0x0020, 0x000E, VR.UI, "Series Instance UID", required=True)
+        self._add_tag(0x0020, 0x0011, VR.IS, "Series Number")
+
+        # Image Module
+        self._add_tag(0x0008, 0x0018, VR.UI, "SOP Instance UID", required=True)
+        self._add_tag(0x0020, 0x0013, VR.IS, "Instance Number")
+        self._add_tag(0x0028, 0x0010, VR.US, "Rows", required=True)
+        self._add_tag(0x0028, 0x0011, VR.US, "Columns", required=True)
+        self._add_tag(0x0028, 0x0100, VR.US, "Bits Allocated")
+        self._add_tag(0x0028, 0x0101, VR.US, "Bits Stored")
+        self._add_tag(0x0028, 0x0102, VR.US, "High Bit")
+        self._add_tag(0x0028, 0x0103, VR.US, "Pixel Representation")
+        self._add_tag(0x7FE0, 0x0010, VR.OW, "Pixel Data")
+
+    def _add_tag(
+        self,
+        group: int,
+        element: int,
+        vr: VR,
+        name: str,
+        vm: str = "1",
+        required: bool = False,
+    ) -> None:
+        """Add a tag definition."""
+        self.tag_definitions[(group, element)] = TagDefinition(
+            group=group, element=element, vr=vr, name=name, vm=vm, required=required
+        )
+
+    def add_rule(self, rule: GrammarRule) -> None:
+        """Add a grammar rule."""
+        self.rules[rule.name] = rule
+
+    def get_rule(self, name: str) -> GrammarRule | None:
+        """Get a rule by name."""
+        return self.rules.get(name)
+
+    def generate(self, start_rule: str = "DICOMFile") -> bytes:
+        """Generate DICOM data from grammar.
+
+        Args:
+            start_rule: Starting rule name
+
+        Returns:
+            Generated DICOM bytes
+
+        """
+        rule = self.get_rule(start_rule)
+        if not rule:
+            logger.warning(f"Rule not found: {start_rule}")
+            return b""
+        return rule.generate(self)
+
+    def _generate_tag(self) -> bytes:
+        """Generate a random DICOM tag."""
+        if self.tag_definitions and random.random() < 0.8:
+            # Use a known tag
+            tag_key = random.choice(list(self.tag_definitions.keys()))
+            return struct.pack("<HH", tag_key[0], tag_key[1])
+        else:
+            # Generate random tag
+            group = random.choice([0x0008, 0x0010, 0x0018, 0x0020, 0x0028, 0x7FE0])
+            element = random.randint(0x0000, 0x00FF)
+            return struct.pack("<HH", group, element)
+
+    def _generate_string_value(self) -> bytes:
+        """Generate a random string value."""
+        length = random.randint(1, 64)
+        chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 "
+        value = "".join(random.choice(chars) for _ in range(length))
+        # Pad to even length
+        if len(value) % 2:
+            value += " "
+        return value.encode("ascii")
+
+    def _generate_numeric_value(self) -> bytes:
+        """Generate a random numeric value."""
+        choice = random.randint(0, 3)
+        if choice == 0:
+            return struct.pack("<H", random.randint(0, 65535))
+        elif choice == 1:
+            return struct.pack("<I", random.randint(0, 2**32 - 1))
+        elif choice == 2:
+            return struct.pack("<h", random.randint(-32768, 32767))
+        else:
+            return struct.pack("<f", random.uniform(-1000, 1000))
+
+    def _generate_binary_value(self) -> bytes:
+        """Generate random binary data."""
+        length = random.randint(2, 100)
+        if length % 2:
+            length += 1
+        return bytes(random.randint(0, 255) for _ in range(length))
+
+    def _generate_uid(self) -> str:
+        """Generate a DICOM UID."""
+        root = "1.2.826.0.1.3680043.8.498"
+        suffix = ".".join(str(random.randint(1, 999)) for _ in range(3))
+        return f"{root}.{suffix}"
+
+    def _generate_uid_element(self, group: int, element: int, uid: str) -> bytes:
+        """Generate a complete UID data element."""
+        tag = struct.pack("<HH", group, element)
+        vr = b"UI"
+        # Pad UID to even length
+        if len(uid) % 2:
+            uid += "\x00"
+        length = struct.pack("<H", len(uid))
+        return tag + vr + length + uid.encode("ascii")
+
+    def get_coverage_stats(self) -> dict[str, Any]:
+        """Get grammar coverage statistics.
+
+        Returns:
+            Dictionary with coverage information
+
+        """
+        total_rules = len(self.rules)
+        hit_rules = sum(1 for r in self.rules.values() if r.coverage_hits > 0)
+        total_hits = sum(r.coverage_hits for r in self.rules.values())
+
+        return {
+            "total_rules": total_rules,
+            "rules_covered": hit_rules,
+            "coverage_percent": (hit_rules / total_rules * 100) if total_rules else 0,
+            "total_hits": total_hits,
+            "most_used": sorted(
+                [(r.name, r.coverage_hits) for r in self.rules.values()],
+                key=lambda x: x[1],
+                reverse=True,
+            )[:10],
+        }
+
+
+class GrammarMutator(ABC):
+    """Abstract base class for grammar mutation operators."""
+
+    @abstractmethod
+    def mutate(self, grammar: DICOMGrammar, rule_name: str) -> bool:
+        """Apply mutation to grammar.
+
+        Args:
+            grammar: Grammar to mutate
+            rule_name: Rule to target
+
+        Returns:
+            True if mutation was applied
+
+        """
+        pass
+
+
+class InsertRuleMutator(GrammarMutator):
+    """Inserts new child rules into sequences."""
+
+    def mutate(self, grammar: DICOMGrammar, rule_name: str) -> bool:
+        """Insert a child rule into a sequence."""
+        rule = grammar.get_rule(rule_name)
+        if not rule or rule.rule_type not in (RuleType.SEQUENCE, RuleType.REPEAT):
+            return False
+
+        # Pick a random rule to insert
+        available_rules = [r for r in grammar.rules.keys() if r != rule_name]
+        if not available_rules:
+            return False
+
+        new_child = random.choice(available_rules)
+        insert_pos = random.randint(0, len(rule.children))
+        rule.children.insert(insert_pos, new_child)
+
+        logger.debug(f"Inserted {new_child} into {rule_name} at position {insert_pos}")
+        return True
+
+
+class DeleteRuleMutator(GrammarMutator):
+    """Deletes child rules from sequences."""
+
+    def mutate(self, grammar: DICOMGrammar, rule_name: str) -> bool:
+        """Delete a child rule from a sequence."""
+        rule = grammar.get_rule(rule_name)
+        if not rule or rule.rule_type not in (RuleType.SEQUENCE, RuleType.CHOICE):
+            return False
+
+        if len(rule.children) <= 1:
+            return False
+
+        delete_idx = random.randint(0, len(rule.children) - 1)
+        deleted = rule.children.pop(delete_idx)
+
+        logger.debug(f"Deleted {deleted} from {rule_name}")
+        return True
+
+
+class ReplaceRuleMutator(GrammarMutator):
+    """Replaces child rules with different rules."""
+
+    def mutate(self, grammar: DICOMGrammar, rule_name: str) -> bool:
+        """Replace a child rule with another rule."""
+        rule = grammar.get_rule(rule_name)
+        if not rule or not rule.children:
+            return False
+
+        # Pick a child to replace
+        replace_idx = random.randint(0, len(rule.children) - 1)
+        old_child = rule.children[replace_idx]
+
+        # Pick a replacement
+        available = [
+            r for r in grammar.rules.keys() if r != rule_name and r != old_child
+        ]
+        if not available:
+            return False
+
+        new_child = random.choice(available)
+        rule.children[replace_idx] = new_child
+
+        logger.debug(f"Replaced {old_child} with {new_child} in {rule_name}")
+        return True
+
+
+class SwapRuleMutator(GrammarMutator):
+    """Swaps order of child rules in sequences."""
+
+    def mutate(self, grammar: DICOMGrammar, rule_name: str) -> bool:
+        """Swap two child rules in a sequence."""
+        rule = grammar.get_rule(rule_name)
+        if not rule or rule.rule_type != RuleType.SEQUENCE:
+            return False
+
+        if len(rule.children) < 2:
+            return False
+
+        idx1 = random.randint(0, len(rule.children) - 1)
+        idx2 = random.randint(0, len(rule.children) - 1)
+        while idx2 == idx1:
+            idx2 = random.randint(0, len(rule.children) - 1)
+
+        rule.children[idx1], rule.children[idx2] = (
+            rule.children[idx2],
+            rule.children[idx1],
+        )
+
+        logger.debug(f"Swapped positions {idx1} and {idx2} in {rule_name}")
+        return True
+
+
+class DuplicateRuleMutator(GrammarMutator):
+    """Duplicates child rules in sequences."""
+
+    def mutate(self, grammar: DICOMGrammar, rule_name: str) -> bool:
+        """Duplicate a child rule in a sequence."""
+        rule = grammar.get_rule(rule_name)
+        if not rule or rule.rule_type != RuleType.SEQUENCE:
+            return False
+
+        if not rule.children:
+            return False
+
+        # Pick a child to duplicate
+        dup_idx = random.randint(0, len(rule.children) - 1)
+        child = rule.children[dup_idx]
+
+        # Insert duplicate after original
+        rule.children.insert(dup_idx + 1, child)
+
+        logger.debug(f"Duplicated {child} in {rule_name}")
+        return True
+
+
+class WeightMutator(GrammarMutator):
+    """Mutates selection weights for choice rules."""
+
+    def mutate(self, grammar: DICOMGrammar, rule_name: str) -> bool:
+        """Mutate weight of a rule."""
+        rule = grammar.get_rule(rule_name)
+        if not rule:
+            return False
+
+        # Modify weight
+        delta = random.uniform(-0.5, 0.5)
+        rule.weight = max(0.1, min(10.0, rule.weight + delta))
+
+        logger.debug(f"Modified weight of {rule_name} to {rule.weight:.2f}")
+        return True
+
+
+class GrammarMutationEngine:
+    """Engine for applying grammar mutations.
+
+    Coordinates multiple mutation operators and tracks
+    effectiveness for coverage-guided mutation.
+    """
+
+    def __init__(self, grammar: DICOMGrammar):
+        """Initialize mutation engine.
+
+        Args:
+            grammar: Grammar to mutate
+
+        """
+        self.grammar = grammar
+        self.mutators: list[tuple[GrammarMutator, float]] = [
+            (InsertRuleMutator(), 1.0),
+            (DeleteRuleMutator(), 1.0),
+            (ReplaceRuleMutator(), 1.0),
+            (SwapRuleMutator(), 0.5),
+            (DuplicateRuleMutator(), 0.5),
+            (WeightMutator(), 0.3),
+        ]
+        self._mutation_history: list[tuple[str, str, bool]] = []
+        self._effectiveness: dict[str, float] = defaultdict(lambda: 1.0)
+
+    def mutate(self, num_mutations: int = 1) -> int:
+        """Apply mutations to grammar.
+
+        Args:
+            num_mutations: Number of mutations to attempt
+
+        Returns:
+            Number of successful mutations
+
+        """
+        successful = 0
+        rule_names = list(self.grammar.rules.keys())
+
+        for _ in range(num_mutations):
+            # Select mutator based on effectiveness weights
+            mutator, _ = self._select_mutator()
+            mutator_name = mutator.__class__.__name__
+
+            # Select target rule
+            rule_name = random.choice(rule_names)
+
+            # Apply mutation
+            success = mutator.mutate(self.grammar, rule_name)
+
+            self._mutation_history.append((mutator_name, rule_name, success))
+
+            if success:
+                successful += 1
+
+        return successful
+
+    def _select_mutator(self) -> tuple[GrammarMutator, float]:
+        """Select a mutator based on effectiveness weights."""
+        total_weight = sum(
+            w * self._effectiveness[m.__class__.__name__] for m, w in self.mutators
+        )
+
+        r = random.random() * total_weight
+        cumulative = 0.0
+
+        for mutator, base_weight in self.mutators:
+            weight = base_weight * self._effectiveness[mutator.__class__.__name__]
+            cumulative += weight
+            if r <= cumulative:
+                return mutator, weight
+
+        return self.mutators[-1]
+
+    def update_effectiveness(self, mutator_name: str, found_new_coverage: bool) -> None:
+        """Update effectiveness score for a mutator.
+
+        Args:
+            mutator_name: Name of the mutator
+            found_new_coverage: Whether the mutation led to new coverage
+
+        """
+        if found_new_coverage:
+            self._effectiveness[mutator_name] *= 1.1
+        else:
+            self._effectiveness[mutator_name] *= 0.99
+
+        # Clamp to reasonable range
+        self._effectiveness[mutator_name] = max(
+            0.1, min(10.0, self._effectiveness[mutator_name])
+        )
+
+    def get_stats(self) -> dict[str, Any]:
+        """Get mutation statistics.
+
+        Returns:
+            Dictionary with mutation statistics
+
+        """
+        total = len(self._mutation_history)
+        successful = sum(1 for _, _, s in self._mutation_history if s)
+
+        return {
+            "total_mutations": total,
+            "successful_mutations": successful,
+            "success_rate": successful / total if total else 0,
+            "effectiveness_scores": dict(self._effectiveness),
+            "grammar_coverage": self.grammar.get_coverage_stats(),
+        }
