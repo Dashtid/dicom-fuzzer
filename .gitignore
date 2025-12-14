@@ -432,3 +432,10 @@ coverage.json
 ANALYSIS_SUMMARY.md
 PROJECT_ANALYSIS.md
 SESSION_NOTES*.md
+STABILITY_IMPROVEMENTS.md
+TESTING_SESSION*.md
+
+# Empty placeholder directories
+/screenshots/
+/data/
+/reports/
