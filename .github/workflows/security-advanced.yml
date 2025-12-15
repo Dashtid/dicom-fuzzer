@@ -33,7 +33,7 @@ jobs:
             p/ci
 
       - name: Upload SARIF to GitHub
-        uses: github/codeql-action/upload-sarif@a4784f2dad6682d68cce8299ef20b1ca931bbdfb  # v4
+        uses: github/codeql-action/upload-sarif@1b168cd39490f61582a9beae412bb7057a6b2c4e  # v4
         if: always() && hashFiles('semgrep.sarif') != ''
         with:
           sarif_file: semgrep.sarif
@@ -55,7 +55,7 @@ jobs:
           severity: 'CRITICAL,HIGH,MEDIUM'
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@a4784f2dad6682d68cce8299ef20b1ca931bbdfb  # v4
+        uses: github/codeql-action/upload-sarif@1b168cd39490f61582a9beae412bb7057a6b2c4e  # v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
@@ -195,7 +195,7 @@ jobs:
           publish_results: true
 
       - name: Upload Scorecard results to GitHub
-        uses: github/codeql-action/upload-sarif@a4784f2dad6682d68cce8299ef20b1ca931bbdfb  # v4
+        uses: github/codeql-action/upload-sarif@1b168cd39490f61582a9beae412bb7057a6b2c4e  # v4
         if: always() && hashFiles('results.sarif') != ''
         with:
           sarif_file: results.sarif
