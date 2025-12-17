@@ -145,15 +145,18 @@ The `samples/` directory contains intentionally malicious DICOM files for securi
 
 ### CVE Samples Included
 
-| CVE            | Product    | Vulnerability Type          |
-| -------------- | ---------- | --------------------------- |
-| CVE-2019-11687 | DCMTK      | PE/DICOM polyglot execution |
-| CVE-2020-6993  | MicroDicom | Path traversal              |
-| CVE-2021-21735 | GDCM       | Integer overflow            |
-| CVE-2022-31585 | OHIF       | Deep nesting DoS            |
-| CVE-2022-2119  | DCMTK      | Out-of-bounds read          |
-| CVE-2022-2120  | DCMTK      | Path traversal              |
-| CVE-2025-35975 | Various    | Out-of-bounds write         |
+| CVE            | Product    | Vulnerability Type                  | CVSS |
+| -------------- | ---------- | ----------------------------------- | ---- |
+| CVE-2019-11687 | DICOM Std  | PE/DICOM polyglot execution         | N/A  |
+| CVE-2022-2119  | DCMTK      | Path traversal (SCP)                | 7.5  |
+| CVE-2022-2120  | DCMTK      | Path traversal (SCU)                | 7.5  |
+| CVE-2022-2121  | DCMTK      | Null pointer dereference            | 6.5  |
+| CVE-2024-22100 | MicroDicom | Heap-based buffer overflow          | 7.8  |
+| CVE-2024-28877 | MicroDicom | Stack-based buffer overflow         | 8.7  |
+| CVE-2024-33606 | MicroDicom | Improper auth in URL scheme handler | 8.8  |
+| CVE-2025-5943  | MicroDicom | Out-of-bounds write                 | 8.8  |
+| CVE-2025-11266 | GDCM       | Out-of-bounds write (PixelData)     | 6.6  |
+| CVE-2025-53618 | GDCM       | Out-of-bounds read (JPEG codec)     | 7.5  |
 
 ### Safety Guidelines
 
