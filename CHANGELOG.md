@@ -5,6 +5,64 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2025-12-17 - Network Fuzzing, Continuous Integration, NTIA Compliance
+
+### Added - Network Protocol Fuzzing
+
+- **DICOM Network Harness** (`harness/network/dicom_network_harness.py`): AFLNet-style stateful protocol fuzzer
+  - Full DICOM Upper Layer Protocol state machine (IDLE, AWAITING_AC, ASSOCIATED, etc.)
+  - Support for C-STORE, C-FIND, C-GET, C-MOVE, C-ECHO operations
+  - Configurable fuzzing campaigns with iteration control
+  - Crash and hang detection with configurable timeouts
+- **Network Seed Generator** (`harness/network/seed_generator.py`): Protocol-aware seed corpus
+  - Valid PDU generation for all DICOM network operations
+  - Malformed seed variants for vulnerability testing
+  - Orthanc server fuzzing documentation
+
+### Added - Continuous Fuzzing Integration
+
+- **OSS-Fuzz Structure** (`oss-fuzz/`): Ready for OSS-Fuzz submission
+  - Dockerfile, build.sh, project.yaml for ClusterFuzz integration
+  - LibFuzzer and AFL++ harness support
+  - Sanitizer builds (ASan, UBSan, MSan)
+- **GitHub Actions CI** (`.github/workflows/continuous-fuzzing.yml`): Automated fuzzing pipeline
+  - AFL++ with AddressSanitizer and fast mode
+  - LibFuzzer integration
+  - afl-cov coverage reporting
+  - Automated crash deduplication and triage
+  - GitHub issue creation for unique crashes
+
+### Added - Enhanced Corpus Management
+
+- **MoonLight Minimizer** (`utils/corpus_minimization.py`): Weighted set-cover corpus distillation
+  - 3x-100x smaller corpora compared to afl-cmin
+  - Weight by file size and execution time
+  - Coverage-preserving minimization
+- **Coverage-Aware Prioritizer**: Seed scheduling based on coverage contribution
+  - Track coverage discovery history
+  - Prioritize seeds that find new edges
+
+### Added - FDA 2025 Compliance Updates
+
+- **NTIA SBOM Compliance** (`reporting/sbom.py`): Full NTIA Minimum Elements support
+  - All 7 required fields: Supplier Name, Component Name, Version, Unique Identifiers (CPE/PURL/SWID), Dependency Relationship, SBOM Author, Timestamp
+  - Known supplier database for common PyPI packages
+  - NTIA compliance validation and reporting
+  - `validate_sbom_ntia_compliance()` function
+- **Patch Timeline Tracking** (`reporting/patch_timeline.py`): FDA vulnerability remediation tracking
+  - Severity-based remediation timelines (Critical: 15d, High: 30d, Medium: 90d)
+  - Patch lifecycle status tracking
+  - SLA compliance metrics
+- **Cyber Device Classifier** (`reporting/cyber_device.py`): FDA Section 524B classification
+  - Determine if device qualifies as "cyber device"
+  - Risk tier assessment (Tier 1/Tier 2)
+  - Premarket submission requirements documentation
+- **New CVE Patterns** in `security_patterns.py`:
+  - CVE-2025-53619: GDCM JPEGBITSCodec OOB read
+  - CVE-2025-53618: GDCM JPEG decompression OOB read
+  - CVE-2025-11266: GDCM encapsulated PixelData OOB write
+  - CVE-2025-1001: RadiAnt certificate validation bypass
+
 ## [1.4.0] - 2025-12-17 - FDA Compliance, Response-Aware Fuzzing, CVE Updates
 
 ### Added - FDA Compliance Reporting

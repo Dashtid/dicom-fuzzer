@@ -16,6 +16,16 @@ from .dicom_series import DicomSeries
 from .error_recovery import CampaignRecovery, CampaignStatus, SignalHandler
 from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
 from .generator import DICOMGenerator
+from .gui_monitor import (
+    GUIMonitor,
+    GUIResponse,
+    MonitorConfig,
+    ResponseAwareFuzzer,
+    ResponseType,
+    SeverityLevel,
+    StateCoverageTracker,
+    StateTransition,
+)
 from .lazy_loader import (
     LazyDicomLoader,
     create_deferred_loader,
@@ -109,4 +119,13 @@ __all__ = [
     "SyntheticStudy",
     "SyntheticSeries",
     "generate_sample_files",
+    # Response-Aware Fuzzing with State Coverage (v1.5.0)
+    "GUIMonitor",
+    "GUIResponse",
+    "MonitorConfig",
+    "ResponseAwareFuzzer",
+    "ResponseType",
+    "SeverityLevel",
+    "StateCoverageTracker",
+    "StateTransition",
 ]

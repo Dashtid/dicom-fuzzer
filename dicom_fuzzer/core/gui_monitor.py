@@ -568,14 +568,197 @@ class GUIMonitor:
             return summary
 
 
+@dataclass
+class StateTransition:
+    """Represents a state transition in the application.
+
+    AFLNet-style state tracking for GUI applications.
+    """
+
+    from_state: str
+    to_state: str
+    trigger: str  # What caused the transition (e.g., "file_load", "dialog_open")
+    timestamp: float = 0.0
+    test_file: Path | None = None
+
+    def __hash__(self) -> int:
+        return hash((self.from_state, self.to_state, self.trigger))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, StateTransition):
+            return False
+        return (
+            self.from_state == other.from_state
+            and self.to_state == other.to_state
+            and self.trigger == other.trigger
+        )
+
+
+class StateCoverageTracker:
+    """Track state coverage for response-aware fuzzing.
+
+    Inspired by AFLNet's state-aware fuzzing, this tracks:
+    - Unique application states visited
+    - State transitions observed
+    - Coverage-based prioritization of inputs
+
+    This allows for more intelligent fuzzing by:
+    1. Identifying inputs that reach new states
+    2. Tracking state transition sequences
+    3. Prioritizing inputs that explore new paths
+
+    References:
+    - AFLNet: A Greybox Fuzzer for Network Protocols (ICST 2020)
+    - StateAFL: Greybox Fuzzing Stateful Network Services (ICSE 2022)
+
+    """
+
+    # Pre-defined states for GUI applications
+    STATE_INITIAL = "initial"
+    STATE_LOADING = "loading"
+    STATE_NORMAL = "normal"
+    STATE_ERROR_DIALOG = "error_dialog"
+    STATE_WARNING_DIALOG = "warning_dialog"
+    STATE_CRASH = "crash"
+    STATE_HANG = "hang"
+    STATE_MEMORY_ISSUE = "memory_issue"
+
+    def __init__(self) -> None:
+        self._states_visited: set[str] = set()
+        self._transitions: set[StateTransition] = set()
+        self._state_sequences: list[list[str]] = []
+        self._current_sequence: list[str] = []
+        self._interesting_inputs: dict[Path, set[str]] = {}  # file -> states it reached
+        self._lock = threading.Lock()
+
+    def start_execution(self) -> None:
+        """Start tracking a new execution."""
+        with self._lock:
+            self._current_sequence = [self.STATE_INITIAL]
+            self._states_visited.add(self.STATE_INITIAL)
+
+    def record_state(
+        self, state: str, trigger: str = "", test_file: Path | None = None
+    ) -> bool:
+        """Record a state transition.
+
+        Args:
+            state: New state reached
+            trigger: What triggered this state
+            test_file: File being tested
+
+        Returns:
+            True if this is a new state (not seen before)
+
+        """
+        with self._lock:
+            is_new = state not in self._states_visited
+            self._states_visited.add(state)
+
+            if self._current_sequence:
+                from_state = self._current_sequence[-1]
+                transition = StateTransition(
+                    from_state=from_state,
+                    to_state=state,
+                    trigger=trigger,
+                    timestamp=time.time(),
+                    test_file=test_file,
+                )
+                self._transitions.add(transition)
+
+            self._current_sequence.append(state)
+
+            # Track which inputs reached which states
+            if test_file:
+                if test_file not in self._interesting_inputs:
+                    self._interesting_inputs[test_file] = set()
+                self._interesting_inputs[test_file].add(state)
+
+            return is_new
+
+    def end_execution(self) -> list[str]:
+        """End tracking current execution and return the sequence."""
+        with self._lock:
+            sequence = self._current_sequence.copy()
+            if sequence:
+                self._state_sequences.append(sequence)
+            self._current_sequence = []
+            return sequence
+
+    def get_state_coverage(self) -> dict[str, Any]:
+        """Get current state coverage statistics.
+
+        Returns:
+            Dictionary with coverage metrics
+
+        """
+        with self._lock:
+            return {
+                "unique_states": len(self._states_visited),
+                "states_visited": list(self._states_visited),
+                "unique_transitions": len(self._transitions),
+                "total_executions": len(self._state_sequences),
+                "transition_details": [
+                    {
+                        "from": t.from_state,
+                        "to": t.to_state,
+                        "trigger": t.trigger,
+                    }
+                    for t in self._transitions
+                ],
+            }
+
+    def get_interesting_inputs(self) -> list[Path]:
+        """Get inputs that reached unique states.
+
+        Returns:
+            List of file paths that discovered new states
+
+        """
+        with self._lock:
+            # Rank by number of unique states reached
+            ranked = sorted(
+                self._interesting_inputs.items(),
+                key=lambda x: len(x[1]),
+                reverse=True,
+            )
+            return [path for path, _ in ranked]
+
+    def is_interesting(self, test_file: Path) -> bool:
+        """Check if an input discovered new states.
+
+        Args:
+            test_file: File to check
+
+        Returns:
+            True if this file discovered at least one new state
+
+        """
+        with self._lock:
+            if test_file not in self._interesting_inputs:
+                return False
+            # Check if any states were first discovered by this file
+            states = self._interesting_inputs[test_file]
+            for other_file, other_states in self._interesting_inputs.items():
+                if other_file != test_file:
+                    states = states - other_states
+            return len(states) > 0
+
+
 class ResponseAwareFuzzer:
-    """Fuzzer that uses response-aware monitoring.
+    """Fuzzer that uses response-aware monitoring with state coverage.
 
     Integrates GUIMonitor with fuzzing to detect more than just crashes:
     - Error dialogs indicate potential parsing issues
     - Warning dialogs may reveal edge cases
     - Memory spikes suggest potential DoS vulnerabilities
     - Hangs indicate potential infinite loops
+
+    State Coverage (AFLNet-style):
+    - Tracks unique application states visited
+    - Records state transitions
+    - Identifies inputs that reach new states
+    - Prioritizes exploration of new paths
 
     """
 
@@ -584,6 +767,7 @@ class ResponseAwareFuzzer:
         target_executable: str,
         config: MonitorConfig | None = None,
         timeout: float = 10.0,
+        enable_state_coverage: bool = True,
     ):
         """Initialize response-aware fuzzer.
 
@@ -591,11 +775,17 @@ class ResponseAwareFuzzer:
             target_executable: Path to target application
             config: Monitor configuration
             timeout: Execution timeout in seconds
+            enable_state_coverage: Enable AFLNet-style state tracking
 
         """
         self.target_executable = Path(target_executable)
         self.monitor = GUIMonitor(config)
         self.timeout = timeout
+        self.enable_state_coverage = enable_state_coverage
+        self.state_tracker: StateCoverageTracker | None = None
+
+        if enable_state_coverage:
+            self.state_tracker = StateCoverageTracker()
 
         if not self.target_executable.exists():
             raise FileNotFoundError(f"Target executable not found: {target_executable}")
@@ -613,6 +803,15 @@ class ResponseAwareFuzzer:
         import subprocess
 
         self.monitor.clear_responses()
+
+        # Start state tracking if enabled
+        if self.state_tracker:
+            self.state_tracker.start_execution()
+            self.state_tracker.record_state(
+                StateCoverageTracker.STATE_LOADING,
+                trigger="file_open",
+                test_file=test_file,
+            )
 
         try:
             process = subprocess.Popen(
@@ -657,19 +856,77 @@ class ResponseAwareFuzzer:
                 )
             )
 
-        return self.monitor.get_responses()
+        # Record states based on responses
+        responses = self.monitor.get_responses()
+        if self.state_tracker:
+            self._record_response_states(responses, test_file)
+            self.state_tracker.end_execution()
+
+        return responses
+
+    def _record_response_states(
+        self, responses: list[GUIResponse], test_file: Path
+    ) -> None:
+        """Record states based on GUI responses.
+
+        Args:
+            responses: List of responses from monitoring
+            test_file: File being tested
+
+        """
+        if not self.state_tracker:
+            return
+
+        if not responses:
+            # No issues - normal state
+            self.state_tracker.record_state(
+                StateCoverageTracker.STATE_NORMAL,
+                trigger="no_issues",
+                test_file=test_file,
+            )
+            return
+
+        for response in responses:
+            state = self._response_to_state(response.response_type)
+            if response.details:
+                trigger = response.details[:50]
+            else:
+                trigger = response.response_type.value
+            self.state_tracker.record_state(state, trigger=trigger, test_file=test_file)
+
+    def _response_to_state(self, response_type: ResponseType) -> str:
+        """Map response type to state name.
+
+        Args:
+            response_type: The response type
+
+        Returns:
+            State name string
+
+        """
+        mapping = {
+            ResponseType.NORMAL: StateCoverageTracker.STATE_NORMAL,
+            ResponseType.ERROR_DIALOG: StateCoverageTracker.STATE_ERROR_DIALOG,
+            ResponseType.WARNING_DIALOG: StateCoverageTracker.STATE_WARNING_DIALOG,
+            ResponseType.CRASH: StateCoverageTracker.STATE_CRASH,
+            ResponseType.HANG: StateCoverageTracker.STATE_HANG,
+            ResponseType.MEMORY_SPIKE: StateCoverageTracker.STATE_MEMORY_ISSUE,
+            ResponseType.RESOURCE_EXHAUSTION: StateCoverageTracker.STATE_MEMORY_ISSUE,
+            ResponseType.RENDER_ANOMALY: "render_anomaly",
+        }
+        return mapping.get(response_type, "unknown")
 
     def run_campaign(
         self, test_files: list[Path], stop_on_critical: bool = False
     ) -> dict[str, Any]:
-        """Run fuzzing campaign with response monitoring.
+        """Run fuzzing campaign with response monitoring and state coverage.
 
         Args:
             test_files: List of files to test
             stop_on_critical: Stop on first critical issue
 
         Returns:
-            Campaign results dictionary
+            Campaign results dictionary including state coverage metrics
 
         """
         results: dict[str, Any] = {
@@ -677,6 +934,8 @@ class ResponseAwareFuzzer:
             "files_tested": 0,
             "responses": [],
             "summary": {},
+            "state_coverage": {},
+            "interesting_inputs": [],
         }
 
         for test_file in test_files:
@@ -691,4 +950,39 @@ class ResponseAwareFuzzer:
                     break
 
         results["summary"] = self.monitor.get_summary()
+
+        # Add state coverage information
+        if self.state_tracker:
+            results["state_coverage"] = self.state_tracker.get_state_coverage()
+            results["interesting_inputs"] = [
+                str(p) for p in self.state_tracker.get_interesting_inputs()
+            ]
+
+            logger.info(
+                f"State coverage: {results['state_coverage']['unique_states']} states, "
+                f"{results['state_coverage']['unique_transitions']} transitions"
+            )
+
         return results
+
+    def get_state_coverage(self) -> dict[str, Any]:
+        """Get current state coverage statistics.
+
+        Returns:
+            Dictionary with state coverage metrics, or empty dict if disabled
+
+        """
+        if self.state_tracker:
+            return self.state_tracker.get_state_coverage()
+        return {}
+
+    def get_interesting_inputs(self) -> list[Path]:
+        """Get inputs that discovered new states.
+
+        Returns:
+            List of file paths that reached unique states
+
+        """
+        if self.state_tracker:
+            return self.state_tracker.get_interesting_inputs()
+        return []

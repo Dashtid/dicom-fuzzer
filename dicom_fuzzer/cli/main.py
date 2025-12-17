@@ -795,6 +795,11 @@ def main() -> int:
 
         return fda_report_main(sys.argv[2:])
 
+    if len(sys.argv) > 1 and sys.argv[1] == "sbom":
+        from dicom_fuzzer.cli.sbom_cmd import main as sbom_main
+
+        return sbom_main(sys.argv[2:])
+
     parser = argparse.ArgumentParser(
         description="DICOM Fuzzer - Security testing tool for medical imaging systems",
         epilog="""

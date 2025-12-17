@@ -1,0 +1,45 @@
+# OSS-Fuzz Project Configuration
+#
+# Reference: https://google.github.io/oss-fuzz/getting-started/new-project-guide/
+#
+# To integrate with OSS-Fuzz:
+# 1. Fork https://github.com/google/oss-fuzz
+# 2. Create projects/dicom-fuzzer/ directory
+# 3. Copy this project.yaml, Dockerfile, and build.sh
+# 4. Submit PR to OSS-Fuzz repository
+
+homepage: "https://github.com/YOUR_USERNAME/dicom-fuzzer"
+language: c
+primary_contact: "security@example.com"
+auto_ccs:
+  - "maintainer@example.com"
+
+# Supported fuzzing engines
+fuzzing_engines:
+  - libfuzzer
+  - afl
+  - honggfuzz
+
+# Supported sanitizers
+sanitizers:
+  - address
+  - undefined
+  - memory
+
+# Build configurations
+architectures:
+  - x86_64
+
+# Main branch for source
+main_repo: "https://github.com/YOUR_USERNAME/dicom-fuzzer.git"
+
+# Vendor contact for security issues
+vendor_ccs:
+  - "security-vendor@example.com"
+
+# Labels for the project
+labels:
+  - medical
+  - healthcare
+  - dicom
+  - imaging
