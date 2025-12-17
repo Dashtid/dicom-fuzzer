@@ -5,6 +5,53 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-12-17 - FDA Compliance, Response-Aware Fuzzing, CVE Updates
+
+### Added - FDA Compliance Reporting
+
+- **FDA Compliance Reporter** (`reporting/fda_compliance.py`): Generate FDA-compliant fuzz testing reports
+  - Markdown and JSON report formats for regulatory submissions
+  - Automated compliance evaluation against FDA June 2025 guidance
+  - ANSI/ISA 62443-4-1 Section 9.4 alignment documentation
+  - `fda-report` CLI subcommand for easy report generation
+
+### Added - Response-Aware Network Fuzzing
+
+- **Response-Aware Fuzzer** (`core/response_aware_fuzzer.py`): Feedback-driven network fuzzing
+  - DICOM protocol response parsing (A-ASSOCIATE, A-ABORT, P-DATA-TF)
+  - Anomaly detection (timing, crashes, state violations, unexpected responses)
+  - Adaptive mutation selection based on response feedback
+  - Server fingerprinting for baseline behavior comparison
+  - Based on NetworkFuzzer (ARES 2025) research
+
+### Added - CVE Database Updates
+
+- **12 CVE samples** now included (up from 10):
+  - CVE-2025-53619: GDCM JPEG codec information disclosure (CVSS 7.5)
+  - CVE-2025-1001: RadiAnt certificate validation bypass MitM (CVSS 5.7)
+  - CVE-2025-5943: MicroDicom out-of-bounds write (CVSS 8.8)
+  - CVE-2025-11266: GDCM PixelData out-of-bounds write (CVSS 6.6)
+  - CVE-2025-53618: GDCM JPEG codec out-of-bounds read (CVSS 7.5)
+
+### Added - Documentation
+
+- **CLI Reference** (`docs/CLI_REFERENCE.md`): Complete command-line documentation
+- **FDA Compliance Guide** (`docs/FDA_COMPLIANCE.md`): Regulatory submission workflow
+- **Example Scripts**: New examples for FDA reporting, security testing, network fuzzing
+
+### Added - CI/CD Enhancements
+
+- **Fuzzing Workflows** (`.github/workflows/fuzzing.yml`): Automated fuzzing in CI
+  - PR smoke tests (quick validation)
+  - Nightly 8-hour fuzzing campaigns
+  - CVE validation on schedule
+
+### Changed
+
+- Updated SECURITY.md with 12 CVE samples table
+- Enhanced examples directory with new practical examples
+- Code coverage reporting with Codecov integration
+
 ## [1.3.0] - 2025-12-09 - Synthetic DICOM & Directory Support
 
 ### Added - Synthetic DICOM Generation
