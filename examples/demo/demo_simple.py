@@ -218,7 +218,7 @@ def simulate_target(dicom_file: Path) -> tuple[bool, str]:
         return True, ""
 
     except Exception as e:
-        return False, f"{type(e).__name__}: {str(e)}"
+        return False, f"{type(e).__name__}: {e!s}"
 
 
 def run_demo():

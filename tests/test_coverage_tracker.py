@@ -224,7 +224,7 @@ class TestTraceExecution:
 
         with tracker.trace_execution("test_1"):
             # Execute some code (will track this test file)
-            _ = 1 + 1  # noqa: F841
+            _ = 1 + 1
 
         # Should have recorded at least one execution
         assert tracker.total_executions == 1
@@ -235,7 +235,7 @@ class TestTraceExecution:
 
         with tracker.trace_execution("test_2"):
             # Simple operation
-            _ = sum([1, 2, 3])  # noqa: F841
+            _ = sum([1, 2, 3])
 
         # Should have some coverage recorded
         assert len(tracker.global_coverage) > 0 or tracker.total_executions == 1
@@ -287,7 +287,7 @@ class TestTraceExecution:
         tracker = CoverageTracker()
 
         with tracker.trace_execution("test_5"):
-            _ = 1  # noqa: F841
+            _ = 1
 
         # Current coverage should be cleared after context exits
         # (it's copied to snapshot, then cleared)
@@ -377,7 +377,7 @@ class TestStatistics:
         tracker = CoverageTracker()
 
         with tracker.trace_execution("test_1"):
-            _ = 1 + 1  # noqa: F841
+            _ = 1 + 1
 
         stats = tracker.get_statistics()
 
@@ -467,14 +467,14 @@ class TestReset:
 
         # Use tracker
         with tracker.trace_execution("test_1"):
-            _ = 1 + 1  # noqa: F841
+            _ = 1 + 1
 
         # Reset
         tracker.reset()
 
         # Use again
         with tracker.trace_execution("test_2"):
-            _ = 2 + 2  # noqa: F841
+            _ = 2 + 2
 
         # Should work normally
         assert tracker.total_executions >= 1
@@ -485,7 +485,7 @@ class TestIntegration:
 
     def test_complete_coverage_workflow(self):
         """Test a complete coverage-guided fuzzing workflow."""
-        from dicom_fuzzer.core.test_helper import simple_function, another_function
+        from dicom_fuzzer.core.test_helper import another_function, simple_function
 
         tracker = CoverageTracker(target_modules=["core"])
 
@@ -536,10 +536,10 @@ class TestIntegration:
 
         # Simulate some executions
         with tracker.trace_execution("test_1"):
-            _ = 1  # noqa: F841
+            _ = 1
 
         with tracker.trace_execution("test_2"):
-            _ = 2  # noqa: F841
+            _ = 2
 
         stats = tracker.get_statistics()
 
@@ -613,7 +613,7 @@ class TestActualCodeTracing:
 
     def test_trace_execution_updates_coverage_history(self):
         """Test that interesting executions are added to coverage history."""
-        from dicom_fuzzer.core.test_helper import simple_function, conditional_function
+        from dicom_fuzzer.core.test_helper import conditional_function, simple_function
 
         tracker = CoverageTracker(target_modules=["core"])
 
@@ -653,7 +653,7 @@ class TestActualCodeTracing:
 
     def test_trace_execution_records_new_coverage(self):
         """Test that trace_execution properly records new coverage."""
-        from dicom_fuzzer.core.test_helper import simple_function, another_function
+        from dicom_fuzzer.core.test_helper import another_function, simple_function
 
         tracker = CoverageTracker(target_modules=["core"])
 
@@ -670,7 +670,7 @@ class TestActualCodeTracing:
 
     def test_coverage_report_with_executions(self):
         """Test coverage report after real executions."""
-        from dicom_fuzzer.core.test_helper import simple_function, conditional_function
+        from dicom_fuzzer.core.test_helper import conditional_function, simple_function
 
         tracker = CoverageTracker(target_modules=["core"])
 
@@ -711,3 +711,197 @@ class TestActualCodeTracing:
         assert len(tracker.global_coverage) == 0
         assert len(tracker.coverage_history) == 0
         assert len(tracker.seen_coverage_hashes) == 0
+
+
+class TestCoverageTrackerAdditionalBranches:
+    """Additional tests to cover remaining branches in coverage_tracker.py."""
+
+    def test_trace_execution_new_coverage_branch(self):
+        """Test trace_execution when new coverage is discovered (lines 264-275).
+
+        This specifically tests the 'if new_lines:' branch in trace_execution.
+        """
+        from dicom_fuzzer.core.test_helper import simple_function
+
+        # Use "core" target_modules to match existing working tests
+        tracker = CoverageTracker(target_modules=["core"])
+
+        # Clear any prior state
+        tracker.reset()
+
+        # First execution should find new coverage
+        with tracker.trace_execution("new_coverage_test"):
+            _ = simple_function()
+
+        # Should have recorded interesting case
+        assert tracker.interesting_cases >= 1
+        assert len(tracker.global_coverage) > 0
+        assert len(tracker.coverage_history) > 0
+
+    def test_trace_execution_redundant_case_branch(self):
+        """Test trace_execution when no new coverage is found (lines 276-281).
+
+        This specifically tests the 'else' branch (redundant cases).
+        """
+        from dicom_fuzzer.core.test_helper import simple_function
+
+        # Use "core" target_modules to match existing working tests
+        tracker = CoverageTracker(target_modules=["core"])
+
+        # First execution - finds new coverage
+        with tracker.trace_execution("initial"):
+            _ = simple_function()
+
+        # Second execution with SAME code - should be redundant
+        with tracker.trace_execution("redundant"):
+            _ = simple_function()
+
+        # Should have incremented redundant counter
+        assert tracker.redundant_cases >= 1
+        # Interesting cases should not have increased (or increased by 0-1 depending on trace)
+        assert tracker.total_executions == 2
+
+    def test_get_statistics_all_fields(self):
+        """Test get_statistics returns all expected fields (line 333)."""
+        from dicom_fuzzer.core.test_helper import simple_function
+
+        # Use "core" target_modules
+        tracker = CoverageTracker(target_modules=["core"])
+
+        # Do some execution to have stats
+        with tracker.trace_execution("stats_test"):
+            _ = simple_function()
+
+        stats = tracker.get_statistics()
+
+        # Verify all required fields are present
+        assert "total_executions" in stats
+        assert "interesting_cases" in stats
+        assert "redundant_cases" in stats
+        assert "total_lines_covered" in stats
+        assert "unique_coverage_patterns" in stats
+        assert "efficiency" in stats
+
+        # Verify values are sensible
+        assert stats["total_executions"] >= 1
+        assert isinstance(stats["efficiency"], float)
+
+    def test_get_statistics_efficiency_calculation(self):
+        """Test efficiency calculation in get_statistics."""
+        tracker = CoverageTracker(target_modules=["test"])
+
+        # With zero executions, efficiency should be 0
+        stats = tracker.get_statistics()
+        assert stats["efficiency"] == 0.0
+
+        # Manually set counters to test calculation
+        tracker.total_executions = 10
+        tracker.interesting_cases = 3
+
+        stats = tracker.get_statistics()
+        assert stats["efficiency"] == 0.3  # 3/10
+
+    def test_get_coverage_report_complete(self):
+        """Test get_coverage_report returns complete formatted report (lines 353-369)."""
+        from dicom_fuzzer.core.test_helper import conditional_function, simple_function
+
+        # Use "core" target_modules
+        tracker = CoverageTracker(target_modules=["core"])
+
+        # Do multiple executions
+        with tracker.trace_execution("report_1"):
+            _ = simple_function()
+
+        with tracker.trace_execution("report_2"):
+            _ = conditional_function(5)
+
+        report = tracker.get_coverage_report()
+
+        # Verify report structure
+        assert "Coverage-Guided Fuzzing Report" in report
+        assert "=" * 50 in report
+        assert "Total Executions:" in report
+        assert "Interesting Cases:" in report
+        assert "Redundant Cases:" in report
+        assert "Total Lines Covered:" in report
+        assert "Unique Patterns:" in report
+        assert "Efficiency:" in report
+        assert "Coverage History:" in report
+        assert "snapshots" in report
+
+    def test_reset_clears_all_state(self):
+        """Test reset method clears all internal state (lines 373-380)."""
+        from dicom_fuzzer.core.test_helper import another_function, simple_function
+
+        # Use "core" target_modules
+        tracker = CoverageTracker(target_modules=["core"])
+
+        # Build up state
+        with tracker.trace_execution("reset_1"):
+            _ = simple_function()
+
+        with tracker.trace_execution("reset_2"):
+            _ = another_function()
+
+        # Verify state exists
+        assert tracker.total_executions >= 2
+        assert len(tracker.global_coverage) > 0
+
+        # Reset
+        tracker.reset()
+
+        # Verify all collections are cleared
+        assert len(tracker.global_coverage) == 0
+        assert len(tracker.current_coverage) == 0
+        assert len(tracker.coverage_history) == 0
+        assert len(tracker.seen_coverage_hashes) == 0
+
+        # Verify counters are reset
+        assert tracker.total_executions == 0
+        assert tracker.interesting_cases == 0
+        assert tracker.redundant_cases == 0
+
+    def test_trace_execution_finally_block_coverage(self):
+        """Test that finally block in trace_execution is executed (lines 250-283)."""
+        from dicom_fuzzer.core.test_helper import simple_function
+
+        # Use "core" target_modules
+        tracker = CoverageTracker(target_modules=["core"])
+
+        initial_executions = tracker.total_executions
+
+        # Execute and verify finally block ran (increments total_executions)
+        with tracker.trace_execution("finally_test"):
+            _ = simple_function()
+
+        # Finally block should have incremented total_executions
+        assert tracker.total_executions == initial_executions + 1
+
+    def test_trace_execution_with_exception_still_runs_finally(self):
+        """Test that finally block runs even when exception occurs."""
+        tracker = CoverageTracker(target_modules=["test"])
+
+        initial_executions = tracker.total_executions
+
+        # Execute with exception
+        try:
+            with tracker.trace_execution("exception_test"):
+                raise ValueError("Test exception")
+        except ValueError:
+            pass  # Expected
+
+        # Finally block should still have run
+        assert tracker.total_executions == initial_executions + 1
+
+    def test_track_execution_alias(self):
+        """Test track_execution is alias for trace_execution."""
+        from dicom_fuzzer.core.test_helper import simple_function
+
+        # Use "core" target_modules
+        tracker = CoverageTracker(target_modules=["core"])
+
+        # Use the alias
+        with tracker.track_execution("alias_test"):
+            _ = simple_function()
+
+        assert tracker.total_executions >= 1

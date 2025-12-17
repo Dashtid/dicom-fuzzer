@@ -4,7 +4,11 @@ import time
 
 import pytest
 
-from dicom_fuzzer.core.profiler import FuzzingMetrics, PerformanceProfiler, StrategyTimer
+from dicom_fuzzer.core.profiler import (
+    FuzzingMetrics,
+    PerformanceProfiler,
+    StrategyTimer,
+)
 
 
 class TestFuzzingMetrics:

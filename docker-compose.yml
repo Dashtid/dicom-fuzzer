@@ -27,7 +27,7 @@
 #   # Stop all services
 #   docker-compose down
 
-version: '3.8'
+version: "3.8"
 
 services:
   # DCMTK - DICOM Toolkit (dcmdump parser)
@@ -81,8 +81,8 @@ services:
     image: dicom-fuzzer/orthanc:latest
     container_name: dicom-fuzzer-orthanc
     ports:
-      - "8042:8042"  # REST API / Web UI
-      - "4242:4242"  # DICOM protocol
+      - "8042:8042" # REST API / Web UI
+      - "4242:4242" # DICOM protocol
     volumes:
       - orthanc-db:/var/lib/orthanc/db
       - orthanc-logs:/var/log/orthanc

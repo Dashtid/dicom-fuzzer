@@ -1,30 +1,31 @@
-"""
-Coverage Instrumentation for DICOM Fuzzer
+"""Coverage Instrumentation for DICOM Fuzzer
 
 Provides lightweight coverage tracking using Python's tracing capabilities.
 Tracks edge coverage (branch transitions) to guide fuzzing decisions.
 """
 
 import sys
-import hashlib
+import threading
 import time
-from typing import Set, Dict, Optional, Tuple, Any, Callable
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-import threading
-from contextlib import contextmanager
+from typing import Any
+
+from dicom_fuzzer.utils.hashing import hash_string, short_hash
 
 
 @dataclass
 class CoverageInfo:
     """Stores coverage information for a single execution."""
 
-    edges: Set[Tuple[str, int, str, int]] = field(default_factory=set)
-    branches: Set[Tuple[str, int, bool]] = field(default_factory=set)
-    functions: Set[str] = field(default_factory=set)
-    lines: Set[Tuple[str, int]] = field(default_factory=set)
+    edges: set[tuple[str, int, str, int]] = field(default_factory=set)
+    branches: set[tuple[str, int, bool]] = field(default_factory=set)
+    functions: set[str] = field(default_factory=set)
+    lines: set[tuple[str, int]] = field(default_factory=set)
     execution_time: float = 0.0
-    input_hash: Optional[str] = None
+    input_hash: str | None = None
     new_coverage: bool = False
 
     def merge(self, other: "CoverageInfo") -> None:
@@ -38,33 +39,32 @@ class CoverageInfo:
         """Generate a unique hash for this coverage signature."""
         coverage_data = sorted(self.edges) + sorted(self.branches)
         coverage_str = str(coverage_data)
-        return hashlib.sha256(coverage_str.encode()).hexdigest()[:16]
+        return hash_string(coverage_str, 16)
 
 
 class CoverageTracker:
-    """
-    Lightweight coverage tracker using sys.settrace.
+    """Lightweight coverage tracker using sys.settrace.
 
     Optimized for fuzzing workloads with minimal overhead.
     """
 
-    def __init__(self, target_modules: Optional[Set[str]] = None):
-        """
-        Initialize the coverage tracker.
+    def __init__(self, target_modules: set[str] | None = None):
+        """Initialize the coverage tracker.
 
         Args:
             target_modules: Set of module names to track (None = track all)
+
         """
         self.target_modules = target_modules or set()
         self.global_coverage = CoverageInfo()
         self.current_coverage = CoverageInfo()
-        self.coverage_history: Dict[str, CoverageInfo] = {}
-        self.last_location: Optional[Tuple[str, int]] = None
+        self.coverage_history: dict[str, CoverageInfo] = {}
+        self.last_location: tuple[str, int] | None = None
         self.trace_enabled = False
         self._lock = threading.RLock()  # Use RLock to allow re-entrant locking
 
         # Performance optimization: cache module checks
-        self._module_cache: Dict[str, bool] = {}
+        self._module_cache: dict[str, bool] = {}
 
         # Statistics
         self.total_executions = 0
@@ -85,9 +85,8 @@ class CoverageTracker:
         self._module_cache[filename] = result
         return result
 
-    def _trace_function(self, frame: Any, event: str, arg: Any) -> Optional[Callable]:
-        """
-        Trace function for sys.settrace.
+    def _trace_function(self, frame: Any, event: str, arg: Any) -> Callable | None:
+        """Trace function for sys.settrace.
 
         Tracks code execution at the line and branch level.
         """
@@ -134,23 +133,23 @@ class CoverageTracker:
         return self._trace_function
 
     @contextmanager
-    def track_coverage(self, input_data: Optional[bytes] = None):
-        """
-        Context manager to track coverage for a code block.
+    def track_coverage(
+        self, input_data: bytes | None = None
+    ) -> Generator[CoverageInfo, None, None]:
+        """Context manager to track coverage for a code block.
 
         Args:
             input_data: Optional input data to hash for deduplication
 
         Yields:
             CoverageInfo object that will be populated during execution
+
         """
         # Reset current coverage
         self.current_coverage = CoverageInfo()
 
         if input_data:
-            self.current_coverage.input_hash = hashlib.sha256(input_data).hexdigest()[
-                :16
-            ]
+            self.current_coverage.input_hash = short_hash(input_data)
 
         # Start tracing
         start_time = time.time()
@@ -187,7 +186,7 @@ class CoverageTracker:
                         self.current_coverage
                     )
 
-    def get_coverage_stats(self) -> Dict[str, Any]:
+    def get_coverage_stats(self) -> dict[str, Any]:
         """Get current coverage statistics."""
         with self._lock:
             return {
@@ -205,9 +204,8 @@ class CoverageTracker:
                 ),
             }
 
-    def get_uncovered_edges(self, recent_coverage: CoverageInfo) -> Set[Tuple]:
-        """
-        Get edges that haven't been covered yet.
+    def get_uncovered_edges(self, recent_coverage: CoverageInfo) -> set[tuple]:
+        """Get edges that haven't been covered yet.
 
         Useful for targeted fuzzing.
         """
@@ -255,21 +253,20 @@ class CoverageTracker:
 
 
 class HybridCoverageTracker(CoverageTracker):
-    """
-    Enhanced coverage tracker with optional Atheris integration.
+    """Enhanced coverage tracker with optional Atheris integration.
 
     Falls back to pure Python tracking if Atheris is not available.
     """
 
     def __init__(
-        self, target_modules: Optional[Set[str]] = None, use_atheris: bool = False
+        self, target_modules: set[str] | None = None, use_atheris: bool = False
     ):
-        """
-        Initialize hybrid coverage tracker.
+        """Initialize hybrid coverage tracker.
 
         Args:
             target_modules: Modules to track
             use_atheris: Try to use Atheris for coverage if available
+
         """
         super().__init__(target_modules)
         self.atheris_available = False
@@ -285,10 +282,10 @@ class HybridCoverageTracker(CoverageTracker):
                 print("Atheris not available, falling back to pure Python coverage")
 
     @contextmanager
-    def track_coverage(self, input_data: Optional[bytes] = None):
-        """
-        Track coverage with Atheris integration if available.
-        """
+    def track_coverage(
+        self, input_data: bytes | None = None
+    ) -> Generator[CoverageInfo, None, None]:
+        """Track coverage with Atheris integration if available."""
         if self.atheris_available and self.use_atheris:
             # Use Atheris coverage tracking
             # This would integrate with Atheris's coverage-guided fuzzing
@@ -301,8 +298,7 @@ class HybridCoverageTracker(CoverageTracker):
 
 
 def calculate_coverage_distance(cov1: CoverageInfo, cov2: CoverageInfo) -> float:
-    """
-    Calculate distance between two coverage signatures.
+    """Calculate distance between two coverage signatures.
 
     Used for coverage-guided seed selection.
     """
@@ -322,8 +318,287 @@ def calculate_coverage_distance(cov1: CoverageInfo, cov2: CoverageInfo) -> float
     return 1.0 - (intersection / union)
 
 
+class BranchCoverageTracker:
+    """Enhanced branch coverage tracker using bytecode analysis.
+
+    Tracks true branch coverage by analyzing conditional jumps and
+    building a control flow graph representation.
+
+    AFL-style Features:
+    - Edge tuple tracking (from_block -> to_block)
+    - Hit count bucketing for edge frequency
+    - Bitmap-based fast comparison
+    """
+
+    # AFL-style hit count buckets
+    HIT_BUCKETS = [1, 2, 3, 4, 8, 16, 32, 128]
+
+    def __init__(self, bitmap_size: int = 65536):
+        """Initialize branch coverage tracker.
+
+        Args:
+            bitmap_size: Size of coverage bitmap (default 64KB like AFL)
+
+        """
+        self.bitmap_size = bitmap_size
+        self.bitmap = bytearray(bitmap_size)
+        self.edge_counts: dict[int, int] = {}
+        self.block_map: dict[tuple[str, int], int] = {}
+        self.next_block_id = 0
+        self._prev_block: int = 0
+        self._lock = threading.RLock()
+
+        # Statistics
+        self.total_edges = 0
+        self.unique_edges = 0
+        self.edge_history: list[int] = []
+
+    def _get_block_id(self, filename: str, lineno: int) -> int:
+        """Get or create a block ID for a code location."""
+        key = (filename, lineno)
+        if key not in self.block_map:
+            self.block_map[key] = self.next_block_id
+            self.next_block_id += 1
+        return self.block_map[key]
+
+    def _compute_edge_hash(self, from_block: int, to_block: int) -> int:
+        """Compute AFL-style edge hash.
+
+        Uses XOR of current block with shifted previous block
+        to create a unique edge identifier.
+        """
+        # AFL's edge hashing: cur_location ^ (prev_location >> 1)
+        return (to_block ^ (from_block >> 1)) % self.bitmap_size
+
+    def record_edge(self, filename: str, from_line: int, to_line: int) -> bool:
+        """Record a branch/edge transition.
+
+        Args:
+            filename: Source file
+            from_line: Line number of branch source
+            to_line: Line number of branch target
+
+        Returns:
+            True if this is a new edge
+
+        """
+        with self._lock:
+            from_block = self._get_block_id(filename, from_line)
+            to_block = self._get_block_id(filename, to_line)
+            edge_hash = self._compute_edge_hash(from_block, to_block)
+
+            self.total_edges += 1
+
+            # Check if new edge
+            is_new = self.bitmap[edge_hash] == 0
+
+            # Update bitmap with hit count bucketing
+            current_hits = self.bitmap[edge_hash]
+            bucket = self._get_hit_bucket(current_hits + 1)
+            self.bitmap[edge_hash] = bucket
+
+            # Track exact counts for analysis
+            self.edge_counts[edge_hash] = self.edge_counts.get(edge_hash, 0) + 1
+
+            if is_new:
+                self.unique_edges += 1
+                self.edge_history.append(edge_hash)
+
+            # Update previous block for next edge
+            self._prev_block = to_block
+
+            return is_new
+
+    def _get_hit_bucket(self, count: int) -> int:
+        """Convert hit count to AFL-style bucket.
+
+        AFL uses bucketed hit counts to reduce noise from
+        frequently-executed code.
+        """
+        for i, threshold in enumerate(self.HIT_BUCKETS):
+            if count <= threshold:
+                return i + 1
+        return len(self.HIT_BUCKETS)
+
+    def get_coverage_hash(self) -> str:
+        """Get a hash of the current coverage bitmap.
+
+        Returns:
+            Hex string hash of coverage state
+
+        """
+        # Hash only non-zero entries for efficiency
+        non_zero = bytes(b for b in self.bitmap if b > 0)
+        return hash_string(non_zero.hex(), 16)
+
+    def has_new_coverage(self, other_bitmap: bytearray) -> bool:
+        """Check if current bitmap has coverage not in other bitmap.
+
+        Args:
+            other_bitmap: Another coverage bitmap to compare against
+
+        Returns:
+            True if current bitmap covers new edges
+
+        """
+        for i in range(min(len(self.bitmap), len(other_bitmap))):
+            if self.bitmap[i] > 0 and other_bitmap[i] == 0:
+                return True
+        return False
+
+    def merge_bitmap(self, other_bitmap: bytearray) -> int:
+        """Merge another bitmap into this one.
+
+        Args:
+            other_bitmap: Bitmap to merge
+
+        Returns:
+            Number of new edges added
+
+        """
+        new_edges = 0
+        for i in range(min(len(self.bitmap), len(other_bitmap))):
+            if other_bitmap[i] > 0 and self.bitmap[i] == 0:
+                new_edges += 1
+            self.bitmap[i] = max(self.bitmap[i], other_bitmap[i])
+        return new_edges
+
+    def get_bitmap_copy(self) -> bytearray:
+        """Get a copy of the current bitmap."""
+        return bytearray(self.bitmap)
+
+    def reset_bitmap(self) -> None:
+        """Reset the bitmap for a new execution."""
+        self.bitmap = bytearray(self.bitmap_size)
+        self._prev_block = 0
+
+    def get_stats(self) -> dict[str, Any]:
+        """Get coverage statistics.
+
+        Returns:
+            Dictionary with coverage statistics
+
+        """
+        non_zero = sum(1 for b in self.bitmap if b > 0)
+        hot_edges = sum(1 for b in self.bitmap if b >= 4)  # Frequently hit
+
+        return {
+            "bitmap_size": self.bitmap_size,
+            "edges_covered": non_zero,
+            "coverage_percent": (non_zero / self.bitmap_size) * 100,
+            "hot_edges": hot_edges,
+            "total_edge_transitions": self.total_edges,
+            "unique_blocks": len(self.block_map),
+            "edge_density": non_zero / max(len(self.block_map), 1),
+        }
+
+    def get_rare_edges(self, threshold: int = 2) -> list[int]:
+        """Get edges that have been hit fewer than threshold times.
+
+        Args:
+            threshold: Maximum hit count to consider "rare"
+
+        Returns:
+            List of rare edge hashes
+
+        """
+        return [edge for edge, count in self.edge_counts.items() if count <= threshold]
+
+    def export_bitmap(self, filepath: Path) -> None:
+        """Export bitmap to file for analysis.
+
+        Args:
+            filepath: Path to save bitmap
+
+        """
+        filepath.write_bytes(self.bitmap)
+
+    def import_bitmap(self, filepath: Path) -> None:
+        """Import bitmap from file.
+
+        Args:
+            filepath: Path to bitmap file
+
+        """
+        data = filepath.read_bytes()
+        self.bitmap = bytearray(data[: self.bitmap_size])
+
+
+class EnhancedCoverageTracker(CoverageTracker):
+    """Coverage tracker with AFL-style bitmap and branch tracking.
+
+    Combines Python's trace-based coverage with bitmap-based
+    edge tracking for efficient coverage comparison.
+    """
+
+    def __init__(
+        self,
+        target_modules: set[str] | None = None,
+        bitmap_size: int = 65536,
+    ):
+        """Initialize enhanced coverage tracker.
+
+        Args:
+            target_modules: Modules to track
+            bitmap_size: Size of coverage bitmap
+
+        """
+        super().__init__(target_modules)
+        self.branch_tracker = BranchCoverageTracker(bitmap_size)
+        self.global_bitmap = bytearray(bitmap_size)
+        self._execution_bitmap: bytearray | None = None
+
+    def _trace_function(self, frame: Any, event: str, arg: Any) -> Callable | None:
+        """Enhanced trace function with bitmap updates."""
+        result = super()._trace_function(frame, event, arg)
+
+        if not self.trace_enabled:
+            return result
+
+        filename = frame.f_code.co_filename
+        if not self.should_track_module(filename):
+            return result
+
+        lineno = frame.f_lineno
+
+        # Record edges in bitmap
+        if event == "line" and self.last_location:
+            self.branch_tracker.record_edge(filename, self.last_location[1], lineno)
+
+        return result
+
+    @contextmanager
+    def track_coverage(
+        self, input_data: bytes | None = None
+    ) -> Generator[CoverageInfo, None, None]:
+        """Track coverage with bitmap support."""
+        # Reset per-execution bitmap
+        self.branch_tracker.reset_bitmap()
+
+        with super().track_coverage(input_data) as coverage:
+            yield coverage
+
+        # After execution, check for new coverage via bitmap
+        if self.branch_tracker.has_new_coverage(self.global_bitmap):
+            coverage.new_coverage = True
+
+        # Merge into global bitmap
+        self.branch_tracker.merge_bitmap(self.global_bitmap)
+        self.global_bitmap = self.branch_tracker.get_bitmap_copy()
+
+    def get_coverage_stats(self) -> dict[str, Any]:
+        """Get combined coverage statistics."""
+        base_stats = super().get_coverage_stats()
+        bitmap_stats = self.branch_tracker.get_stats()
+
+        return {
+            **base_stats,
+            "bitmap_coverage": bitmap_stats,
+        }
+
+
 # Global tracker instance (can be configured)
-_global_tracker: Optional[CoverageTracker] = None
+_global_tracker: CoverageTracker | None = None
 
 
 def get_global_tracker() -> CoverageTracker:
@@ -334,7 +609,24 @@ def get_global_tracker() -> CoverageTracker:
     return _global_tracker
 
 
-def configure_global_tracker(target_modules: Set[str]) -> None:
+def configure_global_tracker(target_modules: set[str]) -> None:
     """Configure the global tracker with target modules."""
     global _global_tracker
     _global_tracker = CoverageTracker(target_modules)
+
+
+def get_enhanced_tracker(
+    target_modules: set[str] | None = None,
+    bitmap_size: int = 65536,
+) -> EnhancedCoverageTracker:
+    """Create an enhanced coverage tracker with bitmap support.
+
+    Args:
+        target_modules: Modules to track
+        bitmap_size: Size of coverage bitmap
+
+    Returns:
+        EnhancedCoverageTracker instance
+
+    """
+    return EnhancedCoverageTracker(target_modules, bitmap_size)

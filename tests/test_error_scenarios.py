@@ -106,6 +106,7 @@ class TestCorruptedFileHandling:
         assert not result.is_valid or len(result.warnings) > 0
 
 
+@pytest.mark.slow
 class TestDiskSpaceErrors:
     """Test handling disk space exhaustion."""
 
@@ -151,35 +152,77 @@ class TestDiskSpaceErrors:
 class TestPermissionErrors:
     """Test handling file permission errors."""
 
-    @pytest.mark.skipif(os.name == "nt", reason="Permission test unreliable on Windows")
     def test_read_permission_denied(self, sample_dicom_file, temp_dir):
         """Test handling file read permission error."""
         # Copy file and remove read permissions
         restricted_file = temp_dir / "no_read.dcm"
         shutil.copy(sample_dicom_file, restricted_file)
-        restricted_file.chmod(0o000)
+
+        if os.name == "nt":
+            # Windows: Use icacls to deny read access
+            import subprocess
+
+            user = os.environ.get("USERNAME", "")
+            # Deny read access for current user
+            subprocess.run(
+                ["icacls", str(restricted_file), "/deny", f"{user}:(R)"],
+                capture_output=True,
+                check=False,
+            )
+        else:
+            restricted_file.chmod(0o000)
 
         try:
             DicomParser(restricted_file)
             # Should fail to read
             assert False, "Should have raised permission error"
         except (PermissionError, OSError):
-            # Expected
+            # Expected - raw permission error
             assert True
+        except Exception as e:
+            # Parser may wrap permission error in ParsingError
+            # Check if the underlying cause is permission-related
+            error_msg = str(e).lower()
+            assert "permission denied" in error_msg or "errno 13" in error_msg, (
+                f"Expected permission error, got: {e}"
+            )
         finally:
             # Restore permissions for cleanup
             try:
-                restricted_file.chmod(0o644)
+                if os.name == "nt":
+                    import subprocess
+
+                    user = os.environ.get("USERNAME", "")
+                    # Grant full access back
+                    subprocess.run(
+                        ["icacls", str(restricted_file), "/grant", f"{user}:(F)"],
+                        capture_output=True,
+                        check=False,
+                    )
+                else:
+                    restricted_file.chmod(0o644)
             except Exception:
                 pass
 
-    @pytest.mark.skipif(os.name == "nt", reason="Permission test unreliable on Windows")
     def test_write_permission_denied(self, sample_dicom_file, temp_dir):
         """Test handling write permission error."""
         # Create read-only output directory
         readonly_dir = temp_dir / "readonly"
         readonly_dir.mkdir()
-        readonly_dir.chmod(0o444)
+
+        if os.name == "nt":
+            # Windows: Use icacls to deny write access to directory
+            import subprocess
+
+            user = os.environ.get("USERNAME", "")
+            # Deny write access for current user
+            subprocess.run(
+                ["icacls", str(readonly_dir), "/deny", f"{user}:(W)"],
+                capture_output=True,
+                check=False,
+            )
+        else:
+            readonly_dir.chmod(0o444)
 
         try:
             generator = DICOMGenerator(output_dir=str(readonly_dir))
@@ -193,7 +236,18 @@ class TestPermissionErrors:
         finally:
             # Restore permissions
             try:
-                readonly_dir.chmod(0o755)
+                if os.name == "nt":
+                    import subprocess
+
+                    user = os.environ.get("USERNAME", "")
+                    # Grant full access back
+                    subprocess.run(
+                        ["icacls", str(readonly_dir), "/grant", f"{user}:(F)"],
+                        capture_output=True,
+                        check=False,
+                    )
+                else:
+                    readonly_dir.chmod(0o755)
             except Exception:
                 pass
 
@@ -209,6 +263,7 @@ class TestPermissionErrors:
                 ensure_directory(temp_dir / "forbidden" / "nested")
 
 
+@pytest.mark.slow
 class TestResourceExhaustion:
     """Test handling system resource exhaustion."""
 
@@ -314,6 +369,7 @@ class TestInvalidInputData:
         with pytest.raises(ValueError):
             validate_file_path(temp_dir, must_exist=True)
 
+    @pytest.mark.slow
     def test_oversized_file(self, temp_dir):
         """Test handling file exceeding size limit."""
         large_file = temp_dir / "large.dcm"

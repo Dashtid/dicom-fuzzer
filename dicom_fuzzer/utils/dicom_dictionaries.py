@@ -1,5 +1,4 @@
-"""
-DICOM-Specific Value Dictionaries for Intelligent Fuzzing
+"""DICOM-Specific Value Dictionaries for Intelligent Fuzzing
 
 LEARNING OBJECTIVE: This module demonstrates domain-specific fuzzing - using
 knowledge of the DICOM standard to generate realistic but potentially malicious inputs.
@@ -14,8 +13,6 @@ This is like trying to break into a building:
 - Random fuzzing = throwing random objects at the door
 - Dictionary fuzzing = using a key that looks real (but might be a skeleton key)
 """
-
-from typing import Dict, List
 
 # DICOM Transfer Syntax UIDs
 # CONCEPT: These define how DICOM data is encoded (compressed, encrypted, etc.)
@@ -336,8 +333,7 @@ COMMON_UID_ROOTS = [
 
 
 class DICOMDictionaries:
-    """
-    Central repository of DICOM-specific dictionaries for intelligent fuzzing.
+    """Central repository of DICOM-specific dictionaries for intelligent fuzzing.
 
     CONCEPT: This class provides easy access to all DICOM value dictionaries
     and helper methods for generating valid-looking but potentially malicious values.
@@ -346,7 +342,7 @@ class DICOMDictionaries:
     """
 
     # All dictionaries in one place
-    ALL_DICTIONARIES: Dict[str, List[str]] = {
+    ALL_DICTIONARIES: dict[str, list[str]] = {
         "transfer_syntaxes": TRANSFER_SYNTAXES,
         "sop_class_uids": SOP_CLASS_UIDS,
         "modalities": MODALITY_CODES,
@@ -368,33 +364,33 @@ class DICOMDictionaries:
     }
 
     @staticmethod
-    def get_dictionary(name: str) -> List[str]:
-        """
-        Get a dictionary by name.
+    def get_dictionary(name: str) -> list[str]:
+        """Get a dictionary by name.
 
         Args:
             name: Dictionary name (e.g., 'modalities', 'transfer_syntaxes')
 
         Returns:
             List of values from that dictionary
+
         """
         return DICOMDictionaries.ALL_DICTIONARIES.get(name, [])
 
     @staticmethod
-    def get_all_dictionary_names() -> List[str]:
+    def get_all_dictionary_names() -> list[str]:
         """Get names of all available dictionaries."""
         return list(DICOMDictionaries.ALL_DICTIONARIES.keys())
 
     @staticmethod
     def get_random_value(dictionary_name: str) -> str:
-        """
-        Get a random value from a dictionary.
+        """Get a random value from a dictionary.
 
         Args:
             dictionary_name: Name of the dictionary
 
         Returns:
             Random value from that dictionary
+
         """
         import random
 
@@ -405,8 +401,7 @@ class DICOMDictionaries:
 
     @staticmethod
     def generate_random_uid(root: str = "1.2.840.10008.5") -> str:
-        """
-        Generate a random but valid-looking UID.
+        """Generate a random but valid-looking UID.
 
         CONCEPT: UIDs in DICOM follow a specific format: root.numbers.numbers
         We generate syntactically valid but potentially problematic UIDs.
@@ -416,6 +411,7 @@ class DICOMDictionaries:
 
         Returns:
             Generated UID string
+
         """
         import random
         import time
@@ -429,9 +425,8 @@ class DICOMDictionaries:
         return f"{root}.{timestamp}.{random_part}"
 
     @staticmethod
-    def get_edge_cases() -> Dict[str, List[str]]:
-        """
-        Get common edge cases that are useful for fuzzing.
+    def get_edge_cases() -> dict[str, list[str]]:
+        """Get common edge cases that are useful for fuzzing.
 
         CONCEPT: These are values that often cause problems in software:
         - Empty strings
@@ -442,6 +437,7 @@ class DICOMDictionaries:
 
         Returns:
             Dictionary of edge case categories
+
         """
         return {
             "empty": [""],
@@ -484,14 +480,14 @@ class DICOMDictionaries:
         }
 
     @staticmethod
-    def get_malicious_values() -> Dict[str, List[str]]:
-        """
-        Get values specifically designed to trigger vulnerabilities.
+    def get_malicious_values() -> dict[str, list[str]]:
+        """Get values specifically designed to trigger vulnerabilities.
 
         WARNING: These values are intentionally malicious for security testing only!
 
         Returns:
             Dictionary of malicious value categories
+
         """
         return {
             "buffer_overflow": [

@@ -1,5 +1,4 @@
-"""
-Report Generator - HTML and JSON Reports
+"""Report Generator - HTML and JSON Reports
 
 LEARNING OBJECTIVE: This module demonstrates automated report generation
 for fuzzing campaigns, creating both human-readable (HTML) and
@@ -16,25 +15,24 @@ This enables both manual review and automated processing.
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
 
 from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer, CrashReport
+from dicom_fuzzer.utils.identifiers import generate_timestamp_id
 
 
 class ReportGenerator:
-    """
-    Generates HTML and JSON reports for fuzzing campaigns.
+    """Generates HTML and JSON reports for fuzzing campaigns.
 
     CONCEPT: Single source of truth for reporting.
     Both HTML and JSON generated from the same data structures.
     """
 
     def __init__(self, output_dir: str = "./reports"):
-        """
-        Initialize report generator.
+        """Initialize report generator.
 
         Args:
             output_dir: Directory to save reports
+
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -42,8 +40,7 @@ class ReportGenerator:
     def generate_crash_html_report(
         self, analyzer: CrashAnalyzer, campaign_name: str = "DICOM Fuzzing"
     ) -> Path:
-        """
-        Generate HTML report for crash analysis.
+        """Generate HTML report for crash analysis.
 
         Args:
             analyzer: CrashAnalyzer with crash data
@@ -51,6 +48,7 @@ class ReportGenerator:
 
         Returns:
             Path to generated HTML report
+
         """
         crashes = analyzer.crashes
         summary = analyzer.get_crash_summary()
@@ -62,7 +60,7 @@ class ReportGenerator:
         html += self._generate_html_footer()
 
         # Save report
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         report_path = self.output_dir / f"crash_report_{timestamp}.html"
 
         with open(report_path, "w", encoding="utf-8") as f:
@@ -73,8 +71,7 @@ class ReportGenerator:
     def generate_crash_json_report(
         self, analyzer: CrashAnalyzer, campaign_name: str = "DICOM Fuzzing"
     ) -> Path:
-        """
-        Generate JSON report for crash analysis.
+        """Generate JSON report for crash analysis.
 
         Args:
             analyzer: CrashAnalyzer with crash data
@@ -82,9 +79,16 @@ class ReportGenerator:
 
         Returns:
             Path to generated JSON report
+
         """
         crashes = analyzer.crashes
         summary = analyzer.get_crash_summary()
+
+        # Count by severity
+        by_severity: dict[str, int] = {}
+        for crash in crashes:
+            severity = crash.severity.value
+            by_severity[severity] = by_severity.get(severity, 0) + 1
 
         # Build JSON structure
         report_data = {
@@ -92,22 +96,15 @@ class ReportGenerator:
             "generated_at": datetime.now().isoformat(),
             "summary": {
                 "total_crashes": len(crashes),
-                "unique_crashes": len(set(c.crash_hash for c in crashes)),
+                "unique_crashes": len({c.crash_hash for c in crashes}),
                 "by_type": summary,
-                "by_severity": {},
+                "by_severity": by_severity,
             },
             "crashes": [self._crash_to_dict(crash) for crash in crashes],
         }
 
-        # Count by severity
-        for crash in crashes:
-            severity = crash.severity.value
-            report_data["summary"]["by_severity"][severity] = (
-                report_data["summary"]["by_severity"].get(severity, 0) + 1
-            )
-
         # Save report
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         report_path = self.output_dir / f"crash_report_{timestamp}.json"
 
         with open(report_path, "w", encoding="utf-8") as f:
@@ -116,10 +113,9 @@ class ReportGenerator:
         return report_path
 
     def generate_performance_html_report(
-        self, metrics: Dict, campaign_name: str = "DICOM Fuzzing"
+        self, metrics: dict, campaign_name: str = "DICOM Fuzzing"
     ) -> Path:
-        """
-        Generate HTML report for performance metrics.
+        """Generate HTML report for performance metrics.
 
         Args:
             metrics: Performance metrics dictionary
@@ -127,13 +123,14 @@ class ReportGenerator:
 
         Returns:
             Path to generated HTML report
+
         """
         html = self._generate_html_header(f"{campaign_name} - Performance Report")
         html += self._generate_performance_section(metrics)
         html += self._generate_html_footer()
 
         # Save report
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = generate_timestamp_id()
         report_path = self.output_dir / f"performance_report_{timestamp}.html"
 
         with open(report_path, "w", encoding="utf-8") as f:
@@ -141,7 +138,44 @@ class ReportGenerator:
 
         return report_path
 
-    def _crash_to_dict(self, crash: CrashReport) -> Dict:
+    def generate_report(
+        self,
+        report_data: dict,
+        format: str = "json",
+        campaign_name: str = "DICOM Fuzzing",
+    ) -> Path:
+        """Generate a general report (for test compatibility).
+
+        Args:
+            report_data: Dictionary with report data
+            format: Report format ('json' or 'html')
+            campaign_name: Name of fuzzing campaign
+
+        Returns:
+            Path to generated report
+
+        """
+        timestamp = generate_timestamp_id()
+
+        if format == "json":
+            report_path = self.output_dir / f"report_{timestamp}.json"
+            with open(report_path, "w", encoding="utf-8") as f:
+                json.dump(report_data, f, indent=2)
+        else:  # html
+            report_path = self.output_dir / f"report_{timestamp}.html"
+            html = self._generate_html_header(campaign_name)
+            html += "<div class='section'><h2>Report Data</h2>"
+            html += "<table border='1' style='width: 100%; border-collapse: collapse;'>"
+            for key, value in report_data.items():
+                html += f"<tr><td style='padding: 8px;'><strong>{key}</strong></td><td style='padding: 8px;'>{value}</td></tr>"
+            html += "</table></div>"
+            html += self._generate_html_footer()
+            with open(report_path, "w", encoding="utf-8") as f:
+                f.write(html)
+
+        return report_path
+
+    def _crash_to_dict(self, crash: CrashReport) -> dict:
         """Convert CrashReport to dictionary."""
         return {
             "crash_type": crash.crash_type.value,
@@ -273,10 +307,10 @@ class ReportGenerator:
 """
 
     def _generate_summary_section(
-        self, summary: Dict[str, int], total_crashes: int
+        self, summary: dict[str, int], total_crashes: int
     ) -> str:
         """Generate summary section HTML."""
-        html = "<h2>📊 Summary</h2>\n<div class='summary-grid'>\n"
+        html = "<h2>Summary</h2>\n<div class='summary-grid'>\n"
 
         # Total crashes
         html += f"""
@@ -291,19 +325,19 @@ class ReportGenerator:
             html += f"""
         <div class='metric-card'>
             <div class='metric-value'>{count}</div>
-            <div class='metric-label'>{crash_type.replace('_', ' ').title()}</div>
+            <div class='metric-label'>{crash_type.replace("_", " ").title()}</div>
         </div>
 """
 
         html += "</div>\n"
         return html
 
-    def _generate_crash_details_section(self, crashes: List[CrashReport]) -> str:
+    def _generate_crash_details_section(self, crashes: list[CrashReport]) -> str:
         """Generate crash details section HTML."""
         if not crashes:
             return "<h2>No crashes found</h2>\n"
 
-        html = "<h2>🔍 Crash Details</h2>\n"
+        html = "<h2>Crash Details</h2>\n"
 
         for crash in crashes:
             severity_class = f"crash-{crash.severity.value.lower()}"
@@ -348,9 +382,9 @@ class ReportGenerator:
 
         return html
 
-    def _generate_performance_section(self, metrics: Dict) -> str:
+    def _generate_performance_section(self, metrics: dict) -> str:
         """Generate performance metrics section HTML."""
-        html = "<h2>⚡ Performance Metrics</h2>\n<div class='summary-grid'>\n"
+        html = "<h2>Performance Metrics</h2>\n<div class='summary-grid'>\n"
 
         # Key metrics
         metric_items = [

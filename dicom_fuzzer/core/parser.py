@@ -4,19 +4,21 @@ This module provides secure parsing capabilities for DICOM files,
 with extensive validation, error handling, and security considerations.
 """
 
-import logging
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import numpy as np
 import pydicom
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
+from dicom_fuzzer.utils.logger import get_logger
+
 from .exceptions import ParsingError, SecurityViolationError, ValidationError
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DicomParser:
@@ -30,6 +32,7 @@ class DicomParser:
         dataset: Parsed DICOM dataset
         metadata_cache: Cached metadata for performance
         security_checks_enabled: Whether to perform security validation
+
     """
 
     # Critical DICOM tags that should never be mutated for safety
@@ -45,9 +48,9 @@ class DicomParser:
 
     def __init__(
         self,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         security_checks: bool = True,
-        max_file_size: Optional[int] = None,
+        max_file_size: int | None = None,
     ) -> None:
         """Initialize DICOM parser with security validation.
 
@@ -60,12 +63,13 @@ class DicomParser:
             ParsingError: If file cannot be parsed
             SecurityViolationError: If security checks fail
             ValidationError: If file validation fails
+
         """
         self.file_path = Path(file_path)
         self.security_checks_enabled = security_checks
         self.max_file_size = max_file_size or self.MAX_FILE_SIZE
-        self._metadata_cache: Optional[Dict[str, Any]] = None
-        self._dataset: Optional[Dataset] = None
+        self._metadata_cache: dict[str, Any] | None = None
+        self._dataset: Dataset | None = None
 
         # Validate file before parsing
         if self.security_checks_enabled:
@@ -79,13 +83,14 @@ class DicomParser:
                 f"Failed to parse DICOM file: {e}",
                 error_code="PARSE_FAILED",
                 context={"file_path": str(self.file_path)},
-            )
+            ) from e
 
     def _perform_security_checks(self) -> None:
         """Perform comprehensive security validation on the DICOM file.
 
         Raises:
             SecurityViolationError: If security checks fail
+
         """
         # Check file existence and permissions
         if not self.file_path.exists():
@@ -123,16 +128,17 @@ class DicomParser:
             # Validate dataset structure
             self._validate_dataset()
 
-        except (pydicom.errors.InvalidDicomError, IOError) as e:
+        except (OSError, pydicom.errors.InvalidDicomError) as e:
             raise ParsingError(
                 f"Invalid DICOM file format: {e}", error_code="INVALID_DICOM_FORMAT"
-            )
+            ) from e
 
     def _validate_dataset(self) -> None:
         """Validate the parsed DICOM dataset structure.
 
         Raises:
             ValidationError: If dataset validation fails
+
         """
         if self._dataset is None:
             raise ValidationError("Dataset is None after parsing")
@@ -164,12 +170,13 @@ class DicomParser:
 
         Raises:
             ParsingError: If dataset is not available
+
         """
         if self._dataset is None:
             raise ParsingError("Dataset not available - parsing may have failed")
         return self._dataset
 
-    def extract_metadata(self, include_private: bool = False) -> Dict[str, Any]:
+    def extract_metadata(self, include_private: bool = False) -> dict[str, Any]:
         """Extract comprehensive metadata from the DICOM file.
 
         Args:
@@ -181,11 +188,12 @@ class DicomParser:
         Security:
             Private tags may contain sensitive information and should be
             handled with care in production environments.
+
         """
         if self._metadata_cache is not None:
             return self._metadata_cache
 
-        metadata = {}
+        metadata: dict[str, Any] = {}
 
         # Standard metadata extraction with error handling
         metadata_fields = {
@@ -207,12 +215,12 @@ class DicomParser:
             "series_instance_uid": (Tag(0x0020, 0x000E), "SeriesInstanceUID"),
         }
 
-        for field_name, (tag, keyword) in metadata_fields.items():
+        for field_name, (tag, _keyword) in metadata_fields.items():
             try:
-                value = self.dataset.get(tag, None)
-                if value is not None:
+                if tag in self.dataset:
+                    value = self.dataset[tag].value
                     # Convert to string and sanitize
-                    metadata[field_name] = str(value).strip()
+                    metadata[field_name] = str(value).strip() if value else ""
                 else:
                     metadata[field_name] = ""
             except Exception as e:
@@ -267,7 +275,7 @@ class DicomParser:
         self._metadata_cache = metadata
         return metadata
 
-    def _extract_private_tags(self) -> Dict[str, Any]:
+    def _extract_private_tags(self) -> dict[str, Any]:
         """Extract private DICOM tags.
 
         Returns:
@@ -275,6 +283,7 @@ class DicomParser:
 
         Security:
             Private tags may contain sensitive or proprietary information.
+
         """
         private_tags = {}
 
@@ -283,17 +292,15 @@ class DicomParser:
                 try:
                     private_tags[str(tag)] = {
                         "value": str(element.value) if element.value else "",
-                        "vr": element.VR if hasattr(element, "VR") else "UN",
-                        "keyword": (
-                            element.keyword if hasattr(element, "keyword") else ""
-                        ),
+                        "vr": getattr(element, "VR", "UN"),
+                        "keyword": getattr(element, "keyword", ""),
                     }
                 except Exception as e:
                     logger.warning(f"Failed to extract private tag {tag}: {e}")
 
         return private_tags
 
-    def get_pixel_data(self, validate: bool = True) -> Optional[np.ndarray]:
+    def get_pixel_data(self, validate: bool = True) -> np.ndarray | None:
         """Extract pixel array with validation.
 
         Args:
@@ -304,6 +311,7 @@ class DicomParser:
 
         Raises:
             ValidationError: If pixel data validation fails
+
         """
         try:
             if not hasattr(self.dataset, "pixel_array"):
@@ -322,7 +330,7 @@ class DicomParser:
                 raise ValidationError(
                     f"Pixel data validation failed: {e}",
                     error_code="PIXEL_DATA_INVALID",
-                )
+                ) from e
             return None
 
     def _validate_pixel_data(self, pixel_array: np.ndarray) -> None:
@@ -333,6 +341,7 @@ class DicomParser:
 
         Raises:
             ValidationError: If validation fails
+
         """
         # Check array properties
         if pixel_array.size == 0:
@@ -351,14 +360,19 @@ class DicomParser:
                 error_code="PIXEL_DATA_TOO_LARGE",
             )
 
-    def get_transfer_syntax(self) -> Optional[str]:
+    def get_transfer_syntax(self) -> str | None:
         """Get the transfer syntax of the DICOM file.
 
         Returns:
             Transfer syntax UID or None if not available
+
         """
         try:
-            return getattr(self.dataset, "file_meta", {}).get("TransferSyntaxUID", None)
+            file_meta = getattr(self.dataset, "file_meta", None)
+            if file_meta is None:
+                return None
+            transfer_syntax = file_meta.get("TransferSyntaxUID", None)
+            return str(transfer_syntax) if transfer_syntax is not None else None
         except Exception as e:
             logger.warning(f"Failed to get transfer syntax: {e}")
             return None
@@ -368,6 +382,7 @@ class DicomParser:
 
         Returns:
             True if compressed, False otherwise
+
         """
         transfer_syntax = self.get_transfer_syntax()
         if not transfer_syntax:
@@ -388,7 +403,7 @@ class DicomParser:
 
         return transfer_syntax in compressed_syntaxes
 
-    def get_critical_tags(self) -> Dict[str, Any]:
+    def get_critical_tags(self) -> dict[str, Any]:
         """Extract critical DICOM tags that should not be mutated.
 
         Returns:
@@ -397,6 +412,7 @@ class DicomParser:
         Security:
             These tags are essential for DICOM functionality and should
             be preserved during fuzzing operations.
+
         """
         critical_data = {}
 
@@ -410,7 +426,7 @@ class DicomParser:
         return critical_data
 
     @contextmanager
-    def temporary_mutation(self):
+    def temporary_mutation(self) -> Generator[Dataset, None, None]:
         """Context manager for temporary dataset mutations.
 
         This allows safe temporary modifications that are automatically
@@ -418,6 +434,7 @@ class DicomParser:
 
         Yields:
             The dataset for temporary modification
+
         """
         # Create a deep copy for mutation
         original_state = self.dataset.copy()
@@ -430,11 +447,16 @@ class DicomParser:
             # Clear metadata cache
             self._metadata_cache = None
 
-    def __enter__(self):
+    def __enter__(self) -> "DicomParser":
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
         """Context manager exit with cleanup."""
         # Clear caches and references
         self._metadata_cache = None

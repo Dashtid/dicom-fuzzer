@@ -523,7 +523,9 @@ class TestCorpusManagerIntegration:
 class TestCorpusManagerErrorHandling:
     """Test error handling and edge cases in corpus management."""
 
-    def test_eviction_not_needed_when_under_limit(self, temp_corpus_dir, sample_dataset):
+    def test_eviction_not_needed_when_under_limit(
+        self, temp_corpus_dir, sample_dataset
+    ):
         """Test that eviction is skipped when corpus is under max size."""
         manager = CorpusManager(
             temp_corpus_dir, max_corpus_size=10, min_fitness_threshold=0.0
@@ -609,7 +611,10 @@ class TestCorpusManagerErrorHandling:
         entry = CorpusEntry(entry_id="test_meta_fail", dataset=sample_dataset)
 
         # Mock json.dump to raise exception
-        with patch("dicom_fuzzer.core.corpus.json.dump", side_effect=Exception("JSON write failed")):
+        with patch(
+            "dicom_fuzzer.core.corpus.json.dump",
+            side_effect=Exception("JSON write failed"),
+        ):
             # Should not crash, just log error
             manager._save_entry(entry)
 
@@ -652,7 +657,9 @@ class TestCorpusManagerErrorHandling:
         assert "valid" not in manager2.corpus
         assert len(manager2.corpus) == 0
 
-    def test_load_corpus_with_invalid_metadata_json(self, temp_corpus_dir, sample_dataset):
+    def test_load_corpus_with_invalid_metadata_json(
+        self, temp_corpus_dir, sample_dataset
+    ):
         """Test loading corpus with invalid JSON metadata."""
         # Create manager and add entry
         manager1 = CorpusManager(temp_corpus_dir, min_fitness_threshold=0.0)
@@ -714,7 +721,9 @@ class TestCorpusManagerErrorHandling:
 
         # Add entries to fill corpus
         for i in range(3):
-            with patch.object(manager, "_calculate_fitness", return_value=0.3 + i * 0.1):
+            with patch.object(
+                manager, "_calculate_fitness", return_value=0.3 + i * 0.1
+            ):
                 ds = sample_dataset.copy()
                 ds.PatientID = f"INIT{i:03d}"
                 manager.add_entry(f"init{i}", ds)
@@ -724,7 +733,9 @@ class TestCorpusManagerErrorHandling:
 
         # Add more entries to trigger multiple evictions
         for i in range(5):
-            with patch.object(manager, "_calculate_fitness", return_value=0.7 + i * 0.01):
+            with patch.object(
+                manager, "_calculate_fitness", return_value=0.7 + i * 0.01
+            ):
                 ds = sample_dataset.copy()
                 ds.PatientID = f"NEW{i:03d}"
                 manager.add_entry(f"new{i}", ds)

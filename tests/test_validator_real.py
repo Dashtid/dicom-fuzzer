@@ -9,10 +9,10 @@ and real DICOM files, not mocks or stubs.
 """
 
 import pytest
-from pydicom import Dataset, DataElement
+from pydicom import DataElement, Dataset
 from pydicom.dataset import FileDataset
-from pydicom.uid import ImplicitVRLittleEndian, generate_uid
 from pydicom.tag import Tag
+from pydicom.uid import ImplicitVRLittleEndian, generate_uid
 
 from dicom_fuzzer.core.validator import DicomValidator, ValidationResult
 

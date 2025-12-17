@@ -1,5 +1,4 @@
-"""
-Enhanced Fuzzing Report Generator
+"""Enhanced Fuzzing Report Generator
 
 Generates comprehensive, interactive HTML reports with:
 - Complete mutation traceability
@@ -8,14 +7,14 @@ Generates comprehensive, interactive HTML reports with:
 - Artifact preservation tracking
 - Automated crash triage and prioritization
 """
-# flake8: noqa: E201, E202, E222, E221, E702
 # HTML template strings contain intentional CSS formatting
 
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
-from dicom_fuzzer.core.crash_triage import CrashTriageEngine, CrashTriage, Severity, ExploitabilityRating
+from dicom_fuzzer.core.crash_triage import (
+    CrashTriageEngine,
+)
 from dicom_fuzzer.core.fuzzing_session import CrashRecord
 
 
@@ -23,32 +22,31 @@ class EnhancedReportGenerator:
     """Generate enhanced HTML and JSON reports for fuzzing sessions."""
 
     def __init__(self, output_dir: str = "./reports", enable_triage: bool = True):
-        """
-        Initialize enhanced report generator.
+        """Initialize enhanced report generator.
 
         Args:
             output_dir: Directory for generated reports
             enable_triage: Enable automated crash triage and prioritization
+
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize crash triage engine
         self.enable_triage = enable_triage
+        self.triage_engine: CrashTriageEngine | None = None
         if enable_triage:
             self.triage_engine = CrashTriageEngine()
-        else:
-            self.triage_engine = None
 
-    def _enrich_crashes_with_triage(self, session_data: Dict) -> Dict:
-        """
-        Enrich crash records with automated triage analysis.
+    def _enrich_crashes_with_triage(self, session_data: dict) -> dict:
+        """Enrich crash records with automated triage analysis.
 
         Args:
             session_data: Session report dictionary
 
         Returns:
             Enhanced session data with triage information
+
         """
         if not self.enable_triage or not self.triage_engine:
             return session_data
@@ -60,17 +58,30 @@ class EnhancedReportGenerator:
         # Convert crash dicts to CrashRecord objects for triage
         crash_records = []
         for crash in crashes:
+            # Parse timestamp (could be string or datetime)
+            timestamp_val = crash.get("timestamp", "")
+            if isinstance(timestamp_val, str) and timestamp_val:
+                try:
+                    timestamp_obj = datetime.fromisoformat(timestamp_val)
+                except (ValueError, AttributeError):
+                    timestamp_obj = datetime.now()
+            elif isinstance(timestamp_val, datetime):
+                timestamp_obj = timestamp_val
+            else:
+                timestamp_obj = datetime.now()
+
             # Create CrashRecord from dict (simplified for triage)
             crash_record = CrashRecord(
                 crash_id=crash.get("crash_id", "unknown"),
+                timestamp=timestamp_obj,
+                crash_type=crash.get("crash_type", "unknown"),
+                severity=crash.get("severity", "medium"),  # Default severity
                 fuzzed_file_id=crash.get("fuzzed_file_id", "unknown"),
                 fuzzed_file_path=crash.get("fuzzed_file_path", ""),
-                crash_type=crash.get("crash_type", "unknown"),
                 return_code=crash.get("return_code"),
                 exception_type=crash.get("exception_type"),
                 exception_message=crash.get("exception_message"),
                 stack_trace=crash.get("stack_trace", ""),
-                timestamp=crash.get("timestamp", "")
             )
             crash_records.append((crash, crash_record))
 
@@ -86,25 +97,24 @@ class EnhancedReportGenerator:
                 "indicators": triage.indicators,
                 "recommendations": triage.recommendations,
                 "tags": triage.tags,
-                "summary": triage.summary
+                "summary": triage.summary,
             }
 
         # Sort crashes by priority score (highest first)
         session_data["crashes"] = sorted(
             crashes,
             key=lambda c: c.get("triage", {}).get("priority_score", 0),
-            reverse=True
+            reverse=True,
         )
 
         return session_data
 
     def generate_html_report(
         self,
-        session_data: Dict,
-        output_path: Optional[Path] = None,
+        session_data: dict,
+        output_path: Path | None = None,
     ) -> Path:
-        """
-        Generate comprehensive HTML report from session data.
+        """Generate comprehensive HTML report from session data.
 
         Args:
             session_data: Session report dictionary
@@ -112,6 +122,7 @@ class EnhancedReportGenerator:
 
         Returns:
             Path to generated HTML report
+
         """
         # Enrich crashes with automated triage
         session_data = self._enrich_crashes_with_triage(session_data)
@@ -129,7 +140,7 @@ class EnhancedReportGenerator:
 
         return output_path
 
-    def _generate_html_document(self, data: Dict) -> str:
+    def _generate_html_document(self, data: dict) -> str:
         """Generate complete HTML document."""
         session_info = data["session_info"]
         stats = data["statistics"]
@@ -140,7 +151,7 @@ class EnhancedReportGenerator:
         html += self._html_session_overview(session_info, stats)
         html += self._html_crash_summary(crashes, fuzzed_files)
         html += self._html_crash_details(crashes, fuzzed_files)
-        html += self._html_mutation_analysis(fuzzed_files)
+        html += self._html_mutation_analysis(fuzzed_files, crashes)
         html += self._html_footer()
 
         return html
@@ -448,51 +459,51 @@ class EnhancedReportGenerator:
     <div class="container">
 """
 
-    def _html_session_overview(self, session_info: Dict, stats: Dict) -> str:
+    def _html_session_overview(self, session_info: dict, stats: dict) -> str:
         """Generate session overview section."""
         html = f"""
         <div class="header">
-            <h1>🔍 {session_info['session_name']}</h1>
+            <h1>{session_info["session_name"]}</h1>
             <div class="subtitle">Fuzzing Session Report</div>
             <div class="timestamp">
-                Session ID: {session_info['session_id']}<br>
-                Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                Session ID: {session_info["session_id"]}<br>
+                Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
             </div>
         </div>
 
         <div class="content">
-            <h2>📊 Session Summary</h2>
+            <h2>Session Summary</h2>
 
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-value">{stats.get('files_fuzzed', 0)}</div>
+                    <div class="stat-value">{stats.get("files_fuzzed", 0)}</div>
                     <div class="stat-label">Files Fuzzed</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">{stats.get('mutations_applied', 0)}</div>
+                    <div class="stat-value">{stats.get("mutations_applied", 0)}</div>
                     <div class="stat-label">Mutations Applied</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">{stats.get('crashes', 0)}</div>
+                    <div class="stat-value">{stats.get("crashes", 0)}</div>
                     <div class="stat-label">Crashes</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">{stats.get('hangs', 0)}</div>
+                    <div class="stat-value">{stats.get("hangs", 0)}</div>
                     <div class="stat-label">Hangs/Timeouts</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">{stats.get('successes', 0)}</div>
+                    <div class="stat-value">{stats.get("successes", 0)}</div>
                     <div class="stat-label">Successes</div>
                 </div>
             </div>
 
             <div class="info-grid">
                 <div class="info-label">Start Time:</div>
-                <div class="info-value">{session_info['start_time']}</div>
+                <div class="info-value">{session_info["start_time"]}</div>
                 <div class="info-label">End Time:</div>
-                <div class="info-value">{session_info.get('end_time', 'In Progress')}</div>
+                <div class="info-value">{session_info.get("end_time", "In Progress")}</div>
                 <div class="info-label">Duration:</div>
-                <div class="info-value">{session_info.get('duration_seconds', 0):.2f} seconds</div>
+                <div class="info-value">{session_info.get("duration_seconds", 0):.2f} seconds</div>
             </div>
 """
 
@@ -503,7 +514,7 @@ class EnhancedReportGenerator:
         if crash_count > 0:
             html += f"""
             <div class="alert">
-                <span style="font-size: 2em;">⚠️</span>
+                <span style="font-size: 2em;">[!]</span>
                 <div>
                     <strong>SECURITY FINDING:</strong> {crash_count} crash(es) detected during fuzzing!
                     This indicates potential vulnerabilities that require investigation.
@@ -513,7 +524,7 @@ class EnhancedReportGenerator:
         if hang_count > 0:
             html += f"""
             <div class="warning">
-                <span style="font-size: 2em;">⏱️</span>
+                <span style="font-size: 2em;">[!]</span>
                 <div>
                     <strong>DoS RISK:</strong> {hang_count} hang(s)/timeout(s) detected!
                     This may indicate Denial of Service vulnerabilities.
@@ -523,18 +534,18 @@ class EnhancedReportGenerator:
 
         return html
 
-    def _html_crash_summary(self, crashes: List[Dict], fuzzed_files: Dict) -> str:
+    def _html_crash_summary(self, crashes: list[dict], fuzzed_files: dict) -> str:
         """Generate crash summary table."""
         if not crashes:
             return """
             <div class="success">
-                <span style="font-size: 2em;">✓</span>
+                <span style="font-size: 2em;">[OK]</span>
                 <div><strong>No crashes detected!</strong> All tested files passed successfully.</div>
             </div>
 """
 
         html = """
-            <h2>🔥 Crash Summary</h2>
+            <h2>Crash Summary</h2>
             <table>
                 <tr>
                     <th>Crash ID</th>
@@ -563,7 +574,7 @@ class EnhancedReportGenerator:
                     <td><span class="badge {severity}">{severity}</span></td>
                     <td><span class="file-path">{file_path}</span></td>
                     <td>{mutation_count}</td>
-                    <td class="timestamp">{crash.get('timestamp', '')}</td>
+                    <td class="timestamp">{crash.get("timestamp", "")}</td>
                 </tr>
 """
 
@@ -573,10 +584,14 @@ class EnhancedReportGenerator:
 
         # Add Top 10 Critical Crashes section if triage enabled
         if self.enable_triage:
-            critical_crashes = [c for c in crashes if c.get("triage", {}).get("severity") in ["critical", "high"]]
+            critical_crashes = [
+                c
+                for c in crashes
+                if c.get("triage", {}).get("severity") in ["critical", "high"]
+            ]
             if critical_crashes:
                 html += """
-            <h3>🚨 Top Critical Crashes</h3>
+            <h3>Top Critical Crashes</h3>
             <table>
                 <tr>
                     <th>Priority</th>
@@ -598,7 +613,7 @@ class EnhancedReportGenerator:
                     <td><strong>{priority:.1f}/100</strong></td>
                     <td><code>{crash["crash_id"]}</code></td>
                     <td><span class="badge {severity}">{severity.upper()}</span></td>
-                    <td><span class="badge {exploitability.replace('_', '-')}">{exploitability.replace('_', ' ').title()}</span></td>
+                    <td><span class="badge {exploitability.replace("_", "-")}">{exploitability.replace("_", " ").title()}</span></td>
                     <td>{summary[:100]}</td>
                 </tr>
 """
@@ -608,13 +623,13 @@ class EnhancedReportGenerator:
 
         return html
 
-    def _html_crash_details(self, crashes: List[Dict], fuzzed_files: Dict) -> str:
+    def _html_crash_details(self, crashes: list[dict], fuzzed_files: dict) -> str:
         """Generate detailed crash information."""
         if not crashes:
             return ""
 
         html = """
-            <h2>🔍 Crash Details & Forensics</h2>
+            <h2>Crash Details and Forensics</h2>
             <p>Each crash includes complete mutation history and reproduction instructions.</p>
 """
 
@@ -627,26 +642,26 @@ class EnhancedReportGenerator:
             html += f"""
             <div class="crash-item {severity_class}">
                 <div class="crash-header">
-                    <span class="badge {severity_class}">{crash.get('severity', 'unknown').upper()}</span>
-                    <span class="badge {crash.get('crash_type', 'crash')}">{crash.get('crash_type', 'crash').upper()}</span>
+                    <span class="badge {severity_class}">{crash.get("severity", "unknown").upper()}</span>
+                    <span class="badge {crash.get("crash_type", "crash")}">{crash.get("crash_type", "crash").upper()}</span>
                     <strong>{crash_id}</strong>
                 </div>
 
                 <div class="info-grid">
                     <div class="info-label">Timestamp:</div>
-                    <div class="info-value">{crash.get('timestamp', 'N/A')}</div>
+                    <div class="info-value">{crash.get("timestamp", "N/A")}</div>
 
                     <div class="info-label">Source File:</div>
-                    <div class="info-value"><span class="file-path">{file_record.get('source_file', 'N/A')}</span></div>
+                    <div class="info-value"><span class="file-path">{file_record.get("source_file", "N/A")}</span></div>
 
                     <div class="info-label">Fuzzed File:</div>
-                    <div class="info-value"><span class="file-path">{crash.get('fuzzed_file_path', 'N/A')}</span></div>
+                    <div class="info-value"><span class="file-path">{crash.get("fuzzed_file_path", "N/A")}</span></div>
 
                     <div class="info-label">Preserved Sample:</div>
-                    <div class="info-value"><span class="file-path">{crash.get('preserved_sample_path', 'N/A')}</span></div>
+                    <div class="info-value"><span class="file-path">{crash.get("preserved_sample_path", "N/A")}</span></div>
 
                     <div class="info-label">Crash Log:</div>
-                    <div class="info-value"><span class="file-path">{crash.get('crash_log_path', 'N/A')}</span></div>
+                    <div class="info-value"><span class="file-path">{crash.get("crash_log_path", "N/A")}</span></div>
 """
 
             # Add triage information if available
@@ -654,19 +669,23 @@ class EnhancedReportGenerator:
             if triage:
                 html += f"""
                     <div class="info-label">Triage Priority:</div>
-                    <div class="info-value"><strong>{triage.get('priority_score', 0):.1f}/100</strong></div>
+                    <div class="info-value"><strong>{triage.get("priority_score", 0):.1f}/100</strong></div>
 
                     <div class="info-label">Exploitability:</div>
-                    <div class="info-value"><span class="badge {triage.get('exploitability', 'unknown').replace('_', '-')}">{triage.get('exploitability', 'unknown').replace('_', ' ').title()}</span></div>
+                    <div class="info-value"><span class="badge {triage.get("exploitability", "unknown").replace("_", "-")}">{triage.get("exploitability", "unknown").replace("_", " ").title()}</span></div>
 """
                 if triage.get("indicators"):
-                    indicators_list = "<br>".join(f"• {ind}" for ind in triage["indicators"])
+                    indicators_list = "<br>".join(
+                        f"- {ind}" for ind in triage["indicators"]
+                    )
                     html += f"""
                     <div class="info-label">Triage Indicators:</div>
                     <div class="info-value">{indicators_list}</div>
 """
                 if triage.get("recommendations"):
-                    recommendations_list = "<br>".join(f"• {rec}" for rec in triage["recommendations"])
+                    recommendations_list = "<br>".join(
+                        f"- {rec}" for rec in triage["recommendations"]
+                    )
                     html += f"""
                     <div class="info-label">Recommendations:</div>
                     <div class="info-value">{recommendations_list}</div>
@@ -675,13 +694,13 @@ class EnhancedReportGenerator:
             if crash.get("return_code") is not None:
                 html += f"""
                     <div class="info-label">Return Code:</div>
-                    <div class="info-value">{crash['return_code']}</div>
+                    <div class="info-value">{crash["return_code"]}</div>
 """
 
             if crash.get("exception_type"):
                 html += f"""
                     <div class="info-label">Exception Type:</div>
-                    <div class="info-value">{crash['exception_type']}</div>
+                    <div class="info-value">{crash["exception_type"]}</div>
 """
 
             html += """
@@ -692,7 +711,7 @@ class EnhancedReportGenerator:
             if crash.get("exception_message"):
                 html += f"""
                 <h4>Exception Message:</h4>
-                <div class="code-block">{self._escape_html(crash['exception_message'])}</div>
+                <div class="code-block">{self._escape_html(crash["exception_message"])}</div>
 """
 
             # Mutation history
@@ -707,7 +726,7 @@ class EnhancedReportGenerator:
                     html += f"""
                         <div class="mutation-item">
                             <div class="mutation-header">
-                                #{i}: {mut.get('strategy_name', 'Unknown')} - {mut.get('mutation_type', 'unknown')}
+                                #{i}: {mut.get("strategy_name", "Unknown")} - {mut.get("mutation_type", "unknown")}
                             </div>
 """
                     if mut.get("target_tag"):
@@ -720,12 +739,12 @@ class EnhancedReportGenerator:
 
                     if mut.get("original_value"):
                         html += f"""
-                            <div class="mutation-detail">Original: {self._escape_html(str(mut['original_value'])[:200])}</div>
+                            <div class="mutation-detail">Original: {self._escape_html(str(mut["original_value"])[:200])}</div>
 """
 
                     if mut.get("mutated_value"):
                         html += f"""
-                            <div class="mutation-detail">Mutated:  {self._escape_html(str(mut['mutated_value'])[:200])}</div>
+                            <div class="mutation-detail">Mutated:  {self._escape_html(str(mut["mutated_value"])[:200])}</div>
 """
 
                     html += """
@@ -740,9 +759,9 @@ class EnhancedReportGenerator:
             # Reproduction command
             if crash.get("reproduction_command"):
                 html += f"""
-                <h4>🔄 Reproduction Command:</h4>
+                <h4>Reproduction Command:</h4>
                 <div class="repro-command" onclick="navigator.clipboard.writeText(this.textContent.trim())">
-                    {crash['reproduction_command']}
+                    {crash["reproduction_command"]}
                 </div>
                 <small style="color: #95a5a6;">Click to copy to clipboard</small>
 """
@@ -752,7 +771,7 @@ class EnhancedReportGenerator:
                 html += f"""
                 <details>
                     <summary>Stack Trace</summary>
-                    <div class="code-block">{self._escape_html(crash['stack_trace'])}</div>
+                    <div class="code-block">{self._escape_html(crash["stack_trace"])}</div>
                 </details>
 """
 
@@ -762,14 +781,20 @@ class EnhancedReportGenerator:
 
         return html
 
-    def _html_mutation_analysis(self, fuzzed_files: Dict) -> str:
+    def _html_mutation_analysis(
+        self, fuzzed_files: dict, crashes: list | None = None
+    ) -> str:
         """Generate mutation strategy analysis."""
         if not fuzzed_files:
             return ""
 
+        # Default to empty list if not provided
+        if crashes is None:
+            crashes = []
+
         # Analyze mutation strategies used
-        strategy_counts = {}
-        mutation_type_counts = {}
+        strategy_counts: dict[str, int] = {}
+        mutation_type_counts: dict[str, int] = {}
 
         for file_record in fuzzed_files.values():
             for mutation in file_record.get("mutations", []):
@@ -782,7 +807,7 @@ class EnhancedReportGenerator:
                 )
 
         html = """
-            <h2>📈 Mutation Analysis</h2>
+            <h2>Mutation Analysis</h2>
             <h3>Strategy Usage</h3>
             <table>
                 <tr>
@@ -836,10 +861,14 @@ class EnhancedReportGenerator:
 
         # Add Top 10 Critical Crashes section if triage enabled
         if self.enable_triage:
-            critical_crashes = [c for c in crashes if c.get("triage", {}).get("severity") in ["critical", "high"]]
+            critical_crashes = [
+                c
+                for c in crashes
+                if c.get("triage", {}).get("severity") in ["critical", "high"]
+            ]
             if critical_crashes:
                 html += """
-            <h3>🚨 Top Critical Crashes</h3>
+            <h3>Top Critical Crashes</h3>
             <table>
                 <tr>
                     <th>Priority</th>
@@ -861,7 +890,7 @@ class EnhancedReportGenerator:
                     <td><strong>{priority:.1f}/100</strong></td>
                     <td><code>{crash["crash_id"]}</code></td>
                     <td><span class="badge {severity}">{severity.upper()}</span></td>
-                    <td><span class="badge {exploitability.replace('_', '-')}">{exploitability.replace('_', ' ').title()}</span></td>
+                    <td><span class="badge {exploitability.replace("_", "-")}">{exploitability.replace("_", " ").title()}</span></td>
                     <td>{summary[:100]}</td>
                 </tr>
 """

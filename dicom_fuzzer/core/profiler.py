@@ -1,5 +1,4 @@
-"""
-Performance Profiler - Fuzzing Campaign Metrics
+"""Performance Profiler - Fuzzing Campaign Metrics
 
 LEARNING OBJECTIVE: This module demonstrates performance monitoring for
 fuzzing campaigns, tracking execution time, memory usage, and throughput.
@@ -14,17 +13,19 @@ This helps with both development and production deployment.
 """
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any, TypeVar
 
 import psutil
+
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 @dataclass
 class FuzzingMetrics:
-    """
-    Metrics collected during a fuzzing campaign.
+    """Metrics collected during a fuzzing campaign.
 
     CONCEPT: We track multiple dimensions of performance:
     - Time metrics: How long operations take
@@ -35,7 +36,7 @@ class FuzzingMetrics:
 
     # Time metrics
     start_time: datetime = field(default_factory=datetime.now)
-    end_time: Optional[datetime] = None
+    end_time: datetime | None = None
     total_duration: float = 0.0  # seconds
 
     # Throughput metrics
@@ -47,11 +48,11 @@ class FuzzingMetrics:
     # Resource metrics
     peak_memory_mb: float = 0.0
     avg_cpu_percent: float = 0.0
-    cpu_samples: List[float] = field(default_factory=list)
+    cpu_samples: list[float] = field(default_factory=list)
 
     # Strategy metrics
-    strategy_usage: Dict[str, int] = field(default_factory=dict)
-    strategy_timing: Dict[str, float] = field(default_factory=dict)
+    strategy_usage: dict[str, int] = field(default_factory=dict)
+    strategy_timing: dict[str, float] = field(default_factory=dict)
 
     def throughput_per_second(self) -> float:
         """Calculate files generated per second."""
@@ -66,14 +67,14 @@ class FuzzingMetrics:
         return 0.0
 
     def estimated_time_remaining(self, target: int) -> float:
-        """
-        Estimate time remaining to reach target.
+        """Estimate time remaining to reach target.
 
         Args:
             target: Target number of files to generate
 
         Returns:
             Estimated seconds remaining
+
         """
         if self.files_generated == 0:
             return 0.0
@@ -87,8 +88,7 @@ class FuzzingMetrics:
 
 
 class PerformanceProfiler:
-    """
-    Tracks performance metrics during fuzzing campaigns.
+    """Tracks performance metrics during fuzzing campaigns.
 
     CONCEPT: Context manager pattern for automatic tracking.
     Usage:
@@ -101,33 +101,37 @@ class PerformanceProfiler:
         print(profiler.metrics.throughput_per_second())
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize profiler."""
         self.metrics = FuzzingMetrics()
         self.process = psutil.Process()
         self._cpu_monitor_interval = 1.0  # seconds
 
-    def __enter__(self):
+    def __enter__(self) -> "PerformanceProfiler":
         """Start profiling session."""
         self.metrics.start_time = datetime.now()
         self._start_cpu_monitoring()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
         """End profiling session and finalize metrics."""
         self.metrics.end_time = datetime.now()
         self.metrics.total_duration = (
             self.metrics.end_time - self.metrics.start_time
         ).total_seconds()
         self._finalize_cpu_metrics()
-        return False
 
-    def _start_cpu_monitoring(self):
+    def _start_cpu_monitoring(self) -> None:
         """Start monitoring CPU usage."""
         # Take initial CPU sample
         self.process.cpu_percent(interval=None)
 
-    def _sample_resources(self):
+    def _sample_resources(self) -> None:
         """Sample current resource usage."""
         # Memory
         memory_info = self.process.memory_info()
@@ -139,19 +143,19 @@ class PerformanceProfiler:
         cpu_percent = self.process.cpu_percent(interval=None)
         self.metrics.cpu_samples.append(cpu_percent)
 
-    def _finalize_cpu_metrics(self):
+    def _finalize_cpu_metrics(self) -> None:
         """Calculate final CPU metrics."""
         if self.metrics.cpu_samples:
             self.metrics.avg_cpu_percent = sum(self.metrics.cpu_samples) / len(
                 self.metrics.cpu_samples
             )
 
-    def record_file_generated(self, strategy: Optional[str] = None):
-        """
-        Record that a file was generated.
+    def record_file_generated(self, strategy: str | None = None) -> None:
+        """Record that a file was generated.
 
         Args:
             strategy: Strategy used to generate file
+
         """
         self.metrics.files_generated += 1
 
@@ -164,13 +168,13 @@ class PerformanceProfiler:
         if self.metrics.files_generated % 10 == 0:
             self._sample_resources()
 
-    def record_mutation(self, strategy: str, duration: float = 0.0):
-        """
-        Record that a mutation was applied.
+    def record_mutation(self, strategy: str, duration: float = 0.0) -> None:
+        """Record that a mutation was applied.
 
         Args:
             strategy: Strategy that performed mutation
             duration: Time taken for mutation (seconds)
+
         """
         self.metrics.mutations_applied += 1
         self.metrics.strategy_usage[strategy] = (
@@ -182,23 +186,23 @@ class PerformanceProfiler:
                 self.metrics.strategy_timing.get(strategy, 0.0) + duration
             )
 
-    def record_validation(self):
+    def record_validation(self) -> None:
         """Record that a validation was performed."""
         self.metrics.validations_performed += 1
 
-    def record_crash(self):
+    def record_crash(self) -> None:
         """Record that a crash was found."""
         self.metrics.crashes_found += 1
 
-    def get_progress_report(self, target: Optional[int] = None) -> str:
-        """
-        Generate a progress report.
+    def get_progress_report(self, target: int | None = None) -> str:
+        """Generate a progress report.
 
         Args:
             target: Target number of files (optional)
 
         Returns:
             Formatted progress report
+
         """
         elapsed = (datetime.now() - self.metrics.start_time).total_seconds()
         throughput = self.metrics.files_generated / elapsed if elapsed > 0 else 0
@@ -231,12 +235,12 @@ class PerformanceProfiler:
 
         return "\n".join(report)
 
-    def get_summary(self) -> Dict:
-        """
-        Get metrics summary as dictionary.
+    def get_summary(self) -> dict[str, Any]:
+        """Get metrics summary as dictionary.
 
         Returns:
             Dictionary with all metrics
+
         """
         return {
             "duration_seconds": self.metrics.total_duration,
@@ -258,8 +262,7 @@ class PerformanceProfiler:
 
 
 class StrategyTimer:
-    """
-    Context manager for timing individual strategy operations.
+    """Context manager for timing individual strategy operations.
 
     CONCEPT: Decorator pattern for automatic timing.
     Usage:
@@ -269,33 +272,36 @@ class StrategyTimer:
         # Time automatically recorded
     """
 
-    def __init__(self, profiler: PerformanceProfiler, strategy: str):
-        """
-        Initialize timer.
+    def __init__(self, profiler: PerformanceProfiler, strategy: str) -> None:
+        """Initialize timer.
 
         Args:
             profiler: Profiler to record timing to
             strategy: Strategy being timed
+
         """
         self.profiler = profiler
         self.strategy = strategy
         self.start_time = 0.0
 
-    def __enter__(self):
+    def __enter__(self) -> "StrategyTimer":
         """Start timing."""
         self.start_time = time.time()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
         """End timing and record."""
         duration = time.time() - self.start_time
         self.profiler.record_mutation(self.strategy, duration)
-        return False
 
 
-def profile_function(strategy: str):
-    """
-    Decorator to profile a function.
+def profile_function(strategy: str) -> Callable[[F], F]:
+    """Decorator to profile a function.
 
     CONCEPT: Decorator pattern for automatic profiling.
 
@@ -306,8 +312,8 @@ def profile_function(strategy: str):
             pass
     """
 
-    def decorator(func):
-        def wrapper(*args, **kwargs):
+    def decorator(func: F) -> F:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             start_time = time.time()
             result = func(*args, **kwargs)
             duration = time.time() - start_time
@@ -317,6 +323,6 @@ def profile_function(strategy: str):
 
             return result
 
-        return wrapper
+        return wrapper  # type: ignore[return-value]
 
     return decorator

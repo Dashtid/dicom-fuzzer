@@ -1,20 +1,21 @@
-"""
-Corpus Management for Coverage-Guided Fuzzing
+"""Corpus Management for Coverage-Guided Fuzzing
 
 Intelligent seed selection, prioritization, and corpus evolution
 based on coverage feedback and historical learning.
 """
 
-import hashlib
-import json
-import pickle
-import time
-from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Any
-from dataclasses import dataclass, field
-from collections import defaultdict
+import functools
 import heapq
+import json
+import pickle  # nosec B403 - pickle used for internal corpus serialization only (trusted data)
+import time
+from collections import defaultdict
+from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
+from typing import Any
+
+from dicom_fuzzer.utils.hashing import short_hash
 
 from .coverage_instrumentation import CoverageInfo, calculate_coverage_distance
 
@@ -29,6 +30,7 @@ class SeedPriority(Enum):
     MINIMAL = 5  # Redundant/duplicate coverage
 
 
+@functools.total_ordering
 @dataclass
 class Seed:
     """Represents a single seed in the corpus."""
@@ -43,11 +45,11 @@ class Seed:
     crashes: int = 0
     creation_time: float = field(default_factory=time.time)
     last_executed: float = field(default_factory=time.time)
-    parent_id: Optional[str] = None
-    mutation_history: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    parent_id: str | None = None
+    mutation_history: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def __lt__(self, other):
+    def __lt__(self, other: "Seed") -> bool:
         """Compare seeds by priority and energy."""
         if self.priority.value != other.priority.value:
             return self.priority.value < other.priority.value
@@ -55,7 +57,7 @@ class Seed:
 
     def calculate_hash(self) -> str:
         """Calculate unique hash for this seed."""
-        return hashlib.sha256(self.data).hexdigest()[:16]
+        return short_hash(self.data)
 
     def update_priority(self, coverage_gain: bool = False) -> None:
         """Update seed priority based on performance."""
@@ -83,12 +85,11 @@ class CorpusStats:
     total_executions: int = 0
     coverage_plateaus: int = 0
     last_coverage_increase: float = field(default_factory=time.time)
-    coverage_history: List[Tuple[float, int]] = field(default_factory=list)
+    coverage_history: list[tuple[float, int]] = field(default_factory=list)
 
 
 class CorpusManager:
-    """
-    Manages the seed corpus for coverage-guided fuzzing.
+    """Manages the seed corpus for coverage-guided fuzzing.
 
     Implements intelligent seed selection, prioritization, and minimization.
     """
@@ -99,36 +100,36 @@ class CorpusManager:
         min_coverage_distance: float = 0.1,
         energy_allocation: str = "adaptive",
     ):
-        """
-        Initialize corpus manager.
+        """Initialize corpus manager.
 
         Args:
             max_corpus_size: Maximum number of seeds to maintain
             min_coverage_distance: Minimum distance for considering seeds unique
             energy_allocation: Strategy for energy allocation ('uniform', 'adaptive', 'exp')
+
         """
         self.max_corpus_size = max_corpus_size
         self.min_coverage_distance = min_coverage_distance
         self.energy_allocation = energy_allocation
 
         # Corpus storage
-        self.seeds: Dict[str, Seed] = {}
-        self.seed_queue: List[Seed] = []  # Priority queue
-        self.coverage_map: Dict[str, Set[str]] = defaultdict(
+        self.seeds: dict[str, Seed] = {}
+        self.seed_queue: list[Seed] = []  # Priority queue
+        self.coverage_map: dict[str, set[str]] = defaultdict(
             set
         )  # Coverage -> seed IDs
 
         # Coverage tracking
         self.global_coverage = CoverageInfo()
-        self.unique_edges: Set[Tuple] = set()
-        self.untouched_edges: Set[Tuple] = set()
+        self.unique_edges: set[tuple] = set()
+        self.untouched_edges: set[tuple] = set()
 
         # Statistics
         self.stats = CorpusStats()
 
         # Historical learning
-        self.mutation_success_rate: Dict[str, float] = defaultdict(float)
-        self.seed_genealogy: Dict[str, List[str]] = defaultdict(
+        self.mutation_success_rate: dict[str, float] = defaultdict(float)
+        self.seed_genealogy: dict[str, list[str]] = defaultdict(
             list
         )  # Parent -> children
 
@@ -136,11 +137,10 @@ class CorpusManager:
         self,
         data: bytes,
         coverage: CoverageInfo,
-        parent_id: Optional[str] = None,
-        mutation_type: Optional[str] = None,
-    ) -> Optional[Seed]:
-        """
-        Add a new seed to the corpus if it provides value.
+        parent_id: str | None = None,
+        mutation_type: str | None = None,
+    ) -> Seed | None:
+        """Add a new seed to the corpus if it provides value.
 
         Args:
             data: Seed data
@@ -150,8 +150,9 @@ class CorpusManager:
 
         Returns:
             Seed object if added, None if rejected
+
         """
-        seed_hash = hashlib.sha256(data).hexdigest()[:16]
+        seed_hash = short_hash(data)
 
         # Check if seed already exists
         if seed_hash in self.seeds:
@@ -199,9 +200,43 @@ class CorpusManager:
 
         return seed
 
-    def get_next_seed(self) -> Optional[Seed]:
+    def add_entry(self, entry: Any, dataset: Any = None) -> None:
+        """Add a corpus entry (compatibility method for tests).
+
+        Args:
+            entry: CorpusEntry object with entry_id and dataset
+            dataset: Optional dataset if entry doesn't have one
+
         """
-        Get the next seed for fuzzing based on priority.
+        # Handle both old-style (entry only) and new-style (entry, dataset) calls
+        if dataset is None and hasattr(entry, "dataset"):
+            dataset_to_use = entry.dataset
+        elif dataset is not None:
+            dataset_to_use = dataset
+        else:
+            # Entry doesn't have dataset attribute, use as dataset
+            dataset_to_use = entry
+
+        # Serialize dataset to bytes
+        import io
+
+        from pydicom import Dataset
+
+        if isinstance(dataset_to_use, Dataset):
+            output = io.BytesIO()
+            dataset_to_use.save_as(output, write_like_original=False)
+            data = output.getvalue()
+        else:
+            data = b""  # Empty data
+
+        # Create minimal coverage info
+        coverage = CoverageInfo(edges=set())
+
+        # Add as seed
+        self.add_seed(data, coverage)
+
+    def get_next_seed(self) -> Seed | None:
+        """Get the next seed for fuzzing based on priority.
 
         Implements smart seed scheduling.
         """
@@ -266,8 +301,7 @@ class CorpusManager:
         return bool(seed_edges & self.untouched_edges)
 
     def _minimize_corpus(self) -> None:
-        """
-        Minimize corpus to maintain size limit.
+        """Minimize corpus to maintain size limit.
 
         Removes redundant seeds while preserving coverage.
         """
@@ -284,9 +318,7 @@ class CorpusManager:
         seed_values.sort(reverse=True)
 
         # Keep top seeds
-        seeds_to_keep = set(
-            seed_id for _, seed_id in seed_values[: self.max_corpus_size]
-        )
+        seeds_to_keep = {seed_id for _, seed_id in seed_values[: self.max_corpus_size]}
 
         # Remove low-value seeds
         seeds_to_remove = set(self.seeds.keys()) - seeds_to_keep
@@ -297,7 +329,7 @@ class CorpusManager:
         self.seed_queue = list(self.seeds.values())
         heapq.heapify(self.seed_queue)
 
-    def _get_coverage_without_seed(self, seed_id: str) -> Set[Tuple]:
+    def _get_coverage_without_seed(self, seed_id: str) -> set[tuple]:
         """Get total coverage excluding a specific seed."""
         coverage = set()
         for sid, seed in self.seeds.items():
@@ -305,7 +337,7 @@ class CorpusManager:
                 coverage.update(seed.coverage.edges)
         return coverage
 
-    def mark_untouched_edges(self, edges: Set[Tuple]) -> None:
+    def mark_untouched_edges(self, edges: set[tuple]) -> None:
         """Mark edges as untouched (high priority for exploration)."""
         self.untouched_edges.update(edges)
 
@@ -314,7 +346,7 @@ class CorpusManager:
         if seed_id in self.seeds:
             self.seeds[seed_id].crashes += 1
 
-    def get_mutation_weights(self) -> Dict[str, float]:
+    def get_mutation_weights(self) -> dict[str, float]:
         """Get mutation weights based on historical success."""
         total_success = sum(self.mutation_success_rate.values())
         if total_success == 0:
@@ -325,7 +357,7 @@ class CorpusManager:
             for mutation, success in self.mutation_success_rate.items()
         }
 
-    def get_corpus_stats(self) -> Dict[str, Any]:
+    def get_corpus_stats(self) -> dict[str, Any]:
         """Get current corpus statistics."""
         # Check for coverage plateau
         if self.stats.coverage_history:
@@ -340,7 +372,7 @@ class CorpusManager:
         return {
             "total_seeds": self.stats.total_seeds,
             "unique_coverage_signatures": len(
-                set(s.coverage.get_coverage_hash() for s in self.seeds.values())
+                {s.coverage.get_coverage_hash() for s in self.seeds.values()}
             ),
             "total_edges_covered": self.stats.total_edges_covered,
             "total_executions": self.stats.total_executions,
@@ -364,6 +396,7 @@ class CorpusManager:
         for seed_id, seed in self.seeds.items():
             seed_path = directory / f"{seed_id}.seed"
             with open(seed_path, "wb") as f:
+                # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
                 pickle.dump(seed, f)
 
         # Save metadata
@@ -384,7 +417,8 @@ class CorpusManager:
         # Load seeds
         for seed_path in directory.glob("*.seed"):
             with open(seed_path, "rb") as f:
-                seed = pickle.load(f)
+                # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
+                seed = pickle.load(f)  # nosec B301
                 self.seeds[seed.id] = seed
                 self.global_coverage.merge(seed.coverage)
 
@@ -395,7 +429,7 @@ class CorpusManager:
         # Load metadata
         metadata_path = directory / "corpus_metadata.json"
         if metadata_path.exists():
-            with open(metadata_path, "r") as f:
+            with open(metadata_path) as f:
                 metadata = json.load(f)
                 self.mutation_success_rate.update(
                     metadata.get("mutation_success_rate", {})
@@ -405,24 +439,242 @@ class CorpusManager:
         self.stats.total_edges_covered = len(self.global_coverage.edges)
 
 
-class HistoricalCorpusManager(CorpusManager):
+class CorpusMinimizer:
+    """AFL-cmin style corpus minimization.
+
+    Reduces corpus size while preserving coverage by finding the minimal
+    set of seeds that covers all discovered edges.
+
+    Algorithm:
+    1. Build edge -> seed mapping
+    2. Greedily select seeds that cover the most uncovered edges
+    3. Remove seeds that provide no unique coverage
     """
-    Enhanced corpus manager with historical learning.
+
+    def __init__(self, corpus: CorpusManager):
+        """Initialize minimizer with a corpus.
+
+        Args:
+            corpus: The corpus manager to minimize
+
+        """
+        self.corpus = corpus
+        self._edge_to_seeds: dict[tuple, set[str]] = defaultdict(set)
+        self._seed_to_edges: dict[str, set[tuple]] = {}
+
+    def build_coverage_map(self) -> None:
+        """Build mappings between edges and seeds."""
+        self._edge_to_seeds.clear()
+        self._seed_to_edges.clear()
+
+        for seed_id, seed in self.corpus.seeds.items():
+            edges = seed.coverage.edges
+            self._seed_to_edges[seed_id] = edges
+
+            for edge in edges:
+                self._edge_to_seeds[edge].add(seed_id)
+
+    def find_essential_seeds(self) -> set[str]:
+        """Find seeds that are the only ones covering certain edges.
+
+        Returns:
+            Set of essential seed IDs
+
+        """
+        essential = set()
+
+        for _edge, seed_ids in self._edge_to_seeds.items():
+            if len(seed_ids) == 1:
+                # This seed is the only one covering this edge
+                essential.update(seed_ids)
+
+        return essential
+
+    def minimize_greedy(self, target_size: int | None = None) -> list[str]:
+        """Perform greedy corpus minimization.
+
+        Args:
+            target_size: Optional target corpus size
+
+        Returns:
+            List of seed IDs to keep
+
+        """
+        self.build_coverage_map()
+
+        # Start with essential seeds
+        selected = self.find_essential_seeds()
+        covered_edges: set[tuple] = set()
+
+        # Add coverage from essential seeds
+        for seed_id in selected:
+            covered_edges.update(self._seed_to_edges.get(seed_id, set()))
+
+        # All edges we need to cover
+        all_edges = set(self._edge_to_seeds.keys())
+        uncovered = all_edges - covered_edges
+
+        # Greedily add seeds that cover the most uncovered edges
+        remaining_seeds = set(self.corpus.seeds.keys()) - selected
+
+        while uncovered and remaining_seeds:
+            # Find seed that covers most uncovered edges
+            best_seed = None
+            best_coverage = 0
+
+            for seed_id in remaining_seeds:
+                seed_edges = self._seed_to_edges.get(seed_id, set())
+                coverage = len(seed_edges & uncovered)
+
+                if coverage > best_coverage:
+                    best_coverage = coverage
+                    best_seed = seed_id
+
+            if best_seed is None or best_coverage == 0:
+                break
+
+            # Select this seed
+            selected.add(best_seed)
+            remaining_seeds.remove(best_seed)
+            covered_edges.update(self._seed_to_edges.get(best_seed, set()))
+            uncovered = all_edges - covered_edges
+
+            # Check target size
+            if target_size and len(selected) >= target_size:
+                break
+
+        return list(selected)
+
+    def minimize_weighted(self) -> list[str]:
+        """Minimize corpus using weighted selection.
+
+        Considers:
+        - Coverage contribution
+        - Execution time (prefer faster seeds)
+        - Discovery history (prefer productive seeds)
+
+        Returns:
+            List of seed IDs to keep
+
+        """
+        self.build_coverage_map()
+
+        # Calculate seed scores
+        scores: dict[str, float] = {}
+
+        for seed_id, seed in self.corpus.seeds.items():
+            edges = self._seed_to_edges.get(seed_id, set())
+
+            # Base score from unique coverage
+            unique_edges = sum(
+                1 for e in edges if len(self._edge_to_seeds.get(e, set())) == 1
+            )
+
+            # Bonus for discoveries
+            discovery_bonus = seed.discoveries * 0.5
+
+            # Penalty for slow seeds (normalized exec time)
+            # We don't have avg_exec_time stored, so skip this
+
+            # Bonus for crash-finding
+            crash_bonus = seed.crashes * 2
+
+            scores[seed_id] = unique_edges + discovery_bonus + crash_bonus
+
+        # Sort by score and greedily select
+        sorted_seeds = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+
+        selected = set()
+        covered_edges: set[tuple] = set()
+        all_edges = set(self._edge_to_seeds.keys())
+
+        for seed_id, _ in sorted_seeds:
+            seed_edges = self._seed_to_edges.get(seed_id, set())
+            new_coverage = seed_edges - covered_edges
+
+            if new_coverage:
+                selected.add(seed_id)
+                covered_edges.update(seed_edges)
+
+            if covered_edges >= all_edges:
+                break
+
+        return list(selected)
+
+    def get_redundant_seeds(self) -> list[str]:
+        """Find seeds that provide no unique coverage.
+
+        Returns:
+            List of redundant seed IDs that can be safely removed
+
+        """
+        self.build_coverage_map()
+
+        redundant = []
+
+        for seed_id in self.corpus.seeds:
+            edges = self._seed_to_edges.get(seed_id, set())
+
+            # Check if all edges are covered by other seeds
+            is_redundant = all(
+                len(self._edge_to_seeds.get(e, set())) > 1 for e in edges
+            )
+
+            if is_redundant and edges:  # Don't mark seeds with no coverage
+                redundant.append(seed_id)
+
+        return redundant
+
+    def get_coverage_stats(self) -> dict[str, int]:
+        """Get statistics about corpus coverage.
+
+        Returns:
+            Dictionary with coverage statistics
+
+        """
+        self.build_coverage_map()
+
+        essential = self.find_essential_seeds()
+        redundant = self.get_redundant_seeds()
+
+        # Edge frequency distribution
+        single_coverage = sum(
+            1 for seeds in self._edge_to_seeds.values() if len(seeds) == 1
+        )
+        multi_coverage = sum(
+            1 for seeds in self._edge_to_seeds.values() if len(seeds) > 1
+        )
+
+        return {
+            "total_seeds": len(self.corpus.seeds),
+            "total_edges": len(self._edge_to_seeds),
+            "essential_seeds": len(essential),
+            "redundant_seeds": len(redundant),
+            "single_coverage_edges": single_coverage,
+            "multi_coverage_edges": multi_coverage,
+            "potential_reduction": len(redundant),
+        }
+
+
+class HistoricalCorpusManager(CorpusManager):
+    """Enhanced corpus manager with historical learning.
 
     Uses data from previous fuzzing campaigns to improve seed selection.
     """
 
-    def __init__(self, history_dir: Optional[Path] = None, **kwargs):
+    def __init__(self, history_dir: Path | None = None, **kwargs: Any) -> None:
         """Initialize with historical data."""
         super().__init__(**kwargs)
         self.history_dir = history_dir
-        self.historical_seeds: List[Seed] = []
+        self.historical_seeds: list[Seed] = []
 
         if history_dir and history_dir.exists():
             self._load_historical_data()
 
     def _load_historical_data(self) -> None:
         """Load historical fuzzing results."""
+        if self.history_dir is None:
+            return
         for campaign_dir in self.history_dir.iterdir():
             if campaign_dir.is_dir():
                 corpus_manager = CorpusManager()

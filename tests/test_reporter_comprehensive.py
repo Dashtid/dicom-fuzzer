@@ -7,14 +7,13 @@ including HTML and JSON report creation.
 import json
 from datetime import datetime
 
-
-from dicom_fuzzer.core.reporter import ReportGenerator
 from dicom_fuzzer.core.crash_analyzer import (
     CrashAnalyzer,
     CrashReport,
     CrashSeverity,
     CrashType,
 )
+from dicom_fuzzer.core.reporter import ReportGenerator
 
 
 class TestReportGeneratorInitialization:
@@ -157,7 +156,7 @@ class TestJSONReportGeneration:
 
         report_path = generator.generate_crash_json_report(analyzer)
 
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             data = json.load(f)
 
         assert "campaign_name" in data
@@ -186,7 +185,7 @@ class TestJSONReportGeneration:
 
         report_path = generator.generate_crash_json_report(analyzer)
 
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             data = json.load(f)
 
         assert data["summary"]["total_crashes"] == 3
@@ -212,7 +211,7 @@ class TestJSONReportGeneration:
 
         report_path = generator.generate_crash_json_report(analyzer)
 
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             data = json.load(f)
 
         crash_data = data["crashes"][0]
@@ -433,7 +432,7 @@ class TestIntegrationScenarios:
 
         # Verify both contain crash data
         html_content = html_path.read_text(encoding="utf-8")
-        with open(json_path, "r", encoding="utf-8") as f:
+        with open(json_path, encoding="utf-8") as f:
             json_data = json.load(f)
 
         assert "Integration Test" in html_content

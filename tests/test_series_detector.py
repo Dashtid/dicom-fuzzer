@@ -441,3 +441,274 @@ class TestGetSeriesSummary:
         assert summary["multislice_series"] == 2
         assert summary["single_slice_series"] == 1
         assert pytest.approx(summary["avg_slices_per_series"], abs=0.1) == 50.3
+
+
+class TestEdgeCasesAndExceptionPaths:
+    """Tests for edge cases and exception handling paths."""
+
+    @patch(
+        "dicom_fuzzer.core.series_detector.SeriesDetector.detect_series_in_directory"
+    )
+    def test_detect_series_with_path_object(self, mock_detect_dir):
+        """Test detect_series when called with Path object (directory)."""
+        mock_series = Mock(spec=DicomSeries)
+        mock_detect_dir.return_value = [mock_series]
+
+        detector = SeriesDetector()
+        series_list = detector.detect_series(Path("/tmp/dicom_dir"), validate=True)
+
+        mock_detect_dir.assert_called_once_with(
+            Path("/tmp/dicom_dir"), recursive=True, validate=True
+        )
+        assert len(series_list) == 1
+
+    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    def test_detect_series_create_series_exception(self, mock_dcmread):
+        """Test handling exception when creating series."""
+        # Mock successful file reading but series creation fails
+        ds = Mock()
+        ds.SeriesInstanceUID = "1.2.3.4.5"
+        ds.StudyInstanceUID = "1.2.3.4"
+        ds.Modality = "CT"
+        ds.ImagePositionPatient = [0.0, 0.0, 0.0]
+        ds.InstanceNumber = 1
+        mock_dcmread.return_value = ds
+
+        detector = SeriesDetector()
+
+        # Mock _create_series to raise exception
+        with patch.object(
+            detector, "_create_series", side_effect=Exception("Series creation failed")
+        ):
+            files = [Path("/tmp/slice1.dcm")]
+            series_list = detector.detect_series(files, validate=False)
+
+            # Should return empty list since series creation failed
+            assert series_list == []
+
+    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    def test_group_by_series_uid_file_read_exception(self, mock_dcmread):
+        """Test _group_by_series_uid handles file read exceptions."""
+        # Mock one file succeeds, one fails
+        ds = Mock()
+        ds.SeriesInstanceUID = "1.2.3.4.5"
+        ds.StudyInstanceUID = "1.2.3.4"
+        ds.Modality = "CT"
+
+        mock_dcmread.side_effect = [
+            ds,  # First file succeeds
+            Exception("File read error"),  # Second file fails
+        ]
+
+        detector = SeriesDetector()
+        files = [Path("/tmp/slice1.dcm"), Path("/tmp/slice2.dcm")]
+
+        groups = detector._group_by_series_uid(files)
+
+        # Should have one file in the group, second was skipped
+        assert len(groups) == 1
+        assert "1.2.3.4.5" in groups
+        assert len(groups["1.2.3.4.5"]["files"]) == 1
+
+    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    def test_group_by_series_uid_missing_optional_fields(self, mock_dcmread):
+        """Test _group_by_series_uid handles missing StudyInstanceUID and Modality."""
+        # Mock file with SeriesInstanceUID but no optional fields
+        ds = Mock()
+        ds.SeriesInstanceUID = "1.2.3.4.5"
+        # No StudyInstanceUID, no Modality
+        delattr(ds, "StudyInstanceUID") if hasattr(ds, "StudyInstanceUID") else None
+        delattr(ds, "Modality") if hasattr(ds, "Modality") else None
+
+        # Use spec to ensure attributes are really missing
+        ds = Mock(spec=["SeriesInstanceUID"])
+        ds.SeriesInstanceUID = "1.2.3.4.5"
+
+        mock_dcmread.return_value = ds
+
+        detector = SeriesDetector()
+        files = [Path("/tmp/slice1.dcm")]
+
+        groups = detector._group_by_series_uid(files)
+
+        assert len(groups) == 1
+        assert groups["1.2.3.4.5"]["study_uid"] == "UNKNOWN"
+        assert groups["1.2.3.4.5"]["modality"] == "UNKNOWN"
+
+    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    def test_sort_slices_missing_image_position(self, mock_dcmread):
+        """Test sorting when ImagePositionPatient is missing."""
+        # Mock files without ImagePositionPatient
+        mock_datasets = []
+        for i in range(3):
+            ds = Mock(spec=["InstanceNumber"])
+            ds.InstanceNumber = i + 1
+            mock_datasets.append(ds)
+
+        mock_dcmread.side_effect = mock_datasets
+
+        detector = SeriesDetector()
+        files = [Path(f"/tmp/slice{i}.dcm") for i in range(3)]
+
+        sorted_files = detector._sort_slices_by_position(files)
+
+        # Should still return files, sorted by instance number
+        assert len(sorted_files) == 3
+
+    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    def test_sort_slices_read_exception(self, mock_dcmread):
+        """Test sorting handles exceptions when reading position."""
+        # Mock: first file succeeds, others fail
+        ds = Mock()
+        ds.ImagePositionPatient = [0.0, 0.0, 0.0]
+        ds.InstanceNumber = 1
+
+        mock_dcmread.side_effect = [
+            ds,  # First file succeeds
+            Exception("Read error"),  # Second file fails
+            Exception("Read error"),  # Third file fails
+        ]
+
+        detector = SeriesDetector()
+        files = [Path(f"/tmp/slice{i}.dcm") for i in range(3)]
+
+        sorted_files = detector._sort_slices_by_position(files)
+
+        # Should still return all files
+        assert len(sorted_files) == 3
+
+    @patch.object(Path, "rglob")
+    @patch.object(Path, "is_file")
+    @patch("dicom_fuzzer.core.series_detector.SeriesDetector._is_dicom_file")
+    def test_find_dicom_files_no_extension_recursive(
+        self, mock_is_dicom, mock_is_file, mock_rglob
+    ):
+        """Test finding DICOM files without extension (recursive)."""
+        # Mock DICOM file patterns return empty
+        mock_rglob.return_value = []
+
+        # Create mock file without extension
+        file_no_ext = Mock(spec=Path)
+        file_no_ext.is_file.return_value = True
+        file_no_ext.suffix = ""
+        file_no_ext.name = "DICOMFILE"
+
+        # Mock rglob to return no .dcm files but our file without extension
+        def rglob_side_effect(pattern):
+            if pattern == "*":
+                return [file_no_ext]
+            return []
+
+        mock_rglob.side_effect = rglob_side_effect
+        mock_is_dicom.return_value = True
+
+        detector = SeriesDetector()
+
+        # Override Path.rglob on the directory
+        directory = Mock(spec=Path)
+        directory.rglob = mock_rglob
+
+        # This tests the _find_dicom_files branch for files without extension
+        # We need to actually call the method
+        with patch.object(Path, "rglob", mock_rglob):
+            found = detector._find_dicom_files(Path("/tmp"), recursive=True)
+
+        # May be empty since mocking is complex - the important thing is no exception
+        assert isinstance(found, list)
+
+    @patch.object(Path, "glob")
+    def test_find_dicom_files_no_extension_non_recursive(self, mock_glob):
+        """Test finding DICOM files without extension (non-recursive)."""
+        # Mock file without extension
+        file_no_ext = Mock(spec=Path)
+        file_no_ext.is_file.return_value = True
+        file_no_ext.suffix = ""
+        file_no_ext.name = "DICOMFILE"
+
+        # Mock glob returns
+        def glob_side_effect(pattern):
+            if pattern == "*":
+                return [file_no_ext]
+            return []
+
+        mock_glob.side_effect = glob_side_effect
+
+        detector = SeriesDetector()
+
+        with (
+            patch.object(detector, "_is_dicom_file", return_value=True),
+            patch.object(Path, "glob", mock_glob),
+        ):
+            found = detector._find_dicom_files(Path("/tmp"), recursive=False)
+
+        assert isinstance(found, list)
+
+    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    def test_create_series_orientation_extraction_exception(self, mock_dcmread):
+        """Test _create_series handles exception when extracting orientation."""
+        # First call for sorting - normal
+        ds1 = Mock()
+        ds1.ImagePositionPatient = [0.0, 0.0, 0.0]
+        ds1.InstanceNumber = 1
+
+        # Second call for orientation extraction - fails
+        mock_dcmread.side_effect = [ds1, Exception("Cannot read orientation")]
+
+        detector = SeriesDetector()
+        files = [Path("/tmp/slice1.dcm")]
+
+        series = detector._create_series(
+            series_uid="1.2.3.4.5",
+            files=files,
+            study_uid="1.2.3.4",
+            modality="CT",
+        )
+
+        # Should still create series, just without orientation
+        assert series is not None
+        assert series.series_uid == "1.2.3.4.5"
+
+    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    def test_create_series_missing_orientation(self, mock_dcmread):
+        """Test _create_series when ImageOrientationPatient is missing."""
+        ds = Mock()
+        ds.ImagePositionPatient = [0.0, 0.0, 0.0]
+        ds.InstanceNumber = 1
+        # No ImageOrientationPatient
+        delattr(ds, "ImageOrientationPatient") if hasattr(
+            ds, "ImageOrientationPatient"
+        ) else None
+
+        ds = Mock(spec=["ImagePositionPatient", "InstanceNumber"])
+        ds.ImagePositionPatient = [0.0, 0.0, 0.0]
+        ds.InstanceNumber = 1
+
+        mock_dcmread.return_value = ds
+
+        detector = SeriesDetector()
+        files = [Path("/tmp/slice1.dcm")]
+
+        series = detector._create_series(
+            series_uid="1.2.3.4.5",
+            files=files,
+            study_uid="1.2.3.4",
+            modality="CT",
+        )
+
+        # Should create series without orientation
+        assert series is not None
+
+    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    def test_sort_slices_missing_instance_number(self, mock_dcmread):
+        """Test sorting when InstanceNumber is missing."""
+        ds = Mock(spec=["ImagePositionPatient"])
+        ds.ImagePositionPatient = [0.0, 0.0, 0.0]
+
+        mock_dcmread.return_value = ds
+
+        detector = SeriesDetector()
+        files = [Path("/tmp/slice1.dcm")]
+
+        sorted_files = detector._sort_slices_by_position(files)
+
+        assert len(sorted_files) == 1

@@ -1,5 +1,4 @@
-"""
-Resource Management for DICOM Fuzzer
+"""Resource Management for DICOM Fuzzer
 
 CONCEPT: Manages system resources (memory, CPU, disk) to prevent resource
 exhaustion during fuzzing campaigns. Provides safe execution contexts with
@@ -9,32 +8,48 @@ SECURITY: Prevents denial-of-service through resource exhaustion by enforcing
 hard limits on memory, CPU time, and disk usage.
 """
 
-import logging
 import os
 import platform
 import shutil
+import sys
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any
+
+from dicom_fuzzer.core.exceptions import ResourceExhaustedError
+from dicom_fuzzer.utils.logger import get_logger
 
 # resource module is Unix-only
-try:
-    import resource as sys_resource
+IS_WINDOWS = sys.platform == "win32"
+HAS_RESOURCE_MODULE = False
+sys_resource: Any = None
 
-    HAS_RESOURCE_MODULE = True
-except ImportError:
-    HAS_RESOURCE_MODULE = False
-    sys_resource = None
+if not IS_WINDOWS:
+    try:
+        import resource as sys_resource
 
-logger = logging.getLogger(__name__)
+        HAS_RESOURCE_MODULE = True
+    except ImportError as _import_err:
+        # resource module not available (unusual for non-Windows systems)
+        del _import_err  # Avoid unused variable warning
+
+logger = get_logger(__name__)
+
+# Re-export for backwards compatibility
+__all__ = [
+    "ResourceManager",
+    "ResourceLimits",
+    "ResourceUsage",
+    "ResourceExhaustedError",
+]
 
 
 @dataclass
 class ResourceLimits:
-    """
-    Resource limits for fuzzing operations.
+    """Resource limits for fuzzing operations.
 
     Attributes:
         max_memory_mb: Maximum memory in megabytes (soft limit)
@@ -42,6 +57,7 @@ class ResourceLimits:
         max_cpu_seconds: Maximum CPU time per operation in seconds
         min_disk_space_mb: Minimum free disk space required in megabytes
         max_open_files: Maximum number of open file descriptors
+
     """
 
     max_memory_mb: int = 1024  # 1GB soft limit
@@ -53,8 +69,7 @@ class ResourceLimits:
 
 @dataclass
 class ResourceUsage:
-    """
-    Current resource usage snapshot.
+    """Current resource usage snapshot.
 
     Attributes:
         memory_mb: Current memory usage in megabytes
@@ -62,6 +77,7 @@ class ResourceUsage:
         disk_free_mb: Free disk space in megabytes
         open_files: Number of open file descriptors
         timestamp: Time of measurement
+
     """
 
     memory_mb: float
@@ -71,15 +87,8 @@ class ResourceUsage:
     timestamp: float
 
 
-class ResourceExhaustedError(Exception):
-    """Raised when resource limits are exceeded."""
-
-    pass
-
-
 class ResourceManager:
-    """
-    Manages and enforces resource limits during fuzzing operations.
+    """Manages and enforces resource limits during fuzzing operations.
 
     CONCEPT: Provides context managers and utilities to:
     1. Set resource limits before operations
@@ -92,12 +101,12 @@ class ResourceManager:
     - Windows: Limited support (disk checks only, no RLIMIT support)
     """
 
-    def __init__(self, limits: Optional[ResourceLimits] = None):
-        """
-        Initialize resource manager.
+    def __init__(self, limits: ResourceLimits | None = None):
+        """Initialize resource manager.
 
         Args:
             limits: Resource limits to enforce (uses defaults if None)
+
         """
         self.limits = limits or ResourceLimits()
         self.is_windows = platform.system() == "Windows"
@@ -114,9 +123,8 @@ class ResourceManager:
             f"disk={self.limits.min_disk_space_mb}MB"
         )
 
-    def check_available_resources(self, output_dir: Optional[Path] = None) -> bool:
-        """
-        Check if sufficient resources are available.
+    def check_available_resources(self, output_dir: Path | None = None) -> bool:
+        """Check if sufficient resources are available.
 
         Args:
             output_dir: Directory to check for disk space (defaults to current dir)
@@ -126,6 +134,7 @@ class ResourceManager:
 
         Raises:
             ResourceExhaustedError: If resources are insufficient
+
         """
         # Check disk space
         check_path = output_dir or Path.cwd()
@@ -140,33 +149,30 @@ class ResourceManager:
         logger.debug(f"Disk space check passed: {disk_free_mb:.0f}MB available")
         return True
 
-    def get_current_usage(self, output_dir: Optional[Path] = None) -> ResourceUsage:
-        """
-        Get current resource usage snapshot.
+    def get_current_usage(self, output_dir: Path | None = None) -> ResourceUsage:
+        """Get current resource usage snapshot.
 
         Args:
             output_dir: Directory to check disk space for
 
         Returns:
             ResourceUsage snapshot
+
         """
         check_path = output_dir or Path.cwd()
 
-        # Get memory usage (works on Unix-like systems)
+        # Get memory usage
         try:
-            if not self.is_windows:
-                import psutil
+            import psutil
 
-                process = psutil.Process(os.getpid())
-                memory_mb = process.memory_info().rss / (1024 * 1024)
-            else:
-                memory_mb = 0.0  # Not available on Windows without psutil
+            process = psutil.Process(os.getpid())
+            memory_mb = process.memory_info().rss / (1024 * 1024)
         except ImportError:
             memory_mb = 0.0
 
         # Get CPU time (works on Unix-like systems)
         try:
-            if not self.is_windows:
+            if HAS_RESOURCE_MODULE and sys_resource is not None:
                 usage = sys_resource.getrusage(sys_resource.RUSAGE_SELF)
                 cpu_seconds = usage.ru_utime + usage.ru_stime
             else:
@@ -177,15 +183,12 @@ class ResourceManager:
         # Get disk space
         disk_free_mb = self._get_disk_space_mb(check_path)
 
-        # Get open file count (Unix only)
+        # Get open file count
         try:
-            if not self.is_windows:
-                import psutil
+            import psutil
 
-                process = psutil.Process(os.getpid())
-                open_files = len(process.open_files())
-            else:
-                open_files = 0
+            process = psutil.Process(os.getpid())
+            open_files = len(process.open_files())
         except ImportError:
             open_files = 0
 
@@ -198,9 +201,8 @@ class ResourceManager:
         )
 
     @contextmanager
-    def limited_execution(self):
-        """
-        Context manager for resource-limited execution.
+    def limited_execution(self) -> Generator[None, None, None]:
+        """Context manager for resource-limited execution.
 
         Sets resource limits before entering context and restores them on exit.
         Only works on Unix-like systems.
@@ -213,18 +215,19 @@ class ResourceManager:
 
         Raises:
             ResourceExhaustedError: If pre-flight resource checks fail
+
         """
         # Pre-flight check
         self.check_available_resources()
 
-        if self.is_windows:
+        if not HAS_RESOURCE_MODULE or sys_resource is None:
             # Windows doesn't support resource limits via resource module
-            logger.debug("Skipping resource limits on Windows")
+            logger.debug("Skipping resource limits (resource module not available)")
             yield
             return
 
         # Save current limits
-        saved_limits = {}
+        saved_limits: dict[str, tuple[int, int]] = {}
 
         try:
             # Set memory limit (RLIMIT_AS - virtual memory)
@@ -281,14 +284,14 @@ class ResourceManager:
                     logger.warning(f"Could not restore {resource_type} limit: {e}")
 
     def _get_disk_space_mb(self, path: Path) -> float:
-        """
-        Get free disk space in megabytes for given path.
+        """Get free disk space in megabytes for given path.
 
         Args:
             path: Path to check (file or directory)
 
         Returns:
             Free disk space in megabytes
+
         """
         try:
             # Ensure path exists
@@ -304,8 +307,7 @@ class ResourceManager:
     def estimate_required_disk_space(
         self, num_files: int, avg_file_size_mb: float = 1.0
     ) -> float:
-        """
-        Estimate required disk space for fuzzing campaign.
+        """Estimate required disk space for fuzzing campaign.
 
         Args:
             num_files: Number of files to generate
@@ -313,6 +315,7 @@ class ResourceManager:
 
         Returns:
             Estimated disk space needed in megabytes
+
         """
         # Add 20% overhead for reports, logs, etc.
         return num_files * avg_file_size_mb * 1.2
@@ -321,10 +324,9 @@ class ResourceManager:
         self,
         num_files: int,
         avg_file_size_mb: float,
-        output_dir: Optional[Path] = None,
+        output_dir: Path | None = None,
     ) -> bool:
-        """
-        Check if system has resources for planned fuzzing campaign.
+        """Check if system has resources for planned fuzzing campaign.
 
         Args:
             num_files: Number of files to generate
@@ -336,6 +338,7 @@ class ResourceManager:
 
         Raises:
             ResourceExhaustedError: If resources are insufficient
+
         """
         required_mb = self.estimate_required_disk_space(num_files, avg_file_size_mb)
         check_path = output_dir or Path.cwd()
@@ -360,9 +363,8 @@ def resource_limited(
     max_memory_mb: int = 1024,
     max_cpu_seconds: int = 30,
     min_disk_space_mb: int = 1024,
-):
-    """
-    Convenience context manager for resource-limited execution.
+) -> Generator[ResourceManager, None, None]:
+    """Convenience context manager for resource-limited execution.
 
     Args:
         max_memory_mb: Maximum memory in megabytes
@@ -373,6 +375,7 @@ def resource_limited(
         >>> with resource_limited(max_memory_mb=512, max_cpu_seconds=10):
         ...     # Code runs with resource limits
         ...     run_expensive_operation()
+
     """
     limits = ResourceLimits(
         max_memory_mb=max_memory_mb,

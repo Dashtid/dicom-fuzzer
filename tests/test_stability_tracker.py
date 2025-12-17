@@ -316,6 +316,50 @@ class TestDetectStabilityIssues:
         # Should detect many unstable inputs
         assert any("inputs show non-deterministic" in issue for issue in issues)
 
+    def test_gradual_degradation_detected(self, tmp_path):
+        """Test detection of gradual stability degradation with >100 executions.
+
+        Covers lines 328-334 in stability_tracker.py.
+        """
+        tracker = StabilityTracker()
+
+        # Create test files
+        files = []
+        for i in range(20):
+            f = tmp_path / f"file{i}.dcm"
+            f.write_bytes(f"CONTENT_{i}".encode())
+            files.append(f)
+
+        # Run >100 executions with low stability (< 80%)
+        # Mix stable and unstable to get below 80% stability
+        for iteration in range(6):
+            for i, f in enumerate(files):
+                if i < 4:
+                    # These files are stable
+                    tracker.record_execution(f, "0|stable_sig")
+                    if iteration > 0:
+                        tracker.record_execution(f, "0|stable_sig", retest=True)
+                else:
+                    # These files are unstable (majority)
+                    tracker.record_execution(f, f"0|sig_{iteration}")
+                    if iteration > 0:
+                        # Different signature on retest
+                        tracker.record_execution(
+                            f, f"0|sig_{iteration + 10}", retest=True
+                        )
+
+        # Ensure we have >100 executions
+        metrics = tracker.get_metrics()
+        assert metrics.total_executions > 100
+
+        # Stability should be low (< 80%)
+        assert metrics.stability_percentage < 80
+
+        issues = detect_stability_issues(tracker)
+
+        # Should detect gradual degradation
+        assert any("Stability has degraded" in issue for issue in issues)
+
 
 class TestIntegration:
     """Integration tests for stability tracking."""

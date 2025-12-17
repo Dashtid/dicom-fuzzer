@@ -15,7 +15,12 @@ from pathlib import Path
 
 import pytest
 
-from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer, CrashReport, CrashSeverity, CrashType
+from dicom_fuzzer.core.crash_analyzer import (
+    CrashAnalyzer,
+    CrashReport,
+    CrashSeverity,
+    CrashType,
+)
 
 
 class TestCrashClassification:
@@ -238,7 +243,7 @@ class TestCrashReportPersistence:
                 assert report_path.suffix == ".txt"
 
                 # Check content
-                with open(report_path, "r", encoding="utf-8") as f:
+                with open(report_path, encoding="utf-8") as f:
                     content = f.read()
                     assert "CRASH REPORT" in content
                     assert report.crash_id in content
@@ -255,7 +260,7 @@ class TestCrashReportPersistence:
                 report = analyzer.analyze_exception(e, "test.dcm")
                 report_path = analyzer.save_crash_report(report)
 
-                with open(report_path, "r", encoding="utf-8") as f:
+                with open(report_path, encoding="utf-8") as f:
                     content = f.read()
 
                     # Check required sections

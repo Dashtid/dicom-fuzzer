@@ -1,5 +1,4 @@
-"""
-DICOM Fuzzer Utility Helpers
+"""DICOM Fuzzer Utility Helpers
 
 Common utility functions for file operations, DICOM manipulation,
 random data generation, and validation.
@@ -8,12 +7,13 @@ random data generation, and validation.
 import random
 import string
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import Any
 
-from pydicom.tag import Tag
+from pydicom.tag import BaseTag, Tag
 
 # File size constants
 KB = 1024
@@ -27,7 +27,7 @@ DICOM_DATETIME_FORMAT = "%Y%m%d%H%M%S"
 
 
 def validate_file_path(
-    file_path: Union[str, Path], must_exist: bool = True, max_size: Optional[int] = None
+    file_path: str | Path, must_exist: bool = True, max_size: int | None = None
 ) -> Path:
     """Validate and normalize file path.
 
@@ -42,6 +42,7 @@ def validate_file_path(
     Raises:
         FileNotFoundError: If must_exist=True and file doesn't exist
         ValueError: If file exceeds max_size
+
     """
     path = Path(file_path).resolve()
 
@@ -59,7 +60,7 @@ def validate_file_path(
     return path
 
 
-def ensure_directory(dir_path: Union[str, Path]) -> Path:
+def ensure_directory(dir_path: str | Path) -> Path:
     """Ensure directory exists, create if necessary.
 
     Args:
@@ -67,6 +68,7 @@ def ensure_directory(dir_path: Union[str, Path]) -> Path:
 
     Returns:
         Normalized Path object
+
     """
     path = Path(dir_path).resolve()
     path.mkdir(parents=True, exist_ok=True)
@@ -74,8 +76,8 @@ def ensure_directory(dir_path: Union[str, Path]) -> Path:
 
 
 def safe_file_read(
-    file_path: Union[str, Path], max_size: int = 100 * MB, binary: bool = True
-) -> Union[bytes, str]:
+    file_path: str | Path, max_size: int = 100 * MB, binary: bool = True
+) -> bytes | str:
     """Safely read file with size validation.
 
     Args:
@@ -88,15 +90,19 @@ def safe_file_read(
 
     Raises:
         ValueError: If file exceeds max_size
+
     """
     path = validate_file_path(file_path, must_exist=True, max_size=max_size)
 
-    mode = "rb" if binary else "r"
-    with open(path, mode) as f:
-        return f.read()
+    if binary:
+        with open(path, "rb") as f:
+            return f.read()
+    else:
+        with open(path) as f:
+            return f.read()
 
 
-def tag_to_hex(tag: Tag) -> str:
+def tag_to_hex(tag: BaseTag) -> str:
     """Convert DICOM tag to hex string format.
 
     Args:
@@ -109,11 +115,12 @@ def tag_to_hex(tag: Tag) -> str:
         >>> tag = Tag(0x0008, 0x0016)
         >>> tag_to_hex(tag)
         '(0008,0016)'
+
     """
     return f"({tag.group:04X}, {tag.element:04X})"
 
 
-def hex_to_tag(hex_string: str) -> Tag:
+def hex_to_tag(hex_string: str) -> BaseTag:
     """Parse hex string to DICOM tag.
 
     Args:
@@ -124,6 +131,7 @@ def hex_to_tag(hex_string: str) -> Tag:
 
     Raises:
         ValueError: If string format is invalid
+
     """
     hex_string = hex_string.strip()
 
@@ -143,7 +151,7 @@ def hex_to_tag(hex_string: str) -> Tag:
         raise ValueError(f"Invalid hex string format: {hex_string}") from e
 
 
-def is_private_tag(tag: Tag) -> bool:
+def is_private_tag(tag: BaseTag) -> bool:
     """Check if DICOM tag is a private tag.
 
     Args:
@@ -151,8 +159,9 @@ def is_private_tag(tag: Tag) -> bool:
 
     Returns:
         True if tag is private (odd group number)
+
     """
-    return tag.group % 2 == 1
+    return bool(tag.group % 2 == 1)
 
 
 def random_string(
@@ -166,6 +175,7 @@ def random_string(
 
     Returns:
         Random string
+
     """
     return "".join(random.choices(charset, k=length))
 
@@ -178,11 +188,12 @@ def random_bytes(length: int) -> bytes:
 
     Returns:
         Random bytes
+
     """
     return bytes(random.randint(0, 255) for _ in range(length))
 
 
-def random_dicom_date(start_year: int = 1950, end_year: Optional[int] = None) -> str:
+def random_dicom_date(start_year: int = 1950, end_year: int | None = None) -> str:
     """Generate random DICOM date string.
 
     Args:
@@ -196,6 +207,7 @@ def random_dicom_date(start_year: int = 1950, end_year: Optional[int] = None) ->
         >>> date = random_dicom_date(1980, 2000)
         >>> len(date)
         8
+
     """
     if end_year is None:
         end_year = datetime.now().year
@@ -215,6 +227,7 @@ def random_dicom_time() -> str:
 
     Returns:
         Time string in DICOM format (HHMMSS)
+
     """
     hour = random.randint(0, 23)
     minute = random.randint(0, 59)
@@ -223,9 +236,7 @@ def random_dicom_time() -> str:
     return f"{hour:02d}{minute:02d}{second:02d}"
 
 
-def random_dicom_datetime(
-    start_year: int = 1950, end_year: Optional[int] = None
-) -> str:
+def random_dicom_datetime(start_year: int = 1950, end_year: int | None = None) -> str:
     """Generate random DICOM datetime string.
 
     Args:
@@ -234,6 +245,7 @@ def random_dicom_datetime(
 
     Returns:
         Datetime string in DICOM format (YYYYMMDDHHMMSS)
+
     """
     date = random_dicom_date(start_year, end_year)
     time = random_dicom_time()
@@ -245,6 +257,7 @@ def random_person_name() -> str:
 
     Returns:
         Person name in DICOM format (LastName^FirstName^Middle^Prefix^Suffix)
+
     """
     first_names = [
         "John",
@@ -287,6 +300,7 @@ def random_patient_id() -> str:
 
     Returns:
         Patient ID string
+
     """
     return f"PAT{random.randint(100000, 999999)}"
 
@@ -296,13 +310,14 @@ def random_accession_number() -> str:
 
     Returns:
         Accession number string
+
     """
     return f"ACC{random.randint(1000000, 9999999)}"
 
 
 def clamp(
-    value: Union[int, float], min_val: Union[int, float], max_val: Union[int, float]
-) -> Union[int, float]:
+    value: int | float, min_val: int | float, max_val: int | float
+) -> int | float:
     """Clamp value between min and max.
 
     Args:
@@ -312,14 +327,15 @@ def clamp(
 
     Returns:
         Clamped value
+
     """
     return max(min_val, min(value, max_val))
 
 
 def in_range(
-    value: Union[int, float],
-    min_val: Union[int, float],
-    max_val: Union[int, float],
+    value: int | float,
+    min_val: int | float,
+    max_val: int | float,
     inclusive: bool = True,
 ) -> bool:
     """Check if value is in range.
@@ -332,6 +348,7 @@ def in_range(
 
     Returns:
         True if value is in range
+
     """
     if inclusive:
         return min_val <= value <= max_val
@@ -346,6 +363,7 @@ def format_bytes(size: int) -> str:
 
     Returns:
         Formatted string (e.g., "1.5 MB")
+
     """
     if size < KB:
         return f"{size} B"
@@ -365,6 +383,7 @@ def format_duration(seconds: float) -> str:
 
     Returns:
         Formatted string (e.g., "1h 23m 45s")
+
     """
     if seconds < 60:
         return f"{seconds:.2f}s"
@@ -380,7 +399,9 @@ def format_duration(seconds: float) -> str:
 
 
 @contextmanager
-def timing(operation: str = "Operation", logger=None):
+def timing(
+    operation: str = "Operation", logger: Any = None
+) -> Generator[dict[str, float], None, None]:
     """Context manager for timing operations.
 
     Args:
@@ -394,8 +415,9 @@ def timing(operation: str = "Operation", logger=None):
         >>> with timing("file_processing") as t:
         ...     process_file()
         >>> print(f"Took {t['duration_ms']}ms")
+
     """
-    result = {}
+    result: dict[str, float] = {}
     start_time = time.perf_counter()
 
     try:
@@ -410,7 +432,7 @@ def timing(operation: str = "Operation", logger=None):
             logger.info(f"{operation} completed", duration_ms=round(duration_ms, 2))
 
 
-def chunk_list(lst: List[Any], chunk_size: int) -> List[List[Any]]:
+def chunk_list(lst: list[Any], chunk_size: int) -> list[list[Any]]:
     """Split list into chunks.
 
     Args:
@@ -423,6 +445,7 @@ def chunk_list(lst: List[Any], chunk_size: int) -> List[List[Any]]:
     Example:
         >>> chunk_list([1, 2, 3, 4, 5], 2)
         [[1, 2], [3, 4], [5]]
+
     """
     return [lst[i : i + chunk_size] for i in range(0, len(lst), chunk_size)]
 
@@ -437,6 +460,7 @@ def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> f
 
     Returns:
         Result of division or default
+
     """
     if denominator == 0:
         return default
@@ -453,6 +477,7 @@ def truncate_string(s: str, max_length: int, suffix: str = "...") -> str:
 
     Returns:
         Truncated string
+
     """
     if len(s) <= max_length:
         return s
@@ -471,7 +496,7 @@ if __name__ == "__main__":
 
     print("File operations:")
     print(f"  100 MB = {format_bytes(100 * MB)}")
-    print(f"  1.5 GB = {format_bytes(1.5 * GB)}")
+    print(f"  1.5 GB = {format_bytes(int(1.5 * GB))}")
 
     print("\nRandom data generation:")
     print(f"  Random date: {random_dicom_date(1980, 2000)}")

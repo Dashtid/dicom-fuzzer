@@ -1,5 +1,4 @@
-"""
-Configuration Management - Environment-Specific Settings
+"""Configuration Management - Environment-Specific Settings
 
 LEARNING OBJECTIVE: This module demonstrates production-ready configuration
 management with environment variables, validation, and security.
@@ -20,15 +19,13 @@ configuration enables:
 import os
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Environment(str, Enum):
-    """
-    Application environment types.
+    """Application environment types.
 
     CONCEPT: Different environments have different requirements:
     - DEVELOPMENT: Local development with debug features
@@ -52,8 +49,7 @@ class LogLevel(str, Enum):
 
 
 class FuzzingConfig(BaseSettings):
-    """
-    Fuzzing campaign configuration.
+    """Fuzzing campaign configuration.
 
     CONCEPT: Controls the behavior and intensity of fuzzing campaigns.
     """
@@ -93,8 +89,7 @@ class FuzzingConfig(BaseSettings):
 
 
 class SecurityConfig(BaseSettings):
-    """
-    Security validation configuration.
+    """Security validation configuration.
 
     CONCEPT: Security thresholds prevent generation of excessively
     malicious files that could harm testing infrastructure.
@@ -132,8 +127,7 @@ class SecurityConfig(BaseSettings):
 
 
 class PathConfig(BaseSettings):
-    """
-    File system paths configuration.
+    """File system paths configuration.
 
     CONCEPT: Centralized path management ensures consistent
     directory structure across environments.
@@ -168,8 +162,7 @@ class PathConfig(BaseSettings):
 
 
 class LoggingConfig(BaseSettings):
-    """
-    Logging configuration.
+    """Logging configuration.
 
     CONCEPT: Different environments need different logging verbosity.
     """
@@ -187,8 +180,7 @@ class LoggingConfig(BaseSettings):
 
 
 class Settings(BaseSettings):
-    """
-    Main application settings.
+    """Main application settings.
 
     CONCEPT: Hierarchical configuration with validation.
     Loads from environment variables and .env file.
@@ -293,12 +285,11 @@ Features:
 
 
 # Global settings instance (singleton pattern)
-_settings: Optional[Settings] = None
+_settings: Settings | None = None
 
 
 def get_settings(force_reload: bool = False) -> Settings:
-    """
-    Get application settings (singleton).
+    """Get application settings (singleton).
 
     Args:
         force_reload: Force reload settings from environment
@@ -308,6 +299,7 @@ def get_settings(force_reload: bool = False) -> Settings:
 
     CONCEPT: Singleton pattern ensures configuration is loaded once
     and reused throughout the application.
+
     """
     global _settings
     if _settings is None or force_reload:
@@ -316,14 +308,14 @@ def get_settings(force_reload: bool = False) -> Settings:
 
 
 def load_profile(profile_name: str) -> Settings:
-    """
-    Load settings from specific profile.
+    """Load settings from specific profile.
 
     Args:
         profile_name: Profile name (development, testing, production)
 
     Returns:
         Settings instance configured for profile
+
     """
     os.environ["ENVIRONMENT"] = profile_name
     return Settings()

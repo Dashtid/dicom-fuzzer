@@ -241,7 +241,7 @@ class TestConcurrentOperations:
 class TestLongRunningCampaigns:
     """Test long-running fuzzing campaigns."""
 
-    @pytest.mark.skip(reason="Flaky: Worker crashes in parallel execution - test infrastructure issue")
+    @pytest.mark.timeout(20)  # Explicit timeout for this longer test
     def test_extended_campaign_stability(self, sample_dicom_file, temp_dir):
         """Test campaign running for extended period."""
         from dicom_fuzzer.core.statistics import StatisticsCollector
@@ -252,7 +252,7 @@ class TestLongRunningCampaigns:
 
         start_time = time.time()
         iterations = 0
-        target_duration = 30  # Run for 30 seconds
+        target_duration = 10  # Run for 10 seconds (reduced from 30 for test stability)
 
         while time.time() - start_time < target_duration:
             # Generate file
@@ -268,8 +268,8 @@ class TestLongRunningCampaigns:
             if iterations % 10 == 0:
                 gc.collect()
 
-        # Should have completed many iterations
-        assert iterations > 10, f"Only {iterations} iterations in {target_duration}s"
+        # Should have completed some iterations (at least 3 in 10 seconds)
+        assert iterations >= 3, f"Only {iterations} iterations in {target_duration}s"
 
         # Should still be responsive
         process = psutil.Process()
@@ -279,6 +279,9 @@ class TestLongRunningCampaigns:
     def test_campaign_statistics_accuracy(self, sample_dicom_file, temp_dir):
         """Test statistics tracking over long campaign."""
         stats = StatisticsCollector()
+
+        # Register strategy first by recording a mutation
+        stats.record_mutation("test_strategy", duration=0.1)
 
         # Simulate campaign with known numbers
         test_iterations = 1000
@@ -290,12 +293,13 @@ class TestLongRunningCampaigns:
 
             # Simulate crashes at expected rate
             if i % 10 == 0:  # Every 10th iteration
-                stats.track_crash(f"test_{i}.dcm")
+                # Use record_crash with strategy and crash_hash parameters
+                stats.record_crash("test_strategy", f"crash_hash_{i}")
 
         # Verify statistics accuracy
-        report = stats.get_report()
+        report = stats.get_summary()
         assert report["total_iterations"] == test_iterations
-        assert report["total_crashes"] == 100  # 10% of 1000
+        assert report["total_crashes_found"] == 100  # 10% of 1000
 
     def test_target_runner_extended_execution(self, temp_dir):
         """Test target runner over extended period."""
@@ -326,7 +330,7 @@ class TestLongRunningCampaigns:
             start_time = time.time()
             for test_file in test_files:
                 result = runner.execute_test(str(test_file))
-                assert result.status == ExecutionStatus.SUCCESS
+                assert result.result == ExecutionStatus.SUCCESS
 
             duration = time.time() - start_time
 

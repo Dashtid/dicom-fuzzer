@@ -1,5 +1,4 @@
-"""
-3D DICOM Viewer Launcher and Harness
+"""3D DICOM Viewer Launcher and Harness
 
 This module provides ViewerLauncher3D for testing DICOM viewers with complete 3D series
 (multi-slice volumes). It extends the existing TargetRunner patterns to support folder-based
@@ -54,8 +53,7 @@ class ViewerType(Enum):
 
 @dataclass
 class ViewerConfig:
-    """
-    Configuration for a DICOM viewer application.
+    """Configuration for a DICOM viewer application.
 
     This dataclass defines how to launch a specific DICOM viewer with a series folder.
     """
@@ -70,14 +68,14 @@ class ViewerConfig:
     additional_args: list[str] = field(default_factory=list)
 
     def format_command(self, series_folder: Path) -> list[str]:
-        """
-        Format the command line for launching the viewer.
+        """Format the command line for launching the viewer.
 
         Args:
             series_folder: Path to folder containing DICOM series
 
         Returns:
             List of command arguments
+
         """
         # Replace {folder_path} with actual folder
         cmd_str = self.command_template.format(folder_path=str(series_folder))
@@ -93,8 +91,7 @@ class ViewerConfig:
 
 @dataclass
 class SeriesTestResult:
-    """
-    Result of testing a DICOM viewer with a 3D series.
+    """Result of testing a DICOM viewer with a 3D series.
 
     Extends ExecutionStatus with series-specific information.
     """
@@ -114,8 +111,7 @@ class SeriesTestResult:
 
 
 class ViewerLauncher3D:
-    """
-    Launcher and harness for testing DICOM viewers with 3D series.
+    """Launcher and harness for testing DICOM viewers with 3D series.
 
     This class extends TargetRunner patterns to support folder-based DICOM series testing.
     It can detect crashes, monitor memory usage, and attempt to correlate crashes to
@@ -128,13 +124,13 @@ class ViewerLauncher3D:
         monitor_memory: bool = True,
         kill_on_timeout: bool = True,
     ):
-        """
-        Initialize ViewerLauncher3D.
+        """Initialize ViewerLauncher3D.
 
         Args:
             config: ViewerConfig for the target viewer
             monitor_memory: Enable memory monitoring during execution
             kill_on_timeout: Kill process if it exceeds timeout
+
         """
         self.config = config
         self.monitor_memory = monitor_memory
@@ -152,8 +148,7 @@ class ViewerLauncher3D:
         )
 
     def launch_with_series(self, series_folder: Path) -> SeriesTestResult:
-        """
-        Launch viewer with a DICOM series folder and monitor for crashes.
+        """Launch viewer with a DICOM series folder and monitor for crashes.
 
         Args:
             series_folder: Path to folder containing DICOM series
@@ -163,6 +158,7 @@ class ViewerLauncher3D:
 
         Raises:
             FileNotFoundError: If series_folder doesn't exist
+
         """
         if not series_folder.exists():
             raise FileNotFoundError(f"Series folder not found: {series_folder}")
@@ -206,13 +202,11 @@ class ViewerLauncher3D:
             else:
                 # Just wait for timeout
                 try:
-                    stdout_data, stderr_data = process.communicate(
+                    stdout_bytes, stderr_bytes = process.communicate(
                         timeout=self.config.timeout_seconds
                     )
-                    if isinstance(stdout_data, bytes):
-                        stdout_data = stdout_data.decode("utf-8", errors="replace")
-                    if isinstance(stderr_data, bytes):
-                        stderr_data = stderr_data.decode("utf-8", errors="replace")
+                    stdout_data = stdout_bytes.decode("utf-8", errors="replace")
+                    stderr_data = stderr_bytes.decode("utf-8", errors="replace")
                 except subprocess.TimeoutExpired:
                     timed_out = True
                     if self.kill_on_timeout:
@@ -273,14 +267,14 @@ class ViewerLauncher3D:
         return result
 
     def _count_dicom_files(self, folder: Path) -> int:
-        """
-        Count DICOM files in folder.
+        """Count DICOM files in folder.
 
         Args:
             folder: Folder to scan
 
         Returns:
             Number of DICOM files found
+
         """
         extensions = [".dcm", ".DCM", ".dicom", ".DICOM"]
         count = 0
@@ -297,14 +291,14 @@ class ViewerLauncher3D:
                         f.seek(128)
                         if f.read(4) == b"DICM":
                             count += 1
-                except Exception:
-                    pass
+                except Exception as read_err:
+                    # Skip unreadable files without breaking enumeration
+                    logger.debug(f"Could not read {file_path}: {read_err}")
 
         return count
 
     def _monitor_process(self, process: subprocess.Popen, timeout: int) -> float:
-        """
-        Monitor process for memory usage and timeout.
+        """Monitor process for memory usage and timeout.
 
         Args:
             process: Process to monitor
@@ -312,6 +306,7 @@ class ViewerLauncher3D:
 
         Returns:
             Peak memory usage in MB
+
         """
         peak_memory = 0.0
         start_time = time.time()
@@ -349,16 +344,17 @@ class ViewerLauncher3D:
                 time.sleep(poll_interval)
 
         except psutil.NoSuchProcess:
-            pass
+            # Process exited during monitoring - expected race condition
+            logger.debug("Process exited during memory monitoring")
 
         return peak_memory
 
     def _kill_process_tree(self, process: subprocess.Popen) -> None:
-        """
-        Kill process and all its children.
+        """Kill process and all its children.
 
         Args:
             process: Process to kill
+
         """
         try:
             parent = psutil.Process(process.pid)
@@ -369,13 +365,15 @@ class ViewerLauncher3D:
                 try:
                     child.kill()
                 except psutil.NoSuchProcess:
-                    pass
+                    # Child already terminated - continue with others
+                    continue
 
             # Kill parent
             try:
                 parent.kill()
             except psutil.NoSuchProcess:
-                pass
+                # Parent already terminated - expected in race conditions
+                logger.debug("Parent process already terminated")
 
             # Wait for termination
             gone, alive = psutil.wait_procs(
@@ -385,15 +383,15 @@ class ViewerLauncher3D:
             logger.debug(f"Killed process tree (parent PID={process.pid})")
 
         except psutil.NoSuchProcess:
-            pass
+            # Process already terminated before we could kill it
+            logger.debug("Process tree already terminated")
         except Exception as e:
             logger.warning(f"Failed to kill process tree: {e}")
 
     def _correlate_crash_to_slice(
         self, series_folder: Path, stderr: str, stdout: str
     ) -> int | None:
-        """
-        Attempt to correlate crash to specific slice (best-effort).
+        """Attempt to correlate crash to specific slice (best-effort).
 
         This is a heuristic approach that looks for patterns in error output
         that might indicate which slice caused the crash.
@@ -405,6 +403,7 @@ class ViewerLauncher3D:
 
         Returns:
             Slice index (0-based) or None if cannot determine
+
         """
         # Look for patterns like "slice_001.dcm", "001.dcm", "slice 5", etc.
         import re
@@ -437,8 +436,7 @@ class ViewerLauncher3D:
 def create_generic_config(
     viewer_path: Path, timeout: int = 60, memory_limit_mb: int | None = None
 ) -> ViewerConfig:
-    """
-    Create a generic viewer configuration.
+    """Create a generic viewer configuration.
 
     This is a helper function for creating ViewerConfig for viewers not explicitly
     supported. The generic configuration assumes the viewer accepts a folder path
@@ -455,6 +453,7 @@ def create_generic_config(
     Example:
         config = create_generic_config(Path("C:/MyViewer/viewer.exe"))
         launcher = ViewerLauncher3D(config)
+
     """
     return ViewerConfig(
         viewer_type=ViewerType.GENERIC,

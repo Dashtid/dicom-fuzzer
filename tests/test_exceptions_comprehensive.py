@@ -7,13 +7,13 @@ Achieves 95%+ coverage of core/exceptions.py module.
 import pytest
 
 from dicom_fuzzer.core.exceptions import (
+    ConfigurationError,
     DicomFuzzingError,
-    ValidationError,
-    ParsingError,
     MutationError,
     NetworkTimeoutError,
+    ParsingError,
     SecurityViolationError,
-    ConfigurationError,
+    ValidationError,
 )
 
 

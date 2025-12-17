@@ -32,8 +32,8 @@ def temp_workspace():
         (workspace / "crashes").mkdir()
 
         # Create a sample DICOM file with proper file meta information
-        from pydicom.dataset import FileDataset, FileMetaDataset
         import pydicom.uid
+        from pydicom.dataset import FileDataset, FileMetaDataset
 
         file_meta = FileMetaDataset()
         file_meta.MediaStorageSOPClassUID = (
@@ -65,10 +65,8 @@ def fuzzing_session(temp_workspace):
         session_name="test_session",
         output_dir=str(temp_workspace / "output"),
         reports_dir=str(temp_workspace / "reports"),
+        crashes_dir=str(temp_workspace / "crashes"),
     )
-    # Override crashes_dir to use temp workspace
-    session.crashes_dir = temp_workspace / "crashes" / session.session_id
-    session.crashes_dir.mkdir(parents=True, exist_ok=True)
     return session
 
 
@@ -261,7 +259,7 @@ class TestFuzzingSessionIntegration:
         assert report_path.exists()
 
         # Load and verify report content
-        with open(report_path, "r") as f:
+        with open(report_path) as f:
             report = json.load(f)
 
         assert report["session_info"]["session_name"] == "test_session"
@@ -435,6 +433,7 @@ class TestFuzzingSessionIntegration:
                 session_name=f"concurrent_{i}",
                 output_dir=str(temp_workspace / "output" / f"session_{i}"),
                 reports_dir=str(temp_workspace / "reports"),
+                crashes_dir=str(temp_workspace / "crashes" / f"session_{i}"),
             )
             sessions.append(session)
 
@@ -509,7 +508,7 @@ class TestFuzzingSessionIntegration:
         assert report_path.exists()
 
         # Verify report is valid JSON and contains all data
-        with open(report_path, "r") as f:
+        with open(report_path) as f:
             report = json.load(f)
 
         assert len(report["fuzzed_files"]) == 100
@@ -525,6 +524,7 @@ class TestEdgeCases:
             session_name="invalid_test",
             output_dir=str(temp_workspace / "nonexistent" / "deep" / "path"),
             reports_dir=str(temp_workspace / "another" / "deep" / "path"),
+            crashes_dir=str(temp_workspace / "crashes" / "invalid"),
         )
 
         # Directories should be created
@@ -570,7 +570,7 @@ class TestEdgeCases:
         report_path = fuzzing_session.save_session_report()
 
         # Verify report is valid JSON despite special characters
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             report = json.load(f)
 
         assert len(report["fuzzed_files"]) == 1
@@ -582,7 +582,7 @@ class TestEdgeCases:
 
         assert report_path.exists()
 
-        with open(report_path, "r") as f:
+        with open(report_path) as f:
             report = json.load(f)
 
         assert report["statistics"]["files_fuzzed"] == 0

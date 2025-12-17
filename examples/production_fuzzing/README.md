@@ -9,6 +9,7 @@ This directory contains production-ready fuzzing examples for real DICOM applica
 Complete end-to-end fuzzing workflow for the DCMTK dcmdump DICOM file parser.
 
 **Quick Start:**
+
 ```bash
 # Generate seeds and run 100 test cases
 python examples/production_fuzzing/fuzz_dcmtk.py --quick-start
@@ -21,6 +22,7 @@ python examples/production_fuzzing/fuzz_dcmtk.py --docker --iterations 500
 ```
 
 **What it does:**
+
 1. Downloads/loads seed DICOM files
 2. Generates fuzzed files with intelligent mutations
 3. Executes dcmdump against each fuzzed file
@@ -29,6 +31,7 @@ python examples/production_fuzzing/fuzz_dcmtk.py --docker --iterations 500
 6. Generates comprehensive HTML and JSON reports
 
 **Output:**
+
 - `fuzzing_output/fuzzed/` - Generated test cases
 - `fuzzing_output/crashes/` - Crash-inducing files
 - `fuzzing_output/reports/` - HTML/JSON reports
@@ -42,12 +45,14 @@ python examples/production_fuzzing/fuzz_dcmtk.py --docker --iterations 500
 Install DCMTK on your system:
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo apt-get install dcmtk
 dcmdump --version
 ```
 
 **macOS:**
+
 ```bash
 brew install dcmtk
 dcmdump --version
@@ -93,6 +98,7 @@ python scripts/import_seed_corpus.py /path/to/dicom/files --strip-pixels --outpu
 ```
 
 Public DICOM sources:
+
 - **pydicom test data**: Included with pydicom library
 - **The Cancer Imaging Archive (TCIA)**: https://www.cancerimagingarchive.net/
 - **dicomlibrary.com**: Public DICOM samples
@@ -237,6 +243,7 @@ python examples/production_fuzzing/fuzz_dcmtk.py --output ./fuzz_run_3 --iterati
 Copy `fuzz_dcmtk.py` and modify:
 
 1. Change `TargetConfig`:
+
    ```python
    TargetConfig(
        name="my_dicom_viewer",
@@ -263,6 +270,7 @@ See [docs/TARGET_INTEGRATION.md](../../docs/TARGET_INTEGRATION.md) for details.
 ### Issue: "No crashes found after 1000 iterations"
 
 **Possible causes:**
+
 - Target is robust (good!)
 - Need more diverse seed corpus
 - Need more aggressive mutations
@@ -271,6 +279,7 @@ See [docs/TARGET_INTEGRATION.md](../../docs/TARGET_INTEGRATION.md) for details.
 ### Issue: "All tests timeout"
 
 **Possible causes:**
+
 - Timeout too short (increase in `TargetConfig`)
 - Target stuck in infinite loop on all inputs
 - System resource constraints
@@ -278,6 +287,7 @@ See [docs/TARGET_INTEGRATION.md](../../docs/TARGET_INTEGRATION.md) for details.
 ### Issue: "Docker image build fails"
 
 **Solution**:
+
 ```bash
 # Check Docker is running
 docker ps

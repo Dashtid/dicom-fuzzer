@@ -5,7 +5,7 @@ traceable code in the core module that exercises the coverage tracker.
 """
 
 
-def simple_function():
+def simple_function() -> int:
     """Simple function with multiple lines for tracing."""
     x = 1
     y = 2
@@ -13,15 +13,15 @@ def simple_function():
     return z
 
 
-def another_function():
+def another_function() -> list[int]:
     """Another function with different code paths."""
-    result = []
+    result: list[int] = []
     for i in range(5):
         result.append(i * 2)
     return result
 
 
-def conditional_function(value):
+def conditional_function(value: int) -> str:
     """Function with conditional logic."""
     if value > 10:
         return "high"

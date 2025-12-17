@@ -1,5 +1,4 @@
-"""
-Test Case Minimization - Delta Debugging for Crashes
+"""Test Case Minimization - Delta Debugging for Crashes
 
 This module implements automatic test case minimization using delta debugging
 algorithm to reduce crashing inputs to their smallest form while preserving
@@ -13,13 +12,15 @@ Based on Andreas Zeller's delta debugging algorithm (2002) and modern
 improvements from 2025 fuzzing frameworks.
 """
 
-import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any
 
-logger = logging.getLogger(__name__)
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class MinimizationStrategy(Enum):
@@ -33,8 +34,7 @@ class MinimizationStrategy(Enum):
 
 @dataclass
 class MinimizationResult:
-    """
-    Result of test case minimization.
+    """Result of test case minimization.
 
     Contains the minimized test case, statistics, and metadata.
     """
@@ -45,9 +45,9 @@ class MinimizationResult:
     iterations: int
     test_executions: int
     strategy_used: MinimizationStrategy
-    minimized_path: Optional[Path]
+    minimized_path: Path | None
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
 
     def __str__(self) -> str:
         """String representation for reports."""
@@ -62,8 +62,7 @@ class MinimizationResult:
 
 
 class TestMinimizer:
-    """
-    Automatic test case minimization engine.
+    """Automatic test case minimization engine.
 
     Uses delta debugging to reduce crashing inputs to minimal form.
     """
@@ -75,14 +74,14 @@ class TestMinimizer:
         max_iterations: int = 1000,
         timeout_seconds: int = 300,
     ):
-        """
-        Initialize test minimizer.
+        """Initialize test minimizer.
 
         Args:
             crash_predicate: Function that returns True if test case crashes
             strategy: Minimization strategy to use
             max_iterations: Maximum iterations before giving up
             timeout_seconds: Maximum time in seconds for minimization
+
         """
         self.crash_predicate = crash_predicate
         self.strategy = strategy
@@ -93,8 +92,7 @@ class TestMinimizer:
         self.test_executions = 0
 
     def minimize(self, input_file: Path, output_dir: Path) -> MinimizationResult:
-        """
-        Minimize a crashing test case.
+        """Minimize a crashing test case.
 
         Args:
             input_file: Path to crashing test case
@@ -102,6 +100,7 @@ class TestMinimizer:
 
         Returns:
             Minimization result
+
         """
         if not input_file.exists():
             return MinimizationResult(
@@ -151,8 +150,8 @@ class TestMinimizer:
             minimized_content = self._linear(original_content)
         elif self.strategy == MinimizationStrategy.BLOCK:
             minimized_content = self._block_removal(original_content)
-        else:
-            minimized_content = original_content
+        else:  # pragma: no cover - all strategies handled above
+            minimized_content = original_content  # type: ignore[unreachable]
 
         minimized_size = len(minimized_content)
 
@@ -162,7 +161,7 @@ class TestMinimizer:
         minimized_path.write_bytes(minimized_content)
 
         logger.info(
-            f"Minimization complete: {original_size} → {minimized_size} bytes "
+            f"Minimization complete: {original_size} -> {minimized_size} bytes "
             f"({(1 - minimized_size / original_size) * 100:.1f}% reduction)"
         )
 
@@ -178,14 +177,14 @@ class TestMinimizer:
         )
 
     def _test_case_crashes(self, test_file: Path) -> bool:
-        """
-        Test if a file causes crash.
+        """Test if a file causes crash.
 
         Args:
             test_file: Path to test file
 
         Returns:
             True if crash occurs
+
         """
         self.test_executions += 1
         try:
@@ -195,8 +194,7 @@ class TestMinimizer:
             return False
 
     def _ddmin(self, content: bytes) -> bytes:
-        """
-        Delta debugging minimization algorithm.
+        """Delta debugging minimization algorithm.
 
         Repeatedly try removing subsets of the input until no more
         reductions are possible.
@@ -206,6 +204,7 @@ class TestMinimizer:
 
         Returns:
             Minimized content
+
         """
         current = content
         chunk_size = len(current) // 2
@@ -240,8 +239,7 @@ class TestMinimizer:
         return current
 
     def _binary_search(self, content: bytes) -> bytes:
-        """
-        Binary search minimization.
+        """Binary search minimization.
 
         Repeatedly cut file in half until crash disappears.
 
@@ -250,6 +248,7 @@ class TestMinimizer:
 
         Returns:
             Minimized content
+
         """
         current = content
 
@@ -273,8 +272,7 @@ class TestMinimizer:
         return current
 
     def _linear(self, content: bytes) -> bytes:
-        """
-        Linear minimization - remove one byte at a time.
+        """Linear minimization - remove one byte at a time.
 
         Slow but thorough.
 
@@ -283,6 +281,7 @@ class TestMinimizer:
 
         Returns:
             Minimized content
+
         """
         current = content
         i = 0
@@ -308,8 +307,7 @@ class TestMinimizer:
         return current
 
     def _block_removal(self, content: bytes, block_size: int = 1024) -> bytes:
-        """
-        Block removal minimization.
+        """Block removal minimization.
 
         Remove fixed-size blocks until no more can be removed.
 
@@ -319,6 +317,7 @@ class TestMinimizer:
 
         Returns:
             Minimized content
+
         """
         current = content
 
@@ -348,14 +347,14 @@ class TestMinimizer:
         return current
 
     def _create_temp_file(self, content: bytes) -> Path:
-        """
-        Create temporary file for testing.
+        """Create temporary file for testing.
 
         Args:
             content: File content
 
         Returns:
             Path to temporary file
+
         """
         import tempfile
 
@@ -367,12 +366,11 @@ class TestMinimizer:
 
 def minimize_crash_case(
     crash_file: Path,
-    target_runner,
+    target_runner: Any,
     output_dir: Path,
     strategy: MinimizationStrategy = MinimizationStrategy.DDMIN,
 ) -> MinimizationResult:
-    """
-    Convenience function to minimize a crash case using target runner.
+    """Convenience function to minimize a crash case using target runner.
 
     Args:
         crash_file: Path to crashing input file
@@ -382,6 +380,7 @@ def minimize_crash_case(
 
     Returns:
         Minimization result
+
     """
 
     def crash_predicate(test_file: Path) -> bool:

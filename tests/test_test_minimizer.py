@@ -2,8 +2,9 @@
 Tests for test case minimization (delta debugging).
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from dicom_fuzzer.core.test_minimizer import (
     MinimizationStrategy,

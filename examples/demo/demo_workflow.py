@@ -17,7 +17,7 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-# noqa: E402 - imports after path modification
+
 from core.corpus import Corpus  # noqa: E402
 from core.coverage_tracker import CoverageTracker  # noqa: E402
 from core.crash_analyzer import CrashAnalyzer  # noqa: E402

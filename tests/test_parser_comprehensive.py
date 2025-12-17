@@ -8,11 +8,11 @@ from unittest.mock import patch
 import pytest
 from pydicom.tag import Tag
 
-from dicom_fuzzer.core.parser import DicomParser
 from dicom_fuzzer.core.exceptions import (
     ParsingError,
     SecurityViolationError,
 )
+from dicom_fuzzer.core.parser import DicomParser
 
 
 class TestDicomParserInitialization:

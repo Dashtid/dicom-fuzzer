@@ -6,13 +6,14 @@ Achieves 80%+ coverage of stateless_harness.py module.
 
 import gc
 from pathlib import Path
+
 import pytest
 
 from dicom_fuzzer.utils.stateless_harness import (
-    validate_determinism,
+    _hash_result,
     create_stateless_test_wrapper,
     detect_state_leaks,
-    _hash_result,
+    validate_determinism,
 )
 
 
@@ -88,6 +89,7 @@ class TestHashResult:
 
     def test_hash_unhashable_object(self):
         """Test hashing object that might fail str() conversion."""
+
         class CustomClass:
             def __str__(self):
                 raise ValueError("Cannot convert to string")
@@ -106,6 +108,7 @@ class TestValidateDeterminism:
 
     def test_deterministic_function(self):
         """Test with deterministic function."""
+
         def deterministic_func(x):
             return x * 2
 
@@ -116,6 +119,7 @@ class TestValidateDeterminism:
 
     def test_deterministic_function_cleanup(self):
         """Test with cleanup enabled."""
+
         def deterministic_func(x):
             return x + "suffix"
 
@@ -134,9 +138,7 @@ class TestValidateDeterminism:
             counter["value"] += 1
             return f"{x}_{counter['value']}"
 
-        is_det, error = validate_determinism(
-            "test", nondeterministic_func, runs=3
-        )
+        is_det, error = validate_determinism("test", nondeterministic_func, runs=3)
 
         assert is_det is False
         assert error is not None
@@ -144,6 +146,7 @@ class TestValidateDeterminism:
 
     def test_function_raises_exception(self):
         """Test with function that raises exception."""
+
         def failing_func(x):
             raise ValueError("Test error")
 
@@ -183,6 +186,7 @@ class TestValidateDeterminism:
 
     def test_different_input_types(self):
         """Test with different input types."""
+
         def func(x):
             if isinstance(x, int):
                 return x * 2
@@ -200,14 +204,13 @@ class TestValidateDeterminism:
 
     def test_no_cleanup(self):
         """Test with cleanup disabled."""
+
         def func(x):
             return hashlib.sha256(str(x).encode()).hexdigest()
 
         import hashlib
 
-        is_det, error = validate_determinism(
-            "test", func, runs=3, cleanup=False
-        )
+        is_det, error = validate_determinism("test", func, runs=3, cleanup=False)
 
         assert is_det is True
 
@@ -217,6 +220,7 @@ class TestCreateStatelessTestWrapper:
 
     def test_wrapper_basic_functionality(self):
         """Test wrapper preserves basic functionality."""
+
         def original_func(x):
             return x * 2
 
@@ -227,6 +231,7 @@ class TestCreateStatelessTestWrapper:
 
     def test_wrapper_with_args(self):
         """Test wrapper with multiple arguments."""
+
         def original_func(a, b, c):
             return a + b + c
 
@@ -237,6 +242,7 @@ class TestCreateStatelessTestWrapper:
 
     def test_wrapper_with_kwargs(self):
         """Test wrapper with keyword arguments."""
+
         def original_func(x=10, y=20):
             return x * y
 
@@ -259,6 +265,7 @@ class TestCreateStatelessTestWrapper:
         gc.collect = mock_gc_collect
 
         try:
+
             def test_func(x):
                 return x
 
@@ -272,6 +279,7 @@ class TestCreateStatelessTestWrapper:
 
     def test_wrapper_exception_handling(self):
         """Test wrapper handles exceptions and still cleans up."""
+
         def failing_func(x):
             raise ValueError("Test error")
 
@@ -284,6 +292,7 @@ class TestCreateStatelessTestWrapper:
 
     def test_wrapper_preserves_return_types(self):
         """Test wrapper preserves different return types."""
+
         def return_dict(x):
             return {"result": x}
 
@@ -332,9 +341,7 @@ class TestDetectStateLeaks:
         def stateless_harness(path):
             return path.read_text()
 
-        results = detect_state_leaks(
-            stateless_harness, [file1, file2]
-        )
+        results = detect_state_leaks(stateless_harness, [file1, file2])
 
         assert results["leaked"] is False
         assert len(results["evidence"]) == 0
@@ -355,9 +362,7 @@ class TestDetectStateLeaks:
             state["counter"] += 1
             return f"{path.read_text()}_{state['counter']}"
 
-        results = detect_state_leaks(
-            stateful_harness, [file1, file2]
-        )
+        results = detect_state_leaks(stateful_harness, [file1, file2])
 
         assert results["leaked"] is True
         assert len(results["affected_files"]) > 0
@@ -377,6 +382,7 @@ class TestDetectStateLeaks:
 
     def test_empty_file_list(self):
         """Test with empty file list."""
+
         def harness(path):
             return path.read_text()
 
@@ -397,9 +403,7 @@ class TestDetectStateLeaks:
                 raise ValueError("Baseline failure")
             return content
 
-        results = detect_state_leaks(
-            failing_harness, [file1, file2]
-        )
+        results = detect_state_leaks(failing_harness, [file1, file2])
 
         # Should handle gracefully
         assert isinstance(results, dict)
@@ -421,9 +425,7 @@ class TestDetectStateLeaks:
                 raise ValueError("Test run failure")
             return path.read_text()
 
-        results = detect_state_leaks(
-            intermittent_harness, [file1, file2]
-        )
+        results = detect_state_leaks(intermittent_harness, [file1, file2])
 
         # Should handle gracefully
         assert isinstance(results, dict)
@@ -471,6 +473,7 @@ class TestIntegrationScenarios:
 
     def test_complete_validation_workflow(self, tmp_path):
         """Test complete stateless validation workflow."""
+
         # Create test function
         def test_harness(data):
             import hashlib

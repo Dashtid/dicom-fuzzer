@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Fuzzing Performance Benchmark Script
+"""Fuzzing Performance Benchmark Script
 
 Measures baseline performance metrics for the DICOM fuzzer:
 - Executions per second
@@ -12,12 +11,12 @@ Usage:
     python scripts/benchmark_fuzzing.py
 """
 
-import time
+import sys
 import tempfile
+import time
 import tracemalloc
 from pathlib import Path
 from statistics import mean, stdev
-import sys
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -25,9 +24,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian
 
+from dicom_fuzzer.core.corpus import CorpusManager
 from dicom_fuzzer.core.mutator import DicomMutator
 from dicom_fuzzer.core.parser import DicomParser
-from dicom_fuzzer.core.corpus import CorpusManager
 from dicom_fuzzer.core.types import MutationSeverity
 
 
@@ -66,7 +65,9 @@ def benchmark_mutations(iterations: int = 100) -> dict:
 
     # Warm-up
     for _ in range(5):
-        mutator.apply_mutations(dataset.copy(), num_mutations=3, severity=MutationSeverity.MODERATE)
+        mutator.apply_mutations(
+            dataset.copy(), num_mutations=3, severity=MutationSeverity.MODERATE
+        )
 
     # Benchmark
     times = []
@@ -76,7 +77,9 @@ def benchmark_mutations(iterations: int = 100) -> dict:
     start_time = time.time()
     for _ in range(iterations):
         iter_start = time.time()
-        mutated = mutator.apply_mutations(dataset.copy(), num_mutations=3, severity=MutationSeverity.MODERATE)
+        mutator.apply_mutations(
+            dataset.copy(), num_mutations=3, severity=MutationSeverity.MODERATE
+        )
         iter_time = time.time() - iter_start
         times.append(iter_time)
 
@@ -125,7 +128,7 @@ def benchmark_parsing(iterations: int = 100) -> dict:
         for _ in range(iterations):
             iter_start = time.time()
             parser = DicomParser(tmp_path, security_checks=False)
-            metadata = parser.extract_metadata()
+            parser.extract_metadata()
             iter_time = time.time() - iter_start
             times.append(iter_time)
 
@@ -158,7 +161,9 @@ def benchmark_corpus_operations(iterations: int = 50) -> dict:
 
     with tempfile.TemporaryDirectory() as tmpdir:
         corpus_dir = Path(tmpdir) / "corpus"
-        manager = CorpusManager(corpus_dir, max_corpus_size=100, min_fitness_threshold=0.0)
+        manager = CorpusManager(
+            corpus_dir, max_corpus_size=100, min_fitness_threshold=0.0
+        )
 
         # Create sample datasets
         datasets = [create_sample_dicom() for _ in range(10)]
@@ -206,7 +211,9 @@ def benchmark_end_to_end(iterations: int = 50) -> dict:
 
     with tempfile.TemporaryDirectory() as tmpdir:
         corpus_dir = Path(tmpdir) / "corpus"
-        manager = CorpusManager(corpus_dir, max_corpus_size=50, min_fitness_threshold=0.0)
+        manager = CorpusManager(
+            corpus_dir, max_corpus_size=50, min_fitness_threshold=0.0
+        )
         mutator = DicomMutator()
 
         # Create sample dataset
@@ -214,7 +221,9 @@ def benchmark_end_to_end(iterations: int = 50) -> dict:
 
         # Warm-up
         for i in range(3):
-            mutated = mutator.apply_mutations(original_ds.copy(), num_mutations=3, severity=MutationSeverity.MODERATE)
+            mutated = mutator.apply_mutations(
+                original_ds.copy(), num_mutations=3, severity=MutationSeverity.MODERATE
+            )
             manager.add_entry(f"warmup_{i}", mutated)
 
         # Benchmark
@@ -227,7 +236,9 @@ def benchmark_end_to_end(iterations: int = 50) -> dict:
             iter_start = time.time()
 
             # Mutate
-            mutated = mutator.apply_mutations(original_ds.copy(), num_mutations=3, severity=MutationSeverity.MODERATE)
+            mutated = mutator.apply_mutations(
+                original_ds.copy(), num_mutations=3, severity=MutationSeverity.MODERATE
+            )
 
             # Add to corpus
             manager.add_entry(f"fuzzed_{i}", mutated)
@@ -267,8 +278,8 @@ def print_results(results: list):
         print("-" * 80)
         print(f"  Iterations:        {result['iterations']}")
         print(f"  Total Time:        {result['total_time_sec']:.3f} seconds")
-        print(f"  Avg Time/Op:       {result['avg_time_sec']*1000:.2f} ms")
-        print(f"  Std Dev:           {result['std_time_sec']*1000:.2f} ms")
+        print(f"  Avg Time/Op:       {result['avg_time_sec'] * 1000:.2f} ms")
+        print(f"  Std Dev:           {result['std_time_sec'] * 1000:.2f} ms")
         print(f"  Throughput:        {result['throughput_ops_sec']:.2f} ops/sec")
         print(f"  Memory Used:       {result['memory_mb']:.2f} MB")
 

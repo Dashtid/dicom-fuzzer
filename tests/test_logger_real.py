@@ -6,7 +6,6 @@ and specialized loggers with actual usage patterns.
 
 import logging
 
-
 from dicom_fuzzer.utils.logger import (
     SENSITIVE_FIELDS,
     PerformanceLogger,

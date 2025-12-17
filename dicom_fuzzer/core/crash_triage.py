@@ -1,5 +1,4 @@
-"""
-Automated Crash Triaging and Prioritization
+"""Automated Crash Triaging and Prioritization
 
 This module provides intelligent crash analysis and prioritization based on
 severity, exploitability indicators, and crash characteristics. It helps
@@ -12,14 +11,14 @@ may be simple assertion failures or benign crashes.
 Based on 2025 best practices for automated crash triaging systems.
 """
 
-import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List
 
 from dicom_fuzzer.core.fuzzing_session import CrashRecord
+from dicom_fuzzer.utils.hashing import md5_hash
+from dicom_fuzzer.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class Severity(Enum):
@@ -43,8 +42,7 @@ class ExploitabilityRating(Enum):
 
 @dataclass
 class CrashTriage:
-    """
-    Triage analysis result for a crash.
+    """Triage analysis result for a crash.
 
     Contains severity assessment, exploitability rating, and detailed
     analysis of crash characteristics.
@@ -54,9 +52,9 @@ class CrashTriage:
     severity: Severity
     exploitability: ExploitabilityRating
     priority_score: float  # 0.0-100.0, higher = more important
-    indicators: List[str] = field(default_factory=list)
-    recommendations: List[str] = field(default_factory=list)
-    tags: List[str] = field(default_factory=list)
+    indicators: list[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     summary: str = ""
 
     def __str__(self) -> str:
@@ -69,8 +67,7 @@ class CrashTriage:
 
 
 class CrashTriageEngine:
-    """
-    Automated crash triaging and prioritization engine.
+    """Automated crash triaging and prioritization engine.
 
     Analyzes crashes to determine severity, exploitability, and priority
     for investigation based on multiple indicators.
@@ -108,19 +105,19 @@ class CrashTriageEngine:
         "file not found",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize triage engine."""
-        self.triage_cache: Dict[str, CrashTriage] = {}
+        self.triage_cache: dict[str, CrashTriage] = {}
 
     def triage_crash(self, crash: CrashRecord) -> CrashTriage:
-        """
-        Perform automated triage analysis on a crash.
+        """Perform automated triage analysis on a crash.
 
         Args:
             crash: Crash record to analyze
 
         Returns:
             Triage analysis result
+
         """
         # Check cache
         crash_id = self._generate_crash_id(crash)
@@ -160,31 +157,31 @@ class CrashTriageEngine:
 
         return triage
 
-    def triage_crashes(self, crashes: List[CrashRecord]) -> List[CrashTriage]:
-        """
-        Triage multiple crashes and sort by priority.
+    def triage_crashes(self, crashes: list[CrashRecord]) -> list[CrashTriage]:
+        """Triage multiple crashes and sort by priority.
 
         Args:
             crashes: List of crash records
 
         Returns:
             List of triage results, sorted by priority (highest first)
+
         """
         triages = [self.triage_crash(crash) for crash in crashes]
         return sorted(triages, key=lambda t: t.priority_score, reverse=True)
 
-    def get_triage_summary(self, triages: List[CrashTriage]) -> Dict:
-        """
-        Get summary statistics for triage results.
+    def get_triage_summary(self, triages: list[CrashTriage]) -> dict:
+        """Get summary statistics for triage results.
 
         Args:
             triages: List of triage results
 
         Returns:
             Dictionary with summary statistics
+
         """
-        severity_counts = {s: 0 for s in Severity}
-        exploitability_counts = {e: 0 for e in ExploitabilityRating}
+        severity_counts = dict.fromkeys(Severity, 0)
+        exploitability_counts = dict.fromkeys(ExploitabilityRating, 0)
 
         for triage in triages:
             severity_counts[triage.severity] += 1
@@ -205,14 +202,14 @@ class CrashTriageEngine:
         }
 
     def _assess_severity(self, crash: CrashRecord) -> Severity:
-        """
-        Assess crash severity based on crash type and characteristics.
+        """Assess crash severity based on crash type and characteristics.
 
         Args:
             crash: Crash record
 
         Returns:
             Severity level
+
         """
         crash_type = crash.crash_type.upper()
         exception_msg = (crash.exception_message or "").lower()
@@ -243,14 +240,14 @@ class CrashTriageEngine:
         return Severity.MEDIUM
 
     def _assess_exploitability(self, crash: CrashRecord) -> ExploitabilityRating:
-        """
-        Assess potential exploitability of crash.
+        """Assess potential exploitability of crash.
 
         Args:
             crash: Crash record
 
         Returns:
             Exploitability rating
+
         """
         crash_type = crash.crash_type.upper()
         exception_msg = (crash.exception_message or "").lower()
@@ -291,15 +288,15 @@ class CrashTriageEngine:
 
         return ExploitabilityRating.PROBABLY_NOT_EXPLOITABLE
 
-    def _extract_indicators(self, crash: CrashRecord) -> List[str]:
-        """
-        Extract key indicators from crash data.
+    def _extract_indicators(self, crash: CrashRecord) -> list[str]:
+        """Extract key indicators from crash data.
 
         Args:
             crash: Crash record
 
         Returns:
             List of indicator strings
+
         """
         indicators = []
         combined_text = f"{crash.exception_message or ''} {crash.stack_trace or ''}"
@@ -319,9 +316,8 @@ class CrashTriageEngine:
 
         return indicators
 
-    def _generate_tags(self, crash: CrashRecord, indicators: List[str]) -> List[str]:
-        """
-        Generate tags for categorizing crashes.
+    def _generate_tags(self, crash: CrashRecord, indicators: list[str]) -> list[str]:
+        """Generate tags for categorizing crashes.
 
         Args:
             crash: Crash record
@@ -329,6 +325,7 @@ class CrashTriageEngine:
 
         Returns:
             List of tags
+
         """
         tags = []
 
@@ -356,8 +353,7 @@ class CrashTriageEngine:
         exploitability: ExploitabilityRating,
         crash: CrashRecord,
     ) -> float:
-        """
-        Calculate priority score for crash.
+        """Calculate priority score for crash.
 
         Args:
             severity: Assessed severity
@@ -366,6 +362,7 @@ class CrashTriageEngine:
 
         Returns:
             Priority score (0.0-100.0)
+
         """
         # Base score from severity
         severity_scores = {
@@ -398,10 +395,9 @@ class CrashTriageEngine:
         crash: CrashRecord,
         severity: Severity,
         exploitability: ExploitabilityRating,
-        indicators: List[str],
-    ) -> List[str]:
-        """
-        Generate actionable recommendations for investigating crash.
+        indicators: list[str],
+    ) -> list[str]:
+        """Generate actionable recommendations for investigating crash.
 
         Args:
             crash: Crash record
@@ -411,6 +407,7 @@ class CrashTriageEngine:
 
         Returns:
             List of recommendation strings
+
         """
         recommendations = []
 
@@ -451,8 +448,7 @@ class CrashTriageEngine:
         severity: Severity,
         exploitability: ExploitabilityRating,
     ) -> str:
-        """
-        Generate concise summary of crash.
+        """Generate concise summary of crash.
 
         Args:
             crash: Crash record
@@ -461,6 +457,7 @@ class CrashTriageEngine:
 
         Returns:
             Summary string
+
         """
         parts = [
             crash.crash_type,
@@ -477,17 +474,15 @@ class CrashTriageEngine:
         return " ".join(parts)
 
     def _generate_crash_id(self, crash: CrashRecord) -> str:
-        """
-        Generate unique ID for crash (for caching).
+        """Generate unique ID for crash (for caching).
 
         Args:
             crash: Crash record
 
         Returns:
             Crash ID string
-        """
-        import hashlib
 
+        """
         # Use crash characteristics to generate ID
         id_parts = [
             crash.crash_type,
@@ -496,18 +491,18 @@ class CrashTriageEngine:
             crash.stack_trace[:500] if crash.stack_trace else "",
         ]
         id_str = "|".join(id_parts)
-        return hashlib.md5(id_str.encode()).hexdigest()
+        return md5_hash(id_str)
 
 
-def triage_session_crashes(crashes: List[CrashRecord]) -> Dict:
-    """
-    Triage all crashes from a fuzzing session.
+def triage_session_crashes(crashes: list[CrashRecord]) -> dict:
+    """Triage all crashes from a fuzzing session.
 
     Args:
         crashes: List of crash records from session
 
     Returns:
         Dictionary with triage results and statistics
+
     """
     engine = CrashTriageEngine()
     triages = engine.triage_crashes(crashes)

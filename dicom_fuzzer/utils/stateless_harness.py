@@ -1,5 +1,4 @@
-"""
-Stateless Harness Validation Utilities
+"""Stateless Harness Validation Utilities
 
 CONCEPT: Ensure fuzzing harness maintains 100% stability through
 stateless design and determinism validation.
@@ -11,12 +10,14 @@ has hidden state, stability can drop, indicating nondeterministic behavior."
 """
 
 import gc
-import hashlib
-import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, List, Optional
+from typing import Any
 
-logger = logging.getLogger(__name__)
+from dicom_fuzzer.utils.hashing import hash_any
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def validate_determinism(
@@ -24,9 +25,8 @@ def validate_determinism(
     test_function: Callable[[Any], Any],
     runs: int = 3,
     cleanup: bool = True,
-) -> tuple[bool, Optional[str]]:
-    """
-    Validate that test function produces deterministic results.
+) -> tuple[bool, str | None]:
+    """Validate that test function produces deterministic results.
 
     CONCEPT: Run same input multiple times and verify identical output.
     Detects hidden state, race conditions, or entropy sources.
@@ -39,6 +39,7 @@ def validate_determinism(
 
     Returns:
         Tuple of (is_deterministic: bool, error_message: str)
+
     """
     results = []
     result_hashes = []
@@ -78,39 +79,20 @@ def validate_determinism(
 
 
 def _hash_result(result: Any) -> str:
-    """
-    Hash result for determinism comparison.
+    """Hash result for determinism comparison.
 
     Args:
         result: Result to hash
 
     Returns:
         Hash string
+
     """
-    if result is None:
-        return hashlib.sha256(b"None").hexdigest()
-
-    if isinstance(result, bytes):
-        return hashlib.sha256(result).hexdigest()
-
-    if isinstance(result, str):
-        return hashlib.sha256(result.encode()).hexdigest()
-
-    if isinstance(result, (int, float, bool)):
-        return hashlib.sha256(str(result).encode()).hexdigest()
-
-    # For complex objects, convert to string representation
-    try:
-        result_str = str(result)
-        return hashlib.sha256(result_str.encode()).hexdigest()
-    except Exception:
-        # Last resort - use repr
-        return hashlib.sha256(repr(result).encode()).hexdigest()
+    return hash_any(result)
 
 
 def create_stateless_test_wrapper(test_function: Callable) -> Callable:
-    """
-    Create a stateless wrapper around test function.
+    """Create a stateless wrapper around test function.
 
     CONCEPT: Ensures fresh state for each test by:
     1. Force garbage collection before test
@@ -122,9 +104,10 @@ def create_stateless_test_wrapper(test_function: Callable) -> Callable:
 
     Returns:
         Stateless wrapper function
+
     """
 
-    def stateless_wrapper(*args, **kwargs):
+    def stateless_wrapper(*args: Any, **kwargs: Any) -> Any:
         """Stateless test wrapper."""
         # Force cleanup before test
         gc.collect()
@@ -142,10 +125,9 @@ def create_stateless_test_wrapper(test_function: Callable) -> Callable:
 
 
 def detect_state_leaks(
-    harness_function: Callable[[Path], Any], test_files: List[Path]
-) -> dict:
-    """
-    Detect state leaks between harness executions.
+    harness_function: Callable[[Path], Any], test_files: list[Path]
+) -> dict[str, bool | list[str]]:
+    """Detect state leaks between harness executions.
 
     CONCEPT: Run multiple test files and check if earlier tests affect later ones.
 
@@ -155,8 +137,15 @@ def detect_state_leaks(
 
     Returns:
         Dictionary with leak detection results
+
     """
-    results = {"leaked": False, "evidence": [], "affected_files": []}
+    evidence: list[str] = []
+    affected_files: list[str] = []
+    results: dict[str, bool | list[str]] = {
+        "leaked": False,
+        "evidence": evidence,
+        "affected_files": affected_files,
+    }
 
     if len(test_files) < 2:
         logger.warning("Need at least 2 test files to detect state leaks")
@@ -193,8 +182,8 @@ def detect_state_leaks(
         if baseline_hash != test_hash:
             # State leak detected!
             results["leaked"] = True
-            results["affected_files"].append(str(test_file))
-            results["evidence"].append(
+            affected_files.append(str(test_file))
+            evidence.append(
                 f"{test_file.name}: Result differs when run after other tests"
             )
 
@@ -203,9 +192,9 @@ def detect_state_leaks(
                 f"result when run after other tests"
             )
 
-    if results["leaked"]:
+    if affected_files:
         logger.error(
-            f"State leaks detected in {len(results['affected_files'])} test(s). "
+            f"State leaks detected in {len(affected_files)} test(s). "
             "Harness is NOT stateless!"
         )
     else:

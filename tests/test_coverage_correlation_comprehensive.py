@@ -4,16 +4,17 @@ Comprehensive tests for coverage correlation analysis.
 Achieves 80%+ coverage of coverage_correlation.py module.
 """
 
-import pytest
 from dataclasses import dataclass
+
+import pytest
 
 from dicom_fuzzer.utils.coverage_correlation import (
     CoverageInsight,
     CrashCoverageCorrelation,
     correlate_crashes_with_coverage,
     generate_correlation_report,
-    identify_crash_prone_modules,
     get_safe_coverage,
+    identify_crash_prone_modules,
 )
 
 
@@ -501,9 +502,7 @@ class TestIntegrationScenarios:
         assert "func_dangerous" in dangerous_ids
 
         # Verify crash rate
-        dangerous_rates = {
-            path: rate for path, rate in correlation.dangerous_paths
-        }
+        dangerous_rates = dict(correlation.dangerous_paths)
         assert dangerous_rates["func_dangerous"] == pytest.approx(0.8, rel=0.01)
 
     def test_module_grouping(self):

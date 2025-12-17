@@ -50,12 +50,7 @@
   "fuzzing_config": {
     "strip_pixel_data": false,
     "max_file_size_mb": 50,
-    "strategies": [
-      "metadata",
-      "header",
-      "structure",
-      "pixel"
-    ],
+    "strategies": ["metadata", "header", "structure", "pixel"],
     "mutation_severity": "moderate"
   },
 

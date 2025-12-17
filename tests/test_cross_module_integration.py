@@ -50,6 +50,7 @@ class TestCrossModuleIntegration:
                 "corpus": base / "corpus",
                 "output": base / "output",
                 "reports": base / "reports",
+                "crashes": base / "crashes",
             }
             for d in dirs.values():
                 d.mkdir(parents=True, exist_ok=True)
@@ -206,6 +207,7 @@ class TestCrossModuleIntegration:
             session_name="profiled_session",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         with profiler:

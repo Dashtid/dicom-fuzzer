@@ -1,15 +1,46 @@
 """
 Pytest configuration and shared fixtures for DICOM-Fuzzer tests.
+
+Optimizations for 4k+ tests:
+- Auto-cleanup of orphaned .coverage.* files
+- Worksteal distribution for parallel testing
+- Session-scoped fixtures for expensive setup
 """
 
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pydicom
 import pytest
 from pydicom.dataset import Dataset, FileDataset
 from pydicom.uid import generate_uid
+
+# Ignore production modules that have class names starting with "Test" but are not test classes
+# This prevents pytest from collecting them as tests
+collect_ignore_glob = ["**/dicom_fuzzer/core/test_minimizer.py"]
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Clean up orphaned coverage files before test session starts.
+
+    This prevents accumulation of .coverage.* files from interrupted xdist runs.
+    """
+    import glob
+    import os
+
+    project_root = Path(__file__).parent.parent
+    patterns = [
+        str(project_root / ".coverage.*"),  # Worker coverage files
+        str(project_root / ".coverage"),  # Main coverage file (will be recreated)
+    ]
+
+    for pattern in patterns:
+        for file_path in glob.glob(pattern):
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass  # Ignore errors (file in use, permissions, etc.)
 
 
 @pytest.fixture
@@ -126,7 +157,7 @@ def small_file(temp_dir: Path) -> Path:
 
 @pytest.fixture
 def reset_structlog():
-    """Reset structlog configuration before each test.
+    """Reset structlog configuration before and after each test.
 
     This ensures tests don't interfere with each other's logging configuration.
     """
@@ -134,57 +165,61 @@ def reset_structlog():
 
     import structlog
 
+    def _cleanup():
+        """Clean up logging and structlog configuration."""
+        # Flush and close all logging handlers
+        for handler in logging.root.handlers[:]:
+            handler.flush()
+            handler.close()
+            logging.root.removeHandler(handler)
+
+        # Reset structlog to defaults
+        structlog.reset_defaults()
+
+    # Clean up BEFORE the test to ensure clean state
+    _cleanup()
+
     yield
 
-    # Flush and close all logging handlers before resetting
-    for handler in logging.root.handlers[:]:
-        handler.flush()
-        handler.close()
-        logging.root.removeHandler(handler)
-
-    # Reset to original after test
-    structlog.reset_defaults()
+    # Clean up AFTER the test
+    _cleanup()
 
 
 @pytest.fixture
-def capture_logs(reset_structlog):
+def capture_logs():
     """Capture log output for testing.
 
     Returns:
         List that will contain captured log entries
+
+    Note: Uses structlog's official testing utilities which properly
+    handle in-place processor modification to preserve cached logger
+    references.
     """
-    import logging
-
     import structlog
+    import structlog.testing
 
-    captured = []
+    # Ensure structlog is configured before capturing
+    # This handles the case where no test has configured structlog yet
+    if not structlog.is_configured():
+        structlog.configure(
+            processors=[
+                structlog.stdlib.add_log_level,
+                structlog.stdlib.add_logger_name,
+                structlog.processors.JSONRenderer(),
+            ],
+            wrapper_class=structlog.stdlib.BoundLogger,
+            context_class=dict,
+            logger_factory=structlog.stdlib.LoggerFactory(),
+            cache_logger_on_first_use=False,
+        )
 
-    def capture_processor(logger, method_name, event_dict):
-        """Capture event dict before rendering."""
-        captured.append(event_dict.copy())
-        return event_dict
-
-    # Configure structlog to capture logs
-    logging.basicConfig(level=logging.DEBUG)
-
-    structlog.configure(
-        processors=[
-            structlog.contextvars.merge_contextvars,
-            structlog.stdlib.add_log_level,
-            structlog.stdlib.add_logger_name,
-            capture_processor,
-            structlog.processors.JSONRenderer(),
-        ],
-        wrapper_class=structlog.stdlib.BoundLogger,
-        context_class=dict,
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        cache_logger_on_first_use=False,
-    )
-
-    yield captured
-
-    # Clear captured logs
-    captured.clear()
+    # Use structlog's official capture_logs with add_log_level processor
+    # to ensure 'level' key is present in captured entries
+    with structlog.testing.capture_logs(
+        processors=[structlog.stdlib.add_log_level]
+    ) as captured:
+        yield captured
 
 
 @pytest.fixture

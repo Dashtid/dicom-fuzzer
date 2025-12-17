@@ -2,7 +2,7 @@
 
 from pydicom import Dataset
 
-from dicom_fuzzer.core.validator import ValidationResult, DicomValidator
+from dicom_fuzzer.core.validator import DicomValidator, ValidationResult
 
 
 class TestValidationResult:
@@ -218,7 +218,7 @@ class TestValidationIntegration:
         result.add_warning("Optional field missing")
 
         # Demonstrate conditional error (walrus operator for demonstration)
-        if critical_check_fails := False:  # noqa: F841
+        if critical_check_fails := False:
             result.add_error("Critical error")
 
         # Result should still be valid

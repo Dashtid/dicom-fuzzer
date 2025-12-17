@@ -1,6 +1,9 @@
 version: 2
 updates:
   # Enable version updates for Python dependencies
+  # Note: This uses pip ecosystem as dependabot doesn't yet fully support uv.lock
+  # Dependencies are managed through pyproject.toml [dependency-groups] and uv.lock
+  # Dependabot will create PRs based on pyproject.toml, then we regenerate uv.lock
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
@@ -14,6 +17,14 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    # Group minor and patch updates together to reduce PR noise
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"

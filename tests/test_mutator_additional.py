@@ -5,9 +5,10 @@ These tests target specific uncovered code paths in mutator.py
 to increase overall test coverage.
 """
 
+from unittest.mock import Mock
+
 import pytest
 from pydicom.dataset import Dataset
-from unittest.mock import Mock
 
 from dicom_fuzzer.core.mutator import (
     DicomMutator,

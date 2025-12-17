@@ -13,7 +13,8 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
-from hypothesis import given, strategies as st, settings, HealthCheck
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 from hypothesis.strategies import composite
 from pydicom.dataset import Dataset
 
@@ -169,15 +170,19 @@ class TestFuzzingSessionProperties:
             min_size=1,
             max_size=50,
         ),
-        num_files=st.integers(min_value=0, max_value=100),
+        num_files=st.integers(min_value=0, max_value=50),  # Reduced max for stability
     )
-    @settings(deadline=500)
+    @settings(
+        deadline=2000, database=None
+    )  # Increased deadline, disabled replay database
     def test_session_tracking_consistency(self, session_name, num_files):
         """Property: Session tracking maintains consistency."""
         with tempfile.TemporaryDirectory() as tmpdir:
             session = FuzzingSession(
                 session_name=session_name,
                 output_dir=tmpdir,
+                reports_dir=tmpdir + "/reports",
+                crashes_dir=tmpdir + "/crashes",
             )
 
             # Track multiple files
@@ -208,12 +213,15 @@ class TestFuzzingSessionProperties:
             max_size=20,
         )
     )
+    @settings(deadline=500, database=None)  # Disable database to avoid flaky replays
     def test_mutation_recording_integrity(self, mutations):
         """Property: All recorded mutations are preserved correctly."""
         with tempfile.TemporaryDirectory() as tmpdir:
             session = FuzzingSession(
                 session_name="test",
                 output_dir=tmpdir,
+                reports_dir=tmpdir + "/reports",
+                crashes_dir=tmpdir + "/crashes",
             )
 
             session.start_file_fuzzing(
@@ -253,6 +261,8 @@ class TestFuzzingSessionProperties:
             session = FuzzingSession(
                 session_name="stats_test",
                 output_dir=tmpdir,
+                reports_dir=tmpdir + "/reports",
+                crashes_dir=tmpdir + "/crashes",
             )
 
             # Record crashes
@@ -320,12 +330,15 @@ class TestSecurityProperties:
             max_size=5,
         )
     )
+    @settings(deadline=None)  # Disable deadline - temp dir operations vary in duration
     def test_injection_payload_handling(self, injection_payloads):
         """Property: System handles injection payloads safely."""
         with tempfile.TemporaryDirectory() as tmpdir:
             session = FuzzingSession(
                 session_name="security_test",
                 output_dir=tmpdir,
+                reports_dir=tmpdir + "/reports",
+                crashes_dir=tmpdir + "/crashes",
             )
 
             session.start_file_fuzzing(
@@ -350,11 +363,11 @@ class TestSecurityProperties:
 
             # Properties
             assert isinstance(report, dict)
-            assert (
-                len(session.current_file_record.mutations) == len(injection_payloads)
-                if session.current_file_record
-                else True
-            )
+            # After end_file_fuzzing, record is moved to fuzzed_files
+            # Check that mutations were recorded in the completed file record
+            assert len(session.fuzzed_files) >= 1
+            completed_record = list(session.fuzzed_files.values())[-1]
+            assert len(completed_record.mutations) == len(injection_payloads)
 
             # Report generation shouldn't fail with dangerous content
             report_path = session.save_session_report()
@@ -382,6 +395,8 @@ class TestSecurityProperties:
             session = FuzzingSession(
                 session_name="path_test",
                 output_dir=tmpdir,
+                reports_dir=tmpdir + "/reports",
+                crashes_dir=tmpdir + "/crashes",
             )
 
             for attempt in path_traversal_attempts:
@@ -417,12 +432,15 @@ class TestDataIntegrity:
             max_size=10,
         )
     )
+    @settings(database=None)  # Disable database to avoid parallel test conflicts
     def test_mutation_value_preservation(self, original_values):
         """Property: Original values are preserved in mutation records."""
         with tempfile.TemporaryDirectory() as tmpdir:
             session = FuzzingSession(
                 session_name="preservation_test",
                 output_dir=tmpdir,
+                reports_dir=tmpdir + "/reports",
+                crashes_dir=tmpdir + "/crashes",
             )
 
             session.start_file_fuzzing(

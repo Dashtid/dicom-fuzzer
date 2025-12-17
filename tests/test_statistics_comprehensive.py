@@ -4,8 +4,10 @@ Comprehensive tests for core/statistics.py module.
 Achieves 80%+ coverage of statistics tracking functionality.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
+
 from dicom_fuzzer.core.statistics import (
     IterationData,
     MutationStatistics,
@@ -423,9 +425,7 @@ class TestAdditionalMethods:
         collector = StatisticsCollector()
 
         iteration_num = collector.track_iteration(
-            file_path="/path/to/test.dcm",
-            mutations_applied=5,
-            severity="high"
+            file_path="/path/to/test.dcm", mutations_applied=5, severity="high"
         )
 
         assert iteration_num == 1
@@ -440,9 +440,7 @@ class TestAdditionalMethods:
 
         for i in range(10):
             iteration_num = collector.track_iteration(
-                file_path=f"/test{i}.dcm",
-                mutations_applied=i + 1,
-                severity="medium"
+                file_path=f"/test{i}.dcm", mutations_applied=i + 1, severity="medium"
             )
             assert iteration_num == i + 1
 
@@ -520,7 +518,9 @@ class TestAdditionalMethods:
         collector = StatisticsCollector()
 
         # Add some data
-        collector.record_mutation("test", duration=1.0, output_hash="hash1", file_size=1000)
+        collector.record_mutation(
+            "test", duration=1.0, output_hash="hash1", file_size=1000
+        )
         collector.record_crash("test", "crash1")
         collector.record_file_generated()
         collector.record_tag_mutated("PatientName")

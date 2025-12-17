@@ -6,7 +6,6 @@ Tests HTML report generation, session overview, crash details, mutation analysis
 from pathlib import Path
 from unittest.mock import patch
 
-
 from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
 
 

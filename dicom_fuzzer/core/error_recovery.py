@@ -1,5 +1,4 @@
-"""
-Error Recovery and Campaign Resumption
+"""Error Recovery and Campaign Resumption
 
 CONCEPT: Provides robust error recovery, checkpoint/resume functionality,
 and graceful shutdown handling for long-running fuzzing campaigns.
@@ -13,15 +12,22 @@ STABILITY FEATURES:
 """
 
 import json
-import logging
 import signal
 import time
-from dataclasses import asdict, dataclass
+from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from types import FrameType
+from typing import Any, TypeVar
 
-logger = logging.getLogger(__name__)
+from dicom_fuzzer.core.serialization import SerializableMixin
+from dicom_fuzzer.utils.logger import get_logger
+
+# Type variable for generic function wrapper
+F = TypeVar("F", bound=Callable[..., Any])
+
+logger = get_logger(__name__)
 
 
 class CampaignStatus(Enum):
@@ -36,9 +42,8 @@ class CampaignStatus(Enum):
 
 
 @dataclass
-class CampaignCheckpoint:
-    """
-    Checkpoint state for resumable fuzzing campaigns.
+class CampaignCheckpoint(SerializableMixin):
+    """Checkpoint state for resumable fuzzing campaigns.
 
     CONCEPT: Captures enough state to resume a campaign after interruption
     or failure without losing progress.
@@ -54,28 +59,53 @@ class CampaignCheckpoint:
     failed: int
     crashes: int
     current_file_index: int
-    test_files: List[str]  # File paths as strings
+    test_files: list[str]  # File paths as strings
     output_dir: str
     crash_dir: str
-    metadata: Dict[str, Any]  # Additional campaign-specific data
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert checkpoint to dictionary for serialization."""
-        data = asdict(self)
-        data["status"] = self.status.value  # Convert enum to string
-        return data
+    metadata: dict[str, Any]  # Additional campaign-specific data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CampaignCheckpoint":
-        """Create checkpoint from dictionary."""
+    def from_dict(cls, data: dict[str, Any]) -> "CampaignCheckpoint":
+        """Create checkpoint from dictionary.
+
+        Args:
+            data: Dictionary representation of checkpoint
+
+        Returns:
+            CampaignCheckpoint instance
+
+        Raises:
+            KeyError: If required fields are missing
+
+        """
+        # Validate required fields
+        required_fields = [
+            "campaign_id",
+            "status",
+            "start_time",
+            "last_update",
+            "total_files",
+            "processed_files",
+            "successful",
+            "failed",
+            "crashes",
+            "current_file_index",
+            "test_files",
+            "output_dir",
+            "crash_dir",
+            "metadata",
+        ]
+        missing = [f for f in required_fields if f not in data]
+        if missing:
+            raise KeyError(f"Missing required fields in checkpoint data: {missing}")
+
         # Convert status string to enum
         data["status"] = CampaignStatus(data["status"])
         return cls(**data)
 
 
 class CampaignRecovery:
-    """
-    Manages checkpoint/resume functionality for fuzzing campaigns.
+    """Manages checkpoint/resume functionality for fuzzing campaigns.
 
     CONCEPT: Enables long-running campaigns to survive interruptions by:
     1. Periodically saving progress to disk
@@ -90,20 +120,20 @@ class CampaignRecovery:
         checkpoint_interval: int = 100,  # Files between checkpoints
         enable_auto_resume: bool = True,
     ):
-        """
-        Initialize campaign recovery manager.
+        """Initialize campaign recovery manager.
 
         Args:
             checkpoint_dir: Directory to store checkpoint files
             checkpoint_interval: Number of files processed between checkpoints
             enable_auto_resume: Automatically resume interrupted campaigns
+
         """
         self.checkpoint_dir = Path(checkpoint_dir)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.checkpoint_interval = checkpoint_interval
         self.enable_auto_resume = enable_auto_resume
 
-        self.current_checkpoint: Optional[CampaignCheckpoint] = None
+        self.current_checkpoint: CampaignCheckpoint | None = None
         self.files_since_checkpoint = 0
 
         logger.info(
@@ -120,13 +150,12 @@ class CampaignRecovery:
         failed: int,
         crashes: int,
         current_file_index: int,
-        test_files: List[Path],
+        test_files: list[Path],
         output_dir: str,
         crash_dir: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> CampaignCheckpoint:
-        """
-        Create a new campaign checkpoint.
+        """Create a new campaign checkpoint.
 
         Args:
             campaign_id: Unique identifier for this campaign
@@ -143,6 +172,7 @@ class CampaignRecovery:
 
         Returns:
             CampaignCheckpoint object
+
         """
         checkpoint = CampaignCheckpoint(
             campaign_id=campaign_id,
@@ -169,23 +199,22 @@ class CampaignRecovery:
         return checkpoint
 
     def should_checkpoint(self, force: bool = False) -> bool:
-        """
-        Check if checkpoint should be saved now.
+        """Check if checkpoint should be saved now.
 
         Args:
             force: Force checkpoint regardless of interval
 
         Returns:
             True if checkpoint should be saved
+
         """
         if force:
             return True
 
         return self.files_since_checkpoint >= self.checkpoint_interval
 
-    def save_checkpoint(self, checkpoint: Optional[CampaignCheckpoint] = None) -> Path:
-        """
-        Save checkpoint to disk atomically to prevent corruption.
+    def save_checkpoint(self, checkpoint: CampaignCheckpoint | None = None) -> Path:
+        """Save checkpoint to disk atomically to prevent corruption.
 
         STABILITY: Uses atomic write pattern (write to temp, then rename) to ensure
         checkpoint file is never in corrupted/partial state.
@@ -198,6 +227,7 @@ class CampaignRecovery:
 
         Raises:
             ValueError: If no checkpoint to save
+
         """
         if checkpoint is None:
             checkpoint = self.current_checkpoint
@@ -236,13 +266,14 @@ class CampaignRecovery:
             if temp_file.exists():
                 try:
                     temp_file.unlink()
-                except Exception:
-                    pass
+                except Exception as cleanup_err:
+                    logger.debug(
+                        f"Failed to cleanup temp file {temp_file}: {cleanup_err}"
+                    )
             raise
 
-    def load_checkpoint(self, campaign_id: str) -> Optional[CampaignCheckpoint]:
-        """
-        Load and validate checkpoint from disk.
+    def load_checkpoint(self, campaign_id: str) -> CampaignCheckpoint | None:
+        """Load and validate checkpoint from disk.
 
         STABILITY: Validates checkpoint data integrity to detect corruption.
 
@@ -251,6 +282,7 @@ class CampaignRecovery:
 
         Returns:
             CampaignCheckpoint if found and valid, None otherwise
+
         """
         checkpoint_file = self.checkpoint_dir / f"{campaign_id}_checkpoint.json"
 
@@ -259,14 +291,16 @@ class CampaignRecovery:
             return None
 
         try:
-            with open(checkpoint_file, "r") as f:
+            with open(checkpoint_file) as f:
                 data = json.load(f)
 
             checkpoint = CampaignCheckpoint.from_dict(data)
 
             # VALIDATION: Verify checkpoint data is consistent
             if not self._validate_checkpoint(checkpoint):
-                logger.error("Checkpoint validation failed - checkpoint may be corrupted")
+                logger.error(
+                    "Checkpoint validation failed - checkpoint may be corrupted"
+                )
                 return None
 
             logger.info(
@@ -285,8 +319,7 @@ class CampaignRecovery:
             return None
 
     def _validate_checkpoint(self, checkpoint: CampaignCheckpoint) -> bool:
-        """
-        Validate checkpoint data integrity.
+        """Validate checkpoint data integrity.
 
         CONCEPT: Detect corrupted or inconsistent checkpoint data before use.
 
@@ -295,6 +328,7 @@ class CampaignRecovery:
 
         Returns:
             True if valid, False otherwise
+
         """
         try:
             # Check basic sanity of counters
@@ -310,7 +344,9 @@ class CampaignRecovery:
                 return False
 
             # Check that result counts add up
-            total_results = checkpoint.successful + checkpoint.failed + checkpoint.crashes
+            total_results = (
+                checkpoint.successful + checkpoint.failed + checkpoint.crashes
+            )
             if total_results > checkpoint.processed_files:
                 logger.warning(
                     f"Checkpoint stats mismatch: results ({total_results}) "
@@ -342,18 +378,18 @@ class CampaignRecovery:
             logger.error(f"Exception during checkpoint validation: {e}")
             return False
 
-    def list_interrupted_campaigns(self) -> List[CampaignCheckpoint]:
-        """
-        Find all interrupted campaigns that can be resumed.
+    def list_interrupted_campaigns(self) -> list[CampaignCheckpoint]:
+        """Find all interrupted campaigns that can be resumed.
 
         Returns:
             List of interrupted CampaignCheckpoint objects
+
         """
         interrupted = []
 
         for checkpoint_file in self.checkpoint_dir.glob("*_checkpoint.json"):
             try:
-                with open(checkpoint_file, "r") as f:
+                with open(checkpoint_file) as f:
                     data = json.load(f)
 
                 checkpoint = CampaignCheckpoint.from_dict(data)
@@ -371,12 +407,12 @@ class CampaignRecovery:
 
         return interrupted
 
-    def mark_completed(self, campaign_id: str):
-        """
-        Mark campaign as completed and clean up checkpoint.
+    def mark_completed(self, campaign_id: str) -> None:
+        """Mark campaign as completed and clean up checkpoint.
 
         Args:
             campaign_id: Campaign identifier
+
         """
         if (
             self.current_checkpoint
@@ -391,13 +427,13 @@ class CampaignRecovery:
 
         logger.info(f"Campaign marked as completed: {campaign_id}")
 
-    def mark_failed(self, campaign_id: str, reason: str):
-        """
-        Mark campaign as failed.
+    def mark_failed(self, campaign_id: str, reason: str) -> None:
+        """Mark campaign as failed.
 
         Args:
             campaign_id: Campaign identifier
             reason: Reason for failure
+
         """
         if (
             self.current_checkpoint
@@ -410,12 +446,12 @@ class CampaignRecovery:
 
         logger.error(f"Campaign marked as failed: {campaign_id} - {reason}")
 
-    def mark_interrupted(self, campaign_id: str):
-        """
-        Mark campaign as interrupted (for graceful shutdown).
+    def mark_interrupted(self, campaign_id: str) -> None:
+        """Mark campaign as interrupted (for graceful shutdown).
 
         Args:
             campaign_id: Campaign identifier
+
         """
         if (
             self.current_checkpoint
@@ -427,12 +463,12 @@ class CampaignRecovery:
 
         logger.warning(f"Campaign marked as interrupted: {campaign_id}")
 
-    def cleanup_checkpoint(self, campaign_id: str):
-        """
-        Remove checkpoint file for completed/failed campaign.
+    def cleanup_checkpoint(self, campaign_id: str) -> None:
+        """Remove checkpoint file for completed/failed campaign.
 
         Args:
             campaign_id: Campaign identifier
+
         """
         checkpoint_file = self.checkpoint_dir / f"{campaign_id}_checkpoint.json"
 
@@ -445,15 +481,15 @@ class CampaignRecovery:
 
     def update_progress(
         self, processed: int, successful: int, failed: int, crashes: int
-    ):
-        """
-        Update progress counters and trigger checkpoint if needed.
+    ) -> None:
+        """Update progress counters and trigger checkpoint if needed.
 
         Args:
             processed: Number of files processed
             successful: Number of successful tests
             failed: Number of failed tests
             crashes: Number of crashes
+
         """
         if self.current_checkpoint:
             self.current_checkpoint.processed_files = processed
@@ -470,28 +506,30 @@ class CampaignRecovery:
 
 
 class SignalHandler:
-    """
-    Handles graceful shutdown on SIGINT/SIGTERM.
+    """Handles graceful shutdown on SIGINT/SIGTERM.
 
     CONCEPT: Intercepts interrupt signals to allow campaign to save state
     before exiting, enabling resume later.
     """
 
-    def __init__(self, recovery_manager: Optional[CampaignRecovery] = None):
-        """
-        Initialize signal handler.
+    def __init__(self, recovery_manager: CampaignRecovery | None = None):
+        """Initialize signal handler.
 
         Args:
             recovery_manager: CampaignRecovery instance to save state on interrupt
+
         """
         self.recovery_manager = recovery_manager
         self.interrupted = False
-        self.original_sigint = None
-        self.original_sigterm = None
+        # Signal handlers can be callable, int (SIG_DFL/SIG_IGN), or None
+        self.original_sigint: Callable[[int, FrameType | None], Any] | int | None = None
+        self.original_sigterm: Callable[[int, FrameType | None], Any] | int | None = (
+            None
+        )
 
         logger.debug("SignalHandler initialized")
 
-    def install(self):
+    def install(self) -> None:
         """Install signal handlers."""
         self.original_sigint = signal.signal(signal.SIGINT, self._handle_signal)
 
@@ -501,23 +539,23 @@ class SignalHandler:
 
         logger.info("Signal handlers installed (SIGINT/SIGTERM)")
 
-    def uninstall(self):
+    def uninstall(self) -> None:
         """Restore original signal handlers."""
-        if self.original_sigint:
+        if self.original_sigint is not None:
             signal.signal(signal.SIGINT, self.original_sigint)
 
-        if self.original_sigterm and hasattr(signal, "SIGTERM"):
+        if self.original_sigterm is not None and hasattr(signal, "SIGTERM"):
             signal.signal(signal.SIGTERM, self.original_sigterm)
 
         logger.debug("Signal handlers uninstalled")
 
-    def _handle_signal(self, signum, frame):
-        """
-        Handle interrupt signal.
+    def _handle_signal(self, signum: int, frame: FrameType | None) -> None:
+        """Handle interrupt signal.
 
         Args:
             signum: Signal number
             frame: Current stack frame
+
         """
         signal_name = signal.Signals(signum).name
         logger.warning(f"Received {signal_name} - initiating graceful shutdown")
@@ -537,24 +575,23 @@ class SignalHandler:
         logger.info("Checkpoint saved. Press Ctrl+C again to force exit.")
 
     def check_interrupted(self) -> bool:
-        """
-        Check if interrupt signal was received.
+        """Check if interrupt signal was received.
 
         Returns:
             True if interrupted
+
         """
         return self.interrupted
 
 
 # Convenience function for handling errors with recovery
 def with_error_recovery(
-    func,
+    func: F,
     max_retries: int = 3,
     retry_delay: float = 1.0,
     backoff_factor: float = 2.0,
-):
-    """
-    Decorator for adding error recovery with exponential backoff.
+) -> F:
+    """Decorator for adding error recovery with exponential backoff.
 
     Args:
         func: Function to wrap
@@ -564,11 +601,12 @@ def with_error_recovery(
 
     Returns:
         Wrapped function with error recovery
+
     """
 
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         delay = retry_delay
-        last_exception = None
+        last_exception: Exception | None = None
 
         for attempt in range(max_retries + 1):
             try:
@@ -586,6 +624,7 @@ def with_error_recovery(
                     logger.error(
                         f"Failed after {max_retries} retries in {func.__name__}: {e}"
                     )
-                    raise last_exception
+                    raise last_exception from e
+        return None  # Unreachable but satisfies type checker
 
-    return wrapper
+    return wrapper  # type: ignore[return-value]

@@ -4,23 +4,24 @@ Comprehensive tests for utils/helpers.py module.
 Focuses on critical utility functions for 70%+ coverage.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 from pydicom.tag import Tag
 
 from dicom_fuzzer.utils.helpers import (
-    validate_file_path,
-    ensure_directory,
-    safe_file_read,
-    tag_to_hex,
-    hex_to_tag,
-    is_private_tag,
+    DICOM_DATE_FORMAT,
+    DICOM_DATETIME_FORMAT,
+    DICOM_TIME_FORMAT,
+    GB,
     KB,
     MB,
-    GB,
-    DICOM_DATE_FORMAT,
-    DICOM_TIME_FORMAT,
-    DICOM_DATETIME_FORMAT,
+    ensure_directory,
+    hex_to_tag,
+    is_private_tag,
+    safe_file_read,
+    tag_to_hex,
+    validate_file_path,
 )
 
 
@@ -448,8 +449,9 @@ class TestRandomDataGeneration:
 
     def test_random_dicom_date_default_end_year(self):
         """Test random DICOM date with default end year."""
-        from dicom_fuzzer.utils.helpers import random_dicom_date
         from datetime import datetime
+
+        from dicom_fuzzer.utils.helpers import random_dicom_date
 
         date = random_dicom_date(1950)
         year = int(date[:4])
@@ -570,7 +572,7 @@ class TestUtilityFunctions:
 
     def test_format_bytes_kilobytes(self):
         """Test formatting kilobyte sizes."""
-        from dicom_fuzzer.utils.helpers import format_bytes, KB
+        from dicom_fuzzer.utils.helpers import KB, format_bytes
 
         result = format_bytes(1.5 * KB)
         assert "KB" in result
@@ -578,7 +580,7 @@ class TestUtilityFunctions:
 
     def test_format_bytes_megabytes(self):
         """Test formatting megabyte sizes."""
-        from dicom_fuzzer.utils.helpers import format_bytes, MB
+        from dicom_fuzzer.utils.helpers import MB, format_bytes
 
         result = format_bytes(2.5 * MB)
         assert "MB" in result
@@ -586,7 +588,7 @@ class TestUtilityFunctions:
 
     def test_format_bytes_gigabytes(self):
         """Test formatting gigabyte sizes."""
-        from dicom_fuzzer.utils.helpers import format_bytes, GB
+        from dicom_fuzzer.utils.helpers import GB, format_bytes
 
         result = format_bytes(1.2 * GB)
         assert "GB" in result
@@ -619,6 +621,7 @@ class TestUtilityFunctions:
     def test_timing_context_manager(self):
         """Test timing context manager."""
         import time
+
         from dicom_fuzzer.utils.helpers import timing
 
         with timing("test_operation") as t:

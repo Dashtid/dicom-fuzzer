@@ -5,9 +5,9 @@ These tests target specific uncovered code paths in validator.py
 to increase overall test coverage.
 """
 
+import pydicom
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.tag import Tag
-import pydicom
 
 from dicom_fuzzer.core.validator import DicomValidator, ValidationResult
 

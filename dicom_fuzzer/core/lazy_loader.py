@@ -1,5 +1,4 @@
-"""
-Lazy DICOM Loading for Performance Optimization
+"""Lazy DICOM Loading for Performance Optimization
 
 Provides lazy loading strategies to defer expensive operations (pixel data loading)
 until actually needed, reducing memory footprint and improving throughput for
@@ -32,8 +31,7 @@ logger = get_logger(__name__)
 
 
 class LazyDicomLoader:
-    """
-    Lazy DICOM file loader with configurable loading strategies.
+    """Lazy DICOM file loader with configurable loading strategies.
 
     Supports:
     - Metadata-only loading (stop_before_pixels=True)
@@ -47,13 +45,13 @@ class LazyDicomLoader:
         defer_size: int | None = None,
         force: bool = True,
     ):
-        """
-        Initialize lazy loader.
+        """Initialize lazy loader.
 
         Args:
             metadata_only: If True, skip pixel data loading (fast)
             defer_size: Defer loading elements larger than this size (bytes)
             force: Force reading even if file appears invalid
+
         """
         self.metadata_only = metadata_only
         self.defer_size = defer_size
@@ -65,8 +63,7 @@ class LazyDicomLoader:
         )
 
     def load(self, file_path: Path) -> Dataset:
-        """
-        Load DICOM file with configured lazy loading strategy.
+        """Load DICOM file with configured lazy loading strategy.
 
         Args:
             file_path: Path to DICOM file
@@ -77,21 +74,19 @@ class LazyDicomLoader:
         Raises:
             FileNotFoundError: If file doesn't exist
             Exception: If file cannot be read as DICOM
+
         """
         if not file_path.exists():
             raise FileNotFoundError(f"DICOM file not found: {file_path}")
 
         try:
-            # Build pydicom.dcmread kwargs based on strategy
-            kwargs = {
-                "force": self.force,
-                "stop_before_pixels": self.metadata_only,
-            }
-
-            if self.defer_size is not None:
-                kwargs["defer_size"] = self.defer_size
-
-            ds = pydicom.dcmread(file_path, **kwargs)
+            # Load with the appropriate strategy
+            ds = pydicom.dcmread(
+                file_path,
+                force=self.force,
+                stop_before_pixels=self.metadata_only,
+                defer_size=self.defer_size,
+            )
 
             logger.debug(
                 f"Loaded {file_path.name}: "
@@ -105,8 +100,7 @@ class LazyDicomLoader:
             raise
 
     def load_pixels(self, dataset: Dataset, file_path: Path) -> bytes:
-        """
-        Load pixel data on-demand for a dataset that was loaded metadata-only.
+        """Load pixel data on-demand for a dataset that was loaded metadata-only.
 
         Args:
             dataset: Dataset loaded with metadata_only=True
@@ -118,10 +112,11 @@ class LazyDicomLoader:
         Raises:
             ValueError: If dataset already has pixel data loaded
             FileNotFoundError: If file doesn't exist
+
         """
         if hasattr(dataset, "PixelData") and dataset.PixelData is not None:
             logger.warning(f"Dataset {file_path.name} already has pixel data loaded")
-            return dataset.PixelData
+            return bytes(dataset.PixelData)
 
         if not file_path.exists():
             raise FileNotFoundError(f"DICOM file not found: {file_path}")
@@ -137,7 +132,7 @@ class LazyDicomLoader:
                 # Attach to original dataset
                 dataset.PixelData = pixel_data
                 logger.debug(f"Loaded pixel data for {file_path.name}")
-                return pixel_data
+                return bytes(pixel_data)
             else:
                 logger.warning(f"No pixel data in {file_path.name}")
                 return b""
@@ -147,14 +142,14 @@ class LazyDicomLoader:
             raise
 
     def load_batch(self, file_paths: list[Path]) -> list[Dataset]:
-        """
-        Load multiple DICOM files with lazy loading.
+        """Load multiple DICOM files with lazy loading.
 
         Args:
             file_paths: List of paths to DICOM files
 
         Returns:
             List of loaded datasets
+
         """
         datasets = []
         for path in file_paths:
@@ -174,24 +169,24 @@ class LazyDicomLoader:
 
 
 def create_metadata_loader() -> LazyDicomLoader:
-    """
-    Create a pre-configured loader for metadata-only operations.
+    """Create a pre-configured loader for metadata-only operations.
 
     Returns:
         LazyDicomLoader configured for fast metadata extraction
+
     """
     return LazyDicomLoader(metadata_only=True, force=True)
 
 
 def create_deferred_loader(defer_size_mb: int = 10) -> LazyDicomLoader:
-    """
-    Create a pre-configured loader with deferred large element loading.
+    """Create a pre-configured loader with deferred large element loading.
 
     Args:
         defer_size_mb: Defer elements larger than this (MB)
 
     Returns:
         LazyDicomLoader with deferred loading
+
     """
     defer_bytes = defer_size_mb * 1024 * 1024
     return LazyDicomLoader(metadata_only=False, defer_size=defer_bytes, force=True)
