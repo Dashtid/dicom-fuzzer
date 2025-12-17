@@ -188,6 +188,12 @@ DICOM-Fuzzer/
 ├── data/                      # Seed files & dictionaries
 │   ├── seeds/                 # Seed DICOM files
 │   └── dictionaries/          # Fuzzing dictionaries
+├── samples/                   # Malicious sample library (NEW)
+│   ├── preamble_attacks/      # PE/DICOM, ELF/DICOM polyglots
+│   ├── cve_reproductions/     # CVE-specific trigger samples
+│   ├── parser_stress/         # Edge case stress tests
+│   ├── compliance_violations/ # Standard violation samples
+│   └── detection/             # YARA rules, scanner, sanitizer
 ├── docs/                      # Documentation
 │   ├── COVERAGE.md            # Test coverage analysis
 │   ├── FUZZING_GUIDE.md       # Fuzzing methodology
@@ -710,6 +716,53 @@ print(f"Vulnerable functions: {correlation.vulnerable_functions}")
 ```
 
 See [examples/stability_features_demo.py](examples/stability_features_demo.py) for complete demonstrations.
+
+## Malicious Sample Library (NEW)
+
+A comprehensive collection of security-focused DICOM test samples for vulnerability research and defensive tool development.
+
+### Sample Categories
+
+| Category                  | Description                                    | Samples |
+| ------------------------- | ---------------------------------------------- | ------- |
+| **Preamble Attacks**      | PE/DICOM, ELF/DICOM polyglots (CVE-2019-11687) | 2       |
+| **CVE Reproductions**     | Samples triggering specific CVEs (2019-2025)   | 7       |
+| **Parser Stress Tests**   | Edge cases causing crashes/hangs               | 7       |
+| **Compliance Violations** | DICOM standard violations                      | 16      |
+
+### CVEs Covered
+
+- **CVE-2019-11687** - DICOM preamble executable embedding
+- **CVE-2022-2119/2120/2121** - DCMTK path traversal and null pointer
+- **CVE-2025-5943** - MicroDicom out-of-bounds write (CVSS 8.8)
+- **CVE-2025-11266** - GDCM PixelData parsing crash
+- **CVE-2025-53618** - GDCM JPEG codec vulnerability
+
+### Quick Usage
+
+```bash
+# Scan for polyglot attacks
+python samples/detection/scanner.py /path/to/dicom/files
+
+# Sanitize infected files
+python samples/detection/sanitizer.py infected.dcm -o clean.dcm
+
+# Test viewer with CVE samples
+python -m dicom_fuzzer.cli.fuzz_viewer \
+    --input samples/cve_reproductions/ \
+    --viewer "path/to/viewer.exe"
+
+# Generate new polyglot samples
+python samples/preamble_attacks/generator.py pe output.dcm
+```
+
+### Detection Tools
+
+- **scanner.py** - Detect polyglot attacks and suspicious preambles
+- **sanitizer.py** - Neutralize PE/DICOM and ELF/DICOM files
+- **YARA rules** - Detection signatures for security tools
+
+See [samples/README.md](samples/README.md) for complete documentation.
 
 ## Use Cases
 
