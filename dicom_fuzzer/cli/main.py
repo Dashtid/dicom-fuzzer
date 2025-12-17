@@ -784,11 +784,16 @@ def main() -> int:
         Exit code (0 for success, non-zero for errors)
 
     """
-    # Handle samples subcommand before main argument parsing
+    # Handle subcommands before main argument parsing
     if len(sys.argv) > 1 and sys.argv[1] == "samples":
         from dicom_fuzzer.cli.samples import main as samples_main
 
         return samples_main(sys.argv[2:])
+
+    if len(sys.argv) > 1 and sys.argv[1] == "fda-report":
+        from dicom_fuzzer.cli.fda_report import main as fda_report_main
+
+        return fda_report_main(sys.argv[2:])
 
     parser = argparse.ArgumentParser(
         description="DICOM Fuzzer - Security testing tool for medical imaging systems",
@@ -805,6 +810,9 @@ Examples:
 
   # Generate synthetic samples
   %(prog)s samples --generate -c 10 -o ./samples
+
+  # Generate FDA compliance report
+  %(prog)s fda-report --input results.json -o fda_report.md
 
   # Test with GUI application (e.g., Hermes Affinity)
   %(prog)s input.dcm -c 20 -t viewer.exe --gui-mode --timeout 5
