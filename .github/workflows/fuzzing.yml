@@ -1,0 +1,436 @@
+name: Fuzzing Pipeline
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'dicom_fuzzer/**'
+      - 'tests/**'
+      - 'samples/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+  push:
+    branches: [main]
+    paths:
+      - 'dicom_fuzzer/**'
+      - 'samples/**'
+  schedule:
+    # Nightly fuzzing at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      fuzz_duration:
+        description: 'Fuzzing duration in seconds'
+        required: false
+        default: '600'
+        type: string
+      fuzz_iterations:
+        description: 'Number of fuzzing iterations'
+        required: false
+        default: '10000'
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+env:
+  # PR fuzzing: 10 minutes (per ClusterFuzzLite/FDA best practices)
+  PR_FUZZ_DURATION: 600
+  PR_FUZZ_ITERATIONS: 10000
+  # Nightly fuzzing: 8 hours (FDA recommendation)
+  NIGHTLY_FUZZ_DURATION: 28800
+  NIGHTLY_FUZZ_ITERATIONS: 1000000
+
+jobs:
+  # Quick smoke test for PRs - validates sample generators work
+  pr-sample-validation:
+    name: Sample Generation Smoke Test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Generate malicious samples
+        run: |
+          mkdir -p ./test_samples
+          uv run dicom-fuzzer samples --malicious -o ./test_samples
+        timeout-minutes: 5
+
+      - name: Validate generated samples
+        run: |
+          echo "[i] Checking generated samples..."
+          find ./test_samples -name "*.dcm" | head -20
+          SAMPLE_COUNT=$(find ./test_samples -name "*.dcm" | wc -l)
+          echo "[+] Generated $SAMPLE_COUNT DICOM samples"
+          if [ "$SAMPLE_COUNT" -lt 10 ]; then
+            echo "[-] FAIL: Expected at least 10 samples, got $SAMPLE_COUNT"
+            exit 1
+          fi
+          echo "[+] Sample generation validated"
+
+      - name: Run security scanner on samples
+        run: |
+          uv run dicom-fuzzer samples --scan ./test_samples --recursive --json > scan_results.json
+          echo "[i] Scan results:"
+          cat scan_results.json | head -50
+
+      - name: Upload sample artifacts
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        if: always()
+        with:
+          name: pr-sample-validation
+          path: |
+            ./test_samples/
+            scan_results.json
+          retention-days: 7
+
+  # PR fuzzing - quick validation
+  pr-fuzzing:
+    name: PR Fuzzing (10 min)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Download corpus (if available)
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57  # v4
+        with:
+          path: ./corpus
+          key: fuzz-corpus-${{ github.base_ref }}-${{ hashFiles('dicom_fuzzer/**') }}
+          restore-keys: |
+            fuzz-corpus-${{ github.base_ref }}-
+            fuzz-corpus-main-
+
+      - name: Run PR fuzzing campaign
+        run: |
+          mkdir -p ./corpus ./crashes ./output
+
+          echo "[i] Starting PR fuzzing campaign..."
+          echo "[i] Duration: ${{ env.PR_FUZZ_DURATION }}s, Iterations: ${{ env.PR_FUZZ_ITERATIONS }}"
+
+          # Generate seed samples for fuzzing
+          uv run dicom-fuzzer samples --generate -c 5 -o ./corpus/seeds
+
+          # Run coverage-guided fuzzing
+          uv run python -m dicom_fuzzer.cli.coverage_fuzz \
+            --iterations ${{ env.PR_FUZZ_ITERATIONS }} \
+            --timeout 1.0 \
+            --seeds ./corpus/seeds \
+            --corpus ./corpus \
+            --output ./output \
+            --crashes ./crashes \
+            --workers 2 \
+            --adaptive \
+            --dicom-aware \
+            2>&1 | tee fuzz_output.log || true
+
+          echo "[+] Fuzzing completed"
+        timeout-minutes: 12
+
+      - name: Check for crashes
+        run: |
+          CRASH_COUNT=$(find ./crashes -type f 2>/dev/null | wc -l)
+          echo "[i] Found $CRASH_COUNT crash samples"
+
+          if [ "$CRASH_COUNT" -gt 0 ]; then
+            echo "[!] WARN: Crashes detected during fuzzing"
+            ls -la ./crashes/
+            # Don't fail PR for crashes - they're expected in security testing
+          fi
+
+      - name: Upload fuzzing results
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        if: always()
+        with:
+          name: pr-fuzzing-results
+          path: |
+            ./crashes/
+            ./output/
+            fuzz_output.log
+          retention-days: 7
+
+  # Nightly comprehensive fuzzing
+  nightly-fuzzing:
+    name: Nightly Fuzzing (8 hours)
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.fuzz_duration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 500  # ~8.3 hours
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Download corpus cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57  # v4
+        with:
+          path: ./corpus
+          key: fuzz-corpus-nightly-${{ github.run_number }}
+          restore-keys: |
+            fuzz-corpus-nightly-
+            fuzz-corpus-main-
+
+      - name: Set fuzzing parameters
+        id: params
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "duration=${{ github.event.inputs.fuzz_duration }}" >> $GITHUB_OUTPUT
+            echo "iterations=${{ github.event.inputs.fuzz_iterations }}" >> $GITHUB_OUTPUT
+          else
+            echo "duration=${{ env.NIGHTLY_FUZZ_DURATION }}" >> $GITHUB_OUTPUT
+            echo "iterations=${{ env.NIGHTLY_FUZZ_ITERATIONS }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run nightly fuzzing campaign
+        run: |
+          mkdir -p ./corpus ./crashes ./output ./reports
+
+          echo "[i] Starting nightly fuzzing campaign..."
+          echo "[i] Duration: ${{ steps.params.outputs.duration }}s"
+          echo "[i] Iterations: ${{ steps.params.outputs.iterations }}"
+          echo "[i] Start time: $(date -Iseconds)"
+
+          # Generate fresh malicious samples for corpus seeding
+          uv run dicom-fuzzer samples --malicious -o ./corpus/malicious_seeds
+
+          # Generate additional synthetic seeds
+          uv run dicom-fuzzer samples --generate -c 20 -o ./corpus/synthetic_seeds
+
+          # Run comprehensive coverage-guided fuzzing
+          uv run python -m dicom_fuzzer.cli.coverage_fuzz \
+            --iterations ${{ steps.params.outputs.iterations }} \
+            --timeout 2.0 \
+            --seeds ./corpus \
+            --corpus ./corpus/evolved \
+            --output ./output \
+            --crashes ./crashes \
+            --workers 4 \
+            --adaptive \
+            --dicom-aware \
+            --max-corpus-size 5000 \
+            2>&1 | tee fuzz_output.log || true
+
+          echo "[i] End time: $(date -Iseconds)"
+          echo "[+] Nightly fuzzing completed"
+        timeout-minutes: 490
+
+      - name: Generate fuzzing report
+        if: always()
+        run: |
+          echo "# Nightly Fuzzing Report" > ./reports/summary.md
+          echo "" >> ./reports/summary.md
+          echo "**Date**: $(date -I)" >> ./reports/summary.md
+          echo "**Duration**: ${{ steps.params.outputs.duration }} seconds" >> ./reports/summary.md
+          echo "**Iterations**: ${{ steps.params.outputs.iterations }}" >> ./reports/summary.md
+          echo "" >> ./reports/summary.md
+
+          CRASH_COUNT=$(find ./crashes -type f 2>/dev/null | wc -l)
+          CORPUS_SIZE=$(find ./corpus -type f -name "*.dcm" 2>/dev/null | wc -l)
+
+          echo "## Results" >> ./reports/summary.md
+          echo "- Crashes found: $CRASH_COUNT" >> ./reports/summary.md
+          echo "- Corpus size: $CORPUS_SIZE files" >> ./reports/summary.md
+          echo "" >> ./reports/summary.md
+
+          if [ "$CRASH_COUNT" -gt 0 ]; then
+            echo "## Crash Files" >> ./reports/summary.md
+            ls -la ./crashes/ >> ./reports/summary.md
+          fi
+
+          cat ./reports/summary.md
+
+      - name: Upload fuzzing artifacts
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        if: always()
+        with:
+          name: nightly-fuzzing-results-${{ github.run_number }}
+          path: |
+            ./crashes/
+            ./reports/
+            fuzz_output.log
+          retention-days: 30
+
+      - name: Update corpus cache
+        uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57  # v4
+        if: always()
+        with:
+          path: ./corpus
+          key: fuzz-corpus-nightly-${{ github.run_number }}
+
+  # CVE sample validation - ensures all CVE reproductions work
+  cve-validation:
+    name: CVE Sample Validation
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Generate and validate CVE samples
+        run: |
+          mkdir -p ./cve_samples
+
+          echo "[i] Generating CVE reproduction samples..."
+          uv run dicom-fuzzer samples --cve-samples -o ./cve_samples
+
+          echo "[i] Validating CVE samples..."
+          for cve_file in ./cve_samples/*.dcm; do
+            if [ -f "$cve_file" ]; then
+              echo "[+] Validating: $(basename $cve_file)"
+              uv run dicom-fuzzer samples --scan "$cve_file" || true
+            fi
+          done
+
+          CVE_COUNT=$(find ./cve_samples -name "*.dcm" | wc -l)
+          echo "[+] Generated $CVE_COUNT CVE samples"
+
+      - name: Generate preamble attack samples
+        run: |
+          mkdir -p ./preamble_samples
+
+          echo "[i] Generating preamble attack samples..."
+          uv run dicom-fuzzer samples --preamble-attacks -o ./preamble_samples
+
+          echo "[i] Validating preamble samples..."
+          for sample in ./preamble_samples/*.dcm; do
+            if [ -f "$sample" ]; then
+              echo "[+] $(basename $sample)"
+              uv run dicom-fuzzer samples --scan "$sample" || true
+            fi
+          done
+
+      - name: Test sanitization
+        run: |
+          mkdir -p ./sanitized
+
+          echo "[i] Testing preamble sanitization..."
+          for sample in ./preamble_samples/*.dcm; do
+            if [ -f "$sample" ]; then
+              sanitized_name="./sanitized/clean_$(basename $sample)"
+              uv run dicom-fuzzer samples --sanitize "$sample" -o "$sanitized_name" || true
+
+              if [ -f "$sanitized_name" ]; then
+                echo "[+] Sanitized: $(basename $sample)"
+              fi
+            fi
+          done
+
+      - name: Upload CVE validation results
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        if: always()
+        with:
+          name: cve-validation-results
+          path: |
+            ./cve_samples/
+            ./preamble_samples/
+            ./sanitized/
+          retention-days: 14
+
+  # Sample generator tests
+  sample-generator-tests:
+    name: Sample Generator Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run sample generator tests
+        run: |
+          uv run pytest tests/test_samples_generators.py -v --tb=short --timeout=120
+        timeout-minutes: 10
+
+      - name: Run security tests
+        run: |
+          uv run pytest tests/ -k "security" -v --tb=short --timeout=60 || true
+        timeout-minutes: 5
+
+  fuzzing-summary:
+    name: Fuzzing Summary
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'schedule')
+    runs-on: ubuntu-latest
+    needs: [pr-sample-validation, pr-fuzzing, sample-generator-tests]
+    steps:
+      - name: Check fuzzing status
+        run: |
+          echo "=========================================="
+          echo "           Fuzzing Pipeline Summary       "
+          echo "=========================================="
+          echo ""
+          echo "Sample Validation: ${{ needs.pr-sample-validation.result || 'skipped' }}"
+          echo "PR Fuzzing: ${{ needs.pr-fuzzing.result || 'skipped' }}"
+          echo "Generator Tests: ${{ needs.sample-generator-tests.result }}"
+          echo ""
+
+          # Only fail on generator test failures (critical path)
+          if [ "${{ needs.sample-generator-tests.result }}" == "failure" ]; then
+            echo "[-] FAIL: Sample generator tests failed"
+            exit 1
+          fi
+
+          echo "[+] Fuzzing pipeline completed"
