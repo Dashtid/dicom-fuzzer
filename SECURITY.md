@@ -20,10 +20,10 @@ Security updates are provided for the following versions:
 
 | Version | Supported     | End of Support |
 | ------- | ------------- | -------------- |
-| 1.2.x   | Yes (Current) | TBD            |
-| 1.1.x   | Yes           | 2026-04-30     |
-| 1.0.x   | No            | 2025-10-31     |
-| < 1.0   | No            | 2025-01-31     |
+| 1.4.x   | Yes (Current) | TBD            |
+| 1.3.x   | Yes           | 2026-06-30     |
+| 1.2.x   | No            | 2025-12-31     |
+| < 1.2   | No            | 2025-06-30     |
 
 ## Reporting a Vulnerability
 
@@ -129,6 +129,63 @@ DICOM Fuzzer includes built-in security features:
 - **Security-Conscious Configuration**: Secure defaults out of the box
 - **Strict Validation Modes**: Optional strict validation for enhanced security
 - **Isolated Testing Environments**: Encourages sandboxed testing
+
+## Malicious Sample Library
+
+The `samples/` directory contains intentionally malicious DICOM files for security testing. **Handle with care.**
+
+### Sample Categories
+
+| Category                 | Risk Level | Description                                                            |
+| ------------------------ | ---------- | ---------------------------------------------------------------------- |
+| `preamble_attacks/`      | **HIGH**   | Executable polyglots (PE/DICOM, ELF/DICOM) that exploit CVE-2019-11687 |
+| `cve_reproductions/`     | **HIGH**   | Samples reproducing known CVEs in DICOM software                       |
+| `parser_stress/`         | **MEDIUM** | Deep nesting, truncation, and edge cases for DoS testing               |
+| `compliance_violations/` | **LOW**    | Malformed but non-exploitative samples for parser testing              |
+
+### CVE Samples Included
+
+| CVE            | Product    | Vulnerability Type          |
+| -------------- | ---------- | --------------------------- |
+| CVE-2019-11687 | DCMTK      | PE/DICOM polyglot execution |
+| CVE-2020-6993  | MicroDicom | Path traversal              |
+| CVE-2021-21735 | GDCM       | Integer overflow            |
+| CVE-2022-31585 | OHIF       | Deep nesting DoS            |
+| CVE-2022-2119  | DCMTK      | Out-of-bounds read          |
+| CVE-2022-2120  | DCMTK      | Path traversal              |
+| CVE-2025-35975 | Various    | Out-of-bounds write         |
+
+### Safety Guidelines
+
+When working with malicious samples:
+
+1. **Isolate testing** - Use VMs, containers, or air-gapped systems
+2. **Disable AV exclusions carefully** - Antivirus may quarantine polyglots (expected behavior)
+3. **Monitor resources** - Parser stress tests can cause resource exhaustion
+4. **Never execute polyglots** - PE/ELF polyglots are valid executables
+5. **Clean up after testing** - Remove generated samples when done
+
+### Detection and Sanitization Tools
+
+```bash
+# Generate all malicious samples
+dicom-fuzzer samples --malicious -o ./test_samples
+
+# Scan files for security threats
+dicom-fuzzer samples --scan ./suspicious_files --recursive --json
+
+# Sanitize a potentially malicious file
+dicom-fuzzer samples --sanitize suspicious.dcm
+```
+
+### YARA Rules
+
+The `samples/detection/` directory includes YARA rules for detecting:
+
+- PE/DICOM polyglots
+- ELF/DICOM polyglots
+- Suspicious preamble content
+- Known malicious patterns
 
 ## Known Security Limitations
 
@@ -286,7 +343,7 @@ Security researchers who have responsibly disclosed vulnerabilities will be ackn
 
 ---
 
-**Last Updated**: October 27, 2025
-**Next Review**: January 27, 2026
+**Last Updated**: December 17, 2025
+**Next Review**: March 17, 2026
 
 For questions about this security policy, use [GitHub Discussions](https://github.com/Dashtid/dicom-fuzzer/discussions).
