@@ -43,6 +43,54 @@ Shows how to generate structurally valid DICOM files using grammar rules. This t
 python examples/grammar_fuzzing_demo.py
 ```
 
+### 3. Basic File Fuzzing
+
+**File**: `basic_fuzzing.py`
+
+Simple example demonstrating basic DICOM file fuzzing with mutation strategies.
+
+**Run**:
+
+```bash
+python examples/basic_fuzzing.py
+```
+
+### 4. Security Testing with CVE Samples
+
+**File**: `security_testing.py`
+
+Demonstrates generating CVE-specific samples for targeted security testing.
+
+**Run**:
+
+```bash
+python examples/security_testing.py
+```
+
+### 5. Network Protocol Fuzzing
+
+**File**: `network_fuzzing.py`
+
+Shows DICOM network protocol fuzzing (requires authorized test server).
+
+**Run**:
+
+```bash
+python examples/network_fuzzing.py
+```
+
+### 6. FDA Compliance Reporting
+
+**File**: `fda_compliance.py`
+
+Demonstrates generating FDA-compliant fuzz testing reports for regulatory submissions.
+
+**Run**:
+
+```bash
+python examples/fda_compliance.py
+```
+
 ## Quick Start
 
 1. **Install dependencies** (if not already done):

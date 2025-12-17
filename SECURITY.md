@@ -145,18 +145,20 @@ The `samples/` directory contains intentionally malicious DICOM files for securi
 
 ### CVE Samples Included
 
-| CVE            | Product    | Vulnerability Type                  | CVSS |
-| -------------- | ---------- | ----------------------------------- | ---- |
-| CVE-2019-11687 | DICOM Std  | PE/DICOM polyglot execution         | N/A  |
-| CVE-2022-2119  | DCMTK      | Path traversal (SCP)                | 7.5  |
-| CVE-2022-2120  | DCMTK      | Path traversal (SCU)                | 7.5  |
-| CVE-2022-2121  | DCMTK      | Null pointer dereference            | 6.5  |
-| CVE-2024-22100 | MicroDicom | Heap-based buffer overflow          | 7.8  |
-| CVE-2024-28877 | MicroDicom | Stack-based buffer overflow         | 8.7  |
-| CVE-2024-33606 | MicroDicom | Improper auth in URL scheme handler | 8.8  |
-| CVE-2025-5943  | MicroDicom | Out-of-bounds write                 | 8.8  |
-| CVE-2025-11266 | GDCM       | Out-of-bounds write (PixelData)     | 6.6  |
-| CVE-2025-53618 | GDCM       | Out-of-bounds read (JPEG codec)     | 7.5  |
+| CVE            | Product    | Vulnerability Type                   | CVSS |
+| -------------- | ---------- | ------------------------------------ | ---- |
+| CVE-2019-11687 | DICOM Std  | PE/DICOM polyglot execution          | N/A  |
+| CVE-2022-2119  | DCMTK      | Path traversal (SCP)                 | 7.5  |
+| CVE-2022-2120  | DCMTK      | Path traversal (SCU)                 | 7.5  |
+| CVE-2022-2121  | DCMTK      | Null pointer dereference             | 6.5  |
+| CVE-2024-22100 | MicroDicom | Heap-based buffer overflow           | 7.8  |
+| CVE-2024-28877 | MicroDicom | Stack-based buffer overflow          | 8.7  |
+| CVE-2024-33606 | MicroDicom | Improper auth in URL scheme handler  | 8.8  |
+| CVE-2025-1001  | RadiAnt    | Certificate validation bypass (MitM) | 5.7  |
+| CVE-2025-5943  | MicroDicom | Out-of-bounds write                  | 8.8  |
+| CVE-2025-11266 | GDCM       | Out-of-bounds write (PixelData)      | 6.6  |
+| CVE-2025-53618 | GDCM       | Out-of-bounds read (JPEG codec)      | 7.5  |
+| CVE-2025-53619 | GDCM       | Information disclosure (JPEG codec)  | 7.5  |
 
 ### Safety Guidelines
 
