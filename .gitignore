@@ -272,22 +272,13 @@ venv.bak/
 # mkdocs documentation
 /site
 
-# Type checkers
+# mypy
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Pyre type checker
 .pyre/
-.pytype/
-
-# Linters and formatters
-.ruff_cache/
-
-# Benchmarks
-.benchmarks/
-
-# Temporary and log files
-*.log
-!docs/**/*.log
 
 # pytype static type analyzer
 .pytype/
@@ -395,65 +386,56 @@ truncated*.dcm
 !/samples/.gitkeep
 
 # IDE Settings
-# .vscode/ - now tracked for team consistency (settings.json, extensions.json)
+.vscode/
 .idea/
 
 # Analysis and summary reports
 *COVERAGE*.md
 *SUMMARY*.md
 *STATUS*.md
-*_ANALYSIS.md
-*_SESSION*.md
-*SESSION_NOTES*.md
 analyze_*.py
-benchmark_*.txt
-README_*_ADDITION.txt
-README_*_insert.txt
 
 # ============================================================================
-# Project-Specific Output Directories
+# Deep Clean Additions (2025-12-14)
 # ============================================================================
 
-# Consolidated output directory (all fuzzing results, logs, reports)
-/output/
-!/output/.gitkeep
-!/output/*/.gitkeep
-!/output/*/CAMPAIGN_RESULTS.md
-!/output/*/*.md
+# Duplicate/backup files (from various tools)
+*-dadaZBPG9*
 
-# Legacy output directories (for backward compatibility during migration)
-/crashes/
-/test_fuzzed_series/
-/fuzzed_output/
-/fuzzed_dicoms/
+# Fuzzing campaign outputs
+/campaigns/
 /checkpoints/
-/logs/
-/campaigns/*/input/*.dcm
-/campaigns/*/input/slice_*.dcm
-/campaigns/*/fuzzed/
-/campaigns/*/crashes/
-!campaigns/*/*.md
-!campaigns/*/CAMPAIGN_RESULTS.md
-/reports/*/charts/
-/reports/*/*.html
-/reports/*/*.json
-/reports/*/*.png
-/reports/*/*.svg
-!reports/README.md
-!reports/*/*.md
+/crashes/
+/atheris_crashes/
+/atheris_output/
+/fuzzing_output/
 
-# Node modules (prettier cache from pre-commit hooks)
+# Benchmark artifacts
+/benchmark_clean_test/
+/.benchmarks/
+benchmark_baseline.txt
+
+# Coverage artifacts
+coverage.json
+.coverage
+
+# Legacy directories
+/config/
+/logs/
 /node_modules/
 
-# Benchmark test data
-/benchmark_clean_test/
-coverage.json
+# Generated documentation builds
+/docs/build/
+/docs/source/_build/
 
-# Fuzzing output directory (generated during fuzzing runs)
-/fuzzing_output/
-!/fuzzing_output/.gitkeep
+# Analysis files (auto-generated)
+ANALYSIS_SUMMARY.md
+PROJECT_ANALYSIS.md
+SESSION_NOTES*.md
+STABILITY_IMPROVEMENTS.md
+TESTING_SESSION*.md
 
-# Test output directories (generated during testing)
-/test_*/
-/affinity_test*/
-!/tests/
+# Empty placeholder directories
+/screenshots/
+/data/
+/reports/
