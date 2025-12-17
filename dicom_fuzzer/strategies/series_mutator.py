@@ -343,14 +343,25 @@ class Series3DMutator:
 
             elif corruption_type == "type_confusion_modality":
                 original = ds.Modality if hasattr(ds, "Modality") else None
-                ds.Modality = 999  # Integer instead of string
+                # Use invalid string values that may confuse parsers
+                # (pydicom can't serialize actual integers for CS VR tags)
+                invalid_modalities = [
+                    "999",  # Numeric string (invalid modality code)
+                    "",  # Empty string
+                    "XXXXXXXXXXXXXXXXXXXX",  # Overly long (CS max is 16 chars)
+                    "CT\\MR",  # Multiple values (invalid for single-valued)
+                    "null",  # SQL/JSON injection attempt
+                    "\x00\x00",  # Null bytes
+                    "A" * 100,  # Very long string
+                ]
+                ds.Modality = random.choice(invalid_modalities)
                 records.append(
                     SeriesMutationRecord(
                         strategy="metadata_corruption",
                         slice_index=slice_idx,
                         tag="Modality",
                         original_value=original,
-                        mutated_value=ds.Modality,
+                        mutated_value=repr(ds.Modality),
                         severity=self.severity,
                         details={"corruption_type": corruption_type},
                     )
