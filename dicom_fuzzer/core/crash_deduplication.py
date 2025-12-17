@@ -1,5 +1,4 @@
-"""
-Crash Deduplication - Intelligent Grouping of Similar Crashes
+"""Crash Deduplication - Intelligent Grouping of Similar Crashes
 
 This module provides sophisticated crash deduplication to identify unique bugs
 by analyzing multiple crash characteristics:
@@ -9,11 +8,11 @@ by analyzing multiple crash characteristics:
 - Configurable weighting and thresholds
 """
 
-import hashlib
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
 from dicom_fuzzer.core.fuzzing_session import CrashRecord
+from dicom_fuzzer.utils.hashing import hash_string
 
 
 @dataclass
@@ -38,7 +37,7 @@ class DeduplicationConfig:
     # Overall similarity threshold for considering crashes duplicates
     overall_threshold: float = 0.75
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration."""
         total_weight = (
             self.stack_trace_weight + self.exception_weight + self.mutation_weight
@@ -48,19 +47,18 @@ class DeduplicationConfig:
 
 
 class CrashDeduplicator:
-    """
-    Deduplicate crashes using multiple similarity strategies.
+    """Deduplicate crashes using multiple similarity strategies.
 
     Analyzes crashes from multiple perspectives to identify unique bugs,
     helping security researchers focus on distinct vulnerabilities.
     """
 
     def __init__(self, config: DeduplicationConfig | None = None):
-        """
-        Initialize crash deduplicator.
+        """Initialize crash deduplicator.
 
         Args:
             config: Deduplication configuration (uses defaults if None)
+
         """
         self.config = config or DeduplicationConfig()
         self.crash_groups: list[list[CrashRecord]] = []
@@ -69,14 +67,14 @@ class CrashDeduplicator:
     def deduplicate_crashes(
         self, crashes: list[CrashRecord]
     ) -> dict[str, list[CrashRecord]]:
-        """
-        Deduplicate list of crashes into groups.
+        """Deduplicate list of crashes into groups.
 
         Args:
             crashes: List of crash records to deduplicate
 
         Returns:
             Dictionary mapping group ID to list of similar crashes
+
         """
         if not crashes:
             return {}
@@ -109,11 +107,11 @@ class CrashDeduplicator:
         return len(self.crash_groups)
 
     def get_deduplication_stats(self) -> dict:
-        """
-        Get deduplication statistics.
+        """Get deduplication statistics.
 
         Returns:
             Dictionary with deduplication metrics
+
         """
         if not self.crash_groups:
             return {
@@ -138,14 +136,14 @@ class CrashDeduplicator:
         }
 
     def _find_best_group(self, crash: CrashRecord) -> int | None:
-        """
-        Find best matching group for crash.
+        """Find best matching group for crash.
 
         Args:
             crash: Crash record to match
 
         Returns:
             Index of best matching group, or None if no good match
+
         """
         if not self.crash_groups:
             return None
@@ -168,8 +166,7 @@ class CrashDeduplicator:
         return best_idx
 
     def _calculate_similarity(self, crash1: CrashRecord, crash2: CrashRecord) -> float:
-        """
-        Calculate overall similarity between two crashes.
+        """Calculate overall similarity between two crashes.
 
         Args:
             crash1: First crash
@@ -177,6 +174,7 @@ class CrashDeduplicator:
 
         Returns:
             Similarity score (0.0-1.0)
+
         """
         similarities = {}
 
@@ -210,8 +208,7 @@ class CrashDeduplicator:
         return overall
 
     def _compare_stack_traces(self, trace1: str, trace2: str) -> float:
-        """
-        Compare stack trace similarity.
+        """Compare stack trace similarity.
 
         Uses multiple techniques:
         1. Sequence matching for overall similarity
@@ -223,6 +220,7 @@ class CrashDeduplicator:
 
         Returns:
             Similarity score (0.0-1.0)
+
         """
         # Normalize traces (remove addresses, line numbers that may vary)
         norm1 = self._normalize_stack_trace(trace1)
@@ -244,8 +242,7 @@ class CrashDeduplicator:
         return 0.4 * seq_similarity + 0.6 * func_similarity
 
     def _normalize_stack_trace(self, trace: str) -> str:
-        """
-        Normalize stack trace by removing variable parts.
+        """Normalize stack trace by removing variable parts.
 
         Removes:
         - Memory addresses (0x...)
@@ -258,6 +255,7 @@ class CrashDeduplicator:
 
         Returns:
             Normalized trace
+
         """
         import re
 
@@ -278,14 +276,14 @@ class CrashDeduplicator:
         return normalized
 
     def _extract_function_sequence(self, trace: str) -> list[str]:
-        """
-        Extract function call sequence from stack trace.
+        """Extract function call sequence from stack trace.
 
         Args:
             trace: Stack trace string
 
         Returns:
             List of function names in order
+
         """
         import re
 
@@ -306,8 +304,7 @@ class CrashDeduplicator:
         return functions
 
     def _compare_exceptions(self, crash1: CrashRecord, crash2: CrashRecord) -> float:
-        """
-        Compare exception type and message similarity.
+        """Compare exception type and message similarity.
 
         Args:
             crash1: First crash
@@ -315,6 +312,7 @@ class CrashDeduplicator:
 
         Returns:
             Similarity score (0.0-1.0)
+
         """
         # Exception type match (exact or similar)
         type1 = crash1.exception_type or ""
@@ -344,14 +342,14 @@ class CrashDeduplicator:
         return 0.7 * type_match + 0.3 * msg_match
 
     def _normalize_exception_message(self, message: str) -> str:
-        """
-        Normalize exception message by removing specific values.
+        """Normalize exception message by removing specific values.
 
         Args:
             message: Exception message
 
         Returns:
             Normalized message
+
         """
         import re
 
@@ -370,8 +368,7 @@ class CrashDeduplicator:
     def _compare_mutation_patterns(
         self, crash1: CrashRecord, crash2: CrashRecord
     ) -> float:
-        """
-        Compare mutation patterns that caused crashes.
+        """Compare mutation patterns that caused crashes.
 
         Analyzes mutation sequences using multiple approaches:
         1. Sequence similarity (order matters) - using LCS-based matching
@@ -387,6 +384,7 @@ class CrashDeduplicator:
 
         Returns:
             Similarity score (0.0-1.0)
+
         """
         # Get mutation sequences (list of tuples: (strategy_name, mutation_type))
         seq1 = crash1.mutation_sequence if hasattr(crash1, "mutation_sequence") else []
@@ -422,8 +420,7 @@ class CrashDeduplicator:
     def _compare_mutation_type_distribution(
         self, seq1: list[tuple], seq2: list[tuple]
     ) -> float:
-        """
-        Compare distribution of mutation types between two sequences.
+        """Compare distribution of mutation types between two sequences.
 
         Args:
             seq1: First mutation sequence
@@ -431,6 +428,7 @@ class CrashDeduplicator:
 
         Returns:
             Similarity score (0.0-1.0)
+
         """
         # Extract mutation types (second element of each tuple)
         types1 = [mut[1] for mut in seq1 if len(mut) >= 2]
@@ -470,13 +468,12 @@ class CrashDeduplicator:
         )
 
         # Combine Jaccard (type overlap) and cosine (frequency similarity)
-        return 0.5 * jaccard + 0.5 * cosine
+        return float(0.5 * jaccard + 0.5 * cosine)
 
     def _compare_strategy_frequency(
         self, seq1: list[tuple], seq2: list[tuple]
     ) -> float:
-        """
-        Compare distribution of mutation strategies between two sequences.
+        """Compare distribution of mutation strategies between two sequences.
 
         Args:
             seq1: First mutation sequence
@@ -484,6 +481,7 @@ class CrashDeduplicator:
 
         Returns:
             Similarity score (0.0-1.0)
+
         """
         # Extract strategy names (first element of each tuple)
         strategies1 = [mut[0] for mut in seq1 if len(mut) >= 1]
@@ -522,17 +520,17 @@ class CrashDeduplicator:
         )
 
         # Combine Jaccard and cosine
-        return 0.5 * jaccard + 0.5 * cosine
+        return float(0.5 * jaccard + 0.5 * cosine)
 
     def _generate_signature(self, crash: CrashRecord) -> str:
-        """
-        Generate unique signature for crash group.
+        """Generate unique signature for crash group.
 
         Args:
             crash: Representative crash
 
         Returns:
             Signature string (hash)
+
         """
         # Combine key crash characteristics
         sig_parts = [
@@ -547,14 +545,13 @@ class CrashDeduplicator:
             sig_parts.append(normalized[:500])
 
         sig_str = "|".join(sig_parts)
-        return hashlib.sha256(sig_str.encode()).hexdigest()
+        return hash_string(sig_str)
 
 
 def deduplicate_session_crashes(
     session_data: dict, config: DeduplicationConfig | None = None
 ) -> dict:
-    """
-    Deduplicate crashes from a fuzzing session.
+    """Deduplicate crashes from a fuzzing session.
 
     Args:
         session_data: Session report dictionary
@@ -562,6 +559,7 @@ def deduplicate_session_crashes(
 
     Returns:
         Dictionary with deduplication results
+
     """
     crashes = [
         CrashRecord(**crash_dict) for crash_dict in session_data.get("crashes", [])

@@ -179,6 +179,33 @@ class TestMissingRequiredTags:
 
         assert isinstance(mutated, Dataset)
 
+    @patch("random.sample")
+    @patch("random.randint")
+    def test_delattr_exception_handling(self, mock_randint, mock_sample):
+        """Test exception handling when delattr fails (lines 99-101)."""
+        mock_randint.return_value = 1
+        mock_sample.return_value = ["PatientName"]
+
+        fuzzer = HeaderFuzzer()
+        ds = Dataset()
+        ds.PatientName = "Test^Patient"
+
+        # Mock delattr to raise an exception
+        original_delattr = Dataset.__delattr__
+
+        def mock_delattr_raises(self, name):
+            if name == "PatientName":
+                raise AttributeError("Cannot delete attribute")
+            return original_delattr(self, name)
+
+        with patch.object(Dataset, "__delattr__", mock_delattr_raises):
+            # Should not raise error due to try/except
+            mutated = fuzzer._missing_required_tags(ds)
+
+        assert isinstance(mutated, Dataset)
+        # PatientName should still exist since delete failed
+        assert hasattr(mutated, "PatientName")
+
 
 class TestInvalidVRValues:
     """Test suite for invalid VR value mutations."""
@@ -251,7 +278,15 @@ class TestInvalidVRValues:
         """Test various invalid date formats."""
         fuzzer = HeaderFuzzer()
 
-        invalid_dates = ["INVALID", "99999999", "20251332", "20250145", "2025-01-01", "", "1"]
+        invalid_dates = [
+            "INVALID",
+            "99999999",
+            "20251332",
+            "20250145",
+            "2025-01-01",
+            "",
+            "1",
+        ]
 
         for invalid_date in invalid_dates:
             mock_choice.return_value = invalid_date
@@ -412,7 +447,9 @@ class TestIntegrationScenarios:
         mutated3 = fuzzer._invalid_vr_values(ds)
         mutated4 = fuzzer._boundary_values(ds)
 
-        assert all(isinstance(m, Dataset) for m in [mutated1, mutated2, mutated3, mutated4])
+        assert all(
+            isinstance(m, Dataset) for m in [mutated1, mutated2, mutated3, mutated4]
+        )
 
     def test_sequential_mutations(self):
         """Test applying mutations sequentially."""

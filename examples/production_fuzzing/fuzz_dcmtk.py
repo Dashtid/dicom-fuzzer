@@ -35,16 +35,15 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
-from datetime import datetime
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from dicom_fuzzer.core.mutator import DicomMutator, MutationSeverity
-from dicom_fuzzer.core.target_runner import TargetRunner, TargetConfig, TestResult
-from dicom_fuzzer.core.fuzzing_session import FuzzingSession
 from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
+from dicom_fuzzer.core.fuzzing_session import FuzzingSession
+from dicom_fuzzer.core.mutator import DicomMutator, MutationSeverity
+from dicom_fuzzer.core.target_runner import TargetConfig, TargetRunner
+from dicom_fuzzer.utils.identifiers import generate_timestamp_id
 
 try:
     import pydicom
@@ -55,8 +54,8 @@ except ImportError:
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
@@ -69,7 +68,7 @@ class DCMTKFuzzer:
         target_path: str = "dcmdump",
         use_docker: bool = False,
         output_dir: Path = Path("./fuzzing_output"),
-        strip_pixels: bool = True
+        strip_pixels: bool = True,
     ):
         """
         Initialize DCMTK fuzzer.
@@ -110,14 +109,17 @@ class DCMTKFuzzer:
                 name="dcmtk_dcmdump_docker",
                 executable="docker",
                 args=[
-                    "run", "--rm",
-                    "-v", f"{self.fuzzed_dir.absolute()}:/input",
+                    "run",
+                    "--rm",
+                    "-v",
+                    f"{self.fuzzed_dir.absolute()}:/input",
                     "dicom-fuzzer/dcmtk",
-                    "fuzz-dcmdump", "/input/{input_file}"
+                    "fuzz-dcmdump",
+                    "/input/{input_file}",
                 ],
                 timeout=10.0,
                 memory_limit_mb=512,
-                cpu_limit_percent=100
+                cpu_limit_percent=100,
             )
         else:
             return TargetConfig(
@@ -125,7 +127,7 @@ class DCMTKFuzzer:
                 executable=self.target_path,
                 args=["{input_file}"],
                 timeout=10.0,
-                memory_limit_mb=512
+                memory_limit_mb=512,
             )
 
     def generate_fuzzed_files(self, seed_dir: Path, count: int) -> list:
@@ -157,15 +159,13 @@ class DCMTKFuzzer:
                 dataset = pydicom.dcmread(seed_file, force=True)
 
                 # Optionally strip PixelData
-                if self.strip_pixels and hasattr(dataset, 'PixelData'):
+                if self.strip_pixels and hasattr(dataset, "PixelData"):
                     del dataset.PixelData
                     logger.debug(f"Stripped PixelData from {seed_file.name}")
 
                 # Apply mutations
                 mutated = self.mutator.apply_mutations(
-                    dataset,
-                    num_mutations=3,
-                    severity=MutationSeverity.MODERATE
+                    dataset, num_mutations=3, severity=MutationSeverity.MODERATE
                 )
 
                 # Save fuzzed file
@@ -185,9 +185,7 @@ class DCMTKFuzzer:
         return fuzzed_files
 
     def run_fuzzing_campaign(
-        self,
-        fuzzed_files: list,
-        stop_on_crash: bool = False
+        self, fuzzed_files: list, stop_on_crash: bool = False
     ) -> dict:
         """
         Execute fuzzing campaign against dcmdump.
@@ -207,7 +205,7 @@ class DCMTKFuzzer:
             "crashed": 0,
             "hanged": 0,
             "errors": 0,
-            "crashes": []
+            "crashes": [],
         }
 
         for idx, fuzzed_file in enumerate(fuzzed_files, 1):
@@ -222,17 +220,21 @@ class DCMTKFuzzer:
                 stats["passed"] += 1
             elif result.classification == "CRASH":
                 stats["crashed"] += 1
-                stats["crashes"].append({
-                    "file": str(fuzzed_file),
-                    "exit_code": result.exit_code,
-                    "stderr": result.stderr[:500]  # First 500 chars
-                })
+                stats["crashes"].append(
+                    {
+                        "file": str(fuzzed_file),
+                        "exit_code": result.exit_code,
+                        "stderr": result.stderr[:500],  # First 500 chars
+                    }
+                )
 
                 # Save crash sample
                 crash_sample = self.crashes_dir / f"crash_{stats['crashed']:04d}.dcm"
                 crash_sample.write_bytes(fuzzed_file.read_bytes())
 
-                logger.warning(f"  [CRASH] Test {idx}: {fuzzed_file.name} (exit code: {result.exit_code})")
+                logger.warning(
+                    f"  [CRASH] Test {idx}: {fuzzed_file.name} (exit code: {result.exit_code})"
+                )
 
                 if stop_on_crash:
                     logger.info("Stopping campaign on first crash (--stop-on-crash)")
@@ -246,8 +248,10 @@ class DCMTKFuzzer:
 
             # Progress update
             if idx % 100 == 0:
-                logger.info(f"  Progress: {idx}/{len(fuzzed_files)} "
-                           f"(Crashes: {stats['crashed']}, Hangs: {stats['hanged']})")
+                logger.info(
+                    f"  Progress: {idx}/{len(fuzzed_files)} "
+                    f"(Crashes: {stats['crashed']}, Hangs: {stats['hanged']})"
+                )
 
         return stats
 
@@ -263,21 +267,18 @@ class DCMTKFuzzer:
         reporter = EnhancedReportGenerator()
 
         # Generate reports
-        html_path = self.reports_dir / f"fuzzing_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-        json_path = html_path.with_suffix('.json')
+        html_path = self.reports_dir / f"fuzzing_report_{generate_timestamp_id()}.html"
+        json_path = html_path.with_suffix(".json")
 
         # HTML report
-        html_content = reporter.generate_html_report(
-            session=self.session,
-            output_path=html_path
-        )
+        reporter.generate_html_report(session=self.session, output_path=html_path)
 
         # JSON report
         json_data = reporter.generate_json_report(self.session)
-        with open(json_path, 'w') as f:
+        with open(json_path, "w") as f:
             json.dump(json_data, f, indent=2)
 
-        logger.info(f"Reports generated:")
+        logger.info("Reports generated:")
         logger.info(f"  HTML: {html_path}")
         logger.info(f"  JSON: {json_path}")
 
@@ -287,56 +288,51 @@ class DCMTKFuzzer:
 def main():
     parser = argparse.ArgumentParser(
         description="Production fuzzing for DCMTK dcmdump",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument(
-        "--seeds",
-        type=Path,
-        help="Directory containing seed DICOM files"
+        "--seeds", type=Path, help="Directory containing seed DICOM files"
     )
     parser.add_argument(
-        "--iterations", "-n",
+        "--iterations",
+        "-n",
         type=int,
         default=100,
-        help="Number of fuzzed files to generate (default: 100)"
+        help="Number of fuzzed files to generate (default: 100)",
     )
     parser.add_argument(
         "--target",
         type=str,
         default="dcmdump",
-        help="Path to dcmdump executable (default: dcmdump in PATH)"
+        help="Path to dcmdump executable (default: dcmdump in PATH)",
     )
     parser.add_argument(
         "--docker",
         action="store_true",
-        help="Use Docker container instead of local executable"
+        help="Use Docker container instead of local executable",
     )
     parser.add_argument(
         "--output",
         type=Path,
         default=Path("./fuzzing_output"),
-        help="Output directory (default: ./fuzzing_output)"
+        help="Output directory (default: ./fuzzing_output)",
     )
     parser.add_argument(
         "--keep-pixels",
         action="store_true",
-        help="Keep PixelData in fuzzed files (default: strip for parser focus)"
+        help="Keep PixelData in fuzzed files (default: strip for parser focus)",
     )
     parser.add_argument(
-        "--stop-on-crash",
-        action="store_true",
-        help="Stop fuzzing on first crash"
+        "--stop-on-crash", action="store_true", help="Stop fuzzing on first crash"
     )
     parser.add_argument(
         "--quick-start",
         action="store_true",
-        help="Download seeds and run quick fuzzing campaign"
+        help="Download seeds and run quick fuzzing campaign",
     )
     parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Enable verbose logging"
+        "-v", "--verbose", action="store_true", help="Enable verbose logging"
     )
 
     args = parser.parse_args()
@@ -350,13 +346,20 @@ def main():
         if args.quick_start:
             logger.info("Quick start mode: downloading public seeds...")
             import subprocess
-            subprocess.run([
-                sys.executable,
-                "scripts/download_public_seeds.py",
-                "--source", "generated",
-                "--count", "20",
-                "--output", "./seeds"
-            ], check=True)
+
+            subprocess.run(
+                [
+                    sys.executable,
+                    "scripts/download_public_seeds.py",
+                    "--source",
+                    "generated",
+                    "--count",
+                    "20",
+                    "--output",
+                    "./seeds",
+                ],
+                check=True,
+            )
             args.seeds = Path("./seeds")
 
         # Validate seeds directory
@@ -373,27 +376,27 @@ def main():
             target_path=args.target,
             use_docker=args.docker,
             output_dir=args.output,
-            strip_pixels=not args.keep_pixels
+            strip_pixels=not args.keep_pixels,
         )
 
         # Start fuzzing session
-        fuzzer.session.start_session(config={
-            "target": args.target,
-            "docker": args.docker,
-            "iterations": args.iterations,
-            "strip_pixels": not args.keep_pixels
-        })
+        fuzzer.session.start_session(
+            config={
+                "target": args.target,
+                "docker": args.docker,
+                "iterations": args.iterations,
+                "strip_pixels": not args.keep_pixels,
+            }
+        )
 
         # Generate fuzzed files
         fuzzed_files = fuzzer.generate_fuzzed_files(
-            seed_dir=args.seeds,
-            count=args.iterations
+            seed_dir=args.seeds, count=args.iterations
         )
 
         # Run fuzzing campaign
         stats = fuzzer.run_fuzzing_campaign(
-            fuzzed_files=fuzzed_files,
-            stop_on_crash=args.stop_on_crash
+            fuzzed_files=fuzzed_files, stop_on_crash=args.stop_on_crash
         )
 
         # End session
@@ -428,7 +431,10 @@ def main():
         logger.warning("\nFuzzing interrupted by user")
         sys.exit(130)
     except Exception as e:
-        logger.error(f"Fuzzing failed: {e}", exc_info=args.verbose if 'args' in locals() else False)
+        logger.error(
+            f"Fuzzing failed: {e}",
+            exc_info=args.verbose if "args" in locals() else False,
+        )
         sys.exit(1)
 
 

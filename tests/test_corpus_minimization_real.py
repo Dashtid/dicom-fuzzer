@@ -330,6 +330,77 @@ class TestValidateCorpusQuality:
         assert set(metrics.keys()) == expected_keys
 
 
+class TestMissingCoveragePaths:
+    """Tests for uncovered lines 162-165 in corpus_minimization.py."""
+
+    def test_validate_corrupted_file_exception_path(
+        self, corpus_dir, create_dicom_file
+    ):
+        """Test lines 162-163: Exception when pydicom.dcmread fails."""
+        import builtins
+        from unittest.mock import MagicMock, patch
+
+        # Create a valid DICOM file
+        create_dicom_file(corpus_dir / "test.dcm")
+
+        # Since pydicom is imported inside the function, we need to intercept
+        # the import and return a mock module with dcmread that raises
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "pydicom":
+                # Return a mock pydicom module where dcmread raises Exception
+                mock_pydicom = MagicMock()
+                mock_pydicom.dcmread.side_effect = Exception("Invalid DICOM format")
+                return mock_pydicom
+            return original_import(name, *args, **kwargs)
+
+        with patch.object(builtins, "__import__", mock_import):
+            metrics = validate_corpus_quality(corpus_dir)
+
+            # Should count as corrupted (lines 162-163)
+            assert metrics["total_files"] == 1
+            assert metrics["corrupted"] == 1
+            assert metrics["valid_dicom"] == 0
+
+    def test_validate_pydicom_import_error(self, tmp_path):
+        """Test lines 164-165: ImportError when pydicom is not available.
+
+        Since pydicom is imported inside a try block in validate_corpus_quality,
+        we need to make the import fail when the function runs.
+        """
+        import builtins
+        from unittest.mock import patch
+
+        # Create test corpus
+        corpus_dir = tmp_path / "corpus"
+        corpus_dir.mkdir()
+        (corpus_dir / "test.dcm").write_bytes(b"\x00" * 128 + b"DICM" + b"\x00" * 100)
+
+        # The import happens inside the function at line 156:
+        #     try:
+        #         import pydicom
+        # We need to make this specific import raise ImportError
+
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            # Only raise ImportError for pydicom when called inside validate_corpus_quality
+            if name == "pydicom":
+                raise ImportError("No module named 'pydicom'")
+            return original_import(name, *args, **kwargs)
+
+        # Patch builtins.__import__ to intercept the import inside the function
+        with patch.object(builtins, "__import__", mock_import):
+            metrics = validate_corpus_quality(corpus_dir)
+
+            # Lines 164-165: Should skip DICOM validation when pydicom unavailable
+            assert metrics["total_files"] == 1
+            # No validation happens, so both counters stay at 0
+            assert metrics["valid_dicom"] == 0
+            assert metrics["corrupted"] == 0
+
+
 class TestIntegrationScenarios:
     """Test realistic usage scenarios."""
 

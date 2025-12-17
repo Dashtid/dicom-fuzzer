@@ -167,6 +167,7 @@ class TestFuzzingSession:
             session_name="test_session",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         assert "test_session" in session.session_id
@@ -180,6 +181,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Start fuzzing
@@ -220,6 +222,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Start file
@@ -245,6 +248,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Create fuzzed file
@@ -282,6 +286,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Add some data
@@ -311,6 +316,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Save report
@@ -320,7 +326,7 @@ class TestFuzzingSession:
         assert report_path.suffix == ".json"
 
         # Verify content
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             data = json.load(f)
 
         assert "session_info" in data
@@ -332,6 +338,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Process multiple files
@@ -370,6 +377,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Note: Without real DICOM file, metadata will be empty or error
@@ -385,6 +393,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Create test file
@@ -402,6 +411,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Try to record mutation without starting file fuzzing
@@ -414,6 +424,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Try to end file fuzzing without starting
@@ -426,6 +437,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Try to record crash with non-existent file_id
@@ -442,6 +454,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Create file record
@@ -488,6 +501,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Add some activity
@@ -518,6 +532,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Get summary immediately (duration ≈ 0)
@@ -532,6 +547,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Create file
@@ -557,6 +573,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Try to record test result with non-existent file_id
@@ -569,6 +586,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         result = session._value_to_string(None)
@@ -580,6 +598,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Short binary data (won't be truncated)
@@ -595,10 +614,11 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Long binary data (will be truncated)
-        data = b"\xFF" * 100  # 100 bytes = 200 hex chars
+        data = b"\xff" * 100  # 100 bytes = 200 hex chars
         result = session._value_to_string(data)
 
         assert isinstance(result, str)
@@ -612,6 +632,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         result = session._value_to_string("test string")
@@ -623,6 +644,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Create file with mutations
@@ -664,6 +686,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Create file record with detailed mutations
@@ -686,7 +709,7 @@ class TestFuzzingSession:
             target_tag="(7FE0,0010)",
             target_element="PixelData",
             original_value=b"\x00" * 10,
-            mutated_value=b"\xFF" * 10,
+            mutated_value=b"\xff" * 10,
         )
 
         file_record = FuzzedFileRecord(
@@ -734,6 +757,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Create file
@@ -766,6 +790,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Try to find test DICOM file
@@ -793,6 +818,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Create multiple files with different results
@@ -826,6 +852,7 @@ class TestFuzzingSession:
             session_name="test",
             output_dir=str(temp_dirs["output"]),
             reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
         )
 
         # Create file record with no mutations

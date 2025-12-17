@@ -1,5 +1,4 @@
-"""
-DICOM Validator Module
+"""DICOM Validator Module
 
 LEARNING OBJECTIVE: This module demonstrates data validation, error handling,
 and defensive programming patterns essential for security-critical applications.
@@ -9,7 +8,7 @@ files for correctness, compliance, and security issues.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
@@ -22,8 +21,7 @@ security_logger = SecurityEventLogger(logger)
 
 
 class ValidationResult:
-    """
-    LEARNING: This class encapsulates validation results with details.
+    """LEARNING: This class encapsulates validation results with details.
 
     CONCEPT: Rather than just returning True/False, we return detailed
     information about what passed and what failed.
@@ -34,32 +32,33 @@ class ValidationResult:
 
         Args:
             is_valid: Whether validation passed overall
+
         """
         self.is_valid = is_valid
-        self.errors: List[str] = []
-        self.warnings: List[str] = []
-        self.info: Dict[str, Any] = {}
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
+        self.info: dict[str, Any] = {}
 
-    def add_error(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
+    def add_error(self, message: str, context: dict[str, Any] | None = None) -> None:
         """Add an error message to the result.
 
         Args:
             message: Error description
             context: Additional context information
+
         """
         self.errors.append(message)
         self.is_valid = False
         if context:
             self.info[message] = context
 
-    def add_warning(
-        self, message: str, context: Optional[Dict[str, Any]] = None
-    ) -> None:
+    def add_warning(self, message: str, context: dict[str, Any] | None = None) -> None:
         """Add a warning message to the result.
 
         Args:
             message: Warning description
             context: Additional context information
+
         """
         self.warnings.append(message)
         if context:
@@ -75,6 +74,7 @@ class ValidationResult:
             >>> result = ValidationResult()
             >>> if result:
             ...     print("Valid!")
+
         """
         return self.is_valid
 
@@ -83,6 +83,7 @@ class ValidationResult:
 
         Returns:
             str: Human-readable summary
+
         """
         if self.is_valid and not self.warnings:
             return "[PASS] Validation passed"
@@ -91,19 +92,18 @@ class ValidationResult:
         if not self.is_valid:
             lines.append(f"[FAIL] Validation failed with {len(self.errors)} error(s)")
             for error in self.errors:
-                lines.append(f"  - {error}")  # noqa: E221
+                lines.append(f"  - {error}")
 
         if self.warnings:
             lines.append(f"[WARN] {len(self.warnings)} warning(s)")
             for warning in self.warnings:
-                lines.append(f"  - {warning}")  # noqa: E221
+                lines.append(f"  - {warning}")
 
         return "\n".join(lines)
 
 
 class DicomValidator:
-    """
-    LEARNING: This class validates DICOM files for correctness and compliance.
+    """LEARNING: This class validates DICOM files for correctness and compliance.
 
     CONCEPT: Validation ensures that generated/mutated DICOM files are:
     1. Structurally correct (proper format)
@@ -140,6 +140,7 @@ class DicomValidator:
         Args:
             strict_mode: Whether to enforce strict DICOM compliance
             max_file_size: Maximum allowed file size in bytes (default 100MB)
+
         """
         self.strict_mode = strict_mode
         self.max_file_size = max_file_size
@@ -152,7 +153,7 @@ class DicomValidator:
 
     def validate(
         self,
-        dataset: Dataset,
+        dataset: Dataset | None,
         check_required_tags: bool = True,
         check_values: bool = True,
         check_security: bool = True,
@@ -162,15 +163,21 @@ class DicomValidator:
         LEARNING: This method orchestrates multiple validation checks.
 
         Args:
-            dataset: DICOM dataset to validate
+            dataset: DICOM dataset to validate (can be None)
             check_required_tags: Whether to check for required tags
             check_values: Whether to validate tag values
             check_security: Whether to perform security checks
 
         Returns:
             ValidationResult: Detailed validation results
+
         """
         result = ValidationResult()
+
+        # Handle None dataset
+        if dataset is None:
+            result.add_error("Dataset is None")
+            return result
 
         # Check basic structure
         if not self._validate_structure(dataset, result):
@@ -209,7 +216,7 @@ class DicomValidator:
 
     def validate_file(
         self, file_path: Path, parse_dataset: bool = True
-    ) -> Tuple[ValidationResult, Optional[Dataset]]:
+    ) -> tuple[ValidationResult, Dataset | None]:
         """Validate DICOM file from disk.
 
         Args:
@@ -217,7 +224,8 @@ class DicomValidator:
             parse_dataset: Whether to parse and validate the dataset
 
         Returns:
-            Tuple of (ValidationResult, Optional[Dataset])
+            tuple of (ValidationResult, Dataset | None)
+
         """
         result = ValidationResult()
         dataset = None
@@ -284,12 +292,8 @@ class DicomValidator:
 
         Returns:
             bool: Whether structure is valid (continue validation)
-        """
-        # Check that dataset is not None
-        if dataset is None:
-            result.add_error("Dataset is None")
-            return False
 
+        """
         # Check that dataset has some elements
         if len(dataset) == 0:
             result.add_error("Dataset is empty")
@@ -309,6 +313,7 @@ class DicomValidator:
         Args:
             dataset: DICOM dataset
             result: Validation result to update
+
         """
         # Check each category of required tags
         for category, tags in self.REQUIRED_TAGS.items():
@@ -331,6 +336,7 @@ class DicomValidator:
         Args:
             dataset: DICOM dataset
             result: Validation result to update
+
         """
         for elem in dataset:
             # Skip empty or undefined values
@@ -359,6 +365,7 @@ class DicomValidator:
         Args:
             dataset: DICOM dataset
             result: Validation result to update
+
         """
         # Check for suspiciously large number of elements
         if len(dataset) > 10000:
@@ -410,6 +417,7 @@ class DicomValidator:
 
         Returns:
             int: Maximum depth found
+
         """
         max_depth = current_depth
 
@@ -427,6 +435,7 @@ class DicomValidator:
         Args:
             dataset: DICOM dataset
             result: Validation result to update
+
         """
         private_tag_count = 0
 
@@ -455,8 +464,8 @@ class DicomValidator:
                 result.add_warning(msg, context=ctx)
 
     def validate_batch(
-        self, datasets: List[Dataset], stop_on_first_error: bool = False
-    ) -> List[ValidationResult]:
+        self, datasets: list[Dataset], stop_on_first_error: bool = False
+    ) -> list[ValidationResult]:
         """Validate multiple DICOM datasets.
 
         Args:
@@ -464,7 +473,8 @@ class DicomValidator:
             stop_on_first_error: Whether to stop on first error
 
         Returns:
-            List[ValidationResult]: Results for each dataset
+            list[ValidationResult]: Results for each dataset
+
         """
         results = []
 

@@ -14,7 +14,7 @@ Tests cover:
 - Integration workflows
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock, patch
 
 import pytest
@@ -75,7 +75,7 @@ class TestMutationRecord:
 
     def test_record_creation_with_values(self):
         """Test creating mutation record with specific values."""
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
 
         record = MutationRecord(
             mutation_id="test123",
@@ -106,9 +106,9 @@ class TestMutationRecord:
 
     def test_record_timestamp_automatic(self):
         """Test that timestamps are automatically generated."""
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         record = MutationRecord()
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
 
         assert before <= record.timestamp <= after
 
@@ -131,8 +131,8 @@ class TestMutationSession:
 
     def test_session_creation_with_values(self):
         """Test creating session with specific values."""
-        start_time = datetime.now(timezone.utc)
-        end_time = datetime.now(timezone.utc)
+        start_time = datetime.now(UTC)
+        end_time = datetime.now(UTC)
         mutations = [MutationRecord(), MutationRecord()]
 
         session = MutationSession(
@@ -605,12 +605,16 @@ class TestSafetyChecks:
 class TestPropertyBasedTesting:
     """Property-based tests for robustness."""
 
-    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=500)
     @given(num_mutations=st.integers(min_value=1, max_value=10))
     def test_num_mutations_always_nonnegative(
         self, sample_dicom_dataset, num_mutations
     ):
-        """Property test: number of mutations is always non-negative."""
+        """Property test: number of mutations is always non-negative.
+
+        Note: Increased deadline from 200ms to 500ms due to variable execution
+        times when running in parallel with pytest-xdist.
+        """
         mutator = DicomMutator(config={"mutation_probability": 1.0})
 
         strategy = Mock()

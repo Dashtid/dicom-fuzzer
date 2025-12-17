@@ -130,7 +130,7 @@ class TestEnhancedReportGenerator:
 
         report_path = generator.generate_html_report(minimal_session_data)
 
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             html = f.read()
 
         assert "Test Fuzzing Session" in html
@@ -144,7 +144,7 @@ class TestEnhancedReportGenerator:
 
         report_path = generator.generate_html_report(minimal_session_data)
 
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             html = f.read()
 
         assert "10" in html  # total_files_processed
@@ -156,7 +156,7 @@ class TestEnhancedReportGenerator:
 
         report_path = generator.generate_html_report(session_data_with_crashes)
 
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             html = f.read()
 
         # Check for crash information
@@ -170,7 +170,7 @@ class TestEnhancedReportGenerator:
 
         report_path = generator.generate_html_report(minimal_session_data)
 
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             html = f.read()
 
         # Check for basic HTML structure
@@ -186,7 +186,7 @@ class TestEnhancedReportGenerator:
 
         report_path = generator.generate_html_report(minimal_session_data)
 
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             html = f.read()
 
         assert "<style>" in html
@@ -247,7 +247,7 @@ class TestEnhancedReportGenerator:
 
         report_path = generator.generate_html_report(session_data_with_crashes)
 
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             html = f.read()
 
         # Check for crash details
@@ -261,7 +261,7 @@ class TestEnhancedReportGenerator:
 
         report_path = generator.generate_html_report(session_data_with_crashes)
 
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             html = f.read()
 
         # Check for mutation information
@@ -285,7 +285,7 @@ class TestEnhancedReportGenerator:
         report_path = generator.generate_html_report(minimal_session_data)
 
         # Should be able to read with UTF-8 encoding
-        with open(report_path, "r", encoding="utf-8") as f:
+        with open(report_path, encoding="utf-8") as f:
             content = f.read()
 
         assert len(content) > 0

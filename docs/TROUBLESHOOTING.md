@@ -9,9 +9,10 @@ Comprehensive troubleshooting guide for common issues encountered when using DIC
 3. [Target Testing Issues](#target-testing-issues)
 4. [Resource Limit Problems](#resource-limit-problems)
 5. [Performance Issues](#performance-issues)
-6. [Platform-Specific Issues](#platform-specific-issues)
-7. [Error Codes Reference](#error-codes-reference)
-8. [Getting Help](#getting-help)
+6. [CI/CD Integration Issues](#cicd-integration-issues)
+7. [Platform-Specific Issues](#platform-specific-issues)
+8. [Error Codes Reference](#error-codes-reference)
+9. [Getting Help](#getting-help)
 
 ---
 
@@ -385,6 +386,159 @@ for i in range(0, 1000, batch_size):
     # Force garbage collection
     import gc
     gc.collect()
+```
+
+---
+
+## CI/CD Integration Issues
+
+### GitHub Actions: Ruff Linter Failures
+
+**Problem**: CI pipeline fails with Ruff linting errors.
+
+**Solution**:
+
+```bash
+# Run Ruff locally to check issues
+uv run ruff check .
+
+# Auto-fix linting issues
+uv run ruff check --fix .
+
+# Format code
+uv run ruff format .
+
+# Verify formatting
+uv run ruff format --check .
+```
+
+**Note**: Ruff linter is configured as non-blocking in CI (2025-10-27 update). Linting failures will be reported but won't block builds.
+
+### GitHub Actions: Bandit Security Scan Failures
+
+**Problem**: CI pipeline fails with Bandit security warnings.
+
+**Solution**:
+
+```bash
+# Run Bandit locally
+uv run bandit -c pyproject.toml -r dicom_fuzzer/
+
+# Check specific file
+uv run bandit dicom_fuzzer/core/parser.py
+
+# View ignored rules
+grep "skips" .github/workflows/ci.yml
+```
+
+**Ignored Rules** (for medical fuzzing use cases):
+
+- B101: assert_used (pytest requires asserts)
+- B104: hardcoded_bind_all_interfaces (test fixtures)
+- B110: try_except_pass (intentional in fuzzing)
+- B112: try_except_continue (mutation strategies)
+- B301: pickle (corpus serialization, documented risk)
+- B324: hashlib_insecure_functions (MD5 for fingerprinting, not crypto)
+- B403/B404: subprocess imports (target execution)
+- B603: subprocess_without_shell_equals_true (safe usage)
+- B607: start_process_with_partial_path (intentional for fuzzing)
+- B608: hardcoded_sql_expressions (test data only)
+
+**Note**: Bandit is configured as non-blocking in CI (2025-10-27 update). Security warnings will be reported but won't block builds.
+
+### GitHub Actions: Test Timeouts
+
+**Problem**: Tests timeout in CI environment.
+
+**Solution**:
+
+```yaml
+# .github/workflows/ci.yml
+- name: Run tests with extended timeout
+  run: |
+    pytest tests/ --timeout=300 --timeout-method=thread
+```
+
+**Local Testing**:
+
+```bash
+# Run tests with same timeout as CI
+uv run pytest tests/ --timeout=300 -v
+
+# Run only fast tests
+uv run pytest tests/ -m "not slow"
+```
+
+### Docker Build Failures
+
+**Problem**: Docker build fails with "No such file or directory".
+
+**Solution**:
+
+```dockerfile
+# Ensure .dockerignore is configured correctly
+# Add to .dockerignore:
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.hypothesis/
+reports/
+```
+
+**Test Docker Build Locally**:
+
+```bash
+# Build with verbose output
+docker build --progress=plain -t dicom-fuzzer .
+
+# Build with specific target
+docker build --target=testing -t dicom-fuzzer:test .
+```
+
+### Pre-commit Hook Failures
+
+**Problem**: Pre-commit hooks fail on commit.
+
+**Solution**:
+
+```bash
+# Update pre-commit hooks
+pre-commit autoupdate
+
+# Run all hooks manually
+pre-commit run --all-files
+
+# Skip hooks temporarily (not recommended)
+git commit --no-verify -m "message"
+
+# Fix specific hook
+pre-commit run ruff --all-files
+```
+
+### Dependency Installation Failures in CI
+
+**Problem**: `pip install` or `uv sync` fails in CI.
+
+**Solution**:
+
+```yaml
+# .github/workflows/ci.yml
+- name: Install dependencies with retry
+  run: |
+    for i in {1..3}; do
+      uv sync --all-extras && break || sleep 5
+    done
+```
+
+**Lock File Issues**:
+
+```bash
+# Regenerate lock file
+uv lock --upgrade
+
+# Verify lock file
+uv sync --frozen
 ```
 
 ---

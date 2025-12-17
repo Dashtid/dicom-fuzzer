@@ -370,3 +370,215 @@ class TestViewerTypeEnum:
 
         assert len(types) == 5
         assert all(isinstance(t.value, str) for t in types)
+
+
+class TestEdgeCasesAndExceptionPaths:
+    """Test edge cases and exception handling paths."""
+
+    @patch("dicom_fuzzer.harness.viewer_launcher_3d.subprocess.Popen")
+    def test_launch_with_memory_monitoring(
+        self, mock_popen, generic_config, temp_series_folder
+    ):
+        """Test launch with memory monitoring enabled (line 199)."""
+        # Mock process
+        mock_process = Mock()
+        mock_process.poll.side_effect = [None, 0]  # Running, then exits
+        mock_process.returncode = 0
+        mock_process.pid = 12345
+        mock_popen.return_value = mock_process
+
+        with patch.object(ViewerLauncher3D, "_monitor_process", return_value=150.0):
+            launcher = ViewerLauncher3D(generic_config, monitor_memory=True)
+            result = launcher.launch_with_series(temp_series_folder)
+
+            assert result.peak_memory_mb == 150.0
+            assert result.status == ExecutionStatus.SUCCESS
+
+    @patch("dicom_fuzzer.harness.viewer_launcher_3d.subprocess.Popen")
+    def test_launch_exception_during_execution(
+        self, mock_popen, generic_config, temp_series_folder
+    ):
+        """Test exception during viewer launch (lines 220-223)."""
+        # Mock Popen to raise exception
+        mock_popen.side_effect = OSError("Failed to launch process")
+
+        launcher = ViewerLauncher3D(generic_config, monitor_memory=False)
+        result = launcher.launch_with_series(temp_series_folder)
+
+        assert result.crashed
+        assert result.status == ExecutionStatus.CRASH
+        assert "Failed to launch process" in result.stderr
+
+    def test_count_dicom_extensionless_files(self, generic_config):
+        """Test counting extensionless DICOM files (lines 289-295)."""
+        temp_dir = Path(tempfile.mkdtemp())
+        try:
+            # Create extensionless file with DICOM magic bytes
+            dicom_file = temp_dir / "extensionless_dicom"
+            with open(dicom_file, "wb") as f:
+                f.write(b"\x00" * 128)
+                f.write(b"DICM")
+                f.write(b"\x00" * 100)
+
+            # Create non-DICOM extensionless file
+            other_file = temp_dir / "other_file"
+            other_file.write_bytes(b"Not a DICOM file")
+
+            launcher = ViewerLauncher3D(generic_config)
+            count = launcher._count_dicom_files(temp_dir)
+            assert count >= 1  # At least the DICOM file
+        finally:
+            shutil.rmtree(temp_dir)
+
+    def test_count_dicom_with_read_error(self, generic_config):
+        """Test counting DICOM files when read fails (line 294-295)."""
+        temp_dir = Path(tempfile.mkdtemp())
+        try:
+            # Create a directory that looks like an extensionless file
+            # (will fail to open for reading)
+            subdir = temp_dir / "fakefile"
+            subdir.mkdir()
+
+            launcher = ViewerLauncher3D(generic_config)
+            # Should not raise, just skip the unreadable file
+            count = launcher._count_dicom_files(temp_dir)
+            assert count >= 0
+        finally:
+            shutil.rmtree(temp_dir)
+
+    @patch("dicom_fuzzer.harness.viewer_launcher_3d.psutil.Process")
+    def test_monitor_process_timeout(self, mock_psutil_process, generic_config):
+        """Test memory monitoring when process exceeds timeout (lines 321-322)."""
+        mock_process = Mock()
+        mock_process.poll.return_value = None  # Never exits
+        mock_process.pid = 12345
+
+        mock_ps = Mock()
+        mock_mem_info = Mock()
+        mock_mem_info.rss = 100 * 1024 * 1024  # 100 MB
+        mock_ps.memory_info.return_value = mock_mem_info
+        mock_psutil_process.return_value = mock_ps
+
+        launcher = ViewerLauncher3D(generic_config)
+        # Very short timeout to trigger timeout path
+        with patch("time.time", side_effect=[0, 0.1, 1.1]):
+            peak_memory = launcher._monitor_process(mock_process, timeout=1)
+            assert peak_memory >= 0
+
+    @patch("dicom_fuzzer.harness.viewer_launcher_3d.psutil.Process")
+    def test_monitor_process_exceeds_memory_limit(
+        self, mock_psutil_process, temp_viewer_executable
+    ):
+        """Test monitoring when process exceeds memory limit (lines 335-341)."""
+        config = ViewerConfig(
+            viewer_type=ViewerType.GENERIC,
+            executable_path=temp_viewer_executable,
+            command_template="{folder_path}",
+            timeout_seconds=10,
+            memory_limit_mb=50,  # 50 MB limit
+        )
+
+        mock_process = Mock()
+        mock_process.poll.return_value = None
+        mock_process.pid = 12345
+
+        mock_ps = Mock()
+        mock_mem_info = Mock()
+        mock_mem_info.rss = 100 * 1024 * 1024  # 100 MB - exceeds limit
+        mock_ps.memory_info.return_value = mock_mem_info
+        mock_psutil_process.return_value = mock_ps
+
+        launcher = ViewerLauncher3D(config)
+        peak_memory = launcher._monitor_process(mock_process, timeout=10)
+        # Should exit early due to memory limit
+        assert peak_memory > 0
+
+    @patch("dicom_fuzzer.harness.viewer_launcher_3d.psutil.Process")
+    def test_monitor_process_nosuchprocess_during_monitor(
+        self, mock_psutil_process, generic_config
+    ):
+        """Test monitoring when process terminates during memory check (lines 345-346)."""
+        import psutil
+
+        mock_process = Mock()
+        mock_process.poll.return_value = None
+        mock_process.pid = 12345
+
+        mock_ps = Mock()
+        mock_ps.memory_info.side_effect = psutil.NoSuchProcess(12345)
+        mock_psutil_process.return_value = mock_ps
+
+        launcher = ViewerLauncher3D(generic_config)
+        peak_memory = launcher._monitor_process(mock_process, timeout=10)
+        assert peak_memory == 0.0  # No memory recorded before termination
+
+    @patch("dicom_fuzzer.harness.viewer_launcher_3d.psutil.Process")
+    @patch("dicom_fuzzer.harness.viewer_launcher_3d.psutil.wait_procs")
+    def test_kill_process_tree_child_already_gone(
+        self, mock_wait_procs, mock_psutil_process, generic_config
+    ):
+        """Test killing process tree when child is already gone (lines 365-366)."""
+        import psutil
+
+        mock_process = Mock()
+        mock_process.pid = 12345
+
+        mock_parent = Mock()
+        mock_child = Mock()
+        mock_child.kill.side_effect = psutil.NoSuchProcess(12346)
+        mock_parent.children.return_value = [mock_child]
+        mock_psutil_process.return_value = mock_parent
+        mock_wait_procs.return_value = ([], [])
+
+        launcher = ViewerLauncher3D(generic_config)
+        # Should not raise
+        launcher._kill_process_tree(mock_process)
+
+    @patch("dicom_fuzzer.harness.viewer_launcher_3d.psutil.Process")
+    @patch("dicom_fuzzer.harness.viewer_launcher_3d.psutil.wait_procs")
+    def test_kill_process_tree_parent_already_gone(
+        self, mock_wait_procs, mock_psutil_process, generic_config
+    ):
+        """Test killing process tree when parent is already gone (lines 371-372)."""
+        import psutil
+
+        mock_process = Mock()
+        mock_process.pid = 12345
+
+        mock_parent = Mock()
+        mock_parent.children.return_value = []
+        mock_parent.kill.side_effect = psutil.NoSuchProcess(12345)
+        mock_psutil_process.return_value = mock_parent
+        mock_wait_procs.return_value = ([], [])
+
+        launcher = ViewerLauncher3D(generic_config)
+        # Should not raise
+        launcher._kill_process_tree(mock_process)
+
+    @patch("dicom_fuzzer.harness.viewer_launcher_3d.psutil.Process")
+    def test_kill_process_tree_general_exception(
+        self, mock_psutil_process, generic_config
+    ):
+        """Test killing process tree handles general exceptions (lines 381-384)."""
+        mock_process = Mock()
+        mock_process.pid = 12345
+
+        mock_psutil_process.side_effect = Exception("Unexpected error")
+
+        launcher = ViewerLauncher3D(generic_config)
+        # Should not raise, just log warning
+        launcher._kill_process_tree(mock_process)
+
+    def test_correlate_crash_instance_pattern(self, generic_config, temp_series_folder):
+        """Test crash correlation with instance/file pattern (line 425)."""
+        launcher = ViewerLauncher3D(generic_config)
+
+        # Test instance pattern
+        stderr = "Error at instance 5"
+        result = launcher._correlate_crash_to_slice(temp_series_folder, stderr, "")
+        assert result == 4  # 0-based index
+
+        # Test file pattern
+        stderr = "Failed to load file 3"
+        result = launcher._correlate_crash_to_slice(temp_series_folder, stderr, "")
+        assert result == 2  # 0-based index

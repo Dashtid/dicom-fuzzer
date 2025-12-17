@@ -26,6 +26,11 @@ from .parser import DicomParser
 from .resource_manager import ResourceLimits, ResourceManager
 from .series_cache import CacheEntry, SeriesCache
 from .series_detector import SeriesDetector
+from .series_reporter import (
+    Series3DReport,
+    Series3DReportGenerator,
+    SeriesMutationSummary,
+)
 from .series_validator import (
     SeriesValidator,
     ValidationIssue,
@@ -34,6 +39,14 @@ from .series_validator import (
 )
 from .series_writer import SeriesMetadata, SeriesWriter
 from .stability_tracker import StabilityMetrics, StabilityTracker
+from .synthetic import (
+    SyntheticDataGenerator,
+    SyntheticDicomGenerator,
+    SyntheticPatient,
+    SyntheticSeries,
+    SyntheticStudy,
+    generate_sample_files,
+)
 from .target_runner import ExecutionStatus, TargetRunner
 from .test_minimizer import MinimizationStrategy, TestMinimizer
 from .types import MutationSeverity
@@ -85,4 +98,15 @@ __all__ = [
     "create_deferred_loader",
     "SeriesCache",
     "CacheEntry",
+    # Enhanced Reporting & Analytics (v2.0.0-alpha Phase 5)
+    "Series3DReport",
+    "Series3DReportGenerator",
+    "SeriesMutationSummary",
+    # Synthetic DICOM Generation
+    "SyntheticDicomGenerator",
+    "SyntheticDataGenerator",
+    "SyntheticPatient",
+    "SyntheticStudy",
+    "SyntheticSeries",
+    "generate_sample_files",
 ]

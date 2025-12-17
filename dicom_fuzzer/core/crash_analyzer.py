@@ -1,5 +1,4 @@
-"""
-Crash Analysis Framework - Automatic Crash Detection and Reporting
+"""Crash Analysis Framework - Automatic Crash Detection and Reporting
 
 LEARNING OBJECTIVE: This module demonstrates how to automatically detect,
 analyze, and report crashes during fuzzing campaigns.
@@ -18,18 +17,18 @@ WHY: Crash analysis automates vulnerability discovery:
 - Prioritizes crashes by severity
 """
 
-import hashlib
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional
+
+from dicom_fuzzer.utils.hashing import hash_string
+from dicom_fuzzer.utils.identifiers import generate_crash_id
 
 
 class CrashSeverity(Enum):
-    """
-    Crash severity classification.
+    """Crash severity classification.
 
     CONCEPT: Not all crashes are equal:
     - CRITICAL: Memory corruption, code execution possible
@@ -46,8 +45,7 @@ class CrashSeverity(Enum):
 
 
 class CrashType(Enum):
-    """
-    Types of crashes we can detect.
+    """Types of crashes we can detect.
 
     CONCEPT: Different crash types indicate different vulnerabilities:
     - SEGFAULT: Memory access violation (exploitable)
@@ -68,8 +66,7 @@ class CrashType(Enum):
 
 @dataclass
 class CrashReport:
-    """
-    Comprehensive crash report.
+    """Comprehensive crash report.
 
     CONCEPT: Captures all information needed to:
     - Reproduce the crash
@@ -82,15 +79,14 @@ class CrashReport:
     crash_type: CrashType
     severity: CrashSeverity
     test_case_path: str  # Path to input that caused crash
-    stack_trace: Optional[str]
-    exception_message: Optional[str]
+    stack_trace: str | None
+    exception_message: str | None
     crash_hash: str  # For deduplication
-    additional_info: Dict[str, str]
+    additional_info: dict[str, str]
 
 
 class CrashAnalyzer:
-    """
-    Analyzes crashes during fuzzing campaigns.
+    """Analyzes crashes during fuzzing campaigns.
 
     CONCEPT: Runs test cases and monitors for crashes,
     collecting diagnostic information automatically.
@@ -102,22 +98,21 @@ class CrashAnalyzer:
     """
 
     def __init__(self, crash_dir: str = "./crashes"):
-        """
-        Initialize crash analyzer.
+        """Initialize crash analyzer.
 
         Args:
             crash_dir: Directory to store crash reports and test cases
+
         """
         self.crash_dir = Path(crash_dir)
         self.crash_dir.mkdir(parents=True, exist_ok=True)
-        self.crashes: List[CrashReport] = []
+        self.crashes: list[CrashReport] = []
         self.crash_hashes: set = set()  # For deduplication
 
     def analyze_exception(
         self, exception: Exception, test_case_path: str
     ) -> CrashReport:
-        """
-        Analyze an exception that occurred during testing.
+        """Analyze an exception that occurred during testing.
 
         CONCEPT: Exceptions contain valuable debugging information:
         - Exception type (TypeError, ValueError, etc.)
@@ -130,6 +125,7 @@ class CrashAnalyzer:
 
         Returns:
             Crash report with analysis
+
         """
         # Get stack trace
         stack_trace = "".join(
@@ -148,7 +144,7 @@ class CrashAnalyzer:
         crash_hash = self._generate_crash_hash(stack_trace, str(exception))
 
         # Generate unique crash ID
-        crash_id = f"crash_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{crash_hash[:8]}"
+        crash_id = generate_crash_id(crash_hash)
 
         # Create crash report
         report = CrashReport(
@@ -168,9 +164,50 @@ class CrashAnalyzer:
 
         return report
 
-    def _classify_exception(self, exception: Exception) -> CrashType:
+    def analyze_crash(self, crash_file: Path, exception: Exception) -> dict:
+        """Analyze a crash and return results as dictionary.
+
+        This method provides compatibility with test expectations and uses
+        the mockable alias methods for testing.
+
+        Args:
+            crash_file: Path to file that caused crash
+            exception: Exception that occurred
+
+        Returns:
+            Dictionary with crash analysis results
+
         """
-        Classify exception type.
+        # Use mockable alias methods for test compatibility
+        crash_type_str = self._get_crash_type(exception)
+        severity_str = self._calculate_severity(crash_type_str, exception)
+
+        # Get stack trace for hash generation
+        stack_trace = "".join(
+            traceback.format_exception(
+                type(exception), exception, exception.__traceback__
+            )
+        )
+
+        # Create crash hash
+        crash_hash = self._generate_crash_hash(stack_trace, str(exception))
+
+        # Generate unique crash ID
+        crash_id = generate_crash_id(crash_hash)
+
+        # Check exploitability
+        exploitable = severity_str in ["critical", "high"]
+
+        return {
+            "type": crash_type_str,
+            "severity": severity_str,
+            "exploitable": exploitable,
+            "crash_id": crash_id,
+            "crash_hash": crash_hash,
+        }
+
+    def _classify_exception(self, exception: Exception) -> CrashType:
+        """Classify exception type.
 
         CONCEPT: Maps Python exceptions to crash types:
         - MemoryError -> OUT_OF_MEMORY
@@ -183,6 +220,7 @@ class CrashAnalyzer:
 
         Returns:
             Crash type classification
+
         """
         if isinstance(exception, MemoryError):
             return CrashType.OUT_OF_MEMORY
@@ -198,8 +236,7 @@ class CrashAnalyzer:
     def _determine_severity(
         self, crash_type: CrashType, exception: Exception
     ) -> CrashSeverity:
-        """
-        Determine crash severity.
+        """Determine crash severity.
 
         CONCEPT: Severity indicates exploitability and impact:
         - Memory corruption = CRITICAL (potential code execution)
@@ -213,6 +250,7 @@ class CrashAnalyzer:
 
         Returns:
             Severity classification
+
         """
         # CRITICAL: Memory corruption indicators
         if crash_type == CrashType.SEGFAULT:
@@ -241,9 +279,38 @@ class CrashAnalyzer:
         # Default
         return CrashSeverity.MEDIUM
 
-    def _generate_crash_hash(self, stack_trace: str, exception_msg: str) -> str:
+    def _get_crash_type(self, exception: Exception) -> str:
+        """Alias for _classify_exception for test compatibility.
+
+        Args:
+            exception: Exception to classify
+
+        Returns:
+            Crash type as string
+
         """
-        Generate hash for crash deduplication.
+        return self._classify_exception(exception).value
+
+    def _calculate_severity(self, crash_type_str: str, exception: Exception) -> str:
+        """Alias for _determine_severity for test compatibility.
+
+        Args:
+            crash_type_str: Crash type string
+            exception: Exception
+
+        Returns:
+            Severity as string
+
+        """
+        # Convert string back to CrashType enum with fallback to UNKNOWN
+        try:
+            crash_type = CrashType(crash_type_str)
+        except ValueError:
+            crash_type = CrashType.UNKNOWN
+        return self._determine_severity(crash_type, exception).value
+
+    def _generate_crash_hash(self, stack_trace: str, exception_msg: str) -> str:
+        """Generate hash for crash deduplication.
 
         CONCEPT: Multiple inputs might trigger the same bug,
         creating the same stack trace. We hash the stack trace
@@ -257,22 +324,23 @@ class CrashAnalyzer:
 
         Returns:
             Hash string for deduplication
+
         """
         # Combine stack trace and exception for hashing
         crash_signature = f"{stack_trace}\n{exception_msg}"
 
         # Create SHA256 hash
-        return hashlib.sha256(crash_signature.encode()).hexdigest()
+        return hash_string(crash_signature)
 
     def is_unique_crash(self, crash_hash: str) -> bool:
-        """
-        Check if this is a unique crash (not seen before).
+        """Check if this is a unique crash (not seen before).
 
         Args:
             crash_hash: Hash of the crash
 
         Returns:
             True if unique, False if duplicate
+
         """
         if crash_hash in self.crash_hashes:
             return False
@@ -281,8 +349,7 @@ class CrashAnalyzer:
         return True
 
     def save_crash_report(self, report: CrashReport) -> Path:
-        """
-        Save crash report to disk.
+        """Save crash report to disk.
 
         CONCEPT: Persistent crash reports allow:
         - Post-campaign analysis
@@ -294,6 +361,7 @@ class CrashAnalyzer:
 
         Returns:
             Path to saved report
+
         """
         report_path = self.crash_dir / f"{report.crash_id}.txt"
 
@@ -327,9 +395,8 @@ class CrashAnalyzer:
 
     def record_crash(
         self, exception: Exception, test_case_path: str
-    ) -> Optional[CrashReport]:
-        """
-        Record a crash for analysis.
+    ) -> CrashReport | None:
+        """Record a crash for analysis.
 
         Args:
             exception: Exception that was raised
@@ -337,6 +404,7 @@ class CrashAnalyzer:
 
         Returns:
             Crash report if unique, None if duplicate
+
         """
         # Analyze the crash
         report = self.analyze_exception(exception, test_case_path)
@@ -353,12 +421,12 @@ class CrashAnalyzer:
 
         return report
 
-    def get_crash_summary(self) -> Dict[str, int]:
-        """
-        Get summary of crashes found.
+    def get_crash_summary(self) -> dict[str, int]:
+        """Get summary of crashes found.
 
         Returns:
             Dictionary with crash statistics
+
         """
         summary = {
             "total_crashes": len(self.crashes),
@@ -375,11 +443,11 @@ class CrashAnalyzer:
         return summary
 
     def generate_report(self) -> str:
-        """
-        Generate human-readable crash report summary.
+        """Generate human-readable crash report summary.
 
         Returns:
             Formatted crash summary
+
         """
         summary = self.get_crash_summary()
 

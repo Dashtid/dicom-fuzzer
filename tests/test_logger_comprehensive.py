@@ -7,7 +7,6 @@ including sensitive data redaction, security event logging, and performance metr
 import logging
 from unittest.mock import Mock
 
-
 from dicom_fuzzer.utils.logger import (
     PerformanceLogger,
     SecurityEventLogger,

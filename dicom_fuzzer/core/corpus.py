@@ -1,5 +1,4 @@
-"""
-Coverage-Guided Fuzzing - Corpus Management
+"""Coverage-Guided Fuzzing - Corpus Management
 
 LEARNING OBJECTIVE: This module demonstrates how to manage a corpus of interesting
 test cases for coverage-guided fuzzing.
@@ -12,26 +11,27 @@ WHY: The corpus is the "memory" of our fuzzer. Without it, we'd forget which
 inputs were valuable. With it, we build on previous discoveries.
 """
 
+import copy
 import json
 import shutil
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 import pydicom
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.coverage_tracker import CoverageSnapshot
+from dicom_fuzzer.core.serialization import SerializableMixin
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 @dataclass
-class CorpusEntry:
-    """
-    Represents a single test case in the corpus.
+class CorpusEntry(SerializableMixin):
+    """Represents a single test case in the corpus.
 
     CONCEPT: Each entry is like a record card that stores not just the test case,
     but also metadata about why it's valuable (coverage, crashes, etc.).
@@ -52,25 +52,25 @@ class CorpusEntry:
         metadata: Additional metadata
         _dataset_path: Internal path to DICOM file for lazy loading
         _dataset_cache: Internal cached dataset after first load
+
     """
 
     entry_id: str
-    dataset: Optional[Dataset] = None
-    coverage: Optional[CoverageSnapshot] = None
+    dataset: Dataset | None = None
+    coverage: CoverageSnapshot | None = None
     fitness_score: float = 0.0
     generation: int = 0
-    parent_id: Optional[str] = None
+    parent_id: str | None = None
     crash_triggered: bool = False
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     # OPTIMIZATION: Lazy loading fields (not included in repr/init by default)
-    _dataset_path: Optional[Path] = field(default=None, repr=False)
-    _dataset_cache: Optional[Dataset] = field(default=None, init=False, repr=False)
+    _dataset_path: Path | None = field(default=None, repr=False)
+    _dataset_cache: Dataset | None = field(default=None, init=False, repr=False)
 
-    def __post_init__(self):
-        """
-        OPTIMIZATION: Handle lazy loading initialization.
+    def __post_init__(self) -> None:
+        """OPTIMIZATION: Handle lazy loading initialization.
 
         If a dataset is provided directly, cache it.
         If a path is provided, dataset will be loaded on first access.
@@ -79,12 +79,12 @@ class CorpusEntry:
             # Dataset provided directly - cache it
             self._dataset_cache = self.dataset
 
-    def get_dataset(self) -> Optional[Dataset]:
-        """
-        OPTIMIZATION: Lazy-load dataset on first access.
+    def get_dataset(self) -> Dataset | None:
+        """OPTIMIZATION: Lazy-load dataset on first access.
 
         Returns:
             Dataset: The DICOM dataset, loaded from disk if needed
+
         """
         # Return cached dataset if available
         if self._dataset_cache is not None:
@@ -97,47 +97,70 @@ class CorpusEntry:
                 logger.debug(f"Lazy-loaded dataset for entry {self.entry_id}")
                 return self._dataset_cache
             except Exception as e:
-                logger.error(f"Failed to lazy-load dataset from {self._dataset_path}: {e}")
+                logger.error(
+                    f"Failed to lazy-load dataset from {self._dataset_path}: {e}"
+                )
                 return None
 
         # No dataset available
         return None
 
-    def set_dataset(self, dataset: Dataset, path: Optional[Path] = None):
-        """
-        Set the dataset for this entry.
+    def set_dataset(self, dataset: Dataset, path: Path | None = None) -> None:
+        """Set the dataset for this entry.
 
         Args:
             dataset: The DICOM dataset to store
             path: Optional path where dataset is/will be stored on disk
+
         """
         self._dataset_cache = dataset
         if path:
             self._dataset_path = path
 
-    def to_dict(self) -> Dict[str, Any]:
+    @property
+    def data(self) -> bytes:
+        """Get the dataset as bytes for mutation.
+
+        Used by coverage-guided mutation to access raw DICOM bytes.
+
+        Returns:
+            Serialized DICOM dataset as bytes
+
         """
-        Convert entry to dictionary (for JSON serialization).
+        import io
+
+        dataset = self.get_dataset()
+        if dataset is None:
+            return b""
+
+        # Serialize dataset to bytes
+        output = io.BytesIO()
+        dataset.save_as(output, write_like_original=False)
+        return output.getvalue()
+
+    def _custom_serialization(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Add computed fields and exclude dataset from serialization.
 
         Note: DICOM dataset is stored separately as .dcm file
         """
-        return {
-            "entry_id": self.entry_id,
-            "fitness_score": self.fitness_score,
-            "generation": self.generation,
-            "parent_id": self.parent_id,
-            "crash_triggered": self.crash_triggered,
-            "timestamp": self.timestamp.isoformat(),
-            "metadata": self.metadata,
-            "coverage_lines": (
-                len(self.coverage.lines_covered) if self.coverage else 0
-            ),
-        }
+        # Add computed coverage_lines field
+        data["coverage_lines"] = (
+            len(self.coverage.lines_covered) if self.coverage else 0
+        )
+
+        # Exclude dataset and lazy-loading fields from serialization
+        data.pop("dataset", None)
+        data.pop("_dataset_path", None)
+        data.pop("_dataset_cache", None)
+
+        # Exclude coverage snapshot (too large, stored separately)
+        data.pop("coverage", None)
+
+        return data
 
 
 class CorpusManager:
-    """
-    Manages the corpus of interesting test cases for coverage-guided fuzzing.
+    """Manages the corpus of interesting test cases for coverage-guided fuzzing.
 
     LEARNING: The corpus manager is like a curator of a museum. It decides which
     test cases are worth keeping, which should be prioritized, and which can be
@@ -156,13 +179,13 @@ class CorpusManager:
         max_corpus_size: int = 1000,
         min_fitness_threshold: float = 0.1,
     ):
-        """
-        Initialize the corpus manager.
+        """Initialize the corpus manager.
 
         Args:
             corpus_dir: Directory to store corpus entries
             max_corpus_size: Maximum number of entries to keep
             min_fitness_threshold: Minimum fitness score to keep an entry
+
         """
         self.corpus_dir = Path(corpus_dir)
         self.corpus_dir.mkdir(parents=True, exist_ok=True)
@@ -171,8 +194,8 @@ class CorpusManager:
         self.min_fitness_threshold = min_fitness_threshold
 
         # Corpus storage
-        self.corpus: Dict[str, CorpusEntry] = {}
-        self.coverage_map: Dict[str, Set[str]] = {}  # coverage_hash -> entry_ids
+        self.corpus: dict[str, CorpusEntry] = {}
+        self.coverage_map: dict[str, set[str]] = {}  # coverage_hash -> entry_ids
 
         # Statistics
         self.total_added = 0
@@ -191,28 +214,51 @@ class CorpusManager:
 
     def add_entry(
         self,
-        entry_id: str,
-        dataset: Dataset,
-        coverage: Optional[CoverageSnapshot] = None,
-        parent_id: Optional[str] = None,
+        entry_id: str | CorpusEntry,
+        dataset: Dataset | None = None,
+        coverage: CoverageSnapshot | None = None,
+        parent_id: str | None = None,
         crash_triggered: bool = False,
     ) -> bool:
-        """
-        Add a test case to the corpus.
+        """Add a test case to the corpus.
 
         CONCEPT: We only add test cases that provide value - either new coverage,
         or crash-triggering capabilities.
 
+        Supports both new API (individual parameters) and old API (CorpusEntry object).
+
         Args:
-            entry_id: Unique identifier for this entry
-            dataset: DICOM dataset to add
+            entry_id: Unique identifier OR CorpusEntry object
+            dataset: DICOM dataset to add (optional if entry_id is CorpusEntry)
             coverage: Coverage snapshot for this test case
             parent_id: Parent entry ID if this is a mutation
             crash_triggered: Whether this test case caused a crash
 
         Returns:
             True if entry was added, False if rejected
+
         """
+        # Handle CorpusEntry object for backward compatibility
+        if isinstance(entry_id, CorpusEntry):
+            entry = entry_id
+            entry_id = entry.entry_id
+            dataset = entry.dataset
+            coverage = entry.coverage if hasattr(entry, "coverage") else coverage
+            parent_id = (
+                entry.metadata.get("parent_id")
+                if hasattr(entry, "metadata") and entry.metadata
+                else parent_id
+            )
+            crash_triggered = (
+                entry.metadata.get("crash_triggered", False)
+                if hasattr(entry, "metadata") and entry.metadata
+                else crash_triggered
+            )
+
+        # Validate dataset
+        if dataset is None:
+            raise ValueError("dataset is required")
+
         # Calculate fitness score
         fitness = self._calculate_fitness(dataset, coverage, crash_triggered)
 
@@ -249,9 +295,12 @@ class CorpusManager:
             generation = self.corpus[parent_id].generation + 1
 
         # Create entry
+        # CRITICAL: Use deepcopy to ensure the stored dataset is completely independent
+        # of the original. Shallow copy (dataset.copy()) may share nested structures
+        # like sequences, which could be corrupted if the original is modified.
         entry = CorpusEntry(
             entry_id=entry_id,
-            dataset=dataset.copy(),
+            dataset=copy.deepcopy(dataset),
             coverage=coverage,
             fitness_score=fitness,
             generation=generation,
@@ -288,9 +337,8 @@ class CorpusManager:
 
         return True
 
-    def get_best_entries(self, count: int = 10) -> List[CorpusEntry]:
-        """
-        Get the highest fitness entries from the corpus.
+    def get_best_entries(self, count: int = 10) -> list[CorpusEntry]:
+        """Get the highest fitness entries from the corpus.
 
         CONCEPT: We prioritize mutating the most valuable test cases.
         These are the ones most likely to lead to new discoveries.
@@ -300,38 +348,61 @@ class CorpusManager:
 
         Returns:
             List of top entries sorted by fitness (highest first)
+
         """
         sorted_entries = sorted(
             self.corpus.values(), key=lambda e: e.fitness_score, reverse=True
         )
         return sorted_entries[:count]
 
-    def get_random_entry(self) -> Optional[CorpusEntry]:
+    def get_best_seed(self) -> CorpusEntry | None:
+        """Get the best seed for mutation.
+
+        CONCEPT: Returns the single best entry for mutation purposes.
+        Used in coverage-guided fuzzing workflows.
+
+        Returns:
+            Best corpus entry, or None if corpus is empty
+
         """
-        Get a random entry from the corpus.
+        best = self.get_best_entries(count=1)
+        return best[0] if best else None
+
+    def get_random_entry(self) -> CorpusEntry | None:
+        """Get a random entry from the corpus.
 
         CONCEPT: Sometimes randomness helps explore different paths.
 
         Returns:
             Random corpus entry, or None if corpus is empty
+
         """
         if not self.corpus:
             return None
 
         import random
 
-        entry_id = random.choice(list(self.corpus.keys()))
+        # nosec B311 - random.choice is acceptable for fuzzing seed selection (non-cryptographic)
+        entry_id = random.choice(list(self.corpus.keys()))  # nosec
         return self.corpus[entry_id]
 
-    def get_entry(self, entry_id: str) -> Optional[CorpusEntry]:
+    def get_entry(self, entry_id: str) -> CorpusEntry | None:
         """Get a specific entry by ID."""
         return self.corpus.get(entry_id)
 
-    def _calculate_fitness(
-        self, dataset: Dataset, coverage: Optional[CoverageSnapshot], crash: bool
-    ) -> float:
+    def size(self) -> int:
+        """Get the current size of the corpus.
+
+        Returns:
+            Number of entries in the corpus
+
         """
-        Calculate fitness score for a test case.
+        return len(self.corpus)
+
+    def _calculate_fitness(
+        self, dataset: Dataset, coverage: CoverageSnapshot | None, crash: bool
+    ) -> float:
+        """Calculate fitness score for a test case.
 
         CONCEPT: Fitness is a measure of how valuable a test case is.
         Crash-triggering cases are most valuable. Cases with new coverage
@@ -344,6 +415,7 @@ class CorpusManager:
 
         Returns:
             Fitness score from 0.0 (worthless) to 1.0 (extremely valuable)
+
         """
         # Crashes are extremely valuable
         if crash:
@@ -369,9 +441,8 @@ class CorpusManager:
 
         return min(base_fitness, 1.0)
 
-    def _evict_lowest_fitness(self):
-        """
-        Remove the lowest fitness entries when corpus is too large.
+    def _evict_lowest_fitness(self) -> None:
+        """Remove the lowest fitness entries when corpus is too large.
 
         CONCEPT: We have limited resources, so we keep only the best test cases.
         This is like pruning a garden - removing weaker plants so stronger ones
@@ -407,7 +478,7 @@ class CorpusManager:
 
         logger.info(f"Evicted {num_to_evict} low-fitness entries from corpus")
 
-    def _save_entry(self, entry: CorpusEntry):
+    def _save_entry(self, entry: CorpusEntry) -> None:
         """Save a corpus entry to disk."""
         # Save DICOM dataset
         dcm_path = self.corpus_dir / f"{entry.entry_id}.dcm"
@@ -434,9 +505,8 @@ class CorpusManager:
         except Exception as e:
             logger.error(f"Failed to save metadata for {entry.entry_id}: {e}")
 
-    def _load_corpus(self):
-        """
-        OPTIMIZATION: Load corpus metadata from disk using lazy loading.
+    def _load_corpus(self) -> None:
+        """OPTIMIZATION: Load corpus metadata from disk using lazy loading.
 
         Instead of loading all DICOM datasets into memory immediately,
         this stores only the file paths. Datasets are loaded on-demand
@@ -455,10 +525,12 @@ class CorpusManager:
 
                 # OPTIMIZATION: Validate DICOM file without full load
                 # Quick check: verify it has valid DICOM header (128-byte preamble + 'DICM')
-                with open(dcm_file, 'rb') as f:
+                with open(dcm_file, "rb") as f:
                     preamble = f.read(132)  # 128 bytes preamble + 4 bytes 'DICM'
-                    if len(preamble) < 132 or preamble[128:132] != b'DICM':
-                        logger.warning(f"Invalid DICOM file (missing header): {dcm_file}")
+                    if len(preamble) < 132 or preamble[128:132] != b"DICM":
+                        logger.warning(
+                            f"Invalid DICOM file (missing header): {dcm_file}"
+                        )
                         continue
 
                 # OPTIMIZATION: Don't load dataset yet - just store the path
@@ -488,9 +560,11 @@ class CorpusManager:
                 logger.warning(f"Failed to load corpus entry {dcm_file}: {e}")
 
         if loaded > 0:
-            logger.info(f"Loaded {loaded} corpus entries from disk (lazy loading enabled)")
+            logger.info(
+                f"Loaded {loaded} corpus entries from disk (lazy loading enabled)"
+            )
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """Get corpus statistics."""
         return {
             "total_entries": len(self.corpus),
@@ -509,7 +583,7 @@ class CorpusManager:
             ),
         }
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all corpus entries."""
         # Remove files
         if self.corpus_dir.exists():

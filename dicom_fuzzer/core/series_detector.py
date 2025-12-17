@@ -1,5 +1,4 @@
-"""
-DICOM Series Detection
+"""DICOM Series Detection
 
 This module provides SeriesDetector for grouping DICOM files into complete 3D series
 based on SeriesInstanceUID.
@@ -24,6 +23,7 @@ BEST PRACTICES (2025):
 
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import pydicom
 
@@ -34,30 +34,35 @@ logger = get_logger(__name__)
 
 
 class SeriesDetector:
-    """
-    Detect and group DICOM files into series based on SeriesInstanceUID.
+    """Detect and group DICOM files into series based on SeriesInstanceUID.
 
     This class scans directories of DICOM files and organizes them into DicomSeries
     objects, properly sorting slices by their spatial position.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the series detector."""
         self._series_cache: dict[str, DicomSeries] = {}
 
     def detect_series(
-        self, dicom_files: list[Path], validate: bool = True
+        self, dicom_files: list[Path] | Path, validate: bool = True
     ) -> list[DicomSeries]:
-        """
-        Detect all series in a list of DICOM files.
+        """Detect all series in a list of DICOM files or a directory.
 
         Args:
-            dicom_files: List of paths to DICOM files
+            dicom_files: List of paths to DICOM files OR a directory path
             validate: If True, validate series consistency after grouping
 
         Returns:
             List of DicomSeries objects, one per unique SeriesInstanceUID
+
         """
+        # Handle directory path (backward compatibility)
+        if isinstance(dicom_files, Path):
+            return self.detect_series_in_directory(
+                dicom_files, recursive=True, validate=validate
+            )
+
         if not dicom_files:
             logger.warning("No DICOM files provided to detect_series")
             return []
@@ -105,8 +110,7 @@ class SeriesDetector:
     def detect_series_in_directory(
         self, directory: Path, recursive: bool = True, validate: bool = True
     ) -> list[DicomSeries]:
-        """
-        Scan directory for DICOM files and detect all series.
+        """Scan directory for DICOM files and detect all series.
 
         Args:
             directory: Root directory to scan
@@ -115,6 +119,7 @@ class SeriesDetector:
 
         Returns:
             List of detected DicomSeries objects
+
         """
         if not directory.exists():
             raise FileNotFoundError(f"Directory not found: {directory}")
@@ -131,8 +136,7 @@ class SeriesDetector:
         return self.detect_series(dicom_files, validate=validate)
 
     def _find_dicom_files(self, directory: Path, recursive: bool = True) -> list[Path]:
-        """
-        Find all DICOM files in directory.
+        """Find all DICOM files in directory.
 
         Args:
             directory: Directory to scan
@@ -140,6 +144,7 @@ class SeriesDetector:
 
         Returns:
             List of paths to DICOM files (deduplicated)
+
         """
         # Use set to automatically deduplicate paths
         # (handles case-insensitive filesystems where *.dcm and *.DCM match same files)
@@ -171,14 +176,14 @@ class SeriesDetector:
         return dicom_files
 
     def _is_dicom_file(self, file_path: Path) -> bool:
-        """
-        Check if file is a valid DICOM file.
+        """Check if file is a valid DICOM file.
 
         Args:
             file_path: Path to check
 
         Returns:
             True if file is valid DICOM
+
         """
         try:
             pydicom.dcmread(file_path, stop_before_pixels=True, force=False)
@@ -188,9 +193,8 @@ class SeriesDetector:
 
     def _group_by_series_uid(
         self, dicom_files: list[Path]
-    ) -> dict[str, dict[str, any]]:
-        """
-        Group DICOM files by SeriesInstanceUID.
+    ) -> dict[str, dict[str, Any]]:
+        """Group DICOM files by SeriesInstanceUID.
 
         Args:
             dicom_files: List of DICOM file paths
@@ -205,8 +209,9 @@ class SeriesDetector:
                 },
                 ...
             }
+
         """
-        series_groups = defaultdict(
+        series_groups: dict[str, dict[str, Any]] = defaultdict(
             lambda: {"files": [], "study_uid": None, "modality": None}
         )
 
@@ -217,8 +222,13 @@ class SeriesDetector:
 
                 # Extract required attributes
                 if not hasattr(ds, "SeriesInstanceUID"):
+                    file_name = (
+                        file_path.name
+                        if isinstance(file_path, Path)
+                        else Path(file_path).name
+                    )
                     logger.warning(
-                        f"File {file_path.name} missing SeriesInstanceUID, skipping"
+                        f"File {file_name} missing SeriesInstanceUID, skipping"
                     )
                     continue
 
@@ -231,7 +241,8 @@ class SeriesDetector:
                 modality = ds.Modality if hasattr(ds, "Modality") else "UNKNOWN"
 
                 # Add to group
-                series_groups[series_uid]["files"].append(file_path)
+                files_list: list[Path] = series_groups[series_uid]["files"]
+                files_list.append(file_path)
 
                 # Set study_uid and modality from first file in series
                 if series_groups[series_uid]["study_uid"] is None:
@@ -239,7 +250,12 @@ class SeriesDetector:
                     series_groups[series_uid]["modality"] = modality
 
             except Exception as e:
-                logger.warning(f"Error reading {file_path.name}: {e}")
+                file_name = (
+                    file_path.name
+                    if isinstance(file_path, Path)
+                    else Path(file_path).name
+                )
+                logger.warning(f"Error reading {file_name}: {e}")
                 continue
 
         return dict(series_groups)
@@ -247,8 +263,7 @@ class SeriesDetector:
     def _create_series(
         self, series_uid: str, files: list[Path], study_uid: str, modality: str
     ) -> DicomSeries:
-        """
-        Create a DicomSeries object from grouped files.
+        """Create a DicomSeries object from grouped files.
 
         Sorts files by ImagePositionPatient[2] (z-coordinate) as per 2025 best practices.
 
@@ -260,6 +275,7 @@ class SeriesDetector:
 
         Returns:
             DicomSeries object with sorted slices
+
         """
         # Sort slices by position
         sorted_files = self._sort_slices_by_position(files)
@@ -287,8 +303,7 @@ class SeriesDetector:
         return series
 
     def _sort_slices_by_position(self, files: list[Path]) -> list[Path]:
-        """
-        Sort DICOM slices by spatial position.
+        """Sort DICOM slices by spatial position.
 
         Uses ImagePositionPatient[2] (z-coordinate) as primary sort key.
         Falls back to InstanceNumber if ImagePositionPatient not available.
@@ -299,6 +314,7 @@ class SeriesDetector:
 
         Returns:
             Sorted list of file paths (superior to inferior)
+
         """
         if not files:
             return []
@@ -324,7 +340,12 @@ class SeriesDetector:
                 file_positions.append((file_path, z_pos, instance_num))
 
             except Exception as e:
-                logger.warning(f"Error reading position for {file_path.name}: {e}")
+                file_name = (
+                    file_path.name
+                    if isinstance(file_path, Path)
+                    else Path(file_path).name
+                )
+                logger.warning(f"Error reading position for {file_name}: {e}")
                 file_positions.append((file_path, 0.0, 0))
 
         # Sort by z_position (descending for superior to inferior)
@@ -337,15 +358,15 @@ class SeriesDetector:
         sorted_files = [fp[0] for fp in file_positions]
         return sorted_files
 
-    def get_series_summary(self, series_list: list[DicomSeries]) -> dict[str, any]:
-        """
-        Generate summary statistics for detected series.
+    def get_series_summary(self, series_list: list[DicomSeries]) -> dict[str, Any]:
+        """Generate summary statistics for detected series.
 
         Args:
             series_list: List of DicomSeries objects
 
         Returns:
             Dict with summary statistics
+
         """
         if not series_list:
             return {
@@ -356,7 +377,7 @@ class SeriesDetector:
                 "single_slice_series": 0,
             }
 
-        modality_counts = defaultdict(int)
+        modality_counts: dict[str, int] = defaultdict(int)
         total_slices = 0
         multislice = 0
         single_slice = 0

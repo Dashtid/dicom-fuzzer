@@ -769,7 +769,9 @@ class TestCrashDeduplicationIntegration:
         assert len(groups) == 4, f"Expected 4 groups, got {len(groups)}"
 
         # Verify group sizes
-        group_sizes = sorted([len(crashes) for crashes in groups.values()], reverse=True)
+        group_sizes = sorted(
+            [len(crashes) for crashes in groups.values()], reverse=True
+        )
         assert group_sizes[0] == 3  # Header overflow group
         assert group_sizes[1] == 2  # Metadata null group
         assert group_sizes[2] == 2  # Pixel corruption group
@@ -1371,3 +1373,117 @@ class TestMutationPatternComparison:
 
         # Should return some valid similarity score
         assert 0.0 <= similarity <= 1.0
+
+
+class TestMutationTypeAndStrategyEdgeCases:
+    """Test edge cases for mutation type and strategy comparison methods.
+
+    These tests cover the uncovered lines 438, 440, 453, 491, 493, 505.
+    """
+
+    @pytest.fixture
+    def deduplicator(self):
+        """Create a CrashDeduplicator with default config."""
+        return CrashDeduplicator()
+
+    def test_compare_mutation_type_distribution_both_empty_sequences(
+        self, deduplicator
+    ):
+        """Test _compare_mutation_type_distribution with both sequences having no valid types.
+
+        Covers line 438: return 1.0 when both types1 and types2 are empty.
+        """
+        # Sequences with tuples that have < 2 elements (so no types extracted)
+        seq1 = [("strategy1",)]  # Single element, no type
+        seq2 = [("strategy2",)]  # Single element, no type
+
+        result = deduplicator._compare_mutation_type_distribution(seq1, seq2)
+        assert result == 1.0
+
+    def test_compare_mutation_type_distribution_first_empty_second_has_types(
+        self, deduplicator
+    ):
+        """Test _compare_mutation_type_distribution when first sequence has no types.
+
+        Covers line 440: return 0.0 when types1 is empty but types2 is not.
+        """
+        seq1 = [("strategy1",)]  # Single element, no type
+        seq2 = [("strategy2", "type2")]  # Has type
+
+        result = deduplicator._compare_mutation_type_distribution(seq1, seq2)
+        assert result == 0.0
+
+    def test_compare_mutation_type_distribution_second_empty_first_has_types(
+        self, deduplicator
+    ):
+        """Test _compare_mutation_type_distribution when second sequence has no types.
+
+        Covers line 440: return 0.0 when types2 is empty but types1 is not.
+        """
+        seq1 = [("strategy1", "type1")]  # Has type
+        seq2 = [("strategy2",)]  # Single element, no type
+
+        result = deduplicator._compare_mutation_type_distribution(seq1, seq2)
+        assert result == 0.0
+
+    def test_compare_strategy_frequency_both_empty_sequences(self, deduplicator):
+        """Test _compare_strategy_frequency with both sequences having no strategies.
+
+        Covers line 491: return 1.0 when both strategies1 and strategies2 are empty.
+        """
+        # Empty sequences
+        seq1 = []
+        seq2 = []
+
+        result = deduplicator._compare_strategy_frequency(seq1, seq2)
+        assert result == 1.0
+
+    def test_compare_strategy_frequency_first_empty_second_has_strategies(
+        self, deduplicator
+    ):
+        """Test _compare_strategy_frequency when first sequence is empty.
+
+        Covers line 493: return 0.0 when strategies1 is empty but strategies2 is not.
+        """
+        seq1 = []
+        seq2 = [("strategy2", "type2")]
+
+        result = deduplicator._compare_strategy_frequency(seq1, seq2)
+        assert result == 0.0
+
+    def test_compare_strategy_frequency_second_empty_first_has_strategies(
+        self, deduplicator
+    ):
+        """Test _compare_strategy_frequency when second sequence is empty.
+
+        Covers line 493: return 0.0 when strategies2 is empty but strategies1 is not.
+        """
+        seq1 = [("strategy1", "type1")]
+        seq2 = []
+
+        result = deduplicator._compare_strategy_frequency(seq1, seq2)
+        assert result == 0.0
+
+    def test_compare_mutation_type_distribution_with_empty_tuple_elements(
+        self, deduplicator
+    ):
+        """Test _compare_mutation_type_distribution with empty tuple elements.
+
+        Tests the len(mut) >= 2 filter with empty tuples.
+        """
+        seq1 = [(), ("strategy1",)]  # Empty tuple and single element
+        seq2 = [(), ("strategy2",)]  # Empty tuple and single element
+
+        result = deduplicator._compare_mutation_type_distribution(seq1, seq2)
+        assert result == 1.0  # Both have no valid types
+
+    def test_compare_strategy_frequency_with_empty_tuple_elements(self, deduplicator):
+        """Test _compare_strategy_frequency with empty tuple elements.
+
+        Tests the len(mut) >= 1 filter with empty tuples.
+        """
+        seq1 = [()]  # Empty tuple
+        seq2 = [()]  # Empty tuple
+
+        result = deduplicator._compare_strategy_frequency(seq1, seq2)
+        assert result == 1.0  # Both have no valid strategies

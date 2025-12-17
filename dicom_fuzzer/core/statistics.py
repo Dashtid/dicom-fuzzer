@@ -1,5 +1,4 @@
-"""
-Statistics Collector - Mutation Effectiveness Tracking
+"""Statistics Collector - Mutation Effectiveness Tracking
 
 LEARNING OBJECTIVE: This module demonstrates statistical analysis of
 fuzzing campaigns to understand which mutations are most effective.
@@ -17,13 +16,11 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set
 
 
 @dataclass
 class IterationData:
-    """
-    Data for a single fuzzing iteration.
+    """Data for a single fuzzing iteration.
 
     CONCEPT: Track per-iteration metrics for fine-grained analysis:
     - Which file was fuzzed?
@@ -41,8 +38,7 @@ class IterationData:
 
 @dataclass
 class MutationStatistics:
-    """
-    Statistics for a specific mutation strategy.
+    """Statistics for a specific mutation strategy.
 
     CONCEPT: Track both usage and effectiveness:
     - How often was this mutation used?
@@ -51,17 +47,19 @@ class MutationStatistics:
     - How long did it take?
     """
 
-    strategy_name: str
+    strategy_name: str = ""
     times_used: int = 0
     unique_outputs: int = 0
     crashes_found: int = 0
     validation_failures: int = 0
     total_duration: float = 0.0
-    file_sizes: List[int] = field(default_factory=list)
+    file_sizes: list[int] = field(default_factory=list)
+    # For compatibility with test expectations
+    total_mutations: int = 0
+    total_executions: int = 0
 
     def effectiveness_score(self) -> float:
-        """
-        Calculate effectiveness score (0-1).
+        """Calculate effectiveness score (0-1).
 
         CONCEPT: Weighted score considering:
         - Crash discovery (most important)
@@ -71,6 +69,7 @@ class MutationStatistics:
 
         Returns:
             Effectiveness score between 0 and 1
+
         """
         if self.times_used == 0:
             return 0.0
@@ -99,10 +98,30 @@ class MutationStatistics:
             return sum(self.file_sizes) // len(self.file_sizes)
         return 0
 
+    def record_mutation(self, strategy: str) -> None:
+        """Record a mutation operation (for test compatibility).
+
+        Args:
+            strategy: Name of mutation strategy used
+
+        """
+        self.strategy_name = strategy
+        self.times_used += 1
+        self.total_mutations += 1
+
+    def record_execution(self, duration: float) -> None:
+        """Record an execution (for test compatibility).
+
+        Args:
+            duration: Execution duration in seconds
+
+        """
+        self.total_executions += 1
+        self.total_duration += duration
+
 
 class StatisticsCollector:
-    """
-    Collects and analyzes fuzzing campaign statistics.
+    """Collects and analyzes fuzzing campaign statistics.
 
     CONCEPT: Central repository for all statistics.
     Tracks per-strategy metrics and campaign-wide patterns.
@@ -110,7 +129,7 @@ class StatisticsCollector:
 
     def __init__(self) -> None:
         """Initialize statistics collector."""
-        self.strategies: Dict[str, MutationStatistics] = {}
+        self.strategies: dict[str, MutationStatistics] = {}
         self.campaign_start = datetime.now()
 
         # Campaign-wide tracking
@@ -119,18 +138,18 @@ class StatisticsCollector:
         self.total_crashes_found = 0
 
         # Uniqueness tracking
-        self.seen_hashes: Set[str] = set()
-        self.crash_hashes: Set[str] = set()
+        self.seen_hashes: set[str] = set()
+        self.crash_hashes: set[str] = set()
 
         # Coverage tracking (which tags were mutated)
-        self.mutated_tags: Dict[str, int] = defaultdict(int)
+        self.mutated_tags: dict[str, int] = defaultdict(int)
 
         # Iteration tracking
-        self.iterations: List[IterationData] = []
+        self.iterations: list[IterationData] = []
         self.total_iterations = 0
 
         # Severity-based statistics
-        self.severity_stats: Dict[str, Dict] = defaultdict(
+        self.severity_stats: dict[str, dict] = defaultdict(
             lambda: {"count": 0, "mutations": 0}
         )
 
@@ -138,17 +157,17 @@ class StatisticsCollector:
         self,
         strategy: str,
         duration: float = 0.0,
-        output_hash: Optional[str] = None,
-        file_size: Optional[int] = None,
+        output_hash: str | None = None,
+        file_size: int | None = None,
     ) -> None:
-        """
-        Record a mutation operation.
+        """Record a mutation operation.
 
         Args:
             strategy: Name of strategy used
             duration: Time taken for mutation (seconds)
             output_hash: Hash of output file (for uniqueness tracking)
             file_size: Size of generated file (bytes)
+
         """
         # Get or create strategy stats
         if strategy not in self.strategies:
@@ -170,12 +189,12 @@ class StatisticsCollector:
             stats.file_sizes.append(file_size)
 
     def record_crash(self, strategy: str, crash_hash: str) -> None:
-        """
-        Record a crash discovered by a strategy.
+        """Record a crash discovered by a strategy.
 
         Args:
             strategy: Strategy that found the crash
             crash_hash: Hash of the crash
+
         """
         if strategy in self.strategies:
             # Only count unique crashes per strategy
@@ -185,11 +204,11 @@ class StatisticsCollector:
                 self.total_crashes_found += 1
 
     def record_validation_failure(self, strategy: str) -> None:
-        """
-        Record a validation failure.
+        """Record a validation failure.
 
         Args:
             strategy: Strategy that caused validation failure
+
         """
         if strategy in self.strategies:
             self.strategies[strategy].validation_failures += 1
@@ -199,19 +218,18 @@ class StatisticsCollector:
         self.total_files_generated += 1
 
     def record_tag_mutated(self, tag_name: str) -> None:
-        """
-        Record that a DICOM tag was mutated.
+        """Record that a DICOM tag was mutated.
 
         Args:
             tag_name: Name of the tag that was mutated
+
         """
         self.mutated_tags[tag_name] += 1
 
     def track_iteration(
         self, file_path: str, mutations_applied: int, severity: str
     ) -> int:
-        """
-        Track a fuzzing iteration with detailed metrics.
+        """Track a fuzzing iteration with detailed metrics.
 
         CONCEPT: Per-iteration tracking enables:
         - Understanding fuzzing progress over time
@@ -231,6 +249,7 @@ class StatisticsCollector:
 
         Returns:
             int: Iteration number (1-indexed)
+
         """
         self.total_iterations += 1
 
@@ -251,12 +270,12 @@ class StatisticsCollector:
 
         return self.total_iterations
 
-    def get_strategy_ranking(self) -> List[tuple]:
-        """
-        Get strategies ranked by effectiveness.
+    def get_strategy_ranking(self) -> list[tuple[str, float]]:
+        """Get strategies ranked by effectiveness.
 
         Returns:
             List of (strategy_name, effectiveness_score) tuples, sorted
+
         """
         rankings = [
             (name, stats.effectiveness_score())
@@ -264,33 +283,33 @@ class StatisticsCollector:
         ]
         return sorted(rankings, key=lambda x: x[1], reverse=True)
 
-    def get_most_effective_strategy(self) -> Optional[str]:
-        """
-        Get the most effective strategy.
+    def get_most_effective_strategy(self) -> str | None:
+        """Get the most effective strategy.
 
         Returns:
             Name of most effective strategy, or None
+
         """
         rankings = self.get_strategy_ranking()
         if rankings:
             return rankings[0][0]
         return None
 
-    def get_coverage_report(self) -> Dict[str, int]:
-        """
-        Get coverage report (which tags were mutated).
+    def get_coverage_report(self) -> dict[str, int]:
+        """Get coverage report (which tags were mutated).
 
         Returns:
             Dictionary mapping tag names to mutation counts
+
         """
         return dict(self.mutated_tags)
 
-    def get_summary(self) -> Dict:
-        """
-        Get complete statistics summary.
+    def get_summary(self) -> dict:
+        """Get complete statistics summary.
 
         Returns:
             Dictionary with all statistics
+
         """
         campaign_duration = (datetime.now() - self.campaign_start).total_seconds()
 
@@ -348,21 +367,23 @@ class StatisticsCollector:
         # Print severity statistics
         if self.severity_stats:
             print("\n--- Severity Distribution ---")
-            for severity, stats in sorted(self.severity_stats.items()):
+            for severity, sev_stats in sorted(self.severity_stats.items()):
                 avg_mutations = (
-                    stats["mutations"] / stats["count"] if stats["count"] > 0 else 0
+                    sev_stats["mutations"] / sev_stats["count"]
+                    if sev_stats["count"] > 0
+                    else 0
                 )
                 print(
-                    f"  {severity.capitalize()}: {stats['count']} iterations, "
+                    f"  {severity.capitalize()}: {sev_stats['count']} iterations, "
                     f"avg {avg_mutations:.1f} mutations/iter"
                 )
 
         print("\n--- Strategy Effectiveness Rankings ---")
         for rank, (strategy, score) in enumerate(self.get_strategy_ranking(), 1):
-            stats = self.strategies[strategy]
+            strat_stats = self.strategies[strategy]
             print(
                 f"{rank}. {strategy}: {score:.3f} "
-                f"(used {stats.times_used}x, {stats.crashes_found} crashes)"
+                f"(used {strat_stats.times_used}x, {strat_stats.crashes_found} crashes)"
             )
 
         print("\n--- Top Mutated Tags ---")

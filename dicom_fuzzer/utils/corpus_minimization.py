@@ -1,5 +1,4 @@
-"""
-Corpus Minimization Utility
+"""Corpus Minimization Utility
 
 CONCEPT: Minimize corpus before fuzzing to remove redundant inputs.
 Keeps only inputs that contribute unique coverage to improve fuzzing efficiency.
@@ -9,22 +8,22 @@ performed to ensure that the fuzzer initializes faster and easier with a
 smaller corpus." (2025 Best Practices)
 """
 
-import logging
 import shutil
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import Any
 
-logger = logging.getLogger(__name__)
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def minimize_corpus_for_campaign(
     corpus_dir: Path,
     output_dir: Path,
-    coverage_tracker=None,
-    max_corpus_size: Optional[int] = 1000,
-) -> List[Path]:
-    """
-    Minimize corpus before fuzzing campaign.
+    coverage_tracker: Any | None = None,
+    max_corpus_size: int | None = 1000,
+) -> list[Path]:
+    """Minimize corpus before fuzzing campaign.
 
     CONCEPT: Keep only inputs that contribute unique coverage.
     Remove redundant seeds that don't add new code paths.
@@ -37,6 +36,7 @@ def minimize_corpus_for_campaign(
 
     Returns:
         List of paths to minimized corpus files
+
     """
     if not corpus_dir.exists():
         logger.error(f"Corpus directory not found: {corpus_dir}")
@@ -54,7 +54,7 @@ def minimize_corpus_for_campaign(
     seed_files.sort(key=lambda f: f.stat().st_size)
 
     minimized_corpus = []
-    total_coverage: Set[str] = set()
+    total_coverage: set[str] = set()
 
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -115,14 +115,14 @@ def minimize_corpus_for_campaign(
 
 
 def validate_corpus_quality(corpus_dir: Path) -> dict:
-    """
-    Validate corpus quality and provide statistics.
+    """Validate corpus quality and provide statistics.
 
     Args:
         corpus_dir: Directory containing corpus
 
     Returns:
         Dictionary with corpus quality metrics
+
     """
     metrics = {
         "total_files": 0,

@@ -4,9 +4,11 @@ Comprehensive tests for core/mutator.py module.
 Achieves 60%+ coverage of mutation engine functionality.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from pydicom.dataset import Dataset
+
 from dicom_fuzzer.core.mutator import (
     MutationRecord,
     MutationSeverity,
@@ -102,9 +104,7 @@ class TestMutationRecord:
         assert success_record.error_message is None
 
         # Failure case
-        failure_record = MutationRecord(
-            success=False, error_message="Mutation failed"
-        )
+        failure_record = MutationRecord(success=False, error_message="Mutation failed")
         assert failure_record.success is False
         assert failure_record.error_message == "Mutation failed"
 
@@ -203,7 +203,7 @@ class TestIntegrationScenarios:
             record = MutationRecord(
                 strategy_name=strategy,
                 severity=MutationSeverity.MINIMAL,
-                description=f"Mutation {i+1}",
+                description=f"Mutation {i + 1}",
             )
             records.append(record)
 
@@ -438,8 +438,9 @@ class TestApplyMutations:
 
     def test_apply_mutations_basic(self):
         """Test basic mutation application."""
-        from dicom_fuzzer.core.mutator import DicomMutator
         from unittest.mock import patch
+
+        from dicom_fuzzer.core.mutator import DicomMutator
 
         with patch("random.random", return_value=0.5):
             with patch("random.choice") as mock_choice:

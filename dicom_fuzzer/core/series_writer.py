@@ -1,5 +1,4 @@
-"""
-DICOM Series Writer
+"""DICOM Series Writer
 
 This module provides SeriesWriter for writing fuzzed DICOM series to disk with
 comprehensive metadata tracking and reproduction capabilities.
@@ -13,12 +12,12 @@ KEY FEATURES:
 
 DIRECTORY STRUCTURE:
 output_dir/
-├── series_<series_uid>/
-│   ├── slice_001.dcm
-│   ├── slice_002.dcm
-│   ├── ...
-│   ├── metadata.json
-│   └── reproduce.py
++-- series_<series_uid>/
+    +-- slice_001.dcm
+    +-- slice_002.dcm
+    +-- ...
+    +-- metadata.json
+    +-- reproduce.py
 
 SECURITY NOTE: Based on CVE-2025-35975, CVE-2025-36521, CVE-2025-5943,
 fuzzed series must maintain valid DICOM structure to reach parser vulnerabilities.
@@ -27,22 +26,22 @@ Invalid structure causes early rejection, never reaching vulnerable code paths.
 
 import json
 import shutil
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.dicom_series import DicomSeries
+from dicom_fuzzer.core.serialization import SerializableMixin
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 @dataclass
-class SeriesMetadata:
-    """
-    Metadata about a written DICOM series.
+class SeriesMetadata(SerializableMixin):
+    """Metadata about a written DICOM series.
 
     Tracks both original and fuzzed series characteristics for debugging,
     analysis, and reproduction.
@@ -69,28 +68,29 @@ class SeriesMetadata:
     slice_files: list[str] = field(default_factory=list)
     total_size_bytes: int = 0
 
-    def to_dict(self) -> dict:
-        """Convert metadata to dictionary for JSON serialization."""
-        data = asdict(self)
-        # Convert Path to string
-        data["output_directory"] = str(self.output_directory)
-        return data
+    def get_output_paths(self) -> list[Path]:
+        """Get list of full output file paths.
+
+        Returns:
+            List of Path objects to written DICOM files
+
+        """
+        return [self.output_directory / fname for fname in self.slice_files]
 
 
 class SeriesWriter:
-    """
-    Write DICOM series to disk with comprehensive metadata tracking.
+    """Write DICOM series to disk with comprehensive metadata tracking.
 
     This class handles the output of fuzzed DICOM series, creating organized
     directory structures, metadata files, and reproduction scripts.
     """
 
     def __init__(self, output_root: Path):
-        """
-        Initialize SeriesWriter.
+        """Initialize SeriesWriter.
 
         Args:
             output_root: Root directory for all output (e.g., ./fuzzed_output/)
+
         """
         self.output_root = Path(output_root)
         self.output_root.mkdir(parents=True, exist_ok=True)
@@ -99,17 +99,17 @@ class SeriesWriter:
     def write_series(
         self,
         series: DicomSeries,
-        datasets: list[Dataset],
+        datasets: list[Dataset] | None = None,
         mutation_strategy: str | None = None,
         mutations_applied: list[dict] | None = None,
         original_series: DicomSeries | None = None,
     ) -> SeriesMetadata:
-        """
-        Write a complete DICOM series to disk with metadata.
+        """Write a complete DICOM series to disk with metadata.
 
         Args:
             series: DicomSeries object with metadata
-            datasets: List of pydicom Dataset objects to write (one per slice)
+            datasets: List of pydicom Dataset objects to write (one per slice).
+                     If None, loads datasets from series.slices paths.
             mutation_strategy: Name of mutation strategy applied (if any)
             mutations_applied: List of mutation records (if any)
             original_series: Original series before fuzzing (for comparison)
@@ -120,7 +120,21 @@ class SeriesWriter:
         Raises:
             ValueError: If series and datasets count mismatch
             IOError: If write fails
+
         """
+        # Load datasets from series if not provided
+        if datasets is None:
+            import pydicom
+
+            datasets = []
+            for slice_path in series.slices:
+                try:
+                    ds = pydicom.dcmread(slice_path)
+                    datasets.append(ds)
+                except Exception as e:
+                    logger.error(f"Failed to read slice {slice_path}: {e}")
+                    raise OSError(f"Failed to read slice {slice_path}: {e}") from e
+
         if len(datasets) != series.slice_count:
             raise ValueError(
                 f"Dataset count ({len(datasets)}) does not match series slice count "
@@ -198,8 +212,7 @@ class SeriesWriter:
         mutation_strategy: str | None = None,
         mutations_applied: list[dict] | None = None,
     ) -> Path:
-        """
-        Write a single DICOM slice to disk (for backward compatibility).
+        """Write a single DICOM slice to disk (for backward compatibility).
 
         Args:
             dataset: pydicom Dataset to write
@@ -209,6 +222,7 @@ class SeriesWriter:
 
         Returns:
             Path to written file
+
         """
         output_path = self.output_root / output_name
 
@@ -237,14 +251,14 @@ class SeriesWriter:
             raise OSError(f"Failed to write {output_name}") from e
 
     def _create_series_directory(self, series: DicomSeries) -> Path:
-        """
-        Create output directory for series.
+        """Create output directory for series.
 
         Args:
             series: DicomSeries object
 
         Returns:
             Path to created directory
+
         """
         # Use shortened UID for directory name
         short_uid = (
@@ -264,12 +278,12 @@ class SeriesWriter:
         return series_dir
 
     def _write_metadata_json(self, series_dir: Path, metadata: SeriesMetadata) -> None:
-        """
-        Write metadata.json file to series directory.
+        """Write metadata.json file to series directory.
 
         Args:
             series_dir: Series output directory
             metadata: SeriesMetadata object
+
         """
         metadata_path = series_dir / "metadata.json"
 
@@ -283,12 +297,12 @@ class SeriesWriter:
     def _create_reproduction_script(
         self, series_dir: Path, metadata: SeriesMetadata
     ) -> None:
-        """
-        Create reproduce.py script for debugging and verification.
+        """Create reproduce.py script for debugging and verification.
 
         Args:
             series_dir: Series output directory
             metadata: SeriesMetadata object
+
         """
         script_path = series_dir / "reproduce.py"
 
@@ -360,14 +374,14 @@ if __name__ == "__main__":
             logger.warning(f"Failed to create reproduce.py: {e}")
 
     def cleanup_old_series(self, days: int = 7) -> int:
-        """
-        Clean up series directories older than specified days.
+        """Clean up series directories older than specified days.
 
         Args:
             days: Delete series older than this many days
 
         Returns:
             Number of directories deleted
+
         """
         import time
 

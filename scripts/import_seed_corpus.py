@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Seed Corpus Import Tool
+"""Seed Corpus Import Tool
 
 Import real DICOM files into the fuzzer's corpus for use as fuzzing seeds.
 Supports directory scanning, validation, optional PixelData stripping, and metadata generation.
@@ -24,10 +23,9 @@ import argparse
 import hashlib
 import json
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
-from datetime import datetime, timezone
 import sys
+from datetime import UTC, datetime
+from pathlib import Path
 
 try:
     import pydicom
@@ -39,8 +37,8 @@ except ImportError:
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
@@ -53,12 +51,11 @@ class CorpusImporter:
         source_dir: Path,
         output_dir: Path,
         strip_pixels: bool = False,
-        max_file_size: Optional[int] = None,
-        min_file_size: Optional[int] = 100,
-        skip_corrupted: bool = True
+        max_file_size: int | None = None,
+        min_file_size: int | None = 100,
+        skip_corrupted: bool = True,
     ):
-        """
-        Initialize corpus importer.
+        """Initialize corpus importer.
 
         Args:
             source_dir: Directory containing DICOM files to import
@@ -67,6 +64,7 @@ class CorpusImporter:
             max_file_size: Skip files larger than this (bytes)
             min_file_size: Skip files smaller than this (bytes)
             skip_corrupted: Continue on corrupted files vs fail
+
         """
         self.source_dir = Path(source_dir)
         self.output_dir = Path(output_dir)
@@ -86,11 +84,11 @@ class CorpusImporter:
             "total_bytes_processed": 0,
             "modalities": {},
             "file_sizes": [],
-            "errors": []
+            "errors": [],
         }
 
         # Track seen file hashes to detect duplicates
-        self.seen_hashes: Set[str] = set()
+        self.seen_hashes: set[str] = set()
 
         # Ensure output directory exists
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -98,35 +96,34 @@ class CorpusImporter:
     def _calculate_file_hash(self, file_path: Path) -> str:
         """Calculate SHA256 hash of file for duplicate detection."""
         sha256 = hashlib.sha256()
-        with open(file_path, 'rb') as f:
-            for chunk in iter(lambda: f.read(65536), b''):
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(65536), b""):
                 sha256.update(chunk)
         return sha256.hexdigest()
 
     def _validate_dicom(self, file_path: Path) -> bool:
-        """
-        Quick DICOM validation without full parse.
+        """Quick DICOM validation without full parse.
 
         Checks for DICOM magic bytes (128-byte preamble + 'DICM').
         """
         try:
-            with open(file_path, 'rb') as f:
+            with open(file_path, "rb") as f:
                 preamble = f.read(132)  # 128 bytes preamble + 4 bytes 'DICM'
                 if len(preamble) < 132:
                     return False
-                if preamble[128:132] != b'DICM':
+                if preamble[128:132] != b"DICM":
                     return False
             return True
         except Exception as e:
             logger.debug(f"Validation failed for {file_path}: {e}")
             return False
 
-    def _process_file(self, file_path: Path) -> Optional[Tuple[Dataset, Dict]]:
-        """
-        Process a single DICOM file.
+    def _process_file(self, file_path: Path) -> tuple[Dataset, dict] | None:
+        """Process a single DICOM file.
 
         Returns:
             Tuple of (dataset, metadata) or None if should skip
+
         """
         # Check file size constraints
         file_size = file_path.stat().st_size
@@ -172,20 +169,22 @@ class CorpusImporter:
             "original_path": str(file_path),
             "original_size": file_size,
             "hash": file_hash,
-            "modality": str(dataset.get('Modality', 'UNKNOWN')),
-            "sop_class_uid": str(dataset.get('SOPClassUID', 'UNKNOWN')),
-            "transfer_syntax": str(dataset.file_meta.TransferSyntaxUID) if hasattr(dataset, 'file_meta') else 'UNKNOWN',
-            "has_pixel_data": hasattr(dataset, 'PixelData'),
+            "modality": str(dataset.get("Modality", "UNKNOWN")),
+            "sop_class_uid": str(dataset.get("SOPClassUID", "UNKNOWN")),
+            "transfer_syntax": str(dataset.file_meta.TransferSyntaxUID)
+            if hasattr(dataset, "file_meta")
+            else "UNKNOWN",
+            "has_pixel_data": hasattr(dataset, "PixelData"),
             "num_tags": len(dataset),
-            "import_date": datetime.now(timezone.utc).isoformat()
+            "import_date": datetime.now(UTC).isoformat(),
         }
 
         # Optionally strip PixelData
-        if self.strip_pixels and hasattr(dataset, 'PixelData'):
+        if self.strip_pixels and hasattr(dataset, "PixelData"):
             original_size = file_size
             del dataset.PixelData
             # Also remove pixel-related tags
-            for tag in ['PixelData', 'PixelPaddingValue', 'PixelPaddingRangeLimit']:
+            for tag in ["PixelData", "PixelPaddingValue", "PixelPaddingRangeLimit"]:
                 if tag in dataset:
                     delattr(dataset, tag)
             metadata["pixel_data_stripped"] = True
@@ -196,12 +195,12 @@ class CorpusImporter:
 
         return dataset, metadata
 
-    def import_corpus(self) -> Dict:
-        """
-        Import all DICOM files from source directory.
+    def import_corpus(self) -> dict:
+        """Import all DICOM files from source directory.
 
         Returns:
             Statistics dictionary
+
         """
         logger.info(f"Scanning for DICOM files in: {self.source_dir}")
 
@@ -235,8 +234,8 @@ class CorpusImporter:
                 processed_size = output_path.stat().st_size
 
                 # Save metadata
-                metadata_path = output_path.with_suffix('.json')
-                with open(metadata_path, 'w') as f:
+                metadata_path = output_path.with_suffix(".json")
+                with open(metadata_path, "w") as f:
                     json.dump(metadata, f, indent=2)
 
                 # Update statistics
@@ -247,17 +246,20 @@ class CorpusImporter:
 
                 # Track modality distribution
                 modality = metadata["modality"]
-                self.stats["modalities"][modality] = self.stats["modalities"].get(modality, 0) + 1
+                self.stats["modalities"][modality] = (
+                    self.stats["modalities"].get(modality, 0) + 1
+                )
 
-                logger.info(f"  [OK] Imported as {output_filename} "
-                           f"({processed_size} bytes, {modality})")
+                logger.info(
+                    f"  [OK] Imported as {output_filename} "
+                    f"({processed_size} bytes, {modality})"
+                )
 
             except Exception as e:
                 logger.error(f"  [FAIL] Failed to save {output_filename}: {e}")
-                self.stats["errors"].append({
-                    "file": str(file_path),
-                    "error": f"Save failed: {e}"
-                })
+                self.stats["errors"].append(
+                    {"file": str(file_path), "error": f"Save failed: {e}"}
+                )
                 if not self.skip_corrupted:
                     raise
 
@@ -272,7 +274,7 @@ class CorpusImporter:
             "",
             f"Source Directory: {self.source_dir}",
             f"Output Directory: {self.output_dir}",
-            f"Import Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}",
+            f"Import Date: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}",
             "",
             "SUMMARY:",
             f"  Files Found:      {self.stats['files_found']}",
@@ -287,30 +289,48 @@ class CorpusImporter:
         ]
 
         if self.strip_pixels:
-            reduction = self.stats['total_bytes_original'] - self.stats['total_bytes_processed']
-            pct = (reduction / self.stats['total_bytes_original'] * 100) if self.stats['total_bytes_original'] > 0 else 0
-            report_lines.append(f"  Reduction:        {self._format_bytes(reduction)} ({pct:.1f}%)")
+            reduction = (
+                self.stats["total_bytes_original"] - self.stats["total_bytes_processed"]
+            )
+            pct = (
+                (reduction / self.stats["total_bytes_original"] * 100)
+                if self.stats["total_bytes_original"] > 0
+                else 0
+            )
+            report_lines.append(
+                f"  Reduction:        {self._format_bytes(reduction)} ({pct:.1f}%)"
+            )
 
-        if self.stats['file_sizes']:
-            report_lines.extend([
-                f"  Average Size:     {self._format_bytes(sum(self.stats['file_sizes']) / len(self.stats['file_sizes']))}",
-                f"  Min Size:         {self._format_bytes(min(self.stats['file_sizes']))}",
-                f"  Max Size:         {self._format_bytes(max(self.stats['file_sizes']))}",
-            ])
+        if self.stats["file_sizes"]:
+            report_lines.extend(
+                [
+                    f"  Average Size:     {self._format_bytes(sum(self.stats['file_sizes']) / len(self.stats['file_sizes']))}",
+                    f"  Min Size:         {self._format_bytes(min(self.stats['file_sizes']))}",
+                    f"  Max Size:         {self._format_bytes(max(self.stats['file_sizes']))}",
+                ]
+            )
 
         report_lines.append("")
         report_lines.append("MODALITY DISTRIBUTION:")
-        for modality, count in sorted(self.stats['modalities'].items(), key=lambda x: x[1], reverse=True):
-            pct = (count / self.stats['files_imported'] * 100) if self.stats['files_imported'] > 0 else 0
+        for modality, count in sorted(
+            self.stats["modalities"].items(), key=lambda x: x[1], reverse=True
+        ):
+            pct = (
+                (count / self.stats["files_imported"] * 100)
+                if self.stats["files_imported"] > 0
+                else 0
+            )
             report_lines.append(f"  {modality:15s} {count:5d} ({pct:5.1f}%)")
 
-        if self.stats['errors']:
+        if self.stats["errors"]:
             report_lines.append("")
             report_lines.append(f"ERRORS ({len(self.stats['errors'])}):")
-            for error in self.stats['errors'][:10]:  # Show first 10
+            for error in self.stats["errors"][:10]:  # Show first 10
                 report_lines.append(f"  - {error['file']}: {error['error']}")
-            if len(self.stats['errors']) > 10:
-                report_lines.append(f"  ... and {len(self.stats['errors']) - 10} more errors")
+            if len(self.stats["errors"]) > 10:
+                report_lines.append(
+                    f"  ... and {len(self.stats['errors']) - 10} more errors"
+                )
 
         report_lines.append("")
         report_lines.append("=" * 80)
@@ -319,7 +339,7 @@ class CorpusImporter:
 
     def _format_bytes(self, bytes_val: float) -> str:
         """Format bytes as human-readable string."""
-        for unit in ['B', 'KB', 'MB', 'GB']:
+        for unit in ["B", "KB", "MB", "GB"]:
             if bytes_val < 1024.0:
                 return f"{bytes_val:.1f} {unit}"
             bytes_val /= 1024.0
@@ -329,17 +349,18 @@ class CorpusImporter:
 def parse_size(size_str: str) -> int:
     """Parse human-readable size string to bytes."""
     size_str = size_str.upper().strip()
-    multipliers = {'B': 1, 'KB': 1024, 'MB': 1024**2, 'GB': 1024**3}
+    multipliers = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3}
 
     for suffix, multiplier in multipliers.items():
         if size_str.endswith(suffix):
-            return int(float(size_str[:-len(suffix)]) * multiplier)
+            return int(float(size_str[: -len(suffix)]) * multiplier)
 
     # No suffix, assume bytes
     return int(size_str)
 
 
 def main():
+    """Import real DICOM files as fuzzing seed corpus."""
     parser = argparse.ArgumentParser(
         description="Import real DICOM files as fuzzing seed corpus",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -356,45 +377,42 @@ EXAMPLES:
 
   # Verbose output with debugging
   python scripts/import_seed_corpus.py /path/to/dicom --output ./corpus -v
-        """
+        """,
     )
 
     parser.add_argument(
-        "source",
-        type=Path,
-        help="Source directory containing DICOM files"
+        "source", type=Path, help="Source directory containing DICOM files"
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         type=Path,
         default=Path("./corpus"),
-        help="Output directory for processed corpus (default: ./corpus)"
+        help="Output directory for processed corpus (default: ./corpus)",
     )
     parser.add_argument(
         "--strip-pixels",
         action="store_true",
-        help="Remove PixelData tag to focus fuzzing on parser (recommended)"
+        help="Remove PixelData tag to focus fuzzing on parser (recommended)",
     )
     parser.add_argument(
         "--max-size",
         type=str,
-        help="Skip files larger than this (e.g., '1MB', '500KB')"
+        help="Skip files larger than this (e.g., '1MB', '500KB')",
     )
     parser.add_argument(
         "--min-size",
         type=str,
         default="100",
-        help="Skip files smaller than this (default: 100 bytes)"
+        help="Skip files smaller than this (default: 100 bytes)",
     )
     parser.add_argument(
         "--fail-on-error",
         action="store_true",
-        help="Stop on first error instead of skipping corrupted files"
+        help="Stop on first error instead of skipping corrupted files",
     )
     parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Enable verbose debug output"
+        "-v", "--verbose", action="store_true", help="Enable verbose debug output"
     )
 
     args = parser.parse_args()
@@ -423,7 +441,7 @@ EXAMPLES:
         strip_pixels=args.strip_pixels,
         max_file_size=max_size,
         min_file_size=min_size,
-        skip_corrupted=not args.fail_on_error
+        skip_corrupted=not args.fail_on_error,
     )
 
     try:
@@ -436,15 +454,15 @@ EXAMPLES:
 
         # Save statistics to JSON
         stats_file = args.output / "corpus_stats.json"
-        with open(stats_file, 'w') as f:
+        with open(stats_file, "w") as f:
             json.dump(stats, f, indent=2)
         logger.info(f"Statistics saved to: {stats_file}")
 
         # Exit with appropriate code
-        if stats['files_imported'] == 0:
+        if stats["files_imported"] == 0:
             logger.error("No files imported! Check source directory and filters.")
             sys.exit(1)
-        elif stats['errors']:
+        elif stats["errors"]:
             logger.warning(f"Import completed with {len(stats['errors'])} errors")
             sys.exit(0)
         else:

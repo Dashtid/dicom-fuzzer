@@ -1,5 +1,4 @@
-"""
-Timeout Budget Management
+"""Timeout Budget Management
 
 CONCEPT: Manage global timeout budget for fuzzing campaigns to prevent
 runaway campaigns that spend too much time on timeouts.
@@ -8,18 +7,18 @@ STABILITY: Adaptive timeout adjustment prevents wasting resources on
 consistently slow or hanging inputs.
 """
 
-import logging
 import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any
 
-logger = logging.getLogger(__name__)
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
 class TimeoutStatistics:
-    """
-    Statistics for timeout budget tracking.
+    """Statistics for timeout budget tracking.
 
     Tracks how much time is spent on timeouts vs successful executions.
     """
@@ -61,8 +60,7 @@ class TimeoutStatistics:
 
 
 class TimeoutBudgetManager:
-    """
-    Manage timeout budget for fuzzing campaigns.
+    """Manage timeout budget for fuzzing campaigns.
 
     CONCEPT: Prevent runaway campaigns by:
     1. Tracking time spent on timeouts vs successful runs
@@ -80,14 +78,14 @@ class TimeoutBudgetManager:
         max_timeout: float = 60.0,
         adjustment_interval: int = 100,
     ):
-        """
-        Initialize timeout budget manager.
+        """Initialize timeout budget manager.
 
         Args:
             max_timeout_ratio: Max % of time allowed for timeouts (0.10 = 10%)
             min_timeout: Minimum timeout value in seconds
             max_timeout: Maximum timeout value in seconds
             adjustment_interval: Adjust timeout every N executions
+
         """
         self.max_timeout_ratio = max_timeout_ratio
         self.min_timeout = min_timeout
@@ -109,15 +107,15 @@ class TimeoutBudgetManager:
         )
 
     def record_execution(
-        self, duration: float, timed_out: bool, start_time: Optional[float] = None
-    ):
-        """
-        Record execution result and update statistics.
+        self, duration: float, timed_out: bool, start_time: float | None = None
+    ) -> None:
+        """Record execution result and update statistics.
 
         Args:
             duration: Execution duration in seconds
             timed_out: Whether execution timed out
             start_time: Optional start timestamp for precise timing
+
         """
         # Update statistics
         self.stats.total_executions += 1
@@ -139,11 +137,11 @@ class TimeoutBudgetManager:
             self.executions_since_adjustment = 0
 
     def is_budget_exceeded(self) -> bool:
-        """
-        Check if timeout budget has been exceeded.
+        """Check if timeout budget has been exceeded.
 
         Returns:
             True if too much time spent on timeouts
+
         """
         if self.stats.total_time == 0:
             return False
@@ -159,17 +157,16 @@ class TimeoutBudgetManager:
         return exceeded
 
     def get_recommended_timeout(self) -> float:
-        """
-        Get recommended timeout value based on current statistics.
+        """Get recommended timeout value based on current statistics.
 
         Returns:
             Recommended timeout in seconds
+
         """
         return self.current_timeout
 
-    def _adjust_timeout(self):
-        """
-        Adjust timeout based on recent statistics.
+    def _adjust_timeout(self) -> None:
+        """Adjust timeout based on recent statistics.
 
         CONCEPT: If spending too much time on timeouts, reduce timeout.
         If success rate is high, can slightly increase for edge cases.
@@ -208,26 +205,26 @@ class TimeoutBudgetManager:
                 )
 
     def get_statistics(self) -> TimeoutStatistics:
-        """
-        Get current timeout statistics.
+        """Get current timeout statistics.
 
         Returns:
             TimeoutStatistics object
+
         """
         return self.stats
 
-    def reset_statistics(self):
+    def reset_statistics(self) -> None:
         """Reset statistics (for new campaign or phase)."""
         self.stats = TimeoutStatistics()
         self.executions_since_adjustment = 0
         logger.info("Timeout budget statistics reset")
 
     def generate_report(self) -> str:
-        """
-        Generate human-readable timeout budget report.
+        """Generate human-readable timeout budget report.
 
         Returns:
             Formatted report string
+
         """
         stats = self.stats
         report = []
@@ -270,8 +267,7 @@ class TimeoutBudgetManager:
 
 # Convenience function for timing executions
 class ExecutionTimer:
-    """
-    Context manager for timing executions.
+    """Context manager for timing executions.
 
     Usage:
         with ExecutionTimer() as timer:
@@ -284,20 +280,100 @@ class ExecutionTimer:
         )
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize timer."""
-        self.start_time: Optional[float] = None
-        self.end_time: Optional[float] = None
+        self.start_time: float | None = None
+        self.end_time: float | None = None
         self.duration: float = 0.0
 
-    def __enter__(self):
+    def __enter__(self) -> "ExecutionTimer":
         """Start timer."""
         self.start_time = time.time()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
         """Stop timer."""
         self.end_time = time.time()
         if self.start_time:
             self.duration = self.end_time - self.start_time
-        return False  # Don't suppress exceptions
+        # Don't suppress exceptions
+
+
+class TimeoutBudget:
+    """Simple timeout budget for operations with context manager support.
+
+    Provides a simple API for enforcing timeouts on operations using
+    context managers. For test compatibility.
+    """
+
+    def __init__(self, total_seconds: float):
+        """Initialize timeout budget.
+
+        Args:
+            total_seconds: Total timeout budget in seconds
+
+        """
+        self.total_seconds = total_seconds
+        self.start_time = time.time()
+        self.remaining_seconds = total_seconds
+
+    def is_exhausted(self) -> bool:
+        """Check if timeout budget is exhausted.
+
+        Returns:
+            True if budget exhausted, False otherwise
+
+        """
+        elapsed = time.time() - self.start_time
+        self.remaining_seconds = max(0, self.total_seconds - elapsed)
+        return self.remaining_seconds <= 0
+
+    def operation_context(self, operation_name: str) -> "_TimeoutContext":
+        """Context manager for timeout-enforced operations.
+
+        Args:
+            operation_name: Name of the operation (for logging)
+
+        Returns:
+            Context manager that enforces timeout
+
+        Raises:
+            TimeoutError: If operation exceeds remaining budget
+
+        """
+        return _TimeoutContext(self, operation_name)
+
+
+class _TimeoutContext:
+    """Internal context manager for timeout enforcement."""
+
+    def __init__(self, budget: TimeoutBudget, operation_name: str) -> None:
+        self.budget = budget
+        self.operation_name = operation_name
+        self.start_time: float | None = None
+
+    def __enter__(self) -> "_TimeoutContext":
+        """Enter context - check if budget available."""
+        if self.budget.is_exhausted():
+            raise TimeoutError(f"Timeout budget exhausted before {self.operation_name}")
+        self.start_time = time.time()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
+        """Exit context - update remaining budget."""
+        if self.start_time is not None:
+            elapsed = time.time() - self.start_time
+            self.budget.remaining_seconds = max(
+                0, self.budget.remaining_seconds - elapsed
+            )
+        # Don't suppress exceptions

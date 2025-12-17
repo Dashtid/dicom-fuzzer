@@ -1,71 +1,141 @@
 import random
 import struct
-import uuid
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any
+
+from pydicom.dataset import Dataset
+from pydicom.uid import UID, generate_uid
 
 from dicom_fuzzer.core.parser import DicomParser
 from dicom_fuzzer.strategies.header_fuzzer import HeaderFuzzer
 from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
 from dicom_fuzzer.strategies.pixel_fuzzer import PixelFuzzer
 from dicom_fuzzer.strategies.structure_fuzzer import StructureFuzzer
+from dicom_fuzzer.utils.identifiers import generate_short_id
 
 
 class GenerationStats:
     """Track statistics during file generation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.total_attempted = 0
         self.successful = 0
         self.failed = 0
         self.skipped_due_to_write_errors = 0
-        self.strategies_used: Dict[str, int] = {}
-        self.error_types: Dict[str, int] = {}
+        self.strategies_used: dict[str, int] = {}
+        self.error_types: dict[str, int] = {}
 
-    def record_success(self, strategies: List[str]):
+    def record_success(self, strategies: list[str]) -> None:
         """Record successful file generation."""
         self.successful += 1
         for strategy in strategies:
             self.strategies_used[strategy] = self.strategies_used.get(strategy, 0) + 1
 
-    def record_failure(self, error_type: str):
+    def record_failure(self, error_type: str) -> None:
         """Record failed file generation."""
         self.failed += 1
         self.error_types[error_type] = self.error_types.get(error_type, 0) + 1
 
 
 class DICOMGenerator:
-    """
-    Generates batches of fuzzed DICOM files for security testing.
+    """Generates batches of fuzzed DICOM files for security testing.
 
     CONCEPT: Coordinates multiple fuzzing strategies to create
     a diverse set of test cases that stress different aspects
     of DICOM parsers.
     """
 
-    def __init__(self, output_dir="./fuzzed_dicoms", skip_write_errors=True):
-        """
-        Initialize the generator.
+    def __init__(
+        self, output_dir: str | Path = "./fuzzed_dicoms", skip_write_errors: bool = True
+    ) -> None:
+        """Initialize the generator.
 
         Args:
             output_dir: Directory to save generated files
             skip_write_errors: If True, skip files that can't be written due to
                              invalid mutations (good for fuzzing). If False,
                              raise errors (good for debugging).
+
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.skip_write_errors = skip_write_errors
         self.stats = GenerationStats()
 
+    def generate(self, output_path: str, tags: dict | None = None) -> Path:
+        """Generate a single DICOM file from scratch.
+
+        Args:
+            output_path: Path where the DICOM file should be saved
+            tags: Optional dictionary of DICOM tags to override defaults
+
+        Returns:
+            Path to the generated file
+
+        """
+        from pydicom.dataset import FileDataset, FileMetaDataset
+
+        # Create file meta
+        file_meta = FileMetaDataset()
+        file_meta.MediaStorageSOPClassUID = UID(
+            "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+        )
+        file_meta.MediaStorageSOPInstanceUID = generate_uid()
+        file_meta.TransferSyntaxUID = UID(
+            "1.2.840.10008.1.2"
+        )  # Implicit VR Little Endian
+        file_meta.ImplementationClassUID = generate_uid()
+
+        # Create dataset
+        ds = FileDataset(
+            str(output_path), {}, file_meta=file_meta, preamble=b"\x00" * 128
+        )
+
+        # Set required DICOM tags
+        ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+        ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+        ds.StudyInstanceUID = generate_uid()
+        ds.SeriesInstanceUID = generate_uid()
+
+        # Set default patient/study information
+        ds.PatientName = "TEST^PATIENT"
+        ds.PatientID = "12345"
+        ds.StudyDate = "20240101"
+        ds.StudyTime = "120000"
+        ds.Modality = "CT"
+
+        # Set image properties
+        ds.Rows = 128
+        ds.Columns = 128
+        ds.BitsAllocated = 16
+        ds.BitsStored = 16
+        ds.HighBit = 15
+        ds.PixelRepresentation = 0
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+
+        # Create dummy pixel data
+        ds.PixelData = b"\x00" * (128 * 128 * 2)
+
+        # Apply custom tags if provided
+        if tags:
+            for key, value in tags.items():
+                if hasattr(ds, key):
+                    setattr(ds, key, value)
+
+        # Save the file
+        output = Path(output_path)
+        ds.save_as(str(output), write_like_original=False)
+
+        return output
+
     def generate_batch(
         self,
         original_file: str,
         count: int = 100,
-        strategies: Optional[List[str]] = None,
-    ) -> List[Path]:
-        """
-        Generate a batch of mutated DICOM files.
+        strategies: list[str] | None = None,
+    ) -> list[Path]:
+        """Generate a batch of mutated DICOM files.
 
         Args:
             original_file: Path to original DICOM file
@@ -75,6 +145,7 @@ class DICOMGenerator:
 
         Returns:
             List of paths to generated files
+
         """
         parser = DicomParser(original_file)
         base_dataset = parser.dataset
@@ -83,14 +154,14 @@ class DICOMGenerator:
         generated_files = []
         self.stats = GenerationStats()
 
-        for i in range(count):
+        for _i in range(count):
             result = self._generate_single_file(base_dataset, active_fuzzers)
             if result is not None:
                 generated_files.append(result)
 
         return generated_files
 
-    def _select_fuzzers(self, strategies: Optional[List[str]]) -> dict:
+    def _select_fuzzers(self, strategies: list[str] | None) -> dict:
         """Select fuzzers based on strategy names."""
         all_fuzzers = {
             "metadata": MetadataFuzzer(),
@@ -112,7 +183,9 @@ class DICOMGenerator:
             name: fuzzer for name, fuzzer in all_fuzzers.items() if name in strategies
         }
 
-    def _generate_single_file(self, base_dataset, active_fuzzers) -> Optional[Path]:
+    def _generate_single_file(
+        self, base_dataset: Dataset, active_fuzzers: dict[str, Any]
+    ) -> Path | None:
         """Generate a single fuzzed file. Returns None if generation fails."""
         self.stats.total_attempted += 1
 
@@ -126,7 +199,9 @@ class DICOMGenerator:
         # Save to file
         return self._save_mutated_file(mutated_dataset, strategies_applied)
 
-    def _apply_mutations(self, base_dataset, active_fuzzers):
+    def _apply_mutations(
+        self, base_dataset: Dataset, active_fuzzers: dict[str, Any]
+    ) -> tuple[Dataset | None, list[str]]:
         """Apply random mutations to dataset.
 
         Returns (dataset, strategies) or (None, []).
@@ -153,30 +228,33 @@ class DICOMGenerator:
 
         return mutated_dataset, strategies_applied
 
-    def _apply_single_fuzzer(self, fuzzer_type: str, fuzzer, dataset):
+    def _apply_single_fuzzer(
+        self, fuzzer_type: str, fuzzer: Any, dataset: Dataset
+    ) -> Dataset:
         """Apply a single fuzzer to the dataset."""
-        fuzzer_methods = {
+        fuzzer_methods: dict[str, Any] = {
             "metadata": lambda: fuzzer.mutate_patient_info(dataset),
             "header": lambda: fuzzer.mutate_tags(dataset),
             "pixel": lambda: fuzzer.mutate_pixels(dataset),
             "structure": lambda: fuzzer.mutate_structure(dataset),
         }
-        return fuzzer_methods.get(fuzzer_type, lambda: dataset)()
+        result: Dataset = fuzzer_methods.get(fuzzer_type, lambda: dataset)()
+        return result
 
-    def _handle_mutation_error(self, error):
+    def _handle_mutation_error(self, error: Exception) -> tuple[None, list[str]]:
         """Handle errors during mutation."""
         if self.skip_write_errors:
             self.stats.skipped_due_to_write_errors += 1
             return None, []
 
         self.stats.record_failure(type(error).__name__)
-        raise
+        raise error
 
     def _save_mutated_file(
-        self, mutated_dataset, strategies_applied: List[str]
-    ) -> Optional[Path]:
+        self, mutated_dataset: Dataset, strategies_applied: list[str]
+    ) -> Path | None:
         """Save mutated dataset to file. Returns path or None on error."""
-        filename = f"fuzzed_{uuid.uuid4().hex[:8]}.dcm"
+        filename = f"fuzzed_{generate_short_id()}.dcm"
         output_path = self.output_dir / filename
 
         try:
@@ -184,16 +262,11 @@ class DICOMGenerator:
             self.stats.record_success(strategies_applied)
             return output_path
         except (OSError, struct.error, ValueError, TypeError, AttributeError) as e:
-            return self._handle_save_error(e)
+            if self.skip_write_errors:
+                self.stats.skipped_due_to_write_errors += 1
+                return None
+            self.stats.record_failure(type(e).__name__)
+            raise
         except Exception as e:
             self.stats.record_failure(type(e).__name__)
             raise
-
-    def _handle_save_error(self, error):
-        """Handle errors when saving files."""
-        if self.skip_write_errors:
-            self.stats.skipped_due_to_write_errors += 1
-            return None
-
-        self.stats.record_failure(type(error).__name__)
-        raise

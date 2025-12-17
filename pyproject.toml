@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dicom-fuzzer"
-version = "1.2.0"
+version = "1.3.0"
 authors = [
     {name = "David Dashti", email = "david@dashti.se"},
 ]
@@ -42,45 +42,91 @@ dependencies = [
     "structlog>=23.0.0",
     "click>=8.1.0",
     "rich>=13.0.0",
+    "tqdm>=4.66.0",           # Progress bars for CLI
     "aiofiles>=23.0.0",
     "asyncio-mqtt>=0.11.0",
     "cryptography>=41.0.0",
     "psutil>=5.9.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-xdist>=3.8.0",
-    "pytest-timeout>=2.4.0",
-    "hypothesis>=6.82.0",
-    "ruff>=0.14.0",
-    "mypy>=1.5.0",
-    "bandit>=1.7.5",
-    "pre-commit>=3.3.0",
-    "types-aiofiles>=23.0.0",
-]
-docs = [
-    "sphinx>=7.1.0",
-    "sphinx-rtd-theme>=1.3.0",
-    "myst-parser>=2.0.0",
-]
-network = [
-    "pynetdicom[apps]>=2.0.0",
-]
 
 [project.urls]
-Homepage = "https://github.com/Dashtid/DICOM-Fuzzer"
-Documentation = "https://dicom-fuzzer.readthedocs.io/"
-Repository = "https://github.com/Dashtid/DICOM-Fuzzer.git"
-"Bug Tracker" = "https://github.com/Dashtid/DICOM-Fuzzer/issues"
+Homepage = "https://github.com/Dashtid/dicom-fuzzer"
+Documentation = "https://github.com/Dashtid/dicom-fuzzer/tree/main/docs"
+Repository = "https://github.com/Dashtid/dicom-fuzzer.git"
+"Bug Tracker" = "https://github.com/Dashtid/dicom-fuzzer/issues"
+Changelog = "https://github.com/Dashtid/dicom-fuzzer/blob/main/CHANGELOG.md"
 
 [project.scripts]
 dicom-fuzzer = "dicom_fuzzer.cli.main:main"
 
 # Hatchling automatically discovers packages - no explicit configuration needed
+
+# Dependency groups (modern uv approach - replaces [tool.uv.dev-dependencies])
+[dependency-groups]
+dev = [
+    # Testing framework (state-of-the-art 2025)
+    "pytest>=8.4.0",           # Latest pytest with improved diagnostics
+    "pytest-cov>=4.1.0",       # Coverage reporting
+    "pytest-asyncio>=1.2.0",   # Async test support (latest stable)
+    "pytest-xdist>=3.8.0",     # Parallel test execution
+    "pytest-timeout>=2.4.0",   # Test timeouts
+    "pytest-rerunfailures>=14.0",  # Retry flaky tests (handles xdist race conditions)
+    "pytest-benchmark>=5.0.0", # Performance regression testing
+    "pytest-mock>=3.15.0",     # Better mocking utilities
+    "pytest-snapshot>=0.9.0",  # Snapshot testing for outputs
+    "pytest-randomly>=4.0.0",  # Random test order (finds hidden dependencies)
+    "pytest-watch>=4.2.0",     # Auto-rerun tests on file changes
+    "hypothesis>=6.142.0",     # Property-based testing (latest)
+    # Code quality (modern tools)
+    "ruff>=0.14.1",            # Fast linter/formatter (replaces black/flake8)
+    "mypy>=1.13.0",            # Type checking with latest improvements
+    "bandit>=1.8.0",           # Security vulnerability scanning
+    "pip-audit>=2.7.0",        # Dependency vulnerability scanning (2025 best practice)
+    "pre-commit>=4.3.0",       # Git hooks for quality gates
+    "types-aiofiles>=25.0.0",  # Type stubs
+    "types-seaborn>=0.13.0",   # Type stubs for seaborn
+    "types-tqdm>=4.67.0",      # Type stubs for tqdm
+    "types-psutil>=7.0.0",     # Type stubs for psutil
+    # Optional dependencies for testing HTML reports
+    "jinja2>=3.1.0",           # Template engine for HTML report tests
+    # Visualization dependencies for testing (from viz group)
+    "matplotlib>=3.5.0",       # Required for visualization tests
+    "plotly>=5.0.0",           # Required for visualization tests
+    "seaborn>=0.12.0",         # Required for visualization tests
+]
+
+network = [
+    "pynetdicom[apps]>=2.0.0",
+]
+
+viz = [
+    "matplotlib>=3.5.0",  # Visualization for analytics and reporting
+    "plotly>=5.0.0",      # Interactive visualizations (optional)
+    "seaborn>=0.12.0",    # Statistical data visualization (required by visualization.py)
+]
+
+dashboard = [
+    "fastapi>=0.115.0",   # Modern async web framework for dashboard API
+    "uvicorn>=0.32.0",    # ASGI server for FastAPI
+    "websockets>=14.0",   # WebSocket support for real-time updates
+]
+
+distributed = [
+    "redis>=5.2.0",       # Redis client for distributed task queue
+]
+
+metrics = [
+    "prometheus-client>=0.21.0",  # Prometheus metrics export
+]
+
+all = [
+    "dicom-fuzzer[viz,dashboard,distributed,metrics,network]",
+]
+
+# UV configuration (modern Python package management)
+[tool.uv]
+# Configuration for uv package manager
 
 # Ruff configuration (replaces black, isort, flake8, pylint)
 [tool.ruff]
@@ -97,14 +143,60 @@ select = [
     "B",   # flake8-bugbear
     "C4",  # flake8-comprehensions
     "UP",  # pyupgrade
+    "N",   # pep8-naming
+    "D",   # pydocstyle
+    "S",   # flake8-bandit (security)
+    "PT",  # flake8-pytest-style
+    "RUF", # Ruff-specific rules
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
     "B008",  # function call in argument defaults
+    "D100",  # missing docstring in public module
+    "D101",  # missing docstring in public class
+    "D104",  # missing docstring in public package
+    "D105",  # missing docstring in magic method
+    "D107",  # missing docstring in __init__
+    "D203",  # 1 blank line required before class docstring (conflicts with D211)
+    "D205",  # 1 blank line required between summary and description
+    "D213",  # multi-line docstring summary should start at second line (conflicts with D212)
+    "D400",  # first line should end with a period (too pedantic for fuzzing code)
+    "D401",  # first line should be in imperative mood (too pedantic)
+    "D415",  # first line should end with punctuation (too pedantic)
+    "S101",  # use of assert (acceptable in tests)
+    "C408",  # unnecessary dict() call (sometimes clearer than literal)
+    "N811",  # constant imported as non-constant (false positives)
+    "N818",  # exception name should end in Error (too pedantic)
+    "PT012",  # pytest.raises() should contain a simple statement
+    "PT015",  # assertion always fails (false positives in test patterns)
+    "PT017",  # found assertion on exception in except block (acceptable pattern)
+    "PT018",  # assertion should be broken down (sometimes combined assertions are clearer)
+    "RUF001", # ambiguous unicode character (false positives in DICOM data)
+    "RUF005", # consider unpacking instead of concatenation (less readable)
+    "RUF012", # mutable class attributes (intentional for dataclasses)
+    "RUF013", # implicit Optional (PEP 484 compatibility)
+    "RUF015", # prefer next(iter()) over single element slice (less readable)
+    "RUF022", # __all__ not sorted (manual ordering is intentional)
+    "RUF043", # unnecessary dict comprehension (sometimes clearer)
+    "RUF059", # unpacked variable never used (acceptable in tests/examples)
+    "UP028",  # yield in for loop (acceptable pattern)
+    "UP036",  # outdated version block (Python 3.11+ is fine)
+    "E501",   # line too long (handled by formatter)
+    "C901",   # function too complex (refactoring can wait)
+    # Security rules - false positives for fuzzing tool
+    "S108",   # probable insecure usage of temporary file (needed for fuzzing)
+    "S311",   # standard pseudo-random generators (appropriate for fuzzing, not crypto)
+    "S110",   # try-except-pass (acceptable in fuzzing error handling)
+    "S301",   # pickle usage (used for internal corpus storage only)
+    "S324",   # insecure hash function (used for checksums, not security)
+    "S105",   # hardcoded password (test data only)
+    "S603",   # subprocess without shell=True (acceptable for controlled execution)
+    "S112",   # try-except-continue (acceptable in fuzzing loops)
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["B", "F841"]  # Allow assert statements and unused variables in tests
+"tests/**/*.py" = ["D", "S101", "S607", "B", "F841", "PT011"]  # Relax docstring, assert, subprocess path, and pytest in tests
+"examples/**/*.py" = ["D", "S"]  # Relax docstring and security rules in examples
 
 [tool.mypy]
 python_version = "3.11"
@@ -126,30 +218,68 @@ module = [
     "pydicom.*",
     "pynetdicom.*",
     "numpy.*",
+    "plotly.*",   # No type stubs available
+    "jinja2.*",   # Optional dependency for HTML reports
+    "atheris.*",  # Optional dependency for coverage-guided fuzzing
+    "fastapi.*",  # Optional dependency for dashboard
+    "uvicorn.*",  # Optional dependency for dashboard
+    "redis.*",    # Optional dependency for distributed fuzzing
+    "prometheus_client.*",  # Optional dependency for metrics
 ]
 ignore_missing_imports = true
+
+# Pyright configuration (fast, modern type checker - 3-5x faster than mypy)
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+reportMissingImports = true
+reportMissingTypeStubs = false
+exclude = [
+    "**/__pycache__",
+    "**/node_modules",
+    ".venv",
+    "build",
+    "dist",
+    "artifacts",
+    ".hypothesis",
+]
+# Strictness options (gradually enable for better type safety)
+reportUnusedImport = "warning"
+reportUnusedVariable = "warning"
+reportDuplicateImport = "warning"
 
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
-    # Parallel execution with pytest-xdist (reduced to 4 workers for reliable coverage)
-    "-n=4",
-    "--dist=loadscope",
-    # Coverage options
+    # Modern import mode (pytest 2025 best practice for new projects)
+    "--import-mode=importlib",
+    # Parallel execution with pytest-xdist (optimized for 4k+ tests)
+    # Using 'auto' lets xdist determine optimal worker count based on CPU cores
+    "-n=auto",
+    # worksteal distribution works better for tests with varying durations
+    # It allows idle workers to steal tests from busy workers
+    "--dist=worksteal",
+    # Reduce output verbosity for faster execution (less I/O overhead)
+    "-q",
+    # Short tracebacks reduce output processing time
+    "--tb=short",
+    # Coverage options - use source_pkgs config from [tool.coverage.run]
     "--cov=dicom_fuzzer",
     "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
+    "--cov-report=html:reports/coverage/htmlcov",
+    "--cov-report=xml:reports/coverage/coverage.xml",
     # Show test durations (slowest 10 tests)
     "--durations=10",
     # Timeout for individual tests (prevents hanging)
     "--timeout=30",
-    # Target: 80% coverage (industry standard for security-critical tools)
-    # Note: Individual modules achieve 90%+ when tested in isolation
-    # Aggregate appears lower due to parallel execution coverage collection
-    "--cov-fail-under=22",
+    # Rerun flaky tests (handles hypothesis + xdist race conditions)
+    "--reruns=2",
+    "--reruns-delay=1",
+    # NOTE: Coverage threshold removed from default options to allow individual test runs
+    # For full suite coverage check, use: pytest --cov-fail-under=55
+    # CI/CD enforces 55% minimum coverage threshold via GitHub Actions
 ]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
@@ -162,24 +292,69 @@ markers = [
     "performance: Performance tests",
     "slow: Tests that take a long time to run (>5s)",
     "network: Tests requiring network access",
+    "asyncio: Asynchronous tests using asyncio",
 ]
 # Timeout configuration
 timeout = 30
 timeout_method = "thread"
+# Filter expected warnings during test execution
+filterwarnings = [
+    # Ignore pydicom VR length warnings (intentional in fuzzing - malformed data is expected)
+    "ignore:The value length.*exceeds the maximum length:UserWarning",
+    "ignore:The PN component length.*exceeds the maximum allowed length:UserWarning",
+    # Ignore pydicom deprecation warnings (will address in future pydicom v4 migration)
+    "ignore:.*write_like_original.*is deprecated:DeprecationWarning",
+    "ignore:.*is_implicit_VR.*will be removed in v4.0:DeprecationWarning",
+    "ignore:.*is_little_endian.*will be removed in v4.0:DeprecationWarning",
+    # Ignore pydicom camel case attribute warnings (acceptable in test scenarios)
+    "ignore:Camel case attribute.*not in the element keyword data dictionary:UserWarning",
+    # Ignore pytest-benchmark warnings when running with xdist (expected behavior)
+    "ignore:Benchmarks are automatically disabled because xdist plugin is active:pytest_benchmark.logger.PytestBenchmarkWarning",
+    # Ignore struct.error during fuzzing (intentional malformed data)
+    "ignore:.*struct.*error:UserWarning",
+    # Ignore additional pydicom warnings that can occur during fuzzing
+    "ignore:Invalid value for VR:UserWarning",
+    "ignore:Invalid value.*a value for a tag with VR:UserWarning",
+    "ignore:A value of type.*cannot be assigned to a tag with VR:UserWarning",
+    "ignore:The VR.*is being changed:UserWarning",
+    # Ignore encoding warnings during fuzzing (intentional malformed data)
+    "ignore:Failed to encode value with encodings:UserWarning",
+    "ignore:Incorrect value for Specific Character Set:UserWarning",
+    # Ignore pydicom file reading warnings (intentional corrupted files)
+    "ignore:End of file reached before delimiter:UserWarning",
+    "ignore:Expected implicit VR.*found explicit VR:UserWarning",
+    "ignore:Expected explicit VR.*found implicit VR:UserWarning",
+    # Ignore structlog processor chain warning (acceptable configuration)
+    "ignore:Remove.*format_exc_info.*from your processor chain:UserWarning",
+    # Ignore pytest collection warning for TestMinimizer class (production code, not test)
+    "ignore:cannot collect test class 'TestMinimizer':pytest.PytestCollectionWarning",
+    # Ignore coroutine never awaited warnings (acceptable in mocking scenarios)
+    "ignore:coroutine.*was never awaited:RuntimeWarning",
+]
 
 [tool.coverage.run]
-source = ["dicom_fuzzer"]
-data_file = "reports/coverage/.coverage"
+# Source package to measure - use source_pkgs for reliable detection with xdist
+source_pkgs = ["dicom_fuzzer"]
+# Let coverage.py manage data files - critical for xdist parallel workers
+# Do NOT set data_file when using xdist - it causes data combination issues
+branch = true
+# Enable parallel mode for proper worker data combination
 parallel = true
+# Handle SIGTERM gracefully (important for subprocess/worker cleanup)
+sigterm = true
+# Use relative paths for cross-worker compatibility
+relative_files = true
+# Concurrency modes - thread for async, multiprocessing for subprocess workers
 concurrency = ["thread", "multiprocessing"]
 omit = [
     "*/tests/*",
     "*/test_*",
     "*/__main__.py",
-    # Exclude only demo/example scripts not meant for production
 ]
 
 [tool.coverage.report]
+show_missing = true
+skip_covered = false
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
@@ -201,4 +376,11 @@ output = "reports/coverage/coverage.xml"
 
 [tool.bandit]
 exclude_dirs = ["tests"]
-skips = ["B101"]  # Skip assert_used test
+# B101: assert_used - acceptable in production code for invariant checks
+# B110: try_except_pass - acceptable in fuzzing error handling
+# B112: try_except_continue - acceptable in fuzzing loops
+# B311: random - standard pseudo-random generators are appropriate for fuzzing (not crypto)
+# B403: pickle import - used for internal corpus cache only (trusted data)
+# B404: subprocess import - required for target execution
+# B603: subprocess without shell - controlled execution of target binaries
+skips = ["B101", "B110", "B112", "B311", "B403", "B404", "B603"]

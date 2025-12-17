@@ -1,8 +1,9 @@
 import numpy as np
+from pydicom.dataset import Dataset
 
 
 class PixelFuzzer:
-    def mutate_pixels(self, dataset):
+    def mutate_pixels(self, dataset: Dataset) -> Dataset:
         """Introduce subtle pixel corruptions.
 
         NOTE: If the dataset has been mutated by header_fuzzer with invalid
@@ -17,11 +18,12 @@ class PixelFuzzer:
 
                 # Random noise injection
                 noise_mask = np.random.random(pixels.shape) < 0.01  # 1% corruption
-                pixels[noise_mask] = np.random.randint(0, 255, np.sum(noise_mask))
+                noise_count = int(np.sum(noise_mask))
+                pixels[noise_mask] = np.random.randint(0, 255, noise_count)
 
                 dataset.PixelData = pixels.tobytes()
             except (ValueError, AttributeError, TypeError):
-                # Pixel data access failed (invalid dimensions from header fuzzing)  # noqa: E501
-                # Expected with corrupted headers - skip pixel mutations  # noqa: E501
+                # Pixel data access failed (invalid dimensions from header fuzzing)
+                # Expected with corrupted headers - skip pixel mutations
                 pass
         return dataset

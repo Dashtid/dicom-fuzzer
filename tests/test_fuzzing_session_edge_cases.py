@@ -18,7 +18,12 @@ class TestFuzzingSessionEdgeCases:
 
     def test_record_test_result_unknown_file(self, tmp_path):
         """Test recording test result for unknown file ID raises error."""
-        session = FuzzingSession("test_session", str(tmp_path))
+        session = FuzzingSession(
+            session_name="test_session",
+            output_dir=str(tmp_path),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
 
         with pytest.raises(KeyError, match="Unknown file ID"):
             session.record_test_result(
@@ -27,7 +32,12 @@ class TestFuzzingSessionEdgeCases:
 
     def test_record_crash_hang_type(self, tmp_path):
         """Test recording a hang-type crash updates stats correctly."""
-        session = FuzzingSession("test_session", str(tmp_path))
+        session = FuzzingSession(
+            session_name="test_session",
+            output_dir=str(tmp_path),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
 
         # Start file fuzzing
         file_id = session.start_file_fuzzing(
@@ -52,7 +62,12 @@ class TestFuzzingSessionEdgeCases:
 
     def test_mutation_sequence_extraction(self, tmp_path):
         """Test that mutation sequences are extracted in crash records."""
-        session = FuzzingSession("test_session", str(tmp_path))
+        session = FuzzingSession(
+            session_name="test_session",
+            output_dir=str(tmp_path),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
 
         # Start file fuzzing
         file_id = session.start_file_fuzzing(
@@ -90,7 +105,12 @@ class TestFuzzingSessionEdgeCases:
 
     def test_session_summary_calculations(self, tmp_path):
         """Test session summary calculates rates correctly."""
-        session = FuzzingSession("test_session", str(tmp_path))
+        session = FuzzingSession(
+            session_name="test_session",
+            output_dir=str(tmp_path),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
 
         # Add some test data
         session.stats["files_fuzzed"] = 10
@@ -109,7 +129,12 @@ class TestFuzzingSessionEdgeCases:
 
     def test_session_report_with_mutations(self, tmp_path):
         """Test full session report includes mutation details."""
-        session = FuzzingSession("test_session", str(tmp_path))
+        session = FuzzingSession(
+            session_name="test_session",
+            output_dir=str(tmp_path),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
 
         # Create a complete file record with mutations
         session.start_file_fuzzing(
@@ -147,7 +172,12 @@ class TestFuzzingSessionEdgeCases:
 
     def test_save_report_creates_directory(self, tmp_path):
         """Test saving report creates output directory if needed."""
-        session = FuzzingSession("test_session", str(tmp_path))
+        session = FuzzingSession(
+            session_name="test_session",
+            output_dir=str(tmp_path),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
 
         # Create nested directory path that doesn't exist
         report_path = tmp_path / "reports" / "fuzzing" / "session_report.json"
@@ -163,14 +193,19 @@ class TestFuzzingSessionEdgeCases:
         assert report_path.exists()
 
         # Verify content is valid JSON
-        with open(report_path, "r") as f:
+        with open(report_path) as f:
             report_data = json.load(f)
             assert "session_info" in report_data
             assert "statistics" in report_data
 
     def test_crash_record_without_test_result(self, tmp_path):
         """Test crash recording when test_result hasn't been set."""
-        session = FuzzingSession("test_session", str(tmp_path))
+        session = FuzzingSession(
+            session_name="test_session",
+            output_dir=str(tmp_path),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
 
         file_id = session.start_file_fuzzing(
             source_file=Path("test.dcm"),
@@ -193,7 +228,12 @@ class TestFuzzingSessionEdgeCases:
 
     def test_multiple_crash_types(self, tmp_path):
         """Test recording different crash types updates stats correctly."""
-        session = FuzzingSession("test_session", str(tmp_path))
+        session = FuzzingSession(
+            session_name="test_session",
+            output_dir=str(tmp_path),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
 
         # File 1: crash
         file_id_1 = session.start_file_fuzzing(
@@ -235,7 +275,12 @@ class TestFuzzingSessionEdgeCases:
 
     def test_session_with_zero_duration_edge_case(self, tmp_path):
         """Test session summary handles very short duration."""
-        session = FuzzingSession("test_session", str(tmp_path))
+        session = FuzzingSession(
+            session_name="test_session",
+            output_dir=str(tmp_path),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
 
         # Immediately generate summary
         summary = session.get_session_summary()

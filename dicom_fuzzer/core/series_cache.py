@@ -1,5 +1,4 @@
-"""
-Series Metadata Caching for Performance Optimization
+"""Series Metadata Caching for Performance Optimization
 
 Implements LRU (Least Recently Used) cache for parsed DICOM metadata to avoid
 redundant file I/O and parsing operations.
@@ -29,16 +28,21 @@ USAGE:
     print(f"Hit rate: {stats['hit_rate']:.1%}")
 """
 
-import hashlib
+import pickle
 import time
 from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 from pydicom.dataset import Dataset
 
+from dicom_fuzzer.utils.hashing import md5_hash
 from dicom_fuzzer.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from dicom_fuzzer.core.dicom_series import DicomSeries
 
 logger = get_logger(__name__)
 
@@ -61,22 +65,28 @@ class CacheEntry:
 
 
 class SeriesCache:
-    """
-    LRU cache for DICOM series metadata.
+    """LRU cache for DICOM series metadata.
 
     Caches parsed metadata (NOT pixel data) to avoid redundant I/O.
     """
 
-    def __init__(self, max_size_mb: int = 100, max_entries: int = 1000):
-        """
-        Initialize series cache.
+    def __init__(
+        self,
+        max_size_mb: int = 100,
+        max_entries: int = 1000,
+        cache_dir: str | None = None,
+    ):
+        """Initialize series cache.
 
         Args:
             max_size_mb: Maximum cache size in megabytes
             max_entries: Maximum number of cached entries
+            cache_dir: Optional directory for persistent disk-based caching
+
         """
         self.max_size_bytes = max_size_mb * 1024 * 1024
         self.max_entries = max_entries
+        self.cache_dir = Path(cache_dir) if cache_dir else None
 
         # OrderedDict for LRU (oldest entries at start)
         self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
@@ -87,16 +97,20 @@ class SeriesCache:
         self._evictions = 0
         self._total_size_bytes = 0
 
+        # Create cache directory if specified
+        if self.cache_dir:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+
         logger.info(
             f"SeriesCache initialized: max_size={max_size_mb}MB, "
-            f"max_entries={max_entries}"
+            f"max_entries={max_entries}, "
+            f"cache_dir={self.cache_dir or 'memory-only'}"
         )
 
     def get(
         self, file_path: Path, loader: Callable[[Path], Dataset] | None = None
     ) -> Dataset | None:
-        """
-        Get dataset from cache or load from disk.
+        """Get dataset from cache or load from disk.
 
         Args:
             file_path: Path to DICOM file
@@ -104,6 +118,7 @@ class SeriesCache:
 
         Returns:
             Cached or freshly loaded dataset, or None if file doesn't exist
+
         """
         cache_key = self._get_cache_key(file_path)
 
@@ -153,11 +168,11 @@ class SeriesCache:
             return None
 
     def invalidate(self, file_path: Path) -> None:
-        """
-        Invalidate cache entry for a file.
+        """Invalidate cache entry for a file.
 
         Args:
             file_path: Path to invalidate
+
         """
         cache_key = self._get_cache_key(file_path)
         if cache_key in self._cache:
@@ -171,11 +186,11 @@ class SeriesCache:
         logger.info("Cache CLEARED")
 
     def get_statistics(self) -> dict:
-        """
-        Get cache statistics.
+        """Get cache statistics.
 
         Returns:
             Dict with cache performance metrics
+
         """
         total_requests = self._hits + self._misses
         hit_rate = self._hits / total_requests if total_requests > 0 else 0.0
@@ -199,17 +214,17 @@ class SeriesCache:
         """Generate cache key from file path."""
         # Use hash of absolute path for consistent keys
         abs_path = str(file_path.absolute())
-        return hashlib.md5(abs_path.encode()).hexdigest()
+        return md5_hash(abs_path)
 
     def _estimate_size(self, dataset: Dataset) -> int:
-        """
-        Estimate memory size of dataset (metadata only).
+        """Estimate memory size of dataset (metadata only).
 
         Args:
             dataset: pydicom Dataset
 
         Returns:
             Estimated size in bytes
+
         """
         # Rough estimation based on number of elements
         # Average ~100 bytes per element (conservative)
@@ -219,12 +234,12 @@ class SeriesCache:
         return estimated_size
 
     def _add_entry(self, file_path: Path, dataset: Dataset) -> None:
-        """
-        Add entry to cache, evicting if necessary.
+        """Add entry to cache, evicting if necessary.
 
         Args:
             file_path: File path
             dataset: Parsed dataset
+
         """
         cache_key = self._get_cache_key(file_path)
         file_mtime = file_path.stat().st_mtime
@@ -275,3 +290,69 @@ class SeriesCache:
             f"Cache EVICT: {entry.file_path.name} "
             f"(accesses={entry.access_count}, age={time.time() - entry.last_access:.1f}s)"
         )
+
+    # Disk-based series caching methods
+    def cache_series(self, series: "DicomSeries") -> None:
+        """Cache a DICOM series to disk.
+
+        Args:
+            series: DicomSeries object to cache
+
+        """
+        if not self.cache_dir:
+            logger.warning("cache_dir not configured, cannot cache series")
+            return
+
+        series_path = self.cache_dir / f"{series.series_uid}.pkl"
+        try:
+            with open(series_path, "wb") as f:
+                # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
+                pickle.dump(series, f)
+            logger.debug(f"Cached series {series.series_uid} to {series_path}")
+        except Exception as e:
+            logger.error(f"Failed to cache series {series.series_uid}: {e}")
+
+    def is_cached(self, series_uid: str) -> bool:
+        """Check if a series is cached on disk.
+
+        Args:
+            series_uid: SeriesInstanceUID to check
+
+        Returns:
+            True if cached, False otherwise
+
+        """
+        if not self.cache_dir:
+            return False
+
+        series_path = self.cache_dir / f"{series_uid}.pkl"
+        return series_path.exists()
+
+    def load_series(self, series_uid: str) -> "DicomSeries | None":
+        """Load a cached series from disk.
+
+        Args:
+            series_uid: SeriesInstanceUID to load
+
+        Returns:
+            DicomSeries object if found, None otherwise
+
+        """
+        if not self.cache_dir:
+            logger.warning("cache_dir not configured, cannot load series")
+            return None
+
+        series_path = self.cache_dir / f"{series_uid}.pkl"
+        if not series_path.exists():
+            logger.debug(f"Series {series_uid} not found in cache")
+            return None
+
+        try:
+            with open(series_path, "rb") as f:
+                # nosemgrep: python.lang.security.deserialization.pickle.avoid-pickle
+                series: DicomSeries = cast("DicomSeries", pickle.load(f))  # nosec B301
+            logger.debug(f"Loaded series {series_uid} from {series_path}")
+            return series
+        except Exception as e:
+            logger.error(f"Failed to load series {series_uid}: {e}")
+            return None
