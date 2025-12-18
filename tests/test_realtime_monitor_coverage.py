@@ -87,7 +87,7 @@ class TestRealtimeMonitorInit:
         """Test initialization with default values."""
         monitor = RealtimeMonitor()
 
-        assert monitor.session_dir == Path("./output")
+        assert monitor.session_dir == Path("artifacts")
         assert monitor.refresh_interval == 1
         assert monitor.session_id is None
         assert monitor.start_time is not None
@@ -371,7 +371,7 @@ class TestEdgeCases:
         """Test monitor with None session_dir."""
         monitor = RealtimeMonitor(session_dir=None)
 
-        assert monitor.session_dir == Path("./output")
+        assert monitor.session_dir == Path("artifacts")
 
     def test_display_stats_unknown_severity(self, capsys):
         """Test display with unknown severity."""

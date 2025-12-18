@@ -29,7 +29,7 @@ class TestRealtimeMonitorInit:
         """Test initialization with default values."""
         monitor = RealtimeMonitor()
 
-        assert monitor.session_dir == Path("./output")
+        assert monitor.session_dir == Path("artifacts")
         assert monitor.refresh_interval == 1
         assert monitor.session_id is None
         assert monitor.start_time is not None
