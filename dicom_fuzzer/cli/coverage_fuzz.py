@@ -144,14 +144,14 @@ Examples:
         "-o",
         "--output",
         type=Path,
-        default=Path("fuzzing_output"),
-        help="Output directory (default: fuzzing_output)",
+        default=Path("artifacts/fuzzed"),
+        help="Output directory (default: artifacts/fuzzed)",
     )
     output_group.add_argument(
         "--crashes",
         type=Path,
-        default=Path("crashes"),
-        help="Directory for saving crashes (default: crashes)",
+        default=Path("artifacts/crashes"),
+        help="Directory for saving crashes (default: artifacts/crashes)",
     )
     output_group.add_argument(
         "--save-all", action="store_true", help="Save all generated inputs"

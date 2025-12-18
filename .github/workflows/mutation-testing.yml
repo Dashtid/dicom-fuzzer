@@ -1,0 +1,216 @@
+name: Mutation Testing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dicom_fuzzer/**/*.py'
+      - 'tests/**/*.py'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'dicom_fuzzer/**/*.py'
+      - 'tests/**/*.py'
+  schedule:
+    # Run weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      modules:
+        description: 'Specific modules to test (comma-separated, e.g., core.parser,core.validator)'
+        required: false
+        default: ''
+
+jobs:
+  mutation-test:
+    name: Mutation Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e ".[dev]"
+          uv pip install --system mutmut
+
+      - name: Determine modules to test
+        id: modules
+        run: |
+          if [ -n "${{ github.event.inputs.modules }}" ]; then
+            echo "modules=${{ github.event.inputs.modules }}" >> $GITHUB_OUTPUT
+          else
+            # Default to core modules for regular runs
+            echo "modules=dicom_fuzzer.core.parser,dicom_fuzzer.core.validator,dicom_fuzzer.core.mutator" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run mutation testing
+        run: |
+          # Create mutmut config
+          cat > setup.cfg << 'EOF'
+          [mutmut]
+          paths_to_mutate=dicom_fuzzer/core/parser.py,dicom_fuzzer/core/validator.py,dicom_fuzzer/core/mutator.py
+          tests_dir=tests/
+          runner=pytest -x -q --tb=no
+          EOF
+
+          # Run mutmut with timeout per mutation
+          mutmut run --paths-to-mutate="${{ steps.modules.outputs.modules }}" \
+            --runner="pytest -x -q --tb=no -p no:randomly" \
+            --no-progress || true
+
+      - name: Generate mutation report
+        run: |
+          mutmut results > mutation-results.txt || true
+          mutmut html || true
+
+          # Generate summary
+          echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+
+          # Parse results
+          KILLED=$(grep -c "killed" mutation-results.txt 2>/dev/null || echo "0")
+          SURVIVED=$(grep -c "survived" mutation-results.txt 2>/dev/null || echo "0")
+          TIMEOUT=$(grep -c "timeout" mutation-results.txt 2>/dev/null || echo "0")
+
+          echo "| Killed | $KILLED |" >> $GITHUB_STEP_SUMMARY
+          echo "| Survived | $SURVIVED |" >> $GITHUB_STEP_SUMMARY
+          echo "| Timeout | $TIMEOUT |" >> $GITHUB_STEP_SUMMARY
+
+          # Calculate mutation score
+          TOTAL=$((KILLED + SURVIVED))
+          if [ $TOTAL -gt 0 ]; then
+            SCORE=$(echo "scale=2; $KILLED * 100 / $TOTAL" | bc)
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Mutation Score: ${SCORE}%**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload mutation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: |
+            html/
+            mutation-results.txt
+          retention-days: 30
+
+      - name: Check mutation score threshold
+        run: |
+          # Parse mutation score
+          KILLED=$(grep -c "killed" mutation-results.txt 2>/dev/null || echo "0")
+          SURVIVED=$(grep -c "survived" mutation-results.txt 2>/dev/null || echo "0")
+          TOTAL=$((KILLED + SURVIVED))
+
+          if [ $TOTAL -gt 0 ]; then
+            SCORE=$(echo "scale=0; $KILLED * 100 / $TOTAL" | bc)
+            THRESHOLD=60
+
+            if [ $SCORE -lt $THRESHOLD ]; then
+              echo "::warning::Mutation score ($SCORE%) is below threshold ($THRESHOLD%)"
+              # Don't fail for now, just warn
+              # exit 1
+            else
+              echo "Mutation score ($SCORE%) meets threshold ($THRESHOLD%)"
+            fi
+          fi
+
+  mutation-diff:
+    name: Mutation Testing (Changed Files Only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed Python files
+        id: changed-files
+        run: |
+          # Get changed Python files in dicom_fuzzer
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | \
+            grep -E '^dicom_fuzzer/.*\.py$' | \
+            grep -v '__pycache__' | \
+            grep -v 'test_' | \
+            tr '\n' ',' | sed 's/,$//')
+
+          echo "files=$CHANGED" >> $GITHUB_OUTPUT
+          echo "Changed files: $CHANGED"
+
+      - name: Set up Python
+        if: steps.changed-files.outputs.files != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        if: steps.changed-files.outputs.files != ''
+        run: |
+          pip install uv
+          uv pip install --system -e ".[dev]"
+          uv pip install --system mutmut
+
+      - name: Run mutation testing on changed files
+        if: steps.changed-files.outputs.files != ''
+        run: |
+          mutmut run --paths-to-mutate="${{ steps.changed-files.outputs.files }}" \
+            --runner="pytest -x -q --tb=no -p no:randomly" \
+            --no-progress || true
+          mutmut results > pr-mutation-results.txt || true
+
+      - name: Comment PR with results
+        if: steps.changed-files.outputs.files != '' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let results = '';
+            try {
+              results = fs.readFileSync('pr-mutation-results.txt', 'utf8');
+            } catch (e) {
+              results = 'No mutation results available';
+            }
+
+            const killed = (results.match(/killed/g) || []).length;
+            const survived = (results.match(/survived/g) || []).length;
+            const total = killed + survived;
+            const score = total > 0 ? ((killed / total) * 100).toFixed(1) : 'N/A';
+
+            const body = `## Mutation Testing Results (Changed Files)
+
+            | Metric | Count |
+            |--------|-------|
+            | Killed | ${killed} |
+            | Survived | ${survived} |
+            | **Score** | **${score}%** |
+
+            <details>
+            <summary>Details</summary>
+
+            \`\`\`
+            ${results.slice(0, 3000)}
+            \`\`\`
+
+            </details>`;
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });

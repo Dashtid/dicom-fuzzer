@@ -331,11 +331,18 @@ __marimo__/
 # Project-Specific Temporary Files & Outputs
 # ============================================================================
 
-# Artifacts directory (all fuzzing outputs - gitignored entirely)
+# ============================================================================
+# Centralized Artifacts Directory (v1.5.0+)
+# ============================================================================
+# All runtime-generated output goes here - gitignored with .gitkeep structure
 /artifacts/
 !/artifacts/.gitkeep
+!/artifacts/**/.gitkeep
 
-# Legacy output directories (cleanup)
+# ============================================================================
+# Legacy output directories (for cleanup reference)
+# ============================================================================
+# These can be deleted if they exist - all output now goes to /artifacts/
 /fuzzed_dicoms/
 /test_output/
 /test_crashes/
@@ -345,21 +352,11 @@ __marimo__/
 /test_structure/
 /output/
 /demo_output/
-
-# Demo folder (keep scripts, ignore generated output)
-/demo/output/
-
-# Reports directory structure (keep structure, ignore generated reports)
-/reports/json/*
-/reports/html/*
-/reports/logs/*
-/reports/coverage/*
-!/reports/json/.gitkeep
-!/reports/html/.gitkeep
-!/reports/logs/.gitkeep
-!/reports/coverage/.gitkeep
-!/reports/quality_report.txt
-!/reports/test_results.txt
+/fuzzing_output/
+/reports/
+/crashes/
+/campaigns/
+/checkpoints/
 
 # Temporary Files
 nul
@@ -402,13 +399,9 @@ analyze_*.py
 # Duplicate/backup files (from various tools)
 *-dadaZBPG9*
 
-# Fuzzing campaign outputs
-/campaigns/
-/checkpoints/
-/crashes/
+# Fuzzing campaign outputs (legacy - now in /artifacts/)
 /atheris_crashes/
 /atheris_output/
-/fuzzing_output/
 
 # Benchmark artifacts
 /benchmark_clean_test/
@@ -438,4 +431,3 @@ TESTING_SESSION*.md
 # Empty placeholder directories
 /screenshots/
 /data/
-/reports/

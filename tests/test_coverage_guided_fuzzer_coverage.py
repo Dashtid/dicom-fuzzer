@@ -98,8 +98,8 @@ class TestFuzzingConfig:
         """Test default path values."""
         config = FuzzingConfig()
 
-        assert config.output_dir == Path("fuzzing_output")
-        assert config.crash_dir == Path("crashes")
+        assert config.output_dir == Path("artifacts/fuzzed")
+        assert config.crash_dir == Path("artifacts/crashes")
         assert config.corpus_dir is None
         assert config.seed_dir is None
 

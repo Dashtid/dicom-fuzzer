@@ -63,8 +63,8 @@ class FuzzingConfig:
     dicom_aware: bool = True
 
     # Output configuration
-    output_dir: Path = Path("fuzzing_output")
-    crash_dir: Path = Path("crashes")
+    output_dir: Path = Path("artifacts/fuzzed")
+    crash_dir: Path = Path("artifacts/crashes")
     save_all_inputs: bool = False
     save_interesting: bool = True
 

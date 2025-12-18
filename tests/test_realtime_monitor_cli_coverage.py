@@ -291,7 +291,7 @@ class TestRealtimeMonitorRefreshDisplay:
         original_path = Path
 
         def mock_path_init(path_str: str = ".") -> Path:
-            if "reports/json" in str(path_str):
+            if "artifacts/reports/json" in str(path_str):
                 return reports_dir
             return original_path(path_str)
 

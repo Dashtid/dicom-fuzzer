@@ -33,7 +33,7 @@ class TestCampaignConfig:
         assert config.target_executable == "/path/to/target"
         assert config.corpus_dir == "/path/to/corpus"
         # Defaults
-        assert config.output_dir == "./fuzzing_output"
+        assert config.output_dir == "./artifacts/fuzzed"
         assert config.timeout == 30.0
         assert config.strategy == "coverage_guided"
         assert config.max_workers == 4

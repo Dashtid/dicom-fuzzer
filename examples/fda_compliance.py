@@ -18,7 +18,7 @@ def main() -> None:
     print("  DICOM Fuzzer - FDA Compliance Reporting Example")
     print("=" * 60)
 
-    output_dir = Path("./output/fda_reports")
+    output_dir = Path("./artifacts/reports/fda")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Option 1: Generate sample report template

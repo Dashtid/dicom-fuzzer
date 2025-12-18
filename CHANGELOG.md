@@ -5,7 +5,75 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0] - 2025-12-17 - Network Fuzzing, Continuous Integration, NTIA Compliance
+## [1.5.0] - 2025-12-18 - Network Fuzzing, Advanced Engines, NTIA Compliance
+
+### Added - LLM-Enhanced Fuzzing
+
+- **Adaptive Mutation Selection** (`llm_fuzzer.py`): RL-based mutation scheduling
+  - UCB1 algorithm for Multi-Armed Bandit mutation selection (MOpt-style)
+  - `AdaptiveMutationSelector` with exploration/exploitation balance
+  - `MutationFeedback` and `MutationStatistics` for tracking performance
+  - Automatic convergence to optimal mutation strategies
+- **Semantic DICOM Fuzzer** (`llm_fuzzer.py`): Protocol-aware fuzzing
+  - `SemanticDICOMFuzzer` with deep DICOM protocol understanding
+  - Rule-based violations (consistency, mathematical, range, dependency)
+  - Inter-element relationship fuzzing
+- **LLM Seed Generator** (`llm_fuzzer.py`): AI-assisted seed corpus generation
+  - Multiple backends: OpenAI, Anthropic, Ollama (local)
+  - Protocol-aware seed generation based on DICOM specifications
+  - `create_llm_seed_generator()` convenience function
+
+### Added - DICOM TLS Security Fuzzer
+
+- **TLS Security Testing** (`dicom_tls_fuzzer.py`): Comprehensive TLS vulnerability scanner
+  - SSL version testing (SSLv2, SSLv3, TLS 1.0/1.1/1.2/1.3)
+  - Weak cipher detection (RC4, DES, export-grade)
+  - Certificate validation bypass detection
+  - Hostname verification testing
+- **DICOM Authentication Testing**: Auth bypass detection
+  - AE title enumeration and bruteforce
+  - Anonymous association testing
+  - `DICOMAuthTester` with configurable wordlists
+- **PACS Query Injection**: SQL/LDAP injection testing
+  - Wildcard query attacks
+  - SQL injection payloads for DICOM queries
+  - Path traversal attempts
+  - `PACSQueryInjector` with payload generation
+
+### Added - Advanced Fuzzing Engines
+
+- **State-Aware Protocol Fuzzer** (`state_aware_fuzzer.py`): AFLNet-style stateful fuzzing
+  - `StateInferenceEngine` for automatic state machine learning
+  - `StateCoverage` tracking with Jaccard similarity
+  - `StateGuidedHavoc` mutations with state awareness
+  - `MessageSequence` for multi-message protocol fuzzing
+- **Differential Fuzzer** (`differential_fuzzer.py`): Cross-implementation testing
+  - Parser wrappers for pydicom, GDCM, DCMTK
+  - Automatic difference detection (parse success, tag values, VR types)
+  - Bug severity classification (Critical, High, Medium, Low)
+  - `DifferentialAnalyzer` for systematic comparison
+- **DICOMweb REST API Fuzzer** (`dicomweb_fuzzer.py`): Web API security testing
+  - WADO-RS, STOW-RS, QIDO-RS endpoint fuzzing
+  - Multipart/related payload generation
+  - Authentication bypass and injection testing
+  - `PayloadGenerator` with attack categories
+- **Persistent Mode Fuzzer** (`persistent_fuzzer.py`): AFL++ persistent mode
+  - In-process fuzzing for 10-100x speedup
+  - Power schedules (Fast, COE, Explore, Exploit, Quad)
+  - MOpt mutation scheduling with PSO optimization
+  - `CoverageMap` with bitmap tracking
+
+### Added - Corpus Minimization & Multi-Fuzzer Sync
+
+- **Corpus Minimizer** (`corpus_minimizer.py`): AFL-cmin style minimization
+  - Greedy set-cover algorithm for minimal corpus
+  - Coverage-based selection (edges/size ratio)
+  - `TargetCoverageCollector` for LLVM coverage
+- **Corpus Synchronizer** (`corpus_minimizer.py`): Multi-fuzzer coordination
+  - Push, pull, and bidirectional sync modes
+  - Deduplication with SHA256 hashing
+  - `FuzzerNode` for cluster membership
+  - `create_sync_node()` convenience function
 
 ### Added - Network Protocol Fuzzing
 
@@ -258,10 +326,10 @@ This release marks the first public PyPI release of DICOM-Fuzzer with comprehens
 
 ## Planned Features
 
-- Enhanced coverage-guided fuzzing with AFL-style feedback
-- Network fuzzing support (DICOM C-STORE, C-FIND protocols)
-- Distributed fuzzing across multiple machines
-- Grammar-based and protocol-aware mutation strategies
+- Additional LLM backends (Claude via SDK, local Llama models)
+- Extended DICOMweb security testing (OAuth/SMART integration)
+- Fuzzer cluster orchestration with Kubernetes
+- Grammar-based mutation with DICOM PS3.5 conformance
 
 ---
 

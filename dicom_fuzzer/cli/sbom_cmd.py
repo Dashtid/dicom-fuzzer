@@ -44,9 +44,9 @@ Examples:
         "-o",
         "--output",
         type=str,
-        default="./output/sbom",
+        default="./artifacts/reports/sbom",
         metavar="DIR",
-        help="Output directory for SBOM files (default: ./output/sbom)",
+        help="Output directory for SBOM files (default: ./artifacts/reports/sbom)",
     )
 
     parser.add_argument(

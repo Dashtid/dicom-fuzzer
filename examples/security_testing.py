@@ -15,7 +15,7 @@ def main() -> None:
     print("  DICOM Fuzzer - Security Testing Example")
     print("=" * 60)
 
-    output_dir = Path("./output/security_samples")
+    output_dir = Path("./artifacts/fuzzed/security_samples")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # List available CVEs

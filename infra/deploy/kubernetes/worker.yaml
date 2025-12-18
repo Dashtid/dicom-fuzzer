@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fuzzer-worker
+  namespace: dicom-fuzzer
+  labels:
+    app: dicom-fuzzer
+    component: worker
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dicom-fuzzer
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: dicom-fuzzer
+        component: worker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: dicom-fuzzer
+      containers:
+        - name: worker
+          image: ghcr.io/dashtid/dicom-fuzzer:latest
+          command:
+            - python
+            - -m
+            - dicom_fuzzer.distributed.worker
+          env:
+            - name: REDIS_HOST
+              value: redis
+            - name: REDIS_PORT
+              value: "6379"
+            - name: COORDINATOR_HOST
+              value: coordinator
+            - name: COORDINATOR_PORT
+              value: "8000"
+            - name: WORKER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: LOG_LEVEL
+              value: INFO
+          ports:
+            - containerPort: 9090
+              name: metrics
+          volumeMounts:
+            - name: fuzzing-data
+              mountPath: /data
+            - name: corpus
+              mountPath: /corpus
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 2Gi
+            limits:
+              cpu: 4000m
+              memory: 8Gi
+          securityContext:
+            capabilities:
+              add:
+                - SYS_PTRACE # Required for crash detection
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 9090
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: fuzzing-data
+          persistentVolumeClaim:
+            claimName: fuzzing-data
+        - name: corpus
+          emptyDir:
+            sizeLimit: 5Gi
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fuzzer-worker-hpa
+  namespace: dicom-fuzzer
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fuzzer-worker
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120

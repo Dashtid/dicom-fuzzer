@@ -233,7 +233,7 @@ class TestRefreshDisplay:
         self, temp_dir, sample_session_data, capsys
     ):
         """Test refresh with existing session file."""
-        reports_dir = Path("./reports/json")
+        reports_dir = Path("./artifacts/reports/json")
         reports_dir.mkdir(parents=True, exist_ok=True)
 
         session_file = reports_dir / "session_test.json"
@@ -252,7 +252,7 @@ class TestRefreshDisplay:
 
     def test_refresh_display_invalid_json(self, temp_dir, capsys):
         """Test refresh with invalid JSON file."""
-        reports_dir = Path("./reports/json")
+        reports_dir = Path("./artifacts/reports/json")
         reports_dir.mkdir(parents=True, exist_ok=True)
 
         session_file = reports_dir / "session_invalid.json"

@@ -34,7 +34,7 @@ services:
   dcmtk:
     build:
       context: .
-      dockerfile: docker/dcmtk/Dockerfile
+      dockerfile: infra/docker/dcmtk/Dockerfile
       args:
         ENABLE_ASAN: "true"
         ENABLE_UBSAN: "false"
@@ -42,9 +42,9 @@ services:
     container_name: dicom-fuzzer-dcmtk
     volumes:
       - ./samples:/input:ro
-      - ./fuzzed:/fuzzed:ro
-      - ./crashes:/crashes:rw
-      - ./reports:/reports:rw
+      - ./artifacts/fuzzed:/fuzzed:ro
+      - ./artifacts/crashes:/crashes:rw
+      - ./artifacts/reports:/reports:rw
     environment:
       - ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:symbolize=1
       - UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
@@ -54,14 +54,14 @@ services:
   dcmqrscp:
     build:
       context: .
-      dockerfile: docker/dcmtk/Dockerfile
+      dockerfile: infra/docker/dcmtk/Dockerfile
     image: dicom-fuzzer/dcmtk:latest
     container_name: dicom-fuzzer-dcmqrscp
     ports:
       - "11112:11112"
     volumes:
       - ./samples:/input:ro
-      - ./fuzzed:/fuzzed:ro
+      - ./artifacts/fuzzed:/fuzzed:ro
       - dcmqrscp-storage:/dicom/storage
     command: ["dcmqrscp", "-c", "/etc/dcmtk/dcmqrscp.cfg", "-v"]
     environment:
@@ -77,7 +77,7 @@ services:
   orthanc:
     build:
       context: .
-      dockerfile: docker/orthanc/Dockerfile
+      dockerfile: infra/docker/orthanc/Dockerfile
     image: dicom-fuzzer/orthanc:latest
     container_name: dicom-fuzzer-orthanc
     ports:

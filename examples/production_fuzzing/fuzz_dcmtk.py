@@ -67,7 +67,7 @@ class DCMTKFuzzer:
         self,
         target_path: str = "dcmdump",
         use_docker: bool = False,
-        output_dir: Path = Path("./fuzzing_output"),
+        output_dir: Path = Path("./artifacts/fuzzed"),
         strip_pixels: bool = True,
     ):
         """

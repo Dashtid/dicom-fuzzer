@@ -1,7 +1,14 @@
 """Reporting modules for DICOM Fuzzer.
 
 This package provides report generation for various compliance frameworks
-and output formats.
+and output formats, including:
+- FDA Compliance Reports (June 2025 Guidance)
+- SBOM Generation (NTIA/CISA 2025 compliant)
+- Penetration Test Reports
+- SAST/DAST Integration
+- CVD Policy Generation
+- Threat Modeling
+- Security Risk Reports
 """
 
 from dicom_fuzzer.reporting.cvd_policy import (
@@ -37,9 +44,40 @@ from dicom_fuzzer.reporting.patch_timeline import (
 from dicom_fuzzer.reporting.patch_timeline import (
     SeverityLevel as PatchSeverityLevel,
 )
+from dicom_fuzzer.reporting.penetration_test import (
+    AffectedComponent,
+    AttackVector,
+    CVSSScore,
+    PenetrationTestReport,
+    PenetrationTestReporter,
+    PentestVulnerability,
+    ProofOfConcept,
+    Remediation,
+    RemediationStatus,
+    TestingMethodology,
+    TestingPhase,
+    TestScope,
+    VulnerabilitySeverity,
+)
+from dicom_fuzzer.reporting.sast_dast import (
+    BanditParser,
+    CodeLocation,
+    FindingSeverity,
+    PipAuditParser,
+    SARIFParser,
+    SASTDASTReport,
+    SASTDASTReporter,
+    ScanSummary,
+    SecurityFinding,
+    SemgrepParser,
+    ToolCategory,
+    ToolInfo,
+)
 from dicom_fuzzer.reporting.sbom import (
     SBOM,
+    CISA2025Compliance,
     DependencyRelationship,
+    GenerationContext,
     NTIACompliance,
     SBOMComponent,
     SBOMGenerator,
@@ -81,15 +119,44 @@ __all__ = [
     "TestCoverage",
     "ToolConfiguration",
     "VulnerabilityFinding",
-    # SBOM with NTIA Compliance
+    # SBOM with NTIA/CISA 2025 Compliance
     "SBOM",
     "SBOMComponent",
     "SBOMGenerator",
     "SBOMMetadata",
     "DependencyRelationship",
     "NTIACompliance",
+    "CISA2025Compliance",
+    "GenerationContext",
     "generate_sbom",
     "validate_sbom_ntia_compliance",
+    # Penetration Test Reporting
+    "PenetrationTestReport",
+    "PenetrationTestReporter",
+    "PentestVulnerability",
+    "CVSSScore",
+    "AffectedComponent",
+    "ProofOfConcept",
+    "Remediation",
+    "RemediationStatus",
+    "TestScope",
+    "TestingMethodology",
+    "TestingPhase",
+    "AttackVector",
+    "VulnerabilitySeverity",
+    # SAST/DAST Integration
+    "SASTDASTReport",
+    "SASTDASTReporter",
+    "SecurityFinding",
+    "ScanSummary",
+    "ToolInfo",
+    "ToolCategory",
+    "FindingSeverity",
+    "CodeLocation",
+    "SemgrepParser",
+    "BanditParser",
+    "SARIFParser",
+    "PipAuditParser",
     # CVD Policy
     "CVDPolicyConfig",
     "CVDPolicyGenerator",

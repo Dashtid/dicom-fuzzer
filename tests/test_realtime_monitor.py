@@ -188,7 +188,7 @@ class TestRefreshDisplay:
 
     def test_refresh_display_json_error(self, capsys, tmp_path):
         """Test refresh with invalid JSON file."""
-        reports_dir = Path("./reports/json")
+        reports_dir = Path("./artifacts/reports/json")
         reports_dir.mkdir(parents=True, exist_ok=True)
 
         session_file = reports_dir / "session_invalid.json"
