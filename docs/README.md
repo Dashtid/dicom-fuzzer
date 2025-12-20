@@ -9,8 +9,6 @@
 
 ## Features
 
-- [CRASH_INTELLIGENCE.md](CRASH_INTELLIGENCE.md) - Crash triage and analysis
-- [STABILITY.md](STABILITY.md) - Production features (resource management, error recovery)
 - [FDA_COMPLIANCE.md](FDA_COMPLIANCE.md) - FDA compliance reporting guide
 
 ## Reference

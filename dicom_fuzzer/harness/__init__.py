@@ -51,5 +51,3 @@ __all__ = [
     # Helper functions
     "create_generic_config",
 ]
-
-__version__ = "2.0.0-alpha"
