@@ -5,6 +5,132 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2025-12-18 - Network Fuzzing, Advanced Engines, NTIA Compliance
+
+### Added - LLM-Enhanced Fuzzing
+
+- **Adaptive Mutation Selection** (`llm_fuzzer.py`): RL-based mutation scheduling
+  - UCB1 algorithm for Multi-Armed Bandit mutation selection (MOpt-style)
+  - `AdaptiveMutationSelector` with exploration/exploitation balance
+  - `MutationFeedback` and `MutationStatistics` for tracking performance
+  - Automatic convergence to optimal mutation strategies
+- **Semantic DICOM Fuzzer** (`llm_fuzzer.py`): Protocol-aware fuzzing
+  - `SemanticDICOMFuzzer` with deep DICOM protocol understanding
+  - Rule-based violations (consistency, mathematical, range, dependency)
+  - Inter-element relationship fuzzing
+- **LLM Seed Generator** (`llm_fuzzer.py`): AI-assisted seed corpus generation
+  - Multiple backends: OpenAI, Anthropic, Ollama (local)
+  - Protocol-aware seed generation based on DICOM specifications
+  - `create_llm_seed_generator()` convenience function
+
+### Added - DICOM TLS Security Fuzzer
+
+- **TLS Security Testing** (`dicom_tls_fuzzer.py`): Comprehensive TLS vulnerability scanner
+  - SSL version testing (SSLv2, SSLv3, TLS 1.0/1.1/1.2/1.3)
+  - Weak cipher detection (RC4, DES, export-grade)
+  - Certificate validation bypass detection
+  - Hostname verification testing
+- **DICOM Authentication Testing**: Auth bypass detection
+  - AE title enumeration and bruteforce
+  - Anonymous association testing
+  - `DICOMAuthTester` with configurable wordlists
+- **PACS Query Injection**: SQL/LDAP injection testing
+  - Wildcard query attacks
+  - SQL injection payloads for DICOM queries
+  - Path traversal attempts
+  - `PACSQueryInjector` with payload generation
+
+### Added - Advanced Fuzzing Engines
+
+- **State-Aware Protocol Fuzzer** (`state_aware_fuzzer.py`): AFLNet-style stateful fuzzing
+  - `StateInferenceEngine` for automatic state machine learning
+  - `StateCoverage` tracking with Jaccard similarity
+  - `StateGuidedHavoc` mutations with state awareness
+  - `MessageSequence` for multi-message protocol fuzzing
+- **Differential Fuzzer** (`differential_fuzzer.py`): Cross-implementation testing
+  - Parser wrappers for pydicom, GDCM, DCMTK
+  - Automatic difference detection (parse success, tag values, VR types)
+  - Bug severity classification (Critical, High, Medium, Low)
+  - `DifferentialAnalyzer` for systematic comparison
+- **DICOMweb REST API Fuzzer** (`dicomweb_fuzzer.py`): Web API security testing
+  - WADO-RS, STOW-RS, QIDO-RS endpoint fuzzing
+  - Multipart/related payload generation
+  - Authentication bypass and injection testing
+  - `PayloadGenerator` with attack categories
+- **Persistent Mode Fuzzer** (`persistent_fuzzer.py`): AFL++ persistent mode
+  - In-process fuzzing for 10-100x speedup
+  - Power schedules (Fast, COE, Explore, Exploit, Quad)
+  - MOpt mutation scheduling with PSO optimization
+  - `CoverageMap` with bitmap tracking
+
+### Added - Corpus Minimization & Multi-Fuzzer Sync
+
+- **Corpus Minimizer** (`corpus_minimizer.py`): AFL-cmin style minimization
+  - Greedy set-cover algorithm for minimal corpus
+  - Coverage-based selection (edges/size ratio)
+  - `TargetCoverageCollector` for LLVM coverage
+- **Corpus Synchronizer** (`corpus_minimizer.py`): Multi-fuzzer coordination
+  - Push, pull, and bidirectional sync modes
+  - Deduplication with SHA256 hashing
+  - `FuzzerNode` for cluster membership
+  - `create_sync_node()` convenience function
+
+### Added - Network Protocol Fuzzing
+
+- **DICOM Network Harness** (`harness/network/dicom_network_harness.py`): AFLNet-style stateful protocol fuzzer
+  - Full DICOM Upper Layer Protocol state machine (IDLE, AWAITING_AC, ASSOCIATED, etc.)
+  - Support for C-STORE, C-FIND, C-GET, C-MOVE, C-ECHO operations
+  - Configurable fuzzing campaigns with iteration control
+  - Crash and hang detection with configurable timeouts
+- **Network Seed Generator** (`harness/network/seed_generator.py`): Protocol-aware seed corpus
+  - Valid PDU generation for all DICOM network operations
+  - Malformed seed variants for vulnerability testing
+  - Orthanc server fuzzing documentation
+
+### Added - Continuous Fuzzing Integration
+
+- **OSS-Fuzz Structure** (`oss-fuzz/`): Ready for OSS-Fuzz submission
+  - Dockerfile, build.sh, project.yaml for ClusterFuzz integration
+  - LibFuzzer and AFL++ harness support
+  - Sanitizer builds (ASan, UBSan, MSan)
+- **GitHub Actions CI** (`.github/workflows/continuous-fuzzing.yml`): Automated fuzzing pipeline
+  - AFL++ with AddressSanitizer and fast mode
+  - LibFuzzer integration
+  - afl-cov coverage reporting
+  - Automated crash deduplication and triage
+  - GitHub issue creation for unique crashes
+
+### Added - Enhanced Corpus Management
+
+- **MoonLight Minimizer** (`utils/corpus_minimization.py`): Weighted set-cover corpus distillation
+  - 3x-100x smaller corpora compared to afl-cmin
+  - Weight by file size and execution time
+  - Coverage-preserving minimization
+- **Coverage-Aware Prioritizer**: Seed scheduling based on coverage contribution
+  - Track coverage discovery history
+  - Prioritize seeds that find new edges
+
+### Added - FDA 2025 Compliance Updates
+
+- **NTIA SBOM Compliance** (`reporting/sbom.py`): Full NTIA Minimum Elements support
+  - All 7 required fields: Supplier Name, Component Name, Version, Unique Identifiers (CPE/PURL/SWID), Dependency Relationship, SBOM Author, Timestamp
+  - Known supplier database for common PyPI packages
+  - NTIA compliance validation and reporting
+  - `validate_sbom_ntia_compliance()` function
+- **Patch Timeline Tracking** (`reporting/patch_timeline.py`): FDA vulnerability remediation tracking
+  - Severity-based remediation timelines (Critical: 15d, High: 30d, Medium: 90d)
+  - Patch lifecycle status tracking
+  - SLA compliance metrics
+- **Cyber Device Classifier** (`reporting/cyber_device.py`): FDA Section 524B classification
+  - Determine if device qualifies as "cyber device"
+  - Risk tier assessment (Tier 1/Tier 2)
+  - Premarket submission requirements documentation
+- **New CVE Patterns** in `security_patterns.py`:
+  - CVE-2025-53619: GDCM JPEGBITSCodec OOB read
+  - CVE-2025-53618: GDCM JPEG decompression OOB read
+  - CVE-2025-11266: GDCM encapsulated PixelData OOB write
+  - CVE-2025-1001: RadiAnt certificate validation bypass
+
 ## [1.4.0] - 2025-12-17 - FDA Compliance, Response-Aware Fuzzing, CVE Updates
 
 ### Added - FDA Compliance Reporting
@@ -200,10 +326,10 @@ This release marks the first public PyPI release of DICOM-Fuzzer with comprehens
 
 ## Planned Features
 
-- Enhanced coverage-guided fuzzing with AFL-style feedback
-- Network fuzzing support (DICOM C-STORE, C-FIND protocols)
-- Distributed fuzzing across multiple machines
-- Grammar-based and protocol-aware mutation strategies
+- Additional LLM backends (Claude via SDK, local Llama models)
+- Extended DICOMweb security testing (OAuth/SMART integration)
+- Fuzzer cluster orchestration with Kubernetes
+- Grammar-based mutation with DICOM PS3.5 conformance
 
 ---
 

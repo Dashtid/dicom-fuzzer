@@ -29,7 +29,7 @@ class TestRealtimeMonitorInit:
         """Test initialization with default values."""
         monitor = RealtimeMonitor()
 
-        assert monitor.session_dir == Path("./output")
+        assert monitor.session_dir == Path("artifacts")
         assert monitor.refresh_interval == 1
         assert monitor.session_id is None
         assert monitor.start_time is not None
@@ -188,7 +188,7 @@ class TestRefreshDisplay:
 
     def test_refresh_display_json_error(self, capsys, tmp_path):
         """Test refresh with invalid JSON file."""
-        reports_dir = Path("./reports/json")
+        reports_dir = Path("./artifacts/reports/json")
         reports_dir.mkdir(parents=True, exist_ok=True)
 
         session_file = reports_dir / "session_invalid.json"

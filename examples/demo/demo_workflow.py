@@ -38,11 +38,11 @@ logger = logging.getLogger(__name__)
 def setup_directories():
     """Create necessary directories for the demo."""
     dirs = [
-        "demo_output",
-        "demo_output/fuzzed",
-        "demo_output/crashes",
-        "demo_output/images",
-        "demo_output/reports",
+        "artifacts/demo",
+        "artifacts/demo/fuzzed",
+        "artifacts/demo/crashes",
+        "artifacts/demo/images",
+        "artifacts/demo/reports",
     ]
     for dir_path in dirs:
         Path(dir_path).mkdir(parents=True, exist_ok=True)
@@ -191,7 +191,7 @@ def run_fuzzing_workflow():
     # Visualize original seed files
     logger.info("\n[2/5] Visualizing original DICOM files...")
     for i, seed in enumerate(seed_files):
-        output_path = Path(f"demo_output/images/original_{i + 1}.png")
+        output_path = Path(f"artifacts/demo/images/original_{i + 1}.png")
         visualize_dicom(seed, output_path)
 
     # Generate fuzzed variants
@@ -215,7 +215,7 @@ def run_fuzzing_workflow():
 
                 # Generate output file
                 output_file = Path(
-                    f"demo_output/fuzzed/seed{seed_idx + 1}_variant{variant_idx + 1}.dcm"
+                    f"artifacts/demo/fuzzed/seed{seed_idx + 1}_variant{variant_idx + 1}.dcm"
                 )
                 generator.generate(mutated, str(output_file))
                 fuzzed_files.append(output_file)
@@ -223,7 +223,7 @@ def run_fuzzing_workflow():
                 # Visualize first few variants
                 if variant_idx < 3:
                     img_output = Path(
-                        f"demo_output/images/seed{seed_idx + 1}_variant{variant_idx + 1}.png"
+                        f"artifacts/demo/images/seed{seed_idx + 1}_variant{variant_idx + 1}.png"
                     )
                     visualize_dicom(output_file, img_output)
 
@@ -269,7 +269,7 @@ def run_fuzzing_workflow():
                 analyzer.analyze_crash(crash_dict, error_msg)
 
                 # Save crash file
-                crash_output = Path(f"demo_output/crashes/{fuzz_file.name}")
+                crash_output = Path(f"artifacts/demo/crashes/{fuzz_file.name}")
                 fuzz_file.rename(crash_output)
             except Exception as e:
                 logger.error(f"Failed to analyze crash: {e}")
@@ -288,11 +288,11 @@ def run_fuzzing_workflow():
         statistics=stats, crash_analyzer=analyzer, coverage_tracker=coverage
     )
 
-    report_path = Path("demo_output/reports/fuzzing_report.md")
+    report_path = Path("artifacts/demo/reports/fuzzing_report.md")
     reporter.generate_report(str(report_path))
 
     # Also generate HTML report
-    html_report_path = Path("demo_output/reports/fuzzing_report.html")
+    html_report_path = Path("artifacts/demo/reports/fuzzing_report.html")
     reporter.export_html(str(html_report_path))
 
     logger.info(f"Report saved to: {report_path}")
@@ -307,10 +307,10 @@ def run_fuzzing_workflow():
     logger.info(f"Crashes discovered: {len(crashes_found)}")
     logger.info(f"Unique crash signatures: {len(analyzer.crash_signatures)}")
     logger.info("\nOutput directories:")
-    logger.info("  - Images: demo_output/images/")
-    logger.info("  - Fuzzed files: demo_output/fuzzed/")
-    logger.info("  - Crashes: demo_output/crashes/")
-    logger.info("  - Reports: demo_output/reports/")
+    logger.info("  - Images: artifacts/demo/images/")
+    logger.info("  - Fuzzed files: artifacts/demo/fuzzed/")
+    logger.info("  - Crashes: artifacts/demo/crashes/")
+    logger.info("  - Reports: artifacts/demo/reports/")
     logger.info("=" * 80)
 
     if crashes_found:

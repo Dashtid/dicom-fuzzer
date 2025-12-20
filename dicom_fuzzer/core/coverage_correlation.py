@@ -21,7 +21,9 @@ class CoverageCorrelator:
             coverage_file: Path to coverage.json file from coverage.py
 
         """
-        self.coverage_file = coverage_file or Path("reports/coverage/.coverage")
+        self.coverage_file = coverage_file or Path(
+            "artifacts/reports/coverage/.coverage"
+        )
         self.coverage_data: dict[str, Any] = {}
         self.data_points: list[dict[str, Any]] = []  # For incremental data collection
 

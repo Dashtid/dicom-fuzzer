@@ -44,7 +44,7 @@ class FuzzingVisualizer:
     Supports both static (Matplotlib) and interactive (Plotly) charts.
     """
 
-    def __init__(self, output_dir: str = "./reports/charts"):
+    def __init__(self, output_dir: str = "./artifacts/reports/charts"):
         """Initialize visualizer.
 
         Args:

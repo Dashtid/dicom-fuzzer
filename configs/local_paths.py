@@ -19,11 +19,15 @@ VIEWER_TIMEOUT = 10  # Seconds before killing GUI app (use --gui-mode in CLI)
 VIEWER_MEMORY_LIMIT_MB = 2048  # Memory limit for GUI mode
 
 # ============================================================================
-# Output Directories
+# Output Directories (Centralized under artifacts/)
 # ============================================================================
-OUTPUT_DIR = Path("./fuzzed_output")
-CRASHES_DIR = Path("./crashes")
-REPORTS_DIR = Path("./reports")
+ARTIFACTS_DIR = Path("./artifacts")
+OUTPUT_DIR = ARTIFACTS_DIR / "fuzzed"
+CRASHES_DIR = ARTIFACTS_DIR / "crashes"
+REPORTS_DIR = ARTIFACTS_DIR / "reports"
+LOGS_DIR = ARTIFACTS_DIR / "logs"
+CORPUS_DIR = ARTIFACTS_DIR / "corpus"
+CAMPAIGNS_DIR = ARTIFACTS_DIR / "campaigns"
 
 # ============================================================================
 # Fuzzing Defaults

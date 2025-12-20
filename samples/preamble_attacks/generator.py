@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-PE/DICOM and ELF/DICOM Polyglot Generator
+"""PE/DICOM and ELF/DICOM Polyglot Generator
 
 Creates polyglot files that are simultaneously valid DICOM images and
 executable programs, demonstrating CVE-2019-11687.
@@ -11,6 +10,7 @@ All payloads are benign (MessageBox, exit).
 References:
 - https://github.com/d00rt/pedicom
 - https://www.praetorian.com/blog/elfdicom-poc-malware-polyglot-exploiting-linux-based-medical-devices/
+
 """
 
 from __future__ import annotations
@@ -135,8 +135,7 @@ class ELFHeader:
 
 
 class PreambleAttackGenerator:
-    """
-    Generator for PE/DICOM and ELF/DICOM polyglot files.
+    """Generator for PE/DICOM and ELF/DICOM polyglot files.
 
     These files exploit CVE-2019-11687 by embedding executable headers
     in the DICOM preamble. The resulting files are valid DICOM images
@@ -208,8 +207,7 @@ class PreambleAttackGenerator:
         dicom_template: Dataset | None = None,
         payload_type: Literal["messagebox", "calc", "exit"] = "messagebox",
     ) -> Path:
-        """
-        Create a PE/DICOM polyglot file.
+        """Create a PE/DICOM polyglot file.
 
         The file will be a valid DICOM image that can also be executed
         as a Windows PE executable.
@@ -221,6 +219,7 @@ class PreambleAttackGenerator:
 
         Returns:
             Path to the created file
+
         """
         output_path = Path(output_path)
 
@@ -255,8 +254,7 @@ class PreambleAttackGenerator:
         dicom_template: Dataset | None = None,
         payload_type: Literal["exit", "true"] = "exit",
     ) -> Path:
-        """
-        Create an ELF/DICOM polyglot file.
+        """Create an ELF/DICOM polyglot file.
 
         The file will be a valid DICOM image that can also be executed
         as a Linux ELF executable.
@@ -268,6 +266,7 @@ class PreambleAttackGenerator:
 
         Returns:
             Path to the created file
+
         """
         output_path = Path(output_path)
 
@@ -351,9 +350,9 @@ class PreambleAttackGenerator:
 
     def _inject_elf_payload(self, path: Path, payload_type: str) -> None:
         """Inject ELF executable payload into the file."""
-        shellcode = (
-            self.SHELLCODE_EXIT if payload_type == "exit" else self.SHELLCODE_EXIT
-        )
+        # Currently only 'exit' payload is implemented
+        _ = payload_type  # Reserved for future payload types
+        shellcode = self.SHELLCODE_EXIT
 
         with open(path, "r+b") as f:
             # Append shellcode at end of file
@@ -365,14 +364,14 @@ class PreambleAttackGenerator:
             f.write(shellcode)
 
     def validate_polyglot(self, path: str | Path) -> dict:
-        """
-        Validate that a file is a valid polyglot.
+        """Validate that a file is a valid polyglot.
 
         Args:
             path: Path to the file to validate
 
         Returns:
             Dictionary with validation results
+
         """
         path = Path(path)
         results = {
@@ -420,8 +419,7 @@ class PreambleAttackGenerator:
         input_path: str | Path,
         output_path: str | Path,
     ) -> Path:
-        """
-        Sanitize a DICOM file by clearing its preamble.
+        """Sanitize a DICOM file by clearing its preamble.
 
         This removes any executable content from the preamble,
         neutralizing polyglot attacks while preserving the DICOM data.
@@ -432,6 +430,7 @@ class PreambleAttackGenerator:
 
         Returns:
             Path to the sanitized file
+
         """
         input_path = Path(input_path)
         output_path = Path(output_path)

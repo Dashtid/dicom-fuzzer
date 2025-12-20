@@ -177,7 +177,7 @@ class TestCVEGenerator:
         generator = CVESampleGenerator(tmp_path)
         results = generator.generate_all()
 
-        assert len(results) == 7
+        assert len(results) == 12
         for cve_id, path in results.items():
             if path is not None:
                 assert path.exists(), f"Missing sample for {cve_id}"

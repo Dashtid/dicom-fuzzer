@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-DICOM Preamble Sanitizer
+"""DICOM Preamble Sanitizer
 
 Neutralizes polyglot attacks (PE/DICOM, ELF/DICOM) by clearing
 the DICOM preamble, removing any executable content while
@@ -38,8 +37,7 @@ class SanitizeResult:
 
 
 class DicomSanitizer:
-    """
-    Sanitizes DICOM files by clearing potentially malicious preambles.
+    """Sanitizes DICOM files by clearing potentially malicious preambles.
 
     The DICOM preamble (first 128 bytes) can contain executable content
     that turns the file into a polyglot (PE/DICOM, ELF/DICOM).
@@ -59,23 +57,23 @@ class DicomSanitizer:
     DICM_MAGIC = b"DICM"
 
     def __init__(self, backup: bool = True) -> None:
-        """
-        Initialize sanitizer.
+        """Initialize sanitizer.
 
         Args:
             backup: Whether to create backup files before sanitizing in-place
+
         """
         self.backup = backup
 
     def detect_preamble_type(self, preamble: bytes) -> str:
-        """
-        Detect the type of content in the preamble.
+        """Detect the type of content in the preamble.
 
         Args:
             preamble: 128-byte preamble
 
         Returns:
             Description of preamble content type
+
         """
         # Check for executables
         for sig, name in self.EXEC_SIGNATURES.items():
@@ -98,14 +96,14 @@ class DicomSanitizer:
         return "Unknown content"
 
     def is_preamble_safe(self, preamble: bytes) -> bool:
-        """
-        Check if preamble is safe (not executable).
+        """Check if preamble is safe (not executable).
 
         Args:
             preamble: 128-byte preamble
 
         Returns:
             True if preamble is safe
+
         """
         preamble_type = self.detect_preamble_type(preamble)
         return preamble_type.startswith("Safe")
@@ -116,8 +114,7 @@ class DicomSanitizer:
         output_path: str | Path | None = None,
         force: bool = False,
     ) -> SanitizeResult:
-        """
-        Sanitize a DICOM file by clearing its preamble.
+        """Sanitize a DICOM file by clearing its preamble.
 
         Args:
             input_path: Path to input DICOM file
@@ -126,6 +123,7 @@ class DicomSanitizer:
 
         Returns:
             SanitizeResult describing the action taken
+
         """
         input_path = Path(input_path)
 
@@ -229,8 +227,7 @@ class DicomSanitizer:
         recursive: bool = True,
         force: bool = False,
     ) -> list[SanitizeResult]:
-        """
-        Sanitize all DICOM files in a directory.
+        """Sanitize all DICOM files in a directory.
 
         Args:
             directory: Input directory
@@ -240,6 +237,7 @@ class DicomSanitizer:
 
         Returns:
             List of SanitizeResults
+
         """
         directory = Path(directory)
         results = []

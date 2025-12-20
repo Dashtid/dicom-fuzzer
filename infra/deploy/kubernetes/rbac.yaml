@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dicom-fuzzer
+  namespace: dicom-fuzzer
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dicom-fuzzer-role
+  namespace: dicom-fuzzer
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dicom-fuzzer-binding
+  namespace: dicom-fuzzer
+subjects:
+  - kind: ServiceAccount
+    name: dicom-fuzzer
+    namespace: dicom-fuzzer
+roleRef:
+  kind: Role
+  name: dicom-fuzzer-role
+  apiGroup: rbac.authorization.k8s.io

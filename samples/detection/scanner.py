@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-DICOM Security Scanner
+"""DICOM Security Scanner
 
 Scans DICOM files for security issues including:
 - Polyglot attacks (PE/DICOM, ELF/DICOM)
@@ -73,8 +72,7 @@ class ScanResult:
 
 
 class DicomSecurityScanner:
-    """
-    Security scanner for DICOM files.
+    """Security scanner for DICOM files.
 
     Detects polyglot attacks, suspicious content, and compliance issues.
     """
@@ -112,14 +110,14 @@ class DicomSecurityScanner:
     ]
 
     def scan_file(self, path: str | Path) -> ScanResult:
-        """
-        Scan a single DICOM file for security issues.
+        """Scan a single DICOM file for security issues.
 
         Args:
             path: Path to the DICOM file
 
         Returns:
             ScanResult with findings
+
         """
         path = Path(path)
         result = ScanResult(path=path, is_dicom=False)
@@ -323,8 +321,7 @@ class DicomSecurityScanner:
         recursive: bool = True,
         extensions: tuple[str, ...] = (".dcm", ".dicom", ".DCM", ".DICOM"),
     ) -> list[ScanResult]:
-        """
-        Scan all DICOM files in a directory.
+        """Scan all DICOM files in a directory.
 
         Args:
             directory: Path to directory
@@ -333,6 +330,7 @@ class DicomSecurityScanner:
 
         Returns:
             List of ScanResults
+
         """
         directory = Path(directory)
         results = []

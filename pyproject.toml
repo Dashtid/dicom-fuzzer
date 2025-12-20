@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dicom-fuzzer"
-version = "1.4.0"
+version = "1.5.0"
 authors = [
     {name = "David Dashti", email = "david@dashti.se"},
 ]
@@ -120,8 +120,18 @@ metrics = [
     "prometheus-client>=0.21.0",  # Prometheus metrics export
 ]
 
+# Advanced fuzzing capabilities (v1.5.0)
+dicomweb = [
+    "requests>=2.31.0",  # HTTP client for DICOMweb REST API fuzzing
+    "httpx>=0.27.0",     # Modern async HTTP client (alternative)
+]
+
+differential = [
+    "python-gdcm>=3.0.0; platform_system != 'Windows'",  # GDCM bindings (Linux/macOS)
+]
+
 all = [
-    "dicom-fuzzer[viz,dashboard,distributed,metrics,network]",
+    "dicom-fuzzer[viz,dashboard,distributed,metrics,network,dicomweb]",
 ]
 
 # UV configuration (modern Python package management)
@@ -225,6 +235,8 @@ module = [
     "uvicorn.*",  # Optional dependency for dashboard
     "redis.*",    # Optional dependency for distributed fuzzing
     "prometheus_client.*",  # Optional dependency for metrics
+    "gdcm.*",     # Optional dependency for differential fuzzing
+    "httpx.*",    # Optional dependency for async HTTP
 ]
 ignore_missing_imports = true
 
@@ -268,8 +280,8 @@ addopts = [
     # Coverage options - use source_pkgs config from [tool.coverage.run]
     "--cov=dicom_fuzzer",
     "--cov-report=term-missing",
-    "--cov-report=html:reports/coverage/htmlcov",
-    "--cov-report=xml:reports/coverage/coverage.xml",
+    "--cov-report=html:artifacts/reports/coverage/htmlcov",
+    "--cov-report=xml:artifacts/reports/coverage/coverage.xml",
     # Show test durations (slowest 10 tests)
     "--durations=10",
     # Timeout for individual tests (prevents hanging)
@@ -369,10 +381,10 @@ exclude_lines = [
 ]
 
 [tool.coverage.html]
-directory = "reports/coverage/htmlcov"
+directory = "artifacts/reports/coverage/htmlcov"
 
 [tool.coverage.xml]
-output = "reports/coverage/coverage.xml"
+output = "artifacts/reports/coverage/coverage.xml"
 
 [tool.bandit]
 exclude_dirs = ["tests"]

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Parser Stress Test Sample Generator
+"""Parser Stress Test Sample Generator
 
 Generates DICOM files with edge cases that stress-test parser implementations.
 These samples are designed to reveal crashes, hangs, and other robustness issues.
@@ -66,8 +65,7 @@ class ParserStressGenerator:
     def generate_deep_sequence_nesting(
         self, output_path: Path | None = None, depth: int = 100
     ) -> Path:
-        """
-        Generate DICOM with deeply nested sequences.
+        """Generate DICOM with deeply nested sequences.
 
         Creates a sequence hierarchy that may cause stack overflow
         in recursive parsers.
@@ -97,8 +95,7 @@ class ParserStressGenerator:
         return output_path
 
     def generate_giant_value_length(self, output_path: Path | None = None) -> Path:
-        """
-        Generate DICOM with extremely large Value Length fields.
+        """Generate DICOM with extremely large Value Length fields.
 
         Tests parser handling of memory allocation based on VL.
         """
@@ -127,8 +124,7 @@ class ParserStressGenerator:
         return output_path
 
     def generate_truncated_pixeldata(self, output_path: Path | None = None) -> Path:
-        """
-        Generate DICOM with truncated pixel data.
+        """Generate DICOM with truncated pixel data.
 
         Declares larger image size than actual pixel data provided.
         """
@@ -154,8 +150,7 @@ class ParserStressGenerator:
         return output_path
 
     def generate_undefined_length_abuse(self, output_path: Path | None = None) -> Path:
-        """
-        Generate DICOM with undefined length on non-sequence elements.
+        """Generate DICOM with undefined length on non-sequence elements.
 
         Tests parser handling of illegal undefined length usage.
         """
@@ -184,8 +179,7 @@ class ParserStressGenerator:
         return output_path
 
     def generate_invalid_transfer_syntax(self, output_path: Path | None = None) -> Path:
-        """
-        Generate DICOM with mismatched transfer syntax.
+        """Generate DICOM with mismatched transfer syntax.
 
         Header declares Explicit VR but data is Implicit VR.
         """
@@ -220,8 +214,7 @@ class ParserStressGenerator:
         return output_path
 
     def generate_recursive_item_nesting(self, output_path: Path | None = None) -> Path:
-        """
-        Generate DICOM with potentially circular structures.
+        """Generate DICOM with potentially circular structures.
 
         Creates sequence items that could cause infinite parsing loops.
         Note: We can't create true circular references in pydicom,
@@ -256,8 +249,7 @@ class ParserStressGenerator:
         return output_path
 
     def generate_zero_length_elements(self, output_path: Path | None = None) -> Path:
-        """
-        Generate DICOM with zero-length required elements.
+        """Generate DICOM with zero-length required elements.
 
         Tests handling of empty values for fields that shouldn't be empty.
         """

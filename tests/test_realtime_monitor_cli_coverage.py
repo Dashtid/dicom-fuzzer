@@ -29,7 +29,7 @@ class TestRealtimeMonitorInit:
         """Test initialization with default values."""
         monitor = RealtimeMonitor()
 
-        assert monitor.session_dir == Path("./output")
+        assert monitor.session_dir == Path("artifacts")
         assert monitor.refresh_interval == 1
         assert monitor.session_id is None
 
@@ -291,7 +291,7 @@ class TestRealtimeMonitorRefreshDisplay:
         original_path = Path
 
         def mock_path_init(path_str: str = ".") -> Path:
-            if "reports/json" in str(path_str):
+            if "artifacts/reports/json" in str(path_str):
                 return reports_dir
             return original_path(path_str)
 

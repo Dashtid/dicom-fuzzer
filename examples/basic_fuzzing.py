@@ -11,7 +11,7 @@ from dicom_fuzzer.core.mutation import MutationEngine
 
 # Configuration
 INPUT_FILE = Path("./samples/sample.dcm")
-OUTPUT_DIR = Path("./output/basic_fuzz")
+OUTPUT_DIR = Path("./artifacts/fuzzed/basic_fuzz")
 FUZZ_COUNT = 100
 
 

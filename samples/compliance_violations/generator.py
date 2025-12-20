@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-DICOM Compliance Violation Sample Generator
+"""DICOM Compliance Violation Sample Generator
 
 Generates DICOM files that violate specific provisions of the DICOM standard.
 """

@@ -52,7 +52,7 @@ class RealtimeMonitor:
             session_id: Unique session identifier for test compatibility
 
         """
-        self.session_dir = session_dir or Path("./output")
+        self.session_dir = session_dir or Path("./artifacts")
         self.refresh_interval = refresh_interval
         self.start_time = time.time()
         self.session_id = session_id
@@ -76,7 +76,7 @@ class RealtimeMonitor:
     def _refresh_display(self) -> None:
         """Refresh the display with current statistics."""
         # Find latest session JSON
-        reports_dir = Path("./reports/json")
+        reports_dir = Path("./artifacts/reports/json")
         if not reports_dir.exists():
             self._print_waiting()
             return

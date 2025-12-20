@@ -55,7 +55,7 @@ class CampaignConfig:
     campaign_id: str
     target_executable: str
     corpus_dir: str
-    output_dir: str = "./fuzzing_output"
+    output_dir: str = "./artifacts/fuzzed"
     timeout: float = 30.0
     strategy: str = "coverage_guided"
     max_workers: int = 4

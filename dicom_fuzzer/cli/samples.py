@@ -129,6 +129,12 @@ Examples:
         metavar="PATH",
         help="Sanitize DICOM file preamble (neutralize polyglot attacks)",
     )
+    action_group.add_argument(
+        "--strip-pixel-data",
+        type=str,
+        metavar="PATH",
+        help="Strip PixelData from DICOM files for corpus optimization",
+    )
 
     # Generation options
     gen_group = parser.add_argument_group("generation options")
@@ -676,6 +682,84 @@ def run_sanitize(args: argparse.Namespace) -> int:
         return 1
 
 
+def run_strip_pixel_data(args: argparse.Namespace) -> int:
+    """Strip PixelData from DICOM files for corpus optimization."""
+    input_path = Path(args.strip_pixel_data)
+
+    if not input_path.exists():
+        print(f"[-] Path not found: {input_path}")
+        return 1
+
+    print("\n" + "=" * 70)
+    print("  DICOM Corpus Optimizer - Strip PixelData")
+    print("=" * 70)
+    print(f"  Input:  {input_path}")
+    print(f"  Output: {args.output}")
+    print("  [i] Stripping PixelData, OverlayData, WaveformData")
+    print("=" * 70 + "\n")
+
+    try:
+        from dicom_fuzzer.utils.corpus_minimization import (
+            optimize_corpus,
+            strip_pixel_data,
+        )
+
+        output_dir = Path(args.output)
+
+        if input_path.is_file():
+            # Single file
+            output_file = output_dir / input_path.name
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            success, bytes_saved = strip_pixel_data(input_path, output_file)
+            if success:
+                original_size = input_path.stat().st_size
+                new_size = output_file.stat().st_size
+                reduction = (
+                    100 * bytes_saved / original_size if original_size > 0 else 0
+                )
+                print(f"  [+] {input_path.name}")
+                print(f"      Original: {original_size / 1024:.1f} KB")
+                print(f"      Stripped: {new_size / 1024:.1f} KB")
+                print(f"      Saved:    {bytes_saved / 1024:.1f} KB ({reduction:.1f}%)")
+            else:
+                print(f"  [-] Failed to process: {input_path.name}")
+                return 1
+        else:
+            # Directory
+            stats = optimize_corpus(
+                corpus_dir=input_path,
+                output_dir=output_dir,
+                strip_pixels=True,
+                strip_overlays=True,
+                strip_waveforms=True,
+                dry_run=False,
+            )
+
+            print(f"  [+] Files processed:   {stats['files_processed']}")
+            print(f"  [+] Files optimized:   {stats['files_optimized']}")
+            print(f"  [-] Files skipped:     {stats['files_skipped']}")
+            print(f"  Original size:         {stats['original_size_mb']:.2f} MB")
+            print(f"  Optimized size:        {stats['optimized_size_mb']:.2f} MB")
+            print(
+                f"  Space saved:           {stats['bytes_saved'] / (1024 * 1024):.2f} MB"
+            )
+            print(f"  Reduction:             {stats['reduction_percent']:.1f}%")
+
+        print(f"\n[+] Output: {output_dir}")
+        print("\n[i] Optimized corpus is ready for faster fuzzing.")
+        print("    Use with AFL++/libFuzzer for improved throughput.")
+        return 0
+
+    except Exception as e:
+        print(f"[-] Optimization failed: {e}")
+        if args.verbose:
+            import traceback
+
+            traceback.print_exc()
+        return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for samples subcommand."""
     parser = create_parser()
@@ -699,6 +783,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_scan(args)
     elif args.sanitize:
         return run_sanitize(args)
+    elif args.strip_pixel_data:
+        return run_strip_pixel_data(args)
     else:
         parser.print_help()
         return 1
