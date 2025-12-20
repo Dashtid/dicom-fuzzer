@@ -21,7 +21,9 @@ from dicom_fuzzer.core.fuzzing_session import CrashRecord
 class EnhancedReportGenerator:
     """Generate enhanced HTML and JSON reports for fuzzing sessions."""
 
-    def __init__(self, output_dir: str = "./reports", enable_triage: bool = True):
+    def __init__(
+        self, output_dir: str = "./artifacts/reports", enable_triage: bool = True
+    ):
         """Initialize enhanced report generator.
 
         Args:
