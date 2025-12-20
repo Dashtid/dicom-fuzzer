@@ -170,10 +170,10 @@ class TestPathConfig:
         monkeypatch.chdir(tmp_path)
         config = PathConfig()
         assert config.input_dir == Path("./samples")
-        assert config.output_dir == Path("./output")
-        assert config.crash_dir == Path("./crashes")
-        assert config.report_dir == Path("./reports")
-        assert config.log_dir == Path("./logs")
+        assert config.output_dir == Path("./artifacts/fuzzed")
+        assert config.crash_dir == Path("./artifacts/crashes")
+        assert config.report_dir == Path("./artifacts/reports")
+        assert config.log_dir == Path("./artifacts/logs")
         assert config.dicom_file_pattern == "*.dcm"
 
     def test_custom_paths(self, tmp_path):

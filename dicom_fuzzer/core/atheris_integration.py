@@ -20,7 +20,7 @@ Usage:
     fuzzer = AtherisDICOMFuzzer(
         target_function=my_dicom_parser,
         corpus_dir=Path("corpus"),
-        crash_dir=Path("crashes"),
+        crash_dir=Path("artifacts/crashes"),
     )
     fuzzer.run()
 """
@@ -78,11 +78,11 @@ class AtherisConfig:
     max_input_size: int = 10 * 1024 * 1024  # 10MB
 
     # Crash handling
-    crash_dir: Path = field(default_factory=lambda: Path("atheris_crashes"))
+    crash_dir: Path = field(default_factory=lambda: Path("artifacts/crashes/atheris"))
     deduplicate_crashes: bool = True
 
     # Output configuration
-    output_dir: Path = field(default_factory=lambda: Path("atheris_output"))
+    output_dir: Path = field(default_factory=lambda: Path("artifacts/fuzzed/atheris"))
     verbose: bool = False
 
     # DICOM-specific options
@@ -590,7 +590,7 @@ def create_atheris_harness(
     config = AtherisConfig(
         target_function=target_function,
         corpus_dir=Path(corpus_dir) if corpus_dir else None,
-        crash_dir=Path(crash_dir) if crash_dir else Path("atheris_crashes"),
+        crash_dir=Path(crash_dir) if crash_dir else Path("artifacts/crashes/atheris"),
         max_time_seconds=max_time_seconds,
         dicom_aware_mutations=dicom_aware,
     )

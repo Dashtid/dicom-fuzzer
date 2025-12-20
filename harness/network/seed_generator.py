@@ -448,7 +448,7 @@ def main() -> None:
         "--output",
         "-o",
         type=Path,
-        default=Path("./network_seeds"),
+        default=Path("./artifacts/corpus/network_seeds"),
         help="Output directory for seeds",
     )
     parser.add_argument("--calling-ae", default="FUZZER", help="Calling AE title")

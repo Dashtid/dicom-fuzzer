@@ -594,8 +594,8 @@ class HavocMutator(Mutator):
 class PersistentFuzzerConfig:
     """Configuration for persistent mode fuzzer."""
 
-    corpus_dir: Path = field(default_factory=lambda: Path("corpus"))
-    output_dir: Path = field(default_factory=lambda: Path("output"))
+    corpus_dir: Path = field(default_factory=lambda: Path("artifacts/corpus"))
+    output_dir: Path = field(default_factory=lambda: Path("artifacts/fuzzed"))
     max_iterations: int = 0  # 0 = infinite
     max_time_seconds: int = 0  # 0 = infinite
     num_workers: int = 1
@@ -951,8 +951,8 @@ def create_sample_fuzzer() -> PersistentFuzzer:
             return False
 
     config = PersistentFuzzerConfig(
-        corpus_dir=Path("corpus"),
-        output_dir=Path("output"),
+        corpus_dir=Path("artifacts/corpus"),
+        output_dir=Path("artifacts/fuzzed"),
         max_iterations=10000,
         use_mopt=True,
         power_schedule=PowerSchedule.FAST,

@@ -16,7 +16,7 @@ class TestEnhancedReportGeneratorInitialization:
         """Test initialization with default output directory."""
         with patch.object(Path, "mkdir"):
             generator = EnhancedReportGenerator()
-            assert generator.output_dir == Path("./reports")
+            assert generator.output_dir == Path("./artifacts/reports")
 
     def test_initialization_custom_output_dir(self, tmp_path):
         """Test initialization with custom output directory."""
