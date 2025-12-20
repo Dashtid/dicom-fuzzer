@@ -212,13 +212,19 @@ jobs:
 
       - name: Set fuzzing parameters
         id: params
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_DURATION: ${{ github.event.inputs.fuzz_duration }}
+          INPUT_ITERATIONS: ${{ github.event.inputs.fuzz_iterations }}
+          DEFAULT_DURATION: ${{ env.NIGHTLY_FUZZ_DURATION }}
+          DEFAULT_ITERATIONS: ${{ env.NIGHTLY_FUZZ_ITERATIONS }}
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "duration=${{ github.event.inputs.fuzz_duration }}" >> $GITHUB_OUTPUT
-            echo "iterations=${{ github.event.inputs.fuzz_iterations }}" >> $GITHUB_OUTPUT
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+            echo "duration=$INPUT_DURATION" >> $GITHUB_OUTPUT
+            echo "iterations=$INPUT_ITERATIONS" >> $GITHUB_OUTPUT
           else
-            echo "duration=${{ env.NIGHTLY_FUZZ_DURATION }}" >> $GITHUB_OUTPUT
-            echo "iterations=${{ env.NIGHTLY_FUZZ_ITERATIONS }}" >> $GITHUB_OUTPUT
+            echo "duration=$DEFAULT_DURATION" >> $GITHUB_OUTPUT
+            echo "iterations=$DEFAULT_ITERATIONS" >> $GITHUB_OUTPUT
           fi
 
       - name: Run nightly fuzzing campaign
