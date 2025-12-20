@@ -224,11 +224,9 @@ uv run python -m dicom_fuzzer.core.mutation_minimization \
 
 Now that you've run your first fuzzing campaign, explore these resources:
 
-1. **[FUZZING_GUIDE.md](FUZZING_GUIDE.md)** - Comprehensive fuzzing methodology
-2. **[EXAMPLES.md](EXAMPLES.md)** - Practical examples and use cases
-3. **[CRASH_INTELLIGENCE.md](CRASH_INTELLIGENCE.md)** - Crash analysis and triaging
-4. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and internals
-5. **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Contribute to the project
+1. **[CLI_REFERENCE.md](CLI_REFERENCE.md)** - Complete command-line reference
+2. **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and internals
+3. **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Contribute to the project
 
 ## Getting Test Data
 

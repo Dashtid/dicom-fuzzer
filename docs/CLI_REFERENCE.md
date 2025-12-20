@@ -316,8 +316,4 @@ python -m dicom_fuzzer.cli fda-report -i results.json \
 
 ---
 
-For more information, see:
-
-- [QUICKSTART.md](QUICKSTART.md) - Get started quickly
-- [FUZZING_GUIDE.md](FUZZING_GUIDE.md) - Fuzzing methodology
-- [FDA_COMPLIANCE.md](FDA_COMPLIANCE.md) - FDA compliance documentation
+For more information, see [QUICKSTART.md](QUICKSTART.md) or [FDA_COMPLIANCE.md](FDA_COMPLIANCE.md).
