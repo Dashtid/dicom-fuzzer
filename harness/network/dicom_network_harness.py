@@ -700,7 +700,10 @@ def main() -> None:
     )
     parser.add_argument("--corpus", type=Path, help="Seed corpus directory")
     parser.add_argument(
-        "--output", type=Path, default=Path("./findings"), help="Output directory"
+        "--output",
+        type=Path,
+        default=Path("./artifacts/findings"),
+        help="Output directory",
     )
     parser.add_argument("--timeout", type=float, default=5.0, help="Socket timeout")
 

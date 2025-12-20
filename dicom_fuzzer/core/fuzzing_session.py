@@ -115,7 +115,7 @@ class FuzzingSession:
     def __init__(
         self,
         session_name: str | None = None,
-        output_dir: str = "./output",
+        output_dir: str = "./artifacts/fuzzed",
         reports_dir: str = "./reports",
         config: dict | None = None,
         session_id: str | None = None,
@@ -153,7 +153,7 @@ class FuzzingSession:
         if crashes_dir is not None:
             self.crashes_dir = Path(crashes_dir)
         else:
-            self.crashes_dir = Path("crashes") / self.session_id
+            self.crashes_dir = Path("artifacts/crashes") / self.session_id
 
         # Create directories
         self.output_dir.mkdir(parents=True, exist_ok=True)

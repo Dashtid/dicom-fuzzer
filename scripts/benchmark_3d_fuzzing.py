@@ -478,7 +478,7 @@ def main():
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("benchmark_results"),
+        default=Path("./artifacts/reports/benchmarks"),
         help="Output directory for temp files (default: benchmark_results)",
     )
 

@@ -198,7 +198,7 @@ def main() -> None:
     parser.add_argument(
         "--session-dir",
         type=Path,
-        default=Path("./output"),
+        default=Path("./artifacts"),
         help="Session directory to monitor (default: ./output)",
     )
 

@@ -62,7 +62,7 @@ def generate_reports(
         session_data = json.load(f)
 
     # Initialize reporter
-    reporter = EnhancedReportGenerator(output_dir="./reports")
+    reporter = EnhancedReportGenerator(output_dir="./artifacts/reports")
 
     # Generate HTML report
     print("[*] Generating HTML report...")

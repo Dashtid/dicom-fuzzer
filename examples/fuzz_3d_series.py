@@ -91,7 +91,7 @@ PUBLIC DICOM TEST DATASETS:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("./fuzzed_series"),
+        default=Path("./artifacts/fuzzed/series"),
         help="Output directory for fuzzed series (default: ./fuzzed_series)",
     )
 

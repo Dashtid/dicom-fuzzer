@@ -21,7 +21,7 @@ class TestCrashAnalyzerInit:
         """Test default initialization."""
         analyzer = CrashAnalyzer()
 
-        assert analyzer.crash_dir == Path("./crashes")
+        assert analyzer.crash_dir == Path("./artifacts/crashes")
         assert analyzer.crashes == []
         assert isinstance(analyzer.crash_hashes, set)
         assert len(analyzer.crash_hashes) == 0

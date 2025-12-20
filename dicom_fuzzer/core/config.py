@@ -138,15 +138,18 @@ class PathConfig(BaseSettings):
         default=Path("./samples"), description="Input DICOM files directory"
     )
     output_dir: Path = Field(
-        default=Path("./output"), description="Generated fuzzed files directory"
+        default=Path("./artifacts/fuzzed"),
+        description="Generated fuzzed files directory",
     )
     crash_dir: Path = Field(
-        default=Path("./crashes"), description="Crash reports directory"
+        default=Path("./artifacts/crashes"), description="Crash reports directory"
     )
     report_dir: Path = Field(
-        default=Path("./reports"), description="HTML/JSON reports directory"
+        default=Path("./artifacts/reports"), description="HTML/JSON reports directory"
     )
-    log_dir: Path = Field(default=Path("./logs"), description="Log files directory")
+    log_dir: Path = Field(
+        default=Path("./artifacts/logs"), description="Log files directory"
+    )
 
     # File patterns
     dicom_file_pattern: str = Field(

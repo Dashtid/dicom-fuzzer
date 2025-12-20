@@ -357,7 +357,7 @@ NOTE: For production fuzzing, supplement these samples with real DICOM files
         "--output",
         "-o",
         type=Path,
-        default=Path("./seeds"),
+        default=Path("./artifacts/corpus/seeds"),
         help="Output directory for downloaded seeds (default: ./seeds)",
     )
     parser.add_argument(

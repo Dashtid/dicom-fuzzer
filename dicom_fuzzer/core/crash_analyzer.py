@@ -97,7 +97,7 @@ class CrashAnalyzer:
     - Discovering logic errors
     """
 
-    def __init__(self, crash_dir: str = "./crashes"):
+    def __init__(self, crash_dir: str = "./artifacts/crashes"):
         """Initialize crash analyzer.
 
         Args:

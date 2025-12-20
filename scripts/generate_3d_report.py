@@ -62,7 +62,7 @@ class Report3DGenerator:
     Integrates all Phase 5 components to create comprehensive reports.
     """
 
-    def __init__(self, output_dir: str = "./reports"):
+    def __init__(self, output_dir: str = "./artifacts/reports"):
         """Initialize report generator.
 
         Args:
@@ -357,7 +357,7 @@ def main():
     parser.add_argument(
         "--output-dir",
         type=str,
-        default="./reports",
+        default="./artifacts/reports",
         help="Directory to save generated reports (default: ./reports)",
     )
 

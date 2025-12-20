@@ -46,7 +46,9 @@ class DICOMGenerator:
     """
 
     def __init__(
-        self, output_dir: str | Path = "./fuzzed_dicoms", skip_write_errors: bool = True
+        self,
+        output_dir: str | Path = "./artifacts/fuzzed",
+        skip_write_errors: bool = True,
     ) -> None:
         """Initialize the generator.
 

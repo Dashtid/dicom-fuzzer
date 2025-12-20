@@ -83,8 +83,8 @@ class TestAtherisConfig:
         """Test default path factories."""
         config = AtherisConfig()
 
-        assert config.crash_dir == Path("atheris_crashes")
-        assert config.output_dir == Path("atheris_output")
+        assert config.crash_dir == Path("artifacts/crashes/atheris")
+        assert config.output_dir == Path("artifacts/fuzzed/atheris")
 
 
 class TestAtherisStats:

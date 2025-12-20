@@ -319,7 +319,7 @@ class CorpusMinimizer:
             config=MinimizationConfig()
         )
         stats = minimizer.minimize(
-            input_dir=Path("./corpus"),
+            input_dir=Path("./artifacts/corpus"),
             output_dir=Path("./corpus_min")
         )
 
@@ -540,7 +540,7 @@ class CorpusSynchronizer:
 
     Usage:
         sync = CorpusSynchronizer(
-            node=FuzzerNode(node_id="fuzzer1", corpus_dir=Path("./corpus")),
+            node=FuzzerNode(node_id="fuzzer1", corpus_dir=Path("./artifacts/corpus")),
             config=SyncConfig()
         )
         sync.add_peer(peer_corpus_dir=Path("/shared/corpus2"))

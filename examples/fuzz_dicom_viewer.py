@@ -32,12 +32,12 @@ PRIVACY REQUIREMENTS:
 Example usage:
     # Generate fuzzed files only (no execution)
     python fuzz_dicom_viewer.py --input "./test_data/dicom_samples" \\
-        --output "./fuzzed_output" --count 100
+        --output "./artifacts/fuzzed" --count 100
 
     # Fuzz and test viewer (automated)
     python fuzz_dicom_viewer.py \\
         --input "./test_data/dicom_samples" \\
-        --output "./fuzzed_output" \\
+        --output "./artifacts/fuzzed" \\
         --viewer "/path/to/viewer" \\
         --count 50 --timeout 5 --severity moderate
 
@@ -138,7 +138,7 @@ class ViewerFuzzer:
             self.fuzzing_session = FuzzingSession(
                 session_name=session_name,
                 output_dir=str(self.output_dir),
-                reports_dir="./reports",
+                reports_dir="./artifacts/reports",
             )
             logger.info("Enhanced reporting enabled - full traceability active")
 
@@ -576,7 +576,7 @@ class ViewerFuzzer:
         timestamp = generate_timestamp_id()
 
         # Create reports subdirectories
-        reports_dir = Path("reports")
+        reports_dir = Path("artifacts/reports")
         json_dir = reports_dir / "json"
         html_dir = reports_dir / "html"
         json_dir.mkdir(parents=True, exist_ok=True)
@@ -634,12 +634,12 @@ def main():
 Examples:
   # Generate 100 fuzzed files
   python fuzz_dicom_viewer.py --input "./test_data/dicom_samples" \\
-      --output "./fuzzed_output" --count 100
+      --output "./artifacts/fuzzed" --count 100
 
   # Fuzz and test DICOM viewer application
   python fuzz_dicom_viewer.py \\
       --input "./test_data/dicom_samples" \\
-      --output "./fuzzed_output" \\
+      --output "./artifacts/fuzzed" \\
       --viewer "/path/to/dicom/viewer" \\
       --count 50 --timeout 5 --severity moderate
 
@@ -660,7 +660,7 @@ Examples:
     parser.add_argument(
         "--output",
         "-o",
-        default="./fuzzed_output",
+        default="./artifacts/fuzzed",
         help="Output directory for fuzzed files (default: ./fuzzed_output)",
     )
 

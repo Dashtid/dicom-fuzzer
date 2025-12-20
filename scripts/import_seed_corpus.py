@@ -387,7 +387,7 @@ EXAMPLES:
         "--output",
         "-o",
         type=Path,
-        default=Path("./corpus"),
+        default=Path("./artifacts/corpus"),
         help="Output directory for processed corpus (default: ./corpus)",
     )
     parser.add_argument(

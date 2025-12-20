@@ -315,8 +315,8 @@ def main():
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("./fuzzing_output"),
-        help="Output directory (default: ./fuzzing_output)",
+        default=Path("./artifacts/fuzzed"),
+        help="Output directory (default: ./artifacts/fuzzed)",
     )
     parser.add_argument(
         "--keep-pixels",
