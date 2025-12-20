@@ -408,7 +408,7 @@ jobs:
 
       - name: Run sample generator tests
         run: |
-          uv run pytest tests/test_samples_generators.py -v --tb=short --timeout=120
+          uv run pytest tests/test_core/test_samples_generators.py -v --tb=short --timeout=120
         timeout-minutes: 10
 
       - name: Run security tests
