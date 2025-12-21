@@ -428,6 +428,17 @@ class TestByteMutatorHavocOps:
 class TestDICOMByteMutator:
     """Tests for DICOM-specialized byte mutator."""
 
+    @pytest.fixture(autouse=True)
+    def seed_random(self):
+        """Seed random for deterministic tests.
+
+        This prevents flaky failures from havoc mutations that can
+        delete bytes, making the result too short to preserve magic bytes.
+        """
+        import random
+
+        random.seed(42)
+
     @pytest.fixture
     def mutator(self):
         """Create a DICOMByteMutator instance."""

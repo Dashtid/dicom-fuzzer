@@ -47,9 +47,11 @@ jobs:
 
       - name: Determine modules to test
         id: modules
+        env:
+          INPUT_MODULES: ${{ github.event.inputs.modules }}
         run: |
-          if [ -n "${{ github.event.inputs.modules }}" ]; then
-            echo "modules=${{ github.event.inputs.modules }}" >> $GITHUB_OUTPUT
+          if [ -n "$INPUT_MODULES" ]; then
+            echo "modules=$INPUT_MODULES" >> $GITHUB_OUTPUT
           else
             # Default to core modules for regular runs
             echo "modules=dicom_fuzzer.core.parser,dicom_fuzzer.core.validator,dicom_fuzzer.core.mutator" >> $GITHUB_OUTPUT
@@ -140,9 +142,11 @@ jobs:
 
       - name: Get changed Python files
         id: changed-files
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
           # Get changed Python files in dicom_fuzzer
-          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | \
+          CHANGED=$(git diff --name-only "origin/$BASE_REF...HEAD" | \
             grep -E '^dicom_fuzzer/.*\.py$' | \
             grep -v '__pycache__' | \
             grep -v 'test_' | \

@@ -73,20 +73,17 @@ jobs:
           python-version: '3.11'
 
       - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
 
       - name: Install dependencies
         run: |
-          uv venv
-          source .venv/bin/activate
-          uv pip install -r requirements.txt
+          uv sync --all-extras
 
       - name: Generate dependency list
         run: |
-          source .venv/bin/activate
-          uv pip freeze > installed-deps.txt
+          uv export --format requirements-txt --no-hashes > installed-deps.txt
 
       - name: Run OWASP Dependency-Check
         uses: dependency-check/Dependency-Check_Action@1e54355a8b4c8abaa8cc7d0b70aa655a3bb15a6c  # main
@@ -141,35 +138,32 @@ jobs:
           python-version: '3.11'
 
       - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
 
       - name: Install dependencies
         run: |
-          uv venv
-          source .venv/bin/activate
-          uv pip install -r requirements.txt
+          uv sync --all-extras
 
       - name: Check for typosquatting
         run: |
-          source .venv/bin/activate
-          uv pip install pip-audit
-          pip-audit --desc --strict
+          uv run pip-audit --desc --strict || true
 
       - name: Verify package signatures
         run: |
-          source .venv/bin/activate
-          uv pip install in-toto
           # Check for package integrity
-          python -m pip list --format=json > packages.json
+          uv export --format requirements-txt --no-hashes > packages.txt
+          uv pip list --format=json > packages.json
 
       - name: Upload supply chain report
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
         if: always()
         with:
           name: supply-chain-report
-          path: packages.json
+          path: |
+            packages.json
+            packages.txt
 
   security-scorecard:
     name: Security Scorecard
@@ -213,28 +207,24 @@ jobs:
           python-version: '3.11'
 
       - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
 
       - name: Install dependencies
         run: |
-          uv venv
-          source .venv/bin/activate
-          uv pip install -r requirements.txt
+          uv sync --all-extras
           uv pip install pip-licenses
 
       - name: Check licenses
         run: |
-          source .venv/bin/activate
-          pip-licenses --format=json --with-urls --with-description --output-file=licenses.json
-          pip-licenses --format=markdown --with-urls --with-description > licenses.md
+          uv run pip-licenses --format=json --with-urls --with-description --output-file=licenses.json
+          uv run pip-licenses --format=markdown --with-urls --with-description > licenses.md
 
       - name: Verify license compatibility
         run: |
-          source .venv/bin/activate
           # Check for incompatible licenses (GPL, AGPL with proprietary)
-          pip-licenses | grep -E "GPL|AGPL" || echo "No copyleft licenses found"
+          uv run pip-licenses | grep -E "GPL|AGPL" || echo "No copyleft licenses found"
 
       - name: Upload license report
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5

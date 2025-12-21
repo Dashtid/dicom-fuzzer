@@ -17,7 +17,8 @@ from pathlib import Path
 import pytest
 
 # Add samples directory to path for imports
-SAMPLES_DIR = Path(__file__).parent.parent / "samples"
+# Path: tests/test_core/test_samples_generators.py -> project_root/samples
+SAMPLES_DIR = Path(__file__).parent.parent.parent / "samples"
 sys.path.insert(0, str(SAMPLES_DIR))
 
 
