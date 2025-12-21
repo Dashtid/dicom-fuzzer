@@ -258,8 +258,8 @@ jobs:
 
       - name: Generate CycloneDX SBOM
         run: |
-          uv run cyclonedx-py environment -o sbom.json --format json
-          uv run cyclonedx-py environment -o sbom.xml --format xml
+          uv run cyclonedx-py environment --of json -o sbom.json
+          uv run cyclonedx-py environment --of xml -o sbom.xml
 
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
