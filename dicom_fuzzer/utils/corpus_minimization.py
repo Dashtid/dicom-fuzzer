@@ -186,12 +186,20 @@ def optimize_corpus(
             total_optimized += estimated_new_size
             stats["bytes_saved"] += file_size - estimated_new_size
         else:
-            success, bytes_saved = strip_pixel_data(
-                dicom_file,
-                output_path,
-                strip_overlays=strip_overlays,
-                strip_waveforms=strip_waveforms,
-            )
+            # Only strip if at least one stripping option is enabled
+            if strip_pixels or strip_overlays or strip_waveforms:
+                success, bytes_saved = strip_pixel_data(
+                    dicom_file,
+                    output_path,
+                    strip_overlays=strip_overlays,
+                    strip_waveforms=strip_waveforms,
+                )
+            else:
+                # No stripping requested, just copy the file
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(dicom_file, output_path)
+                success = True
+                bytes_saved = 0
 
             if success:
                 stats["files_optimized"] += 1

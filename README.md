@@ -117,7 +117,7 @@ DICOM-Fuzzer is a comprehensive fuzzing framework for testing the security and r
   - Auto-tuning worker pools and cache sizes
   - 46 unit tests, comprehensive benchmarking infrastructure
 
-See [docs/3D_FUZZING_ROADMAP.md](docs/3D_FUZZING_ROADMAP.md), [docs/VIEWER_TESTING_3D.md](docs/VIEWER_TESTING_3D.md), and [docs/PERFORMANCE_3D.md](docs/PERFORMANCE_3D.md) for details.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for implementation details.
 
 ## Project Structure
 
@@ -195,22 +195,15 @@ DICOM-Fuzzer/
 │   ├── compliance_violations/ # Standard violation samples
 │   └── detection/             # YARA rules, scanner, sanitizer
 ├── docs/                      # Documentation
-│   ├── COVERAGE.md            # Test coverage analysis
-│   ├── FUZZING_GUIDE.md       # Fuzzing methodology
-│   ├── CRASH_INTELLIGENCE.md  # Crash intelligence guide (v1.2.0)
-│   ├── TESTING.md             # Testing guide
-│   ├── REPORTING.md           # Reporting system
-│   ├── 3D_FUZZING_ROADMAP.md  # 3D fuzzing roadmap (Phase 1-4)
-│   ├── VIEWER_TESTING_3D.md   # 3D viewer testing guide (Phase 3)
-│   └── PERFORMANCE_3D.md      # Performance optimization guide (Phase 4)
-├── config/                    # Configuration
-│   ├── local_paths.example.py # Path template
-│   ├── local_paths.py         # Local paths (gitignored)
-│   └── viewer_profiles.yaml   # Viewer configurations (Phase 3)
+│   ├── ARCHITECTURE.md        # System design
+│   ├── CLI_REFERENCE.md       # CLI command reference
+│   ├── FDA_COMPLIANCE.md      # FDA compliance reporting
+│   └── QUICKSTART.md          # Getting started guide
 ├── scripts/                   # Build/deployment scripts
-│   └── benchmark_3d_fuzzing.py # Performance benchmarking (Phase 4)
+│   ├── benchmark_fuzzing.py   # Performance benchmarking
+│   ├── import_seed_corpus.py  # Seed corpus management
+│   └── download_public_seeds.py # Public seed download
 ├── pyproject.toml             # Project configuration
-├── requirements.txt           # Dependencies
 ├── CHANGELOG.md               # Version history
 ├── LICENSE                    # MIT License
 └── README.md                  # This file

@@ -20,8 +20,6 @@ SAFETY:
 - Graceful error handling (worker failures don't crash main)
 - Resource limits (max workers, memory monitoring)
 - Deterministic with seed (same results as serial when seeded)
-
-See docs/PERFORMANCE_3D.md for detailed usage and tuning guide.
 """
 
 import multiprocessing
