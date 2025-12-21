@@ -319,6 +319,35 @@ dicom-fuzzer input.dcm \
 - `--max-cpu-time SEC`: CPU time limit per operation (Unix/Linux/macOS only)
 - `--min-disk-space MB`: Minimum required free disk space (all platforms)
 
+### Advanced Subcommands (v1.6.0+)
+
+The CLI includes specialized subcommands for advanced fuzzing scenarios:
+
+```bash
+# LLM-assisted intelligent fuzzing
+dicom-fuzzer llm --generate -i input.dcm --backend openai -o ./output
+
+# DICOMweb REST API security testing
+dicom-fuzzer dicomweb --scan https://pacs.example.com/dicomweb
+
+# DICOM TLS/authentication testing
+dicom-fuzzer tls --quick-scan pacs.example.com --port 11112
+
+# Cross-parser differential testing
+dicom-fuzzer differential --test input.dcm --parsers pydicom,gdcm
+
+# AFL-style persistent mode fuzzing
+dicom-fuzzer persistent --corpus ./seeds --target pydicom --mopt
+
+# Protocol state machine fuzzing
+dicom-fuzzer state --fuzz pacs.example.com --port 11112
+
+# Corpus management and minimization
+dicom-fuzzer corpus --minimize ./corpus -o ./minimized
+```
+
+Use `dicom-fuzzer <subcommand> --help` for detailed options.
+
 ### Basic Fuzzing (Python API)
 
 Generate fuzzed DICOM files with mutation tracking:

@@ -785,10 +785,48 @@ def main() -> int:
 
     """
     # Handle subcommands before main argument parsing
-    if len(sys.argv) > 1 and sys.argv[1] == "samples":
-        from dicom_fuzzer.cli.samples import main as samples_main
+    if len(sys.argv) > 1:
+        subcommand = sys.argv[1]
 
-        return samples_main(sys.argv[2:])
+        if subcommand == "samples":
+            from dicom_fuzzer.cli.samples import main as samples_main
+
+            return samples_main(sys.argv[2:])
+
+        if subcommand == "llm":
+            from dicom_fuzzer.cli.llm import main as llm_main
+
+            return llm_main(sys.argv[2:])
+
+        if subcommand == "dicomweb":
+            from dicom_fuzzer.cli.dicomweb import main as dicomweb_main
+
+            return dicomweb_main(sys.argv[2:])
+
+        if subcommand == "tls":
+            from dicom_fuzzer.cli.tls import main as tls_main
+
+            return tls_main(sys.argv[2:])
+
+        if subcommand == "differential":
+            from dicom_fuzzer.cli.differential import main as differential_main
+
+            return differential_main(sys.argv[2:])
+
+        if subcommand == "persistent":
+            from dicom_fuzzer.cli.persistent import main as persistent_main
+
+            return persistent_main(sys.argv[2:])
+
+        if subcommand == "state":
+            from dicom_fuzzer.cli.state import main as state_main
+
+            return state_main(sys.argv[2:])
+
+        if subcommand == "corpus":
+            from dicom_fuzzer.cli.corpus import main as corpus_main
+
+            return corpus_main(sys.argv[2:])
 
     parser = argparse.ArgumentParser(
         description="DICOM Fuzzer - Security testing tool for medical imaging systems",
@@ -800,13 +838,18 @@ Examples:
   # Fuzz all DICOM files in a directory
   %(prog)s ./dicom_folder/ -c 10 -o ./output
 
-  # Recursively scan directory for DICOM files
-  %(prog)s ./data/ --recursive -c 5 -o ./output
-
   # Generate synthetic samples
   %(prog)s samples --generate -c 10 -o ./samples
-  # Test with GUI application (e.g., Hermes Affinity)
-  %(prog)s input.dcm -c 20 -t viewer.exe --gui-mode --timeout 5
+
+Subcommands (use --help for details):
+  samples      Generate synthetic/malicious DICOM samples
+  llm          LLM-assisted intelligent fuzzing
+  dicomweb     DICOMweb REST API security testing
+  tls          DICOM TLS/authentication testing
+  differential Cross-parser differential testing
+  persistent   AFL-style persistent mode fuzzing
+  state        Protocol state machine fuzzing
+  corpus       Corpus management and minimization
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
