@@ -16,8 +16,6 @@ USAGE:
 
     # On-demand pixel loading
     pixel_data = loader.load_pixels(ds, path)
-
-See docs/PERFORMANCE_3D.md for detailed usage patterns.
 """
 
 from pathlib import Path

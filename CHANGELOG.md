@@ -256,8 +256,7 @@ This release marks the first public PyPI release of DICOM-Fuzzer with comprehens
 - `docs/QUICKSTART.md`: 5-minute quick start guide
 - `docs/EXAMPLES.md`: 14 comprehensive examples with runnable code
 - `SECURITY.md`: Vulnerability reporting and compliance guidance (HIPAA, GDPR, FDA)
-- `docs/ARCHITECTURE.md`: System design and technical architecture (600+ lines)
-- `docs/PERFORMANCE_3D.md`: Complete performance optimization guide
+- `docs/ARCHITECTURE.md`: System design and technical architecture
 
 ### Added - Production Tools
 
