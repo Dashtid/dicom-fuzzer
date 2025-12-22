@@ -340,9 +340,6 @@ The CLI includes specialized subcommands for advanced fuzzing scenarios:
 # LLM-assisted intelligent fuzzing
 dicom-fuzzer llm --generate -i input.dcm --backend openai -o ./output
 
-# DICOMweb REST API security testing
-dicom-fuzzer dicomweb --scan https://pacs.example.com/dicomweb
-
 # DICOM TLS/authentication testing
 dicom-fuzzer tls --quick-scan pacs.example.com --port 11112
 

@@ -185,6 +185,7 @@ class PydicomParser(DICOMParser):
 
             return True
         except ImportError:
+            logger.debug("pydicom not available: ImportError")
             return False
 
     def parse(self, file_path: Path | str) -> ParseResult:
@@ -271,6 +272,7 @@ class GDCMParser(DICOMParser):
 
             return True
         except ImportError:
+            logger.debug("GDCM not available: ImportError")
             return False
 
     def parse(self, file_path: Path | str) -> ParseResult:
@@ -352,7 +354,11 @@ class DCMTKParser(DICOMParser):
                 timeout=5,
             )
             return result.returncode == 0
-        except (FileNotFoundError, subprocess.TimeoutExpired):
+        except FileNotFoundError:
+            logger.debug(f"DCMTK not available: {self.dcmdump_path} not found")
+            return False
+        except subprocess.TimeoutExpired:
+            logger.debug(f"DCMTK not available: {self.dcmdump_path} timed out")
             return False
 
     def parse(self, file_path: Path | str) -> ParseResult:

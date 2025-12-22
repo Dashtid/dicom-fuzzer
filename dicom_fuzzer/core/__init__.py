@@ -47,19 +47,6 @@ from .dicom_tls_fuzzer import (
     create_dicom_tls_fuzzer,
     quick_scan,
 )
-from .dicomweb_fuzzer import (
-    AttackCategory,
-    DICOMwebEndpoint,
-    DICOMwebEndpoints,
-    DICOMwebFuzzer,
-    DICOMwebFuzzerConfig,
-    DICOMwebService,
-    FuzzPayload,
-    FuzzResult,
-    MultipartGenerator,
-    PayloadGenerator,
-    ResponseCode,
-)
 
 # Advanced Fuzzing Engines (v1.5.0)
 from .differential_fuzzer import (
@@ -256,18 +243,6 @@ __all__ = [
     "ImplementationType",
     "ParseResult",
     "PydicomParser",
-    # DICOMweb REST API Fuzzing
-    "AttackCategory",
-    "DICOMwebEndpoint",
-    "DICOMwebEndpoints",
-    "DICOMwebFuzzer",
-    "DICOMwebFuzzerConfig",
-    "DICOMwebService",
-    "FuzzPayload",
-    "FuzzResult",
-    "MultipartGenerator",
-    "PayloadGenerator",
-    "ResponseCode",
     # Persistent Mode Fuzzing
     "CoverageMap",
     "MOptScheduler",

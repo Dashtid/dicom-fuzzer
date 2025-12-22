@@ -30,6 +30,7 @@ import json
 import logging
 import os
 import re
+import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -245,22 +246,26 @@ class OpenAIClient(LLMClient):
         self.config = config
         self.api_key = config.api_key or os.getenv("OPENAI_API_KEY", "")
         self._client: Any = None
+        self._lock = threading.Lock()
 
     def _get_client(self) -> Any:
-        """Get or create OpenAI client."""
+        """Get or create OpenAI client (thread-safe)."""
         if self._client is None:
-            try:
-                from openai import OpenAI
+            with self._lock:
+                # Double-check after acquiring lock
+                if self._client is None:
+                    try:
+                        from openai import OpenAI
 
-                self._client = OpenAI(
-                    api_key=self.api_key,
-                    base_url=self.config.api_base or None,
-                    timeout=self.config.timeout,
-                )
-            except ImportError as err:
-                raise ImportError(
-                    "openai package required: pip install openai"
-                ) from err
+                        self._client = OpenAI(
+                            api_key=self.api_key,
+                            base_url=self.config.api_base or None,
+                            timeout=self.config.timeout,
+                        )
+                    except ImportError as err:
+                        raise ImportError(
+                            "openai package required: pip install openai"
+                        ) from err
         return self._client
 
     def complete(self, prompt: str, system: str = "") -> str:
@@ -300,19 +305,23 @@ class AnthropicClient(LLMClient):
     def __init__(self, config: LLMFuzzerConfig) -> None:
         self.config = config
         self.api_key = config.api_key or os.getenv("ANTHROPIC_API_KEY", "")
-        self._client = None
+        self._client: Any = None
+        self._lock = threading.Lock()
 
     def _get_client(self) -> Any:
-        """Get or create Anthropic client."""
+        """Get or create Anthropic client (thread-safe)."""
         if self._client is None:
-            try:
-                from anthropic import Anthropic
+            with self._lock:
+                # Double-check after acquiring lock
+                if self._client is None:
+                    try:
+                        from anthropic import Anthropic
 
-                self._client = Anthropic(api_key=self.api_key)
-            except ImportError as err:
-                raise ImportError(
-                    "anthropic package required: pip install anthropic"
-                ) from err
+                        self._client = Anthropic(api_key=self.api_key)
+                    except ImportError as err:
+                        raise ImportError(
+                            "anthropic package required: pip install anthropic"
+                        ) from err
         return self._client
 
     def complete(self, prompt: str, system: str = "") -> str:

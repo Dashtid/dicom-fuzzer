@@ -20,6 +20,7 @@ References:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import struct
 from collections import Counter, defaultdict
@@ -546,10 +547,13 @@ class ResponseAwareFuzzer:
             ResponseType.DISCONNECT,
         )
 
-        # Create feedback
+        # Create feedback (use hashlib for deterministic hash across processes)
+        input_bytes = (
+            input_data if isinstance(input_data, bytes) else str(input_data).encode()
+        )
         feedback = MutationFeedback(
             mutation_type=mutation_type,
-            input_hash=hash(input_data).__str__(),
+            input_hash=hashlib.sha256(input_bytes).hexdigest()[:16],
             response=response,
             anomalies=anomalies,
             interesting=interesting,

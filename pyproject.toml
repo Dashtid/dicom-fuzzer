@@ -113,17 +113,12 @@ metrics = [
 ]
 
 # Advanced fuzzing capabilities (v1.5.0)
-dicomweb = [
-    "requests>=2.31.0",  # HTTP client for DICOMweb REST API fuzzing
-    "httpx>=0.27.0",     # Modern async HTTP client (alternative)
-]
-
 differential = [
     "python-gdcm>=3.0.0; platform_system != 'Windows'",  # GDCM bindings (Linux/macOS)
 ]
 
 all = [
-    "dicom-fuzzer[viz,distributed,metrics,network,dicomweb]",
+    "dicom-fuzzer[viz,distributed,metrics,network]",
 ]
 
 # UV configuration (modern Python package management)
@@ -234,6 +229,7 @@ module = [
     "pywinauto.*",  # Windows GUI automation
     "anthropic.*",  # LLM API client
     "openai.*",   # LLM API client
+    "matplotlib.*",  # Plotting library
 ]
 ignore_missing_imports = true
 

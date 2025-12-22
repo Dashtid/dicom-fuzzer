@@ -55,7 +55,6 @@ Enhanced fuzzing for 3D medical imaging applications that process patient studie
 
 - **CLI Subcommands**: Advanced fuzzing accessible via command line
   - `dicom-fuzzer llm` - LLM-assisted mutation generation
-  - `dicom-fuzzer dicomweb` - DICOMweb REST API fuzzing
   - `dicom-fuzzer tls` - TLS/authentication security testing
   - `dicom-fuzzer differential` - Cross-parser differential testing
   - `dicom-fuzzer persistent` - AFL++ persistent mode fuzzing
@@ -121,11 +120,6 @@ Enhanced fuzzing for 3D medical imaging applications that process patient studie
   - Automatic difference detection (parse success, tag values, VR types)
   - Bug severity classification (Critical, High, Medium, Low)
   - `DifferentialAnalyzer` for systematic comparison
-- **DICOMweb REST API Fuzzer** (`dicomweb_fuzzer.py`): Web API security testing
-  - WADO-RS, STOW-RS, QIDO-RS endpoint fuzzing
-  - Multipart/related payload generation
-  - Authentication bypass and injection testing
-  - `PayloadGenerator` with attack categories
 - **Persistent Mode Fuzzer** (`persistent_fuzzer.py`): AFL++ persistent mode
   - In-process fuzzing for 10-100x speedup
   - Power schedules (Fast, COE, Explore, Exploit, Quad)

@@ -800,11 +800,6 @@ def main() -> int:
 
             return llm_main(sys.argv[2:])
 
-        if subcommand == "dicomweb":
-            from dicom_fuzzer.cli.dicomweb import main as dicomweb_main
-
-            return dicomweb_main(sys.argv[2:])
-
         if subcommand == "tls":
             from dicom_fuzzer.cli.tls import main as tls_main
 
@@ -861,7 +856,6 @@ Examples:
 Subcommands (use --help for details):
   samples      Generate synthetic/malicious DICOM samples
   llm          LLM-assisted intelligent fuzzing
-  dicomweb     DICOMweb REST API security testing
   tls          DICOM TLS/authentication testing
   differential Cross-parser differential testing
   persistent   AFL-style persistent mode fuzzing
