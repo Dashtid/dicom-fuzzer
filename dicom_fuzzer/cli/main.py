@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from dicom_fuzzer.cli import output as cli
 from dicom_fuzzer.core.generator import DICOMGenerator
 from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
 from dicom_fuzzer.core.target_runner import ExecutionStatus, TargetRunner
@@ -760,19 +761,19 @@ def pre_campaign_health_check(
 
     if verbose or not passed:
         if issues:
-            print("\n[!] Pre-flight check found critical issues:")
+            cli.warning("Pre-flight check found critical issues:")
             for issue in issues:
-                print(f"  [-] {issue}")
+                cli.error(issue)
 
         if warnings and verbose:
-            print("\n[!] Pre-flight check warnings:")
-            for warning in warnings:
-                print(f"  [!] {warning}")
+            cli.warning("Pre-flight check warnings:")
+            for warn_msg in warnings:
+                cli.warning(warn_msg)
 
         if passed and not warnings:
-            print("\n[+] Pre-flight checks passed")
+            cli.success("Pre-flight checks passed")
         elif passed:
-            print(f"\n[+] Pre-flight checks passed with {len(warnings)} warning(s)")
+            cli.success(f"Pre-flight checks passed with {len(warnings)} warning(s)")
 
     return passed, issues + warnings
 
@@ -828,6 +829,21 @@ def main() -> int:
 
             return corpus_main(sys.argv[2:])
 
+        if subcommand == "study":
+            from dicom_fuzzer.cli.study import main as study_main
+
+            return study_main(sys.argv[2:])
+
+        if subcommand == "calibrate":
+            from dicom_fuzzer.cli.calibrate import main as calibrate_main
+
+            return calibrate_main(sys.argv[2:])
+
+        if subcommand == "stress":
+            from dicom_fuzzer.cli.stress import main as stress_main
+
+            return stress_main(sys.argv[2:])
+
     parser = argparse.ArgumentParser(
         description="DICOM Fuzzer - Security testing tool for medical imaging systems",
         epilog="""
@@ -850,6 +866,9 @@ Subcommands (use --help for details):
   persistent   AFL-style persistent mode fuzzing
   state        Protocol state machine fuzzing
   corpus       Corpus management and minimization
+  study        Study-level fuzzing (cross-series attacks)
+  calibrate    Calibration/measurement fuzzing
+  stress       Memory stress testing
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1184,25 +1203,23 @@ Subcommands (use --help for details):
     )
 
     # Generate fuzzed files
-    print("\n" + "=" * 70)
-    print("  DICOM Fuzzer v1.3.0 - Fuzzing Campaign")
-    print("=" * 70)
+    cli.header("DICOM Fuzzer - Fuzzing Campaign", "v1.6.0")
     if is_directory_input:
-        print(f"  Input:      {args.input_file} ({len(input_files)} files)")
+        cli.detail("Input", f"{args.input_file} ({len(input_files)} files)")
         if recursive:
-            print("  Mode:       Recursive directory scan")
-        print(f"  Per-file:   {num_files_per_input} mutations each")
+            cli.detail("Mode", "Recursive directory scan")
+        cli.detail("Per-file", f"{num_files_per_input} mutations each")
         total_expected = num_files_per_input * len(input_files)
-        print(f"  Total:      ~{total_expected} files (max)")
+        cli.detail("Total", f"~{total_expected} files (max)")
     else:
-        print(f"  Input:      {input_files[0].name}")
-        print(f"  Target:     {num_files_per_input} files")
-    print(f"  Output:     {args.output}")
+        cli.detail("Input", str(input_files[0].name))
+        cli.detail("Target", f"{num_files_per_input} files")
+    cli.detail("Output", str(args.output))
     if selected_strategies:
-        print(f"  Strategies: {', '.join(selected_strategies)}")
+        cli.detail("Strategies", ", ".join(selected_strategies))
     else:
-        print("  Strategies: all (metadata, header, pixel)")
-    print("=" * 70 + "\n")
+        cli.detail("Strategies", "all (metadata, header, pixel)")
+    cli.divider()
 
     total_expected = num_files_per_input * len(input_files)
     logger.info(f"Generating up to {total_expected} fuzzed files...")
@@ -1272,58 +1289,58 @@ Subcommands (use --help for details):
                 )
 
         elapsed_time = time.time() - start_time
-
-        # Display results (using ASCII for Windows compatibility)
-        print("\n" + "=" * 70)
-        print("  Campaign Results")
-        print("=" * 70)
-        print(f"  [+] Successfully generated: {len(files)} files")
         skipped = (
             getattr(generator.stats, "skipped_due_to_write_errors", 0)
             if hasattr(generator, "stats")
             else 0
         )
-        print(f"  [!] Skipped (write errors): {skipped}")
-        files_per_sec = len(files) / elapsed_time
-        print(
-            f"  [T] Time elapsed: {elapsed_time:.2f}s ({files_per_sec:.1f} files/sec)"
-        )
+        files_per_sec = len(files) / elapsed_time if elapsed_time > 0 else 0
 
-        # Check if stats exist and strategies_used is a dict (for test compatibility)
+        # Display results with colored output
+        cli.section("Campaign Results")
+        stats = {
+            "Successfully generated": f"{len(files)} files",
+            "Skipped": skipped,
+            "Duration": f"{elapsed_time:.2f}s ({files_per_sec:.1f} files/sec)",
+            "Output": str(args.output),
+        }
+
+        # Add strategy usage if available
         if hasattr(generator, "stats") and hasattr(generator.stats, "strategies_used"):
             strategies_used = generator.stats.strategies_used
             if isinstance(strategies_used, dict) and strategies_used:
-                print("\n  Strategy Usage:")
-                for strategy, count in sorted(strategies_used.items()):
-                    print(f"    - {strategy}: {count} times")
+                stats["Strategies"] = ", ".join(
+                    f"{s}({c})" for s, c in sorted(strategies_used.items())
+                )
 
-        print(f"\n  Output: {args.output}")
-        print("=" * 70 + "\n")
+        cli.print_summary(
+            "Fuzzing Complete",
+            stats,
+            success_count=len(files),
+            error_count=skipped,
+        )
 
         if args.verbose:
-            print("Sample generated files:")
+            cli.info("Sample generated files:")
             for f in files[:10]:
-                print(f"  - {f.name}")
+                cli.status(f"  - {f.name}")
             if len(files) > 10:
-                print(f"  ... and {len(files) - 10} more")
-            print()
+                cli.status(f"  ... and {len(files) - 10} more")
 
         # Network fuzzing if --network-fuzz specified
         if getattr(args, "network_fuzz", False):
             if not HAS_NETWORK_FUZZER:
-                print("[ERROR] Network fuzzing module not available.")
-                print(
+                cli.error("Network fuzzing module not available.")
+                cli.status(
                     "Please check that dicom_fuzzer.core.network_fuzzer is installed."
                 )
                 sys.exit(1)
 
-            print("\n" + "=" * 70)
-            print("  DICOM Network Protocol Fuzzing")
-            print("=" * 70)
-            print(f"  Host:       {args.host}:{args.port}")
-            print(f"  AE Title:   {args.ae_title}")
-            print(f"  Strategy:   {args.network_strategy}")
-            print("=" * 70 + "\n")
+            cli.header("DICOM Network Protocol Fuzzing")
+            cli.detail("Host", f"{args.host}:{args.port}")
+            cli.detail("AE Title", args.ae_title)
+            cli.detail("Strategy", args.network_strategy)
+            cli.divider()
 
             try:
                 network_config = DICOMNetworkConfig(

@@ -5,6 +5,75 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2025-12-22 - 3D Medical Application Fuzzing
+
+Enhanced fuzzing for 3D medical imaging applications that process patient studies.
+
+### Added - Study-Level Framework
+
+- **StudyMutator** (`strategies/study_mutator.py`, ~700 lines): Multi-series study coordination
+  - Cross-series reference attacks (ReferencedSeriesSequence corruption)
+  - FrameOfReferenceUID manipulation for registration/fusion attacks
+  - Patient consistency attacks across series (conflicting demographics)
+  - StudyInstanceUID mismatch injection
+  - Mixed modality study injection
+
+### Added - 3D Reconstruction Attack Vectors
+
+- **Enhanced Series Mutations** (`strategies/series_mutator.py`, +530 lines):
+  - Non-orthogonal ImageOrientationPatient vectors (invalid reconstruction basis)
+  - Systematic slice gap injection (missing slice handling)
+  - Slice overlap attacks (multiple slices at same Z-position)
+  - Voxel aspect ratio extremes (non-isotropic spacing exploitation)
+  - Frame of reference UID corruption
+
+### Added - Measurement/Calibration Fuzzing
+
+- **CalibrationFuzzer** (`strategies/calibration_fuzzer.py`, ~500 lines): Measurement bypass attacks
+  - PixelSpacing vs ImagerPixelSpacing mismatch (7 attack types)
+  - RescaleSlope/Intercept extreme values (6 attack types for HU corruption)
+  - WindowCenter/WindowWidth edge cases (6 attack types)
+  - SliceThickness attacks (3 attack types)
+
+### Added - Memory & Stress Testing
+
+- **StressTester** (`harness/stress_tester.py`, ~450 lines): Resource exhaustion testing
+  - Large series generation (1000+ slices, configurable dimensions)
+  - Memory usage estimation and monitoring
+  - Incremental loading attacks (partial/interrupted series)
+  - Escalating stress test campaigns
+
+### Added - Tests
+
+- `tests/test_strategies/test_study_mutator.py` - 15 tests
+- `tests/test_strategies/test_calibration_fuzzer.py` - 26 tests
+- `tests/test_harness/test_stress_tester.py` - 35 tests
+
+## [1.6.0] - 2025-12-22 - CLI Subcommands & CVE Mutations
+
+### Added
+
+- **CLI Subcommands**: Advanced fuzzing accessible via command line
+  - `dicom-fuzzer llm` - LLM-assisted mutation generation
+  - `dicom-fuzzer dicomweb` - DICOMweb REST API fuzzing
+  - `dicom-fuzzer tls` - TLS/authentication security testing
+  - `dicom-fuzzer differential` - Cross-parser differential testing
+  - `dicom-fuzzer persistent` - AFL++ persistent mode fuzzing
+  - `dicom-fuzzer state` - Protocol state machine fuzzing
+  - `dicom-fuzzer corpus` - Corpus management and minimization
+- **CVE Mutation Strategies** (`strategies/cve_mutations.py`): Targeted vulnerability patterns
+  - Heap overflow triggers (oversized buffers)
+  - Integer overflow in length fields
+  - Path traversal payloads
+  - Polyglot file generation
+- **SBOM Generation**: CycloneDX SBOM in CI security workflow
+
+### Fixed
+
+- Corrected cyclonedx-py command syntax (`--of` instead of `--format`)
+- Fixed GeneratedMutation API usage in LLM CLI module
+- Resolved mypy type errors in corpus statistics
+
 ## [1.5.0] - 2025-12-18 - Network Fuzzing, Advanced Engines, NTIA Compliance
 
 ### Added - LLM-Enhanced Fuzzing
@@ -323,12 +392,11 @@ This release marks the first public PyPI release of DICOM-Fuzzer with comprehens
 
 ---
 
-## Planned Features
+## Community Contributions Welcome
 
-- Additional LLM backends (Claude via SDK, local Llama models)
-- Extended DICOMweb security testing (OAuth/SMART integration)
-- Fuzzer cluster orchestration with Kubernetes
-- Grammar-based mutation with DICOM PS3.5 conformance
+- Additional CVE mutation patterns for newly disclosed vulnerabilities
+- Viewer-specific profiles for untested DICOM applications
+- Performance optimizations for large series processing
 
 ---
 

@@ -90,32 +90,45 @@ DICOM-Fuzzer is a comprehensive fuzzing framework for testing the security and r
 - **Root Cause Analysis**: Classify instability (race conditions, uninitialized memory, entropy)
 - **Enhanced Error Handling**: ProcessPoolExecutor with BrokenProcessPool detection
 
-### 3D DICOM Fuzzing (Phase 1-4 In Progress - 2025)
+### 3D DICOM Fuzzing (v1.7.0 - Complete)
 
-- **Series Detection & Validation** (Phase 1 - Complete): Automatic grouping of DICOM files into 3D series
+- **Series Detection & Validation**: Automatic grouping of DICOM files into 3D series
   - SeriesInstanceUID-based series detection
   - Validation of slice ordering and spacing
   - Support for multi-slice CT, MRI, and other volumetric modalities
-- **Series-Level Mutations** (Phase 2 - Complete): 5 mutation strategies for 3D series fuzzing
+- **Series-Level Mutations**: 10 mutation strategies for 3D series fuzzing
   - Series metadata corruption (UIDs, tags)
   - Slice position/orientation attacks
   - Boundary slice targeting (first/middle/last)
   - Gradient mutations (progressive corruption)
-  - Inconsistency injection (mixed modalities)
-- **3D Viewer Integration** (Phase 3 - Complete): Automated testing of DICOM viewers with fuzzed 3D series
+  - Non-orthogonal orientation vectors (reconstruction attacks)
+  - Systematic slice gap injection
+  - Slice overlap attacks
+  - Voxel aspect ratio extremes
+  - Frame of reference corruption
+- **Study-Level Fuzzing** (v1.7.0): Multi-series coordination attacks
+  - Cross-series reference corruption
+  - FrameOfReferenceUID manipulation
+  - Patient consistency attacks across series
+  - Mixed modality study injection
+- **Calibration/Measurement Fuzzing** (v1.7.0): Viewer calculation attacks
+  - PixelSpacing vs ImagerPixelSpacing mismatch
+  - RescaleSlope/Intercept extremes (HU corruption)
+  - WindowCenter/WindowWidth edge cases
+  - SliceThickness attacks
+- **Memory Stress Testing** (v1.7.0): Resource exhaustion
+  - Large series generation (1000+ slices)
+  - Memory monitoring and estimation
+  - Incremental loading attacks
+- **3D Viewer Integration**: Automated testing of DICOM viewers
   - Folder-based series loading
   - Memory monitoring during 3D rendering
   - Crash detection and correlation to specific slices
   - Support for MicroDicom, RadiAnt, Rubo, Sante, and custom viewers
-  - YAML configuration with pre-configured viewer profiles
-  - 22/22 tests passing (100%), 84% code coverage
-- **Performance Optimization** (Phase 4 - 70% Complete): 3-5x speedup for large series
+- **Performance Optimization**: 3-5x speedup for large series
   - Lazy loading: 10-100x faster metadata-only loading
   - LRU caching: 250x faster cache hits
-  - Parallel processing: 3-4x faster mutations with ProcessPoolExecutor
-  - Memory efficient: <2GB for 500-slice series
-  - Auto-tuning worker pools and cache sizes
-  - 46 unit tests, comprehensive benchmarking infrastructure
+  - Parallel processing: 3-4x faster mutations
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for implementation details.
 
@@ -949,13 +962,19 @@ This software is provided for educational and security testing purposes. Users a
 - Interactive HTML reports with crash forensics
 - Coverage correlation for guided fuzzing
 
-**Next Steps**:
+**Latest Release** (v1.7.0 - 3D Medical Application Fuzzing):
 
-- CI/CD pipeline integration with stability tests
-- Distributed fuzzing across multiple machines
-- Real-time monitoring dashboard
-- Network fuzzing support (DICOM C-STORE, C-FIND)
-- Performance benchmarking suite
+See [CHANGELOG.md](CHANGELOG.md) for release details.
+
+- Study-level fuzzing framework with 5 mutation strategies
+- 3D reconstruction attack vectors (5 new series mutator strategies)
+- Measurement/calibration fuzzing (22+ attack types)
+- Memory stress testing with large series generation
+
+**Contributions Welcome**:
+
+- Additional CVE patterns for newly disclosed vulnerabilities
+- Viewer-specific profiles for untested applications
 
 ---
 

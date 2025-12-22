@@ -1,27 +1,38 @@
-# Malicious DICOM Sample Library
+# Security Sample Generators
 
-A comprehensive collection of security-focused DICOM test samples for vulnerability research, penetration testing, and defensive tool development.
+On-demand generation toolkit for security-focused DICOM test samples. Samples are generated locally - no pre-built attack files are distributed.
 
-> **WARNING**: These samples are designed to trigger vulnerabilities in DICOM parsers and viewers. Handle with care and use only in isolated test environments.
+> **WARNING**: Generated samples are designed to trigger vulnerabilities in DICOM parsers and viewers. Use only in isolated test environments.
+
+## Quick Start
+
+```bash
+# Generate all sample categories
+uv run python -m samples.generate_all --output samples/generated/
+
+# Generate specific category
+uv run python samples/cve_reproductions/generator.py --output samples/generated/cve/
+uv run python samples/parser_stress/generator.py --output samples/generated/stress/
+uv run python samples/preamble_attacks/generator.py --output samples/generated/preamble/
+uv run python samples/compliance_violations/generator.py --output samples/generated/compliance/
+```
 
 ## Purpose
-
-This library serves multiple purposes:
 
 1. **Security Research** - Test DICOM implementations for known vulnerabilities
 2. **Penetration Testing** - Validate medical imaging infrastructure security
 3. **Defensive Development** - Build and test detection/prevention tools
-4. **Education** - Learn about DICOM security risks and attack vectors
 
 ## Directory Structure
 
-```
+```text
 samples/
-├── preamble_attacks/        # PE/DICOM and ELF/DICOM polyglots (CVE-2019-11687)
-├── cve_reproductions/       # Samples that trigger specific CVEs
-├── parser_stress/           # Edge cases that crash or hang parsers
-├── compliance_violations/   # DICOM standard violations
-└── detection/               # YARA rules, scanners, and sanitization tools
+├── preamble_attacks/        # PE/DICOM and ELF/DICOM polyglot generators
+├── cve_reproductions/       # CVE trigger sample generators
+├── parser_stress/           # Parser edge case generators
+├── compliance_violations/   # DICOM standard violation generators
+├── detection/               # YARA rules, scanners, and sanitization tools
+└── generated/               # Output directory (gitignored)
 ```
 
 ## Sample Categories
@@ -70,17 +81,20 @@ Files that violate the DICOM standard in specific ways:
 
 ## Usage
 
+### Generate Samples First
+
+```bash
+# Generate samples before testing
+uv run python samples/cve_reproductions/generator.py --output samples/generated/
+uv run python samples/preamble_attacks/generator.py --output samples/generated/
+```
+
 ### Testing a DICOM Viewer
 
 ```bash
-# Test with preamble polyglots
+# Test with generated samples
 python -m dicom_fuzzer.cli.fuzz_viewer \
-    --input samples/preamble_attacks/ \
-    --viewer "C:/Path/To/Viewer.exe"
-
-# Test with CVE samples
-python -m dicom_fuzzer.cli.fuzz_viewer \
-    --input samples/cve_reproductions/ \
+    --input samples/generated/ \
     --viewer "C:/Path/To/Viewer.exe"
 ```
 

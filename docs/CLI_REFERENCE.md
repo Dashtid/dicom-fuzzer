@@ -113,6 +113,150 @@ Available vulnerability classes:
 
 ## Subcommands
 
+### study Subcommand (v1.7.0)
+
+Study-level DICOM mutation for cross-series attacks.
+
+```bash
+python -m dicom_fuzzer.cli study [OPTIONS]
+```
+
+#### Actions
+
+| Action              | Description                                     |
+| ------------------- | ----------------------------------------------- |
+| `--study DIR`       | Path to study directory containing DICOM series |
+| `--list-strategies` | List available study mutation strategies        |
+
+#### Mutation Options
+
+| Option             | Default  | Description                                                                                |
+| ------------------ | -------- | ------------------------------------------------------------------------------------------ |
+| `--strategy STRAT` | all      | cross-series, frame-of-reference, patient-consistency, study-metadata, mixed-modality, all |
+| `--severity LEVEL` | moderate | minimal, moderate, aggressive, extreme                                                     |
+| `-c, --count N`    | 5        | Number of mutations to apply                                                               |
+
+#### Output Options
+
+| Option             | Default        | Description      |
+| ------------------ | -------------- | ---------------- |
+| `-o, --output DIR` | ./study_output | Output directory |
+| `-v, --verbose`    | false          | Verbose output   |
+
+#### Examples
+
+```bash
+# Mutate study with cross-series reference attacks
+dicom-fuzzer study --study ./patient_study --strategy cross-series -o ./output
+
+# List available strategies
+dicom-fuzzer study --list-strategies
+
+# Apply aggressive patient consistency attacks
+dicom-fuzzer study --study ./study --strategy patient-consistency --severity aggressive
+```
+
+---
+
+### calibrate Subcommand (v1.7.0)
+
+Calibration and measurement mutation for DICOM images.
+
+```bash
+python -m dicom_fuzzer.cli calibrate [OPTIONS]
+```
+
+#### Actions
+
+| Action              | Description                           |
+| ------------------- | ------------------------------------- |
+| `--input FILE`      | Input DICOM file to mutate            |
+| `--list-categories` | List available calibration categories |
+
+#### Mutation Options
+
+| Option             | Default  | Description                                                   |
+| ------------------ | -------- | ------------------------------------------------------------- |
+| `--category CAT`   | all      | pixel-spacing, hounsfield, window-level, slice-thickness, all |
+| `-c, --count N`    | 10       | Number of mutations                                           |
+| `--severity LEVEL` | moderate | minimal, moderate, aggressive, extreme                        |
+
+#### Output Options
+
+| Option             | Default              | Description      |
+| ------------------ | -------------------- | ---------------- |
+| `-o, --output DIR` | ./calibration_output | Output directory |
+| `-v, --verbose`    | false                | Verbose output   |
+
+#### Examples
+
+```bash
+# Fuzz pixel spacing calibration
+dicom-fuzzer calibrate --input image.dcm --category pixel-spacing -o ./output
+
+# List calibration categories
+dicom-fuzzer calibrate --list-categories
+
+# Fuzz Hounsfield unit rescale parameters
+dicom-fuzzer calibrate --input ct_slice.dcm --category hounsfield --severity extreme
+```
+
+---
+
+### stress Subcommand (v1.7.0)
+
+Memory and performance stress testing for DICOM applications.
+
+```bash
+python -m dicom_fuzzer.cli stress [OPTIONS]
+```
+
+#### Actions
+
+| Action              | Description                                    |
+| ------------------- | ---------------------------------------------- |
+| `--generate-series` | Generate large DICOM series for stress testing |
+| `--run-test`        | Run stress test against target                 |
+| `--list-scenarios`  | List available stress test scenarios           |
+
+#### Generation Options
+
+| Option             | Default  | Description                  |
+| ------------------ | -------- | ---------------------------- |
+| `--slices N`       | 100      | Number of slices             |
+| `--dimensions WxH` | 512x512  | Slice dimensions             |
+| `--pattern PAT`    | gradient | gradient, random, anatomical |
+
+#### Testing Options
+
+| Option              | Default | Description        |
+| ------------------- | ------- | ------------------ |
+| `--target EXE`      | -       | Target application |
+| `--series DIR`      | -       | Series directory   |
+| `--memory-limit MB` | 4096    | Memory limit       |
+
+#### Output Options
+
+| Option             | Default         | Description      |
+| ------------------ | --------------- | ---------------- |
+| `-o, --output DIR` | ./stress_output | Output directory |
+| `-v, --verbose`    | false           | Verbose output   |
+
+#### Examples
+
+```bash
+# Generate 500-slice stress test series
+dicom-fuzzer stress --generate-series --slices 500 -o ./large_series
+
+# Generate with specific dimensions
+dicom-fuzzer stress --generate-series --slices 200 --dimensions 1024x1024 -o ./output
+
+# List stress test scenarios
+dicom-fuzzer stress --list-scenarios
+```
+
+---
+
 ### samples Subcommand
 
 Generate sample DICOM files for testing, including synthetic and malicious samples.

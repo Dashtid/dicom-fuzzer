@@ -230,26 +230,30 @@ Now that you've run your first fuzzing campaign, explore these resources:
 
 ## Getting Test Data
 
-### Public DICOM Sample Sources
+DICOM Fuzzer does not bundle seed data. You should use DICOM files that match your target application's expected input (modality, transfer syntax, dimensions).
 
-1. **PyDICOM Test Files**
+### Recommended Approach
 
-   ```bash
-   git clone https://github.com/pydicom/pydicom.git
-   cp pydicom/tests/test_files/*.dcm samples/input/
-   ```
+Use data from your own test environment or download from public sources below. This ensures your fuzzing covers the specific DICOM variants your target application processes.
 
-2. **DICOM Sample Library**
-   - https://www.rubomedical.com/dicom_files/
-   - https://barre.dev/medical/samples/
+### Public DICOM Sources
 
-3. **Generate Synthetic DICOM**
-   ```bash
-   uv run python -m dicom_fuzzer.utils.dicom_generator \
-       --output samples/synthetic/ \
-       --count 10 \
-       --modality CT
-   ```
+- **[TCIA](https://www.cancerimagingarchive.net/)** - Cancer imaging archives, multi-modality datasets
+- **[OsiriX DICOM Library](https://www.osirix-viewer.com/resources/dicom-image-library/)** - Sample datasets (CT, MR, PET, US)
+- **[DICOM Library](https://www.dicomlibrary.com/)** - Browser-based viewer with downloadable samples
+- **[Rubo Medical](https://www.rubomedical.com/dicom_files/)** - Categorized sample files by modality
+- **[pydicom test files](https://github.com/pydicom/pydicom/tree/main/tests/test_files)** - Parser edge cases and test data
+
+### Generate Synthetic DICOM
+
+For reproducible testing without external dependencies:
+
+```bash
+uv run python -m dicom_fuzzer.utils.dicom_generator \
+    --output samples/synthetic/ \
+    --count 10 \
+    --modality CT
+```
 
 ## Troubleshooting
 

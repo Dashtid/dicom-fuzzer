@@ -566,67 +566,40 @@ def test_mutator_with_mock():
    mutator.register_strategy(CustomMutator())
    ```
 
-### Plugin Architecture (Future)
+### Custom Strategies
 
-Planned plugin system for extensibility:
-
-```python
-# plugins/my_plugin.py
-from dicom_fuzzer.plugin import Plugin
-
-class MyPlugin(Plugin):
-    def on_session_start(self, session):
-        pass
-
-    def on_mutation(self, dataset):
-        pass
-
-    def on_crash(self, crash_info):
-        pass
-```
+For advanced users, custom mutation strategies can be added by subclassing existing strategy classes. See [strategies/](../dicom_fuzzer/strategies/) for examples.
 
 ---
 
 ## Future Roadmap
 
-### Phase 4: Advanced Features (Planned)
+### v1.7.0: 3D Medical Application Fuzzing (Released 2025-12-22)
 
-1. **Distributed Fuzzing**
-   - Multi-node fuzzing architecture
-   - Centralized corpus management
-   - Distributed crash collection
+**Status**: Implemented. See [CHANGELOG.md](../CHANGELOG.md) for details.
 
-2. **Machine Learning Integration**
-   - ML-guided mutation selection
-   - Predictive crash detection
-   - Coverage prediction
+**Modules Added**:
 
-3. **Real-Time Dashboard**
-   - Live fuzzing campaign monitoring
-   - WebSocket-based updates
-   - Interactive crash analysis
+1. **Study-Level Framework** (`strategies/study_mutator.py`, ~700 lines)
+   - 5 mutation strategies for multi-series coordination
+   - Cross-series reference, FrameOfReferenceUID, patient consistency attacks
 
-4. **Advanced Grammar Fuzzing**
-   - DICOM grammar extraction
-   - Context-free grammar fuzzing
-   - Structure-aware mutations
+2. **3D Reconstruction Attack Vectors** (`strategies/series_mutator.py`, +530 lines)
+   - 5 new strategies: non-orthogonal orientation, slice gaps, overlaps, voxel ratio, FoR
 
-### Phase 5: Enterprise Features (Planned)
+3. **Measurement/Calibration Fuzzing** (`strategies/calibration_fuzzer.py`, ~500 lines)
+   - 22+ attack types across pixel spacing, HU rescale, window/level, thickness
 
-1. **Multi-User Support**
-   - User authentication
-   - Role-based access control
-   - Campaign sharing
+4. **Memory & Stress Testing** (`harness/stress_tester.py`, ~450 lines)
+   - Large series generation, memory monitoring, incremental loading attacks
 
-2. **API Server**
-   - RESTful API
-   - Fuzzing-as-a-Service
-   - Remote campaign management
+### Potential Enhancements
 
-3. **Compliance Reporting**
-   - HIPAA compliance reports
-   - FDA cybersecurity guidance alignment
-   - EU MDR compliance documentation
+Community contributions welcome for:
+
+- Additional CVE mutation patterns as new vulnerabilities are disclosed
+- Viewer-specific profiles for untested DICOM applications
+- Performance optimizations for large series processing
 
 ---
 
@@ -740,7 +713,7 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution guidelines.
 
 ---
 
-**Last Updated**: December 5, 2025
-**Version**: 1.3.0
+**Last Updated**: December 22, 2025
+**Version**: 1.6.0
 
 For questions about architecture, open a GitHub issue or discussion.

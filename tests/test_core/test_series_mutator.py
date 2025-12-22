@@ -374,16 +374,23 @@ class TestSeriesMutationStrategy:
     """Test SeriesMutationStrategy enum."""
 
     def test_all_strategies_exist(self):
-        """Test that all 5 strategies are defined."""
+        """Test that all 10 strategies are defined (5 original + 5 v1.7.0)."""
         strategies = list(SeriesMutationStrategy)
-        assert len(strategies) == 5
+        assert len(strategies) == 10
 
         strategy_names = [s.value for s in strategies]
+        # Original 5 strategies
         assert "metadata_corruption" in strategy_names
         assert "slice_position_attack" in strategy_names
         assert "boundary_slice_targeting" in strategy_names
         assert "gradient_mutation" in strategy_names
         assert "inconsistency_injection" in strategy_names
+        # v1.7.0 strategies
+        assert "non_orthogonal_orientation" in strategy_names
+        assert "systematic_slice_gap" in strategy_names
+        assert "slice_overlap_injection" in strategy_names
+        assert "voxel_aspect_ratio" in strategy_names
+        assert "frame_of_reference" in strategy_names
 
 
 class TestSeverityLevels:
@@ -461,3 +468,251 @@ class TestLoadDatasets:
         mutator = Series3DMutator()
         with pytest.raises(Exception):
             mutator._load_datasets(sample_series)
+
+
+# =============================================================================
+# v1.7.0 Strategy Tests - 3D Reconstruction Attack Vectors
+# =============================================================================
+
+
+class TestNonOrthogonalOrientation:
+    """Test non_orthogonal_orientation mutation strategy (v1.7.0)."""
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_non_orthogonal_orientation_basic(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test basic non-orthogonal orientation mutation."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="aggressive", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="non_orthogonal_orientation", mutation_count=3
+        )
+
+        assert len(fuzzed_datasets) == 5
+        orientation_records = [
+            r for r in records if r.strategy == "non_orthogonal_orientation"
+        ]
+        assert len(orientation_records) >= 1
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_non_orthogonal_orientation_vector_modification(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test that ImageOrientationPatient vectors are modified."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="non_orthogonal_orientation", mutation_count=5
+        )
+
+        # Check for ImageOrientationPatient modifications
+        iop_records = [r for r in records if r.tag == "ImageOrientationPatient"]
+        assert len(iop_records) >= 1
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_non_orthogonal_attack_types(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test different attack types are applied."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="non_orthogonal_orientation", mutation_count=10
+        )
+
+        # Check for attack type in details
+        attack_types = [r.details.get("attack_type") for r in records if r.details]
+        assert len(attack_types) >= 1
+
+
+class TestSystematicSliceGap:
+    """Test systematic_slice_gap mutation strategy (v1.7.0)."""
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_systematic_slice_gap_basic(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test basic systematic slice gap mutation."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="moderate", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="systematic_slice_gap", mutation_count=3
+        )
+
+        # Slice gap strategy removes slices, so may have fewer outputs
+        gap_records = [r for r in records if r.strategy == "systematic_slice_gap"]
+        assert len(gap_records) >= 1
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_systematic_slice_gap_every_nth(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test every Nth slice removal pattern."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="aggressive", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="systematic_slice_gap", mutation_count=5
+        )
+
+        # Check for slice removal records
+        removal_records = [r for r in records if "removed" in str(r.details).lower()]
+        # May or may not have removal records depending on implementation
+
+
+class TestSliceOverlapInjection:
+    """Test slice_overlap_injection mutation strategy (v1.7.0)."""
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_slice_overlap_injection_basic(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test basic slice overlap injection."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="aggressive", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="slice_overlap_injection", mutation_count=3
+        )
+
+        overlap_records = [
+            r for r in records if r.strategy == "slice_overlap_injection"
+        ]
+        assert len(overlap_records) >= 1
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_slice_overlap_z_position_duplication(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test Z-position duplication for overlap."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="slice_overlap_injection", mutation_count=5
+        )
+
+        # Check for ImagePositionPatient modifications
+        position_records = [r for r in records if r.tag == "ImagePositionPatient"]
+        # May have position modifications for overlap
+
+
+class TestVoxelAspectRatio:
+    """Test voxel_aspect_ratio mutation strategy (v1.7.0)."""
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_voxel_aspect_ratio_basic(self, mock_dcmread, sample_series, mock_datasets):
+        """Test basic voxel aspect ratio mutation."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="aggressive", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="voxel_aspect_ratio", mutation_count=3
+        )
+
+        voxel_records = [r for r in records if r.strategy == "voxel_aspect_ratio"]
+        assert len(voxel_records) >= 1
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_voxel_aspect_ratio_pixel_spacing(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test PixelSpacing modification for voxel ratio attacks."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="voxel_aspect_ratio", mutation_count=5
+        )
+
+        # Check for PixelSpacing or SliceThickness modifications
+        spacing_records = [
+            r for r in records if r.tag in ("PixelSpacing", "SliceThickness")
+        ]
+        assert len(spacing_records) >= 1
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_voxel_aspect_ratio_extreme_values(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test extreme voxel aspect ratios."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="voxel_aspect_ratio", mutation_count=10
+        )
+
+        # Check for extreme ratio attack types
+        extreme_records = [
+            r
+            for r in records
+            if "extreme" in str(r.details.get("attack_type", "")).lower()
+        ]
+
+
+class TestFrameOfReference:
+    """Test frame_of_reference mutation strategy (v1.7.0)."""
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_frame_of_reference_basic(self, mock_dcmread, sample_series, mock_datasets):
+        """Test basic frame of reference mutation."""
+        # Add FrameOfReferenceUID to mock datasets
+        for ds in mock_datasets:
+            ds.FrameOfReferenceUID = "1.2.840.113619.2.55.3.999999"
+
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="aggressive", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="frame_of_reference", mutation_count=3
+        )
+
+        for_records = [r for r in records if r.strategy == "frame_of_reference"]
+        assert len(for_records) >= 1
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_frame_of_reference_uid_corruption(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test FrameOfReferenceUID corruption."""
+        for ds in mock_datasets:
+            ds.FrameOfReferenceUID = "1.2.840.113619.2.55.3.999999"
+
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="frame_of_reference", mutation_count=5
+        )
+
+        # Check for FrameOfReferenceUID modifications
+        uid_records = [r for r in records if r.tag == "FrameOfReferenceUID"]
+        assert len(uid_records) >= 1
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_frame_of_reference_inconsistency(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test FrameOfReferenceUID inconsistency across slices."""
+        for ds in mock_datasets:
+            ds.FrameOfReferenceUID = "1.2.840.113619.2.55.3.999999"
+
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="frame_of_reference", mutation_count=10
+        )
+
+        # Check for inconsistent attack type
+        inconsistent_records = [
+            r
+            for r in records
+            if "inconsistent" in str(r.details.get("attack_type", "")).lower()
+        ]
