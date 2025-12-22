@@ -581,7 +581,7 @@ class DICOMwebFuzzer:
     def _setup_http_client(self) -> Any:
         """Setup HTTP client."""
         try:
-            import requests  # type: ignore[import-untyped]
+            import requests
 
             session = requests.Session()
             session.verify = self.config.verify_ssl
@@ -860,7 +860,7 @@ class DICOMwebFuzzer:
         ]
 
         # Auth bypass techniques
-        bypass_headers = [
+        bypass_headers: list[dict[str, str]] = [
             {},  # No auth
             {"Authorization": ""},  # Empty auth
             {"Authorization": "Bearer invalid"},  # Invalid token

@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -1249,6 +1250,7 @@ Subcommands (use --help for details):
         if is_directory_input:
             # Multiple input files from directory
             print(f"Processing {len(input_files)} input files...")
+            input_iterator: Iterable[Path]
             if HAS_TQDM and not args.verbose:
                 from tqdm import tqdm as tqdm_iter
 

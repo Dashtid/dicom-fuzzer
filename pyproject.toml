@@ -227,6 +227,13 @@ module = [
     "prometheus_client.*",  # Optional dependency for metrics
     "gdcm.*",     # Optional dependency for differential fuzzing
     "httpx.*",    # Optional dependency for async HTTP
+    "requests.*", # HTTP client
+    "psutil.*",   # Process utilities
+    "tqdm.*",     # Progress bars
+    "seaborn.*",  # Statistical visualization
+    "pywinauto.*",  # Windows GUI automation
+    "anthropic.*",  # LLM API client
+    "openai.*",   # LLM API client
 ]
 ignore_missing_imports = true
 

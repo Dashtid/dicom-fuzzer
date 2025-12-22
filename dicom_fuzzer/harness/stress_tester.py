@@ -324,6 +324,7 @@ class StressTester:
             Numpy array with pixel data
 
         """
+        dtype: type[np.uint16] | type[np.uint8]
         if self.config.bits_allocated == 16:
             dtype = np.uint16
             max_val = 65535

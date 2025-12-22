@@ -244,7 +244,7 @@ class OpenAIClient(LLMClient):
     def __init__(self, config: LLMFuzzerConfig) -> None:
         self.config = config
         self.api_key = config.api_key or os.getenv("OPENAI_API_KEY", "")
-        self._client = None
+        self._client: Any = None
 
     def _get_client(self) -> Any:
         """Get or create OpenAI client."""
@@ -326,7 +326,7 @@ class AnthropicClient(LLMClient):
             messages=[{"role": "user", "content": prompt}],
         )
 
-        return response.content[0].text if response.content else ""
+        return str(response.content[0].text) if response.content else ""
 
     def is_available(self) -> bool:
         """Check if Anthropic API is accessible."""

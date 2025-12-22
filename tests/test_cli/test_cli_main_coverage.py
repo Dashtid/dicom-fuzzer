@@ -558,14 +558,18 @@ class TestPreCampaignHealthCheckCoverage:
         # Should still pass but have warning
         assert passed is True
 
-    def test_health_check_verbose_no_warnings(self, temp_dir, capsys):
+    def test_health_check_verbose_no_warnings(self, temp_dir):
         """Test verbose output when there are no warnings."""
         output_dir = temp_dir / "output"
 
-        passed, issues = pre_campaign_health_check(output_dir=output_dir, verbose=True)
+        # Mock cli.success to verify it gets called (capsys unreliable in parallel)
+        with patch("dicom_fuzzer.cli.main.cli.success") as mock_success:
+            passed, issues = pre_campaign_health_check(
+                output_dir=output_dir, verbose=True
+            )
 
-        captured = capsys.readouterr()
-        assert "Pre-flight checks passed" in captured.out
+        assert passed is True
+        mock_success.assert_called_once_with("Pre-flight checks passed")
 
     def test_health_check_output_not_writable(self, temp_dir):
         """Test failure when output directory is not writable."""
