@@ -57,9 +57,32 @@ Changelog = "https://github.com/Dashtid/dicom-fuzzer/blob/main/CHANGELOG.md"
 [project.scripts]
 dicom-fuzzer = "dicom_fuzzer.cli.main:main"
 
+# Optional dependencies (pip install dicom-fuzzer[extra])
+[project.optional-dependencies]
+network = [
+    "pynetdicom[apps]>=2.0.0",
+]
+viz = [
+    "matplotlib>=3.5.0",
+    "plotly>=5.0.0",
+    "seaborn>=0.12.0",
+]
+distributed = [
+    "redis>=5.2.0",
+]
+metrics = [
+    "prometheus-client>=0.21.0",
+]
+differential = [
+    "python-gdcm>=3.0.0; platform_system != 'Windows'",
+]
+all = [
+    "dicom-fuzzer[viz,distributed,metrics,network]",
+]
+
 # Hatchling automatically discovers packages - no explicit configuration needed
 
-# Dependency groups (modern uv approach - replaces [tool.uv.dev-dependencies])
+# Dependency groups (modern uv approach - for development workflows)
 [dependency-groups]
 dev = [
     # Testing framework (state-of-the-art 2025)
@@ -91,34 +114,6 @@ dev = [
     "matplotlib>=3.5.0",       # Required for visualization tests
     "plotly>=5.0.0",           # Required for visualization tests
     "seaborn>=0.12.0",         # Required for visualization tests
-]
-
-network = [
-    "pynetdicom[apps]>=2.0.0",
-]
-
-viz = [
-    "matplotlib>=3.5.0",  # Visualization for analytics and reporting
-    "plotly>=5.0.0",      # Interactive visualizations (optional)
-    "seaborn>=0.12.0",    # Statistical data visualization (required by visualization.py)
-]
-
-
-distributed = [
-    "redis>=5.2.0",       # Redis client for distributed task queue
-]
-
-metrics = [
-    "prometheus-client>=0.21.0",  # Prometheus metrics export
-]
-
-# Advanced fuzzing capabilities (v1.5.0)
-differential = [
-    "python-gdcm>=3.0.0; platform_system != 'Windows'",  # GDCM bindings (Linux/macOS)
-]
-
-all = [
-    "dicom-fuzzer[viz,distributed,metrics,network]",
 ]
 
 # UV configuration (modern Python package management)
