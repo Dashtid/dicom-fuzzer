@@ -916,7 +916,15 @@ Subcommands (use --help for details):
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging output"
     )
-    parser.add_argument("--version", action="version", version="DICOM Fuzzer v1.3.0")
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", help="Suppress all output except errors"
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results in JSON format (useful for CI/CD pipelines)",
+    )
+    parser.add_argument("--version", action="version", version="DICOM Fuzzer v1.7.0")
 
     # Target testing options
     parser.add_argument(
@@ -1128,8 +1136,16 @@ Subcommands (use --help for details):
 
     args = parser.parse_args()
 
-    # Setup logging
-    setup_logging(args.verbose)
+    # Handle quiet mode - suppress output except errors
+    quiet_mode = getattr(args, "quiet", False)
+    json_mode = getattr(args, "json", False)
+
+    # Setup logging (verbose overrides quiet)
+    if quiet_mode and not args.verbose:
+        logging.getLogger().setLevel(logging.ERROR)
+        setup_logging(False)
+    else:
+        setup_logging(args.verbose)
     logger = logging.getLogger(__name__)
 
     # Create resource limits if specified
@@ -1296,36 +1312,56 @@ Subcommands (use --help for details):
         )
         files_per_sec = len(files) / elapsed_time if elapsed_time > 0 else 0
 
-        # Display results with colored output
-        cli.section("Campaign Results")
-        stats = {
-            "Successfully generated": f"{len(files)} files",
-            "Skipped": skipped,
-            "Duration": f"{elapsed_time:.2f}s ({files_per_sec:.1f} files/sec)",
-            "Output": str(args.output),
+        # Collect results for potential JSON output
+        results_data = {
+            "status": "success",
+            "generated_count": len(files),
+            "skipped_count": skipped,
+            "duration_seconds": round(elapsed_time, 2),
+            "files_per_second": round(files_per_sec, 1),
+            "output_directory": str(args.output),
+            "files": [str(f) for f in files[:100]],  # Limit to 100 in JSON
         }
 
         # Add strategy usage if available
         if hasattr(generator, "stats") and hasattr(generator.stats, "strategies_used"):
             strategies_used = generator.stats.strategies_used
             if isinstance(strategies_used, dict) and strategies_used:
-                stats["Strategies"] = ", ".join(
-                    f"{s}({c})" for s, c in sorted(strategies_used.items())
-                )
+                results_data["strategies_used"] = strategies_used
 
-        cli.print_summary(
-            "Fuzzing Complete",
-            stats,
-            success_count=len(files),
-            error_count=skipped,
-        )
+        # Output in JSON format if requested
+        if json_mode:
+            print(json.dumps(results_data, indent=2))
+        elif not quiet_mode:
+            # Display results with colored output
+            cli.section("Campaign Results")
+            stats = {
+                "Successfully generated": f"{len(files)} files",
+                "Skipped": skipped,
+                "Duration": f"{elapsed_time:.2f}s ({files_per_sec:.1f} files/sec)",
+                "Output": str(args.output),
+            }
 
-        if args.verbose:
-            cli.info("Sample generated files:")
-            for f in files[:10]:
-                cli.status(f"  - {f.name}")
-            if len(files) > 10:
-                cli.status(f"  ... and {len(files) - 10} more")
+            if "strategies_used" in results_data:
+                strat_used = results_data["strategies_used"]
+                if isinstance(strat_used, dict):
+                    stats["Strategies"] = ", ".join(
+                        f"{s}({c})" for s, c in sorted(strat_used.items())
+                    )
+
+            cli.print_summary(
+                "Fuzzing Complete",
+                stats,
+                success_count=len(files),
+                error_count=skipped,
+            )
+
+            if args.verbose:
+                cli.info("Sample generated files:")
+                for f in files[:10]:
+                    cli.status(f"  - {f.name}")
+                if len(files) > 10:
+                    cli.status(f"  ... and {len(files) - 10} more")
 
         # Network fuzzing if --network-fuzz specified
         if getattr(args, "network_fuzz", False):
