@@ -66,9 +66,36 @@ Enhanced fuzzing for 3D medical imaging applications that process patient studie
   - Path traversal payloads
   - Polyglot file generation
 - **SBOM Generation**: CycloneDX SBOM in CI security workflow
+- **CLI Test Coverage**: 241 new tests for previously uncovered CLI modules
+  - `test_cli_state.py` (22 tests) - state-aware fuzzing CLI
+  - `test_cli_persistent.py` (19 tests) - AFL-style persistent mode CLI
+  - `test_cli_tls.py` (19 tests) - TLS security testing CLI
+  - `test_cli_llm.py` (20 tests) - LLM-assisted mutation CLI
+  - `test_cli_differential.py` (27 tests) - cross-parser testing CLI
+  - `test_cli_corpus.py` (30 tests) - corpus management CLI
+  - `test_cli_samples.py` (48 tests) - synthetic sample generation CLI
+  - `test_response_aware_fuzzer.py` (56 tests) - response-aware network fuzzer
+
+### Removed
+
+- **DICOMweb Support**: Removed DICOMweb/WADO-RS functionality (out of scope)
+  - Removed `dicom_fuzzer/network/dicomweb_fuzzer.py`
+  - Removed httpx dependency and related code
+  - Focus remains on DICOM network protocol fuzzing
+
+### Changed
+
+- **Test Suite Optimization**: Reduced from 6,790 to 4,302 tests (-37%)
+  - Removed 66 duplicate/coverage-gaming test files
+  - Eliminated 40,494 lines of redundant test code
+  - Improved test-to-code ratio from 2:1 to 1.3:1 (industry standard)
+  - Maintained 72% code coverage
 
 ### Fixed
 
+- Fixed pyproject.toml optional-dependencies configuration
+  - Added proper `[project.optional-dependencies]` section
+  - Resolved uv warnings about missing extras
 - Corrected cyclonedx-py command syntax (`--of` instead of `--format`)
 - Fixed GeneratedMutation API usage in LLM CLI module
 - Resolved mypy type errors in corpus statistics
