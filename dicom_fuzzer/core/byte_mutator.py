@@ -759,7 +759,11 @@ class DICOMByteMutator(ByteMutator):
         result = self._havoc_stage(result)
 
         # Optionally restore DICM prefix
-        if preserve_magic and len(result) > self.DICOM_PREFIX_OFFSET + 4:
+        if preserve_magic:
+            # Ensure result is at least 132 bytes to hold DICM prefix
+            min_size = self.DICOM_PREFIX_OFFSET + len(self.DICOM_PREFIX)
+            if len(result) < min_size:
+                result.extend(b"\x00" * (min_size - len(result)))
             result[self.DICOM_PREFIX_OFFSET : self.DICOM_PREFIX_OFFSET + 4] = (
                 self.DICOM_PREFIX
             )
