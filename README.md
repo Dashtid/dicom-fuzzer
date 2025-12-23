@@ -167,8 +167,8 @@ DICOM-Fuzzer/
 │   │   ├── pixel_fuzzer.py    # Pixel data mutations
 │   │   ├── series_mutator.py  # 3D series mutations (Phase 2)
 │   │   └── parallel_mutator.py # Parallel processing (Phase 4)
-│   ├── tools/harness/               # Test harnesses
-│   │   └── viewer_launcher_3d.py # 3D viewer testing (Phase 3)
+│   ├── harness/               # Test harness integration
+│   │   └── stress_tester.py   # Resource exhaustion testing
 │   ├── utils/                 # Utilities
 │   │   ├── helpers.py         # Helper functions
 │   │   ├── logger.py          # Logging utilities
@@ -178,44 +178,30 @@ DICOM-Fuzzer/
 │       ├── generate_report.py # Report generation
 │       └── realtime_monitor.py # Live dashboard
 ├── tests/                     # Test suite (976+ tests)
-│   ├── test_lazy_loader.py    # Lazy loading tests (Phase 4)
-│   ├── test_series_cache.py   # Caching tests (Phase 4)
-│   ├── test_parallel_mutator.py # Parallel processing tests (Phase 4)
-│   ├── test_series_detector.py # Series detection tests (Phase 1)
-│   ├── test_series_mutator.py # Series mutation tests (Phase 2)
-│   ├── test_viewer_launcher_3d.py # Viewer testing tests (Phase 3)
+│   ├── test_core/             # Core functionality tests
+│   ├── test_strategies/       # Mutation strategy tests
+│   ├── test_cli/              # CLI tests
 │   └── ...                    # 970+ other tests
-├── tools/                  # Example scripts
-│   ├── demo_fuzzing.py        # Basic fuzzing demo
-│   ├── fuzz_dicom_viewer.py   # Viewer fuzzing example
-│   └── coverage_guided_fuzzing_demo.py
-├── demo/                      # Demonstration scripts
-│   ├── README.md              # Demo documentation
-│   ├── demo_simple.py         # Simple workflow demo
-│   └── demo_workflow.py       # Full framework demo
+├── tools/                     # Utilities & examples
+│   ├── scripts/               # Campaign & utility scripts
+│   ├── harness/               # Native fuzzing harnesses (AFL, libFuzzer)
+│   ├── examples/              # Usage examples
+│   └── generators/            # CVE/test case generators
+├── configs/                   # Configuration files
+│   ├── docker/                # Docker configurations
+│   ├── targets/               # Target application configs
+│   ├── seeds/                 # Seed DICOM files
+│   └── dictionaries/          # Fuzzing dictionaries
 ├── artifacts/                 # Fuzzing outputs (gitignored)
 │   ├── crashes/               # Crash files
 │   ├── fuzzed/                # Fuzzed DICOM files
 │   ├── corpus/                # Test corpus
 │   └── reports/               # Generated reports
-├── data/                      # Seed files & dictionaries
-│   ├── seeds/                 # Seed DICOM files
-│   └── dictionaries/          # Fuzzing dictionaries
-│   ├── generators/                   # Malicious sample library (NEW)
-│   ├── preamble_attacks/      # PE/DICOM, ELF/DICOM polyglots
-│   ├── cve_reproductions/     # CVE-specific trigger samples
-│   ├── parser_stress/         # Edge case stress tests
-│   ├── compliance_violations/ # Standard violation samples
-│   └── detection/             # YARA rules, scanner, sanitizer
 ├── docs/                      # Documentation
 │   ├── ARCHITECTURE.md        # System design
 │   ├── CLI_REFERENCE.md       # CLI command reference
 │   ├── FDA_COMPLIANCE.md      # FDA compliance reporting
 │   └── QUICKSTART.md          # Getting started guide
-│   ├── scripts/                   # Build/deployment scripts
-│   ├── benchmark_fuzzing.py   # Performance benchmarking
-│   ├── import_seed_corpus.py  # Seed corpus management
-│   └── download_public_seeds.py # Public seed download
 ├── pyproject.toml             # Project configuration
 ├── CHANGELOG.md               # Version history
 ├── LICENSE                    # MIT License
