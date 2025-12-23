@@ -67,10 +67,10 @@ pip install -e ".[dev,docs,network]"
 
 ```bash
 # Create directories
-mkdir -p samples/input samples/output
+mkdir -p artifacts/input artifacts/output
 
 # Option A: Use your own DICOM files
-cp /path/to/your/dicom/files/*.dcm samples/input/
+cp /path/to/your/dicom/files/*.dcm artifacts/input/
 
 # Option B: Download sample DICOM files (examples)
 # From: https://www.rubomedical.com/dicom_files/
@@ -82,31 +82,31 @@ cp /path/to/your/dicom/files/*.dcm samples/input/
 ```bash
 # Using uv
 uv run python -m dicom_fuzzer.cli \
-    --input samples/input/sample.dcm \
-    --output samples/output/ \
+    --input artifacts/input/sample.dcm \
+    --output artifacts/output/ \
     --count 10 \
     --strategies metadata,pixel
 
 # Using activated virtual environment
 python -m dicom_fuzzer.cli \
-    --input samples/input/sample.dcm \
-    --output samples/output/ \
+    --input artifacts/input/sample.dcm \
+    --output artifacts/output/ \
     --count 10 \
     --strategies metadata,pixel
 ```
 
 **What this does**:
 
-- Reads `sample.dcm` from `samples/input/`
+- Reads `sample.dcm` from `artifacts/input/`
 - Generates 10 fuzzed variants
 - Applies metadata and pixel data mutations
-- Saves results to `samples/output/`
+- Saves results to `artifacts/output/`
 
 ### Step 3: View Results
 
 ```bash
 # List generated files
-ls -lh samples/output/
+ls -lh artifacts/output/
 
 # Expected output:
 # fuzzed_0a1b2c3d.dcm
@@ -115,7 +115,7 @@ ls -lh samples/output/
 # ... (10 files total)
 
 # Check fuzzing session report
-cat samples/output/session_report.json
+cat artifacts/output/session_report.json
 ```
 
 ## Common Fuzzing Workflows
@@ -125,8 +125,8 @@ cat samples/output/session_report.json
 ```bash
 # 1. Generate 50 fuzzed files with all strategies
 uv run python -m dicom_fuzzer.cli \
-    --input samples/input/ct_scan.dcm \
-    --output samples/viewer_test/ \
+    --input artifacts/input/ct_scan.dcm \
+    --output artifacts/viewer_test/ \
     --count 50 \
     --strategies metadata,header,pixel,structure
 
@@ -139,17 +139,17 @@ uv run python -m dicom_fuzzer.cli \
 
 ```bash
 # 1. Prepare multi-slice series (e.g., CT or MRI)
-mkdir -p samples/series/input samples/series/output
+mkdir -p artifacts/series/input artifacts/series/output
 
 # 2. Run 3D series fuzzing
-uv run python examples/demo_3d_series.py \
-    --input-dir samples/series/input/ \
-    --output-dir samples/series/output/ \
+uv run python tools/examples/demo_3d_series.py \
+    --input-dir artifacts/series/input/ \
+    --output-dir artifacts/series/output/ \
     --num-mutations 20
 
 # 3. Validate series integrity
 uv run python -m dicom_fuzzer.series.validator \
-    --input samples/series/output/
+    --input artifacts/series/output/
 ```
 
 ### Workflow 3: Coverage-Guided Fuzzing (Advanced)
@@ -157,13 +157,13 @@ uv run python -m dicom_fuzzer.series.validator \
 ```bash
 # 1. Run with coverage tracking
 uv run python -m dicom_fuzzer.core.coverage_fuzzer \
-    --corpus samples/corpus/ \
-    --output samples/coverage_output/ \
+    --corpus artifacts/corpus/ \
+    --output artifacts/coverage/ \
     --duration 3600 \
     --target-binary /path/to/dicom_viewer
 
 # 2. View coverage report
-open samples/coverage_output/coverage_report.html
+open artifacts/coverage/coverage_report.html
 ```
 
 ## Understanding Fuzzing Strategies
@@ -212,7 +212,7 @@ When you find a file that crashes the target:
 
 ```bash
 # Copy to crash collection
-cp samples/output/fuzzed_abc123.dcm crash_samples/
+cp artifacts/output/fuzzed_abc123.dcm crash_samples/
 
 # Minimize the test case
 uv run python -m dicom_fuzzer.core.mutation_minimization \
@@ -250,7 +250,7 @@ For reproducible testing without external dependencies:
 
 ```bash
 uv run python -m dicom_fuzzer.utils.dicom_generator \
-    --output samples/synthetic/ \
+    --output artifacts/synthetic/ \
     --count 10 \
     --modality CT
 ```
@@ -278,7 +278,7 @@ uv run python -m dicom_fuzzer.cli --help
 
 ```bash
 # Verify files are valid DICOM
-file samples/input/*.dcm
+file artifacts/input/*.dcm
 
 # Should output: "DICOM medical imaging data"
 ```
@@ -292,10 +292,10 @@ file samples/input/*.dcm
 --count 10  # Instead of 1000
 
 # Process files individually
-for file in samples/input/*.dcm; do
+for file in artifacts/input/*.dcm; do
     uv run python -m dicom_fuzzer.cli \
         --input "$file" \
-        --output samples/output/ \
+        --output artifacts/output/ \
         --count 5
 done
 ```
@@ -306,8 +306,8 @@ done
 
 ```bash
 # Create output directory with proper permissions
-mkdir -p samples/output
-chmod 755 samples/output
+mkdir -p artifacts/output
+chmod 755 artifacts/output
 ```
 
 ## Need Help?

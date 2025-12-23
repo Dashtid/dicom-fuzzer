@@ -106,11 +106,11 @@ dicom-fuzzer/
 │   ├── analytics/          # Campaign analytics and visualization
 │   ├── cli/                # Command-line interfaces
 │   ├── core/               # Core fuzzing logic (57 modules)
-│   ├── harness/            # Test harness and execution
+│   ├── tools/harness/            # Test harness and execution
 │   ├── strategies/         # Mutation strategy implementations
 │   └── utils/              # Utility functions and helpers
 ├── tests/                  # Test suite (118 test files, 2,591 tests)
-├── examples/               # Example scripts and demos
+├── tools/               # Example scripts and demos
 ├── docs/                   # Documentation
 └── reports/                # Generated reports (gitignored)
 ```
@@ -590,7 +590,7 @@ For advanced users, custom mutation strategies can be added by subclassing exist
 3. **Measurement/Calibration Fuzzing** (`strategies/calibration_fuzzer.py`, ~500 lines)
    - 22+ attack types across pixel spacing, HU rescale, window/level, thickness
 
-4. **Memory & Stress Testing** (`harness/stress_tester.py`, ~450 lines)
+4. **Memory & Stress Testing** (`tools/harness/stress_tester.py`, ~450 lines)
    - Large series generation, memory monitoring, incremental loading attacks
 
 ### Potential Enhancements

@@ -167,7 +167,7 @@ DICOM-Fuzzer/
 │   │   ├── pixel_fuzzer.py    # Pixel data mutations
 │   │   ├── series_mutator.py  # 3D series mutations (Phase 2)
 │   │   └── parallel_mutator.py # Parallel processing (Phase 4)
-│   ├── harness/               # Test harnesses
+│   ├── tools/harness/               # Test harnesses
 │   │   └── viewer_launcher_3d.py # 3D viewer testing (Phase 3)
 │   ├── utils/                 # Utilities
 │   │   ├── helpers.py         # Helper functions
@@ -185,7 +185,7 @@ DICOM-Fuzzer/
 │   ├── test_series_mutator.py # Series mutation tests (Phase 2)
 │   ├── test_viewer_launcher_3d.py # Viewer testing tests (Phase 3)
 │   └── ...                    # 970+ other tests
-├── examples/                  # Example scripts
+├── tools/                  # Example scripts
 │   ├── demo_fuzzing.py        # Basic fuzzing demo
 │   ├── fuzz_dicom_viewer.py   # Viewer fuzzing example
 │   └── coverage_guided_fuzzing_demo.py
@@ -201,7 +201,7 @@ DICOM-Fuzzer/
 ├── data/                      # Seed files & dictionaries
 │   ├── seeds/                 # Seed DICOM files
 │   └── dictionaries/          # Fuzzing dictionaries
-├── samples/                   # Malicious sample library (NEW)
+│   ├── generators/                   # Malicious sample library (NEW)
 │   ├── preamble_attacks/      # PE/DICOM, ELF/DICOM polyglots
 │   ├── cve_reproductions/     # CVE-specific trigger samples
 │   ├── parser_stress/         # Edge case stress tests
@@ -212,7 +212,7 @@ DICOM-Fuzzer/
 │   ├── CLI_REFERENCE.md       # CLI command reference
 │   ├── FDA_COMPLIANCE.md      # FDA compliance reporting
 │   └── QUICKSTART.md          # Getting started guide
-├── scripts/                   # Build/deployment scripts
+│   ├── scripts/                   # Build/deployment scripts
 │   ├── benchmark_fuzzing.py   # Performance benchmarking
 │   ├── import_seed_corpus.py  # Seed corpus management
 │   └── download_public_seeds.py # Public seed download
@@ -747,7 +747,7 @@ print(f"Dangerous paths: {len(correlation.dangerous_paths)}")
 print(f"Vulnerable functions: {correlation.vulnerable_functions}")
 ```
 
-See [examples/stability_features_demo.py](examples/stability_features_demo.py) for complete demonstrations.
+See [tools/examples/stability_features_demo.py](tools/examples/stability_features_demo.py) for complete demonstrations.
 
 ## Malicious Sample Library (NEW)
 
@@ -774,18 +774,18 @@ A comprehensive collection of security-focused DICOM test samples for vulnerabil
 
 ```bash
 # Scan for polyglot attacks
-python samples/detection/scanner.py /path/to/dicom/files
+python tools/generators/detection/scanner.py /path/to/dicom/files
 
 # Sanitize infected files
-python samples/detection/sanitizer.py infected.dcm -o clean.dcm
+python tools/generators/detection/sanitizer.py infected.dcm -o clean.dcm
 
 # Test viewer with CVE samples
 python -m dicom_fuzzer.cli.fuzz_viewer \
-    --input samples/cve_reproductions/ \
+    --input tools/generators/cve_reproductions/ \
     --viewer "path/to/viewer.exe"
 
 # Generate new polyglot samples
-python samples/preamble_attacks/generator.py pe output.dcm
+python tools/generators/preamble_attacks/generator.py pe output.dcm
 ```
 
 ### Detection Tools
@@ -794,7 +794,7 @@ python samples/preamble_attacks/generator.py pe output.dcm
 - **sanitizer.py** - Neutralize PE/DICOM and ELF/DICOM files
 - **YARA rules** - Detection signatures for security tools
 
-See [samples/README.md](samples/README.md) for complete documentation.
+See [tools/generators/README.md](tools/generators/README.md) for complete documentation.
 
 ## Use Cases
 

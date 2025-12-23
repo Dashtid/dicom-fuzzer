@@ -132,7 +132,7 @@ DICOM Fuzzer includes built-in security features:
 
 ## Malicious Sample Library
 
-The `samples/` directory contains intentionally malicious DICOM files for security testing. **Handle with care.**
+The `tools/generators/` directory contains intentionally malicious DICOM files for security testing. **Handle with care.**
 
 ### Sample Categories
 
@@ -185,7 +185,7 @@ dicom-fuzzer samples --sanitize suspicious.dcm
 
 ### YARA Rules
 
-The `samples/detection/` directory includes YARA rules for detecting:
+The `tools/generators/detection/` directory includes YARA rules for detecting:
 
 - PE/DICOM polyglots
 - ELF/DICOM polyglots

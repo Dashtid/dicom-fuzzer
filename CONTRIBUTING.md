@@ -358,7 +358,7 @@ Describe testing performed:
    - [EXAMPLES.md](docs/EXAMPLES.md) for practical usage examples
    - [ARCHITECTURE.md](docs/ARCHITECTURE.md) for system design
 3. **API Documentation**: Generated from docstrings (Sphinx)
-4. **Examples**: Practical examples in `examples/` directory
+4. **Examples**: Practical examples in `tools/examples/` directory
 
 ### Writing Documentation
 
