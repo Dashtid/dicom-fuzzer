@@ -368,6 +368,15 @@ exclude_lines = [
     "@(abc\\.)?abstractmethod",
 ]
 
+[tool.coverage.paths]
+# Normalize paths across parallel workers for consistent coverage combination
+# This handles different import paths that workers might use
+source = [
+    "dicom_fuzzer/",
+    "*/site-packages/dicom_fuzzer/",
+    "*\\site-packages\\dicom_fuzzer\\",
+]
+
 [tool.coverage.html]
 directory = "artifacts/reports/coverage/htmlcov"
 
