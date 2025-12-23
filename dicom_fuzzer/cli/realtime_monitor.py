@@ -28,11 +28,7 @@ except ImportError:
     HAS_RICH = False
 
 
-# Mock class for test compatibility
-class FuzzingSession:
-    """Mock fuzzing session class for test compatibility."""
-
-    pass
+# Import canonical FuzzingSession for module users
 
 
 class RealtimeMonitor:

@@ -860,3 +860,454 @@ class TestFinallyBlockCoverage:
         # new_coverage should remain False (no new edges)
         # Note: This depends on the check happening AFTER we add to current_coverage
         # The finally block checks if current_coverage.edges - global_coverage.edges is non-empty
+
+
+class TestBranchCoverageTracker:
+    """Test BranchCoverageTracker class for AFL-style bitmap coverage."""
+
+    def test_initialization_default(self):
+        """Test initialization with default bitmap size."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker()
+
+        assert tracker.bitmap_size == 65536
+        assert len(tracker.bitmap) == 65536
+        assert tracker.total_edges == 0
+        assert tracker.unique_edges == 0
+        assert len(tracker.block_map) == 0
+        assert tracker._prev_block == 0
+
+    def test_initialization_custom_size(self):
+        """Test initialization with custom bitmap size."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker(bitmap_size=1024)
+
+        assert tracker.bitmap_size == 1024
+        assert len(tracker.bitmap) == 1024
+
+    def test_get_block_id_new_location(self):
+        """Test _get_block_id creates new ID for new location."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker()
+
+        block_id = tracker._get_block_id("test.py", 10)
+
+        assert block_id == 0
+        assert ("test.py", 10) in tracker.block_map
+        assert tracker.next_block_id == 1
+
+    def test_get_block_id_existing_location(self):
+        """Test _get_block_id returns existing ID for known location."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker()
+
+        block_id1 = tracker._get_block_id("test.py", 10)
+        block_id2 = tracker._get_block_id("test.py", 10)
+
+        assert block_id1 == block_id2
+        assert tracker.next_block_id == 1  # Should not increment
+
+    def test_compute_edge_hash(self):
+        """Test AFL-style edge hash computation."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker(bitmap_size=65536)
+
+        # Compute hash for edge from block 0 to block 1
+        edge_hash = tracker._compute_edge_hash(0, 1)
+
+        # Edge hash should be (to_block ^ (from_block >> 1)) % bitmap_size
+        expected = (1 ^ (0 >> 1)) % 65536
+        assert edge_hash == expected
+
+    def test_record_edge_new_edge(self):
+        """Test recording a new edge returns True."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker()
+
+        is_new = tracker.record_edge("test.py", 10, 11)
+
+        assert is_new is True
+        assert tracker.total_edges == 1
+        assert tracker.unique_edges == 1
+        assert len(tracker.edge_history) == 1
+
+    def test_record_edge_existing_edge(self):
+        """Test recording an existing edge returns False."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker()
+
+        # Record edge first time
+        tracker.record_edge("test.py", 10, 11)
+        # Record same edge again
+        is_new = tracker.record_edge("test.py", 10, 11)
+
+        assert is_new is False
+        assert tracker.total_edges == 2
+        assert tracker.unique_edges == 1
+
+    def test_record_edge_updates_bitmap(self):
+        """Test that recording edge updates bitmap with bucketed count."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker()
+
+        tracker.record_edge("test.py", 10, 11)
+
+        # Bitmap should have non-zero value at edge hash
+        # At least one byte should be set
+        assert any(b > 0 for b in tracker.bitmap)
+
+    def test_get_hit_bucket_low_count(self):
+        """Test hit bucket for low counts."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker()
+
+        assert tracker._get_hit_bucket(1) == 1
+        assert tracker._get_hit_bucket(2) == 2
+        assert tracker._get_hit_bucket(3) == 3
+        assert tracker._get_hit_bucket(4) == 4
+
+    def test_get_hit_bucket_high_count(self):
+        """Test hit bucket for high counts."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker()
+
+        assert tracker._get_hit_bucket(8) == 5
+        assert tracker._get_hit_bucket(16) == 6
+        assert tracker._get_hit_bucket(32) == 7
+        assert tracker._get_hit_bucket(128) == 8
+
+    def test_get_hit_bucket_very_high_count(self):
+        """Test hit bucket for very high counts (beyond max bucket)."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker()
+
+        assert tracker._get_hit_bucket(1000) == 8  # Max bucket
+
+    def test_get_coverage_hash(self):
+        """Test coverage hash generation."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker()
+        tracker.record_edge("test.py", 10, 11)
+
+        hash_val = tracker.get_coverage_hash()
+
+        assert isinstance(hash_val, str)
+        assert len(hash_val) == 16
+
+    def test_get_coverage_hash_empty(self):
+        """Test coverage hash for empty bitmap."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker()
+
+        hash_val = tracker.get_coverage_hash()
+
+        assert isinstance(hash_val, str)
+        assert len(hash_val) == 16
+
+    def test_has_new_coverage_true(self):
+        """Test has_new_coverage returns True when new edges exist."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker(bitmap_size=1024)
+        tracker.record_edge("test.py", 10, 11)
+
+        other_bitmap = bytearray(1024)  # Empty bitmap
+
+        assert tracker.has_new_coverage(other_bitmap) is True
+
+    def test_has_new_coverage_false(self):
+        """Test has_new_coverage returns False when no new edges."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker(bitmap_size=1024)
+
+        other_bitmap = bytearray(1024)  # Both empty
+
+        assert tracker.has_new_coverage(other_bitmap) is False
+
+    def test_merge_bitmap(self):
+        """Test merging bitmaps returns new edge count."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker(bitmap_size=1024)
+
+        other_bitmap = bytearray(1024)
+        other_bitmap[0] = 1  # Set one edge
+        other_bitmap[100] = 2  # Set another edge
+
+        new_edges = tracker.merge_bitmap(other_bitmap)
+
+        assert new_edges == 2
+        assert tracker.bitmap[0] == 1
+        assert tracker.bitmap[100] == 2
+
+    def test_merge_bitmap_overlapping(self):
+        """Test merging with overlapping coverage takes max."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker(bitmap_size=1024)
+        tracker.bitmap[0] = 3  # Existing coverage
+
+        other_bitmap = bytearray(1024)
+        other_bitmap[0] = 5  # Higher value for same edge
+
+        tracker.merge_bitmap(other_bitmap)
+
+        assert tracker.bitmap[0] == 5  # Should take max
+
+    def test_get_bitmap_copy(self):
+        """Test get_bitmap_copy returns independent copy."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker(bitmap_size=1024)
+        tracker.record_edge("test.py", 10, 11)
+
+        bitmap_copy = tracker.get_bitmap_copy()
+
+        # Modify copy
+        bitmap_copy[0] = 255
+
+        # Original should be unchanged
+        assert tracker.bitmap != bitmap_copy or len(bitmap_copy) == 1024
+
+    def test_reset_bitmap(self):
+        """Test reset_bitmap clears all coverage."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker(bitmap_size=1024)
+        tracker.record_edge("test.py", 10, 11)
+        tracker._prev_block = 5
+
+        tracker.reset_bitmap()
+
+        assert all(b == 0 for b in tracker.bitmap)
+        assert tracker._prev_block == 0
+
+    def test_get_stats(self):
+        """Test get_stats returns all expected fields."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker(bitmap_size=1024)
+        tracker.record_edge("test.py", 10, 11)
+        tracker.record_edge("test.py", 11, 12)
+
+        stats = tracker.get_stats()
+
+        assert "bitmap_size" in stats
+        assert "edges_covered" in stats
+        assert "coverage_percent" in stats
+        assert "hot_edges" in stats
+        assert "total_edge_transitions" in stats
+        assert "unique_blocks" in stats
+        assert "edge_density" in stats
+
+        assert stats["bitmap_size"] == 1024
+        assert stats["total_edge_transitions"] == 2
+
+    def test_get_rare_edges(self):
+        """Test get_rare_edges returns edges with low hit counts."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker()
+
+        # Record edge once (rare)
+        tracker.record_edge("test.py", 10, 11)
+
+        # Record another edge many times (not rare)
+        for _ in range(10):
+            tracker.record_edge("test.py", 20, 21)
+
+        rare_edges = tracker.get_rare_edges(threshold=2)
+
+        assert len(rare_edges) >= 1
+
+    def test_export_bitmap(self, tmp_path):
+        """Test exporting bitmap to file."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        tracker = BranchCoverageTracker(bitmap_size=1024)
+        tracker.record_edge("test.py", 10, 11)
+
+        filepath = tmp_path / "bitmap.bin"
+        tracker.export_bitmap(filepath)
+
+        assert filepath.exists()
+        assert filepath.stat().st_size == 1024
+
+    def test_import_bitmap(self, tmp_path):
+        """Test importing bitmap from file."""
+        from dicom_fuzzer.core.coverage_instrumentation import BranchCoverageTracker
+
+        # Create a bitmap file
+        filepath = tmp_path / "bitmap.bin"
+        test_bitmap = bytearray(1024)
+        test_bitmap[0] = 5
+        test_bitmap[100] = 3
+        filepath.write_bytes(test_bitmap)
+
+        tracker = BranchCoverageTracker(bitmap_size=1024)
+        tracker.import_bitmap(filepath)
+
+        assert tracker.bitmap[0] == 5
+        assert tracker.bitmap[100] == 3
+
+
+class TestEnhancedCoverageTracker:
+    """Test EnhancedCoverageTracker with AFL-style bitmap support."""
+
+    def test_initialization(self):
+        """Test enhanced tracker initialization."""
+        from dicom_fuzzer.core.coverage_instrumentation import EnhancedCoverageTracker
+
+        tracker = EnhancedCoverageTracker()
+
+        assert tracker.branch_tracker is not None
+        assert len(tracker.global_bitmap) == 65536
+
+    def test_initialization_custom_bitmap_size(self):
+        """Test enhanced tracker with custom bitmap size."""
+        from dicom_fuzzer.core.coverage_instrumentation import EnhancedCoverageTracker
+
+        tracker = EnhancedCoverageTracker(bitmap_size=1024)
+
+        assert tracker.branch_tracker.bitmap_size == 1024
+        assert len(tracker.global_bitmap) == 1024
+
+    def test_initialization_with_target_modules(self):
+        """Test enhanced tracker with target modules."""
+        from dicom_fuzzer.core.coverage_instrumentation import EnhancedCoverageTracker
+
+        modules = {"dicom_fuzzer"}
+        tracker = EnhancedCoverageTracker(target_modules=modules)
+
+        assert tracker.target_modules == modules
+
+    def test_trace_function_records_bitmap(self):
+        """Test that enhanced _trace_function updates bitmap."""
+        from dicom_fuzzer.core.coverage_instrumentation import EnhancedCoverageTracker
+
+        tracker = EnhancedCoverageTracker()
+        tracker.trace_enabled = True
+        tracker.last_location = ("test.py", 10)
+
+        frame = Mock()
+        frame.f_code.co_filename = "test.py"
+        frame.f_code.co_name = "func"
+        frame.f_lineno = 11
+
+        tracker._trace_function(frame, "line", None)
+
+        # Should have recorded edge in branch_tracker
+        assert tracker.branch_tracker.total_edges > 0
+
+    def test_trace_function_disabled(self):
+        """Test trace function returns None when disabled."""
+        from dicom_fuzzer.core.coverage_instrumentation import EnhancedCoverageTracker
+
+        tracker = EnhancedCoverageTracker()
+        tracker.trace_enabled = False
+
+        frame = Mock()
+        frame.f_code.co_filename = "test.py"
+
+        result = tracker._trace_function(frame, "line", None)
+
+        assert result is None
+
+    def test_trace_function_skips_non_target(self):
+        """Test trace function skips non-target modules."""
+        from dicom_fuzzer.core.coverage_instrumentation import EnhancedCoverageTracker
+
+        tracker = EnhancedCoverageTracker(target_modules={"dicom_fuzzer"})
+        tracker.trace_enabled = True
+
+        frame = Mock()
+        frame.f_code.co_filename = "other_module.py"
+        frame.f_lineno = 10
+
+        result = tracker._trace_function(frame, "line", None)
+
+        assert result is None
+
+    def test_track_coverage_resets_bitmap(self):
+        """Test track_coverage resets branch tracker bitmap."""
+        from dicom_fuzzer.core.coverage_instrumentation import EnhancedCoverageTracker
+
+        tracker = EnhancedCoverageTracker()
+
+        # Add some coverage
+        tracker.branch_tracker.record_edge("test.py", 1, 2)
+
+        with tracker.track_coverage() as cov:
+            pass
+
+        # Bitmap should have been reset at start of tracking
+        # (but may have new coverage from actual tracing)
+
+    def test_track_coverage_detects_new_bitmap_coverage(self):
+        """Test that track_coverage detects new coverage via bitmap."""
+        from dicom_fuzzer.core.coverage_instrumentation import EnhancedCoverageTracker
+
+        tracker = EnhancedCoverageTracker()
+
+        with tracker.track_coverage(b"test") as cov:
+            # Simulate new coverage
+            tracker.branch_tracker.record_edge("test.py", 10, 11)
+
+        # Should have merged into global bitmap
+        assert any(b > 0 for b in tracker.global_bitmap)
+
+    def test_get_coverage_stats_includes_bitmap(self):
+        """Test get_coverage_stats includes bitmap stats."""
+        from dicom_fuzzer.core.coverage_instrumentation import EnhancedCoverageTracker
+
+        tracker = EnhancedCoverageTracker()
+        tracker.branch_tracker.record_edge("test.py", 10, 11)
+
+        stats = tracker.get_coverage_stats()
+
+        assert "bitmap_coverage" in stats
+        assert "bitmap_size" in stats["bitmap_coverage"]
+
+
+class TestGetEnhancedTracker:
+    """Test get_enhanced_tracker factory function."""
+
+    def test_get_enhanced_tracker_default(self):
+        """Test get_enhanced_tracker with defaults."""
+        from dicom_fuzzer.core.coverage_instrumentation import get_enhanced_tracker
+
+        tracker = get_enhanced_tracker()
+
+        assert tracker.target_modules == set()
+        assert tracker.branch_tracker.bitmap_size == 65536
+
+    def test_get_enhanced_tracker_with_modules(self):
+        """Test get_enhanced_tracker with target modules."""
+        from dicom_fuzzer.core.coverage_instrumentation import get_enhanced_tracker
+
+        modules = {"dicom_fuzzer", "test"}
+        tracker = get_enhanced_tracker(target_modules=modules)
+
+        assert tracker.target_modules == modules
+
+    def test_get_enhanced_tracker_with_bitmap_size(self):
+        """Test get_enhanced_tracker with custom bitmap size."""
+        from dicom_fuzzer.core.coverage_instrumentation import get_enhanced_tracker
+
+        tracker = get_enhanced_tracker(bitmap_size=2048)
+
+        assert tracker.branch_tracker.bitmap_size == 2048

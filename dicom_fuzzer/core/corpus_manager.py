@@ -88,10 +88,12 @@ class CorpusStats:
     coverage_history: list[tuple[float, int]] = field(default_factory=list)
 
 
-class CorpusManager:
+class SeedCorpusManager:
     """Manages the seed corpus for coverage-guided fuzzing.
 
     Implements intelligent seed selection, prioritization, and minimization.
+    Works with raw bytes and CoverageInfo. For DICOM Dataset-based corpus,
+    see dicom_fuzzer.core.corpus.CorpusManager instead.
     """
 
     def __init__(
@@ -451,7 +453,7 @@ class CorpusMinimizer:
     3. Remove seeds that provide no unique coverage
     """
 
-    def __init__(self, corpus: CorpusManager):
+    def __init__(self, corpus: SeedCorpusManager):
         """Initialize minimizer with a corpus.
 
         Args:
@@ -656,7 +658,7 @@ class CorpusMinimizer:
         }
 
 
-class HistoricalCorpusManager(CorpusManager):
+class HistoricalCorpusManager(SeedCorpusManager):
     """Enhanced corpus manager with historical learning.
 
     Uses data from previous fuzzing campaigns to improve seed selection.
@@ -677,7 +679,7 @@ class HistoricalCorpusManager(CorpusManager):
             return
         for campaign_dir in self.history_dir.iterdir():
             if campaign_dir.is_dir():
-                corpus_manager = CorpusManager()
+                corpus_manager = SeedCorpusManager()
                 corpus_manager.load_corpus(campaign_dir)
 
                 # Extract valuable seeds
@@ -697,3 +699,8 @@ class HistoricalCorpusManager(CorpusManager):
         # Add top seeds to corpus
         for seed in valuable_seeds[:max_seeds]:
             self.add_seed(seed.data, seed.coverage)
+
+
+# Backwards compatibility alias - CorpusManager was renamed to SeedCorpusManager
+# to distinguish from dicom_fuzzer.core.corpus.CorpusManager (Dataset-based)
+CorpusManager = SeedCorpusManager

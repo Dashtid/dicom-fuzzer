@@ -840,6 +840,11 @@ def main() -> int:
 
             return stress_main(sys.argv[2:])
 
+        if subcommand == "target":
+            from dicom_fuzzer.cli.target import main as target_main
+
+            return target_main(sys.argv[2:])
+
     parser = argparse.ArgumentParser(
         description="DICOM Fuzzer - Security testing tool for medical imaging systems",
         epilog="""

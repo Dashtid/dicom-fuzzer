@@ -109,8 +109,8 @@ class StateTransition:
 
 
 @dataclass
-class FuzzingSession:
-    """Tracks a fuzzing session."""
+class NetworkFuzzingSession:
+    """Tracks a network fuzzing session state."""
 
     start_time: float = 0.0
     messages_sent: int = 0
@@ -197,7 +197,7 @@ class DicomNetworkFuzzer:
         self.timeout = timeout
 
         self.state_machine = DicomProtocolStateMachine()
-        self.session = FuzzingSession()
+        self.session = NetworkFuzzingSession()
         self.socket: socket.socket | None = None
 
         # State coverage tracking
@@ -626,7 +626,7 @@ class DicomNetworkFuzzer:
         seed_corpus: Path | None = None,
     ) -> dict[str, Any]:
         """Run a fuzzing campaign."""
-        self.session = FuzzingSession(start_time=time.time())
+        self.session = NetworkFuzzingSession(start_time=time.time())
         seeds: list[bytes] = []
 
         # Load seed corpus if provided

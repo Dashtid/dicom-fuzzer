@@ -472,7 +472,7 @@ class AdaptiveMutationSelector:
 
 
 @dataclass
-class FuzzingSession:
+class ResponseAwareSession:
     """Track a response-aware fuzzing session."""
 
     session_id: str = ""
@@ -507,7 +507,7 @@ class ResponseAwareFuzzer:
         self.parser = ResponseParser()
         self.analyzer = ResponseAnalyzer()
         self.selector = AdaptiveMutationSelector()
-        self.session = FuzzingSession()
+        self.session = ResponseAwareSession()
 
     def process_response(
         self,
@@ -618,3 +618,8 @@ class ResponseAwareFuzzer:
         """
         parsed = [ResponseParser.parse(data, time) for data, time in normal_responses]
         self.analyzer.establish_baseline(parsed)
+
+
+# Backwards compatibility alias - FuzzingSession was renamed to ResponseAwareSession
+# to avoid collision with dicom_fuzzer.core.fuzzing_session.FuzzingSession
+FuzzingSession = ResponseAwareSession
