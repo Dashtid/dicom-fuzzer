@@ -31,7 +31,7 @@ repos:
         args:
           - --config-file=pyproject.toml
           - --ignore-missing-imports
-        exclude: ^(tests/|examples/|demo/|scripts/)
+        exclude: ^(tests/|tools/|demo/)
 
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
