@@ -4,7 +4,7 @@
 # Includes REST API and DICOM network protocol endpoints.
 #
 # BUILD:
-#   docker build -t dicom-fuzzer/orthanc:latest -f docker/orthanc/Dockerfile .
+#   docker build -t dicom-fuzzer/orthanc:latest -f configs/docker/orthanc/Dockerfile .
 #
 # RUN:
 #   docker run --rm -p 8042:8042 -p 4242:4242 dicom-fuzzer/orthanc

@@ -4,10 +4,10 @@
 # Includes dcmdump, dcmqrscp, and other DICOM utilities for fuzzing.
 #
 # BUILD:
-#   docker build -t dicom-fuzzer/dcmtk:latest -f docker/dcmtk/Dockerfile .
+#   docker build -t dicom-fuzzer/dcmtk:latest -f configs/docker/dcmtk/Dockerfile .
 #
 # RUN (dcmdump parser):
-#   docker run --rm -v $(pwd)/samples:/samples dicom-fuzzer/dcmtk dcmdump /samples/test.dcm
+#   docker run --rm -v $(pwd)/tools/generators:/input dicom-fuzzer/dcmtk dcmdump /input/test.dcm
 #
 # RUN (dcmqrscp DICOM server):
 #   docker run --rm -p 11112:11112 dicom-fuzzer/dcmtk dcmqrscp -c /etc/dcmtk/dcmqrscp.cfg
