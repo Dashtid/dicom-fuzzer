@@ -29,6 +29,7 @@ except ImportError:
 
 
 # Import canonical FuzzingSession for module users
+from dicom_fuzzer.core.fuzzing_session import FuzzingSession  # noqa: F401
 
 
 class RealtimeMonitor:

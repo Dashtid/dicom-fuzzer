@@ -16,10 +16,10 @@ from pathlib import Path
 
 import pytest
 
-# Add samples directory to path for imports
-# Path: tests/test_core/test_samples_generators.py -> project_root/samples
-SAMPLES_DIR = Path(__file__).parent.parent.parent / "samples"
-sys.path.insert(0, str(SAMPLES_DIR))
+# Add generators directory to path for imports
+# Path: tests/test_core/test_samples_generators.py -> project_root/tools/generators
+GENERATORS_DIR = Path(__file__).parent.parent.parent / "tools" / "generators"
+sys.path.insert(0, str(GENERATORS_DIR))
 
 
 class TestPreambleAttackGenerator:
