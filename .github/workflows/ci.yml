@@ -37,11 +37,11 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run Ruff linter
-        run: uv run ruff check --output-format=github dicom_fuzzer/ tests/ examples/
+        run: uv run ruff check --output-format=github dicom_fuzzer/ tests/ tools/examples/
         continue-on-error: true  # Allow linting warnings without failing CI
 
       - name: Run Ruff formatter
-        run: uv run ruff format --check dicom_fuzzer/ tests/ examples/
+        run: uv run ruff format --check dicom_fuzzer/ tests/ tools/examples/
 
   security-scan:
     name: Security Scan (Bandit)

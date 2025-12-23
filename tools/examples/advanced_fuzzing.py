@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Production Fuzzing Example: DCMTK dcmdump
+"""Production Fuzzing Example: DCMTK dcmdump
 
 This example demonstrates a complete end-to-end fuzzing workflow against
 the DCMTK dcmdump parser using real DICOM files and production-grade configurations.
@@ -70,14 +69,14 @@ class DCMTKFuzzer:
         output_dir: Path = Path("./artifacts/fuzzed"),
         strip_pixels: bool = True,
     ):
-        """
-        Initialize DCMTK fuzzer.
+        """Initialize DCMTK fuzzer.
 
         Args:
             target_path: Path to dcmdump executable
             use_docker: Use Docker container instead of local executable
             output_dir: Directory for fuzzing outputs
             strip_pixels: Remove PixelData to focus on parser fuzzing
+
         """
         self.target_path = target_path
         self.use_docker = use_docker
@@ -131,8 +130,7 @@ class DCMTKFuzzer:
             )
 
     def generate_fuzzed_files(self, seed_dir: Path, count: int) -> list:
-        """
-        Generate fuzzed DICOM files from seeds.
+        """Generate fuzzed DICOM files from seeds.
 
         Args:
             seed_dir: Directory containing seed DICOM files
@@ -140,6 +138,7 @@ class DCMTKFuzzer:
 
         Returns:
             List of paths to fuzzed files
+
         """
         logger.info(f"Generating {count} fuzzed files from seeds in {seed_dir}")
 
@@ -187,8 +186,7 @@ class DCMTKFuzzer:
     def run_fuzzing_campaign(
         self, fuzzed_files: list, stop_on_crash: bool = False
     ) -> dict:
-        """
-        Execute fuzzing campaign against dcmdump.
+        """Execute fuzzing campaign against dcmdump.
 
         Args:
             fuzzed_files: List of fuzzed file paths
@@ -196,6 +194,7 @@ class DCMTKFuzzer:
 
         Returns:
             Campaign statistics
+
         """
         logger.info(f"Starting fuzzing campaign: {len(fuzzed_files)} test cases")
 
@@ -256,11 +255,11 @@ class DCMTKFuzzer:
         return stats
 
     def generate_report(self) -> Path:
-        """
-        Generate comprehensive fuzzing report.
+        """Generate comprehensive fuzzing report.
 
         Returns:
             Path to HTML report
+
         """
         logger.info("Generating fuzzing report...")
 
