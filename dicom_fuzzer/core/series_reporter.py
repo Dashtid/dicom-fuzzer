@@ -140,7 +140,7 @@ class Series3DReportGenerator:
     - Coverage correlation
     """
 
-    def __init__(self, output_dir: str = "./reports"):
+    def __init__(self, output_dir: str = "./artifacts/reports"):
         """Initialize Series3D report generator.
 
         Args:

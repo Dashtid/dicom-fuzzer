@@ -116,7 +116,7 @@ class CampaignRecovery:
 
     def __init__(
         self,
-        checkpoint_dir: str = "./checkpoints",
+        checkpoint_dir: str = "./artifacts/checkpoints",
         checkpoint_interval: int = 100,  # Files between checkpoints
         enable_auto_resume: bool = True,
     ):

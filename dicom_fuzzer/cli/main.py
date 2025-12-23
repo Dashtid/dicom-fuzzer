@@ -899,7 +899,7 @@ Subcommands (use --help for details):
     parser.add_argument(
         "-o",
         "--output",
-        default="./campaigns/output",
+        default="./artifacts/campaigns",
         metavar="DIR",
         help="Output directory for fuzzed files (default: ./campaigns/output)",
     )

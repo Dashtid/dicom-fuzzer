@@ -273,7 +273,7 @@ class SyntheticDicomGenerator:
 
     def __init__(
         self,
-        output_dir: str | Path = "./synthetic_dicoms",
+        output_dir: str | Path = "./artifacts/synthetic",
         seed: int | None = None,
     ) -> None:
         """Initialize the generator.

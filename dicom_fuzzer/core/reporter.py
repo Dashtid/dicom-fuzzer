@@ -27,7 +27,7 @@ class ReportGenerator:
     Both HTML and JSON generated from the same data structures.
     """
 
-    def __init__(self, output_dir: str = "./reports"):
+    def __init__(self, output_dir: str = "./artifacts/reports"):
         """Initialize report generator.
 
         Args:

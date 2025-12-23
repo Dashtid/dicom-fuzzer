@@ -103,7 +103,7 @@ class TargetRunner:
         self,
         target_executable: str,
         timeout: float = 5.0,
-        crash_dir: str = "./crashes",
+        crash_dir: str = "./artifacts/crashes",
         collect_stdout: bool = True,
         collect_stderr: bool = True,
         max_retries: int = 2,

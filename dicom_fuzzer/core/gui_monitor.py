@@ -142,7 +142,9 @@ class MonitorConfig:
     memory_spike_percent: float = 50.0
     hang_timeout: float = 5.0
     capture_screenshots: bool = True
-    screenshot_dir: Path = field(default_factory=lambda: Path("./screenshots"))
+    screenshot_dir: Path = field(
+        default_factory=lambda: Path("./artifacts/screenshots")
+    )
     error_patterns: list[str] = field(
         default_factory=lambda: [
             r"(?i)error",

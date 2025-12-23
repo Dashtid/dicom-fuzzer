@@ -116,7 +116,7 @@ class FuzzingSession:
         self,
         session_name: str | None = None,
         output_dir: str = "./artifacts/fuzzed",
-        reports_dir: str = "./reports",
+        reports_dir: str = "./artifacts/reports",
         config: dict | None = None,
         session_id: str | None = None,
         crashes_dir: str | None = None,
