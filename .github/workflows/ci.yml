@@ -194,11 +194,12 @@ jobs:
           title: Test Coverage Report
           badge-title: Coverage
           hide-badge: false
-          hide-report: false
+          hide-report: true
           create-new-comment: false
           hide-comment: false
           report-only-changed-files: true
           remove-links-to-files: true
+          xml-skip-covered: true
 
   build:
     name: Build Package
