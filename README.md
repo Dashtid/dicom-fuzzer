@@ -100,8 +100,8 @@ dicom-fuzzer/
 
 - [Quick Start Guide](docs/QUICKSTART.md)
 - [CLI Reference](docs/CLI_REFERENCE.md)
+- [CVE Reference](docs/CVE_REFERENCE.md)
 - [Architecture](docs/ARCHITECTURE.md)
-- [FDA Compliance](docs/FDA_COMPLIANCE.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 

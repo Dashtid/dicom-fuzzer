@@ -483,4 +483,4 @@ python -m dicom_fuzzer.cli fda-report -i results.json \
 
 ---
 
-For more information, see [QUICKSTART.md](QUICKSTART.md) or [FDA_COMPLIANCE.md](FDA_COMPLIANCE.md).
+For more information, see [QUICKSTART.md](QUICKSTART.md) or [CVE_REFERENCE.md](CVE_REFERENCE.md).
