@@ -85,17 +85,40 @@ python -m dicom_fuzzer.cli INPUT [OPTIONS]
 
 ### Security Testing Options
 
-| Option                   | Default | Description                            |
-| ------------------------ | ------- | -------------------------------------- |
-| `--security-fuzz`        | false   | Enable medical device security fuzzing |
-| `--target-cves CVES`     | all     | Comma-separated CVE patterns           |
-| `--vuln-classes CLASSES` | all     | Comma-separated vulnerability classes  |
-| `--security-report FILE` | -       | Output file for security report (JSON) |
+**Note:** CVE-based security mutations are now **enabled by default** in the coverage-guided mutator. The fuzzer automatically applies mutations targeting real DICOM vulnerabilities during standard fuzzing.
 
-Available CVE patterns:
+| Option                   | Default | Description                                     |
+| ------------------------ | ------- | ----------------------------------------------- |
+| `--security-fuzz`        | false   | Enable extended medical device security fuzzing |
+| `--target-cves CVES`     | all     | Comma-separated CVE patterns                    |
+| `--vuln-classes CLASSES` | all     | Comma-separated vulnerability classes           |
+| `--security-report FILE` | -       | Output file for security report (JSON)          |
+| `--no-security`          | false   | Disable CVE mutations (not recommended)         |
 
-- CVE-2025-35975, CVE-2025-36521, CVE-2025-5943
-- CVE-2025-1001, CVE-2022-2119, CVE-2022-2120
+#### CVE Mutations (Enabled by Default)
+
+The fuzzer includes 9 CVE mutation categories applied automatically:
+
+| Mutation Type            | CVE(s)               | Description                       |
+| ------------------------ | -------------------- | --------------------------------- |
+| `cve_heap_overflow`      | CVE-2025-5943        | Pixel data parsing overflow       |
+| `cve_integer_overflow`   | CVE-2025-5943        | Dimension integer overflow        |
+| `cve_malformed_length`   | CVE-2020-29625       | Undefined/oversized length fields |
+| `cve_path_traversal`     | CVE-2021-41946       | Path traversal in filename fields |
+| `cve_deep_nesting`       | CVE-2022-24193       | Deep sequence nesting (DoS)       |
+| `cve_polyglot`           | CVE-2019-11687       | PE/ELF preamble injection         |
+| `cve_encapsulated_pixel` | CVE-2025-11266       | PixelData fragment underflow      |
+| `cve_jpeg_codec`         | CVE-2025-53618/53619 | JPEG codec OOB read               |
+| `cve_random`             | Any                  | Random CVE from registry          |
+
+#### Available CVE Patterns (for --target-cves)
+
+- CVE-2025-5943 (MicroDicom OOB write)
+- CVE-2025-11266 (GDCM PixelData)
+- CVE-2025-53618, CVE-2025-53619 (GDCM JPEG codec)
+- CVE-2025-1001 (RadiAnt MitM)
+- CVE-2022-2119, CVE-2022-2120 (DCMTK path traversal)
+- CVE-2019-11687 (DICOM preamble executable)
 
 Available vulnerability classes:
 

@@ -2,6 +2,8 @@
 
 Implements intelligent mutation strategies that adapt based on coverage feedback.
 Learns which mutations are most effective for discovering new code paths.
+
+Includes CVE-based security mutations by default for vulnerability discovery.
 """
 
 import random
@@ -12,8 +14,16 @@ from typing import Any
 
 import numpy as np
 
+from dicom_fuzzer.strategies.cve_mutations import (
+    apply_cve_mutation,
+    get_mutation_func,
+)
+from dicom_fuzzer.utils.logger import get_logger
+
 from .corpus_manager import Seed
 from .coverage_instrumentation import CoverageInfo
+
+logger = get_logger(__name__)
 
 
 class MutationType(Enum):
@@ -51,6 +61,17 @@ class MutationType(Enum):
     # Grammar-based
     GRAMMAR_MUTATE = "grammar_mutate"
     DICTIONARY_REPLACE = "dictionary_replace"
+
+    # CVE-based security mutations (enabled by default)
+    CVE_HEAP_OVERFLOW = "cve_heap_overflow"
+    CVE_INTEGER_OVERFLOW = "cve_integer_overflow"
+    CVE_MALFORMED_LENGTH = "cve_malformed_length"
+    CVE_PATH_TRAVERSAL = "cve_path_traversal"
+    CVE_DEEP_NESTING = "cve_deep_nesting"
+    CVE_POLYGLOT = "cve_polyglot"
+    CVE_ENCAPSULATED_PIXEL = "cve_encapsulated_pixel"
+    CVE_JPEG_CODEC = "cve_jpeg_codec"
+    CVE_RANDOM = "cve_random"  # Apply random CVE mutation
 
 
 @dataclass
@@ -96,6 +117,8 @@ class CoverageGuidedMutator:
         max_mutations: int = 10,
         adaptive_mode: bool = True,
         dicom_aware: bool = True,
+        security_aware: bool = True,
+        cve_mutation_probability: float = 0.2,
     ):
         """Initialize the coverage-guided mutator.
 
@@ -103,11 +126,19 @@ class CoverageGuidedMutator:
             max_mutations: Maximum mutations per input
             adaptive_mode: Enable adaptive mutation selection
             dicom_aware: Enable DICOM-specific mutations
+            security_aware: Enable CVE-based security mutations (default: True)
+            cve_mutation_probability: Probability of selecting CVE mutation (default: 0.2)
 
         """
         self.max_mutations = max_mutations
         self.adaptive_mode = adaptive_mode
         self.dicom_aware = dicom_aware
+        self.security_aware = security_aware
+        self.cve_mutation_probability = cve_mutation_probability
+
+        # Track CVE mutation statistics
+        self.cve_mutation_count = 0
+        self.cve_mutations_applied: dict[str, int] = {}
 
         # Initialize mutation strategies
         self.strategies: dict[MutationType, MutationStrategy] = {}
@@ -182,6 +213,35 @@ class CoverageGuidedMutator:
                 MutationType.DICOM_TRANSFER_SYNTAX,
             ]:
                 self.strategies[mutation_type].enabled = False
+
+        # Disable CVE mutations if not security-aware
+        if not self.security_aware:
+            for mutation_type in [
+                MutationType.CVE_HEAP_OVERFLOW,
+                MutationType.CVE_INTEGER_OVERFLOW,
+                MutationType.CVE_MALFORMED_LENGTH,
+                MutationType.CVE_PATH_TRAVERSAL,
+                MutationType.CVE_DEEP_NESTING,
+                MutationType.CVE_POLYGLOT,
+                MutationType.CVE_ENCAPSULATED_PIXEL,
+                MutationType.CVE_JPEG_CODEC,
+                MutationType.CVE_RANDOM,
+            ]:
+                self.strategies[mutation_type].enabled = False
+        else:
+            # Give CVE mutations higher initial weight for security testing
+            for mutation_type in [
+                MutationType.CVE_HEAP_OVERFLOW,
+                MutationType.CVE_INTEGER_OVERFLOW,
+                MutationType.CVE_MALFORMED_LENGTH,
+                MutationType.CVE_PATH_TRAVERSAL,
+                MutationType.CVE_DEEP_NESTING,
+                MutationType.CVE_POLYGLOT,
+                MutationType.CVE_ENCAPSULATED_PIXEL,
+                MutationType.CVE_JPEG_CODEC,
+                MutationType.CVE_RANDOM,
+            ]:
+                self.strategies[mutation_type].weight = 2.0  # Higher weight
 
     def mutate(
         self, seed: Seed | bytes, coverage_info: CoverageInfo | None = None
@@ -323,6 +383,34 @@ class CoverageGuidedMutator:
 
         elif mutation_type == MutationType.DICOM_TRANSFER_SYNTAX:
             mutated = self._dicom_transfer_syntax(mutated)
+
+        # CVE-based security mutations
+        elif mutation_type == MutationType.CVE_HEAP_OVERFLOW:
+            mutated = self._cve_heap_overflow(mutated)
+
+        elif mutation_type == MutationType.CVE_INTEGER_OVERFLOW:
+            mutated = self._cve_integer_overflow(mutated)
+
+        elif mutation_type == MutationType.CVE_MALFORMED_LENGTH:
+            mutated = self._cve_malformed_length(mutated)
+
+        elif mutation_type == MutationType.CVE_PATH_TRAVERSAL:
+            mutated = self._cve_path_traversal(mutated)
+
+        elif mutation_type == MutationType.CVE_DEEP_NESTING:
+            mutated = self._cve_deep_nesting(mutated)
+
+        elif mutation_type == MutationType.CVE_POLYGLOT:
+            mutated = self._cve_polyglot(mutated)
+
+        elif mutation_type == MutationType.CVE_ENCAPSULATED_PIXEL:
+            mutated = self._cve_encapsulated_pixel(mutated)
+
+        elif mutation_type == MutationType.CVE_JPEG_CODEC:
+            mutated = self._cve_jpeg_codec(mutated)
+
+        elif mutation_type == MutationType.CVE_RANDOM:
+            mutated = self._cve_random(mutated)
 
         return mutated
 
@@ -627,6 +715,148 @@ class CoverageGuidedMutator:
                 break
 
         return data
+
+    # CVE-based security mutation methods
+    def _cve_heap_overflow(self, data: bytearray) -> bytearray:
+        """Apply CVE-2025-5943 heap overflow mutation (pixel data parsing)."""
+        try:
+            func = get_mutation_func("mutate_heap_overflow_pixel_data")
+            if func:
+                result = func(bytes(data))
+                self._track_cve_mutation("CVE-2025-5943", "heap_overflow")
+                return bytearray(result)
+        except Exception as e:
+            logger.debug(f"CVE heap overflow mutation failed: {e}")
+        return data
+
+    def _cve_integer_overflow(self, data: bytearray) -> bytearray:
+        """Apply CVE-2025-5943 integer overflow mutation (dimensions)."""
+        try:
+            func = get_mutation_func("mutate_integer_overflow_dimensions")
+            if func:
+                result = func(bytes(data))
+                self._track_cve_mutation("CVE-2025-5943", "integer_overflow")
+                return bytearray(result)
+        except Exception as e:
+            logger.debug(f"CVE integer overflow mutation failed: {e}")
+        return data
+
+    def _cve_malformed_length(self, data: bytearray) -> bytearray:
+        """Apply CVE-2020-29625 malformed length field mutation."""
+        try:
+            # Randomly choose between malformed and oversized length
+            if random.random() < 0.5:
+                func = get_mutation_func("mutate_malformed_length_field")
+            else:
+                func = get_mutation_func("mutate_oversized_length")
+            if func:
+                result = func(bytes(data))
+                self._track_cve_mutation("CVE-2020-29625", "malformed_length")
+                return bytearray(result)
+        except Exception as e:
+            logger.debug(f"CVE malformed length mutation failed: {e}")
+        return data
+
+    def _cve_path_traversal(self, data: bytearray) -> bytearray:
+        """Apply CVE-2021-41946 path traversal mutation."""
+        try:
+            func = get_mutation_func("mutate_path_traversal_filename")
+            if func:
+                result = func(bytes(data))
+                self._track_cve_mutation("CVE-2021-41946", "path_traversal")
+                return bytearray(result)
+        except Exception as e:
+            logger.debug(f"CVE path traversal mutation failed: {e}")
+        return data
+
+    def _cve_deep_nesting(self, data: bytearray) -> bytearray:
+        """Apply CVE-2022-24193 deep nesting mutation (DoS)."""
+        try:
+            func = get_mutation_func("mutate_deep_nesting")
+            if func:
+                result = func(bytes(data))
+                self._track_cve_mutation("CVE-2022-24193", "deep_nesting")
+                return bytearray(result)
+        except Exception as e:
+            logger.debug(f"CVE deep nesting mutation failed: {e}")
+        return data
+
+    def _cve_polyglot(self, data: bytearray) -> bytearray:
+        """Apply CVE-2019-11687 polyglot mutation (preamble executable)."""
+        try:
+            # Randomly choose PE or ELF polyglot
+            if random.random() < 0.5:
+                func = get_mutation_func("mutate_pe_polyglot_preamble")
+            else:
+                func = get_mutation_func("mutate_elf_polyglot_preamble")
+            if func:
+                result = func(bytes(data))
+                self._track_cve_mutation("CVE-2019-11687", "polyglot")
+                return bytearray(result)
+        except Exception as e:
+            logger.debug(f"CVE polyglot mutation failed: {e}")
+        return data
+
+    def _cve_encapsulated_pixel(self, data: bytearray) -> bytearray:
+        """Apply CVE-2025-11266 encapsulated PixelData mutation."""
+        try:
+            # Randomly choose underflow or fragment mismatch
+            if random.random() < 0.5:
+                func = get_mutation_func("mutate_encapsulated_pixeldata_underflow")
+            else:
+                func = get_mutation_func("mutate_fragment_count_mismatch")
+            if func:
+                result = func(bytes(data))
+                self._track_cve_mutation("CVE-2025-11266", "encapsulated_pixel")
+                return bytearray(result)
+        except Exception as e:
+            logger.debug(f"CVE encapsulated pixel mutation failed: {e}")
+        return data
+
+    def _cve_jpeg_codec(self, data: bytearray) -> bytearray:
+        """Apply CVE-2025-53618/53619 JPEG codec mutation."""
+        try:
+            # Randomly choose OOB read or truncated stream
+            if random.random() < 0.5:
+                func = get_mutation_func("mutate_jpeg_codec_oob_read")
+            else:
+                func = get_mutation_func("mutate_jpeg_truncated_stream")
+            if func:
+                result = func(bytes(data))
+                self._track_cve_mutation("CVE-2025-53618", "jpeg_codec")
+                return bytearray(result)
+        except Exception as e:
+            logger.debug(f"CVE JPEG codec mutation failed: {e}")
+        return data
+
+    def _cve_random(self, data: bytearray) -> bytearray:
+        """Apply a random CVE mutation from the registry."""
+        try:
+            result, mutation_info = apply_cve_mutation(bytes(data))
+            self._track_cve_mutation(mutation_info.cve_id, mutation_info.category.value)
+            logger.debug(
+                f"Applied random CVE mutation: {mutation_info.cve_id} "
+                f"({mutation_info.category.value})"
+            )
+            return bytearray(result)
+        except Exception as e:
+            logger.debug(f"Random CVE mutation failed: {e}")
+        return data
+
+    def _track_cve_mutation(self, cve_id: str, mutation_type: str) -> None:
+        """Track CVE mutation statistics."""
+        self.cve_mutation_count += 1
+        key = f"{cve_id}:{mutation_type}"
+        self.cve_mutations_applied[key] = self.cve_mutations_applied.get(key, 0) + 1
+
+    def get_cve_mutation_stats(self) -> dict[str, Any]:
+        """Get CVE mutation statistics."""
+        return {
+            "total_cve_mutations": self.cve_mutation_count,
+            "mutations_by_type": dict(self.cve_mutations_applied),
+            "security_aware": self.security_aware,
+            "cve_mutation_probability": self.cve_mutation_probability,
+        }
 
     def update_strategy_feedback(
         self, mutation_type: MutationType, coverage_gained: bool, new_edges: int = 0

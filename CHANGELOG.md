@@ -5,6 +5,52 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2] - 2025-12-24 - CVE Mutations Enabled by Default
+
+Security-focused release that integrates CVE-based mutations into the default fuzzing pipeline.
+
+### Changed
+
+- **CVE mutations now enabled by default** in `CoverageGuidedMutator`
+  - 9 CVE mutation categories with 2x higher initial weight
+  - Targets 12+ real DICOM vulnerabilities automatically
+  - No `--security-fuzz` flag required for basic CVE coverage
+
+### Added
+
+- **New CVE mutation types** in coverage-guided mutator:
+  - `cve_heap_overflow` - CVE-2025-5943 (MicroDicom pixel data parsing)
+  - `cve_integer_overflow` - CVE-2025-5943 (dimension overflow)
+  - `cve_malformed_length` - CVE-2020-29625 (DCMTK length fields)
+  - `cve_path_traversal` - CVE-2021-41946 (filename path traversal)
+  - `cve_deep_nesting` - CVE-2022-24193 (OsiriX DoS)
+  - `cve_polyglot` - CVE-2019-11687 (PE/ELF preamble injection)
+  - `cve_encapsulated_pixel` - CVE-2025-11266 (GDCM PixelData)
+  - `cve_jpeg_codec` - CVE-2025-53618/53619 (GDCM JPEG codec)
+  - `cve_random` - Random CVE from registry
+
+- **CVE mutation statistics tracking** via `get_cve_mutation_stats()`
+- **Generators package** (`dicom_fuzzer/generators/`) for proper imports
+- **New mutator parameters**:
+  - `security_aware` (default: True) - Enable/disable CVE mutations
+  - `cve_mutation_probability` (default: 0.2) - CVE selection probability
+
+### Fixed
+
+- Broken imports in `samples.py` CLI - now uses `dicom_fuzzer.generators.*`
+- Windows-only test skip for `ctypes.windll` in CI
+
+### Documentation
+
+- Updated README with CVE mutation feature highlight
+- Updated CLI_REFERENCE.md with CVE mutation table and options
+
+## [1.7.1] - 2025-12-24 - Test Cleanup
+
+- Removed disabled test files (Phase 2 cleanup)
+- Fixed CI coverage comment length limit
+- Fixed Windows-only test decorators
+
 ## [1.7.0] - 2025-12-22 - 3D Medical Application Fuzzing
 
 Enhanced fuzzing for 3D medical imaging applications that process patient studies.

@@ -34,6 +34,7 @@ dicom-fuzzer report ./artifacts/output --format html
 **Fuzzing**
 
 - Mutation-based and grammar-aware DICOM fuzzing
+- **CVE-based security mutations enabled by default** (12+ real CVEs)
 - Coverage-guided fuzzing with corpus management
 - 3D series fuzzing (CT/MRI volumetric data)
 - Network protocol fuzzing (DIMSE, TLS)

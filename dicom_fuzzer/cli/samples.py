@@ -323,7 +323,9 @@ def run_malicious(args: argparse.Namespace) -> int:
     # Generate preamble attacks
     print("[i] Generating preamble attack samples...")
     try:
-        from samples.preamble_attacks.generator import PreambleAttackGenerator
+        from dicom_fuzzer.generators.preamble_attacks.generator import (
+            PreambleAttackGenerator,
+        )
 
         preamble_dir = output_dir / "preamble_attacks"
         preamble_dir.mkdir(parents=True, exist_ok=True)
@@ -349,7 +351,9 @@ def run_malicious(args: argparse.Namespace) -> int:
     # Generate CVE samples
     print("[i] Generating CVE reproduction samples...")
     try:
-        from samples.cve_reproductions.generator import CVESampleGenerator
+        from dicom_fuzzer.generators.cve_reproductions.generator import (
+            CVESampleGenerator,
+        )
 
         cve_dir = output_dir / "cve_reproductions"
         cve_gen = CVESampleGenerator(cve_dir)
@@ -370,7 +374,9 @@ def run_malicious(args: argparse.Namespace) -> int:
     # Generate parser stress samples
     print("[i] Generating parser stress samples...")
     try:
-        from samples.parser_stress.generator import ParserStressGenerator
+        from dicom_fuzzer.generators.parser_stress.generator import (
+            ParserStressGenerator,
+        )
 
         stress_dir = output_dir / "parser_stress"
         stress_gen = ParserStressGenerator(stress_dir)
@@ -391,7 +397,9 @@ def run_malicious(args: argparse.Namespace) -> int:
     # Generate compliance violation samples
     print("[i] Generating compliance violation samples...")
     try:
-        from samples.compliance_violations.generator import ComplianceViolationGenerator
+        from dicom_fuzzer.generators.compliance_violations.generator import (
+            ComplianceViolationGenerator,
+        )
 
         compliance_dir = output_dir / "compliance_violations"
         compliance_gen = ComplianceViolationGenerator(compliance_dir)
@@ -438,7 +446,9 @@ def run_preamble_attacks(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        from samples.preamble_attacks.generator import PreambleAttackGenerator
+        from dicom_fuzzer.generators.preamble_attacks.generator import (
+            PreambleAttackGenerator,
+        )
 
         gen = PreambleAttackGenerator()
         generated = []
@@ -474,7 +484,9 @@ def run_cve_samples(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        from samples.cve_reproductions.generator import CVESampleGenerator
+        from dicom_fuzzer.generators.cve_reproductions.generator import (
+            CVESampleGenerator,
+        )
 
         gen = CVESampleGenerator(output_dir)
         results = gen.generate_all()
@@ -507,7 +519,9 @@ def run_parser_stress(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        from samples.parser_stress.generator import ParserStressGenerator
+        from dicom_fuzzer.generators.parser_stress.generator import (
+            ParserStressGenerator,
+        )
 
         gen = ParserStressGenerator(output_dir)
         results = gen.generate_all()
@@ -540,7 +554,9 @@ def run_compliance(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        from samples.compliance_violations.generator import ComplianceViolationGenerator
+        from dicom_fuzzer.generators.compliance_violations.generator import (
+            ComplianceViolationGenerator,
+        )
 
         compliance_gen = ComplianceViolationGenerator(output_dir)
         compliance_results = compliance_gen.generate_all()
@@ -578,7 +594,10 @@ def run_scan(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        from samples.detection.scanner import DicomSecurityScanner, ScanResult
+        from dicom_fuzzer.generators.detection.scanner import (
+            DicomSecurityScanner,
+            ScanResult,
+        )
 
         scanner = DicomSecurityScanner()
         results: list[ScanResult] = []
@@ -655,7 +674,10 @@ def run_sanitize(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        from samples.detection.sanitizer import DicomSanitizer, SanitizeAction
+        from dicom_fuzzer.generators.detection.sanitizer import (
+            DicomSanitizer,
+            SanitizeAction,
+        )
 
         sanitizer = DicomSanitizer()
         output_path = (
