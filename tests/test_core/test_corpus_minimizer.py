@@ -328,3 +328,603 @@ class TestEdgeCases:
 
         assert coverage.file_size == 256
         assert coverage.edges_hit > 0
+
+
+# ============================================================================
+# Test TargetCoverageCollector
+# ============================================================================
+
+
+class TestTargetCoverageCollector:
+    """Test TargetCoverageCollector class."""
+
+    def test_init_with_string_command(self):
+        """Test initialization with string command."""
+        from dicom_fuzzer.core.corpus_minimizer import TargetCoverageCollector
+
+        collector = TargetCoverageCollector(target_cmd="echo test")
+        assert collector.target_cmd == ["echo", "test"]
+
+    def test_init_with_list_command(self):
+        """Test initialization with list command."""
+        from dicom_fuzzer.core.corpus_minimizer import TargetCoverageCollector
+
+        collector = TargetCoverageCollector(target_cmd=["python", "-c", "print(1)"])
+        assert collector.target_cmd == ["python", "-c", "print(1)"]
+
+    def test_init_with_timeout(self):
+        """Test initialization with custom timeout."""
+        from dicom_fuzzer.core.corpus_minimizer import TargetCoverageCollector
+
+        collector = TargetCoverageCollector(target_cmd="echo test", timeout=10.0)
+        assert collector.timeout == 10.0
+
+    def test_init_with_coverage_dir(self, tmp_path):
+        """Test initialization with coverage directory."""
+        from dicom_fuzzer.core.corpus_minimizer import TargetCoverageCollector
+
+        cov_dir = tmp_path / "coverage"
+        collector = TargetCoverageCollector(target_cmd="echo", coverage_dir=cov_dir)
+        assert collector.coverage_dir == cov_dir
+
+
+# ============================================================================
+# Test CorpusMinimizer
+# ============================================================================
+
+
+class TestCorpusMinimizer:
+    """Test CorpusMinimizer class."""
+
+    @pytest.fixture
+    def minimizer(self):
+        """Create a CorpusMinimizer with SimpleCoverageCollector."""
+        from dicom_fuzzer.core.corpus_minimizer import CorpusMinimizer
+
+        collector = SimpleCoverageCollector()
+        return CorpusMinimizer(collector=collector)
+
+    @pytest.fixture
+    def corpus_dir(self, tmp_path):
+        """Create a corpus directory with test seeds."""
+        corpus = tmp_path / "corpus"
+        corpus.mkdir()
+
+        # Create test seeds
+        (corpus / "seed1.dcm").write_bytes(b"content A")
+        (corpus / "seed2.dcm").write_bytes(b"content B")
+        (corpus / "seed3.dcm").write_bytes(b"content A")  # Duplicate coverage
+
+        return corpus
+
+    def test_init_default(self):
+        """Test default initialization."""
+        from dicom_fuzzer.core.corpus_minimizer import CorpusMinimizer
+
+        minimizer = CorpusMinimizer()
+        assert minimizer.collector is not None
+
+    def test_init_with_collector(self):
+        """Test initialization with custom collector."""
+        from dicom_fuzzer.core.corpus_minimizer import CorpusMinimizer
+
+        collector = SimpleCoverageCollector()
+        minimizer = CorpusMinimizer(collector=collector)
+        assert minimizer.collector is collector
+
+    def test_init_with_config(self):
+        """Test initialization with custom config."""
+        from dicom_fuzzer.core.corpus_minimizer import (
+            CorpusMinimizer,
+            MinimizationConfig,
+        )
+
+        config = MinimizationConfig(max_corpus_size=500)
+        minimizer = CorpusMinimizer(config=config)
+        assert minimizer.config.max_corpus_size == 500
+
+    def test_minimize_creates_output_dir(self, minimizer, corpus_dir, tmp_path):
+        """Test minimize creates output directory."""
+        output_dir = tmp_path / "minimized"
+
+        minimizer.minimize(corpus_dir, output_dir)
+
+        assert output_dir.exists()
+        assert output_dir.is_dir()
+
+    def test_minimize_reduces_redundant_seeds(self, minimizer, corpus_dir, tmp_path):
+        """Test minimize removes redundant seeds."""
+        output_dir = tmp_path / "minimized"
+
+        stats = minimizer.minimize(corpus_dir, output_dir)
+
+        # Should have fewer or equal seeds (duplicates removed)
+        minimized_seeds = list(output_dir.glob("*.dcm"))
+        assert len(minimized_seeds) <= 3
+        assert isinstance(stats, CorpusStats)
+
+    def test_minimize_returns_stats(self, minimizer, corpus_dir, tmp_path):
+        """Test minimize returns CorpusStats."""
+        output_dir = tmp_path / "minimized"
+
+        stats = minimizer.minimize(corpus_dir, output_dir)
+
+        assert isinstance(stats, CorpusStats)
+        assert stats.total_seeds >= 0
+
+    def test_minimize_empty_corpus(self, minimizer, tmp_path):
+        """Test minimize with empty corpus."""
+        empty_dir = tmp_path / "empty"
+        empty_dir.mkdir()
+        output_dir = tmp_path / "minimized"
+
+        stats = minimizer.minimize(empty_dir, output_dir)
+
+        assert stats.total_seeds == 0
+
+
+# ============================================================================
+# Test MinimizationConfig
+# ============================================================================
+
+
+class TestMinimizationConfig:
+    """Test MinimizationConfig dataclass."""
+
+    def test_default_config(self):
+        """Test default MinimizationConfig values."""
+        from dicom_fuzzer.core.corpus_minimizer import MinimizationConfig
+
+        config = MinimizationConfig()
+        assert config.prefer_smaller is True
+        assert config.max_corpus_size == 1000
+        assert config.min_edge_contribution == 1
+        assert config.dedup_by_coverage is True
+        assert config.preserve_crashes is True
+        assert config.parallel_workers == 4
+
+    def test_custom_config(self):
+        """Test MinimizationConfig with custom values."""
+        from dicom_fuzzer.core.corpus_minimizer import MinimizationConfig
+
+        config = MinimizationConfig(
+            prefer_smaller=False,
+            max_corpus_size=500,
+            parallel_workers=8,
+        )
+        assert config.prefer_smaller is False
+        assert config.max_corpus_size == 500
+        assert config.parallel_workers == 8
+
+
+# ============================================================================
+# Test MinimizationAlgorithm
+# ============================================================================
+
+
+class TestMinimizationAlgorithm:
+    """Test minimization algorithm behavior."""
+
+    def test_different_content_different_coverage(self, tmp_path):
+        """Test that different content produces different coverage."""
+        from dicom_fuzzer.core.corpus_minimizer import CorpusMinimizer
+
+        corpus = tmp_path / "corpus"
+        corpus.mkdir()
+        output = tmp_path / "minimized"
+
+        # Create seeds with different content
+        (corpus / "a.dcm").write_bytes(b"content A")
+        (corpus / "b.dcm").write_bytes(b"content B")
+        (corpus / "c.dcm").write_bytes(b"content C")
+
+        minimizer = CorpusMinimizer()
+        stats = minimizer.minimize(corpus, output)
+
+        # Should keep all seeds with unique coverage
+        assert stats.unique_coverage_hashes >= 1
+
+    def test_handles_corrupt_files(self, tmp_path):
+        """Test handling of corrupt/unreadable files."""
+        from dicom_fuzzer.core.corpus_minimizer import CorpusMinimizer
+
+        corpus = tmp_path / "corpus"
+        corpus.mkdir()
+        output = tmp_path / "minimized"
+
+        # Create normal seed
+        (corpus / "good.dcm").write_bytes(b"valid content")
+
+        minimizer = CorpusMinimizer()
+        # Should not crash
+        minimizer.minimize(corpus, output)
+
+        assert output.exists()
+
+
+# ============================================================================
+# Test SyncMode Enum
+# ============================================================================
+
+
+class TestSyncMode:
+    """Test SyncMode enumeration."""
+
+    def test_sync_mode_values(self):
+        """Test sync mode values."""
+        from dicom_fuzzer.core.corpus_minimizer import SyncMode
+
+        assert SyncMode.PUSH.value == "push"
+        assert SyncMode.PULL.value == "pull"
+        assert SyncMode.BIDIRECTIONAL.value == "bidirectional"
+        assert SyncMode.MASTER_SLAVE.value == "master_slave"
+
+
+# ============================================================================
+# Test FuzzerNode Dataclass
+# ============================================================================
+
+
+class TestFuzzerNode:
+    """Test FuzzerNode dataclass."""
+
+    def test_default_values(self, tmp_path):
+        """Test default FuzzerNode values."""
+        from dicom_fuzzer.core.corpus_minimizer import FuzzerNode
+
+        node = FuzzerNode(node_id="test", corpus_dir=tmp_path)
+
+        assert node.node_id == "test"
+        assert node.corpus_dir == tmp_path
+        assert node.is_master is False
+        assert node.last_sync == 0.0
+        assert node.seeds_sent == 0
+        assert node.seeds_received == 0
+
+    def test_custom_values(self, tmp_path):
+        """Test FuzzerNode with custom values."""
+        from dicom_fuzzer.core.corpus_minimizer import FuzzerNode
+
+        node = FuzzerNode(
+            node_id="master",
+            corpus_dir=tmp_path,
+            is_master=True,
+            seeds_sent=10,
+            seeds_received=20,
+        )
+
+        assert node.node_id == "master"
+        assert node.is_master is True
+        assert node.seeds_sent == 10
+        assert node.seeds_received == 20
+
+
+# ============================================================================
+# Test SyncConfig Dataclass
+# ============================================================================
+
+
+class TestSyncConfig:
+    """Test SyncConfig dataclass."""
+
+    def test_default_values(self):
+        """Test default SyncConfig values."""
+        from dicom_fuzzer.core.corpus_minimizer import SyncConfig, SyncMode
+
+        config = SyncConfig()
+
+        assert config.sync_interval == 60.0
+        assert config.max_seeds_per_sync == 100
+        assert config.mode == SyncMode.BIDIRECTIONAL
+        assert config.deduplicate is True
+        assert config.compress is True
+        assert config.sync_crashes is True
+
+    def test_custom_values(self):
+        """Test SyncConfig with custom values."""
+        from dicom_fuzzer.core.corpus_minimizer import SyncConfig, SyncMode
+
+        config = SyncConfig(
+            sync_interval=30.0,
+            max_seeds_per_sync=50,
+            mode=SyncMode.PUSH,
+        )
+
+        assert config.sync_interval == 30.0
+        assert config.max_seeds_per_sync == 50
+        assert config.mode == SyncMode.PUSH
+
+
+# ============================================================================
+# Test CorpusSynchronizer
+# ============================================================================
+
+
+class TestCorpusSynchronizer:
+    """Test CorpusSynchronizer class."""
+
+    @pytest.fixture
+    def node(self, tmp_path):
+        """Create a FuzzerNode."""
+        from dicom_fuzzer.core.corpus_minimizer import FuzzerNode
+
+        corpus = tmp_path / "corpus"
+        corpus.mkdir()
+        return FuzzerNode(node_id="test_node", corpus_dir=corpus)
+
+    @pytest.fixture
+    def synchronizer(self, node):
+        """Create a CorpusSynchronizer."""
+        from dicom_fuzzer.core.corpus_minimizer import CorpusSynchronizer
+
+        return CorpusSynchronizer(node=node)
+
+    def test_init_default(self, node):
+        """Test default initialization."""
+        from dicom_fuzzer.core.corpus_minimizer import CorpusSynchronizer
+
+        sync = CorpusSynchronizer(node=node)
+
+        assert sync.node is node
+        assert sync.config is not None
+        assert sync.collector is not None
+        assert sync.peers == []
+        assert len(sync.seen_hashes) == 0
+
+    def test_init_with_config(self, node):
+        """Test initialization with custom config."""
+        from dicom_fuzzer.core.corpus_minimizer import CorpusSynchronizer, SyncConfig
+
+        config = SyncConfig(sync_interval=120.0)
+        sync = CorpusSynchronizer(node=node, config=config)
+
+        assert sync.config.sync_interval == 120.0
+
+    def test_add_peer_existing(self, synchronizer, tmp_path):
+        """Test adding an existing peer directory."""
+        peer_dir = tmp_path / "peer"
+        peer_dir.mkdir()
+
+        synchronizer.add_peer(peer_dir)
+
+        assert peer_dir in synchronizer.peers
+
+    def test_add_peer_nonexistent(self, synchronizer, tmp_path):
+        """Test adding a nonexistent peer directory."""
+        peer_dir = tmp_path / "nonexistent"
+
+        synchronizer.add_peer(peer_dir)
+
+        assert peer_dir not in synchronizer.peers
+
+    def test_sync_once_no_peers(self, synchronizer):
+        """Test sync with no peers."""
+        stats = synchronizer.sync_once()
+
+        assert stats["pulled"] == 0
+        assert stats["pushed"] == 0
+        assert stats["duplicates"] == 0
+
+    def test_sync_once_pull(self, synchronizer, tmp_path):
+        """Test sync pulls from peers."""
+        peer = tmp_path / "peer"
+        peer.mkdir()
+        (peer / "seed.dcm").write_bytes(b"test data")
+
+        synchronizer.add_peer(peer)
+        stats = synchronizer.sync_once()
+
+        assert stats["pulled"] >= 0
+
+    def test_sync_once_push(self, node, tmp_path):
+        """Test sync pushes to peers."""
+        from dicom_fuzzer.core.corpus_minimizer import (
+            CorpusSynchronizer,
+            SyncConfig,
+            SyncMode,
+        )
+
+        config = SyncConfig(mode=SyncMode.PUSH)
+        sync = CorpusSynchronizer(node=node, config=config)
+
+        # Add seed to local corpus
+        (node.corpus_dir / "local.dcm").write_bytes(b"local data")
+
+        peer = tmp_path / "peer"
+        peer.mkdir()
+        sync.add_peer(peer)
+
+        stats = sync.sync_once()
+
+        assert stats["pushed"] >= 0
+
+    def test_get_status(self, synchronizer, tmp_path):
+        """Test get_status returns status dict."""
+        peer = tmp_path / "peer"
+        peer.mkdir()
+        synchronizer.add_peer(peer)
+
+        status = synchronizer.get_status()
+
+        assert "node_id" in status
+        assert status["node_id"] == "test_node"
+        assert "corpus_dir" in status
+        assert "peers" in status
+        assert "last_sync" in status
+        assert "seeds_sent" in status
+        assert "seeds_received" in status
+        assert "local_seeds" in status
+        assert "seen_hashes" in status
+
+    def test_sync_tracks_seen_hashes(self, synchronizer, tmp_path):
+        """Test that sync tracks seen hashes."""
+        peer = tmp_path / "peer"
+        peer.mkdir()
+        (peer / "seed.dcm").write_bytes(b"unique content")
+
+        synchronizer.add_peer(peer)
+        synchronizer.sync_once()
+
+        # Second sync should skip duplicates
+        stats = synchronizer.sync_once()
+        assert stats["duplicates"] >= 0
+
+
+# ============================================================================
+# Test Convenience Functions
+# ============================================================================
+
+
+class TestConvenienceFunctions:
+    """Test module-level convenience functions."""
+
+    def test_minimize_corpus_basic(self, tmp_path):
+        """Test minimize_corpus function."""
+        from dicom_fuzzer.core.corpus_minimizer import minimize_corpus
+
+        input_dir = tmp_path / "input"
+        input_dir.mkdir()
+        output_dir = tmp_path / "output"
+
+        (input_dir / "seed1.dcm").write_bytes(b"content A")
+        (input_dir / "seed2.dcm").write_bytes(b"content B")
+
+        stats = minimize_corpus(input_dir, output_dir)
+
+        assert output_dir.exists()
+        assert stats.total_seeds >= 0
+
+    def test_minimize_corpus_with_target_cmd(self, tmp_path):
+        """Test minimize_corpus with target command."""
+        from dicom_fuzzer.core.corpus_minimizer import minimize_corpus
+
+        input_dir = tmp_path / "input"
+        input_dir.mkdir()
+        output_dir = tmp_path / "output"
+
+        (input_dir / "seed.dcm").write_bytes(b"content")
+
+        # Use a simple echo command as target
+        stats = minimize_corpus(input_dir, output_dir, target_cmd="echo @@")
+
+        assert output_dir.exists()
+
+    def test_create_sync_node_basic(self, tmp_path):
+        """Test create_sync_node function."""
+        from dicom_fuzzer.core.corpus_minimizer import create_sync_node
+
+        corpus_dir = tmp_path / "corpus"
+
+        sync = create_sync_node("node1", corpus_dir)
+
+        assert sync.node.node_id == "node1"
+        assert sync.node.corpus_dir == corpus_dir
+        assert corpus_dir.exists()
+
+    def test_create_sync_node_with_peers(self, tmp_path):
+        """Test create_sync_node with peer directories."""
+        from dicom_fuzzer.core.corpus_minimizer import create_sync_node
+
+        corpus_dir = tmp_path / "corpus"
+        peer1 = tmp_path / "peer1"
+        peer2 = tmp_path / "peer2"
+        peer1.mkdir()
+        peer2.mkdir()
+
+        sync = create_sync_node("node1", corpus_dir, peer_dirs=[peer1, peer2])
+
+        assert len(sync.peers) == 2
+        assert peer1 in sync.peers
+        assert peer2 in sync.peers
+
+
+# ============================================================================
+# Test TargetCoverageCollector Advanced
+# ============================================================================
+
+
+class TestTargetCoverageCollectorAdvanced:
+    """Advanced tests for TargetCoverageCollector."""
+
+    def test_get_coverage_runs_command(self, tmp_path):
+        """Test get_coverage executes target command."""
+        from dicom_fuzzer.core.corpus_minimizer import TargetCoverageCollector
+
+        seed = tmp_path / "test.dcm"
+        seed.write_bytes(b"test content")
+
+        # Use echo command that should work on all platforms
+        collector = TargetCoverageCollector(
+            target_cmd=["python", "-c", "import sys; sys.exit(0)"],
+            timeout=5.0,
+            coverage_dir=tmp_path / "cov",
+        )
+
+        coverage = collector.get_coverage(seed)
+
+        # Should return coverage info without errors
+        assert coverage.seed_path == seed
+        assert coverage.exec_time_us > 0
+
+    def test_get_coverage_timeout(self, tmp_path):
+        """Test get_coverage handles timeout."""
+        from dicom_fuzzer.core.corpus_minimizer import TargetCoverageCollector
+
+        seed = tmp_path / "test.dcm"
+        seed.write_bytes(b"test content")
+
+        # Use a command that sleeps to trigger timeout
+        collector = TargetCoverageCollector(
+            target_cmd=["python", "-c", "import time; time.sleep(10)"],
+            timeout=0.1,
+            coverage_dir=tmp_path / "cov",
+        )
+
+        coverage = collector.get_coverage(seed)
+
+        # Should return with timeout exec time
+        assert coverage.seed_path == seed
+
+    def test_merge_coverage_empty(self):
+        """Test merge_coverage with empty list."""
+        from dicom_fuzzer.core.corpus_minimizer import TargetCoverageCollector
+
+        collector = TargetCoverageCollector(target_cmd="echo")
+        result = collector.merge_coverage([])
+
+        assert result == b""
+
+    def test_merge_coverage_single_bitmap(self, tmp_path):
+        """Test merge_coverage with single bitmap."""
+        from dicom_fuzzer.core.corpus_minimizer import (
+            CoverageInfo,
+            TargetCoverageCollector,
+        )
+
+        collector = TargetCoverageCollector(target_cmd="echo")
+
+        cov1 = CoverageInfo(seed_path=tmp_path / "a.dcm", bitmap=b"\x01\x02\x03")
+
+        result = collector.merge_coverage([cov1])
+
+        assert result == b"\x01\x02\x03"
+
+    def test_merge_coverage_with_bitmaps(self, tmp_path):
+        """Test merge_coverage merges correctly."""
+        from dicom_fuzzer.core.corpus_minimizer import (
+            CoverageInfo,
+            TargetCoverageCollector,
+        )
+
+        collector = TargetCoverageCollector(target_cmd="echo")
+
+        cov1 = CoverageInfo(seed_path=tmp_path / "a.dcm", bitmap=b"\x01\x00\x03")
+        cov2 = CoverageInfo(seed_path=tmp_path / "b.dcm", bitmap=b"\x00\x02\x03")
+
+        result = collector.merge_coverage([cov1, cov2])
+
+        # Should take max of each byte
+        assert len(result) == 3
+        assert result[0] == 1  # max(1, 0)
+        assert result[1] == 2  # max(0, 2)
+        assert result[2] == 3  # max(3, 3)

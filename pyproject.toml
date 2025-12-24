@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dicom-fuzzer"
-version = "1.7.0"
+version = "1.7.1"
 authors = [
     {name = "David Dashti", email = "david@dashti.se"},
 ]
@@ -94,6 +94,7 @@ dev = [
     "pytest-rerunfailures>=14.0",  # Retry flaky tests (handles xdist race conditions)
     "pytest-benchmark>=5.0.0", # Performance regression testing
     "pytest-mock>=3.15.0",     # Better mocking utilities
+    "fakeredis>=2.20.0",       # In-memory Redis for testing distributed module
     "pytest-snapshot>=0.9.0",  # Snapshot testing for outputs
     "pytest-randomly>=4.0.0",  # Random test order (finds hidden dependencies)
     "pytest-watch>=4.2.0",     # Auto-rerun tests on file changes

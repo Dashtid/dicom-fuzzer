@@ -112,6 +112,32 @@ class TestSensitiveDataRedaction:
         assert result["Patient_Name"] == "***REDACTED***"
         assert result["PATIENT_ID"] == "***REDACTED***"
 
+    def test_redact_api_key(self):
+        """Test redaction of API key field."""
+        event_dict = {
+            "api_key": "sk-1234567890",
+            "endpoint": "/api/v1",
+        }
+
+        result = redact_sensitive_data(None, None, event_dict)
+
+        assert result["api_key"] == "***REDACTED***"
+        assert result["endpoint"] == "/api/v1"
+
+    def test_no_redaction_for_safe_data(self):
+        """Test that safe data is not redacted."""
+        event_dict = {
+            "file_path": "/path/to/file.dcm",
+            "count": 42,
+            "status": "success",
+        }
+
+        result = redact_sensitive_data(None, None, event_dict)
+
+        assert result["file_path"] == "/path/to/file.dcm"
+        assert result["count"] == 42
+        assert result["status"] == "success"
+
 
 class TestTimestampProcessor:
     """Test timestamp processor."""
@@ -149,6 +175,51 @@ class TestSecurityContextProcessor:
 
         assert "event_category" not in result
         assert "requires_attention" not in result
+
+    def test_security_context_with_false_flag(self):
+        """Test that security_event=False doesn't add context."""
+        event_dict = {
+            "message": "Test",
+            "security_event": False,
+        }
+
+        result = add_security_context(None, None, event_dict)
+
+        assert "event_category" not in result
+        assert "requires_attention" not in result
+
+
+class TestConfigureLogging:
+    """Test logging configuration with various log levels."""
+
+    def test_configure_logging_debug_level(self):
+        """Test logging configuration with DEBUG level."""
+        import logging
+
+        configure_logging(log_level="DEBUG")
+        assert logging.root.level == logging.DEBUG
+
+    def test_configure_logging_info_level(self):
+        """Test logging configuration with INFO level."""
+        import logging
+
+        configure_logging(log_level="INFO")
+        assert logging.root.level == logging.INFO
+
+    def test_configure_logging_warning_level(self):
+        """Test logging configuration with WARNING level."""
+        import logging
+
+        configure_logging(log_level="WARNING")
+        assert logging.root.level == logging.WARNING
+
+    def test_configure_logging_reconfiguration(self):
+        """Test that logging can be reconfigured."""
+        import logging
+
+        configure_logging(log_level="INFO")
+        configure_logging(log_level="DEBUG")
+        assert logging.root.level == logging.DEBUG
 
 
 class TestSecurityEventLogger:
