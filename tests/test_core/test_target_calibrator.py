@@ -717,6 +717,9 @@ class TestPhase2TimeoutCalibration:
 class TestPhase3CrashDetection:
     """Test Phase 3: Crash detection validation."""
 
+    @pytest.mark.skipif(
+        sys.platform != "win32", reason="Windows-only test (ctypes.windll)"
+    )
     @patch.object(TargetCalibrator, "_run_target")
     @patch("sys.platform", "win32")
     @patch("ctypes.windll")
