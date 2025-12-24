@@ -103,7 +103,7 @@ class TargetRunner:
         self,
         target_executable: str,
         timeout: float = 5.0,
-        crash_dir: str = "./crashes",
+        crash_dir: str = "./artifacts/crashes",
         collect_stdout: bool = True,
         collect_stderr: bool = True,
         max_retries: int = 2,
@@ -339,13 +339,27 @@ class TargetRunner:
 
             self._update_circuit_breaker(success=False)
 
+            # Handle stdout/stderr which may be str (text=True) or bytes
+            stdout_val = ""
+            stderr_val = ""
+            if e.stdout and self.collect_stdout:
+                # stdout can be str (text=True) or bytes (text=False)
+                stdout_val = (
+                    e.stdout if isinstance(e.stdout, str) else e.stdout.decode()  # type: ignore[unreachable]
+                )
+            if e.stderr and self.collect_stderr:
+                # stderr can be str (text=True) or bytes (text=False)
+                stderr_val = (
+                    e.stderr if isinstance(e.stderr, str) else e.stderr.decode()  # type: ignore[unreachable]
+                )
+
             return ExecutionResult(
                 test_file=test_file_path,
                 result=ExecutionStatus.HANG,
                 exit_code=None,
                 execution_time=execution_time,
-                stdout=e.stdout.decode() if e.stdout and self.collect_stdout else "",
-                stderr=e.stderr.decode() if e.stderr and self.collect_stderr else "",
+                stdout=stdout_val,
+                stderr=stderr_val,
                 exception=e,
                 crash_hash=crash_report.crash_hash if crash_report else None,
                 retry_count=retry_count,

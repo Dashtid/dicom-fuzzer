@@ -70,7 +70,7 @@ auth.yaml
 *.dicom
 *.DCM
 *.DICOM
-/samples/*.dcm
+/tools/generators/*.dcm
 /test_data/*.dcm
 /fixtures/*.dcm
 /patient_data/
@@ -379,8 +379,9 @@ truncated*.dcm
 !/data/dictionaries/.gitkeep
 
 # Sample/Test DICOM Files (keep structure but ignore files)
-/samples/*.dcm
-!/samples/.gitkeep
+/tools/generators/*.dcm
+/tools/generators/generated/
+!/tools/generators/.gitkeep
 
 # IDE Settings
 .vscode/

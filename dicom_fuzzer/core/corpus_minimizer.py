@@ -320,7 +320,7 @@ class CorpusMinimizer:
         )
         stats = minimizer.minimize(
             input_dir=Path("./artifacts/corpus"),
-            output_dir=Path("./corpus_min")
+            output_dir=Path("./artifacts/corpus_min")
         )
 
     """

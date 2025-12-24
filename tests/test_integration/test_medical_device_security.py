@@ -850,3 +850,77 @@ class TestMedicalDeviceSecurityEdgeCases:
         # Should not raise
         result = fuzzer.apply_mutation(ds, mutation)
         assert result is not None
+
+    def test_complex_mutation_non_dict_value(self) -> None:
+        """Test complex mutation path with non-dict value returns early."""
+        fuzzer = MedicalDeviceSecurityFuzzer()
+        ds = Dataset()
+        ds.Rows = 512
+        ds.Columns = 512
+
+        # Mutation with non-dict value should trigger early return in _apply_complex_mutation
+        mutation = SecurityMutation(
+            name="test_non_dict",
+            vulnerability_class=VulnerabilityClass.OUT_OF_BOUNDS_READ,
+            tag=(0x0028, 0x0010),
+            mutated_value="not_a_dict",  # String instead of dict
+        )
+
+        result = fuzzer.apply_mutation(ds, mutation)
+        # Should not modify - value is string not dict for complex mutation
+        assert result is not None
+
+    def test_complex_mutation_pixel_data_named_pattern(self) -> None:
+        """Test complex pixel data mutation with named non-overflow pattern."""
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        fuzzer = MedicalDeviceSecurityFuzzer()
+        ds = Dataset()
+        ds.file_meta = Dataset()
+        ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        ds.Rows = 8
+        ds.Columns = 8
+        ds.BitsAllocated = 8
+        ds.PixelData = b"\x00" * 64
+
+        # Use pattern other than "overflow" to trigger else branch
+        mutation = SecurityMutation(
+            name="test_pattern",
+            vulnerability_class=VulnerabilityClass.HEAP_BUFFER_OVERFLOW,
+            tag=(0x7FE0, 0x0010),
+            mutated_value={"data_size": 128, "pattern": "random"},
+        )
+
+        result = fuzzer.apply_mutation(ds, mutation)
+        assert len(result.PixelData) == 128
+        # Random pattern should not be all 'A's
+        assert result.PixelData != b"\x41" * 128
+
+    def test_create_nested_sequence_existing_tag(self) -> None:
+        """Test nested sequence creation when tag already exists."""
+        from pydicom.sequence import Sequence
+
+        fuzzer = MedicalDeviceSecurityFuzzer()
+        ds = Dataset()
+        # Pre-populate the sequence tag
+        ds.ReferencedSeriesSequence = Sequence([Dataset()])
+
+        # Should replace existing sequence
+        fuzzer._create_nested_sequence(ds, (0x0008, 0x1115), 2)
+        assert (0x0008, 0x1115) in ds
+
+    def test_get_summary_low_severity_count(self) -> None:
+        """Test summary counts low severity mutations (severity < 4)."""
+        fuzzer = MedicalDeviceSecurityFuzzer()
+
+        # Manually add a low severity mutation
+        low_sev_mutation = SecurityMutation(
+            name="low_sev_test",
+            vulnerability_class=VulnerabilityClass.DENIAL_OF_SERVICE,
+            severity=2,  # Low severity
+            description="Test low severity",
+        )
+        fuzzer._mutations_generated.append(low_sev_mutation)
+
+        summary = fuzzer.get_summary()
+        assert summary["by_severity"]["low"] >= 1

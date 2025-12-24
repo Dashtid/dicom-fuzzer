@@ -28,11 +28,8 @@ except ImportError:
     HAS_RICH = False
 
 
-# Mock class for test compatibility
-class FuzzingSession:
-    """Mock fuzzing session class for test compatibility."""
-
-    pass
+# Import canonical FuzzingSession for module users
+from dicom_fuzzer.core.fuzzing_session import FuzzingSession  # noqa: F401
 
 
 class RealtimeMonitor:

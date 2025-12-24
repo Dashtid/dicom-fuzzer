@@ -273,7 +273,7 @@ class SyntheticDicomGenerator:
 
     def __init__(
         self,
-        output_dir: str | Path = "./synthetic_dicoms",
+        output_dir: str | Path = "./artifacts/synthetic",
         seed: int | None = None,
     ) -> None:
         """Initialize the generator.
@@ -551,7 +551,7 @@ class SyntheticDicomGenerator:
                 (y - center_y) / (rows * 0.35)
             ) ** 2 < 1
             grayscale_pixels[outer] = 800 + np.random.randint(
-                -50, 50, size=np.sum(outer)
+                -50, 50, size=int(np.sum(outer))
             )
 
             # Inner structures
@@ -559,11 +559,11 @@ class SyntheticDicomGenerator:
                 (y - center_y) / (rows * 0.12)
             ) ** 2 < 1
             grayscale_pixels[inner] = 1500 + np.random.randint(
-                -100, 100, size=np.sum(inner)
+                -100, 100, size=int(np.sum(inner))
             )
 
             # Add noise
-            pixels_float = grayscale_pixels.astype(np.float32)
+            pixels_float = grayscale_pixels.astype(np.float64)
             pixels_float = pixels_float + np.random.normal(0, 30, pixels_float.shape)
             grayscale_pixels = np.clip(pixels_float, 0, 4095).astype(np.uint16)
 

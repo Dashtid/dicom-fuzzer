@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dicom-fuzzer"
-version = "1.5.0"
+version = "1.7.1"
 authors = [
     {name = "David Dashti", email = "david@dashti.se"},
 ]
@@ -57,9 +57,32 @@ Changelog = "https://github.com/Dashtid/dicom-fuzzer/blob/main/CHANGELOG.md"
 [project.scripts]
 dicom-fuzzer = "dicom_fuzzer.cli.main:main"
 
+# Optional dependencies (pip install dicom-fuzzer[extra])
+[project.optional-dependencies]
+network = [
+    "pynetdicom[apps]>=2.0.0",
+]
+viz = [
+    "matplotlib>=3.5.0",
+    "plotly>=5.0.0",
+    "seaborn>=0.12.0",
+]
+distributed = [
+    "redis>=5.2.0",
+]
+metrics = [
+    "prometheus-client>=0.21.0",
+]
+differential = [
+    "python-gdcm>=3.0.0; platform_system != 'Windows'",
+]
+all = [
+    "dicom-fuzzer[viz,distributed,metrics,network]",
+]
+
 # Hatchling automatically discovers packages - no explicit configuration needed
 
-# Dependency groups (modern uv approach - replaces [tool.uv.dev-dependencies])
+# Dependency groups (modern uv approach - for development workflows)
 [dependency-groups]
 dev = [
     # Testing framework (state-of-the-art 2025)
@@ -71,6 +94,7 @@ dev = [
     "pytest-rerunfailures>=14.0",  # Retry flaky tests (handles xdist race conditions)
     "pytest-benchmark>=5.0.0", # Performance regression testing
     "pytest-mock>=3.15.0",     # Better mocking utilities
+    "fakeredis>=2.20.0",       # In-memory Redis for testing distributed module
     "pytest-snapshot>=0.9.0",  # Snapshot testing for outputs
     "pytest-randomly>=4.0.0",  # Random test order (finds hidden dependencies)
     "pytest-watch>=4.2.0",     # Auto-rerun tests on file changes
@@ -91,39 +115,6 @@ dev = [
     "matplotlib>=3.5.0",       # Required for visualization tests
     "plotly>=5.0.0",           # Required for visualization tests
     "seaborn>=0.12.0",         # Required for visualization tests
-]
-
-network = [
-    "pynetdicom[apps]>=2.0.0",
-]
-
-viz = [
-    "matplotlib>=3.5.0",  # Visualization for analytics and reporting
-    "plotly>=5.0.0",      # Interactive visualizations (optional)
-    "seaborn>=0.12.0",    # Statistical data visualization (required by visualization.py)
-]
-
-
-distributed = [
-    "redis>=5.2.0",       # Redis client for distributed task queue
-]
-
-metrics = [
-    "prometheus-client>=0.21.0",  # Prometheus metrics export
-]
-
-# Advanced fuzzing capabilities (v1.5.0)
-dicomweb = [
-    "requests>=2.31.0",  # HTTP client for DICOMweb REST API fuzzing
-    "httpx>=0.27.0",     # Modern async HTTP client (alternative)
-]
-
-differential = [
-    "python-gdcm>=3.0.0; platform_system != 'Windows'",  # GDCM bindings (Linux/macOS)
-]
-
-all = [
-    "dicom-fuzzer[viz,distributed,metrics,network,dicomweb]",
 ]
 
 # UV configuration (modern Python package management)
@@ -198,7 +189,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["D", "S101", "S607", "B", "F841", "PT011"]  # Relax docstring, assert, subprocess path, and pytest in tests
-"examples/**/*.py" = ["D", "S"]  # Relax docstring and security rules in examples
+"tools/examples/**/*.py" = ["D", "S"]  # Relax docstring and security rules in examples
 
 [tool.mypy]
 python_version = "3.11"
@@ -227,6 +218,14 @@ module = [
     "prometheus_client.*",  # Optional dependency for metrics
     "gdcm.*",     # Optional dependency for differential fuzzing
     "httpx.*",    # Optional dependency for async HTTP
+    "requests.*", # HTTP client
+    "psutil.*",   # Process utilities
+    "tqdm.*",     # Progress bars
+    "seaborn.*",  # Statistical visualization
+    "pywinauto.*",  # Windows GUI automation
+    "anthropic.*",  # LLM API client
+    "openai.*",   # LLM API client
+    "matplotlib.*",  # Plotting library
 ]
 ignore_missing_imports = true
 
@@ -368,6 +367,15 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.paths]
+# Normalize paths across parallel workers for consistent coverage combination
+# This handles different import paths that workers might use
+source = [
+    "dicom_fuzzer/",
+    "*/site-packages/dicom_fuzzer/",
+    "*\\site-packages\\dicom_fuzzer\\",
 ]
 
 [tool.coverage.html]

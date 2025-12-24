@@ -247,7 +247,8 @@ class WSCPSolver(Generic[T]):
             # Inverse of features per byte (smaller = more efficient)
             if seed.size > 0 and len(seed.features) > 0:
                 return seed.size / len(seed.features)
-            return float("inf")
+            # Return large finite value instead of inf to avoid arithmetic issues
+            return 1e9
 
         else:  # UNIFORM
             return 1.0
@@ -842,7 +843,8 @@ class IncrementalDistiller(Generic[T]):
         elif metric == WeightMetric.COVERAGE_DENSITY:
             if seed.size > 0 and len(seed.features) > 0:
                 return seed.size / len(seed.features)
-            return float("inf")
+            # Return large finite value instead of inf to avoid arithmetic issues
+            return 1e9
         else:
             return 1.0
 

@@ -750,6 +750,49 @@ class TestDicomValidatorRequiredTags:
         assert result.is_valid is False
 
 
+class TestValidatorFileOperations:
+    """Test file validation operations (from additional tests)."""
+
+    def test_validate_file_empty_file(self, tmp_path):
+        """Test validation of empty file."""
+        test_file = tmp_path / "empty.dcm"
+        test_file.write_bytes(b"")
+
+        validator = DicomValidator()
+        result, dataset = validator.validate_file(test_file)
+
+        assert result.is_valid is False
+        assert dataset is None
+        assert any("empty" in error.lower() for error in result.errors)
+
+    def test_validate_extremely_long_tag_value(self, tmp_path):
+        """Test detection of extremely long tag values (potential attack)."""
+        import pydicom
+        from pydicom.dataset import FileMetaDataset
+
+        test_file = tmp_path / "long_value.dcm"
+
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3"
+
+        ds = Dataset()
+        ds.file_meta = file_meta
+        ds.PatientName = "A" * 15000  # Very long value
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3"
+
+        pydicom.dcmwrite(str(test_file), ds)
+
+        validator = DicomValidator()
+        result, dataset = validator.validate_file(test_file)
+
+        # Should warn about extremely long value
+        assert len(result.warnings) > 0
+        assert any("extremely long" in warning.lower() for warning in result.warnings)
+
+
 class TestDicomValidatorEdgeCases:
     """Test edge cases and error handling."""
 

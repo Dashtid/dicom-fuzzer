@@ -20,6 +20,7 @@ References:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import struct
 from collections import Counter, defaultdict
@@ -471,7 +472,7 @@ class AdaptiveMutationSelector:
 
 
 @dataclass
-class FuzzingSession:
+class ResponseAwareSession:
     """Track a response-aware fuzzing session."""
 
     session_id: str = ""
@@ -506,7 +507,7 @@ class ResponseAwareFuzzer:
         self.parser = ResponseParser()
         self.analyzer = ResponseAnalyzer()
         self.selector = AdaptiveMutationSelector()
-        self.session = FuzzingSession()
+        self.session = ResponseAwareSession()
 
     def process_response(
         self,
@@ -546,10 +547,13 @@ class ResponseAwareFuzzer:
             ResponseType.DISCONNECT,
         )
 
-        # Create feedback
+        # Create feedback (use hashlib for deterministic hash across processes)
+        input_bytes = (
+            input_data if isinstance(input_data, bytes) else str(input_data).encode()
+        )
         feedback = MutationFeedback(
             mutation_type=mutation_type,
-            input_hash=hash(input_data).__str__(),
+            input_hash=hashlib.sha256(input_bytes).hexdigest()[:16],
             response=response,
             anomalies=anomalies,
             interesting=interesting,
@@ -614,3 +618,8 @@ class ResponseAwareFuzzer:
         """
         parsed = [ResponseParser.parse(data, time) for data, time in normal_responses]
         self.analyzer.establish_baseline(parsed)
+
+
+# Backwards compatibility alias - FuzzingSession was renamed to ResponseAwareSession
+# to avoid collision with dicom_fuzzer.core.fuzzing_session.FuzzingSession
+FuzzingSession = ResponseAwareSession

@@ -12,10 +12,12 @@ import shutil
 import subprocess
 import sys
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from dicom_fuzzer.cli import output as cli
 from dicom_fuzzer.core.generator import DICOMGenerator
 from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
 from dicom_fuzzer.core.target_runner import ExecutionStatus, TargetRunner
@@ -760,19 +762,19 @@ def pre_campaign_health_check(
 
     if verbose or not passed:
         if issues:
-            print("\n[!] Pre-flight check found critical issues:")
+            cli.warning("Pre-flight check found critical issues:")
             for issue in issues:
-                print(f"  [-] {issue}")
+                cli.error(issue)
 
         if warnings and verbose:
-            print("\n[!] Pre-flight check warnings:")
-            for warning in warnings:
-                print(f"  [!] {warning}")
+            cli.warning("Pre-flight check warnings:")
+            for warn_msg in warnings:
+                cli.warning(warn_msg)
 
         if passed and not warnings:
-            print("\n[+] Pre-flight checks passed")
+            cli.success("Pre-flight checks passed")
         elif passed:
-            print(f"\n[+] Pre-flight checks passed with {len(warnings)} warning(s)")
+            cli.success(f"Pre-flight checks passed with {len(warnings)} warning(s)")
 
     return passed, issues + warnings
 
@@ -785,10 +787,63 @@ def main() -> int:
 
     """
     # Handle subcommands before main argument parsing
-    if len(sys.argv) > 1 and sys.argv[1] == "samples":
-        from dicom_fuzzer.cli.samples import main as samples_main
+    if len(sys.argv) > 1:
+        subcommand = sys.argv[1]
 
-        return samples_main(sys.argv[2:])
+        if subcommand == "samples":
+            from dicom_fuzzer.cli.samples import main as samples_main
+
+            return samples_main(sys.argv[2:])
+
+        if subcommand == "llm":
+            from dicom_fuzzer.cli.llm import main as llm_main
+
+            return llm_main(sys.argv[2:])
+
+        if subcommand == "tls":
+            from dicom_fuzzer.cli.tls import main as tls_main
+
+            return tls_main(sys.argv[2:])
+
+        if subcommand == "differential":
+            from dicom_fuzzer.cli.differential import main as differential_main
+
+            return differential_main(sys.argv[2:])
+
+        if subcommand == "persistent":
+            from dicom_fuzzer.cli.persistent import main as persistent_main
+
+            return persistent_main(sys.argv[2:])
+
+        if subcommand == "state":
+            from dicom_fuzzer.cli.state import main as state_main
+
+            return state_main(sys.argv[2:])
+
+        if subcommand == "corpus":
+            from dicom_fuzzer.cli.corpus import main as corpus_main
+
+            return corpus_main(sys.argv[2:])
+
+        if subcommand == "study":
+            from dicom_fuzzer.cli.study import main as study_main
+
+            return study_main(sys.argv[2:])
+
+        if subcommand == "calibrate":
+            from dicom_fuzzer.cli.calibrate import main as calibrate_main
+
+            return calibrate_main(sys.argv[2:])
+
+        if subcommand == "stress":
+            from dicom_fuzzer.cli.stress import main as stress_main
+
+            return stress_main(sys.argv[2:])
+
+        if subcommand == "target":
+            from dicom_fuzzer.cli.target import main as target_main
+
+            return target_main(sys.argv[2:])
 
     parser = argparse.ArgumentParser(
         description="DICOM Fuzzer - Security testing tool for medical imaging systems",
@@ -800,13 +855,20 @@ Examples:
   # Fuzz all DICOM files in a directory
   %(prog)s ./dicom_folder/ -c 10 -o ./output
 
-  # Recursively scan directory for DICOM files
-  %(prog)s ./data/ --recursive -c 5 -o ./output
-
   # Generate synthetic samples
   %(prog)s samples --generate -c 10 -o ./samples
-  # Test with GUI application (e.g., Hermes Affinity)
-  %(prog)s input.dcm -c 20 -t viewer.exe --gui-mode --timeout 5
+
+Subcommands (use --help for details):
+  samples      Generate synthetic/malicious DICOM samples
+  llm          LLM-assisted intelligent fuzzing
+  tls          DICOM TLS/authentication testing
+  differential Cross-parser differential testing
+  persistent   AFL-style persistent mode fuzzing
+  state        Protocol state machine fuzzing
+  corpus       Corpus management and minimization
+  study        Study-level fuzzing (cross-series attacks)
+  calibrate    Calibration/measurement fuzzing
+  stress       Memory stress testing
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -837,7 +899,7 @@ Examples:
     parser.add_argument(
         "-o",
         "--output",
-        default="./campaigns/output",
+        default="./artifacts/campaigns",
         metavar="DIR",
         help="Output directory for fuzzed files (default: ./campaigns/output)",
     )
@@ -854,7 +916,15 @@ Examples:
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging output"
     )
-    parser.add_argument("--version", action="version", version="DICOM Fuzzer v1.3.0")
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", help="Suppress all output except errors"
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results in JSON format (useful for CI/CD pipelines)",
+    )
+    parser.add_argument("--version", action="version", version="DICOM Fuzzer v1.7.0")
 
     # Target testing options
     parser.add_argument(
@@ -1066,8 +1136,16 @@ Examples:
 
     args = parser.parse_args()
 
-    # Setup logging
-    setup_logging(args.verbose)
+    # Handle quiet mode - suppress output except errors
+    quiet_mode = getattr(args, "quiet", False)
+    json_mode = getattr(args, "json", False)
+
+    # Setup logging (verbose overrides quiet)
+    if quiet_mode and not args.verbose:
+        logging.getLogger().setLevel(logging.ERROR)
+        setup_logging(False)
+    else:
+        setup_logging(args.verbose)
     logger = logging.getLogger(__name__)
 
     # Create resource limits if specified
@@ -1141,25 +1219,23 @@ Examples:
     )
 
     # Generate fuzzed files
-    print("\n" + "=" * 70)
-    print("  DICOM Fuzzer v1.3.0 - Fuzzing Campaign")
-    print("=" * 70)
+    cli.header("DICOM Fuzzer - Fuzzing Campaign", "v1.6.0")
     if is_directory_input:
-        print(f"  Input:      {args.input_file} ({len(input_files)} files)")
+        cli.detail("Input", f"{args.input_file} ({len(input_files)} files)")
         if recursive:
-            print("  Mode:       Recursive directory scan")
-        print(f"  Per-file:   {num_files_per_input} mutations each")
+            cli.detail("Mode", "Recursive directory scan")
+        cli.detail("Per-file", f"{num_files_per_input} mutations each")
         total_expected = num_files_per_input * len(input_files)
-        print(f"  Total:      ~{total_expected} files (max)")
+        cli.detail("Total", f"~{total_expected} files (max)")
     else:
-        print(f"  Input:      {input_files[0].name}")
-        print(f"  Target:     {num_files_per_input} files")
-    print(f"  Output:     {args.output}")
+        cli.detail("Input", str(input_files[0].name))
+        cli.detail("Target", f"{num_files_per_input} files")
+    cli.detail("Output", str(args.output))
     if selected_strategies:
-        print(f"  Strategies: {', '.join(selected_strategies)}")
+        cli.detail("Strategies", ", ".join(selected_strategies))
     else:
-        print("  Strategies: all (metadata, header, pixel)")
-    print("=" * 70 + "\n")
+        cli.detail("Strategies", "all (metadata, header, pixel)")
+    cli.divider()
 
     total_expected = num_files_per_input * len(input_files)
     logger.info(f"Generating up to {total_expected} fuzzed files...")
@@ -1173,6 +1249,7 @@ Examples:
         if is_directory_input:
             # Multiple input files from directory
             print(f"Processing {len(input_files)} input files...")
+            input_iterator: Iterable[Path]
             if HAS_TQDM and not args.verbose:
                 from tqdm import tqdm as tqdm_iter
 
@@ -1229,58 +1306,78 @@ Examples:
                 )
 
         elapsed_time = time.time() - start_time
-
-        # Display results (using ASCII for Windows compatibility)
-        print("\n" + "=" * 70)
-        print("  Campaign Results")
-        print("=" * 70)
-        print(f"  [+] Successfully generated: {len(files)} files")
         skipped = (
             getattr(generator.stats, "skipped_due_to_write_errors", 0)
             if hasattr(generator, "stats")
             else 0
         )
-        print(f"  [!] Skipped (write errors): {skipped}")
-        files_per_sec = len(files) / elapsed_time
-        print(
-            f"  [T] Time elapsed: {elapsed_time:.2f}s ({files_per_sec:.1f} files/sec)"
-        )
+        files_per_sec = len(files) / elapsed_time if elapsed_time > 0 else 0
 
-        # Check if stats exist and strategies_used is a dict (for test compatibility)
+        # Collect results for potential JSON output
+        results_data = {
+            "status": "success",
+            "generated_count": len(files),
+            "skipped_count": skipped,
+            "duration_seconds": round(elapsed_time, 2),
+            "files_per_second": round(files_per_sec, 1),
+            "output_directory": str(args.output),
+            "files": [str(f) for f in files[:100]],  # Limit to 100 in JSON
+        }
+
+        # Add strategy usage if available
         if hasattr(generator, "stats") and hasattr(generator.stats, "strategies_used"):
             strategies_used = generator.stats.strategies_used
             if isinstance(strategies_used, dict) and strategies_used:
-                print("\n  Strategy Usage:")
-                for strategy, count in sorted(strategies_used.items()):
-                    print(f"    - {strategy}: {count} times")
+                results_data["strategies_used"] = strategies_used
 
-        print(f"\n  Output: {args.output}")
-        print("=" * 70 + "\n")
+        # Output in JSON format if requested
+        if json_mode:
+            print(json.dumps(results_data, indent=2))
+        elif not quiet_mode:
+            # Display results with colored output
+            cli.section("Campaign Results")
+            stats = {
+                "Successfully generated": f"{len(files)} files",
+                "Skipped": skipped,
+                "Duration": f"{elapsed_time:.2f}s ({files_per_sec:.1f} files/sec)",
+                "Output": str(args.output),
+            }
 
-        if args.verbose:
-            print("Sample generated files:")
-            for f in files[:10]:
-                print(f"  - {f.name}")
-            if len(files) > 10:
-                print(f"  ... and {len(files) - 10} more")
-            print()
+            if "strategies_used" in results_data:
+                strat_used = results_data["strategies_used"]
+                if isinstance(strat_used, dict):
+                    stats["Strategies"] = ", ".join(
+                        f"{s}({c})" for s, c in sorted(strat_used.items())
+                    )
+
+            cli.print_summary(
+                "Fuzzing Complete",
+                stats,
+                success_count=len(files),
+                error_count=skipped,
+            )
+
+            if args.verbose:
+                cli.info("Sample generated files:")
+                for f in files[:10]:
+                    cli.status(f"  - {f.name}")
+                if len(files) > 10:
+                    cli.status(f"  ... and {len(files) - 10} more")
 
         # Network fuzzing if --network-fuzz specified
         if getattr(args, "network_fuzz", False):
             if not HAS_NETWORK_FUZZER:
-                print("[ERROR] Network fuzzing module not available.")
-                print(
+                cli.error("Network fuzzing module not available.")
+                cli.status(
                     "Please check that dicom_fuzzer.core.network_fuzzer is installed."
                 )
                 sys.exit(1)
 
-            print("\n" + "=" * 70)
-            print("  DICOM Network Protocol Fuzzing")
-            print("=" * 70)
-            print(f"  Host:       {args.host}:{args.port}")
-            print(f"  AE Title:   {args.ae_title}")
-            print(f"  Strategy:   {args.network_strategy}")
-            print("=" * 70 + "\n")
+            cli.header("DICOM Network Protocol Fuzzing")
+            cli.detail("Host", f"{args.host}:{args.port}")
+            cli.detail("AE Title", args.ae_title)
+            cli.detail("Strategy", args.network_strategy)
+            cli.divider()
 
             try:
                 network_config = DICOMNetworkConfig(

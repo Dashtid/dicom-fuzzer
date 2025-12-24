@@ -211,7 +211,7 @@ class DICOMTLSFuzzerConfig:
 class TLSSecurityTester:
     """Test TLS configuration security of DICOM servers."""
 
-    # Weak cipher suites to test for
+    # Weak cipher suites to test for (no duplicates)
     WEAK_CIPHERS = [
         "NULL-MD5",
         "NULL-SHA",
@@ -223,23 +223,22 @@ class TLSSecurityTester:
         "RC4-MD5",
         "RC4-SHA",
         "IDEA-CBC-SHA",
-        "EXP-RC4-MD5",
-        "EXP-RC2-CBC-MD5",
-        "EXP-DES-CBC-SHA",
     ]
 
-    # SSL/TLS versions to test
-    SSL_VERSIONS = [
-        ("SSLv2", ssl.PROTOCOL_SSLv23),
-        ("SSLv3", ssl.PROTOCOL_SSLv23),
-        ("TLSv1.0", ssl.PROTOCOL_TLSv1 if hasattr(ssl, "PROTOCOL_TLSv1") else None),
+    # SSL/TLS versions to test (use ssl.TLSVersion for modern Python 3.11+)
+    SSL_VERSIONS: list[tuple[str, ssl.TLSVersion | None]] = [
+        ("TLSv1.0", ssl.TLSVersion.TLSv1 if hasattr(ssl.TLSVersion, "TLSv1") else None),
         (
             "TLSv1.1",
-            ssl.PROTOCOL_TLSv1_1 if hasattr(ssl, "PROTOCOL_TLSv1_1") else None,
+            ssl.TLSVersion.TLSv1_1 if hasattr(ssl.TLSVersion, "TLSv1_1") else None,
         ),
         (
             "TLSv1.2",
-            ssl.PROTOCOL_TLSv1_2 if hasattr(ssl, "PROTOCOL_TLSv1_2") else None,
+            ssl.TLSVersion.TLSv1_2 if hasattr(ssl.TLSVersion, "TLSv1_2") else None,
+        ),
+        (
+            "TLSv1.3",
+            ssl.TLSVersion.TLSv1_3 if hasattr(ssl.TLSVersion, "TLSv1_3") else None,
         ),
     ]
 
@@ -251,31 +250,29 @@ class TLSSecurityTester:
         """Test which SSL/TLS versions are supported."""
         results = []
 
-        for version_name, protocol in self.SSL_VERSIONS:
-            if protocol is None:
+        for version_name, tls_version in self.SSL_VERSIONS:
+            if tls_version is None:
                 continue
 
-            result = self._test_single_version(version_name, protocol)
+            result = self._test_single_version(version_name, tls_version)
             results.append(result)
 
         return results
 
-    def _test_single_version(self, version_name: str, protocol: int) -> TLSFuzzResult:
-        """Test support for a specific SSL/TLS version."""
+    def _test_single_version(
+        self, version_name: str, tls_version: ssl.TLSVersion
+    ) -> TLSFuzzResult:
+        """Test support for a specific TLS version."""
         start_time = time.time()
 
         try:
-            context = ssl.SSLContext(protocol)
+            # Use modern SSLContext with version constraints
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
-
-            # Disable newer versions if testing old ones
-            if "SSLv" in version_name or version_name == "TLSv1.0":
-                try:
-                    context.options |= ssl.OP_NO_TLSv1_2
-                    context.options |= ssl.OP_NO_TLSv1_1
-                except AttributeError:
-                    pass
+            # Force specific TLS version
+            context.minimum_version = tls_version
+            context.maximum_version = tls_version
 
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.settimeout(self.config.timeout)
@@ -284,14 +281,15 @@ class TLSSecurityTester:
                 with context.wrap_socket(sock) as ssock:
                     actual_version = ssock.version()
 
-                    is_vulnerable = version_name in ["SSLv2", "SSLv3", "TLSv1.0"]
+                    # TLSv1.0 and TLSv1.1 are deprecated
+                    is_vulnerable = version_name in ["TLSv1.0", "TLSv1.1"]
 
                     return TLSFuzzResult(
                         test_type=f"ssl_version_{version_name}",
                         target=f"{self.config.target_host}:{self.config.target_port}",
                         success=True,
                         vulnerability_found=is_vulnerable,
-                        vulnerability_type="deprecated_ssl" if is_vulnerable else "",
+                        vulnerability_type="deprecated_tls" if is_vulnerable else "",
                         details=f"Server supports {version_name} (actual: {actual_version})",
                         duration_ms=(time.time() - start_time) * 1000,
                         severity="high" if is_vulnerable else "info",

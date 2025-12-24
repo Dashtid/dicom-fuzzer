@@ -24,9 +24,11 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # Try to import redis
+redis: Any  # Module or None depending on availability
 try:
-    import redis
+    import redis as _redis_module
 
+    redis = _redis_module
     HAS_REDIS = True
 except ImportError:
     HAS_REDIS = False
