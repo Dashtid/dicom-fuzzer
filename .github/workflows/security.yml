@@ -112,7 +112,7 @@ jobs:
           fetch-depth: 0
 
       - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@05cccb53bc9e13bc6d17997db5a6bcc3df44bf2f  # main
+        uses: trufflesecurity/trufflehog@ef6e76c3c4023279497fab4721ffa071a722fd05  # main
         with:
           path: ./
           # Use event.before for push (actual previous commit), default_branch for PR/schedule
