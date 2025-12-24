@@ -171,7 +171,7 @@ jobs:
           uv run python -m memory_profiler profile_memory.py > memory-profile.txt
 
       - name: Upload memory profile
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         with:
           name: memory-profile
           path: memory-profile.txt
@@ -260,7 +260,7 @@ jobs:
           uv run locust -f locustfile.py --headless --users 10 --spawn-rate 2 --run-time 60s --html load-test-report.html
 
       - name: Upload load test report
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         with:
           name: load-test-report
           path: load-test-report.html
@@ -340,7 +340,7 @@ jobs:
           fi
 
       - name: Upload CPU profile
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         with:
           name: cpu-profile
           path: cpu-profile.svg
