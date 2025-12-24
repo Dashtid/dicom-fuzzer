@@ -43,7 +43,7 @@ DICOM files often contain PHI. Follow these requirements:
 
 ## Malicious Sample Library
 
-The `tools/generators/` directory contains intentionally malicious DICOM files.
+The fuzzer generates intentionally malicious DICOM samples. See [CVE Reference](docs/CVE_REFERENCE.md) for details.
 
 | Category               | Risk   | Description                          |
 | ---------------------- | ------ | ------------------------------------ |
@@ -54,15 +54,20 @@ The `tools/generators/` directory contains intentionally malicious DICOM files.
 
 ### CVE Samples
 
-| CVE            | Product    | Type                  | CVSS |
-| -------------- | ---------- | --------------------- | ---- |
-| CVE-2019-11687 | DICOM Std  | PE/DICOM polyglot     | N/A  |
-| CVE-2022-2119  | DCMTK      | Path traversal        | 7.5  |
-| CVE-2022-2120  | DCMTK      | Path traversal        | 7.5  |
-| CVE-2024-22100 | MicroDicom | Heap buffer overflow  | 7.8  |
-| CVE-2024-28877 | MicroDicom | Stack buffer overflow | 8.7  |
-| CVE-2025-1001  | RadiAnt    | Certificate bypass    | 5.7  |
-| CVE-2025-11266 | GDCM       | Out-of-bounds write   | 6.6  |
+| CVE            | Product    | Type                   | CVSS |
+| -------------- | ---------- | ---------------------- | ---- |
+| CVE-2025-5943  | MicroDicom | OOB write              | 8.8  |
+| CVE-2025-53618 | GDCM       | JPEG codec OOB read    | 7.5  |
+| CVE-2025-53619 | GDCM       | JPEG info disclosure   | 7.5  |
+| CVE-2025-11266 | GDCM       | PixelData OOB write    | 6.6  |
+| CVE-2025-1001  | RadiAnt    | TLS cert bypass (MitM) | 5.7  |
+| CVE-2024-33606 | MicroDicom | URL scheme auth bypass | 8.8  |
+| CVE-2024-28877 | MicroDicom | Stack buffer overflow  | 8.7  |
+| CVE-2024-22100 | MicroDicom | Heap buffer overflow   | 7.8  |
+| CVE-2022-2121  | DCMTK      | Null pointer deref     | 6.5  |
+| CVE-2022-2120  | DCMTK      | Path traversal (SCU)   | 7.5  |
+| CVE-2022-2119  | DCMTK      | Path traversal (SCP)   | 7.5  |
+| CVE-2019-11687 | DICOM Std  | Preamble executable    | N/A  |
 
 ### Safety Guidelines
 
