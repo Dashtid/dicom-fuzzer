@@ -3,7 +3,7 @@
 ## Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/dicom-fuzzer.git
+git clone https://github.com/Dashtid/dicom-fuzzer.git
 cd dicom-fuzzer
 uv sync --all-extras
 uv run pre-commit install
@@ -67,7 +67,7 @@ Format: `<type>: <description>`
 
 Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 
-```
+```text
 feat: add 3D series fuzzing support
 fix: resolve crash in metadata parser
 docs: update CLI reference
