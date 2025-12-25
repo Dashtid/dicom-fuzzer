@@ -2,7 +2,7 @@
 
 DICOM vulnerabilities targeted by the fuzzer's security mutations.
 
-**Total: 24 mutations across 18 CVEs** (expanded December 2025)
+**Total: 26 mutations across 20 CVEs** (expanded December 2025)
 
 ## Security Testing Philosophy
 
@@ -58,6 +58,8 @@ This tool generates test cases - it does not exploit running systems.
 | CVE-2024-25578 | MicroDicom   | OOB write (validation) | 7.8  | 2024.1     | 1         |
 | CVE-2024-28877 | MicroDicom   | Stack overflow         | 8.7  | 2024.2     | 1         |
 | CVE-2024-33606 | MicroDicom   | URL scheme auth bypass | 8.8  | 2024.2     | 1         |
+| CVE-2024-47796 | DCMTK        | OOB write (nowindow)   | 8.4  | 3.6.9      | 1         |
+| CVE-2024-52333 | DCMTK        | OOB write (minmax)     | 8.4  | 3.6.9      | 1         |
 | CVE-2022-2119  | DCMTK        | Path traversal (SCP)   | 7.5  | 3.6.7      | sample    |
 | CVE-2022-2120  | DCMTK        | Path traversal (SCU)   | 7.5  | 3.6.7      | sample    |
 | CVE-2022-2121  | DCMTK        | Null pointer deref     | 6.5  | 3.6.7      | sample    |
@@ -87,6 +89,8 @@ The fuzzer applies these CVE-based mutations by default:
 | `cve_polyglot`             | CVE-2019-11687 | PE/ELF header in preamble           |
 | `cve_encapsulated_pixel`   | CVE-2025-11266 | Fragment count mismatch             |
 | `cve_jpeg_codec`           | CVE-2025-53618 | Truncated JPEG-LS stream            |
+| `cve_dcmtk_nowindow`       | CVE-2024-47796 | LUT index overflow in nowindow      |
+| `cve_dcmtk_minmax`         | CVE-2024-52333 | determineMinMax array overflow      |
 | `cve_random`               | Any            | Random CVE from registry            |
 
 ## Vulnerability Details
@@ -165,6 +169,17 @@ Path traversal in C-STORE SCP/SCU allows arbitrary file write via `../` sequence
 
 **Trigger:** Send/receive via DCMTK < 3.6.7
 **Reference:** [Claroty Team82](https://claroty.com/team82/research/dicom-demystified)
+
+### CVE-2024-47796/CVE-2024-52333 - DCMTK Image Processing OOB Write
+
+Out-of-bounds write vulnerabilities in DCMTK 3.6.8 image processing (Cisco Talos):
+
+- **CVE-2024-47796:** OOB write in nowindow LUT processing when pixel count mismatches dimensions (CVSS 8.4)
+- **CVE-2024-52333:** OOB write in determineMinMax when array bounds not validated (CVSS 8.4)
+
+**Trigger:** Process crafted `.dcm` with DCMTK < 3.6.9 (dcmimgle library)
+**Technique:** Dimension/pixel count mismatches trigger array index overflows
+**Reference:** [TALOS-2024-2121](https://talosintelligence.com/vulnerability_reports/TALOS-2024-2121), [TALOS-2024-2122](https://talosintelligence.com/vulnerability_reports/TALOS-2024-2122)
 
 ### CVE-2019-11687 - DICOM Preamble Executable
 

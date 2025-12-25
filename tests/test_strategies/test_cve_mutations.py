@@ -16,6 +16,8 @@ from dicom_fuzzer.strategies.cve_mutations import (
     get_mutation_func,
     get_mutations_by_category,
     mutate_certificate_validation_bypass,
+    mutate_dcmtk_determine_minmax_oob,
+    mutate_dcmtk_nowindow_oob_write,
     mutate_deep_nesting,
     mutate_elf_polyglot_preamble,
     mutate_encapsulated_pixeldata_underflow,
@@ -641,6 +643,8 @@ class TestNewCVERegistry:
         assert "CVE-2024-28877" in cves
         assert "CVE-2024-33606" in cves
         assert "CVE-2024-1453" in cves  # Sante DICOM Viewer Pro OOB read
+        assert "CVE-2024-47796" in cves  # DCMTK nowindow LUT OOB write
+        assert "CVE-2024-52333" in cves  # DCMTK determineMinMax OOB write
 
     def test_2025_cves_registered(self):
         """Test 2025 CVEs are in the registry."""
@@ -681,6 +685,8 @@ class TestNewCVERegistry:
             "CVE-2025-31946",
             "CVE-2024-1453",
             "CVE-2025-5307",
+            "CVE-2024-47796",
+            "CVE-2024-52333",
         ]
         for cve_id in new_cves:
             mutated, mutation = apply_cve_mutation(data, cve_id=cve_id)
@@ -832,3 +838,82 @@ class TestUseAfterFreeCategory:
         cve_ids = [m.cve_id for m in oob_mutations]
         assert "CVE-2024-1453" in cve_ids
         assert "CVE-2025-5307" in cve_ids
+
+
+class TestDCMTK2024CVEs:
+    """Test DCMTK 2024 CVE mutations from Cisco Talos research."""
+
+    def test_mutate_dcmtk_nowindow_oob_write(self):
+        """Test CVE-2024-47796 nowindow LUT out-of-bounds write mutation."""
+        data = b"\x00" * 200 + b"\xfe\xff\x0d\xe0"
+        result = mutate_dcmtk_nowindow_oob_write(data)
+        # Should modify data or inject NumberOfFrames element
+        assert isinstance(result, bytes)
+        assert len(result) >= len(data)
+
+    def test_mutate_dcmtk_nowindow_with_existing_dimensions(self):
+        """Test CVE-2024-47796 with existing dimension tags."""
+        rows_tag = b"\x28\x00\x10\x00"
+        cols_tag = b"\x28\x00\x11\x00"
+        data = (
+            b"\x00" * 50
+            + rows_tag
+            + b"US"
+            + struct.pack("<H", 2)
+            + struct.pack("<H", 256)
+            + cols_tag
+            + b"US"
+            + struct.pack("<H", 2)
+            + struct.pack("<H", 256)
+            + b"\x00" * 100
+        )
+        result = mutate_dcmtk_nowindow_oob_write(data)
+        # Should have modified dimension values
+        assert result != data
+        assert isinstance(result, bytes)
+
+    def test_mutate_dcmtk_determine_minmax_oob(self):
+        """Test CVE-2024-52333 determineMinMax out-of-bounds write mutation."""
+        data = b"\x00" * 200 + b"\xfe\xff\x0d\xe0"
+        result = mutate_dcmtk_determine_minmax_oob(data)
+        # Should create dimension/buffer mismatch or inject PixelData
+        assert isinstance(result, bytes)
+        assert len(result) >= len(data)
+
+    def test_mutate_dcmtk_determine_minmax_with_existing_pixeldata(self):
+        """Test CVE-2024-52333 with existing PixelData tag."""
+        pixel_data_tag = b"\xe0\x7f\x10\x00"
+        data = (
+            b"\x00" * 50
+            + pixel_data_tag
+            + b"OW"
+            + b"\x00\x00"
+            + struct.pack("<I", 1024)
+            + b"\x00" * 1024
+            + b"\x00" * 50
+        )
+        result = mutate_dcmtk_determine_minmax_oob(data)
+        # Should have modified PixelData length to small value
+        assert isinstance(result, bytes)
+
+    def test_dcmtk_2024_cves_in_registry(self):
+        """Test DCMTK 2024 CVEs are registered."""
+        cves = get_available_cves()
+        assert "CVE-2024-47796" in cves
+        assert "CVE-2024-52333" in cves
+
+    def test_dcmtk_oob_write_mutations_in_category(self):
+        """Test DCMTK OOB write mutations are in correct category."""
+        oob_write_mutations = get_mutations_by_category(CVECategory.OUT_OF_BOUNDS_WRITE)
+        cve_ids = [m.cve_id for m in oob_write_mutations]
+        assert "CVE-2024-47796" in cve_ids
+        assert "CVE-2024-52333" in cve_ids
+
+    def test_apply_dcmtk_cve_mutations(self):
+        """Test applying DCMTK CVE mutations via registry."""
+        data = b"\x00" * 200 + b"\xfe\xff\x0d\xe0"
+
+        for cve_id in ["CVE-2024-47796", "CVE-2024-52333"]:
+            mutated, mutation = apply_cve_mutation(data, cve_id=cve_id)
+            assert mutation.cve_id == cve_id
+            assert isinstance(mutated, bytes)

