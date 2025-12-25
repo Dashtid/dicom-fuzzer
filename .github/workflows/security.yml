@@ -96,7 +96,7 @@ jobs:
             --enableExperimental
 
       - name: Upload Dependency-Check results
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         if: always()
         with:
           name: dependency-check-report
@@ -157,7 +157,7 @@ jobs:
           uv pip list --format=json > packages.json
 
       - name: Upload supply chain report
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         if: always()
         with:
           name: supply-chain-report
@@ -227,7 +227,7 @@ jobs:
           uv run pip-licenses | grep -E "GPL|AGPL" || echo "No copyleft licenses found"
 
       - name: Upload license report
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         with:
           name: license-report
           path: |
@@ -262,7 +262,7 @@ jobs:
           uv run cyclonedx-py environment --of xml -o sbom.xml
 
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         with:
           name: sbom
           path: |
