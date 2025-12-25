@@ -33,7 +33,7 @@ jobs:
             p/ci
 
       - name: Upload SARIF to GitHub
-        uses: github/codeql-action/upload-sarif@1b168cd39490f61582a9beae412bb7057a6b2c4e  # v4
+        uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7  # v4
         if: always() && hashFiles('semgrep.sarif') != ''
         with:
           sarif_file: semgrep.sarif
@@ -55,7 +55,7 @@ jobs:
           severity: 'CRITICAL,HIGH,MEDIUM'
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@1b168cd39490f61582a9beae412bb7057a6b2c4e  # v4
+        uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7  # v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
@@ -96,7 +96,7 @@ jobs:
             --enableExperimental
 
       - name: Upload Dependency-Check results
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         if: always()
         with:
           name: dependency-check-report
@@ -112,7 +112,7 @@ jobs:
           fetch-depth: 0
 
       - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@05cccb53bc9e13bc6d17997db5a6bcc3df44bf2f  # main
+        uses: trufflesecurity/trufflehog@ef6e76c3c4023279497fab4721ffa071a722fd05  # main
         with:
           path: ./
           # Use event.before for push (actual previous commit), default_branch for PR/schedule
@@ -157,7 +157,7 @@ jobs:
           uv pip list --format=json > packages.json
 
       - name: Upload supply chain report
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         if: always()
         with:
           name: supply-chain-report
@@ -189,7 +189,7 @@ jobs:
           publish_results: true
 
       - name: Upload Scorecard results to GitHub
-        uses: github/codeql-action/upload-sarif@1b168cd39490f61582a9beae412bb7057a6b2c4e  # v4
+        uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7  # v4
         if: always() && hashFiles('results.sarif') != ''
         with:
           sarif_file: results.sarif
@@ -227,7 +227,7 @@ jobs:
           uv run pip-licenses | grep -E "GPL|AGPL" || echo "No copyleft licenses found"
 
       - name: Upload license report
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         with:
           name: license-report
           path: |
@@ -262,7 +262,7 @@ jobs:
           uv run cyclonedx-py environment --of xml -o sbom.xml
 
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         with:
           name: sbom
           path: |

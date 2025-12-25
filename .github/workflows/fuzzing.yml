@@ -91,7 +91,7 @@ jobs:
           cat scan_results.json | head -50
 
       - name: Upload sample artifacts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         if: always()
         with:
           name: pr-sample-validation
@@ -123,7 +123,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: Download corpus (if available)
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57  # v4
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb  # v4
         with:
           path: ./corpus
           key: fuzz-corpus-${{ github.base_ref }}-${{ hashFiles('dicom_fuzzer/**') }}
@@ -169,7 +169,7 @@ jobs:
           fi
 
       - name: Upload fuzzing results
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         if: always()
         with:
           name: pr-fuzzing-results
@@ -202,7 +202,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: Download corpus cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57  # v4
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb  # v4
         with:
           path: ./corpus
           key: fuzz-corpus-nightly-${{ github.run_number }}
@@ -286,7 +286,7 @@ jobs:
           cat ./reports/summary.md
 
       - name: Upload fuzzing artifacts
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         if: always()
         with:
           name: nightly-fuzzing-results-${{ github.run_number }}
@@ -297,7 +297,7 @@ jobs:
           retention-days: 30
 
       - name: Update corpus cache
-        uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57  # v4
+        uses: actions/cache/save@9255dc7a253b0ccc959486e2bca901246202afeb  # v4
         if: always()
         with:
           path: ./corpus
@@ -375,7 +375,7 @@ jobs:
           done
 
       - name: Upload CVE validation results
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         if: always()
         with:
           name: cve-validation-results
