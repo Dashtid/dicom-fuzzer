@@ -7,6 +7,7 @@ from pydicom.dataset import Dataset
 from pydicom.uid import UID, generate_uid
 
 from dicom_fuzzer.core.parser import DicomParser
+from dicom_fuzzer.strategies.cve_fuzzer import CVEFuzzer
 from dicom_fuzzer.strategies.header_fuzzer import HeaderFuzzer
 from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
 from dicom_fuzzer.strategies.pixel_fuzzer import PixelFuzzer
@@ -170,14 +171,17 @@ class DICOMGenerator:
             "header": HeaderFuzzer(),
             "pixel": PixelFuzzer(),
             "structure": StructureFuzzer(),
+            "cve": CVEFuzzer(),
         }
 
         if strategies is None:
             # Use all fuzzers (except structure by default for compatibility)
+            # CVE mutations are enabled by default for security testing
             return {
                 "metadata": all_fuzzers["metadata"],
                 "header": all_fuzzers["header"],
                 "pixel": all_fuzzers["pixel"],
+                "cve": all_fuzzers["cve"],
             }
 
         # Use only specified strategies
@@ -239,6 +243,7 @@ class DICOMGenerator:
             "header": lambda: fuzzer.mutate_tags(dataset),
             "pixel": lambda: fuzzer.mutate_pixels(dataset),
             "structure": lambda: fuzzer.mutate_structure(dataset),
+            "cve": lambda: fuzzer.apply_cve_mutations(dataset),
         }
         result: Dataset = fuzzer_methods.get(fuzzer_type, lambda: dataset)()
         return result

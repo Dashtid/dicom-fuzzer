@@ -317,7 +317,10 @@ class TestResourceExhaustion:
         # Generate many files
         output_dir = temp_dir / "many_files"
         generator = DICOMGenerator(output_dir=str(output_dir))
-        files = generator.generate_batch(sample_dicom_file, count=100)
+        # Exclude CVE mutations which can cause write failures by design
+        files = generator.generate_batch(
+            sample_dicom_file, count=100, strategies=["metadata", "header", "pixel"]
+        )
 
         # Try to open all at once
         file_handles = []

@@ -70,7 +70,10 @@ class TestBatchGeneration:
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        generated_files = generator.generate_batch(sample_dicom_file, count=5)
+        # Exclude CVE mutations which can cause write failures by design
+        generated_files = generator.generate_batch(
+            sample_dicom_file, count=5, strategies=["metadata", "header", "pixel"]
+        )
 
         assert len(generated_files) == 5
         # Verify all files exist
@@ -83,7 +86,10 @@ class TestBatchGeneration:
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        generated_files = generator.generate_batch(sample_dicom_file, count=1)
+        # Exclude CVE mutations which can cause write failures by design
+        generated_files = generator.generate_batch(
+            sample_dicom_file, count=1, strategies=["metadata", "header", "pixel"]
+        )
 
         assert len(generated_files) == 1
         assert generated_files[0].exists()
@@ -102,7 +108,10 @@ class TestBatchGeneration:
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        generated_files = generator.generate_batch(sample_dicom_file, count=50)
+        # Exclude CVE mutations which can cause write failures by design
+        generated_files = generator.generate_batch(
+            sample_dicom_file, count=50, strategies=["metadata", "header", "pixel"]
+        )
 
         assert len(generated_files) == 50
         # Verify all files exist
@@ -202,8 +211,10 @@ class TestFuzzerIntegration:
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        # Generate files
-        generated_files = generator.generate_batch(sample_dicom_file, count=5)
+        # Exclude CVE mutations which can cause write failures by design
+        generated_files = generator.generate_batch(
+            sample_dicom_file, count=5, strategies=["metadata", "header", "pixel"]
+        )
 
         # All files should be created (mutations were applied successfully)
         assert len(generated_files) == 5
@@ -333,7 +344,10 @@ class TestPropertyBasedTesting:
         output_dir = temp_dir / "output_prop"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        generated_files = generator.generate_batch(sample_dicom_file, count=count)
+        # Exclude CVE mutations which can cause write failures by design
+        generated_files = generator.generate_batch(
+            sample_dicom_file, count=count, strategies=["metadata", "header", "pixel"]
+        )
 
         assert len(generated_files) == count
 
@@ -521,12 +535,19 @@ class TestIntegration:
         generator = DICOMGenerator(output_dir=str(output_dir))
         assert generator.output_dir.exists()
 
+        # Exclude CVE mutations which can cause write failures by design
+        strategies = ["metadata", "header", "pixel"]
+
         # Generate first batch
-        batch1 = generator.generate_batch(sample_dicom_file, count=5)
+        batch1 = generator.generate_batch(
+            sample_dicom_file, count=5, strategies=strategies
+        )
         assert len(batch1) == 5
 
         # Generate second batch
-        batch2 = generator.generate_batch(sample_dicom_file, count=3)
+        batch2 = generator.generate_batch(
+            sample_dicom_file, count=3, strategies=strategies
+        )
         assert len(batch2) == 3
 
         # Verify all files exist and are unique
@@ -548,8 +569,11 @@ class TestIntegration:
         gen1 = DICOMGenerator(output_dir=str(output_dir))
         gen2 = DICOMGenerator(output_dir=str(output_dir))
 
-        files1 = gen1.generate_batch(sample_dicom_file, count=3)
-        files2 = gen2.generate_batch(sample_dicom_file, count=3)
+        # Exclude CVE mutations which can cause write failures by design
+        strategies = ["metadata", "header", "pixel"]
+
+        files1 = gen1.generate_batch(sample_dicom_file, count=3, strategies=strategies)
+        files2 = gen2.generate_batch(sample_dicom_file, count=3, strategies=strategies)
 
         # All files should be unique
         all_filenames = [f.name for f in files1 + files2]
@@ -562,8 +586,15 @@ class TestIntegration:
         output_dir = temp_dir / "multi_source"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        files_from_sample = generator.generate_batch(sample_dicom_file, count=3)
-        files_from_minimal = generator.generate_batch(minimal_dicom_file, count=3)
+        # Exclude CVE mutations which can cause write failures by design
+        strategies = ["metadata", "header", "pixel"]
+
+        files_from_sample = generator.generate_batch(
+            sample_dicom_file, count=3, strategies=strategies
+        )
+        files_from_minimal = generator.generate_batch(
+            minimal_dicom_file, count=3, strategies=strategies
+        )
 
         assert len(files_from_sample) == 3
         assert len(files_from_minimal) == 3

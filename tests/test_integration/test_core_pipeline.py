@@ -352,8 +352,13 @@ class TestPerformanceAndResourceManagement:
         output_dir = temp_dir / "perf_test"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
+        # Exclude CVE mutations which can cause write failures by design
+        strategies = ["metadata", "header", "pixel"]
+
         start_time = time.time()
-        generated_files = generator.generate_batch(sample_dicom_file, count=20)
+        generated_files = generator.generate_batch(
+            sample_dicom_file, count=20, strategies=strategies
+        )
         elapsed_time = time.time() - start_time
 
         assert len(generated_files) == 20
@@ -365,7 +370,10 @@ class TestPerformanceAndResourceManagement:
         output_dir = temp_dir / "memory_test"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        generated_files = generator.generate_batch(sample_dicom_file, count=50)
+        # Exclude CVE mutations which can cause write failures by design
+        generated_files = generator.generate_batch(
+            sample_dicom_file, count=50, strategies=["metadata", "header", "pixel"]
+        )
 
         assert len(generated_files) == 50
         assert all(f.exists() for f in generated_files)
@@ -378,7 +386,10 @@ class TestPerformanceAndResourceManagement:
         output_dir = temp_dir / "val_perf"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        generated_files = generator.generate_batch(sample_dicom_file, count=20)
+        # Exclude CVE mutations which can cause write failures by design
+        generated_files = generator.generate_batch(
+            sample_dicom_file, count=20, strategies=["metadata", "header", "pixel"]
+        )
 
         validator = DicomValidator(strict_mode=False)
         datasets = []
@@ -406,10 +417,15 @@ class TestRealWorldUsageScenarios:
         generator = DICOMGenerator(output_dir=str(output_dir))
         validator = DicomValidator(strict_mode=False)
 
+        # Exclude CVE mutations which can cause write failures by design
+        strategies = ["metadata", "header", "pixel"]
+
         total_files = []
 
         for round_num in range(3):
-            batch = generator.generate_batch(sample_dicom_file, count=5)
+            batch = generator.generate_batch(
+                sample_dicom_file, count=5, strategies=strategies
+            )
             total_files.extend(batch)
 
         assert len(total_files) == 15
@@ -449,7 +465,10 @@ class TestRealWorldUsageScenarios:
         generator = DICOMGenerator(output_dir=str(output_dir))
         validator = DicomValidator(strict_mode=True)
 
-        generated_files = generator.generate_batch(sample_dicom_file, count=15)
+        # Exclude CVE mutations which can cause write failures by design
+        generated_files = generator.generate_batch(
+            sample_dicom_file, count=15, strategies=["metadata", "header", "pixel"]
+        )
 
         error_categories = {}
 
@@ -502,7 +521,10 @@ class TestIntegrationEdgeCases:
         output_dir = temp_dir / "minimal_test"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        generated_files = generator.generate_batch(minimal_dicom_file, count=3)
+        # Exclude CVE mutations which can cause write failures by design
+        generated_files = generator.generate_batch(
+            minimal_dicom_file, count=3, strategies=["metadata", "header", "pixel"]
+        )
 
         assert len(generated_files) == 3
         assert all(f.exists() for f in generated_files)

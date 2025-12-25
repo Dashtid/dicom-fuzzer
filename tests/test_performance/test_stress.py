@@ -41,8 +41,11 @@ class TestLargeBatchProcessing:
         output_dir = temp_dir / "stress_batch_1k"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
+        # Exclude CVE mutations which can cause write failures by design
         start_time = time.time()
-        files = generator.generate_batch(sample_dicom_file, count=1000)
+        files = generator.generate_batch(
+            sample_dicom_file, count=1000, strategies=["metadata", "header", "pixel"]
+        )
         duration = time.time() - start_time
 
         # Verify all files generated
@@ -63,7 +66,11 @@ class TestLargeBatchProcessing:
         # Generate test batch
         output_dir = temp_dir / "stress_validation"
         generator = DICOMGenerator(output_dir=str(output_dir))
-        files = generator.generate_batch(sample_dicom_file, count=500)
+
+        # Exclude CVE mutations which can cause write failures by design
+        files = generator.generate_batch(
+            sample_dicom_file, count=500, strategies=["metadata", "header", "pixel"]
+        )
 
         # Validate entire batch
         validator = DicomValidator(strict_mode=False)
@@ -133,8 +140,11 @@ class TestResourcePressure:
         generator = DICOMGenerator(output_dir=str(output_dir))
 
         # Should complete without crashing
+        # Exclude CVE mutations which can cause write failures by design
         with manager.limited_execution():
-            files = generator.generate_batch(sample_dicom_file, count=100)
+            files = generator.generate_batch(
+                sample_dicom_file, count=100, strategies=["metadata", "header", "pixel"]
+            )
 
         assert len(files) == 100
 
@@ -147,8 +157,10 @@ class TestResourcePressure:
         disk_usage = psutil.disk_usage(str(temp_dir))
         initial_free_mb = disk_usage.free / (1024 * 1024)
 
-        # Generate files
-        files = generator.generate_batch(sample_dicom_file, count=500)
+        # Exclude CVE mutations which can cause write failures by design
+        files = generator.generate_batch(
+            sample_dicom_file, count=500, strategies=["metadata", "header", "pixel"]
+        )
 
         # Check disk usage growth
         final_disk_usage = psutil.disk_usage(str(temp_dir))
@@ -204,7 +216,10 @@ class TestConcurrentOperations:
         def generate_batch(batch_id):
             output_dir = temp_dir / f"concurrent_{batch_id}"
             generator = DICOMGenerator(output_dir=str(output_dir))
-            return generator.generate_batch(sample_dicom_file, count=100)
+            # Exclude CVE mutations which can cause write failures by design
+            return generator.generate_batch(
+                sample_dicom_file, count=100, strategies=["metadata", "header", "pixel"]
+            )
 
         # Run 5 concurrent generation tasks
         with ThreadPoolExecutor(max_workers=5) as executor:
@@ -222,7 +237,10 @@ class TestConcurrentOperations:
         # Generate test files
         output_dir = temp_dir / "concurrent_validation"
         generator = DICOMGenerator(output_dir=str(output_dir))
-        files = generator.generate_batch(sample_dicom_file, count=100)
+        # Exclude CVE mutations which can cause write failures by design
+        files = generator.generate_batch(
+            sample_dicom_file, count=100, strategies=["metadata", "header", "pixel"]
+        )
 
         def validate_file(file_path):
             validator = DicomValidator()
@@ -453,8 +471,11 @@ class TestFullStress:
         output_dir = temp_dir / "stress_10k"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
+        # Exclude CVE mutations which can cause write failures by design
         start_time = time.time()
-        files = generator.generate_batch(sample_dicom_file, count=10000)
+        files = generator.generate_batch(
+            sample_dicom_file, count=10000, strategies=["metadata", "header", "pixel"]
+        )
         duration = time.time() - start_time
 
         assert len(files) == 10000

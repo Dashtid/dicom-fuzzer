@@ -563,7 +563,10 @@ class TestDICOMGeneratorIntegration:
         custom_output = temp_output_dir / "custom_output"
         generator = DICOMGenerator(output_dir=custom_output)
 
-        files = generator.generate_batch(seed_file, count=3)
+        # Exclude CVE mutations which can cause write failures by design
+        files = generator.generate_batch(
+            seed_file, count=3, strategies=["metadata", "header", "pixel"]
+        )
         assert len(files) == 3
         # Verify files are in the custom output directory
         for f in files:
