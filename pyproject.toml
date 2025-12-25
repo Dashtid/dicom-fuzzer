@@ -374,10 +374,10 @@ exclude_lines = [
 [tool.coverage.paths]
 # Normalize paths across parallel workers for consistent coverage combination
 # This handles different import paths that workers might use
+# Note: Forward slashes work on all platforms including Windows
 source = [
     "dicom_fuzzer/",
     "*/site-packages/dicom_fuzzer/",
-    "*\\site-packages\\dicom_fuzzer\\",
 ]
 
 [tool.coverage.html]

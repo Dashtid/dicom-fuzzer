@@ -105,7 +105,7 @@ jobs:
     name: PR Fuzzing (10 min)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
 
@@ -155,7 +155,7 @@ jobs:
             2>&1 | tee fuzz_output.log || true
 
           echo "[+] Fuzzing completed"
-        timeout-minutes: 12
+        timeout-minutes: 15
 
       - name: Check for crashes
         run: |
