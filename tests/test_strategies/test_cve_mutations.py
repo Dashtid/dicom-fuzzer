@@ -15,19 +15,25 @@ from dicom_fuzzer.strategies.cve_mutations import (
     get_available_cves,
     get_mutation_func,
     get_mutations_by_category,
+    mutate_certificate_validation_bypass,
     mutate_deep_nesting,
     mutate_elf_polyglot_preamble,
     mutate_encapsulated_pixeldata_underflow,
     mutate_fragment_count_mismatch,
+    mutate_heap_overflow_dcm_parsing,
     mutate_heap_overflow_pixel_data,
     mutate_integer_overflow_dimensions,
     mutate_invalid_transfer_syntax,
     mutate_jpeg_codec_oob_read,
     mutate_jpeg_truncated_stream,
     mutate_malformed_length_field,
+    mutate_oob_write_lack_validation,
+    mutate_oob_write_pixel_data,
     mutate_oversized_length,
     mutate_path_traversal_filename,
     mutate_pe_polyglot_preamble,
+    mutate_stack_overflow_dcm,
+    mutate_url_scheme_bypass,
 )
 
 
@@ -38,9 +44,12 @@ class TestCVECategory:
         """Test all expected categories are defined."""
         expected = [
             "HEAP_OVERFLOW",
+            "STACK_OVERFLOW",
             "BUFFER_OVERFLOW",
             "INTEGER_OVERFLOW",
             "INTEGER_UNDERFLOW",
+            "OUT_OF_BOUNDS_WRITE",
+            "OUT_OF_BOUNDS_READ",
             "PATH_TRAVERSAL",
             "DENIAL_OF_SERVICE",
             "POLYGLOT",
@@ -48,7 +57,8 @@ class TestCVECategory:
             "MALFORMED_LENGTH",
             "ENCAPSULATED_PIXEL",
             "JPEG_CODEC",
-            "OUT_OF_BOUNDS_READ",
+            "CERTIFICATE_VALIDATION",
+            "URL_SCHEME_BYPASS",
         ]
         for cat_name in expected:
             assert hasattr(CVECategory, cat_name)
@@ -461,6 +471,13 @@ class TestMutationEdgeCases:
             mutate_fragment_count_mismatch,
             mutate_jpeg_codec_oob_read,
             mutate_jpeg_truncated_stream,
+            # 2024-2025 CVE mutations
+            mutate_oob_write_pixel_data,
+            mutate_oob_write_lack_validation,
+            mutate_heap_overflow_dcm_parsing,
+            mutate_stack_overflow_dcm,
+            mutate_url_scheme_bypass,
+            mutate_certificate_validation_bypass,
         ]
         for func in mutation_funcs:
             # Should not raise exception
@@ -484,7 +501,165 @@ class TestMutationEdgeCases:
             mutate_fragment_count_mismatch,
             mutate_jpeg_codec_oob_read,
             mutate_jpeg_truncated_stream,
+            # 2024-2025 CVE mutations
+            mutate_oob_write_pixel_data,
+            mutate_oob_write_lack_validation,
+            mutate_heap_overflow_dcm_parsing,
+            mutate_stack_overflow_dcm,
+            mutate_url_scheme_bypass,
+            mutate_certificate_validation_bypass,
         ]
         for func in mutation_funcs:
             result = func(data)
             assert isinstance(result, bytes), f"{func.__name__} did not return bytes"
+
+
+class TestMicroDicom2024CVEs:
+    """Test MicroDicom 2024 CVE mutations."""
+
+    def test_mutate_oob_write_pixel_data(self):
+        """Test CVE-2025-35975 out-of-bounds write mutation."""
+        # Create data with Rows and Columns tags
+        rows_tag = b"\x28\x00\x10\x00"
+        cols_tag = b"\x28\x00\x11\x00"
+        data = (
+            b"\x00" * 50
+            + rows_tag
+            + b"US"
+            + struct.pack("<H", 2)
+            + struct.pack("<H", 512)
+            + cols_tag
+            + b"US"
+            + struct.pack("<H", 2)
+            + struct.pack("<H", 512)
+            + b"\x00" * 100
+        )
+        result = mutate_oob_write_pixel_data(data)
+        # Should have modified dimensions
+        assert result != data
+
+    def test_mutate_oob_write_lack_validation(self):
+        """Test CVE-2024-25578 out-of-bounds write mutation."""
+        # Create data with explicit VR elements
+        data = (
+            b"\x00" * 50
+            + b"\x08\x00\x18\x00"  # SOP Instance UID tag
+            + b"OB"
+            + b"\x00\x00"
+            + struct.pack("<I", 64)
+            + b"\x00" * 64
+            + b"\x00" * 50
+        )
+        result = mutate_oob_write_lack_validation(data)
+        assert isinstance(result, bytes)
+
+    def test_mutate_heap_overflow_dcm_parsing(self):
+        """Test CVE-2024-22100 heap overflow mutation."""
+        data = b"\x00" * 200 + b"\xfe\xff\x0d\xe0"
+        result = mutate_heap_overflow_dcm_parsing(data)
+        # Should have added private creator or modified existing
+        assert len(result) >= len(data)
+
+    def test_mutate_stack_overflow_dcm(self):
+        """Test CVE-2024-28877 stack overflow mutation."""
+        # Create data with Patient Name tag
+        pn_tag = b"\x10\x00\x10\x00"
+        data = (
+            b"\x00" * 50
+            + pn_tag
+            + b"PN"
+            + struct.pack("<H", 10)
+            + b"Test^Name"
+            + b"\x00"
+            + b"\x00" * 50
+        )
+        result = mutate_stack_overflow_dcm(data)
+        # Should have added deep nesting or modified patient name
+        assert len(result) > len(data)
+
+    def test_mutate_url_scheme_bypass(self):
+        """Test CVE-2024-33606 URL scheme bypass mutation."""
+        data = b"\x00" * 200 + b"\xfe\xff\x0d\xe0"
+        result = mutate_url_scheme_bypass(data)
+        # Should have injected URL payload
+        assert len(result) > len(data)
+        # Should contain some URL-like content
+        url_indicators = [b"file:", b"http:", b"\\\\", b"javascript:"]
+        has_url = any(indicator in result for indicator in url_indicators)
+        assert has_url
+
+
+class TestRadiAnt2025CVE:
+    """Test RadiAnt DICOM Viewer 2025 CVE mutation."""
+
+    def test_mutate_certificate_validation_bypass(self):
+        """Test CVE-2025-1001 certificate validation bypass mutation."""
+        data = b"\x00" * 200 + b"\xfe\xff\x0d\xe0"
+        result = mutate_certificate_validation_bypass(data)
+        # Should have injected update-related URL
+        assert len(result) > len(data)
+
+    def test_mutate_certificate_validation_with_existing_tag(self):
+        """Test certificate validation bypass with existing metadata tag."""
+        # Create data with Institution Address tag
+        inst_tag = b"\x08\x00\x81\x00"
+        data = (
+            b"\x00" * 50
+            + inst_tag
+            + b"LO"
+            + struct.pack("<H", 20)
+            + b"Test Institution   "
+            + b"\x00" * 50
+        )
+        result = mutate_certificate_validation_bypass(data)
+        assert result != data
+
+
+class TestNewCVERegistry:
+    """Test that new CVEs are properly registered."""
+
+    def test_2024_cves_registered(self):
+        """Test 2024 CVEs are in the registry."""
+        cves = get_available_cves()
+        assert "CVE-2024-22100" in cves
+        assert "CVE-2024-25578" in cves
+        assert "CVE-2024-28877" in cves
+        assert "CVE-2024-33606" in cves
+
+    def test_2025_cves_registered(self):
+        """Test 2025 CVEs are in the registry."""
+        cves = get_available_cves()
+        assert "CVE-2025-35975" in cves
+        assert "CVE-2025-1001" in cves
+
+    def test_new_categories_have_mutations(self):
+        """Test new categories have associated mutations."""
+        stack_mutations = get_mutations_by_category(CVECategory.STACK_OVERFLOW)
+        assert len(stack_mutations) > 0
+
+        oob_write_mutations = get_mutations_by_category(CVECategory.OUT_OF_BOUNDS_WRITE)
+        assert len(oob_write_mutations) > 0
+
+        cert_mutations = get_mutations_by_category(CVECategory.CERTIFICATE_VALIDATION)
+        assert len(cert_mutations) > 0
+
+        url_mutations = get_mutations_by_category(CVECategory.URL_SCHEME_BYPASS)
+        assert len(url_mutations) > 0
+
+    def test_apply_new_cve_mutations(self):
+        """Test applying new CVE mutations."""
+        data = b"\x00" * 200 + b"\xfe\xff\x0d\xe0"
+
+        # Test each new CVE
+        new_cves = [
+            "CVE-2024-22100",
+            "CVE-2024-25578",
+            "CVE-2024-28877",
+            "CVE-2024-33606",
+            "CVE-2025-35975",
+            "CVE-2025-1001",
+        ]
+        for cve_id in new_cves:
+            mutated, mutation = apply_cve_mutation(data, cve_id=cve_id)
+            assert mutation.cve_id == cve_id
+            assert isinstance(mutated, bytes)
