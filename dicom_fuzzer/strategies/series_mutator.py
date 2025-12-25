@@ -1283,7 +1283,6 @@ class Series3DMutator:
             if attack_type == "inconsistent_within_series":
                 # Each slice gets different FoR
                 for _i, ds in enumerate(datasets):
-                    original = getattr(ds, "FrameOfReferenceUID", None)
                     ds.FrameOfReferenceUID = generate_uid()
 
                 records.append(
