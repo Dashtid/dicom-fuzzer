@@ -4,7 +4,7 @@ This package provides comprehensive fuzzing capabilities for DICOM medical imagi
 including mutation-based fuzzing, crash analysis, and reporting.
 """
 
-__version__ = "1.5.0"
+__version__ = "1.7.2"
 __author__ = "David Dashti"
 __license__ = "MIT"
 

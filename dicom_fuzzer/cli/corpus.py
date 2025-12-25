@@ -4,10 +4,13 @@ Corpus management utilities including:
 - Corpus analysis and statistics
 - Hash-based deduplication
 - Corpus merging
+- Study-level crash minimization
 
 NOTE: This CLI module provides basic corpus utilities.
 For advanced minimization, import dicom_fuzzer.core.corpus_minimizer directly.
 """
+
+from __future__ import annotations
 
 import argparse
 import hashlib
@@ -15,6 +18,10 @@ import json
 import shutil
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    pass
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -33,8 +40,12 @@ Examples:
   # Merge multiple corpora
   dicom-fuzzer corpus --merge ./fuzzer1/corpus ./fuzzer2/corpus -o ./merged
 
+  # Minimize crashing study to find trigger slice
+  dicom-fuzzer corpus --minimize-study ./crash_study --target ./viewer.exe -o ./minimized
+
 For advanced minimization, use the Python API:
   from dicom_fuzzer.core.corpus_minimizer import CorpusMinimizer
+  from dicom_fuzzer.core.study_minimizer import StudyMinimizer
         """,
     )
 
@@ -57,6 +68,34 @@ For advanced minimization, use the Python API:
         nargs="+",
         metavar="DIR",
         help="Merge multiple corpora into one",
+    )
+    action_group.add_argument(
+        "--minimize-study",
+        type=str,
+        metavar="DIR",
+        help="Minimize a crashing 3D study to find trigger slice(s)",
+    )
+
+    # Target options (for minimize-study)
+    target_group = parser.add_argument_group("target options (for --minimize-study)")
+    target_group.add_argument(
+        "-t",
+        "--target",
+        type=str,
+        metavar="EXE",
+        help="Target executable to test with",
+    )
+    target_group.add_argument(
+        "--timeout",
+        type=float,
+        default=30.0,
+        help="Timeout per test in seconds (default: 30)",
+    )
+    target_group.add_argument(
+        "--max-iterations",
+        type=int,
+        default=100,
+        help="Maximum minimization iterations (default: 100)",
     )
 
     # Output options
@@ -269,6 +308,110 @@ def run_merge(args: argparse.Namespace) -> int:
         return 1
 
 
+def run_minimize_study(args: argparse.Namespace) -> int:
+    """Minimize a crashing 3D study to find trigger slice(s)."""
+    from dicom_fuzzer.core.study_minimizer import (
+        MinimizationConfig,
+        StudyMinimizer,
+        create_crash_test_from_runner,
+    )
+    from dicom_fuzzer.core.target_runner import TargetRunner
+
+    study_dir = Path(args.minimize_study)
+
+    if not study_dir.exists():
+        print(f"[-] Study directory not found: {study_dir}")
+        return 1
+
+    if not args.target:
+        print("[-] --target is required for --minimize-study")
+        return 1
+
+    target_path = Path(args.target)
+    if not target_path.exists():
+        print(f"[-] Target executable not found: {target_path}")
+        return 1
+
+    output_dir = (
+        Path(args.output)
+        if args.output
+        else study_dir.parent / f"{study_dir.name}_minimized"
+    )
+
+    print("\n" + "=" * 70)
+    print("  Study Minimization")
+    print("=" * 70)
+    print(f"  Study:   {study_dir}")
+    print(f"  Target:  {target_path}")
+    print(f"  Output:  {output_dir}")
+    print(f"  Timeout: {args.timeout}s")
+    print("=" * 70 + "\n")
+
+    try:
+        # Initialize target runner
+        print("[i] Initializing target runner...")
+        runner = TargetRunner(
+            target_executable=str(target_path),
+            timeout=args.timeout,
+            crash_dir=str(output_dir / "crashes"),
+        )
+
+        # Create crash test function
+        crash_test = create_crash_test_from_runner(runner)
+
+        # Configure minimizer
+        config = MinimizationConfig(
+            max_iterations=args.max_iterations,
+            timeout_per_test=args.timeout,
+            verify_final_result=True,
+        )
+
+        # Run minimization
+        print("[i] Starting minimization...")
+        minimizer = StudyMinimizer(crash_test, config)
+        result = minimizer.minimize(study_dir, output_dir)
+
+        # Print results
+        print("\n" + "=" * 70)
+        print("  Minimization Results")
+        print("=" * 70)
+        print(f"  Original slices:  {result.original_slice_count}")
+        print(f"  Minimal slices:   {result.minimal_slice_count}")
+        print(f"  Reduction:        {(1 - result.reduction_ratio) * 100:.1f}%")
+        print(f"  Iterations:       {result.iterations}")
+        print(f"  Time:             {result.minimization_time_seconds:.1f}s")
+        print(f"  Crash reproducible: {'Yes' if result.crash_reproducible else 'No'}")
+
+        if result.trigger_slice:
+            print(f"\n  [+] TRIGGER SLICE FOUND: {result.trigger_slice.name}")
+            print("      This single slice triggers the crash!")
+        elif result.minimal_slice_count > 1:
+            print(
+                f"\n  [i] Multi-slice bug: requires {result.minimal_slice_count} slices"
+            )
+
+        if result.notes:
+            print("\n  Notes:")
+            for note in result.notes:
+                print(f"    - {note}")
+
+        print(f"\n[+] Minimized study saved to: {output_dir}")
+        print("=" * 70 + "\n")
+
+        return 0
+
+    except FileNotFoundError as e:
+        print(f"[-] File not found: {e}")
+        return 1
+    except Exception as e:
+        print(f"[-] Minimization failed: {e}")
+        if args.verbose:
+            import traceback
+
+            traceback.print_exc()
+        return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for corpus subcommand."""
     parser = create_parser()
@@ -280,6 +423,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_dedup(args)
     elif args.merge:
         return run_merge(args)
+    elif args.minimize_study:
+        return run_minimize_study(args)
     else:
         parser.print_help()
         return 1

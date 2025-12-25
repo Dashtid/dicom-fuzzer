@@ -14,6 +14,11 @@ permissions:
   security-events: write
   actions: read
 
+# Cancel duplicate runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze Code with CodeQL

@@ -517,11 +517,11 @@ class TargetCalibrator:
                 truncated_file, timeout=5.0
             )
 
-            # Clean up
+            # Clean up - ignore errors as temp file may already be deleted
             try:
                 truncated_file.unlink()
             except Exception:
-                pass
+                pass  # Cleanup failures are non-critical
 
             if exit_code in self.CRASH_EXIT_CODES:
                 logger.warning(

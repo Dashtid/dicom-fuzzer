@@ -25,6 +25,11 @@ permissions:
   contents: read
   pull-requests: write
 
+# Cancel duplicate runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   mutation-test:
     name: Mutation Testing
@@ -32,17 +37,17 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.13
 
       - name: Install dependencies
         run: |
@@ -105,7 +110,7 @@ jobs:
           fi
 
       - name: Upload mutation report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
         with:
           name: mutation-report
           path: |
@@ -140,7 +145,7 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
         with:
           fetch-depth: 0
 
@@ -159,16 +164,21 @@ jobs:
           echo "files=$CHANGED" >> $GITHUB_OUTPUT
           echo "Changed files: $CHANGED"
 
+      - name: Install uv
+        if: steps.changed-files.outputs.files != ''
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
       - name: Set up Python
         if: steps.changed-files.outputs.files != ''
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+        run: uv python install 3.13
 
       - name: Install dependencies
         if: steps.changed-files.outputs.files != ''
         run: |
-          pip install uv
           uv pip install --system -e ".[dev]"
           uv pip install --system mutmut
 
@@ -182,7 +192,7 @@ jobs:
 
       - name: Comment PR with results
         if: steps.changed-files.outputs.files != '' && github.event_name == 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
         with:
           script: |
             const fs = require('fs');

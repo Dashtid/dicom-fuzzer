@@ -125,7 +125,7 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
+.dist/
 downloads/
 eggs/
 .eggs/
@@ -343,6 +343,7 @@ __marimo__/
 # Legacy output directories (for cleanup reference)
 # ============================================================================
 # These can be deleted if they exist - all output now goes to /artifacts/
+/samples/
 /fuzzed_dicoms/
 /test_output/
 /test_crashes/
@@ -416,6 +417,9 @@ coverage.json
 # Legacy directories
 /config/
 /logs/
+
+# Tool caches (prettier, pyright, etc.)
+/.cache/
 /node_modules/
 
 # Generated documentation builds

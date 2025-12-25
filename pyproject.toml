@@ -2,9 +2,12 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build]
+directory = ".dist"
+
 [project]
 name = "dicom-fuzzer"
-version = "1.7.2"
+version = "1.7.3"
 authors = [
     {name = "David Dashti", email = "david@dashti.se"},
 ]
@@ -76,8 +79,13 @@ metrics = [
 differential = [
     "python-gdcm>=3.0.0; platform_system != 'Windows'",
 ]
+security = [
+    "pip-audit>=2.7.0",
+    "cyclonedx-bom>=4.0.0",
+    "minidump>=0.0.21",  # Windows crash dump parsing
+]
 all = [
-    "dicom-fuzzer[viz,distributed,metrics,network]",
+    "dicom-fuzzer[viz,distributed,metrics,network,security]",
 ]
 
 # Hatchling automatically discovers packages - no explicit configuration needed
@@ -125,7 +133,7 @@ dev = [
 [tool.ruff]
 line-length = 88
 target-version = "py311"
-extend-exclude = [".venv", "build", "dist", "artifacts", ".hypothesis"]
+extend-exclude = [".venv", "build", ".dist", "artifacts", ".hypothesis"]
 
 [tool.ruff.lint]
 select = [
@@ -213,7 +221,6 @@ module = [
     "numpy.*",
     "plotly.*",   # No type stubs available
     "jinja2.*",   # Optional dependency for HTML reports
-    "atheris.*",  # Optional dependency for coverage-guided fuzzing
     "redis.*",    # Optional dependency for distributed fuzzing
     "prometheus_client.*",  # Optional dependency for metrics
     "gdcm.*",     # Optional dependency for differential fuzzing
@@ -240,7 +247,7 @@ exclude = [
     "**/node_modules",
     ".venv",
     "build",
-    "dist",
+    ".dist",
     "artifacts",
     ".hypothesis",
 ]
@@ -372,10 +379,10 @@ exclude_lines = [
 [tool.coverage.paths]
 # Normalize paths across parallel workers for consistent coverage combination
 # This handles different import paths that workers might use
+# Note: Forward slashes work on all platforms including Windows
 source = [
     "dicom_fuzzer/",
     "*/site-packages/dicom_fuzzer/",
-    "*\\site-packages\\dicom_fuzzer\\",
 ]
 
 [tool.coverage.html]

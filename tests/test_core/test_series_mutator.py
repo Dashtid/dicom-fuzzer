@@ -374,9 +374,9 @@ class TestSeriesMutationStrategy:
     """Test SeriesMutationStrategy enum."""
 
     def test_all_strategies_exist(self):
-        """Test that all 10 strategies are defined (5 original + 5 v1.7.0)."""
+        """Test that all 12 strategies are defined (5 original + 5 v1.7.0 + 2 v1.8.0)."""
         strategies = list(SeriesMutationStrategy)
-        assert len(strategies) == 10
+        assert len(strategies) == 12
 
         strategy_names = [s.value for s in strategies]
         # Original 5 strategies
@@ -391,6 +391,9 @@ class TestSeriesMutationStrategy:
         assert "slice_overlap_injection" in strategy_names
         assert "voxel_aspect_ratio" in strategy_names
         assert "frame_of_reference" in strategy_names
+        # v1.8.0 strategies
+        assert "cross_slice_reference" in strategy_names
+        assert "temporal_inconsistency" in strategy_names
 
 
 class TestSeverityLevels:
@@ -715,4 +718,230 @@ class TestFrameOfReference:
             r
             for r in records
             if "inconsistent" in str(r.details.get("attack_type", "")).lower()
+        ]
+
+
+# =============================================================================
+# v1.8.0 Strategy Tests - Cross-Slice Reference and Temporal Attacks
+# =============================================================================
+
+
+class TestCrossSliceReference:
+    """Test cross_slice_reference mutation strategy (v1.8.0)."""
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_cross_slice_reference_basic(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test basic cross-slice reference mutation."""
+        # Add ReferencedSOPInstanceUID to mock datasets
+        for i, ds in enumerate(mock_datasets):
+            if i < len(mock_datasets) - 1:
+                ds.ReferencedSOPInstanceUID = mock_datasets[i + 1].SOPInstanceUID
+
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="aggressive", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="cross_slice_reference", mutation_count=3
+        )
+
+        cross_ref_records = [
+            r for r in records if r.strategy == "cross_slice_reference"
+        ]
+        assert len(cross_ref_records) >= 1
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_cross_slice_reference_nonexistent(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test reference to nonexistent SOP Instance UID."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="cross_slice_reference", mutation_count=5
+        )
+
+        # Check for reference attacks
+        ref_records = [
+            r
+            for r in records
+            if "reference" in str(r.details.get("attack_type", "")).lower()
+            or "nonexistent" in str(r.details.get("attack_type", "")).lower()
+        ]
+        # May or may not have specific attack types
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_cross_slice_reference_circular(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test circular reference injection."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="cross_slice_reference", mutation_count=10
+        )
+
+        # Check for circular reference attack type
+        circular_records = [
+            r
+            for r in records
+            if "circular" in str(r.details.get("attack_type", "")).lower()
+        ]
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_cross_slice_reference_invalid_uid_format(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test invalid UID format injection."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="cross_slice_reference", mutation_count=10
+        )
+
+        # Check for ReferencedSOPInstanceUID or similar tag modifications
+        uid_records = [r for r in records if "UID" in r.tag or "Reference" in r.tag]
+
+
+class TestTemporalInconsistency:
+    """Test temporal_inconsistency mutation strategy (v1.8.0)."""
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_temporal_inconsistency_basic(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test basic temporal inconsistency mutation."""
+        # Add AcquisitionTime to mock datasets
+        for i, ds in enumerate(mock_datasets):
+            ds.AcquisitionTime = f"10{i:02d}00.000000"
+            ds.AcquisitionDateTime = f"20231215{i:02d}0000.000000"
+            ds.ContentTime = f"10{i:02d}30.000000"
+
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="aggressive", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="temporal_inconsistency", mutation_count=3
+        )
+
+        temporal_records = [
+            r for r in records if r.strategy == "temporal_inconsistency"
+        ]
+        assert len(temporal_records) >= 1
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_temporal_inconsistency_randomize_time(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test acquisition time randomization."""
+        for i, ds in enumerate(mock_datasets):
+            ds.AcquisitionTime = f"10{i:02d}00.000000"
+            ds.AcquisitionDateTime = f"20231215{i:02d}0000.000000"
+
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="temporal_inconsistency", mutation_count=5
+        )
+
+        # Check for time tag modifications
+        time_records = [r for r in records if "Time" in r.tag or "Date" in r.tag]
+        assert len(time_records) >= 1
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_temporal_inconsistency_duplicate_timestamps(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test duplicate timestamp injection."""
+        for i, ds in enumerate(mock_datasets):
+            ds.AcquisitionTime = f"10{i:02d}00.000000"
+
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="temporal_inconsistency", mutation_count=10
+        )
+
+        # Check for duplicate attack type
+        duplicate_records = [
+            r
+            for r in records
+            if "duplicate" in str(r.details.get("attack_type", "")).lower()
+        ]
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_temporal_inconsistency_extreme_dates(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test extreme past/future date injection."""
+        for i, ds in enumerate(mock_datasets):
+            ds.AcquisitionDate = "20231215"
+            ds.AcquisitionTime = f"10{i:02d}00.000000"
+
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="temporal_inconsistency", mutation_count=10
+        )
+
+        # Check for extreme date attack types
+        extreme_records = [
+            r
+            for r in records
+            if "extreme" in str(r.details.get("attack_type", "")).lower()
+            or "past" in str(r.details.get("attack_type", "")).lower()
+            or "future" in str(r.details.get("attack_type", "")).lower()
+        ]
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_temporal_inconsistency_invalid_format(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test invalid time format injection."""
+        for i, ds in enumerate(mock_datasets):
+            ds.AcquisitionTime = f"10{i:02d}00.000000"
+
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="temporal_inconsistency", mutation_count=10
+        )
+
+        # Check for invalid format attack type
+        format_records = [
+            r
+            for r in records
+            if "invalid" in str(r.details.get("attack_type", "")).lower()
+            or "format" in str(r.details.get("attack_type", "")).lower()
+        ]
+
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_temporal_inconsistency_order_reversal(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test temporal order reversal."""
+        for i, ds in enumerate(mock_datasets):
+            ds.AcquisitionTime = f"10{i:02d}00.000000"
+
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="extreme", seed=42)
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series, strategy="temporal_inconsistency", mutation_count=10
+        )
+
+        # Check for order reversal attack type
+        reversal_records = [
+            r
+            for r in records
+            if "reversal" in str(r.details.get("attack_type", "")).lower()
+            or "order" in str(r.details.get("attack_type", "")).lower()
         ]

@@ -901,7 +901,7 @@ Subcommands (use --help for details):
         "--output",
         default="./artifacts/campaigns",
         metavar="DIR",
-        help="Output directory for fuzzed files (default: ./campaigns/output)",
+        help="Output directory for fuzzed files (default: ./artifacts/campaigns)",
     )
     parser.add_argument(
         "-s",

@@ -7,7 +7,7 @@ Targets 85%+ coverage.
 import hashlib
 import sys
 from types import FrameType
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from dicom_fuzzer.core.coverage_instrumentation import (
     CoverageInfo,
@@ -495,23 +495,24 @@ class TestReset:
 class TestHybridCoverageTracker:
     """Test HybridCoverageTracker class."""
 
-    def test_hybrid_tracker_initialization_no_atheris(self):
-        """Test hybrid tracker initialization when Atheris not available."""
-        tracker = HybridCoverageTracker(use_atheris=False)
+    def test_hybrid_tracker_initialization(self):
+        """Test hybrid tracker initialization."""
+        tracker = HybridCoverageTracker()
 
-        assert tracker.atheris_available is False
-        assert tracker.use_atheris is False
+        # Should have parent class attributes
+        assert tracker.target_modules == set()
+        assert tracker.total_executions == 0
 
-    def test_hybrid_tracker_with_atheris_unavailable(self):
-        """Test hybrid tracker when Atheris import fails."""
-        with patch("builtins.__import__", side_effect=ImportError):
-            tracker = HybridCoverageTracker(use_atheris=True)
+    def test_hybrid_tracker_with_target_modules(self):
+        """Test hybrid tracker with target modules."""
+        modules = {"dicom_fuzzer"}
+        tracker = HybridCoverageTracker(target_modules=modules)
 
-            assert tracker.atheris_available is False
+        assert tracker.target_modules == modules
 
-    def test_hybrid_tracker_track_coverage_fallback(self):
-        """Test hybrid tracker falls back to parent implementation."""
-        tracker = HybridCoverageTracker(use_atheris=False)
+    def test_hybrid_tracker_track_coverage(self):
+        """Test hybrid tracker uses parent implementation."""
+        tracker = HybridCoverageTracker()
 
         with tracker.track_coverage() as cov:
             x = 1
@@ -656,30 +657,6 @@ class TestMissingCoveragePaths:
 
         # Should find edges from line 10 to adjacent lines
         assert len(uncovered) >= 0  # Some edges should be found
-
-    def test_hybrid_tracker_with_atheris_available(self):
-        """Test HybridCoverageTracker when Atheris import succeeds (lines 279-280)."""
-        # Mock atheris being available
-        mock_atheris = Mock()
-
-        with patch.dict("sys.modules", {"atheris": mock_atheris}):
-            tracker = HybridCoverageTracker(use_atheris=True)
-
-            assert tracker.atheris_available is True
-            assert tracker.atheris is mock_atheris
-
-    def test_hybrid_tracker_track_coverage_with_atheris(self):
-        """Test track_coverage when atheris is available (line 293)."""
-        mock_atheris = Mock()
-
-        with patch.dict("sys.modules", {"atheris": mock_atheris}):
-            tracker = HybridCoverageTracker(use_atheris=True)
-
-            with tracker.track_coverage(b"test") as cov:
-                x = 1
-
-            # Should still produce valid coverage
-            assert cov.execution_time >= 0
 
     def test_coverage_distance_union_zero(self):
         """Test coverage distance when union is zero (line 316)."""

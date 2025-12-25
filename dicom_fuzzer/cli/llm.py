@@ -84,9 +84,9 @@ For advanced testing, use the Python API:
         "-o",
         "--output",
         type=str,
-        default="./llm_output",
+        default="./artifacts/llm",
         metavar="DIR",
-        help="Output directory (default: ./llm_output)",
+        help="Output directory (default: ./artifacts/llm)",
     )
     output_group.add_argument(
         "-c",

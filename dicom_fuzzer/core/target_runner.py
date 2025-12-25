@@ -18,15 +18,25 @@ STABILITY ENHANCEMENTS:
 - Circuit breaker pattern for failing targets
 """
 
+from __future__ import annotations
+
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
 from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
 from dicom_fuzzer.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from dicom_fuzzer.core.windows_crash_handler import (
+        WindowsCrashHandler,
+        WindowsCrashInfo,
+    )
 
 logger = get_logger(__name__)
 
@@ -60,10 +70,20 @@ class ExecutionResult:
     exception: Exception | None = None
     crash_hash: str | None = None
     retry_count: int = 0  # Number of retries attempted
+    windows_crash_info: WindowsCrashInfo | None = None  # Windows-specific crash details
+    hang_reason: str | None = None  # Reason for hang (timeout, cpu_idle, memory_spike)
+    peak_memory_mb: float | None = None  # Peak memory usage during execution
 
     def __bool__(self) -> bool:
         """Test succeeded if result is SUCCESS."""
         return self.result == ExecutionStatus.SUCCESS
+
+    @property
+    def is_exploitable(self) -> bool:
+        """Check if crash is potentially exploitable."""
+        if self.windows_crash_info:
+            return self.windows_crash_info.is_exploitable
+        return self.result == ExecutionStatus.CRASH
 
 
 @dataclass
@@ -109,6 +129,9 @@ class TargetRunner:
         max_retries: int = 2,
         enable_circuit_breaker: bool = True,
         resource_limits: ResourceLimits | None = None,
+        enable_monitoring: bool = False,
+        idle_threshold: float = 5.0,
+        memory_limit_mb: float | None = None,
     ):
         """Initialize target runner.
 
@@ -121,6 +144,9 @@ class TargetRunner:
             max_retries: Maximum retries for transient failures
             enable_circuit_breaker: Enable circuit breaker pattern
             resource_limits: Resource limits to enforce
+            enable_monitoring: Enable enhanced CPU/memory monitoring (requires psutil)
+            idle_threshold: Seconds of 0% CPU before considering hung (if monitoring enabled)
+            memory_limit_mb: Memory limit in MB (if monitoring enabled)
 
         Raises:
             FileNotFoundError: If target executable doesn't exist
@@ -137,6 +163,9 @@ class TargetRunner:
         self.collect_stderr = collect_stderr
         self.max_retries = max_retries
         self.enable_circuit_breaker = enable_circuit_breaker
+        self.enable_monitoring = enable_monitoring
+        self.idle_threshold = idle_threshold
+        self.memory_limit_mb = memory_limit_mb
 
         # Initialize crash analyzer for crash reporting
         self.crash_analyzer = CrashAnalyzer(crash_dir=str(self.crash_dir))
@@ -146,6 +175,38 @@ class TargetRunner:
 
         # Circuit breaker state
         self.circuit_breaker = CircuitBreakerState()
+
+        # Initialize Windows crash handler if on Windows
+        self.windows_crash_handler: WindowsCrashHandler | None = None
+        if sys.platform == "win32":
+            from dicom_fuzzer.core.windows_crash_handler import WindowsCrashHandler
+
+            self.windows_crash_handler = WindowsCrashHandler(crash_dir=self.crash_dir)
+            logger.debug("Windows crash handler initialized")
+
+        # Initialize process monitor if monitoring enabled
+        self.process_monitor = None
+        if enable_monitoring:
+            from dicom_fuzzer.core.process_monitor import (
+                ProcessMonitor,
+                is_psutil_available,
+            )
+
+            if is_psutil_available():
+                self.process_monitor = ProcessMonitor(
+                    timeout=timeout,
+                    idle_threshold=idle_threshold,
+                    memory_limit_mb=memory_limit_mb,
+                )
+                logger.debug(
+                    f"Enhanced monitoring enabled: idle_threshold={idle_threshold}s, "
+                    f"memory_limit={memory_limit_mb}MB"
+                )
+            else:
+                logger.warning(
+                    "Enhanced monitoring requested but psutil not available. "
+                    "Install with: pip install psutil"
+                )
 
         logger.info(
             f"Initialized TargetRunner: target={target_executable}, "
@@ -238,9 +299,18 @@ class TargetRunner:
         if any(indicator in stderr_lower for indicator in resource_indicators):
             return ExecutionStatus.RESOURCE_EXHAUSTED
 
-        # Check for crash signals (negative return codes)
-        if returncode and returncode < 0:
-            return ExecutionStatus.CRASH
+        # Check for Windows-specific crash codes
+        if returncode is not None and self.windows_crash_handler:
+            if self.windows_crash_handler.is_windows_crash(returncode):
+                return ExecutionStatus.CRASH
+
+        # Check for crash signals (negative return codes on Unix, or high codes on Windows)
+        if returncode is not None:
+            if returncode < 0:
+                return ExecutionStatus.CRASH
+            # Windows exception codes appear as large positive numbers (0xC0000005 = 3221225477)
+            if sys.platform == "win32" and returncode > 0x80000000:
+                return ExecutionStatus.CRASH
 
         return ExecutionStatus.ERROR
 
@@ -297,6 +367,7 @@ class TargetRunner:
             execution_time = time.time() - start_time
 
             # Classify result based on exit code and stderr
+            windows_crash_info = None
             if result.returncode == 0:
                 test_result = ExecutionStatus.SUCCESS
                 self._update_circuit_breaker(success=True)
@@ -304,6 +375,28 @@ class TargetRunner:
                 # Use advanced classification
                 test_result = self._classify_error(result.stderr, result.returncode)
                 self._update_circuit_breaker(success=False)
+
+                # Capture Windows-specific crash info if applicable
+                if (
+                    test_result == ExecutionStatus.CRASH
+                    and self.windows_crash_handler
+                    and result.returncode is not None
+                ):
+                    windows_crash_info = self.windows_crash_handler.analyze_crash(
+                        exit_code=result.returncode,
+                        test_file=test_file_path,
+                        stdout=result.stdout,
+                        stderr=result.stderr,
+                    )
+                    # Save crash report
+                    self.windows_crash_handler.save_crash_report(
+                        windows_crash_info, test_file_path
+                    )
+                    logger.warning(
+                        f"Windows crash: {windows_crash_info.exception_name} "
+                        f"(0x{windows_crash_info.exception_code:08X}) - "
+                        f"{windows_crash_info.severity}"
+                    )
 
                 # Retry on transient errors
                 if retry_count < self.max_retries and test_result in [
@@ -317,6 +410,9 @@ class TargetRunner:
                     time.sleep(0.1)  # Brief delay before retry
                     return self.execute_test(test_file_path, retry_count + 1)
 
+            # Get crash hash from Windows crash info if available
+            crash_hash = windows_crash_info.crash_hash if windows_crash_info else None
+
             return ExecutionResult(
                 test_file=test_file_path,
                 result=test_result,
@@ -325,6 +421,8 @@ class TargetRunner:
                 stdout=result.stdout if self.collect_stdout else "",
                 stderr=result.stderr if self.collect_stderr else "",
                 retry_count=retry_count,
+                windows_crash_info=windows_crash_info,
+                crash_hash=crash_hash,
             )
 
         except subprocess.TimeoutExpired as e:
@@ -363,6 +461,7 @@ class TargetRunner:
                 exception=e,
                 crash_hash=crash_report.crash_hash if crash_report else None,
                 retry_count=retry_count,
+                hang_reason="timeout",
             )
 
         except MemoryError as e:
@@ -414,6 +513,183 @@ class TargetRunner:
                 retry_count=retry_count,
             )
 
+    def execute_with_monitoring(
+        self, test_file: Path | str, retry_count: int = 0
+    ) -> ExecutionResult:
+        """Execute target with enhanced CPU/memory monitoring.
+
+        This method uses subprocess.Popen with ProcessMonitor for:
+        - CPU idle detection (process alive but 0% CPU)
+        - Memory spike detection (exceeds limit)
+        - Graceful process tree termination
+
+        Args:
+            test_file: Path to DICOM file to test
+            retry_count: Current retry attempt
+
+        Returns:
+            ExecutionResult with monitoring metrics
+
+        """
+        from dicom_fuzzer.core.process_monitor import HangReason
+
+        test_file_path = Path(test_file) if isinstance(test_file, str) else test_file
+
+        # Check circuit breaker
+        if not self._check_circuit_breaker():
+            return ExecutionResult(
+                test_file=test_file_path,
+                result=ExecutionStatus.SKIPPED,
+                exit_code=None,
+                execution_time=0.0,
+                stdout="",
+                stderr="Circuit breaker open",
+                retry_count=retry_count,
+            )
+
+        if not self.process_monitor:
+            # Fall back to basic execution if no monitor
+            return self.execute_test(test_file_path, retry_count)
+
+        start_time = time.time()
+        logger.debug(f"Testing with monitoring: {test_file_path.name}")
+
+        try:
+            # Launch process with Popen for monitoring
+            process = subprocess.Popen(
+                [str(self.target_executable), str(test_file_path)],
+                stdout=subprocess.PIPE if self.collect_stdout else subprocess.DEVNULL,
+                stderr=subprocess.PIPE if self.collect_stderr else subprocess.DEVNULL,
+                text=True,
+            )
+
+            # Monitor the process
+            monitor_result = self.process_monitor.monitor_process(process)
+
+            # Collect output
+            stdout_val = ""
+            stderr_val = ""
+            if process.stdout and self.collect_stdout:
+                try:
+                    stdout_val = process.stdout.read()
+                except Exception:
+                    pass
+            if process.stderr and self.collect_stderr:
+                try:
+                    stderr_val = process.stderr.read()
+                except Exception:
+                    pass
+
+            execution_time = monitor_result.duration_seconds
+            windows_crash_info = None
+
+            # Process completed normally
+            if monitor_result.completed:
+                exit_code = monitor_result.exit_code
+
+                if exit_code == 0:
+                    test_result = ExecutionStatus.SUCCESS
+                    self._update_circuit_breaker(success=True)
+                else:
+                    test_result = self._classify_error(stderr_val, exit_code)
+                    self._update_circuit_breaker(success=False)
+
+                    # Capture Windows crash info
+                    if (
+                        test_result == ExecutionStatus.CRASH
+                        and self.windows_crash_handler
+                        and exit_code is not None
+                    ):
+                        windows_crash_info = self.windows_crash_handler.analyze_crash(
+                            exit_code=exit_code,
+                            test_file=test_file_path,
+                            stdout=stdout_val,
+                            stderr=stderr_val,
+                        )
+                        self.windows_crash_handler.save_crash_report(
+                            windows_crash_info, test_file_path
+                        )
+
+                crash_hash = (
+                    windows_crash_info.crash_hash if windows_crash_info else None
+                )
+
+                return ExecutionResult(
+                    test_file=test_file_path,
+                    result=test_result,
+                    exit_code=exit_code,
+                    execution_time=execution_time,
+                    stdout=stdout_val,
+                    stderr=stderr_val,
+                    retry_count=retry_count,
+                    windows_crash_info=windows_crash_info,
+                    crash_hash=crash_hash,
+                    peak_memory_mb=monitor_result.metrics.peak_memory_mb,
+                )
+
+            # Hang detected
+            else:
+                self._update_circuit_breaker(success=False)
+
+                # Map HangReason to hang_reason string
+                hang_reason_str = "timeout"
+                if monitor_result.hang_reason == HangReason.CPU_IDLE:
+                    hang_reason_str = "cpu_idle"
+                    logger.warning(
+                        f"CPU idle hang: {test_file_path.name} "
+                        f"(idle for {monitor_result.metrics.idle_duration_seconds:.1f}s)"
+                    )
+                elif monitor_result.hang_reason == HangReason.MEMORY_SPIKE:
+                    hang_reason_str = "memory_spike"
+                    logger.warning(
+                        f"Memory spike: {test_file_path.name} "
+                        f"(peak {monitor_result.metrics.peak_memory_mb:.1f}MB)"
+                    )
+                else:
+                    logger.warning(f"Timeout: {test_file_path.name}")
+
+                # Check for OOM based on hang reason
+                if monitor_result.hang_reason == HangReason.MEMORY_SPIKE:
+                    test_result = ExecutionStatus.OOM
+                else:
+                    test_result = ExecutionStatus.HANG
+
+                return ExecutionResult(
+                    test_file=test_file_path,
+                    result=test_result,
+                    exit_code=None,
+                    execution_time=execution_time,
+                    stdout=stdout_val,
+                    stderr=stderr_val,
+                    retry_count=retry_count,
+                    hang_reason=hang_reason_str,
+                    peak_memory_mb=monitor_result.metrics.peak_memory_mb,
+                )
+
+        except (KeyboardInterrupt, SystemExit):
+            raise
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(f"Monitoring error for {test_file_path.name}: {e}")
+
+            self._update_circuit_breaker(success=False)
+
+            if retry_count < self.max_retries:
+                time.sleep(0.1)
+                return self.execute_with_monitoring(test_file_path, retry_count + 1)
+
+            return ExecutionResult(
+                test_file=test_file_path,
+                result=ExecutionStatus.ERROR,
+                exit_code=None,
+                execution_time=execution_time,
+                stdout="",
+                stderr=str(e),
+                exception=e,
+                retry_count=retry_count,
+            )
+
     def run_campaign(
         self, test_files: list[Path], stop_on_crash: bool = False
     ) -> dict[ExecutionStatus, list[ExecutionResult]]:
@@ -447,7 +723,11 @@ class TargetRunner:
         for i, test_file in enumerate(test_files, 1):
             logger.debug(f"[{i}/{total}] Testing {test_file.name}")
 
-            exec_result = self.execute_test(test_file)
+            # Use monitoring if enabled, otherwise basic execution
+            if self.process_monitor:
+                exec_result = self.execute_with_monitoring(test_file)
+            else:
+                exec_result = self.execute_test(test_file)
             results[exec_result.result].append(exec_result)
 
             # Log notable results
@@ -522,17 +802,36 @@ class TargetRunner:
 
         if crashes > 0:
             summary.append("\n  CRASHES DETECTED:")
-            # Show first 10 crashes
+            # Show first 10 crashes with Windows-specific info if available
             for exec_result in results[ExecutionStatus.CRASH][:10]:
-                crash_line = (
-                    f"    - {exec_result.test_file.name} "
-                    f"(exit_code={exec_result.exit_code}, "
-                    f"retries={exec_result.retry_count})"
-                )
+                if exec_result.windows_crash_info:
+                    wci = exec_result.windows_crash_info
+                    crash_line = (
+                        f"    - {exec_result.test_file.name}: "
+                        f"{wci.exception_name} (0x{wci.exception_code:08X}) "
+                        f"[{wci.severity.upper()}]"
+                    )
+                    if wci.is_exploitable:
+                        crash_line += " [EXPLOITABLE]"
+                else:
+                    crash_line = (
+                        f"    - {exec_result.test_file.name} "
+                        f"(exit_code={exec_result.exit_code}, "
+                        f"retries={exec_result.retry_count})"
+                    )
                 summary.append(crash_line)
             if len(results[ExecutionStatus.CRASH]) > 10:
                 remaining = len(results[ExecutionStatus.CRASH]) - 10
                 summary.append(f"    ... and {remaining} more")
+
+            # Count exploitable crashes
+            exploitable = sum(
+                1
+                for r in results[ExecutionStatus.CRASH]
+                if r.windows_crash_info and r.windows_crash_info.is_exploitable
+            )
+            if exploitable > 0:
+                summary.append(f"\n  [!] EXPLOITABLE CRASHES: {exploitable}")
 
         if hangs > 0:
             summary.append("\n  HANGS DETECTED:")

@@ -77,7 +77,7 @@ class TestCreateParser:
         assert args.iterations == 1000
         assert args.mopt is False
         assert args.schedule == "fast"
-        assert args.output == "./persistent_output"
+        assert args.output == "./artifacts/persistent"
         assert args.verbose is False
 
 

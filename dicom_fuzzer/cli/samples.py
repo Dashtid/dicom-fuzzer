@@ -150,9 +150,9 @@ Examples:
         "-o",
         "--output",
         type=str,
-        default="./samples",
+        default="./artifacts/samples",
         metavar="DIR",
-        help="Output directory (default: ./samples)",
+        help="Output directory (default: ./artifacts/samples)",
     )
     gen_group.add_argument(
         "-m",

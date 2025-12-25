@@ -44,14 +44,14 @@ python -m dicom_fuzzer.cli INPUT [OPTIONS]
 
 ### Common Options
 
-| Option                   | Default            | Description                                                 |
-| ------------------------ | ------------------ | ----------------------------------------------------------- |
-| `-c, --count N`          | 100                | Number of fuzzed files to generate                          |
-| `-o, --output DIR`       | ./campaigns/output | Output directory                                            |
-| `-s, --strategies STRAT` | all                | Comma-separated strategies: metadata,header,pixel,structure |
-| `-r, --recursive`        | false              | Recursively scan input directory                            |
-| `-v, --verbose`          | false              | Enable verbose logging                                      |
-| `--version`              | -                  | Show version                                                |
+| Option                   | Default               | Description                                                 |
+| ------------------------ | --------------------- | ----------------------------------------------------------- |
+| `-c, --count N`          | 100                   | Number of fuzzed files to generate                          |
+| `-o, --output DIR`       | ./artifacts/campaigns | Output directory                                            |
+| `-s, --strategies STRAT` | all                   | Comma-separated strategies: metadata,header,pixel,structure |
+| `-r, --recursive`        | false                 | Recursively scan input directory                            |
+| `-v, --verbose`          | false                 | Enable verbose logging                                      |
+| `--version`              | -                     | Show version                                                |
 
 ### Target Testing Options
 
@@ -97,33 +97,9 @@ python -m dicom_fuzzer.cli INPUT [OPTIONS]
 
 #### CVE Mutations (Enabled by Default)
 
-The fuzzer includes 9 CVE mutation categories applied automatically:
+The fuzzer includes **26 mutations across 20 CVEs** applied automatically. See [CVE_REFERENCE.md](CVE_REFERENCE.md) for the complete list.
 
-| Mutation Type            | CVE(s)               | Description                       |
-| ------------------------ | -------------------- | --------------------------------- |
-| `cve_heap_overflow`      | CVE-2025-5943        | Pixel data parsing overflow       |
-| `cve_integer_overflow`   | CVE-2025-5943        | Dimension integer overflow        |
-| `cve_malformed_length`   | CVE-2020-29625       | Undefined/oversized length fields |
-| `cve_path_traversal`     | CVE-2021-41946       | Path traversal in filename fields |
-| `cve_deep_nesting`       | CVE-2022-24193       | Deep sequence nesting (DoS)       |
-| `cve_polyglot`           | CVE-2019-11687       | PE/ELF preamble injection         |
-| `cve_encapsulated_pixel` | CVE-2025-11266       | PixelData fragment underflow      |
-| `cve_jpeg_codec`         | CVE-2025-53618/53619 | JPEG codec OOB read               |
-| `cve_random`             | Any                  | Random CVE from registry          |
-
-#### Available CVE Patterns (for --target-cves)
-
-- CVE-2025-5943 (MicroDicom OOB write)
-- CVE-2025-11266 (GDCM PixelData)
-- CVE-2025-53618, CVE-2025-53619 (GDCM JPEG codec)
-- CVE-2025-1001 (RadiAnt MitM)
-- CVE-2022-2119, CVE-2022-2120 (DCMTK path traversal)
-- CVE-2019-11687 (DICOM preamble executable)
-
-Available vulnerability classes:
-
-- oob_write, oob_read, stack_overflow, heap_overflow
-- integer_overflow, format_string, null_deref, dos
+**Vulnerability classes:** oob_write, oob_read, stack_overflow, heap_overflow, integer_overflow, format_string, null_deref, dos
 
 ### Response Monitoring Options
 
@@ -161,10 +137,10 @@ python -m dicom_fuzzer.cli study [OPTIONS]
 
 #### Output Options
 
-| Option             | Default        | Description      |
-| ------------------ | -------------- | ---------------- |
-| `-o, --output DIR` | ./study_output | Output directory |
-| `-v, --verbose`    | false          | Verbose output   |
+| Option             | Default           | Description      |
+| ------------------ | ----------------- | ---------------- |
+| `-o, --output DIR` | ./artifacts/study | Output directory |
+| `-v, --verbose`    | false             | Verbose output   |
 
 #### Examples
 
@@ -206,10 +182,10 @@ python -m dicom_fuzzer.cli calibrate [OPTIONS]
 
 #### Output Options
 
-| Option             | Default              | Description      |
-| ------------------ | -------------------- | ---------------- |
-| `-o, --output DIR` | ./calibration_output | Output directory |
-| `-v, --verbose`    | false                | Verbose output   |
+| Option             | Default               | Description      |
+| ------------------ | --------------------- | ---------------- |
+| `-o, --output DIR` | ./artifacts/calibrate | Output directory |
+| `-v, --verbose`    | false                 | Verbose output   |
 
 #### Examples
 
@@ -260,10 +236,10 @@ python -m dicom_fuzzer.cli stress [OPTIONS]
 
 #### Output Options
 
-| Option             | Default         | Description      |
-| ------------------ | --------------- | ---------------- |
-| `-o, --output DIR` | ./stress_output | Output directory |
-| `-v, --verbose`    | false           | Verbose output   |
+| Option             | Default            | Description      |
+| ------------------ | ------------------ | ---------------- |
+| `-o, --output DIR` | ./artifacts/stress | Output directory |
+| `-v, --verbose`    | false              | Verbose output   |
 
 #### Examples
 
@@ -304,15 +280,15 @@ python -m dicom_fuzzer.cli samples [ACTION] [OPTIONS]
 
 #### Generation Options
 
-| Option               | Default   | Description                            |
-| -------------------- | --------- | -------------------------------------- |
-| `-c, --count N`      | 10        | Number of files to generate            |
-| `-o, --output DIR`   | ./samples | Output directory                       |
-| `-m, --modality MOD` | random    | CT, MR, US, CR, DX, PT, NM, XA, RF, SC |
-| `--series`           | false     | Generate as consistent series          |
-| `--rows N`           | 256       | Image rows                             |
-| `--columns N`        | 256       | Image columns                          |
-| `--seed N`           | -         | Random seed for reproducibility        |
+| Option               | Default             | Description                            |
+| -------------------- | ------------------- | -------------------------------------- |
+| `-c, --count N`      | 10                  | Number of files to generate            |
+| `-o, --output DIR`   | ./artifacts/samples | Output directory                       |
+| `-m, --modality MOD` | random              | CT, MR, US, CR, DX, PT, NM, XA, RF, SC |
+| `--series`           | false               | Generate as consistent series          |
+| `--rows N`           | 256                 | Image rows                             |
+| `--columns N`        | 256                 | Image columns                          |
+| `--seed N`           | -                   | Random seed for reproducibility        |
 
 #### Malicious Sample Options
 
@@ -444,41 +420,22 @@ python -m dicom_fuzzer.cli input.dcm --security-fuzz \
 # Generate synthetic CT images
 python -m dicom_fuzzer.cli samples --generate -c 10 -m CT -o ./samples
 
-# Generate MR series
-python -m dicom_fuzzer.cli samples --generate --series -c 20 -m MR -o ./samples
-
-# Generate all malicious samples
+# Generate malicious/CVE samples
 python -m dicom_fuzzer.cli samples --malicious -o ./malicious_samples
-
-# Generate CVE reproduction samples
-python -m dicom_fuzzer.cli samples --cve-samples -o ./cve_samples
 
 # Scan files for threats
 python -m dicom_fuzzer.cli samples --scan ./suspicious_files --recursive --json
-
-# Sanitize a file
-python -m dicom_fuzzer.cli samples --sanitize suspicious.dcm
 ```
 
 ### FDA Compliance Reporting
 
 ```bash
 # Generate report from fuzzing results
-python -m dicom_fuzzer.cli fda-report -i fuzzing_results.json -o report.md
+python -m dicom_fuzzer.cli fda-report -i fuzzing_results.json \
+    --organization "Medical Corp" --device "DICOM Viewer" -o report.md
 
-# Generate report with device info
-python -m dicom_fuzzer.cli fda-report -i results.json \
-    --organization "Medical Corp" \
-    --device "DICOM Viewer" \
-    --version "2.0.0" \
-    -o fda_report.md
-
-# Generate sample report template
+# Generate sample template
 python -m dicom_fuzzer.cli fda-report --sample -o sample_report.md
-
-# Output both markdown and JSON
-python -m dicom_fuzzer.cli fda-report -i results.json \
-    -o report.md --json report.json
 ```
 
 ---

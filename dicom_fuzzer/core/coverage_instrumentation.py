@@ -253,46 +253,25 @@ class CoverageTracker:
 
 
 class HybridCoverageTracker(CoverageTracker):
-    """Enhanced coverage tracker with optional Atheris integration.
+    """Enhanced coverage tracker using pure Python instrumentation.
 
-    Falls back to pure Python tracking if Atheris is not available.
+    Extends CoverageTracker with additional tracking capabilities.
     """
 
-    def __init__(
-        self, target_modules: set[str] | None = None, use_atheris: bool = False
-    ):
+    def __init__(self, target_modules: set[str] | None = None):
         """Initialize hybrid coverage tracker.
 
         Args:
             target_modules: Modules to track
-            use_atheris: Try to use Atheris for coverage if available
 
         """
         super().__init__(target_modules)
-        self.atheris_available = False
-        self.use_atheris = use_atheris
-
-        if use_atheris:
-            try:
-                import atheris
-
-                self.atheris_available = True
-                self.atheris = atheris
-            except ImportError:
-                print("Atheris not available, falling back to pure Python coverage")
 
     @contextmanager
     def track_coverage(
         self, input_data: bytes | None = None
     ) -> Generator[CoverageInfo, None, None]:
-        """Track coverage with Atheris integration if available."""
-        if self.atheris_available and self.use_atheris:
-            # Use Atheris coverage tracking
-            # This would integrate with Atheris's coverage-guided fuzzing
-            # For now, we'll use the parent implementation
-            pass
-
-        # Fall back to pure Python tracking
+        """Track coverage using pure Python instrumentation."""
         with super().track_coverage(input_data) as coverage:
             yield coverage
 

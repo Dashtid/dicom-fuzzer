@@ -74,7 +74,7 @@ class TestCreateParser:
         args = parser.parse_args(["--generate"])
         assert args.backend == "mock"
         assert args.model == "gpt-4"
-        assert args.output == "./llm_output"
+        assert args.output == "./artifacts/llm"
         assert args.count == 10
         assert args.verbose is False
 

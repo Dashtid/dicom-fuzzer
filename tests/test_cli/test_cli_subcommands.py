@@ -75,7 +75,7 @@ class TestStudySubcommand:
         assert args.strategy == "all"
         assert args.severity == "moderate"
         assert args.count == 5
-        assert args.output == "./study_output"
+        assert args.output == "./artifacts/study"
         assert args.verbose is False
 
     def test_run_study_mutation_missing_dir(self, capsys, tmp_path):
@@ -157,7 +157,7 @@ class TestCalibrateSubcommand:
 
         assert args.category == "all"
         assert args.count == 10
-        assert args.output == "./calibration_output"
+        assert args.output == "./artifacts/calibrate"
         assert args.verbose is False
 
     def test_run_calibration_missing_file(self, capsys, tmp_path):
@@ -245,7 +245,7 @@ class TestStressSubcommand:
         assert args.pattern == "gradient"
         assert args.modality == "CT"
         assert args.memory_limit == 4096
-        assert args.output == "./stress_output"
+        assert args.output == "./artifacts/stress"
         assert args.verbose is False
 
     def test_parse_dimensions_valid(self):
