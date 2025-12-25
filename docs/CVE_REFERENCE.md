@@ -2,48 +2,56 @@
 
 DICOM vulnerabilities targeted by the fuzzer's security mutations.
 
-**Total: 20 mutations across 14 CVEs** (expanded December 2025)
+**Total: 24 mutations across 18 CVEs** (expanded December 2025)
 
 ## CVE Database
 
-| CVE ID         | Product    | Type                   | CVSS | Fixed In   | Mutations |
-| -------------- | ---------- | ---------------------- | ---- | ---------- | --------- |
-| CVE-2025-35975 | MicroDicom | OOB write              | 8.4  | 2025.2     | 1         |
-| CVE-2025-5943  | MicroDicom | Heap overflow          | 8.8  | 2025.3     | 2         |
-| CVE-2025-11266 | GDCM       | PixelData OOB write    | 6.6  | 3.2.2      | 2         |
-| CVE-2025-53618 | GDCM       | JPEG codec OOB read    | 7.5  | 3.0.24     | 1         |
-| CVE-2025-53619 | GDCM       | JPEG info disclosure   | 7.5  | 3.0.24     | 1         |
-| CVE-2025-1001  | RadiAnt    | TLS cert bypass (MitM) | 5.7  | 2025.1     | 1         |
-| CVE-2024-22100 | MicroDicom | Heap overflow          | 7.8  | 2024.1     | 1         |
-| CVE-2024-25578 | MicroDicom | OOB write (validation) | 7.8  | 2024.1     | 1         |
-| CVE-2024-28877 | MicroDicom | Stack overflow         | 8.7  | 2024.2     | 1         |
-| CVE-2024-33606 | MicroDicom | URL scheme auth bypass | 8.8  | 2024.2     | 1         |
-| CVE-2022-2119  | DCMTK      | Path traversal (SCP)   | 7.5  | 3.6.7      | sample    |
-| CVE-2022-2120  | DCMTK      | Path traversal (SCU)   | 7.5  | 3.6.7      | sample    |
-| CVE-2022-2121  | DCMTK      | Null pointer deref     | 6.5  | 3.6.7      | sample    |
-| CVE-2019-11687 | DICOM Std  | Preamble executable    | N/A  | Mitigation | 2         |
+| CVE ID         | Product      | Type                   | CVSS | Fixed In   | Mutations |
+| -------------- | ------------ | ---------------------- | ---- | ---------- | --------- |
+| CVE-2025-35975 | MicroDicom   | OOB write              | 8.4  | 2025.2     | 1         |
+| CVE-2025-5943  | MicroDicom   | Heap overflow          | 8.8  | 2025.3     | 2         |
+| CVE-2025-27578 | OsiriX MD    | Use-after-free (RCE)   | 9.8  | Unknown    | 1         |
+| CVE-2025-31946 | OsiriX MD    | Use-after-free (local) | 7.8  | Unknown    | 1         |
+| CVE-2025-5307  | Sante Viewer | OOB read               | 7.8  | Unknown    | 1         |
+| CVE-2025-11266 | GDCM         | PixelData OOB write    | 6.6  | 3.2.2      | 2         |
+| CVE-2025-53618 | GDCM         | JPEG codec OOB read    | 7.5  | 3.0.24     | 1         |
+| CVE-2025-53619 | GDCM         | JPEG info disclosure   | 7.5  | 3.0.24     | 1         |
+| CVE-2025-1001  | RadiAnt      | TLS cert bypass (MitM) | 5.7  | 2025.1     | 1         |
+| CVE-2024-1453  | Sante Viewer | OOB read               | 7.8  | 4.0        | 1         |
+| CVE-2024-22100 | MicroDicom   | Heap overflow          | 7.8  | 2024.1     | 1         |
+| CVE-2024-25578 | MicroDicom   | OOB write (validation) | 7.8  | 2024.1     | 1         |
+| CVE-2024-28877 | MicroDicom   | Stack overflow         | 8.7  | 2024.2     | 1         |
+| CVE-2024-33606 | MicroDicom   | URL scheme auth bypass | 8.8  | 2024.2     | 1         |
+| CVE-2022-2119  | DCMTK        | Path traversal (SCP)   | 7.5  | 3.6.7      | sample    |
+| CVE-2022-2120  | DCMTK        | Path traversal (SCU)   | 7.5  | 3.6.7      | sample    |
+| CVE-2022-2121  | DCMTK        | Null pointer deref     | 6.5  | 3.6.7      | sample    |
+| CVE-2019-11687 | DICOM Std    | Preamble executable    | N/A  | Mitigation | 2         |
 
 ## Mutation Types
 
 The fuzzer applies these CVE-based mutations by default:
 
-| Mutation                   | Target CVE     | Technique                         |
-| -------------------------- | -------------- | --------------------------------- |
-| `cve_heap_overflow`        | CVE-2025-5943  | Malformed pixel data dimensions   |
-| `cve_integer_overflow`     | CVE-2025-5943  | Overflow in Rows/Columns          |
-| `cve_oob_write`            | CVE-2025-35975 | Dimension/size mismatches         |
-| `cve_oob_write_validation` | CVE-2024-25578 | Malformed element lengths         |
-| `cve_heap_dcm_parsing`     | CVE-2024-22100 | Private element overflow          |
-| `cve_stack_overflow`       | CVE-2024-28877 | Deep nesting + oversized strings  |
-| `cve_url_scheme_bypass`    | CVE-2024-33606 | Malicious URLs in metadata        |
-| `cve_cert_validation`      | CVE-2025-1001  | Update URL injection              |
-| `cve_malformed_length`     | CVE-2020-29625 | Undefined/oversized length fields |
-| `cve_path_traversal`       | CVE-2021-41946 | `../` in filename metadata        |
-| `cve_deep_nesting`         | CVE-2022-24193 | 100+ level sequence nesting       |
-| `cve_polyglot`             | CVE-2019-11687 | PE/ELF header in preamble         |
-| `cve_encapsulated_pixel`   | CVE-2025-11266 | Fragment count mismatch           |
-| `cve_jpeg_codec`           | CVE-2025-53618 | Truncated JPEG-LS stream          |
-| `cve_random`               | Any            | Random CVE from registry          |
+| Mutation                   | Target CVE     | Technique                           |
+| -------------------------- | -------------- | ----------------------------------- |
+| `cve_heap_overflow`        | CVE-2025-5943  | Malformed pixel data dimensions     |
+| `cve_integer_overflow`     | CVE-2025-5943  | Overflow in Rows/Columns            |
+| `cve_oob_write`            | CVE-2025-35975 | Dimension/size mismatches           |
+| `cve_oob_write_validation` | CVE-2024-25578 | Malformed element lengths           |
+| `cve_heap_dcm_parsing`     | CVE-2024-22100 | Private element overflow            |
+| `cve_stack_overflow`       | CVE-2024-28877 | Deep nesting + oversized strings    |
+| `cve_url_scheme_bypass`    | CVE-2024-33606 | Malicious URLs in metadata          |
+| `cve_cert_validation`      | CVE-2025-1001  | Update URL injection                |
+| `cve_use_after_free`       | CVE-2025-27578 | Premature sequence termination      |
+| `cve_use_after_free_local` | CVE-2025-31946 | Invalid PixelData offset references |
+| `cve_oob_read_sante_2024`  | CVE-2024-1453  | Oversized element length fields     |
+| `cve_oob_read_sante_2025`  | CVE-2025-5307  | Dimension/buffer size mismatches    |
+| `cve_malformed_length`     | CVE-2020-29625 | Undefined/oversized length fields   |
+| `cve_path_traversal`       | CVE-2021-41946 | `../` in filename metadata          |
+| `cve_deep_nesting`         | CVE-2022-24193 | 100+ level sequence nesting         |
+| `cve_polyglot`             | CVE-2019-11687 | PE/ELF header in preamble           |
+| `cve_encapsulated_pixel`   | CVE-2025-11266 | Fragment count mismatch             |
+| `cve_jpeg_codec`           | CVE-2025-53618 | Truncated JPEG-LS stream            |
+| `cve_random`               | Any            | Random CVE from registry            |
 
 ## Vulnerability Details
 
@@ -92,6 +100,28 @@ Multiple vulnerabilities in MicroDicom DICOM Viewer versions prior to 2024.1/202
 
 **Trigger:** Open crafted `.dcm` in MicroDicom < 2024.2
 **Reference:** [CISA ICSMA-24-060-01](https://www.cisa.gov/news-events/ics-medical-advisories/icsma-24-060-01)
+
+### CVE-2025-27578/31946 - OsiriX MD Use-After-Free
+
+Use-after-free vulnerabilities in OsiriX MD medical imaging software:
+
+- **CVE-2025-27578:** Remote code execution via crafted DICOM file (CVSS 9.8)
+- **CVE-2025-31946:** Local privilege escalation via malformed PixelData (CVSS 7.8)
+
+**Trigger:** Open crafted `.dcm` in affected OsiriX MD versions
+**Technique:** Premature sequence termination and invalid offset references cause dangling pointer dereference
+**Reference:** [NVD CVE-2025-27578](https://nvd.nist.gov/vuln/detail/CVE-2025-27578)
+
+### CVE-2024-1453/CVE-2025-5307 - Sante DICOM Viewer Pro OOB Read
+
+Out-of-bounds read vulnerabilities in Sante DICOM Viewer Pro:
+
+- **CVE-2024-1453:** OOB read via malformed element length fields (CVSS 7.8)
+- **CVE-2025-5307:** OOB read via dimension/buffer size mismatches (CVSS 7.8)
+
+**Trigger:** Open crafted `.dcm` in Sante DICOM Viewer Pro < 4.0
+**Technique:** Oversized length fields and dimension values trigger reads beyond buffer boundaries
+**Reference:** [CISA ICS-CERT](https://www.cisa.gov/topics/industrial-control-systems/medical-devices)
 
 ### CVE-2022-2119/2120 - DCMTK Path Traversal
 

@@ -27,6 +27,8 @@ from dicom_fuzzer.strategies.cve_mutations import (
     mutate_jpeg_codec_oob_read,
     mutate_jpeg_truncated_stream,
     mutate_malformed_length_field,
+    mutate_oob_read_sante_2024,
+    mutate_oob_read_sante_2025,
     mutate_oob_write_lack_validation,
     mutate_oob_write_pixel_data,
     mutate_oversized_length,
@@ -34,6 +36,8 @@ from dicom_fuzzer.strategies.cve_mutations import (
     mutate_pe_polyglot_preamble,
     mutate_stack_overflow_dcm,
     mutate_url_scheme_bypass,
+    mutate_use_after_free_local,
+    mutate_use_after_free_remote,
 )
 
 
@@ -50,6 +54,7 @@ class TestCVECategory:
             "INTEGER_UNDERFLOW",
             "OUT_OF_BOUNDS_WRITE",
             "OUT_OF_BOUNDS_READ",
+            "USE_AFTER_FREE",
             "PATH_TRAVERSAL",
             "DENIAL_OF_SERVICE",
             "POLYGLOT",
@@ -478,6 +483,11 @@ class TestMutationEdgeCases:
             mutate_stack_overflow_dcm,
             mutate_url_scheme_bypass,
             mutate_certificate_validation_bypass,
+            # OsiriX and Sante CVE mutations
+            mutate_use_after_free_remote,
+            mutate_use_after_free_local,
+            mutate_oob_read_sante_2024,
+            mutate_oob_read_sante_2025,
         ]
         for func in mutation_funcs:
             # Should not raise exception
@@ -508,6 +518,11 @@ class TestMutationEdgeCases:
             mutate_stack_overflow_dcm,
             mutate_url_scheme_bypass,
             mutate_certificate_validation_bypass,
+            # OsiriX and Sante CVE mutations
+            mutate_use_after_free_remote,
+            mutate_use_after_free_local,
+            mutate_oob_read_sante_2024,
+            mutate_oob_read_sante_2025,
         ]
         for func in mutation_funcs:
             result = func(data)
@@ -625,12 +640,16 @@ class TestNewCVERegistry:
         assert "CVE-2024-25578" in cves
         assert "CVE-2024-28877" in cves
         assert "CVE-2024-33606" in cves
+        assert "CVE-2024-1453" in cves  # Sante DICOM Viewer Pro OOB read
 
     def test_2025_cves_registered(self):
         """Test 2025 CVEs are in the registry."""
         cves = get_available_cves()
         assert "CVE-2025-35975" in cves
         assert "CVE-2025-1001" in cves
+        assert "CVE-2025-27578" in cves  # OsiriX MD remote use-after-free
+        assert "CVE-2025-31946" in cves  # OsiriX MD local use-after-free
+        assert "CVE-2025-5307" in cves  # Sante DICOM Viewer Pro OOB read 2025
 
     def test_new_categories_have_mutations(self):
         """Test new categories have associated mutations."""
@@ -658,8 +677,158 @@ class TestNewCVERegistry:
             "CVE-2024-33606",
             "CVE-2025-35975",
             "CVE-2025-1001",
+            "CVE-2025-27578",
+            "CVE-2025-31946",
+            "CVE-2024-1453",
+            "CVE-2025-5307",
         ]
         for cve_id in new_cves:
             mutated, mutation = apply_cve_mutation(data, cve_id=cve_id)
             assert mutation.cve_id == cve_id
             assert isinstance(mutated, bytes)
+
+
+class TestOsiriXMD2025CVEs:
+    """Test OsiriX MD 2025 use-after-free CVE mutations."""
+
+    def test_mutate_use_after_free_remote(self):
+        """Test CVE-2025-27578 remote use-after-free mutation."""
+        data = b"\x00" * 200 + b"\xfe\xff\x0d\xe0"
+        result = mutate_use_after_free_remote(data)
+        # Should create malformed sequence with premature termination
+        assert len(result) > len(data)
+        # Should contain sequence tags
+        assert b"\x08\x00\x18\x11" in result or b"\xfe\xff\x00\xe0" in result
+
+    def test_mutate_use_after_free_remote_with_existing_sequence(self):
+        """Test remote use-after-free with existing sequence tag."""
+        # Create data with Referenced Image Sequence tag
+        seq_tag = b"\x08\x00\x18\x11"
+        data = (
+            b"\x00" * 50
+            + seq_tag
+            + b"SQ"
+            + b"\x00\x00"
+            + b"\xff\xff\xff\xff"
+            + b"\xfe\xff\x00\xe0"
+            + struct.pack("<I", 16)
+            + b"\x00" * 16
+            + b"\xfe\xff\x0d\xe0"
+            + b"\x00\x00\x00\x00"
+            + b"\xfe\xff\xdd\xe0"
+            + b"\x00\x00\x00\x00"
+        )
+        result = mutate_use_after_free_remote(data)
+        assert result != data
+        assert isinstance(result, bytes)
+
+    def test_mutate_use_after_free_local(self):
+        """Test CVE-2025-31946 local use-after-free mutation."""
+        data = b"\x00" * 200 + b"\xfe\xff\x0d\xe0"
+        result = mutate_use_after_free_local(data)
+        # Should create encapsulated PixelData with invalid offsets
+        assert len(result) > len(data)
+        # Should contain PixelData tag
+        assert b"\xe0\x7f\x10\x00" in result
+
+    def test_mutate_use_after_free_local_with_existing_pixeldata(self):
+        """Test local use-after-free with existing PixelData."""
+        # Create data with PixelData tag
+        pixel_data_tag = b"\xe0\x7f\x10\x00"
+        data = (
+            b"\x00" * 50
+            + pixel_data_tag
+            + b"OB"
+            + b"\x00\x00"
+            + b"\xff\xff\xff\xff"
+            + b"\xfe\xff\x00\xe0"
+            + struct.pack("<I", 32)
+            + b"\x00" * 32
+            + b"\xfe\xff\xdd\xe0"
+            + b"\x00\x00\x00\x00"
+        )
+        result = mutate_use_after_free_local(data)
+        # Mutation should return valid bytes (may or may not modify existing structure)
+        assert isinstance(result, bytes)
+        assert len(result) >= len(data)
+
+
+class TestSanteDICOMViewerCVEs:
+    """Test Sante DICOM Viewer Pro OOB read CVE mutations."""
+
+    def test_mutate_oob_read_sante_2024(self):
+        """Test CVE-2024-1453 out-of-bounds read mutation."""
+        data = b"\x00" * 200 + b"\xfe\xff\x0d\xe0"
+        result = mutate_oob_read_sante_2024(data)
+        # Should create oversized length fields
+        assert len(result) >= len(data)
+        assert isinstance(result, bytes)
+
+    def test_mutate_oob_read_sante_2024_with_explicit_vr(self):
+        """Test CVE-2024-1453 with existing explicit VR element."""
+        # Create data with explicit VR OB element
+        data = (
+            b"\x00" * 50
+            + b"\x08\x00\x18\x00"  # SOP Instance UID tag
+            + b"OB"
+            + b"\x00\x00"
+            + struct.pack("<I", 64)
+            + b"\x00" * 64
+            + b"\x00" * 50
+        )
+        result = mutate_oob_read_sante_2024(data)
+        # Should have modified or added oversized length
+        assert isinstance(result, bytes)
+
+    def test_mutate_oob_read_sante_2025(self):
+        """Test CVE-2025-5307 out-of-bounds read mutation."""
+        data = b"\x00" * 200 + b"\xfe\xff\x0d\xe0"
+        result = mutate_oob_read_sante_2025(data)
+        # Should create dimension/buffer mismatch (may modify in place or append)
+        assert isinstance(result, bytes)
+        assert len(result) >= len(data)
+
+    def test_mutate_oob_read_sante_2025_with_dimensions(self):
+        """Test CVE-2025-5307 with existing dimension tags."""
+        # Create data with Rows and Columns tags
+        rows_tag = b"\x28\x00\x10\x00"
+        cols_tag = b"\x28\x00\x11\x00"
+        data = (
+            b"\x00" * 50
+            + rows_tag
+            + b"US"
+            + struct.pack("<H", 2)
+            + struct.pack("<H", 512)
+            + cols_tag
+            + b"US"
+            + struct.pack("<H", 2)
+            + struct.pack("<H", 512)
+            + b"\x00" * 100
+        )
+        result = mutate_oob_read_sante_2025(data)
+        # Should have modified dimensions or added PixelData with mismatch
+        assert result != data
+
+
+class TestUseAfterFreeCategory:
+    """Test USE_AFTER_FREE category."""
+
+    def test_use_after_free_category_exists(self):
+        """Test USE_AFTER_FREE category is defined."""
+        assert hasattr(CVECategory, "USE_AFTER_FREE")
+        assert CVECategory.USE_AFTER_FREE.value == "use_after_free"
+
+    def test_use_after_free_mutations_in_registry(self):
+        """Test USE_AFTER_FREE mutations are registered."""
+        uaf_mutations = get_mutations_by_category(CVECategory.USE_AFTER_FREE)
+        assert len(uaf_mutations) >= 2
+        cve_ids = [m.cve_id for m in uaf_mutations]
+        assert "CVE-2025-27578" in cve_ids
+        assert "CVE-2025-31946" in cve_ids
+
+    def test_oob_read_mutations_include_sante(self):
+        """Test OOB read mutations include Sante CVEs."""
+        oob_mutations = get_mutations_by_category(CVECategory.OUT_OF_BOUNDS_READ)
+        cve_ids = [m.cve_id for m in oob_mutations]
+        assert "CVE-2024-1453" in cve_ids
+        assert "CVE-2025-5307" in cve_ids

