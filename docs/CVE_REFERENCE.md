@@ -4,6 +4,42 @@ DICOM vulnerabilities targeted by the fuzzer's security mutations.
 
 **Total: 24 mutations across 18 CVEs** (expanded December 2025)
 
+## Security Testing Philosophy
+
+These CVE-inspired mutations are **vulnerability-guided fuzzing** (also known as Directed
+Greybox Fuzzing), not penetration testing or exploitation tools.
+
+### Fuzzing vs Penetration Testing
+
+| Aspect             | This Tool (Fuzzing)                 | Penetration Testing        |
+| ------------------ | ----------------------------------- | -------------------------- |
+| **Purpose**        | Find parsing bugs in YOUR software  | Exploit vulnerabilities    |
+| **Output**         | Malformed test files                | Proof of exploitation      |
+| **Target**         | File format parsers                 | Running production systems |
+| **Automation**     | Fully automated                     | Manual/semi-automated      |
+| **Question Asked** | "Does my parser have similar bugs?" | "Can I exploit this CVE?"  |
+
+### Why CVE-Inspired Mutations?
+
+CVE patterns guide the fuzzer toward known vulnerability classes, making it more effective
+at finding similar bugs. This approach is:
+
+- **Recommended by FDA** for medical device security testing (2025 guidance)
+- **Industry standard** practice (AFL-GO, BEACON, SyzDirect all use directed fuzzing)
+- **Proven effective** - directed fuzzers find 11x more bugs than random fuzzing
+
+### Intended Use
+
+```text
+[+] Generate malformed DICOM files to test YOUR parser implementations
+[+] Validate that your software handles edge cases safely
+[+] Discover similar vulnerabilities before attackers do
+[-] NOT for attacking production PACS/VNA systems
+[-] NOT for exploiting known CVEs in third-party software
+```
+
+This tool generates test cases - it does not exploit running systems.
+
 ## CVE Database
 
 | CVE ID         | Product      | Type                   | CVSS | Fixed In   | Mutations |

@@ -1,7 +1,15 @@
 """CVE-Inspired Mutation Strategies.
 
-Mutation strategies based on known DICOM vulnerabilities and CVEs.
-These target specific vulnerability patterns found in real-world DICOM parsers.
+Vulnerability-guided fuzzing (Directed Greybox Fuzzing) for DICOM parsers.
+
+These mutations generate malformed DICOM test files based on known CVE patterns.
+This is FUZZING, not penetration testing:
+- Fuzzing: "Does my parser have similar bugs?" (generates test cases)
+- Pentesting: "Can I exploit this CVE?" (attacks running systems)
+
+The CVE patterns guide the fuzzer toward known vulnerability classes, making it
+more effective at finding similar bugs in YOUR software. This approach is
+recommended by FDA guidance (2025) for medical device security testing.
 
 CVEs Covered (24 total mutations across 18 CVEs):
 
