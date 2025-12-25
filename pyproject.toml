@@ -79,8 +79,13 @@ metrics = [
 differential = [
     "python-gdcm>=3.0.0; platform_system != 'Windows'",
 ]
+security = [
+    "pip-audit>=2.7.0",
+    "cyclonedx-bom>=4.0.0",
+    "minidump>=0.0.21",  # Windows crash dump parsing
+]
 all = [
-    "dicom-fuzzer[viz,distributed,metrics,network]",
+    "dicom-fuzzer[viz,distributed,metrics,network,security]",
 ]
 
 # Hatchling automatically discovers packages - no explicit configuration needed

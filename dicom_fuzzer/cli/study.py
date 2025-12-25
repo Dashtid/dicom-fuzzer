@@ -168,6 +168,7 @@ def run_study_mutation(args: argparse.Namespace) -> int:
             strategies = [strategy_map[args.strategy]]
 
         total_records = []
+        fuzzed_study = None  # Initialize to avoid uninitialized variable warning
         for strategy in strategies:
             print(f"[i] Applying {strategy.value}...")
             fuzzed_study, records = mutator.mutate_study(
@@ -184,6 +185,7 @@ def run_study_mutation(args: argparse.Namespace) -> int:
 
         print("[i] Saving mutated study...")
         # Save each series in the mutated study
+        assert fuzzed_study is not None, "No strategies applied"
         for idx, datasets in enumerate(fuzzed_study):
             series_dir = output_path / f"series_{idx:03d}"
             series_dir.mkdir(parents=True, exist_ok=True)
