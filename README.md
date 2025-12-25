@@ -31,7 +31,7 @@ dicom-fuzzer report ./artifacts/output --format html
 
 ## Features
 
-**Fuzzing**
+### Fuzzing
 
 - Mutation-based and grammar-aware DICOM fuzzing
 - **CVE-based security mutations enabled by default** (20 CVEs, 26 mutations)
@@ -39,14 +39,14 @@ dicom-fuzzer report ./artifacts/output --format html
 - 3D series fuzzing (CT/MRI volumetric data)
 - Network protocol fuzzing (DIMSE, TLS)
 
-**Analysis**
+### Analysis
 
 - Automatic crash detection and deduplication
 - Crash triaging with severity/exploitability scoring
 - Test case minimization (delta debugging)
 - Stability tracking for non-deterministic behavior
 
-**Integration**
+### Integration
 
 - CLI with 10+ subcommands
 - Python API for custom workflows
@@ -86,7 +86,7 @@ session.save_report()
 
 ## Project Structure
 
-```
+```text
 dicom-fuzzer/
 ├── dicom_fuzzer/    # Main package
 ├── tests/           # Test suite (2000+ tests)
