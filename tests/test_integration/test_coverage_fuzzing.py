@@ -619,7 +619,10 @@ class TestFullPipelineIntegration:
         sample_dataset.save_as(str(seed_file))
 
         generator = DICOMGenerator(output_dir=temp_output_dir)
-        fuzzed_files = generator.generate_batch(seed_file, count=5)
+        # Exclude CVE mutations which can corrupt Transfer Syntax UID by design
+        fuzzed_files = generator.generate_batch(
+            seed_file, count=5, strategies=["metadata", "header", "pixel"]
+        )
 
         # At least one file should be generated
         # (fuzzing may create invalid files that are skipped)

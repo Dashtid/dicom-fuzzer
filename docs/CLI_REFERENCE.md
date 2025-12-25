@@ -44,14 +44,14 @@ python -m dicom_fuzzer.cli INPUT [OPTIONS]
 
 ### Common Options
 
-| Option                   | Default            | Description                                                 |
-| ------------------------ | ------------------ | ----------------------------------------------------------- |
-| `-c, --count N`          | 100                | Number of fuzzed files to generate                          |
-| `-o, --output DIR`       | ./campaigns/output | Output directory                                            |
-| `-s, --strategies STRAT` | all                | Comma-separated strategies: metadata,header,pixel,structure |
-| `-r, --recursive`        | false              | Recursively scan input directory                            |
-| `-v, --verbose`          | false              | Enable verbose logging                                      |
-| `--version`              | -                  | Show version                                                |
+| Option                   | Default               | Description                                                 |
+| ------------------------ | --------------------- | ----------------------------------------------------------- |
+| `-c, --count N`          | 100                   | Number of fuzzed files to generate                          |
+| `-o, --output DIR`       | ./artifacts/campaigns | Output directory                                            |
+| `-s, --strategies STRAT` | all                   | Comma-separated strategies: metadata,header,pixel,structure |
+| `-r, --recursive`        | false                 | Recursively scan input directory                            |
+| `-v, --verbose`          | false                 | Enable verbose logging                                      |
+| `--version`              | -                     | Show version                                                |
 
 ### Target Testing Options
 
@@ -161,10 +161,10 @@ python -m dicom_fuzzer.cli study [OPTIONS]
 
 #### Output Options
 
-| Option             | Default        | Description      |
-| ------------------ | -------------- | ---------------- |
-| `-o, --output DIR` | ./study_output | Output directory |
-| `-v, --verbose`    | false          | Verbose output   |
+| Option             | Default           | Description      |
+| ------------------ | ----------------- | ---------------- |
+| `-o, --output DIR` | ./artifacts/study | Output directory |
+| `-v, --verbose`    | false             | Verbose output   |
 
 #### Examples
 
@@ -206,10 +206,10 @@ python -m dicom_fuzzer.cli calibrate [OPTIONS]
 
 #### Output Options
 
-| Option             | Default              | Description      |
-| ------------------ | -------------------- | ---------------- |
-| `-o, --output DIR` | ./calibration_output | Output directory |
-| `-v, --verbose`    | false                | Verbose output   |
+| Option             | Default               | Description      |
+| ------------------ | --------------------- | ---------------- |
+| `-o, --output DIR` | ./artifacts/calibrate | Output directory |
+| `-v, --verbose`    | false                 | Verbose output   |
 
 #### Examples
 
@@ -260,10 +260,10 @@ python -m dicom_fuzzer.cli stress [OPTIONS]
 
 #### Output Options
 
-| Option             | Default         | Description      |
-| ------------------ | --------------- | ---------------- |
-| `-o, --output DIR` | ./stress_output | Output directory |
-| `-v, --verbose`    | false           | Verbose output   |
+| Option             | Default            | Description      |
+| ------------------ | ------------------ | ---------------- |
+| `-o, --output DIR` | ./artifacts/stress | Output directory |
+| `-v, --verbose`    | false              | Verbose output   |
 
 #### Examples
 
@@ -304,15 +304,15 @@ python -m dicom_fuzzer.cli samples [ACTION] [OPTIONS]
 
 #### Generation Options
 
-| Option               | Default   | Description                            |
-| -------------------- | --------- | -------------------------------------- |
-| `-c, --count N`      | 10        | Number of files to generate            |
-| `-o, --output DIR`   | ./samples | Output directory                       |
-| `-m, --modality MOD` | random    | CT, MR, US, CR, DX, PT, NM, XA, RF, SC |
-| `--series`           | false     | Generate as consistent series          |
-| `--rows N`           | 256       | Image rows                             |
-| `--columns N`        | 256       | Image columns                          |
-| `--seed N`           | -         | Random seed for reproducibility        |
+| Option               | Default             | Description                            |
+| -------------------- | ------------------- | -------------------------------------- |
+| `-c, --count N`      | 10                  | Number of files to generate            |
+| `-o, --output DIR`   | ./artifacts/samples | Output directory                       |
+| `-m, --modality MOD` | random              | CT, MR, US, CR, DX, PT, NM, XA, RF, SC |
+| `--series`           | false               | Generate as consistent series          |
+| `--rows N`           | 256                 | Image rows                             |
+| `--columns N`        | 256                 | Image columns                          |
+| `--seed N`           | -                   | Random seed for reproducibility        |
 
 #### Malicious Sample Options
 

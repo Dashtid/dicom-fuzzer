@@ -125,7 +125,7 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
+.dist/
 downloads/
 eggs/
 .eggs/
@@ -416,6 +416,9 @@ coverage.json
 # Legacy directories
 /config/
 /logs/
+
+# Tool caches (prettier, pyright, etc.)
+/.cache/
 /node_modules/
 
 # Generated documentation builds

@@ -83,8 +83,8 @@ For advanced usage, use the Python API:
         "--output",
         type=str,
         metavar="DIR",
-        default="./calibration_output",
-        help="Output directory for mutated files (default: ./calibration_output)",
+        default="./artifacts/calibrate",
+        help="Output directory for mutated files (default: ./artifacts/calibrate)",
     )
     output_group.add_argument(
         "-v",

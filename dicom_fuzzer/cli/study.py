@@ -84,8 +84,8 @@ For advanced usage, use the Python API:
         "--output",
         type=str,
         metavar="DIR",
-        default="./study_output",
-        help="Output directory for mutated study (default: ./study_output)",
+        default="./artifacts/study",
+        help="Output directory for mutated study (default: ./artifacts/study)",
     )
     output_group.add_argument(
         "-v",

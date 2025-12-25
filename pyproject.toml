@@ -2,6 +2,9 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build]
+directory = ".dist"
+
 [project]
 name = "dicom-fuzzer"
 version = "1.7.2"
@@ -125,7 +128,7 @@ dev = [
 [tool.ruff]
 line-length = 88
 target-version = "py311"
-extend-exclude = [".venv", "build", "dist", "artifacts", ".hypothesis"]
+extend-exclude = [".venv", "build", ".dist", "artifacts", ".hypothesis"]
 
 [tool.ruff.lint]
 select = [
@@ -213,7 +216,6 @@ module = [
     "numpy.*",
     "plotly.*",   # No type stubs available
     "jinja2.*",   # Optional dependency for HTML reports
-    "atheris.*",  # Optional dependency for coverage-guided fuzzing
     "redis.*",    # Optional dependency for distributed fuzzing
     "prometheus_client.*",  # Optional dependency for metrics
     "gdcm.*",     # Optional dependency for differential fuzzing
@@ -240,7 +242,7 @@ exclude = [
     "**/node_modules",
     ".venv",
     "build",
-    "dist",
+    ".dist",
     "artifacts",
     ".hypothesis",
 ]

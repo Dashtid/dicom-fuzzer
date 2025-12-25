@@ -107,9 +107,12 @@ class TestEndToEndFuzzingWorkflow:
         assert result is not None
 
         # Step 4: Generate batch of fuzzed files
+        # Exclude CVE mutations for deterministic file count (they cause write failures by design)
         output_dir = temp_dir / "integration_output"
         generator = DICOMGenerator(output_dir=str(output_dir))
-        generated_files = generator.generate_batch(sample_dicom_file, count=5)
+        generated_files = generator.generate_batch(
+            sample_dicom_file, count=5, strategies=["metadata", "header", "pixel"]
+        )
 
         assert len(generated_files) == 5
         assert all(f.exists() for f in generated_files)
@@ -121,7 +124,10 @@ class TestEndToEndFuzzingWorkflow:
         generator = DICOMGenerator(output_dir=str(output_dir))
         validator = DicomValidator(strict_mode=False)
 
-        generated_files = generator.generate_batch(sample_dicom_file, count=10)
+        # Exclude CVE mutations for deterministic file count (CVE mutations cause write failures)
+        generated_files = generator.generate_batch(
+            sample_dicom_file, count=10, strategies=["metadata", "header", "pixel"]
+        )
 
         valid_count = 0
         invalid_count = 0

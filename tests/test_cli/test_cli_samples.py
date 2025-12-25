@@ -162,7 +162,7 @@ class TestCreateParser:
         parser = samples.create_parser()
         args = parser.parse_args(["--generate"])
         assert args.count == 10
-        assert args.output == "./samples"
+        assert args.output == "./artifacts/samples"
         assert args.modality is None
         assert args.series is False
         assert args.rows == 256

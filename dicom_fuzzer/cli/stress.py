@@ -103,8 +103,8 @@ For advanced usage, use the Python API:
         "--output",
         type=str,
         metavar="DIR",
-        default="./stress_output",
-        help="Output directory (default: ./stress_output)",
+        default="./artifacts/stress",
+        help="Output directory (default: ./artifacts/stress)",
     )
     output_group.add_argument(
         "-v",

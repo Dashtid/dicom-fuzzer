@@ -92,9 +92,9 @@ For advanced testing, use the Python API:
         "-o",
         "--output",
         type=str,
-        default="./persistent_output",
+        default="./artifacts/persistent",
         metavar="DIR",
-        help="Output directory (default: ./persistent_output)",
+        help="Output directory (default: ./artifacts/persistent)",
     )
     output_group.add_argument(
         "-v",
