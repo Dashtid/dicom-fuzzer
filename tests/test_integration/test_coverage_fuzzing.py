@@ -521,21 +521,18 @@ class TestDICOMGeneratorIntegration:
 
         generator = DICOMGenerator(output_dir=temp_output_dir)
 
-        # Generate fuzzed files - some may be skipped due to invalid mutations
-        # Use count=10 to reduce flakiness since random mutations may produce
-        # invalid files that are rejected
-        files = generator.generate_batch(seed_file, count=10)
+        # Use only metadata strategy which has fewer edge cases
+        # that cause pydicom write failures
+        files = generator.generate_batch(seed_file, count=10, strategies=["metadata"])
 
-        # Due to random nature of fuzzing, we accept 0 files as valid outcome
-        # The test verifies the workflow executes without errors, not file count
-        # assert len(files) >= 1, "At least one fuzzed file should be created"
+        # Metadata-only mutations should reliably produce files
+        assert len(files) == 10
         for f in files:
             assert f.exists()
             assert f.suffix == ".dcm"
 
         # Verify generator stats tracked attempts
-        # Note: total_attempted should be at least 10 (the count we requested)
-        assert generator.stats.total_attempted >= 10
+        assert generator.stats.total_attempted == 10
 
     def test_generator_with_custom_seed(self, temp_output_dir: Path) -> None:
         """Test generator with different output directory."""
