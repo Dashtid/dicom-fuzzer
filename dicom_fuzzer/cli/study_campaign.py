@@ -438,6 +438,7 @@ def run_campaign(args: argparse.Namespace) -> int:
                                         output_study,
                                         test_id,
                                         mutation_records=[r.__dict__ for r in records],
+                                        viewer_adapter=viewer_adapter,
                                     )
                                     if args.stop_on_crash and result.status == "crash":
                                         log(
@@ -479,6 +480,7 @@ def run_campaign(args: argparse.Namespace) -> int:
                                                         mutation_records=[
                                                             r.__dict__ for r in records
                                                         ],
+                                                        viewer_adapter=viewer_adapter,
                                                     )
                                                 elif args.verbose:
                                                     log(

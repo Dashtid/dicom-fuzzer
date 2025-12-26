@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Literal
 import structlog
 
 if TYPE_CHECKING:
-    pass
+    from dicom_fuzzer.adapters.base import ViewerAdapter
 
 logger = structlog.get_logger(__name__)
 
@@ -816,6 +816,7 @@ class TargetHarness:
         study_dir: Path,
         test_id: int,
         mutation_records: list | None = None,
+        viewer_adapter: ViewerAdapter | None = None,
     ) -> CrashArtifact:
         """Save crash artifact for later analysis.
 
@@ -824,6 +825,7 @@ class TargetHarness:
             study_dir: Path to the study that caused the crash.
             test_id: Numeric ID of the test.
             mutation_records: Optional list of mutation records.
+            viewer_adapter: Optional viewer adapter for capturing screenshot.
 
         Returns:
             CrashArtifact with paths to saved files.
@@ -862,6 +864,14 @@ class TargetHarness:
                     else:
                         records_data.append(str(record))
                 json.dump(records_data, f, indent=2, default=str)
+
+        # Capture screenshot if adapter is connected (failure artifact only)
+        if viewer_adapter is not None and viewer_adapter.is_connected():
+            screenshot_path = crash_subdir / "screenshot.png"
+            if viewer_adapter.capture_screenshot(screenshot_path):
+                logger.debug(
+                    "Screenshot saved to crash artifact", path=str(screenshot_path)
+                )
 
         logger.info(
             "Crash artifact saved",
