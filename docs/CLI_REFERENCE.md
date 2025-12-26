@@ -222,8 +222,10 @@ When an adapter is used:
    - Type series name
    - Click matching item + Enter to load
 4. Window reference is re-acquired (title changes to study name)
-5. Render success/failure is detected via screenshot capture
-6. Render failures are saved as artifacts alongside crashes
+5. Render success/failure is detected via error dialog checks
+6. On failure: screenshot + study saved to crash artifacts
+
+**Note:** Screenshots are only captured when crashes or render failures occur, not on every test iteration.
 
 **Affinity Adapter Notes:**
 
