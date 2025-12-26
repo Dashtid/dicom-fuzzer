@@ -43,6 +43,10 @@ Examples:
   # Minimize crashing study to find trigger slice
   dicom-fuzzer corpus --minimize-study ./crash_study --target ./viewer.exe -o ./minimized
 
+  # Generate mutated study corpus for fuzzing campaigns
+  dicom-fuzzer corpus --generate-study ./multi_series_study -o ./corpus \\
+      --count 50 --strategy all --severity aggressive
+
 For advanced minimization, use the Python API:
   from dicom_fuzzer.core.corpus_minimizer import CorpusMinimizer
   from dicom_fuzzer.core.study_minimizer import StudyMinimizer
@@ -75,6 +79,12 @@ For advanced minimization, use the Python API:
         metavar="DIR",
         help="Minimize a crashing 3D study to find trigger slice(s)",
     )
+    action_group.add_argument(
+        "--generate-study",
+        type=str,
+        metavar="DIR",
+        help="Generate mutated study corpus from source study directory",
+    )
 
     # Target options (for minimize-study)
     target_group = parser.add_argument_group("target options (for --minimize-study)")
@@ -96,6 +106,45 @@ For advanced minimization, use the Python API:
         type=int,
         default=100,
         help="Maximum minimization iterations (default: 100)",
+    )
+
+    # Generation options (for --generate-study)
+    gen_group = parser.add_argument_group("generation options (for --generate-study)")
+    gen_group.add_argument(
+        "-c",
+        "--count",
+        type=int,
+        default=50,
+        metavar="N",
+        help="Number of mutated studies to generate (default: 50)",
+    )
+    gen_group.add_argument(
+        "--strategy",
+        type=str,
+        choices=[
+            "cross-series",
+            "frame-of-reference",
+            "patient-consistency",
+            "study-metadata",
+            "mixed-modality",
+            "all",
+        ],
+        default="all",
+        help="Mutation strategy (default: all)",
+    )
+    gen_group.add_argument(
+        "--severity",
+        type=str,
+        choices=["minimal", "moderate", "aggressive", "extreme"],
+        default="aggressive",
+        help="Mutation severity (default: aggressive)",
+    )
+    gen_group.add_argument(
+        "--mutations-per-study",
+        type=int,
+        default=5,
+        metavar="N",
+        help="Number of mutations per study (default: 5)",
     )
 
     # Output options
@@ -412,6 +461,153 @@ def run_minimize_study(args: argparse.Namespace) -> int:
         return 1
 
 
+def run_generate_study(args: argparse.Namespace) -> int:
+    """Generate mutated study corpus from a source study.
+
+    Creates multiple mutated versions of a source study using study-level
+    mutation strategies and saves them to a corpus for fuzzing campaigns.
+    """
+    import tempfile
+
+    from dicom_fuzzer.core.study_corpus import StudyCorpusManager
+    from dicom_fuzzer.strategies.study_mutator import (
+        StudyMutationStrategy,
+        StudyMutator,
+    )
+
+    source_dir = Path(args.generate_study)
+
+    if not source_dir.exists():
+        print(f"[-] Source study not found: {source_dir}")
+        return 1
+
+    if not args.output:
+        print("[-] --output is required for --generate-study")
+        return 1
+
+    output_dir = Path(args.output)
+
+    print("\n" + "=" * 70)
+    print("  Study Corpus Generation")
+    print("=" * 70)
+    print(f"  Source:     {source_dir}")
+    print(f"  Output:     {output_dir}")
+    print(f"  Count:      {args.count}")
+    print(f"  Strategy:   {args.strategy}")
+    print(f"  Severity:   {args.severity}")
+    print(f"  Mutations:  {args.mutations_per_study} per study")
+    print("=" * 70 + "\n")
+
+    try:
+        # Map CLI strategy names to enum values
+        strategy_map = {
+            "cross-series": StudyMutationStrategy.CROSS_SERIES_REFERENCE,
+            "frame-of-reference": StudyMutationStrategy.FRAME_OF_REFERENCE,
+            "patient-consistency": StudyMutationStrategy.PATIENT_CONSISTENCY,
+            "study-metadata": StudyMutationStrategy.STUDY_METADATA,
+            "mixed-modality": StudyMutationStrategy.MIXED_MODALITY_STUDY,
+        }
+
+        if args.strategy == "all":
+            strategies = list(StudyMutationStrategy)
+        else:
+            strategies = [strategy_map[args.strategy]]
+
+        # Initialize mutator and corpus manager
+        mutator = StudyMutator(severity=args.severity)
+        corpus = StudyCorpusManager(output_dir)
+
+        # Load source study
+        print("[i] Loading source study...")
+        source_study = mutator.load_study(source_dir)
+        print(
+            f"[+] Loaded: {source_study.series_count} series, "
+            f"{source_study.get_total_slices()} slices"
+        )
+
+        # Generate mutated studies
+        print(f"\n[i] Generating {args.count} mutated studies...")
+        generated = 0
+        errors = 0
+
+        for i in range(args.count):
+            strategy = strategies[i % len(strategies)]
+
+            try:
+                # Reload study for fresh mutation each time
+                study = mutator.load_study(source_dir)
+
+                # Apply mutations
+                mutated_datasets, records = mutator.mutate_study(
+                    study,
+                    strategy=strategy,
+                    mutation_count=args.mutations_per_study,
+                )
+
+                # Save mutated study to temp directory
+                with tempfile.TemporaryDirectory(prefix="gen_study_") as temp_dir:
+                    temp_path = Path(temp_dir)
+                    study_dir = temp_path / f"study_{i:04d}"
+                    study_dir.mkdir()
+
+                    # Save each series
+                    for series_idx, datasets in enumerate(mutated_datasets):
+                        series_dir = study_dir / f"series_{series_idx:03d}"
+                        series_dir.mkdir(parents=True, exist_ok=True)
+                        for ds_idx, ds in enumerate(datasets):
+                            ds.save_as(str(series_dir / f"slice_{ds_idx:04d}.dcm"))
+
+                    # Add to corpus (copies files)
+                    entry = corpus.add_study(study_dir, copy_to_corpus=True)
+
+                    # Record mutations
+                    for record in records:
+                        mutation_desc = f"{record.strategy}:{record.tag}"
+                        corpus.record_mutation(entry.study_id, mutation_desc)
+
+                generated += 1
+
+                if args.verbose:
+                    print(
+                        f"  [{i + 1}/{args.count}] {strategy.value} - "
+                        f"{len(records)} mutations"
+                    )
+                elif (i + 1) % 10 == 0:
+                    print(f"  Progress: {i + 1}/{args.count}")
+
+            except Exception as e:
+                errors += 1
+                if args.verbose:
+                    print(f"  [-] Error at {i + 1}: {e}")
+
+        # Save corpus index
+        corpus.save_index()
+
+        # Summary
+        print("\n" + "=" * 70)
+        print("  Generation Complete")
+        print("=" * 70)
+        print(f"  Generated:  {generated} studies")
+        print(f"  Errors:     {errors}")
+        print(f"  Corpus:     {output_dir}")
+        print(f"  Index:      {corpus.index_path}")
+
+        stats = corpus.get_statistics()
+        print(f"\n  Total slices: {stats['total_slices']}")
+        print(f"  Modalities:   {stats['modality_distribution']}")
+        print("=" * 70 + "\n")
+
+        return 0
+
+    except Exception as e:
+        print(f"[-] Generation failed: {e}")
+        if args.verbose:
+            import traceback
+
+            traceback.print_exc()
+        return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for corpus subcommand."""
     parser = create_parser()
@@ -425,6 +621,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_merge(args)
     elif args.minimize_study:
         return run_minimize_study(args)
+    elif args.generate_study:
+        return run_generate_study(args)
     else:
         parser.print_help()
         return 1

@@ -157,6 +157,218 @@ dicom-fuzzer study --study ./study --strategy patient-consistency --severity agg
 
 ---
 
+### study-campaign Subcommand (v1.8.0)
+
+Study-level fuzzing campaign with target application testing. Combines study mutation with automated target execution, crash detection, and artifact collection.
+
+```bash
+python -m dicom_fuzzer.cli study-campaign [OPTIONS]
+```
+
+#### Required Arguments
+
+| Argument       | Description                    |
+| -------------- | ------------------------------ |
+| `--target EXE` | Path to target application     |
+| `--study DIR`  | Path to source study directory |
+
+#### Actions
+
+| Action              | Description                              |
+| ------------------- | ---------------------------------------- |
+| `--list-strategies` | List available study mutation strategies |
+
+#### Mutation Options
+
+| Option             | Default  | Description                                                                                |
+| ------------------ | -------- | ------------------------------------------------------------------------------------------ |
+| `--strategy STRAT` | all      | cross-series, frame-of-reference, patient-consistency, study-metadata, mixed-modality, all |
+| `--severity LEVEL` | moderate | minimal, moderate, aggressive, extreme                                                     |
+| `-c, --count N`    | 100      | Number of test iterations                                                                  |
+
+#### Target Testing Options
+
+| Option                | Default | Description                     |
+| --------------------- | ------- | ------------------------------- |
+| `--timeout SEC`       | 15.0    | Target timeout in seconds       |
+| `--memory-limit MB`   | 2048    | Memory limit in MB              |
+| `--startup-delay SEC` | 3.0     | Startup delay before monitoring |
+| `--stop-on-crash`     | false   | Stop campaign on first crash    |
+
+#### Adapter Options (v1.9.0)
+
+Enable viewer-specific UI automation for advanced testing. Adapters load studies into viewer viewports and can validate rendering. Requires `pywinauto` package for Windows viewers.
+
+| Option            | Default | Description                                  |
+| ----------------- | ------- | -------------------------------------------- |
+| `--adapter NAME`  | -       | Viewer adapter (e.g., 'affinity')            |
+| `--series-name`   | -       | Series name to search for when using adapter |
+| `--list-adapters` | -       | List available viewer adapters               |
+
+**Available Adapters:**
+
+| Adapter    | Viewers                  | Description                  |
+| ---------- | ------------------------ | ---------------------------- |
+| `affinity` | Hermes.exe, Affinity.exe | Hermes Affinity DICOM viewer |
+
+**Requirements:** `pip install pywinauto` (Windows only)
+
+When an adapter is used:
+
+1. Target application is launched with study path
+2. Adapter connects via pywinauto (UIA backend)
+3. Study is loaded into viewport via keyboard automation:
+   - Focus search (Ctrl+F)
+   - Type series name
+   - Click matching item + Enter to load
+4. Window reference is re-acquired (title changes to study name)
+5. Render success/failure is detected via screenshot capture
+6. Render failures are saved as artifacts alongside crashes
+
+**Affinity Adapter Notes:**
+
+- Window title starts as "Default", changes to study name (e.g., "PET-CT [25-Feb-2016]") after load
+- Uses UIA automation IDs: SearchTextBox, Datalist
+- Series items are ListItem controls containing Text elements
+
+#### Output Options
+
+| Option             | Default                    | Description      |
+| ------------------ | -------------------------- | ---------------- |
+| `-o, --output DIR` | ./artifacts/study-campaign | Output directory |
+| `-v, --verbose`    | false                      | Verbose output   |
+
+#### Output Structure
+
+```text
+artifacts/study-campaign/
+├── campaign.log
+├── campaign_results.json
+└── crashes/
+    └── crash_0001/
+        ├── study/          # Copy of crashed study
+        └── result.json     # Test result details
+```
+
+#### Examples
+
+```bash
+# Run study-level fuzzing campaign against a DICOM viewer
+dicom-fuzzer study-campaign \
+    --target "/path/to/viewer" \
+    --study "./test_study" \
+    --count 100 \
+    -o ./artifacts/campaign
+
+# List available strategies
+dicom-fuzzer study-campaign --list-strategies
+
+# Target specific vulnerability pattern with memory monitoring
+dicom-fuzzer study-campaign \
+    --target "/path/to/viewer" \
+    --study "./study" \
+    --strategy cross-series \
+    --severity aggressive \
+    --memory-limit 4096 \
+    --timeout 30
+
+# Stop on first crash for investigation
+dicom-fuzzer study-campaign \
+    --target "./viewer.exe" \
+    --study "./study" \
+    --stop-on-crash \
+    -v
+```
+
+---
+
+### corpus Subcommand (v1.8.0)
+
+Corpus management utilities for DICOM fuzzing, including study corpus generation, deduplication, and minimization.
+
+```bash
+python -m dicom_fuzzer.cli corpus [OPTIONS]
+```
+
+#### Actions
+
+| Action                 | Description                                         |
+| ---------------------- | --------------------------------------------------- |
+| `--analyze DIR`        | Analyze corpus and show statistics                  |
+| `--dedup DIR`          | Deduplicate corpus by content hash                  |
+| `--merge DIR...`       | Merge multiple corpora into one                     |
+| `--minimize-study DIR` | Minimize a crashing study to find trigger slice(s)  |
+| `--generate-study DIR` | Generate mutated study corpus from source directory |
+
+#### Generation Options (for --generate-study)
+
+| Option                    | Default    | Description                                |
+| ------------------------- | ---------- | ------------------------------------------ |
+| `-c, --count N`           | 50         | Number of mutated studies to generate      |
+| `--strategy STRAT`        | all        | Mutation strategy (same as study-campaign) |
+| `--severity LEVEL`        | aggressive | minimal, moderate, aggressive, extreme     |
+| `--mutations-per-study N` | 5          | Number of mutations per generated study    |
+| `-o, --output DIR`        | (required) | Output directory for generated corpus      |
+| `-v, --verbose`           | false      | Verbose output showing each mutation       |
+
+#### Minimization Options (for --minimize-study)
+
+| Option               | Default | Description                     |
+| -------------------- | ------- | ------------------------------- |
+| `-t, --target EXE`   | -       | Target executable to test with  |
+| `--timeout SEC`      | 30.0    | Timeout per test in seconds     |
+| `--max-iterations N` | 100     | Maximum minimization iterations |
+
+#### Output Options
+
+| Option             | Default | Description               |
+| ------------------ | ------- | ------------------------- |
+| `-o, --output DIR` | -       | Output directory          |
+| `--format FMT`     | text    | Output format: json, text |
+| `-v, --verbose`    | false   | Verbose output            |
+
+#### Corpus Structure (--generate-study)
+
+```text
+corpus_dir/
+├── study_corpus_index.json   # Corpus index with metadata
+└── studies/
+    ├── study_abc123/         # Generated mutated study
+    │   ├── series_000/
+    │   │   ├── slice_0000.dcm
+    │   │   └── ...
+    │   └── series_001/
+    └── study_def456/
+        └── ...
+```
+
+#### Examples
+
+```bash
+# Generate 50 mutated studies for fuzzing
+dicom-fuzzer corpus --generate-study ./source_study -o ./corpus \
+    --count 50 --strategy all --severity aggressive
+
+# Generate corpus with specific attack pattern
+dicom-fuzzer corpus --generate-study ./multi_series_study -o ./corpus \
+    --strategy cross-series --count 100 -v
+
+# Analyze existing corpus
+dicom-fuzzer corpus --analyze ./corpus
+
+# Deduplicate corpus (remove content duplicates)
+dicom-fuzzer corpus --dedup ./corpus -o ./corpus_unique
+
+# Merge multiple corpora
+dicom-fuzzer corpus --merge ./corpus1 ./corpus2 -o ./merged
+
+# Minimize a crashing study
+dicom-fuzzer corpus --minimize-study ./crash_study \
+    --target ./viewer.exe -o ./minimized
+```
+
+---
+
 ### calibrate Subcommand (v1.7.0)
 
 Calibration and measurement mutation for DICOM images.
