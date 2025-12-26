@@ -830,6 +830,11 @@ def main() -> int:
 
             return study_main(sys.argv[2:])
 
+        if subcommand == "study-campaign":
+            from dicom_fuzzer.cli.study_campaign import main as study_campaign_main
+
+            return study_campaign_main(sys.argv[2:])
+
         if subcommand == "calibrate":
             from dicom_fuzzer.cli.calibrate import main as calibrate_main
 

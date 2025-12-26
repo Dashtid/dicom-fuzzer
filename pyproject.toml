@@ -236,6 +236,19 @@ module = [
 ]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = [
+    "dicom_fuzzer.adapters",
+    "dicom_fuzzer.adapters.*",
+    "dicom_fuzzer.core.ui_validator",
+    "dicom_fuzzer.core.target_harness",
+    "dicom_fuzzer.cli.study_campaign",
+]
+# Adapters and UI automation modules use pywinauto with dynamic attributes
+disallow_untyped_defs = false
+warn_return_any = false
+disable_error_code = ["union-attr", "attr-defined", "unreachable", "operator", "valid-type"]
+
 # Pyright configuration (fast, modern type checker - 3-5x faster than mypy)
 [tool.pyright]
 pythonVersion = "3.11"

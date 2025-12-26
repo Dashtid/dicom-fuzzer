@@ -436,3 +436,4 @@ TESTING_SESSION*.md
 # Empty placeholder directories
 /screenshots/
 /data/
+/scripts/
