@@ -158,17 +158,54 @@ class SeriesDetector:
             for pattern in patterns:
                 dicom_files_set.update(directory.glob(pattern))
 
-        # Also try files without extension (common in DICOM)
+        # Also try files without typical extension (common in DICOM)
+        # DICOM files often use SOP Instance UIDs as filenames (e.g., 1.2.752.37.1.1.xxx)
+        # These have dots but no real extension like .dcm
+        typical_non_dicom_extensions = {
+            ".txt",
+            ".xml",
+            ".json",
+            ".csv",
+            ".log",
+            ".md",
+            ".html",
+            ".htm",
+            ".py",
+            ".js",
+            ".ts",
+            ".zip",
+            ".gz",
+            ".tar",
+            ".exe",
+            ".dll",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".gif",
+            ".bmp",
+            ".pdf",
+            ".doc",
+            ".docx",
+        }
         if recursive:
             for file_path in directory.rglob("*"):
-                if file_path.is_file() and not file_path.suffix:
-                    if self._is_dicom_file(file_path):
-                        dicom_files_set.add(file_path)
+                if file_path.is_file():
+                    suffix = file_path.suffix.lower()
+                    # Check files with no extension OR unusual extensions (like .1232220170407)
+                    if not suffix or suffix not in typical_non_dicom_extensions:
+                        if file_path not in dicom_files_set and self._is_dicom_file(
+                            file_path
+                        ):
+                            dicom_files_set.add(file_path)
         else:
             for file_path in directory.glob("*"):
-                if file_path.is_file() and not file_path.suffix:
-                    if self._is_dicom_file(file_path):
-                        dicom_files_set.add(file_path)
+                if file_path.is_file():
+                    suffix = file_path.suffix.lower()
+                    if not suffix or suffix not in typical_non_dicom_extensions:
+                        if file_path not in dicom_files_set and self._is_dicom_file(
+                            file_path
+                        ):
+                            dicom_files_set.add(file_path)
 
         # Convert set back to list for consistent return type
         dicom_files = list(dicom_files_set)
