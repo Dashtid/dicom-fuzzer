@@ -21,11 +21,12 @@ Note:
 
 from __future__ import annotations
 
-import logging
 import re
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+import structlog
 
 from .base import PatientInfo, RenderResult, ViewerAdapter
 
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
     from pywinauto import Application
     from pywinauto.controls.uiawrapper import UIAWrapper
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class AffinityAdapter(ViewerAdapter):
@@ -336,13 +337,28 @@ class AffinityAdapter(ViewerAdapter):
         try:
             pattern = re.escape(series_name)
 
+            # Target the Datalist specifically to avoid clicking wrong elements
+            search_container = self._main_window
+            try:
+                datalist = self._main_window.child_window(auto_id="Datalist")
+                if datalist.exists():
+                    search_container = datalist
+                    logger.debug("Searching within Datalist")
+            except Exception:
+                logger.debug("Datalist not found, searching whole window")
+
             # Find and click the matching item in the filtered list
-            for control in self._main_window.descendants():
+            found_match = False
+            for control in search_container.descendants():
                 try:
                     title = control.window_text()
                     if title and re.search(pattern, title, re.IGNORECASE):
                         ctrl_type = control.element_info.control_type
-                        logger.debug(f"Found match: '{title}' (type: {ctrl_type})")
+                        logger.debug(
+                            "Found match",
+                            title=title[:50],
+                            control_type=ctrl_type,
+                        )
 
                         # TextBlock/Text elements are not clickable - find parent
                         # Navigate up to find the ListItem or first clickable ancestor
@@ -351,7 +367,7 @@ class AffinityAdapter(ViewerAdapter):
                             clickable = self._find_clickable_ancestor(control)
                             if clickable:
                                 anc_type = clickable.element_info.control_type
-                                logger.debug(f"Using ancestor: {anc_type}")
+                                logger.debug("Using ancestor", ancestor_type=anc_type)
                             else:
                                 # Fallback: use parent
                                 clickable = control.parent()
@@ -363,15 +379,22 @@ class AffinityAdapter(ViewerAdapter):
                         time.sleep(self.BRIEF_PAUSE)
                         logger.debug("Pressing Enter to load")
                         self._main_window.type_keys("{ENTER}")
-                        return True
+                        found_match = True
+                        break
                 except Exception:
                     continue
 
-            logger.warning(f"Series not found: {series_name}")
-            return False
+            if not found_match:
+                logger.warning("Series not found in browser", series_name=series_name)
+                return False
+
+            # Don't verify here - window reference may be stale after Enter
+            # Verification happens in load_study_into_viewport via _switch_to_study_window
+            logger.debug("Series click + Enter sent successfully")
+            return True
 
         except Exception as e:
-            logger.warning(f"Failed to load series: {e}")
+            logger.warning("Failed to load series", error=str(e))
             return False
 
     def _find_clickable_ancestor(self, control: object) -> object | None:

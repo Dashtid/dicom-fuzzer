@@ -318,11 +318,18 @@ class TargetHarness:
                 "psutil not available - memory monitoring disabled",
             )
 
-    def test_study_directory(self, study_dir: Path) -> TestResult:
+    def test_study_directory(
+        self,
+        study_dir: Path,
+        viewer_adapter: ViewerAdapter | None = None,
+        series_name: str | None = None,
+    ) -> TestResult:
         """Test target application with a study directory.
 
         Args:
             study_dir: Path to study directory containing DICOM series.
+            viewer_adapter: Optional viewer adapter for UI automation.
+            series_name: Series name to search for when using adapter.
 
         Returns:
             TestResult with status and metrics.
@@ -366,8 +373,40 @@ class TargetHarness:
             # Wait for startup
             time.sleep(self.config.startup_delay_seconds)
 
+            # Connect adapter and load series into viewport (if adapter provided)
+            render_failed = False
+            render_error = None
+            if viewer_adapter is not None:
+                if viewer_adapter.connect(pid=process.pid):
+                    logger.debug("Adapter connected", pid=process.pid)
+                    render_result = viewer_adapter.load_study_into_viewport(
+                        study_dir,
+                        series_name=series_name,
+                        timeout=self.config.timeout_seconds / 2,
+                    )
+                    if not render_result.success:
+                        render_failed = True
+                        render_error = render_result.error_message
+                        logger.warning(
+                            "Render failed", error=render_result.error_message
+                        )
+                else:
+                    logger.warning("Could not connect adapter to viewer")
+
             # Monitor process
             result = self._monitor_process(process, study_dir, start_time)
+
+            # If render failed, update result status
+            if render_failed and result.status == "success":
+                result = TestResult(
+                    input_path=result.input_path,
+                    status="error",
+                    exit_code=result.exit_code,
+                    memory_peak_mb=result.memory_peak_mb,
+                    duration_seconds=result.duration_seconds,
+                    error_message=f"Render failed: {render_error}",
+                    process_pid=result.process_pid,
+                )
 
         except FileNotFoundError as e:
             result = TestResult(
@@ -398,6 +437,9 @@ class TargetHarness:
             logger.exception("Error during test", error=str(e))
 
         finally:
+            # Disconnect adapter before killing process
+            if viewer_adapter is not None:
+                viewer_adapter.disconnect()
             # Cleanup
             self.kill_target_processes()
 
