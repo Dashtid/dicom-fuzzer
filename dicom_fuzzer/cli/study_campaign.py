@@ -417,8 +417,12 @@ def run_campaign(args: argparse.Namespace) -> int:
                                     log_file,
                                 )
 
-                                # Test with target
-                                result = harness.test_study_directory(output_study)
+                                # Test with target (adapter handles viewport loading)
+                                result = harness.test_study_directory(
+                                    output_study,
+                                    viewer_adapter=viewer_adapter,
+                                    series_name=args.series_name,
+                                )
 
                                 # Update stats
                                 stats["total"] += 1
@@ -433,6 +437,12 @@ def run_campaign(args: argparse.Namespace) -> int:
                                         f"{result.error_message or 'unknown'}",
                                         log_file,
                                     )
+                                    # Check if this is a render failure
+                                    if (
+                                        result.error_message
+                                        and "Render failed" in result.error_message
+                                    ):
+                                        stats["render_failed"] += 1
                                     harness.save_crash_artifact(
                                         result,
                                         output_study,
@@ -447,61 +457,11 @@ def run_campaign(args: argparse.Namespace) -> int:
                                         )
                                         raise KeyboardInterrupt
                                 else:
-                                    # Use adapter if specified and process is running
-                                    render_ok = True
-                                    if (
-                                        viewer_adapter is not None
-                                        and result.process_pid is not None
-                                    ):
-                                        if viewer_adapter.connect(
-                                            pid=result.process_pid
-                                        ):
-                                            try:
-                                                # Load study into viewport
-                                                render_result = viewer_adapter.load_study_into_viewport(
-                                                    output_study,
-                                                    series_name=args.series_name,
-                                                    timeout=args.timeout,
-                                                )
-                                                if not render_result.success:
-                                                    log(
-                                                        f"  [!] Render failed: "
-                                                        f"{render_result.error_message}",
-                                                        log_file,
-                                                    )
-                                                    stats["render_failed"] += 1
-                                                    stats["success"] -= 1
-                                                    render_ok = False
-                                                    # Save artifact for render failure
-                                                    harness.save_crash_artifact(
-                                                        result,
-                                                        output_study,
-                                                        test_id,
-                                                        mutation_records=[
-                                                            r.__dict__ for r in records
-                                                        ],
-                                                        viewer_adapter=viewer_adapter,
-                                                    )
-                                                elif args.verbose:
-                                                    log(
-                                                        f"    [+] Rendered in "
-                                                        f"{render_result.load_time_seconds:.1f}s",
-                                                        log_file,
-                                                    )
-                                            finally:
-                                                viewer_adapter.disconnect()
-                                        else:
-                                            log(
-                                                "  [!] Could not connect adapter to viewer",
-                                                log_file,
-                                            )
-
-                                    if render_ok:
-                                        log(
-                                            f"  [+] OK (mem: {result.memory_peak_mb:.1f}MB, "
-                                            f"time: {result.duration_seconds:.1f}s)",
-                                            log_file,
-                                        )
+                                    log(
+                                        f"  [+] OK (mem: {result.memory_peak_mb:.1f}MB, "
+                                        f"time: {result.duration_seconds:.1f}s)",
+                                        log_file,
+                                    )
 
                                 if args.verbose:
                                     for record in records:
