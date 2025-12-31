@@ -1,0 +1,489 @@
+"""Tests for CVE Fuzzer - Dataset-level CVE mutation strategies.
+
+Tests for the CVEFuzzer class which applies CVE-inspired mutations
+to pydicom Dataset objects.
+"""
+
+from __future__ import annotations
+
+from unittest.mock import patch
+
+import pytest
+from pydicom.dataset import Dataset, FileMetaDataset
+from pydicom.sequence import Sequence
+from pydicom.tag import Tag
+from pydicom.uid import UID
+
+from dicom_fuzzer.strategies.cve_fuzzer import CVEFuzzer
+
+# =============================================================================
+# Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def sample_dataset() -> Dataset:
+    """Create minimal DICOM dataset for CVE testing."""
+    ds = Dataset()
+    ds.PatientName = "Test^Patient"
+    ds.PatientID = "12345"
+    ds.InstitutionName = "Test Hospital"
+    ds.StudyDescription = "Test Study"
+    ds.SeriesDescription = "Test Series"
+    ds.Rows = 512
+    ds.Columns = 512
+    ds.BitsAllocated = 16
+    ds.BitsStored = 12
+    ds.HighBit = 11
+    ds.SamplesPerPixel = 1
+    ds.NumberOfFrames = 1
+
+    # Add file_meta for transfer syntax tests
+    ds.file_meta = FileMetaDataset()
+    ds.file_meta.TransferSyntaxUID = UID("1.2.840.10008.1.2")
+    ds.file_meta.ImplementationClassUID = UID("1.2.3.4.5.6.7.8.9")
+
+    return ds
+
+
+@pytest.fixture
+def minimal_dataset() -> Dataset:
+    """Create minimal dataset without file_meta."""
+    ds = Dataset()
+    ds.PatientName = "Minimal"
+    return ds
+
+
+@pytest.fixture
+def cve_fuzzer() -> CVEFuzzer:
+    """Create CVEFuzzer instance."""
+    return CVEFuzzer()
+
+
+# =============================================================================
+# TestCVEFuzzerInit
+# =============================================================================
+
+
+class TestCVEFuzzerInit:
+    """Tests for CVEFuzzer initialization."""
+
+    def test_init_creates_empty_mutations_list(self) -> None:
+        """Test that initialization creates empty mutations_applied list."""
+        fuzzer = CVEFuzzer()
+        assert fuzzer.mutations_applied == []
+        assert isinstance(fuzzer.mutations_applied, list)
+
+    def test_init_multiple_instances_independent(self) -> None:
+        """Test that multiple instances have independent state."""
+        fuzzer1 = CVEFuzzer()
+        fuzzer2 = CVEFuzzer()
+
+        # Manually add to one
+        fuzzer1.mutations_applied.append("test")
+
+        assert fuzzer1.mutations_applied == ["test"]
+        assert fuzzer2.mutations_applied == []
+
+
+# =============================================================================
+# TestApplyCVEMutations
+# =============================================================================
+
+
+class TestApplyCVEMutations:
+    """Tests for apply_cve_mutations entry point."""
+
+    def test_apply_cve_mutations_returns_dataset(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that apply_cve_mutations returns a Dataset."""
+        result = cve_fuzzer.apply_cve_mutations(sample_dataset)
+        assert isinstance(result, Dataset)
+
+    def test_apply_cve_mutations_modifies_dataset(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that apply_cve_mutations modifies the dataset."""
+        original_rows = sample_dataset.Rows
+        original_cols = sample_dataset.Columns
+
+        # Force specific mutation
+        with patch("random.randint", return_value=1):
+            with patch(
+                "random.sample",
+                return_value=[
+                    (
+                        "CVE-2025-5943:heap_overflow",
+                        cve_fuzzer._heap_overflow_dimensions,
+                    )
+                ],
+            ):
+                result = cve_fuzzer.apply_cve_mutations(sample_dataset)
+
+        # Check mutations were tracked
+        assert len(cve_fuzzer.mutations_applied) > 0
+
+    def test_apply_cve_mutations_tracks_applied(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that applied mutations are tracked."""
+        cve_fuzzer.apply_cve_mutations(sample_dataset)
+
+        # Should have 1-3 mutations applied
+        assert 1 <= len(cve_fuzzer.mutations_applied) <= 3
+
+    def test_apply_cve_mutations_handles_exception(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that exceptions in mutations are handled gracefully."""
+
+        # Create a mutation that will fail
+        def failing_mutation(ds: Dataset) -> Dataset:
+            raise ValueError("Intentional failure")
+
+        with patch("random.randint", return_value=1):
+            with patch(
+                "random.sample", return_value=[("FAILING:test", failing_mutation)]
+            ):
+                # Should not raise
+                result = cve_fuzzer.apply_cve_mutations(sample_dataset)
+                assert isinstance(result, Dataset)
+
+
+# =============================================================================
+# TestHeapOverflowDimensions
+# =============================================================================
+
+
+class TestHeapOverflowDimensions:
+    """Tests for CVE-2025-5943 heap overflow dimension mutation."""
+
+    def test_heap_overflow_sets_max_dimensions(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that heap overflow sets Rows and Columns to 65535."""
+        result = cve_fuzzer._heap_overflow_dimensions(sample_dataset)
+
+        assert result.Rows == 65535
+        assert result.Columns == 65535
+
+    def test_heap_overflow_sets_bits_allocated(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that heap overflow sets BitsAllocated to 16."""
+        result = cve_fuzzer._heap_overflow_dimensions(sample_dataset)
+
+        assert result.BitsAllocated == 16
+        assert result.BitsStored == 16
+        assert result.HighBit == 15
+        assert result.SamplesPerPixel == 1
+
+
+# =============================================================================
+# TestIntegerOverflowDimensions
+# =============================================================================
+
+
+class TestIntegerOverflowDimensions:
+    """Tests for CVE-2025-5943 integer overflow dimension mutation."""
+
+    def test_integer_overflow_uses_overflow_pairs(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that integer overflow uses predefined overflow pairs."""
+        result = cve_fuzzer._integer_overflow_dimensions(sample_dataset)
+
+        # Should be one of the overflow pairs
+        valid_pairs = [
+            (32768, 32768),
+            (46341, 46341),
+            (65535, 65535),
+        ]
+        assert (result.Rows, result.Columns) in valid_pairs
+
+    def test_integer_overflow_sets_bits_allocated(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that integer overflow sets BitsAllocated."""
+        result = cve_fuzzer._integer_overflow_dimensions(sample_dataset)
+
+        assert result.BitsAllocated == 16
+
+
+# =============================================================================
+# TestMalformedStringLengths
+# =============================================================================
+
+
+class TestMalformedStringLengths:
+    """Tests for CVE-2020-29625 malformed string length mutation."""
+
+    def test_malformed_strings_long_patient_name(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that PatientName is set to 2KB string."""
+        result = cve_fuzzer._malformed_string_lengths(sample_dataset)
+
+        assert len(result.PatientName) == 2048
+
+    def test_malformed_strings_long_institution(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that InstitutionName is set to 32KB string."""
+        result = cve_fuzzer._malformed_string_lengths(sample_dataset)
+
+        assert len(result.InstitutionName) == 32768
+
+    def test_malformed_strings_adds_private_tags(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that private tags with long strings are added."""
+        result = cve_fuzzer._malformed_string_lengths(sample_dataset)
+
+        # Check private tag (0009,0010) was added
+        assert Tag(0x0009, 0x0010) in result
+        assert len(result[0x0009, 0x0010].value) == 32768
+
+
+# =============================================================================
+# TestPathTraversal
+# =============================================================================
+
+
+class TestPathTraversal:
+    """Tests for CVE-2021-41946 path traversal mutation."""
+
+    def test_path_traversal_adds_private_tag(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that path traversal payload is added to private tag."""
+        result = cve_fuzzer._path_traversal(sample_dataset)
+
+        # Check private tag (0009,1001) was added
+        assert Tag(0x0009, 0x1001) in result
+
+    def test_path_traversal_contains_payload(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that path traversal contains valid payload."""
+        result = cve_fuzzer._path_traversal(sample_dataset)
+
+        payload = result[0x0009, 0x1001].value
+        valid_payloads = [
+            "../../../etc/passwd",
+            "..\\..\\..\\windows\\system32\\config\\sam",
+            "....//....//....//etc/passwd",
+            "/etc/passwd",
+            "\\\\server\\share\\file",
+        ]
+        assert payload in valid_payloads
+
+
+# =============================================================================
+# TestDeepNesting
+# =============================================================================
+
+
+class TestDeepNesting:
+    """Tests for CVE-2022-24193 deep nesting mutation."""
+
+    def test_deep_nesting_creates_sequence(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that deep nesting creates sequence structure."""
+        with patch("random.randint", return_value=50):
+            result = cve_fuzzer._deep_nesting(sample_dataset)
+
+        # Check that Referenced Series Sequence tag was added
+        assert Tag(0x0008, 0x1115) in result
+
+    def test_deep_nesting_is_sequence(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that the added structure is a Sequence."""
+        with patch("random.randint", return_value=50):
+            result = cve_fuzzer._deep_nesting(sample_dataset)
+
+        assert isinstance(result[0x0008, 0x1115].value, Sequence)
+
+
+# =============================================================================
+# TestPolyglotMarker
+# =============================================================================
+
+
+class TestPolyglotMarker:
+    """Tests for CVE-2019-11687 polyglot marker mutation."""
+
+    def test_polyglot_marker_adds_private_tag(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that polyglot marker adds private tag."""
+        result = cve_fuzzer._polyglot_marker(sample_dataset)
+
+        # Check private tag (0009,1000) was added
+        assert Tag(0x0009, 0x1000) in result
+        assert result[0x0009, 0x1000].value == "POLYGLOT_TEST_MARKER"
+
+    def test_polyglot_marker_modifies_file_meta(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that polyglot marker modifies file_meta."""
+        result = cve_fuzzer._polyglot_marker(sample_dataset)
+
+        # Check ImplementationClassUID was modified
+        assert "MZ" in str(result.file_meta.ImplementationClassUID)
+
+    def test_polyglot_marker_no_file_meta(
+        self, cve_fuzzer: CVEFuzzer, minimal_dataset: Dataset
+    ) -> None:
+        """Test polyglot marker handles missing file_meta."""
+        # Should not raise
+        result = cve_fuzzer._polyglot_marker(minimal_dataset)
+
+        # Private tag should still be added
+        assert Tag(0x0009, 0x1000) in result
+
+
+# =============================================================================
+# TestPixelDataFragmentAttack
+# =============================================================================
+
+
+class TestPixelDataFragmentAttack:
+    """Tests for CVE-2025-11266 pixel data fragment attack mutation."""
+
+    def test_pixel_fragment_sets_conflicting_frames(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that fragment attack sets conflicting frame info."""
+        result = cve_fuzzer._pixel_data_fragment_attack(sample_dataset)
+
+        assert result.NumberOfFrames == 10
+        assert result.Rows == 1
+        assert result.Columns == 1
+        assert result.BitsAllocated == 8
+
+    def test_pixel_fragment_sets_encapsulated_syntax(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that fragment attack sets JPEG transfer syntax."""
+        result = cve_fuzzer._pixel_data_fragment_attack(sample_dataset)
+
+        # JPEG Baseline transfer syntax
+        assert result.file_meta.TransferSyntaxUID == "1.2.840.10008.1.2.4.50"
+
+    def test_pixel_fragment_no_file_meta(
+        self, cve_fuzzer: CVEFuzzer, minimal_dataset: Dataset
+    ) -> None:
+        """Test fragment attack handles missing file_meta."""
+        # Should not raise
+        result = cve_fuzzer._pixel_data_fragment_attack(minimal_dataset)
+
+        # Dimensions should still be set
+        assert result.NumberOfFrames == 10
+
+
+# =============================================================================
+# TestInvalidTransferSyntax
+# =============================================================================
+
+
+class TestInvalidTransferSyntax:
+    """Tests for invalid transfer syntax mutation."""
+
+    def test_invalid_transfer_syntax_modifies_uid(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that invalid transfer syntax modifies the UID."""
+        original = str(sample_dataset.file_meta.TransferSyntaxUID)
+        result = cve_fuzzer._invalid_transfer_syntax(sample_dataset)
+
+        # Should be different from original
+        assert str(result.file_meta.TransferSyntaxUID) != original
+
+    def test_invalid_transfer_syntax_uses_invalid_patterns(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that invalid transfer syntax uses predefined patterns."""
+        result = cve_fuzzer._invalid_transfer_syntax(sample_dataset)
+
+        uid = str(result.file_meta.TransferSyntaxUID)
+        # Should match one of the invalid patterns
+        valid_patterns = [
+            "1.2.3.4.5.6.7.8.9.0" + "." * 50,
+            "0.0",
+            "1.2.840.10008.1.2.4.9999",
+            "INVALID.TRANSFER.SYNTAX",
+        ]
+        assert uid in valid_patterns
+
+    def test_invalid_transfer_syntax_no_file_meta(
+        self, cve_fuzzer: CVEFuzzer, minimal_dataset: Dataset
+    ) -> None:
+        """Test invalid transfer syntax handles missing file_meta."""
+        # Should not raise
+        result = cve_fuzzer._invalid_transfer_syntax(minimal_dataset)
+        assert isinstance(result, Dataset)
+
+
+# =============================================================================
+# TestGetMutationsApplied
+# =============================================================================
+
+
+class TestGetMutationsApplied:
+    """Tests for get_mutations_applied method."""
+
+    def test_get_mutations_applied_returns_copy(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that get_mutations_applied returns a copy."""
+        cve_fuzzer.apply_cve_mutations(sample_dataset)
+
+        result1 = cve_fuzzer.get_mutations_applied()
+        result2 = cve_fuzzer.get_mutations_applied()
+
+        # Should be equal but not the same object
+        assert result1 == result2
+        assert result1 is not result2
+
+    def test_get_mutations_applied_modifying_copy(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that modifying returned copy doesn't affect internal state."""
+        cve_fuzzer.apply_cve_mutations(sample_dataset)
+
+        result = cve_fuzzer.get_mutations_applied()
+        original_len = len(result)
+
+        result.append("extra")
+
+        # Internal list should be unchanged
+        assert len(cve_fuzzer.mutations_applied) == original_len
+
+
+# =============================================================================
+# TestResetStats
+# =============================================================================
+
+
+class TestResetStats:
+    """Tests for reset_stats method."""
+
+    def test_reset_stats_clears_mutations(
+        self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Test that reset_stats clears mutations_applied."""
+        cve_fuzzer.apply_cve_mutations(sample_dataset)
+        assert len(cve_fuzzer.mutations_applied) > 0
+
+        cve_fuzzer.reset_stats()
+        assert cve_fuzzer.mutations_applied == []
+
+    def test_reset_stats_idempotent(self, cve_fuzzer: CVEFuzzer) -> None:
+        """Test that reset_stats can be called multiple times."""
+        cve_fuzzer.reset_stats()
+        cve_fuzzer.reset_stats()
+        assert cve_fuzzer.mutations_applied == []
