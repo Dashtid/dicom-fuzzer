@@ -516,7 +516,7 @@ class TestPsutilAvailability:
         # psutil should be available in the test environment
         assert _is_psutil_available() is True
 
-    def test_harness_without_psutil(self, tmp_path: Path, sample_study: Path) -> None:
+    def test_harness_without_psutil(self, tmp_path: Path) -> None:
         """Test harness works without psutil (degraded mode)."""
         executable = tmp_path / "test.exe"
         executable.touch()
