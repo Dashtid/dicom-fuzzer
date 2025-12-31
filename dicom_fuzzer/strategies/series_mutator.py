@@ -1050,7 +1050,6 @@ class Series3DMutator:
 
                 for i, ds in enumerate(datasets):
                     if hasattr(ds, "ImagePositionPatient"):
-                        original = list(ds.ImagePositionPatient)
                         ds.ImagePositionPatient[2] = base_z + i * overlap_spacing
 
                 records.append(

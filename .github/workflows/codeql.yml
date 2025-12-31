@@ -9,10 +9,9 @@ on:
     - cron: '0 0 * * 1'  # Weekly on Monday at midnight
   workflow_dispatch:
 
-permissions:
-  contents: read
-  security-events: write
-  actions: read
+# Restrict top-level permissions (Scorecard: TokenPermissionsID)
+# Job-level permissions are set below
+permissions: {}
 
 # Cancel duplicate runs
 concurrency:

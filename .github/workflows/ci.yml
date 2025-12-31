@@ -38,7 +38,6 @@ jobs:
 
       - name: Run Ruff linter
         run: uv run ruff check --output-format=github dicom_fuzzer/ tests/ tools/examples/
-        continue-on-error: true  # Allow linting warnings without failing CI
 
       - name: Run Ruff formatter
         run: uv run ruff format --check dicom_fuzzer/ tests/ tools/examples/
@@ -86,7 +85,6 @@ jobs:
 
       - name: Run mypy
         run: uv run mypy --config-file=pyproject.toml --ignore-missing-imports dicom_fuzzer/
-        continue-on-error: true
 
   test:
     name: Test (Python ${{ matrix.python-version }} on ${{ matrix.os }})
@@ -126,12 +124,12 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
-      - name: Run tests with parallel execution and coverage
-        # Note: Coverage threshold disabled due to unreliable pytest-xdist measurement (varies 30-45%)
-        # Actual coverage is ~80%. See: https://github.com/pytest-dev/pytest-cov/issues/359
+      - name: Run tests with coverage
+        # Note: Parallelism disabled due to pytest-xdist worker crashes on CI runners
+        # Sequential tests are slower but more reliable
         run: |
-          uv run pytest tests/ -m "not slow" -o "addopts=" --cov=dicom_fuzzer --cov-report=xml --cov-report=term-missing --cov-report=html --junitxml=junit.xml -v -n 2 --dist=worksteal --timeout=30 --reruns=3 --reruns-delay=1
-        timeout-minutes: 35
+          uv run pytest tests/ -m "not slow" -o "addopts=" --cov=dicom_fuzzer --cov-report=xml --cov-report=term-missing --cov-report=html --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
+        timeout-minutes: 45
 
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
@@ -182,8 +180,9 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run tests with coverage
-        run: uv run pytest tests/ -m "not slow" -o "addopts=" --cov=dicom_fuzzer --cov-report=xml:coverage.xml --cov-report=term --junitxml=junit.xml -n 2 --dist=worksteal --timeout=30 --reruns=3 --reruns-delay=1
-        timeout-minutes: 35
+        # Note: Parallelism disabled due to pytest-xdist worker crashes on CI runners
+        run: uv run pytest tests/ -m "not slow" -o "addopts=" --cov=dicom_fuzzer --cov-report=xml:coverage.xml --cov-report=term --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
+        timeout-minutes: 45
 
       - name: Pytest coverage comment
         uses: MishaKav/pytest-coverage-comment@7939938b4bd400473e09b8c89534918d036c4523  # main
@@ -241,6 +240,7 @@ jobs:
         run: |
           if [ "${{ needs.lint-and-format.result }}" != "success" ] || \
              [ "${{ needs.security-scan.result }}" != "success" ] || \
+             [ "${{ needs.type-check.result }}" != "success" ] || \
              [ "${{ needs.test.result }}" != "success" ] || \
              [ "${{ needs.build.result }}" != "success" ]; then
             echo "One or more checks failed"

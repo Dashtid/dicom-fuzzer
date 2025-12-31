@@ -49,10 +49,13 @@ jobs:
       - name: Set up Python
         run: uv python install 3.13
 
-      - name: Install dependencies
+      - name: Create virtual environment and install dependencies
         run: |
-          uv pip install --system -e ".[dev]"
-          uv pip install --system mutmut
+          uv venv .venv
+          source .venv/bin/activate
+          uv pip install -e ".[dev]"
+          uv pip install mutmut
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Determine modules to test
         id: modules
@@ -176,11 +179,14 @@ jobs:
         if: steps.changed-files.outputs.files != ''
         run: uv python install 3.13
 
-      - name: Install dependencies
+      - name: Create virtual environment and install dependencies
         if: steps.changed-files.outputs.files != ''
         run: |
-          uv pip install --system -e ".[dev]"
-          uv pip install --system mutmut
+          uv venv .venv
+          source .venv/bin/activate
+          uv pip install -e ".[dev]"
+          uv pip install mutmut
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Run mutation testing on changed files
         if: steps.changed-files.outputs.files != ''

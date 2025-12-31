@@ -13,7 +13,8 @@
 #   Web UI: http://localhost:8042 (username: orthanc, password: orthanc)
 #   DICOM: localhost:4242 (AE Title: ORTHANC)
 
-FROM orthancteam/orthanc:24.10.2
+# Pin to specific SHA for reproducibility and security (Scorecard: PinnedDependenciesID)
+FROM orthancteam/orthanc:24.10.2@sha256:e86e5aa8f412e46f462775f7d264d8c35c9e41f3a881fd2e7f63e5b80d887809
 
 LABEL maintainer="DICOM Fuzzer Project"
 LABEL description="Orthanc PACS server configured for fuzzing"

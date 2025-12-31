@@ -12,7 +12,8 @@
 # RUN (dcmqrscp DICOM server):
 #   docker run --rm -p 11112:11112 dicom-fuzzer/dcmtk dcmqrscp -c /etc/dcmtk/dcmqrscp.cfg
 
-FROM ubuntu:22.04
+# Pin to specific SHA for reproducibility and security (Scorecard: PinnedDependenciesID)
+FROM ubuntu:22.04@sha256:1c4cc37c10c4678fd5369d172a4e079af8a28a6e6f724647ccaa311b4801c3c9
 
 LABEL maintainer="DICOM Fuzzer Project"
 LABEL description="DCMTK compiled for fuzzing with ASAN instrumentation"

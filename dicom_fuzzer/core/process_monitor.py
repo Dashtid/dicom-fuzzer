@@ -299,14 +299,9 @@ class ProcessMonitor:
                         duration_seconds=elapsed,
                     )
 
-                # Check for "not responding" on Windows
-                if sys.platform == "win32":
-                    try:
-                        # is_running() returns True if process is running
-                        # We can't easily detect "not responding" without win32api
-                        pass
-                    except Exception:
-                        pass
+                # Note: Windows "not responding" detection requires win32api
+                # which is not currently a dependency. The basic timeout and
+                # CPU idle detection above will catch most hang scenarios.
 
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 # Process may have terminated between poll() and metric collection
@@ -365,14 +360,14 @@ class ProcessMonitor:
             for child in children:
                 try:
                     child.terminate()
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    pass
+                except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                    logger.debug(f"Child process already gone or inaccessible: {e}")
 
             # Terminate main process
             try:
                 ps_process.terminate()
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
+            except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                logger.debug(f"Main process already gone or inaccessible: {e}")
 
             # Wait briefly for graceful termination
             _, alive = psutil.wait_procs([ps_process] + children, timeout=2.0)
@@ -381,8 +376,8 @@ class ProcessMonitor:
             for proc in alive:
                 try:
                     proc.kill()
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    pass
+                except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                    logger.debug(f"Survivor process already gone or inaccessible: {e}")
 
             logger.debug(
                 f"Terminated process tree: 1 parent + {len(children)} children"
