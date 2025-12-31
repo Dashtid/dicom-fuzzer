@@ -299,14 +299,9 @@ class ProcessMonitor:
                         duration_seconds=elapsed,
                     )
 
-                # Check for "not responding" on Windows
-                if sys.platform == "win32":
-                    try:
-                        # is_running() returns True if process is running
-                        # We can't easily detect "not responding" without win32api
-                        pass
-                    except Exception as e:
-                        logger.debug(f"Error checking Windows process state: {e}")
+                # Note: Windows "not responding" detection requires win32api
+                # which is not currently a dependency. The basic timeout and
+                # CPU idle detection above will catch most hang scenarios.
 
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 # Process may have terminated between poll() and metric collection
