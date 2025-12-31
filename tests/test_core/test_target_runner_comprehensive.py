@@ -541,10 +541,20 @@ class TestGetSummary:
 
         results = {
             ExecutionStatus.SUCCESS: [
-                Mock(test_file=Path("test1.dcm"), exit_code=0, retry_count=0)
+                Mock(
+                    test_file=Path("test1.dcm"),
+                    exit_code=0,
+                    retry_count=0,
+                    windows_crash_info=None,
+                )
             ],
             ExecutionStatus.CRASH: [
-                Mock(test_file=Path("test2.dcm"), exit_code=-11, retry_count=0)
+                Mock(
+                    test_file=Path("test2.dcm"),
+                    exit_code=-11,
+                    retry_count=0,
+                    windows_crash_info=None,
+                )
             ],
             ExecutionStatus.HANG: [],
             ExecutionStatus.ERROR: [],
@@ -1115,7 +1125,12 @@ class TestAdditionalCoveragePaths:
 
         # Create 15 crash results (more than 10 limit)
         crash_results = [
-            Mock(test_file=Path(f"crash{i}.dcm"), exit_code=-11, retry_count=0)
+            Mock(
+                test_file=Path(f"crash{i}.dcm"),
+                exit_code=-11,
+                retry_count=0,
+                windows_crash_info=None,
+            )
             for i in range(15)
         ]
 
@@ -1303,22 +1318,52 @@ class TestAdditionalCoveragePaths:
 
         results = {
             ExecutionStatus.SUCCESS: [
-                Mock(test_file=Path("s.dcm"), exit_code=0, retry_count=0)
+                Mock(
+                    test_file=Path("s.dcm"),
+                    exit_code=0,
+                    retry_count=0,
+                    windows_crash_info=None,
+                )
             ],
             ExecutionStatus.CRASH: [
-                Mock(test_file=Path("c.dcm"), exit_code=-11, retry_count=0)
+                Mock(
+                    test_file=Path("c.dcm"),
+                    exit_code=-11,
+                    retry_count=0,
+                    windows_crash_info=None,
+                )
             ],
             ExecutionStatus.HANG: [
-                Mock(test_file=Path("h.dcm"), exit_code=None, retry_count=0)
+                Mock(
+                    test_file=Path("h.dcm"),
+                    exit_code=None,
+                    retry_count=0,
+                    windows_crash_info=None,
+                )
             ],
             ExecutionStatus.ERROR: [
-                Mock(test_file=Path("e.dcm"), exit_code=1, retry_count=0)
+                Mock(
+                    test_file=Path("e.dcm"),
+                    exit_code=1,
+                    retry_count=0,
+                    windows_crash_info=None,
+                )
             ],
             ExecutionStatus.OOM: [
-                Mock(test_file=Path("o.dcm"), exit_code=None, retry_count=0)
+                Mock(
+                    test_file=Path("o.dcm"),
+                    exit_code=None,
+                    retry_count=0,
+                    windows_crash_info=None,
+                )
             ],
             ExecutionStatus.SKIPPED: [
-                Mock(test_file=Path("sk.dcm"), exit_code=None, retry_count=0)
+                Mock(
+                    test_file=Path("sk.dcm"),
+                    exit_code=None,
+                    retry_count=0,
+                    windows_crash_info=None,
+                )
             ],
             ExecutionStatus.RESOURCE_EXHAUSTED: [],
         }

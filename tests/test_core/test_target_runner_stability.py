@@ -539,6 +539,7 @@ class TestGetSummary:
                     result=ExecutionStatus.SUCCESS,
                     exit_code=0,
                     retry_count=0,
+                    windows_crash_info=None,
                 )
             ]
             * 5,
@@ -548,6 +549,7 @@ class TestGetSummary:
                     result=ExecutionStatus.CRASH,
                     exit_code=-11,
                     retry_count=0,
+                    windows_crash_info=None,
                 )
             ]
             * 2,
@@ -557,6 +559,7 @@ class TestGetSummary:
                     result=ExecutionStatus.HANG,
                     exit_code=None,
                     retry_count=0,
+                    windows_crash_info=None,
                 )
             ],
             ExecutionStatus.OOM: [
@@ -565,6 +568,7 @@ class TestGetSummary:
                     result=ExecutionStatus.OOM,
                     exit_code=None,
                     retry_count=0,
+                    windows_crash_info=None,
                 )
             ],
             ExecutionStatus.ERROR: [],
