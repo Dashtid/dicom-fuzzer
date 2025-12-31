@@ -7,7 +7,7 @@
 # =============================================================================
 # Build Stage
 # =============================================================================
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim@sha256:aa9aac8eacc774817e2881238f52d983a5ea13d7f5a1dee479a1a1d466047951 AS builder
 
 WORKDIR /app
 
@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir build && \
 # =============================================================================
 # Runtime Stage
 # =============================================================================
-FROM python:3.11-slim AS runtime
+FROM python:3.11-slim@sha256:aa9aac8eacc774817e2881238f52d983a5ea13d7f5a1dee479a1a1d466047951 AS runtime
 
 # Labels
 LABEL org.opencontainers.image.title="DICOM Fuzzer"
