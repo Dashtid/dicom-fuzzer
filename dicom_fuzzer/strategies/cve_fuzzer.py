@@ -153,8 +153,8 @@ class CVEFuzzer:
         # Also try in StorageMediaFileSetID which uses SH VR (allows paths)
         try:
             dataset.StorageMediaFileSetID = payload[:16]  # SH max 16 chars
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Could not set StorageMediaFileSetID: {e}")
 
         return dataset
 

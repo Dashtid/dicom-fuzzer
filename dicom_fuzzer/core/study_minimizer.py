@@ -386,8 +386,8 @@ class StudyMinimizer:
         for temp_dir in self._temp_dirs:
             try:
                 shutil.rmtree(temp_dir, ignore_errors=True)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Cleanup failed for {temp_dir}: {e}")
         self._temp_dirs.clear()
 
 

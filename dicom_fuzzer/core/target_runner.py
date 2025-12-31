@@ -572,13 +572,13 @@ class TargetRunner:
             if process.stdout and self.collect_stdout:
                 try:
                     stdout_val = process.stdout.read()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Error reading stdout: {e}")
             if process.stderr and self.collect_stderr:
                 try:
                     stderr_val = process.stderr.read()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Error reading stderr: {e}")
 
             execution_time = monitor_result.duration_seconds
             windows_crash_info = None
