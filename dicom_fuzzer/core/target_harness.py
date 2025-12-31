@@ -556,8 +556,8 @@ class TargetHarness:
         try:
             process.kill()
             process.wait(timeout=3)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Error during process cleanup: {e}")
 
         return TestResult(
             input_path=study_dir,
@@ -665,7 +665,7 @@ class TargetHarness:
                 final_phase = phase_results[-1]
                 result = PhasedTestResult(
                     input_path=study_dir,
-                    status=final_phase.status,  # type: ignore
+                    status=final_phase.status,
                     memory_peak_mb=total_memory_peak,
                     duration_seconds=time.time() - start_time,
                     error_message=final_phase.error_message,
@@ -956,8 +956,12 @@ class TargetHarness:
                         name=proc_name,
                         pid=proc.info.get("pid"),
                     )
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
-                pass
+            except (
+                psutil.NoSuchProcess,
+                psutil.AccessDenied,
+                psutil.TimeoutExpired,
+            ) as e:
+                logger.debug(f"Process already gone or inaccessible: {e}")
             except Exception as e:
                 logger.warning("Error killing process", error=str(e))
 
