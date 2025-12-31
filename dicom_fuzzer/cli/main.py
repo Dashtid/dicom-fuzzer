@@ -198,9 +198,11 @@ class GUITargetRunner:
                 [str(self.target_executable), str(test_file_path)],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
-                if sys.platform == "win32"
-                else 0,
+                creationflags=(
+                    getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                    if sys.platform == "win32"
+                    else 0
+                ),
             )
 
             # Wait for startup delay if specified (allows app to load before monitoring)

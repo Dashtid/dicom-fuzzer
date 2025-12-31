@@ -336,7 +336,9 @@ class TargetCalibrator:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 creationflags=(
-                    subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                    getattr(subprocess, "CREATE_NO_WINDOW", 0)
+                    if sys.platform == "win32"
+                    else 0
                 ),
             )
 
@@ -520,8 +522,8 @@ class TargetCalibrator:
             # Clean up - ignore errors as temp file may already be deleted
             try:
                 truncated_file.unlink()
-            except Exception:
-                pass  # Cleanup failures are non-critical
+            except Exception as e:
+                logger.debug(f"Cleanup failed for calibration file: {e}")
 
             if exit_code in self.CRASH_EXIT_CODES:
                 logger.warning(
