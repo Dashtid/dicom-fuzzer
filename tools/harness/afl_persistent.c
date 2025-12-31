@@ -408,7 +408,8 @@ int main(int argc, char **argv) {
     /* Parse */
     ParseResult result = parse_dicom(buf, st.st_size);
 
-    printf("File: %s\n", argv[1]);
+    // nosemgrep: c.lang.security.insecure-use-printf-fn.insecure-use-printf-fn
+    printf("File: %s\n", argv[1]);  // argv[1] is argument, not format string
     printf("Success: %s\n", result.success ? "yes" : "no");
     printf("Elements parsed: %d\n", result.elements_parsed);
     if (result.error_msg[0]) {

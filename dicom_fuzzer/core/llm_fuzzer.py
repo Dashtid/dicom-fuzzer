@@ -347,7 +347,11 @@ class OllamaClient(LLMClient):
 
     def __init__(self, config: LLMFuzzerConfig) -> None:
         self.config = config
-        self.base_url = config.api_base or "http://localhost:11434"
+        base_url = config.api_base or "http://localhost:11434"
+        # Validate URL scheme to prevent file:// and other dangerous schemes
+        if not base_url.startswith(("http://", "https://")):
+            raise ValueError(f"Invalid URL scheme: {base_url}")
+        self.base_url = base_url
 
     def complete(self, prompt: str, system: str = "") -> str:
         """Generate completion using local Ollama."""
@@ -373,7 +377,8 @@ class OllamaClient(LLMClient):
             headers={"Content-Type": "application/json"},
         )
 
-        with urllib.request.urlopen(  # noqa: S310  # nosec B310 - local Ollama server
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected
+        with urllib.request.urlopen(  # noqa: S310  # nosec B310 - validated URL scheme
             req, timeout=self.config.timeout
         ) as response:
             result = json.loads(response.read().decode())
@@ -384,7 +389,8 @@ class OllamaClient(LLMClient):
         import urllib.request
 
         try:
-            with urllib.request.urlopen(  # noqa: S310  # nosec B310 - local Ollama server
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected
+            with urllib.request.urlopen(  # noqa: S310  # nosec B310 - validated URL scheme
                 f"{self.base_url}/api/tags", timeout=5
             ) as response:
                 return bool(response.status == 200)
