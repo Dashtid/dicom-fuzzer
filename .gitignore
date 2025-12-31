@@ -319,6 +319,9 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Claude Code ignore files
+.claudeignore
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

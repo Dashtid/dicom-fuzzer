@@ -169,14 +169,29 @@ class TestAffinityAdapterLoadStudy:
         mock_window.type_keys.return_value = None
         mock_window.window_text.return_value = "Affinity - Test"
 
+        # Mock series control for selection
+        mock_series_control = MagicMock()
+        mock_series_control.window_text.return_value = "CT Series 001"
+        # Mock element_info.control_type for the click logic
+        mock_series_control.element_info.control_type = "ListItem"
+        mock_series_control.click_input.return_value = None
+
+        # Mock Datalist container with series control inside
+        mock_datalist = MagicMock()
+        mock_datalist.exists.return_value = True
+        mock_datalist.descendants.return_value = [mock_series_control]
+
         # Mock search box
         mock_search_box = MagicMock()
         mock_search_box.exists.return_value = True
-        mock_window.child_window.return_value = mock_search_box
 
-        # Mock series control for double-click
-        mock_series_control = MagicMock()
-        mock_series_control.window_text.return_value = "CT Series 001"
+        # child_window returns different mocks based on arguments
+        def child_window_side_effect(**kwargs):
+            if kwargs.get("auto_id") == "Datalist":
+                return mock_datalist
+            return mock_search_box
+
+        mock_window.child_window.side_effect = child_window_side_effect
         mock_window.descendants.return_value = [mock_series_control]
 
         mock_app_instance = MagicMock()
