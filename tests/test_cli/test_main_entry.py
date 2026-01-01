@@ -254,21 +254,6 @@ class TestSubcommandDispatch:
 
             mock_study.assert_called()
 
-    def test_llm_subcommand(self):
-        """Test 'llm' subcommand dispatch."""
-        with (
-            patch("sys.argv", ["dicom-fuzzer", "llm", "--help"]),
-            patch("dicom_fuzzer.cli.llm.main", return_value=0) as mock_llm,
-        ):
-            from dicom_fuzzer.cli.main import main
-
-            try:
-                result = main()
-            except SystemExit:
-                pass
-
-            mock_llm.assert_called()
-
     def test_differential_subcommand(self):
         """Test 'differential' subcommand dispatch."""
         with (

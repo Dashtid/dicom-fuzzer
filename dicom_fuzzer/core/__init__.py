@@ -80,30 +80,6 @@ from .lazy_loader import (
     create_deferred_loader,
     create_metadata_loader,
 )
-
-# LLM-Assisted Fuzzing (v1.5.0)
-from .llm_fuzzer import (
-    AdaptiveMutationSelector,
-    AnthropicClient,
-    DICOMProtocolRule,
-    DICOMSpecParser,
-    GeneratedMutation,
-    LLMBackend,
-    LLMClient,
-    LLMFuzzer,
-    LLMFuzzerConfig,
-    LLMMutationGenerator,
-    LLMSeedGenerator,
-    MockLLMClient,
-    MutationCategory,
-    MutationFeedback,
-    MutationStatistics,
-    OllamaClient,
-    OpenAIClient,
-    SemanticDICOMFuzzer,
-    create_llm_fuzzer,
-    create_llm_seed_generator,
-)
 from .mutator import DicomMutator
 from .parser import DicomParser
 from .persistent_fuzzer import (
@@ -250,27 +226,6 @@ __all__ = [
     "PersistentFuzzer",
     "PowerSchedule",
     "SeedEntry",
-    # LLM-Assisted Fuzzing (v1.5.0)
-    "AdaptiveMutationSelector",
-    "AnthropicClient",
-    "DICOMProtocolRule",
-    "DICOMSpecParser",
-    "GeneratedMutation",
-    "LLMBackend",
-    "LLMClient",
-    "LLMFuzzer",
-    "LLMFuzzerConfig",
-    "LLMMutationGenerator",
-    "LLMSeedGenerator",
-    "MockLLMClient",
-    "MutationCategory",
-    "MutationFeedback",
-    "MutationStatistics",
-    "OllamaClient",
-    "OpenAIClient",
-    "SemanticDICOMFuzzer",
-    "create_llm_fuzzer",
-    "create_llm_seed_generator",
     # DICOM TLS Security Fuzzer (v1.5.0)
     "AuthBypassType",
     "DICOMAuthTester",
