@@ -270,6 +270,11 @@ class TestPathTraversal:
         result = cve_fuzzer._path_traversal(sample_dataset)
 
         payload = result[0x0009, 0x1001].value
+        # pydicom may return backslash paths as lists (multi-valued interpretation)
+        # Convert list back to string for comparison
+        if isinstance(payload, list):
+            payload = "\\".join(payload)
+
         valid_payloads = [
             "../../../etc/passwd",
             "..\\..\\..\\windows\\system32\\config\\sam",
