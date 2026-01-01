@@ -7,16 +7,110 @@ DICOM viewers through a common interface.
 
 from __future__ import annotations
 
+import functools
 import logging
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any
+    from collections.abc import Callable
+    from typing import Any, ParamSpec, TypeVar
+
+    P = ParamSpec("P")
+    T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
+
+
+class UIOperationError(Exception):
+    """Exception raised when a UI operation fails after retries.
+
+    Attributes:
+        operation: Name of the operation that failed.
+        attempts: Number of retry attempts made.
+        last_error: The last exception that caused the failure.
+
+    """
+
+    def __init__(
+        self,
+        operation: str,
+        attempts: int,
+        last_error: Exception | None = None,
+    ) -> None:
+        self.operation = operation
+        self.attempts = attempts
+        self.last_error = last_error
+        message = f"UI operation '{operation}' failed after {attempts} attempts"
+        if last_error:
+            message += f": {last_error}"
+        super().__init__(message)
+
+
+def retry_ui_operation(
+    max_attempts: int = 3,
+    delay: float = 0.5,
+    backoff: float = 1.5,
+    exceptions: tuple[type[Exception], ...] = (Exception,),
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    """Decorator for retrying flaky UI operations with exponential backoff.
+
+    Use this decorator on adapter methods that interact with the UI and may
+    fail due to timing issues, window state changes, or transient errors.
+
+    Args:
+        max_attempts: Maximum number of attempts (default 3).
+        delay: Initial delay between attempts in seconds (default 0.5).
+        backoff: Multiplier for delay after each attempt (default 1.5).
+        exceptions: Tuple of exception types to catch and retry.
+
+    Returns:
+        Decorated function that will retry on failure.
+
+    Example:
+        @retry_ui_operation(max_attempts=3, delay=0.3)
+        def click_button(self) -> bool:
+            self.window.button.click()
+            return True
+
+    """
+
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
+        @functools.wraps(func)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            last_exception: Exception | None = None
+            current_delay = delay
+
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    last_exception = e
+                    if attempt < max_attempts:
+                        logger.debug(
+                            f"Retry {attempt}/{max_attempts} for {func.__name__}: {e}"
+                        )
+                        time.sleep(current_delay)
+                        current_delay *= backoff
+                    else:
+                        logger.warning(
+                            f"{func.__name__} failed after {max_attempts} attempts: {e}"
+                        )
+
+            # All attempts exhausted - raise or return False depending on return type
+            # Check if function returns bool to maintain backward compatibility
+            return_annotation = getattr(func, "__annotations__", {}).get("return")
+            if return_annotation is bool or str(return_annotation) == "bool":
+                return False  # type: ignore[return-value]
+
+            raise UIOperationError(func.__name__, max_attempts, last_exception)
+
+        return wrapper
+
+    return decorator
 
 
 @dataclass
