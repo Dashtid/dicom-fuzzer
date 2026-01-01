@@ -338,8 +338,9 @@ class TestMain:
 
     def test_main_dry_run(self, capsys):
         """Test main with --dry-run flag."""
-        with patch("dicom_fuzzer.cli.coverage_fuzz.console"):
-            main()  # Should not raise with default args
+        with patch("sys.argv", ["coverage_fuzz", "--dry-run"]):
+            with patch("dicom_fuzzer.cli.coverage_fuzz.console"):
+                main()  # Should not raise with --dry-run
 
     def test_main_with_config_file(self, tmp_path, capsys):
         """Test main loading configuration from file."""
