@@ -28,7 +28,13 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from .base import PatientInfo, RenderResult, ViewerAdapter
+from .base import (
+    PatientInfo,
+    RenderResult,
+    UIOperationError,
+    ViewerAdapter,
+    retry_ui_operation,
+)
 
 if TYPE_CHECKING:
     from pywinauto import Application
@@ -204,7 +210,11 @@ class AffinityAdapter(ViewerAdapter):
                 )
 
             # Step 2: Type search term
-            self._type_search(search_term)
+            if not self._type_search(search_term):
+                return RenderResult(
+                    success=False,
+                    error_message="Failed to type search term",
+                )
 
             # Step 3: Wait for search results to populate
             time.sleep(self.WAIT_FOR_ACTION)
@@ -250,6 +260,7 @@ class AffinityAdapter(ViewerAdapter):
                 error_message=str(e),
             )
 
+    @retry_ui_operation(max_attempts=3, delay=0.3, backoff=1.5)
     def _focus_search_field(self) -> bool:
         """Focus the search field using Ctrl+F.
 
@@ -258,34 +269,29 @@ class AffinityAdapter(ViewerAdapter):
         Returns:
             True if search field was focused.
 
+        Raises:
+            Exception: If focus operation fails (triggers retry).
+
         """
-        try:
-            # Ensure main window is focused
-            self._main_window.set_focus()
-            time.sleep(self.MINIMAL_PAUSE)
+        # Ensure main window is focused
+        self._main_window.set_focus()
+        time.sleep(self.MINIMAL_PAUSE)
 
-            # Send Ctrl+F to focus search
-            self._main_window.type_keys("^f")
-            time.sleep(self.BRIEF_PAUSE)
+        # Send Ctrl+F to focus search
+        self._main_window.type_keys("^f")
+        time.sleep(self.BRIEF_PAUSE)
 
-            # Verify search field is focused (if we can find it)
-            try:
-                search_box = self._main_window.child_window(
-                    auto_id=self.SEARCH_TEXTBOX_ID
-                )
-                if search_box.exists():
-                    return True
-            except Exception:
-                pass
-
-            # Even if we can't verify, the keyboard shortcut likely worked
+        # Verify search field is focused
+        search_box = self._main_window.child_window(auto_id=self.SEARCH_TEXTBOX_ID)
+        if search_box.exists():
+            logger.debug("Search field focused successfully")
             return True
 
-        except Exception as e:
-            logger.warning(f"Failed to focus search field: {e}")
-            return False
+        # Verification failed - raise to trigger retry
+        raise UIOperationError("focus_search_field", 1, None)
 
-    def _type_search(self, text: str) -> None:
+    @retry_ui_operation(max_attempts=2, delay=0.2, backoff=1.5)
+    def _type_search(self, text: str) -> bool:
         """Type text into the search field.
 
         Translates RF keyword: `Send Keys    ${series_name}`
@@ -293,28 +299,27 @@ class AffinityAdapter(ViewerAdapter):
         Args:
             text: Text to type.
 
-        """
-        try:
-            # Try to find and use search box directly
-            search_box = self._main_window.child_window(auto_id=self.SEARCH_TEXTBOX_ID)
-            if search_box.exists():
-                search_box.set_focus()
-                time.sleep(self.MINIMAL_PAUSE)
-                # Clear existing text and type new
-                search_box.type_keys("^a", pause=self.MINIMAL_PAUSE)
-                search_box.type_keys(text, pause=self.MINIMAL_PAUSE, with_spaces=True)
-            else:
-                # Fallback: type directly (search field should be focused)
-                self._main_window.type_keys(
-                    text, pause=self.MINIMAL_PAUSE, with_spaces=True
-                )
-        except Exception as e:
-            logger.warning(f"Failed to type in search: {e}")
-            # Fallback: type directly
-            self._main_window.type_keys(
-                text, pause=self.MINIMAL_PAUSE, with_spaces=True
-            )
+        Returns:
+            True if text was typed successfully.
 
+        """
+        # Try to find and use search box directly
+        search_box = self._main_window.child_window(auto_id=self.SEARCH_TEXTBOX_ID)
+        if search_box.exists():
+            search_box.set_focus()
+            time.sleep(self.MINIMAL_PAUSE)
+            # Clear existing text and type new
+            search_box.type_keys("^a", pause=self.MINIMAL_PAUSE)
+            search_box.type_keys(text, pause=self.MINIMAL_PAUSE, with_spaces=True)
+            logger.debug("Typed search text via search box", text=text[:30])
+            return True
+
+        # Fallback: type directly (search field should be focused)
+        logger.debug("Search box not found, typing directly")
+        self._main_window.type_keys(text, pause=self.MINIMAL_PAUSE, with_spaces=True)
+        return True
+
+    @retry_ui_operation(max_attempts=3, delay=0.5, backoff=1.5)
     def _select_and_load_series(self, series_name: str) -> bool:
         """Click to select the search result, then press Enter to load.
 
@@ -334,68 +339,80 @@ class AffinityAdapter(ViewerAdapter):
             True if series was found, clicked, and loaded.
 
         """
+        pattern = re.escape(series_name)
+
+        # Target the Datalist specifically to avoid clicking wrong elements
+        search_container = self._main_window
         try:
-            pattern = re.escape(series_name)
-
-            # Target the Datalist specifically to avoid clicking wrong elements
-            search_container = self._main_window
-            try:
-                datalist = self._main_window.child_window(auto_id="Datalist")
-                if datalist.exists():
-                    search_container = datalist
-                    logger.debug("Searching within Datalist")
-            except Exception:
-                logger.debug("Datalist not found, searching whole window")
-
-            # Find and click the matching item in the filtered list
-            found_match = False
-            for control in search_container.descendants():
-                try:
-                    title = control.window_text()
-                    if title and re.search(pattern, title, re.IGNORECASE):
-                        ctrl_type = control.element_info.control_type
-                        logger.debug(
-                            "Found match",
-                            title=title[:50],
-                            control_type=ctrl_type,
-                        )
-
-                        # TextBlock/Text elements are not clickable - find parent
-                        # Navigate up to find the ListItem or first clickable ancestor
-                        clickable = control
-                        if ctrl_type in ("Text", "TextBlock"):
-                            clickable = self._find_clickable_ancestor(control)
-                            if clickable:
-                                anc_type = clickable.element_info.control_type
-                                logger.debug("Using ancestor", ancestor_type=anc_type)
-                            else:
-                                # Fallback: use parent
-                                clickable = control.parent()
-                                logger.debug("Using immediate parent")
-
-                        # Click to select, then Enter to load
-                        logger.debug("Clicking to select")
-                        clickable.click_input()
-                        time.sleep(self.BRIEF_PAUSE)
-                        logger.debug("Pressing Enter to load")
-                        self._main_window.type_keys("{ENTER}")
-                        found_match = True
-                        break
-                except Exception:
-                    continue
-
-            if not found_match:
-                logger.warning("Series not found in browser", series_name=series_name)
-                return False
-
-            # Don't verify here - window reference may be stale after Enter
-            # Verification happens in load_study_into_viewport via _switch_to_study_window
-            logger.debug("Series click + Enter sent successfully")
-            return True
-
+            datalist = self._main_window.child_window(auto_id="Datalist")
+            if datalist.exists():
+                search_container = datalist
+                logger.debug("Searching within Datalist")
         except Exception as e:
-            logger.warning("Failed to load series", error=str(e))
-            return False
+            logger.debug("Datalist not found, searching whole window", error=str(e))
+
+        # Find and click the matching item in the filtered list
+        found_match = False
+        last_click_error: Exception | None = None
+
+        for control in search_container.descendants():
+            try:
+                title = control.window_text()
+                if title and re.search(pattern, title, re.IGNORECASE):
+                    ctrl_type = control.element_info.control_type
+                    logger.debug(
+                        "Found match",
+                        title=title[:50],
+                        control_type=ctrl_type,
+                    )
+
+                    # TextBlock/Text elements are not clickable - find parent
+                    # Navigate up to find the ListItem or first clickable ancestor
+                    clickable = control
+                    if ctrl_type in ("Text", "TextBlock"):
+                        clickable = self._find_clickable_ancestor(control)
+                        if clickable:
+                            anc_type = clickable.element_info.control_type
+                            logger.debug("Using ancestor", ancestor_type=anc_type)
+                        else:
+                            # Fallback: use parent
+                            clickable = control.parent()
+                            logger.debug("Using immediate parent")
+
+                    # Click to select, then Enter to load
+                    logger.debug("Clicking to select")
+                    clickable.click_input()
+                    time.sleep(self.BRIEF_PAUSE)
+                    logger.debug("Pressing Enter to load")
+                    self._main_window.type_keys("{ENTER}")
+                    found_match = True
+                    break
+            except Exception as e:
+                # Log and continue to next control - this control may not be the right one
+                last_click_error = e
+                logger.debug("Control interaction failed", error=str(e))
+                continue
+
+        if not found_match:
+            if last_click_error:
+                logger.warning(
+                    "Series not found in browser",
+                    series_name=series_name,
+                    last_error=str(last_click_error),
+                )
+            else:
+                logger.warning("Series not found in browser", series_name=series_name)
+            # Raise to trigger retry
+            raise UIOperationError(
+                "select_and_load_series",
+                1,
+                last_click_error or ValueError(f"Series '{series_name}' not found"),
+            )
+
+        # Don't verify here - window reference may be stale after Enter
+        # Verification happens in load_study_into_viewport via _switch_to_study_window
+        logger.debug("Series click + Enter sent successfully")
+        return True
 
     def _find_clickable_ancestor(self, control: object) -> object | None:
         """Find a clickable ancestor for the Text element.
@@ -425,8 +442,8 @@ class AffinityAdapter(ViewerAdapter):
                 if ctrl_type in clickable_types:
                     return current
                 current = current.parent()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Error walking ancestor tree", error=str(e))
         return None
 
     def _switch_to_study_window(self) -> bool:
@@ -554,7 +571,8 @@ class AffinityAdapter(ViewerAdapter):
                     if text and text not in texts:
                         texts.append(text)
                 except Exception:
-                    pass
+                    # Expected for some control types - skip silently
+                    continue
 
         except Exception as e:
             logger.debug(f"Error extracting text: {e}")
@@ -661,8 +679,8 @@ class AffinityAdapter(ViewerAdapter):
                 all_text = self._extract_all_text().lower()
                 if not any(ind in all_text for ind in loading_indicators):
                     return True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Error checking idle state", error=str(e))
             time.sleep(0.5)
 
         return False
@@ -683,7 +701,7 @@ class AffinityAdapter(ViewerAdapter):
             match = re.search(r"(\d+\.\d+(?:\.\d+)*)", title)
             if match:
                 return match.group(1)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Error extracting viewer version", error=str(e))
 
         return None

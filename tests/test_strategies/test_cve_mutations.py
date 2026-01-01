@@ -600,8 +600,17 @@ class TestMicroDicom2024CVEs:
         result = mutate_url_scheme_bypass(data)
         # Should have injected URL payload
         assert len(result) > len(data)
-        # Should contain some URL-like content
-        url_indicators = [b"file:", b"http:", b"\\\\", b"javascript:"]
+        # Should contain some URL-like content (any of the possible payloads)
+        url_indicators = [
+            b"file:",
+            b"http:",
+            b"\\\\",
+            b"javascript:",
+            b"data:",
+            b"dict:",
+            b"gopher:",
+            b"ldap:",
+        ]
         has_url = any(indicator in result for indicator in url_indicators)
         assert has_url
 
