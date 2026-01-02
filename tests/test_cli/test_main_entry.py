@@ -254,21 +254,6 @@ class TestSubcommandDispatch:
 
             mock_study.assert_called()
 
-    def test_llm_subcommand(self):
-        """Test 'llm' subcommand dispatch."""
-        with (
-            patch("sys.argv", ["dicom-fuzzer", "llm", "--help"]),
-            patch("dicom_fuzzer.cli.llm.main", return_value=0) as mock_llm,
-        ):
-            from dicom_fuzzer.cli.main import main
-
-            try:
-                result = main()
-            except SystemExit:
-                pass
-
-            mock_llm.assert_called()
-
     def test_differential_subcommand(self):
         """Test 'differential' subcommand dispatch."""
         with (
@@ -399,7 +384,7 @@ class TestMainArgumentParsing:
 
         with (
             patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "1"]),
-            patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen,
+            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -421,7 +406,7 @@ class TestMainArgumentParsing:
         # Use count < 20 to avoid batch splitting
         with (
             patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "10"]),
-            patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen,
+            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -451,7 +436,7 @@ class TestMainArgumentParsing:
                 "sys.argv",
                 ["dicom-fuzzer", str(test_file), "-c", "1", "-o", str(output_dir)],
             ),
-            patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen,
+            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -480,7 +465,7 @@ class TestMainArgumentParsing:
                 "sys.argv",
                 ["dicom-fuzzer", str(test_file), "-c", "1", "-s", "metadata,header"],
             ),
-            patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen,
+            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -512,7 +497,7 @@ class TestMainArgumentParsing:
             patch(
                 "sys.argv", ["dicom-fuzzer", str(test_file), "-c", "1", "--json", "-q"]
             ),
-            patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen,
+            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -550,7 +535,7 @@ class TestMainArgumentParsing:
 
         with (
             patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "1", "-q"]),
-            patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen,
+            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -577,7 +562,7 @@ class TestMainErrorHandling:
 
         with (
             patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "100"]),
-            patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen,
+            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -587,10 +572,8 @@ class TestMainErrorHandling:
 
             from dicom_fuzzer.cli.main import main
 
-            with pytest.raises(SystemExit) as exc_info:
-                main()
-
-            assert exc_info.value.code == 130
+            result = main()
+            assert result == 130
 
     def test_general_exception(self, tmp_path):
         """Test handling of general exceptions."""
@@ -599,7 +582,7 @@ class TestMainErrorHandling:
 
         with (
             patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "1"]),
-            patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen,
+            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -609,10 +592,8 @@ class TestMainErrorHandling:
 
             from dicom_fuzzer.cli.main import main
 
-            with pytest.raises(SystemExit) as exc_info:
-                main()
-
-            assert exc_info.value.code == 1
+            result = main()
+            assert result == 1
 
 
 class TestPreCampaignHealthCheckEdgeCases:

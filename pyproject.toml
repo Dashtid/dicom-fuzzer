@@ -233,6 +233,7 @@ module = [
     "anthropic.*",  # LLM API client
     "openai.*",   # LLM API client
     "matplotlib.*",  # Plotting library
+    "minidump.*",  # Windows minidump analysis (optional)
 ]
 ignore_missing_imports = true
 

@@ -57,7 +57,7 @@ class TestArgumentParsing:
         ]
 
         with patch("sys.argv", ["dicom-fuzzer"] + args):
-            with patch("dicom_fuzzer.cli.main.DICOMGenerator"):
+            with patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator"):
                 with patch("dicom_fuzzer.cli.main.Path.mkdir"):
                     try:
                         main()
@@ -135,7 +135,9 @@ class TestFileGeneration:
         ]
 
         with patch("sys.argv", args):
-            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
+            with patch(
+                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+            ) as mock_gen_class:
                 mock_gen = Mock()
                 mock_gen.generate_batch.return_value = [
                     output_dir / f"fuzzed_{i:04d}.dcm" for i in range(10)
@@ -170,7 +172,9 @@ class TestFileGeneration:
         ]
 
         with patch("sys.argv", args):
-            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
+            with patch(
+                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+            ) as mock_gen_class:
                 mock_gen = Mock()
                 mock_gen.generate_batch.return_value = [
                     output_dir / f"fuzzed_{i:04d}.dcm" for i in range(5)
@@ -204,7 +208,9 @@ class TestFileGeneration:
         ]
 
         with patch("sys.argv", args):
-            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
+            with patch(
+                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+            ) as mock_gen_class:
                 mock_gen = Mock()
                 mock_gen.generate_batch.return_value = [
                     output_dir / f"fuzzed_{i:04d}.dcm" for i in range(5)
@@ -254,8 +260,12 @@ class TestTargetTesting:
         ]
 
         with patch("sys.argv", args):
-            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
-                with patch("dicom_fuzzer.cli.main.TargetRunner") as mock_runner_class:
+            with patch(
+                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+            ) as mock_gen_class:
+                with patch(
+                    "dicom_fuzzer.cli.target_controller.TargetRunner"
+                ) as mock_runner_class:
                     # Setup generator mock
                     mock_gen = Mock()
                     test_files = [output_dir / f"fuzzed_{i:04d}.dcm" for i in range(5)]
@@ -309,21 +319,9 @@ class TestTargetTesting:
         ]
 
         with patch("sys.argv", args):
-            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
-                mock_gen = Mock()
-                mock_gen.generate_batch.return_value = [
-                    output_dir / f"fuzzed_{i:04d}.dcm" for i in range(5)
-                ]
-                mock_gen.stats.skipped_due_to_write_errors = 0
-                mock_gen.stats.strategies_used = {"metadata": 5}
-                mock_gen_class.return_value = mock_gen
-
-                with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                    with pytest.raises(SystemExit) as exc_info:
-                        main()
-
-                    # Should exit with error code
-                    assert exc_info.value.code == 1
+            # Health check catches missing target and returns 1
+            result = main()
+            assert result == 1
 
     def test_stop_on_crash_flag(self, sample_dicom, output_dir, tmp_path):
         """Test --stop-on-crash flag."""
@@ -348,8 +346,12 @@ class TestTargetTesting:
         ]
 
         with patch("sys.argv", args):
-            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
-                with patch("dicom_fuzzer.cli.main.TargetRunner") as mock_runner_class:
+            with patch(
+                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+            ) as mock_gen_class:
+                with patch(
+                    "dicom_fuzzer.cli.target_controller.TargetRunner"
+                ) as mock_runner_class:
                     mock_gen = Mock()
                     test_files = [output_dir / f"fuzzed_{i:04d}.dcm" for i in range(10)]
                     mock_gen.generate_batch.return_value = test_files
@@ -388,17 +390,17 @@ class TestErrorHandling:
         ]
 
         with patch("sys.argv", args):
-            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
+            with patch(
+                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+            ) as mock_gen_class:
                 mock_gen = Mock()
                 mock_gen.generate_batch.side_effect = KeyboardInterrupt()
                 mock_gen_class.return_value = mock_gen
 
                 with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                    with pytest.raises(SystemExit) as exc_info:
-                        main()
-
-                    # Should exit with code 130 (128 + SIGINT)
-                    assert exc_info.value.code == 130
+                    # Should return 130 (128 + SIGINT)
+                    result = main()
+                    assert result == 130
 
     def test_general_exception_handling(self, sample_dicom, output_dir, capsys):
         """Test handling of unexpected exceptions."""
@@ -412,17 +414,17 @@ class TestErrorHandling:
         ]
 
         with patch("sys.argv", args):
-            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
+            with patch(
+                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+            ) as mock_gen_class:
                 mock_gen = Mock()
                 mock_gen.generate_batch.side_effect = RuntimeError("Unexpected error")
                 mock_gen_class.return_value = mock_gen
 
                 with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                    with pytest.raises(SystemExit) as exc_info:
-                        main()
-
-                    # Should exit with error code
-                    assert exc_info.value.code == 1
+                    # Should return 1 for error
+                    result = main()
+                    assert result == 1
 
     def test_verbose_error_output(self, sample_dicom, output_dir):
         """Test that verbose mode shows full tracebacks."""
@@ -437,17 +439,17 @@ class TestErrorHandling:
         ]
 
         with patch("sys.argv", args):
-            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
+            with patch(
+                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+            ) as mock_gen_class:
                 mock_gen = Mock()
                 mock_gen.generate_batch.side_effect = RuntimeError("Test error")
                 mock_gen_class.return_value = mock_gen
 
                 with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                    with pytest.raises(SystemExit):
-                        main()
-
-                    # In verbose mode, should show traceback
-                    # (verified by exc_info=args.verbose in logger.error calls)
+                    result = main()
+                    # In verbose mode, should show traceback and return 1
+                    assert result == 1
 
 
 class TestOutputFormatting:
@@ -465,7 +467,9 @@ class TestOutputFormatting:
         ]
 
         with patch("sys.argv", args):
-            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
+            with patch(
+                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+            ) as mock_gen_class:
                 mock_gen = Mock()
                 mock_gen.generate_batch.return_value = [
                     output_dir / f"fuzzed_{i:04d}.dcm" for i in range(5)
@@ -504,8 +508,10 @@ class TestOutputFormatting:
 
         # Mock tqdm availability (patch where it's imported in main.py)
         with patch("sys.argv", args):
-            with patch("dicom_fuzzer.cli.main.tqdm") as mock_tqdm:
-                with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
+            with patch("dicom_fuzzer.cli.campaign_runner.tqdm") as mock_tqdm:
+                with patch(
+                    "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+                ) as mock_gen_class:
                     mock_gen = Mock()
                     mock_gen.generate_batch.return_value = [
                         output_dir / f"fuzzed_{i:04d}.dcm" for i in range(20)
@@ -578,7 +584,9 @@ class TestDirectoryCreation:
         ]
 
         with patch("sys.argv", args):
-            with patch("dicom_fuzzer.cli.main.DICOMGenerator") as mock_gen_class:
+            with patch(
+                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+            ) as mock_gen_class:
                 mock_gen = Mock()
                 mock_gen.generate_batch.return_value = [
                     output_dir / f"fuzzed_{i:04d}.dcm" for i in range(5)
