@@ -25,7 +25,7 @@ try:
     HAS_TQDM = True
 except ImportError:
     HAS_TQDM = False
-    tqdm = None
+    tqdm = None  # type: ignore[misc,assignment,unused-ignore]
 
 
 class CampaignRunner:
