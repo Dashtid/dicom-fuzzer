@@ -942,10 +942,11 @@ class TestFullCalibration:
 
     @patch.object(TargetCalibrator, "_phase1_detect_target_type")
     @patch.object(TargetCalibrator, "_phase3_validate_crash_detection")
+    @patch.object(TargetCalibrator, "_phase4_validate_corpus")
     @patch.object(TargetCalibrator, "_generate_recommendations")
     @patch.object(TargetCalibrator, "_cleanup_temp_files")
     def test_calibrate_skips_phase2_for_gui(
-        self, mock_cleanup, mock_rec, mock_p3, mock_p1, calibrator
+        self, mock_cleanup, mock_rec, mock_p4, mock_p3, mock_p1, calibrator
     ):
         """Test calibrate() skips Phase 2 for GUI apps."""
 
