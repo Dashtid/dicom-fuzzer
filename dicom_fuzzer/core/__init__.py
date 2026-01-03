@@ -96,6 +96,7 @@ from .error_recovery import CampaignRecovery, CampaignStatus, SignalHandler
 from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
 from .generator import DICOMGenerator
 from .gui_monitor import (
+    GUIFuzzer,
     GUIMonitor,
     GUIResponse,
     MonitorConfig,
@@ -241,11 +242,12 @@ __all__ = [
     "SyntheticStudy",
     "SyntheticSeries",
     "generate_sample_files",
-    # Response-Aware Fuzzing with State Coverage (v1.5.0)
+    # Response-Aware Fuzzing with State Coverage (v1.5.0, modularized v1.8.0)
+    "GUIFuzzer",
     "GUIMonitor",
     "GUIResponse",
     "MonitorConfig",
-    "ResponseAwareFuzzer",
+    "ResponseAwareFuzzer",  # Backward compatibility alias for GUIFuzzer
     "ResponseType",
     "SeverityLevel",
     "StateCoverageTracker",
