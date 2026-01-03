@@ -47,8 +47,13 @@ from .crash_triage import (
 from .dataset_mutator import DatasetMutator
 from .dicom_series import DicomSeries
 
-# DICOM TLS Security Fuzzer (v1.5.0)
+# DICOM TLS Security Fuzzer (v1.5.0, modularized v1.7.0)
 from .dicom_tls_fuzzer import (
+    COMMON_AE_TITLES,
+    INJECTION_PAYLOADS,
+    SOP_CLASS_UIDS,
+    SSL_VERSIONS,
+    WEAK_CIPHERS,
     AuthBypassType,
     DICOMAuthTester,
     DICOMTLSFuzzer,
@@ -275,7 +280,12 @@ __all__ = [
     "PersistentFuzzer",
     "PowerSchedule",
     "SeedEntry",
-    # DICOM TLS Security Fuzzer (v1.5.0)
+    # DICOM TLS Security Fuzzer (v1.5.0, modularized v1.7.0)
+    "COMMON_AE_TITLES",
+    "INJECTION_PAYLOADS",
+    "SOP_CLASS_UIDS",
+    "SSL_VERSIONS",
+    "WEAK_CIPHERS",
     "AuthBypassType",
     "DICOMAuthTester",
     "DICOMTLSFuzzer",
