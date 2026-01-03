@@ -35,6 +35,14 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, TypedDict
 
+from dicom_fuzzer.core.constants import (
+    ARITH_MAX,
+    INTERESTING_8_UNSIGNED,
+    INTERESTING_16_UNSIGNED,
+    INTERESTING_32_UNSIGNED,
+    MAP_SIZE,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,11 +53,6 @@ class _Particle(TypedDict):
     velocity: list[float]
     best_position: list[float]
     best_fitness: float
-
-
-# Coverage map size (should match AFL)
-MAP_SIZE = 65536
-MAP_SIZE_POW2 = 16
 
 
 class MutationType(Enum):
@@ -393,8 +396,6 @@ class ByteFlipMutator(Mutator):
 class ArithMutator(Mutator):
     """Arithmetic mutations."""
 
-    ARITH_MAX = 35
-
     def __init__(self, width: int = 8) -> None:
         self.width = width
 
@@ -406,7 +407,7 @@ class ArithMutator(Mutator):
 
         data = bytearray(data)
         pos = random.randint(0, len(data) - byte_width)
-        delta = random.randint(-self.ARITH_MAX, self.ARITH_MAX)
+        delta = random.randint(-ARITH_MAX, ARITH_MAX)
 
         if self.width == 8:
             data[pos] = (data[pos] + delta) & 0xFF
@@ -425,52 +426,14 @@ class ArithMutator(Mutator):
 class InterestingMutator(Mutator):
     """Interesting value mutations."""
 
-    INTERESTING_8 = [
-        0,
-        1,
-        16,
-        32,
-        64,
-        100,
-        127,
-        128,
-        255,
-    ]
-
-    INTERESTING_16 = [
-        0,
-        1,
-        128,
-        255,
-        256,
-        512,
-        1000,
-        1024,
-        4096,
-        32767,
-        32768,
-        65535,
-    ]
-
-    INTERESTING_32 = [
-        0,
-        1,
-        32768,
-        65535,
-        65536,
-        100663045,
-        2147483647,
-        4294967295,
-    ]
-
     def __init__(self, width: int = 8) -> None:
         self.width = width
         if width == 8:
-            self.values = self.INTERESTING_8
+            self.values = INTERESTING_8_UNSIGNED
         elif width == 16:
-            self.values = self.INTERESTING_16
+            self.values = INTERESTING_16_UNSIGNED
         else:
-            self.values = self.INTERESTING_32
+            self.values = INTERESTING_32_UNSIGNED
 
     def mutate(self, data: bytes, seed: SeedEntry) -> bytes:
         """Replace with interesting value."""
@@ -517,7 +480,7 @@ class HavocMutator(Mutator):
             elif mutation_type == 1:
                 # Set byte to interesting value
                 pos = random.randint(0, len(data) - 1)
-                data[pos] = random.choice(InterestingMutator.INTERESTING_8)
+                data[pos] = random.choice(INTERESTING_8_UNSIGNED)
 
             elif mutation_type == 2:
                 # Add/sub small value
@@ -581,7 +544,7 @@ class HavocMutator(Mutator):
                 elif mutation_type == 13:
                     data[pos : pos + 4] = b"\xff\xff\xff\xff"
                 elif mutation_type == 14:
-                    val = random.choice(InterestingMutator.INTERESTING_32)
+                    val = random.choice(INTERESTING_32_UNSIGNED)
                     struct.pack_into("<I", data, pos, val)
                 else:
                     # Swap adjacent bytes

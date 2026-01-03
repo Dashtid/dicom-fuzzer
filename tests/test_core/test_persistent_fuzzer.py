@@ -14,6 +14,11 @@ from pathlib import Path
 
 import pytest
 
+from dicom_fuzzer.core.constants import (
+    INTERESTING_8_UNSIGNED,
+    INTERESTING_16_UNSIGNED,
+    INTERESTING_32_UNSIGNED,
+)
 from dicom_fuzzer.core.persistent_fuzzer import (
     MAP_SIZE,
     ArithMutator,
@@ -488,7 +493,7 @@ class TestInterestingMutator:
 
         mutated = mutator.mutate(b"\x00", seed)
         assert len(mutated) == 1
-        assert mutated[0] in InterestingMutator.INTERESTING_8
+        assert mutated[0] in INTERESTING_8_UNSIGNED
 
     def test_16bit_interesting(self):
         """Test 16-bit interesting value mutation."""
@@ -508,10 +513,10 @@ class TestInterestingMutator:
 
     def test_interesting_values_defined(self):
         """Test interesting values are properly defined."""
-        assert 0 in InterestingMutator.INTERESTING_8
-        assert 255 in InterestingMutator.INTERESTING_8
-        assert 65535 in InterestingMutator.INTERESTING_16
-        assert 4294967295 in InterestingMutator.INTERESTING_32
+        assert 0 in INTERESTING_8_UNSIGNED
+        assert 255 in INTERESTING_8_UNSIGNED
+        assert 65535 in INTERESTING_16_UNSIGNED
+        assert 4294967295 in INTERESTING_32_UNSIGNED
 
 
 class TestHavocMutator:

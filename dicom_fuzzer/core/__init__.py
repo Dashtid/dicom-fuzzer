@@ -5,7 +5,19 @@ generation, validation, and advanced stability features including crash
 intelligence and stability tracking.
 """
 
+# Shared fuzzing constants (v1.7.0)
 from .config_validator import ConfigValidator, ValidationResult
+from .constants import (
+    ARITH_MAX,
+    INTERESTING_8,
+    INTERESTING_8_UNSIGNED,
+    INTERESTING_16,
+    INTERESTING_16_UNSIGNED,
+    INTERESTING_32,
+    INTERESTING_32_UNSIGNED,
+    MAP_SIZE,
+    MAP_SIZE_POW2,
+)
 
 # Corpus Minimization & Multi-Fuzzer Sync (v1.5.0)
 from .corpus_minimizer import (
@@ -131,6 +143,16 @@ from .types import MutationSeverity
 from .validator import DicomValidator
 
 __all__ = [
+    # Shared fuzzing constants (v1.7.0)
+    "ARITH_MAX",
+    "INTERESTING_8",
+    "INTERESTING_8_UNSIGNED",
+    "INTERESTING_16",
+    "INTERESTING_16_UNSIGNED",
+    "INTERESTING_32",
+    "INTERESTING_32_UNSIGNED",
+    "MAP_SIZE",
+    "MAP_SIZE_POW2",
     # Core functionality
     "DicomFuzzingError",
     "NetworkTimeoutError",

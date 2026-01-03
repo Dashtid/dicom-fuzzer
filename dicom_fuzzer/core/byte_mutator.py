@@ -31,6 +31,12 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
+from dicom_fuzzer.core.constants import (
+    ARITH_MAX,
+    INTERESTING_8,
+    INTERESTING_16,
+    INTERESTING_32,
+)
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -63,52 +69,6 @@ class ByteMutationType(Enum):
     SPLICE = "splice"
 
 
-# AFL's "interesting" values - boundary conditions that often trigger bugs
-INTERESTING_8 = [
-    -128,  # INT8_MIN
-    -1,  # All bits set
-    0,  # Zero
-    1,  # One
-    16,  # Power of 2
-    32,  # Power of 2
-    64,  # Power of 2
-    100,  # Common boundary
-    127,  # INT8_MAX
-]
-
-INTERESTING_16 = [
-    -32768,  # INT16_MIN
-    -129,  # Below INT8_MIN
-    -1,  # All bits set
-    0,  # Zero
-    1,  # One
-    128,  # Above INT8_MAX
-    255,  # UINT8_MAX
-    256,  # Above UINT8_MAX
-    512,  # Power of 2
-    1000,  # Common boundary
-    1024,  # Power of 2
-    4096,  # Power of 2
-    32767,  # INT16_MAX
-    65535,  # UINT16_MAX
-]
-
-INTERESTING_32 = [
-    -2147483648,  # INT32_MIN
-    -100663046,  # Large negative
-    -32769,  # Below INT16_MIN
-    -1,  # All bits set
-    0,  # Zero
-    1,  # One
-    32768,  # Above INT16_MAX
-    65535,  # UINT16_MAX
-    65536,  # Above UINT16_MAX
-    100663045,  # Large positive
-    2147483647,  # INT32_MAX
-    4294967295,  # UINT32_MAX (as signed: -1)
-]
-
-
 @dataclass
 class ByteMutationRecord:
     """Record of a byte-level mutation."""
@@ -131,7 +91,7 @@ class ByteMutatorConfig:
     enable_interesting: bool = True
 
     # Arithmetic range (AFL uses 35)
-    arith_max: int = 35
+    arith_max: int = ARITH_MAX
 
     # Havoc stage settings
     havoc_cycles: int = 256
