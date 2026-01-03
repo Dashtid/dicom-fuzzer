@@ -5,7 +5,19 @@ generation, validation, and advanced stability features including crash
 intelligence and stability tracking.
 """
 
+# Shared fuzzing constants (v1.7.0)
 from .config_validator import ConfigValidator, ValidationResult
+from .constants import (
+    ARITH_MAX,
+    INTERESTING_8,
+    INTERESTING_8_UNSIGNED,
+    INTERESTING_16,
+    INTERESTING_16_UNSIGNED,
+    INTERESTING_32,
+    INTERESTING_32_UNSIGNED,
+    MAP_SIZE,
+    MAP_SIZE_POW2,
+)
 
 # Corpus Minimization & Multi-Fuzzer Sync (v1.5.0)
 from .corpus_minimizer import (
@@ -30,6 +42,9 @@ from .crash_triage import (
     ExploitabilityRating,
     Severity,
 )
+
+# Dataset Mutation (v1.7.0)
+from .dataset_mutator import DatasetMutator
 from .dicom_series import DicomSeries
 
 # DICOM TLS Security Fuzzer (v1.5.0)
@@ -39,7 +54,6 @@ from .dicom_tls_fuzzer import (
     DICOMTLSFuzzer,
     DICOMTLSFuzzerConfig,
     PACSQueryInjector,
-    PDUType,
     QueryInjectionType,
     TLSFuzzResult,
     TLSSecurityTester,
@@ -61,6 +75,17 @@ from .differential_fuzzer import (
     ImplementationType,
     ParseResult,
     PydicomParser,
+)
+
+# DIMSE Protocol Types (v1.7.0)
+from .dimse_types import (
+    DICOMElement,
+    DIMSEFuzzingConfig,
+    DIMSEMessage,
+    FuzzingConfig,
+    QueryRetrieveLevel,
+    SOPClass,
+    UIDGenerator,
 )
 from .error_recovery import CampaignRecovery, CampaignStatus, SignalHandler
 from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
@@ -127,10 +152,20 @@ from .synthetic import (
 )
 from .target_runner import ExecutionStatus, TargetRunner
 from .test_minimizer import MinimizationStrategy, TestMinimizer
-from .types import MutationSeverity
+from .types import DICOMCommand, DIMSECommand, MutationSeverity, PDUType
 from .validator import DicomValidator
 
 __all__ = [
+    # Shared fuzzing constants (v1.7.0)
+    "ARITH_MAX",
+    "INTERESTING_8",
+    "INTERESTING_8_UNSIGNED",
+    "INTERESTING_16",
+    "INTERESTING_16_UNSIGNED",
+    "INTERESTING_32",
+    "INTERESTING_32_UNSIGNED",
+    "MAP_SIZE",
+    "MAP_SIZE_POW2",
     # Core functionality
     "DicomFuzzingError",
     "NetworkTimeoutError",
@@ -140,6 +175,20 @@ __all__ = [
     "DICOMGenerator",
     "DicomValidator",
     "MutationSeverity",
+    # Protocol types (v1.7.0)
+    "DICOMCommand",
+    "DIMSECommand",
+    "PDUType",
+    # DIMSE Protocol Types (v1.7.0)
+    "DICOMElement",
+    "DIMSEFuzzingConfig",
+    "DIMSEMessage",
+    "FuzzingConfig",
+    "QueryRetrieveLevel",
+    "SOPClass",
+    "UIDGenerator",
+    # Dataset Mutation (v1.7.0)
+    "DatasetMutator",
     # Target testing
     "TargetRunner",
     "ExecutionStatus",

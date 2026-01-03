@@ -8,7 +8,6 @@ Generates comprehensive, interactive HTML reports with:
 - Automated crash triage and prioritization
 - FDA compliance sections (SBOM, CVE coverage, test coverage)
 """
-# HTML template strings contain intentional CSS formatting
 
 from datetime import datetime
 from pathlib import Path
@@ -17,6 +16,11 @@ from dicom_fuzzer.core.crash_triage import (
     CrashTriageEngine,
 )
 from dicom_fuzzer.core.fuzzing_session import CrashRecord
+from dicom_fuzzer.core.html_templates import (
+    escape_html,
+    html_document_end,
+    html_document_start,
+)
 
 
 class EnhancedReportGenerator:
@@ -163,306 +167,7 @@ class EnhancedReportGenerator:
 
     def _html_header(self, title: str) -> str:
         """Generate HTML header with enhanced styling."""
-        return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title} - Fuzzing Report</title>
-    <style>
-        * {{ box-sizing: border-box; }}
-
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }}
-
-        .container {{
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
-        }}
-
-        .header {{
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-            color: white;
-            padding: 40px;
-        }}
-
-        .header h1 {{
-            margin: 0 0 10px 0;
-            font-size: 2.5em;
-            font-weight: 700;
-        }}
-
-        .header .subtitle {{
-            opacity: 0.9;
-            font-size: 1.1em;
-        }}
-
-        .content {{
-            padding: 40px;
-        }}
-
-        h2 {{
-            color: #2c3e50;
-            border-bottom: 3px solid #3498db;
-            padding-bottom: 10px;
-            margin-top: 40px;
-            font-size: 1.8em;
-        }}
-
-        h3 {{
-            color: #34495e;
-            margin-top: 30px;
-            font-size: 1.4em;
-        }}
-
-        .stats-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin: 30px 0;
-        }}
-
-        .stat-card {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 25px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
-        }}
-
-        .stat-card:hover {{
-            transform: translateY(-5px);
-        }}
-
-        .stat-value {{
-            font-size: 3em;
-            font-weight: bold;
-            margin: 10px 0;
-        }}
-
-        .stat-label {{
-            opacity: 0.9;
-            font-size: 0.9em;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }}
-
-        .crash-item {{
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-left: 5px solid #e74c3c;
-            margin: 20px 0;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }}
-
-        .crash-item.critical {{ border-left-color: #c0392b; background: #fff5f5; }}
-        .crash-item.high {{ border-left-color: #e74c3c; background: #fff8f8; }}
-        .crash-item.medium {{ border-left-color: #f39c12; background: #fffbf0; }}
-        .crash-item.low {{ border-left-color: #f1c40f; background: #fffff0; }}
-
-        .crash-header {{
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-        }}
-
-        .badge {{
-            display: inline-block;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.85em;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }}
-
-        .badge.critical {{ background: #c0392b; color: white; }}
-        .badge.high {{ background: #e74c3c; color: white; }}
-        .badge.medium {{ background: #f39c12; color: white; }}
-        .badge.low {{ background: #f1c40f; color: #333; }}
-        .badge.crash {{ background: #e74c3c; color: white; }}
-        .badge.hang {{ background: #f39c12; color: white; }}
-
-        .mutation-list {{
-            background: #f8f9fa;
-            border-radius: 6px;
-            padding: 15px;
-            margin: 15px 0;
-        }}
-
-        .mutation-item {{
-            background: white;
-            border-left: 3px solid #3498db;
-            padding: 12px;
-            margin: 10px 0;
-            border-radius: 4px;
-            font-size: 0.95em;
-        }}
-
-        .mutation-item .mutation-header {{
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 5px;
-        }}
-
-        .mutation-detail {{
-            color: #555;
-            margin: 5px 0;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9em;
-        }}
-
-        .code-block {{
-            background: #2c3e50;
-            color: #ecf0f1;
-            padding: 15px;
-            border-radius: 6px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9em;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }}
-
-        .info-grid {{
-            display: grid;
-            grid-template-columns: 200px 1fr;
-            gap: 10px;
-            margin: 15px 0;
-        }}
-
-        .info-label {{
-            font-weight: 600;
-            color: #555;
-        }}
-
-        .info-value {{
-            color: #2c3e50;
-            word-break: break-all;
-        }}
-
-        details {{
-            margin: 15px 0;
-        }}
-
-        summary {{
-            cursor: pointer;
-            font-weight: 600;
-            color: #3498db;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 6px;
-            user-select: none;
-        }}
-
-        summary:hover {{
-            background: #e9ecef;
-        }}
-
-        .alert {{
-            background: #e74c3c;
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-            font-size: 1.1em;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }}
-
-        .warning {{
-            background: #f39c12;
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-            font-size: 1.1em;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }}
-
-        .success {{
-            background: #27ae60;
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-            font-size: 1.1em;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }}
-
-        .file-path {{
-            background: #ecf0f1;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9em;
-            word-break: break-all;
-        }}
-
-        .timestamp {{
-            color: #95a5a6;
-            font-size: 0.9em;
-        }}
-
-        .repro-command {{
-            background: #2c3e50;
-            color: #2ecc71;
-            padding: 15px;
-            border-radius: 6px;
-            font-family: 'Courier New', monospace;
-            margin: 15px 0;
-            cursor: pointer;
-        }}
-
-        .repro-command:hover {{
-            background: #34495e;
-        }}
-
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }}
-
-        th, td {{
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e0e0e0;
-        }}
-
-        th {{
-            background: #34495e;
-            color: white;
-            font-weight: 600;
-        }}
-
-        tr:hover {{
-            background: #f8f9fa;
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-"""
+        return html_document_start(title)
 
     def _html_session_overview(self, session_info: dict, stats: dict) -> str:
         """Generate session overview section."""
@@ -716,7 +421,7 @@ class EnhancedReportGenerator:
             if crash.get("exception_message"):
                 html += f"""
                 <h4>Exception Message:</h4>
-                <div class="code-block">{self._escape_html(crash["exception_message"])}</div>
+                <div class="code-block">{escape_html(crash["exception_message"])}</div>
 """
 
             # Mutation history
@@ -744,12 +449,12 @@ class EnhancedReportGenerator:
 
                     if mut.get("original_value"):
                         html += f"""
-                            <div class="mutation-detail">Original: {self._escape_html(str(mut["original_value"])[:200])}</div>
+                            <div class="mutation-detail">Original: {escape_html(str(mut["original_value"])[:200])}</div>
 """
 
                     if mut.get("mutated_value"):
                         html += f"""
-                            <div class="mutation-detail">Mutated:  {self._escape_html(str(mut["mutated_value"])[:200])}</div>
+                            <div class="mutation-detail">Mutated:  {escape_html(str(mut["mutated_value"])[:200])}</div>
 """
 
                     html += """
@@ -776,7 +481,7 @@ class EnhancedReportGenerator:
                 html += f"""
                 <details>
                     <summary>Stack Trace</summary>
-                    <div class="code-block">{self._escape_html(crash["stack_trace"])}</div>
+                    <div class="code-block">{escape_html(crash["stack_trace"])}</div>
                 </details>
 """
 
@@ -1300,19 +1005,4 @@ class EnhancedReportGenerator:
 
     def _html_footer(self) -> str:
         """Generate HTML footer."""
-        return """
-        </div>
-    </div>
-</body>
-</html>
-"""
-
-    def _escape_html(self, text: str) -> str:
-        """Escape HTML special characters."""
-        return (
-            text.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;")
-            .replace("'", "&#39;")
-        )
+        return "    </div>" + html_document_end()
