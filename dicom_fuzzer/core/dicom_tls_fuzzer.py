@@ -29,25 +29,14 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from dicom_fuzzer.core.types import PDUType
+
 logger = logging.getLogger(__name__)
 
 
 # =============================================================================
 # DICOM Network Protocol Constants
 # =============================================================================
-
-
-# DICOM Upper Layer Protocol (DULP) PDU Types
-class PDUType(Enum):
-    """DICOM Protocol Data Unit types (PS3.8)."""
-
-    A_ASSOCIATE_RQ = 0x01  # Association Request
-    A_ASSOCIATE_AC = 0x02  # Association Accept
-    A_ASSOCIATE_RJ = 0x03  # Association Reject
-    P_DATA_TF = 0x04  # Data Transfer
-    A_RELEASE_RQ = 0x05  # Release Request
-    A_RELEASE_RP = 0x06  # Release Response
-    A_ABORT = 0x07  # Abort
 
 
 # Common DICOM Application Entity Titles
