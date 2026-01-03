@@ -111,6 +111,15 @@ from .lazy_loader import (
     create_deferred_loader,
     create_metadata_loader,
 )
+
+# Multi-Frame Handler (v1.5.0, modularized v1.8.0)
+from .multiframe_handler import (
+    FrameInfo,
+    MultiFrameHandler,
+    MultiFrameMutationRecord,
+    MultiFrameMutationStrategy,
+    create_multiframe_mutator,
+)
 from .mutator import DicomMutator
 from .parser import DicomParser
 from .persistent_fuzzer import (
@@ -315,4 +324,10 @@ __all__ = [
     "TargetCoverageCollector",
     "create_sync_node",
     "minimize_corpus",
+    # Multi-Frame Handler (v1.5.0, modularized v1.8.0)
+    "FrameInfo",
+    "MultiFrameHandler",
+    "MultiFrameMutationRecord",
+    "MultiFrameMutationStrategy",
+    "create_multiframe_mutator",
 ]
