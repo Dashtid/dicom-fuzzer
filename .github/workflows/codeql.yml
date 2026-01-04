@@ -50,6 +50,13 @@ jobs:
               - .venv
               - examples
               - scripts
+            # Exclude false positives: security testing tools intentionally test insecure protocols
+            query-filters:
+              - exclude:
+                  id: py/insecure-protocol
+                  paths:
+                    - dicom_fuzzer/core/tls_security_tester.py
+                    - dicom_fuzzer/core/dicom_auth_tester.py
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@5d4e8d1aca955e8d8589aabd499c5cae939e33c7  # v4
