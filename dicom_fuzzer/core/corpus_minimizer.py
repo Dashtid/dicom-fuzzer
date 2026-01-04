@@ -32,12 +32,16 @@ from pathlib import Path
 from typing import Any
 
 # Import unified types from central location
+from dicom_fuzzer.core.constants import CoverageType
 from dicom_fuzzer.core.coverage_types import SeedCoverageInfo
 
 logger = logging.getLogger(__name__)
 
 # Backward compatibility alias
 CoverageInfo = SeedCoverageInfo
+
+# Re-export CoverageType for backward compatibility
+__all__ = ["CoverageType", "CoverageInfo", "SeedCoverageInfo"]
 
 
 @dataclass
