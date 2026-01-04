@@ -50,13 +50,6 @@ jobs:
               - .venv
               - examples
               - scripts
-            # Exclude false positives: security testing tools intentionally test insecure protocols
-            query-filters:
-              - exclude:
-                  id: py/insecure-protocol
-                  paths:
-                    - dicom_fuzzer/core/tls_security_tester.py
-                    - dicom_fuzzer/core/dicom_auth_tester.py
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@5d4e8d1aca955e8d8589aabd499c5cae939e33c7  # v4
@@ -65,4 +58,22 @@ jobs:
         uses: github/codeql-action/analyze@5d4e8d1aca955e8d8589aabd499c5cae939e33c7  # v4
         with:
           category: "/language:${{matrix.language}}"
-          # upload: true is default, results are uploaded automatically
+          upload: false
+          output: sarif-results
+
+      # Filter out false positives from security testing files
+      # These files intentionally test deprecated TLS/SSL protocols
+      - name: Filter SARIF Results
+        uses: advanced-security/filter-sarif@f3b8118a9349d88f7b1c0c488476411145b6270d  # v1
+        with:
+          patterns: |
+            -dicom_fuzzer/core/tls_security_tester.py:py/insecure-protocol
+            -dicom_fuzzer/core/dicom_auth_tester.py:py/insecure-protocol
+          input: sarif-results/${{ matrix.language }}.sarif
+          output: sarif-results/${{ matrix.language }}.sarif
+
+      - name: Upload SARIF Results
+        uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7  # v4
+        with:
+          sarif_file: sarif-results/${{ matrix.language }}.sarif
+          category: "/language:${{matrix.language}}"
