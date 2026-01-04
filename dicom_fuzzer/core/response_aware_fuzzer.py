@@ -29,25 +29,13 @@ from datetime import datetime
 from enum import Enum, auto
 from typing import Any
 
+from dicom_fuzzer.core.constants import ProtocolResponseType
 from dicom_fuzzer.core.network_fuzzer import PDUType
 
 logger = logging.getLogger(__name__)
 
-
-class ResponseType(Enum):
-    """Classification of server responses."""
-
-    ACCEPT = auto()  # Normal acceptance (A-ASSOCIATE-AC)
-    REJECT = auto()  # Normal rejection (A-ASSOCIATE-RJ)
-    ABORT = auto()  # Protocol abort (A-ABORT)
-    DATA = auto()  # Data response (P-DATA-TF)
-    RELEASE = auto()  # Release response (A-RELEASE-RP)
-    TIMEOUT = auto()  # No response (timeout)
-    DISCONNECT = auto()  # Connection closed
-    MALFORMED = auto()  # Unparseable response
-    CRASH = auto()  # Server crash detected
-    HANG = auto()  # Server hang detected
-    ERROR = auto()  # Error response in data
+# Backward compatibility alias
+ResponseType = ProtocolResponseType
 
 
 class AnomalyType(Enum):

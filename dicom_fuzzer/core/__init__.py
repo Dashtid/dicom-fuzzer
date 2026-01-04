@@ -17,6 +17,16 @@ from .constants import (
     INTERESTING_32_UNSIGNED,
     MAP_SIZE,
     MAP_SIZE_POW2,
+    SEVERITY_SCORES,
+    BugSeverity,
+    ByteMutationType,
+    CrashSeverity,
+    GUIResponseType,
+    MutationType,
+    ProtocolResponseType,
+    ResponseType,
+    Severity,
+    SeverityLevel,
 )
 
 # Corpus Minimization & Multi-Fuzzer Sync (v1.5.0)
@@ -40,7 +50,6 @@ from .crash_triage import (
     CrashTriage,
     CrashTriageEngine,
     ExploitabilityRating,
-    Severity,
 )
 
 # Dataset Mutation (v1.7.0)
@@ -101,8 +110,6 @@ from .gui_monitor import (
     GUIResponse,
     MonitorConfig,
     ResponseAwareFuzzer,
-    ResponseType,
-    SeverityLevel,
     StateCoverageTracker,
     StateTransition,
 )
@@ -125,7 +132,6 @@ from .parser import DicomParser
 from .persistent_fuzzer import (
     CoverageMap,
     MOptScheduler,
-    MutationType,
     PersistentFuzzer,
     PowerSchedule,
     SeedEntry,
@@ -181,6 +187,18 @@ __all__ = [
     "INTERESTING_32_UNSIGNED",
     "MAP_SIZE",
     "MAP_SIZE_POW2",
+    # Unified Mutation Type Enum (v1.8.0)
+    "ByteMutationType",
+    "MutationType",
+    # Unified Severity and Response Type Enums (v1.8.0)
+    "BugSeverity",
+    "CrashSeverity",
+    "GUIResponseType",
+    "ProtocolResponseType",
+    "ResponseType",
+    "Severity",
+    "SeverityLevel",
+    "SEVERITY_SCORES",
     # Core functionality
     "DicomFuzzingError",
     "NetworkTimeoutError",
@@ -218,7 +236,6 @@ __all__ = [
     # Crash intelligence (v1.2.0)
     "CrashTriageEngine",
     "CrashTriage",
-    "Severity",
     "ExploitabilityRating",
     "TestMinimizer",
     "MinimizationStrategy",
@@ -257,8 +274,6 @@ __all__ = [
     "GUIResponse",
     "MonitorConfig",
     "ResponseAwareFuzzer",  # Backward compatibility alias for GUIFuzzer
-    "ResponseType",
-    "SeverityLevel",
     "StateCoverageTracker",
     "StateTransition",
     # Advanced Fuzzing Engines (v1.5.0)
@@ -287,7 +302,6 @@ __all__ = [
     # Persistent Mode Fuzzing
     "CoverageMap",
     "MOptScheduler",
-    "MutationType",
     "PersistentFuzzer",
     "PowerSchedule",
     "SeedEntry",

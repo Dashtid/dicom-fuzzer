@@ -41,6 +41,7 @@ from dicom_fuzzer.core.constants import (
     INTERESTING_16_UNSIGNED,
     INTERESTING_32_UNSIGNED,
     MAP_SIZE,
+    MutationType,
 )
 
 logger = logging.getLogger(__name__)
@@ -53,27 +54,6 @@ class _Particle(TypedDict):
     velocity: list[float]
     best_position: list[float]
     best_fitness: float
-
-
-class MutationType(Enum):
-    """Mutation types for MOpt scheduling."""
-
-    BIT_FLIP_1 = "bit_flip_1"
-    BIT_FLIP_2 = "bit_flip_2"
-    BIT_FLIP_4 = "bit_flip_4"
-    BYTE_FLIP_1 = "byte_flip_1"
-    BYTE_FLIP_2 = "byte_flip_2"
-    BYTE_FLIP_4 = "byte_flip_4"
-    ARITH_8 = "arith_8"
-    ARITH_16 = "arith_16"
-    ARITH_32 = "arith_32"
-    INTERESTING_8 = "interesting_8"
-    INTERESTING_16 = "interesting_16"
-    INTERESTING_32 = "interesting_32"
-    HAVOC = "havoc"
-    SPLICE = "splice"
-    DICOM_STRUCTURE = "dicom_structure"
-    DICOM_VR = "dicom_vr"
 
 
 class PowerSchedule(Enum):

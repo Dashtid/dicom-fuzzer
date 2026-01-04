@@ -9,11 +9,11 @@ Includes CVE-based security mutations by default for vulnerability discovery.
 import random
 import struct
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any
 
 import numpy as np
 
+from dicom_fuzzer.core.constants import MutationType
 from dicom_fuzzer.strategies.cve_mutations import (
     apply_cve_mutation,
     get_mutation_func,
@@ -24,54 +24,6 @@ from .corpus_manager import Seed
 from .coverage_instrumentation import CoverageInfo
 
 logger = get_logger(__name__)
-
-
-class MutationType(Enum):
-    """Types of mutations available."""
-
-    # Byte-level mutations
-    BIT_FLIP = "bit_flip"
-    BYTE_FLIP = "byte_flip"
-    RANDOM_BYTE = "random_byte"
-    BYTE_INSERT = "byte_insert"
-    BYTE_DELETE = "byte_delete"
-
-    # Arithmetic mutations
-    ARITHMETIC_INC = "arithmetic_inc"
-    ARITHMETIC_DEC = "arithmetic_dec"
-    ARITHMETIC_RANDOM = "arithmetic_random"
-
-    # Block mutations
-    BLOCK_REMOVE = "block_remove"
-    BLOCK_DUPLICATE = "block_duplicate"
-    BLOCK_SHUFFLE = "block_shuffle"
-
-    # DICOM-specific mutations
-    DICOM_TAG_CORRUPT = "dicom_tag_corrupt"
-    DICOM_VR_MISMATCH = "dicom_vr_mismatch"
-    DICOM_LENGTH_OVERFLOW = "dicom_length_overflow"
-    DICOM_SEQUENCE_NEST = "dicom_sequence_nest"
-    DICOM_TRANSFER_SYNTAX = "dicom_transfer_syntax"
-
-    # Interesting values
-    INTERESTING_BYTES = "interesting_bytes"
-    INTERESTING_INTS = "interesting_ints"
-    BOUNDARY_VALUES = "boundary_values"
-
-    # Grammar-based
-    GRAMMAR_MUTATE = "grammar_mutate"
-    DICTIONARY_REPLACE = "dictionary_replace"
-
-    # CVE-based security mutations (enabled by default)
-    CVE_HEAP_OVERFLOW = "cve_heap_overflow"
-    CVE_INTEGER_OVERFLOW = "cve_integer_overflow"
-    CVE_MALFORMED_LENGTH = "cve_malformed_length"
-    CVE_PATH_TRAVERSAL = "cve_path_traversal"
-    CVE_DEEP_NESTING = "cve_deep_nesting"
-    CVE_POLYGLOT = "cve_polyglot"
-    CVE_ENCAPSULATED_PIXEL = "cve_encapsulated_pixel"
-    CVE_JPEG_CODEC = "cve_jpeg_codec"
-    CVE_RANDOM = "cve_random"  # Apply random CVE mutation
 
 
 @dataclass

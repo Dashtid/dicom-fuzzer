@@ -39,6 +39,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from dicom_fuzzer.core.constants import BugSeverity
+
 logger = logging.getLogger(__name__)
 
 
@@ -65,16 +67,6 @@ class DifferenceType(Enum):
     CRASH = "crash"
     TIMEOUT = "timeout"
     MEMORY_DIVERGENCE = "memory_divergence"
-
-
-class BugSeverity(Enum):
-    """Severity classification for found bugs."""
-
-    CRITICAL = "critical"  # Crash, memory corruption
-    HIGH = "high"  # Security-relevant semantic difference
-    MEDIUM = "medium"  # Functional difference
-    LOW = "low"  # Minor inconsistency
-    INFO = "info"  # Informational difference
 
 
 @dataclass

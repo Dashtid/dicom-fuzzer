@@ -23,25 +23,9 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
+from dicom_fuzzer.core.constants import CrashSeverity
 from dicom_fuzzer.utils.hashing import hash_string
 from dicom_fuzzer.utils.identifiers import generate_crash_id
-
-
-class CrashSeverity(Enum):
-    """Crash severity classification.
-
-    CONCEPT: Not all crashes are equal:
-    - CRITICAL: Memory corruption, code execution possible
-    - HIGH: Denial of service, data corruption
-    - MEDIUM: Recoverable errors, degraded functionality
-    - LOW: Minor issues, error messages
-    """
-
-    CRITICAL = "critical"
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
-    UNKNOWN = "unknown"
 
 
 class CrashType(Enum):

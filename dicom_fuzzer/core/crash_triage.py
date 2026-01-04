@@ -14,21 +14,12 @@ Based on 2025 best practices for automated crash triaging systems.
 from dataclasses import dataclass, field
 from enum import Enum
 
+from dicom_fuzzer.core.constants import Severity
 from dicom_fuzzer.core.fuzzing_session import CrashRecord
 from dicom_fuzzer.utils.hashing import md5_hash
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-
-class Severity(Enum):
-    """Crash severity levels."""
-
-    CRITICAL = "critical"  # Likely exploitable
-    HIGH = "high"  # Potentially exploitable
-    MEDIUM = "medium"  # Stability issue
-    LOW = "low"  # Minor issue or expected behavior
-    INFO = "info"  # Informational only
 
 
 class ExploitabilityRating(Enum):

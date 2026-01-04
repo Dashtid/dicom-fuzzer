@@ -12,32 +12,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from dicom_fuzzer.core.constants import (
+    GUIResponseType,
+    SeverityLevel,
+)
 
-class ResponseType(Enum):
-    """Types of responses detected from GUI applications."""
-
-    NORMAL = "normal"  # App running normally
-    ERROR_DIALOG = "error_dialog"  # Error dialog detected
-    WARNING_DIALOG = "warning_dialog"  # Warning dialog detected
-    CRASH = "crash"  # Application crashed
-    HANG = "hang"  # Application not responding
-    MEMORY_SPIKE = "memory_spike"  # Abnormal memory usage
-    RENDER_ANOMALY = "render_anomaly"  # Rendering issue detected
-    RESOURCE_EXHAUSTION = "resource_exhaustion"  # Out of resources
-
-
-class SeverityLevel(Enum):
-    """Severity levels for detected issues."""
-
-    INFO = "info"
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+# Backward compatibility aliases
+ResponseType = GUIResponseType
 
 
 @dataclass
