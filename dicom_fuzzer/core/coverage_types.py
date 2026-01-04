@@ -22,14 +22,9 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
 
-from dicom_fuzzer.core.constants import MAP_SIZE
+from dicom_fuzzer.core.constants import MAP_SIZE, DICOMState, StateTransitionType
 from dicom_fuzzer.utils.hashing import hash_string
-
-if TYPE_CHECKING:
-    pass
-
 
 # =============================================================================
 # Execution Coverage Types
@@ -286,10 +281,10 @@ class ProtocolStateTransition:
 
     """
 
-    from_state: Any  # DICOMState - using Any to avoid circular import at runtime
-    to_state: Any  # DICOMState
+    from_state: DICOMState
+    to_state: DICOMState
     trigger_message: bytes = b""
-    transition_type: Any = None  # StateTransitionType
+    transition_type: StateTransitionType | None = None
     response: bytes = b""
     duration_ms: float = 0.0
     timestamp: float = 0.0
@@ -319,7 +314,7 @@ class StateFingerprint:
     """
 
     hash_value: str
-    state: Any  # DICOMState
+    state: DICOMState
     timestamp: float = 0.0
     coverage_bitmap: bytes = b""
     response_pattern: str = ""
@@ -365,17 +360,17 @@ class StateCoverage:
 
     """
 
-    visited_states: set[Any] = field(default_factory=set)  # set[DICOMState]
-    state_transitions: dict[tuple[Any, Any], int] = field(
+    visited_states: set[DICOMState] = field(default_factory=set)
+    state_transitions: dict[tuple[DICOMState, DICOMState], int] = field(
         default_factory=lambda: defaultdict(int)
     )
     unique_fingerprints: dict[str, StateFingerprint] = field(default_factory=dict)
-    state_depths: dict[Any, int] = field(default_factory=dict)  # dict[DICOMState, int]
+    state_depths: dict[DICOMState, int] = field(default_factory=dict)
     total_transitions: int = 0
     new_states_found: int = 0
     new_transitions_found: int = 0
 
-    def add_state(self, state: Any, depth: int = 0) -> bool:
+    def add_state(self, state: DICOMState, depth: int = 0) -> bool:
         """Add a visited state. Returns True if new."""
         is_new = state not in self.visited_states
         self.visited_states.add(state)
@@ -385,7 +380,7 @@ class StateCoverage:
             self.new_states_found += 1
         return is_new
 
-    def add_transition(self, from_state: Any, to_state: Any) -> bool:
+    def add_transition(self, from_state: DICOMState, to_state: DICOMState) -> bool:
         """Add a state transition. Returns True if new."""
         key = (from_state, to_state)
         is_new = self.state_transitions[key] == 0
@@ -416,7 +411,7 @@ class StateCoverage:
         transition_ratio = len(self.state_transitions) / max_transitions
         return (visited_ratio * 0.6 + transition_ratio * 0.4) * 100
 
-    def get_uncovered_states(self, all_states: set[Any]) -> set[Any]:
+    def get_uncovered_states(self, all_states: set[DICOMState]) -> set[DICOMState]:
         """Get states not yet visited."""
         return all_states - self.visited_states
 

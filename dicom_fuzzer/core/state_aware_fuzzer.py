@@ -28,53 +28,17 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum, auto
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
-
-class DICOMState(Enum):
-    """DICOM protocol states based on DIMSE state machine."""
-
-    IDLE = auto()
-    ASSOCIATION_REQUESTED = auto()
-    ASSOCIATION_ESTABLISHED = auto()
-    ASSOCIATION_REJECTED = auto()
-    DATA_TRANSFER = auto()
-    RELEASE_REQUESTED = auto()
-    RELEASE_COMPLETED = auto()
-    ABORT = auto()
-    # Extended states for sub-operations
-    C_STORE_PENDING = auto()
-    C_FIND_PENDING = auto()
-    C_MOVE_PENDING = auto()
-    C_GET_PENDING = auto()
-    N_CREATE_PENDING = auto()
-    N_SET_PENDING = auto()
-    N_DELETE_PENDING = auto()
-    N_ACTION_PENDING = auto()
-    N_EVENT_PENDING = auto()
-
-
-class StateTransitionType(Enum):
-    """Types of state transitions."""
-
-    VALID = "valid"
-    INVALID = "invalid"
-    TIMEOUT = "timeout"
-    ERROR = "error"
-    CRASH = "crash"
-
-
-# Import unified types from coverage_types
-# (after enums to avoid circular import since coverage_types TYPE_CHECKING imports DICOMState)
-from dicom_fuzzer.core.coverage_types import (  # noqa: E402
+from dicom_fuzzer.core.constants import DICOMState, StateTransitionType
+from dicom_fuzzer.core.coverage_types import (
     ProtocolStateTransition,
     StateCoverage,
     StateFingerprint,
 )
+
+logger = logging.getLogger(__name__)
 
 # Backward compatibility alias
 StateTransition = ProtocolStateTransition

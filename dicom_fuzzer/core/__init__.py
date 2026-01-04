@@ -22,12 +22,14 @@ from .constants import (
     ByteMutationType,
     CoverageType,
     CrashSeverity,
+    DICOMState,
     GUIResponseType,
     MutationType,
     ProtocolResponseType,
     ResponseType,
     Severity,
     SeverityLevel,
+    StateTransitionType,
 )
 
 # Corpus Minimization & Multi-Fuzzer Sync (v1.5.0)
@@ -165,7 +167,6 @@ from .series_validator import (
 from .series_writer import SeriesMetadata, SeriesWriter
 from .stability_tracker import StabilityMetrics, StabilityTracker
 from .state_aware_fuzzer import (
-    DICOMState,
     MessageSequence,
     ProtocolMessage,
     StateAwareFuzzer,
@@ -301,6 +302,7 @@ __all__ = [
     # Advanced Fuzzing Engines (v1.5.0)
     # State-Aware Protocol Fuzzing
     "DICOMState",
+    "StateTransitionType",
     "MessageSequence",
     "ProtocolMessage",
     "StateAwareFuzzer",
