@@ -314,7 +314,8 @@ class TestStateCoverage:
         """Test getting uncovered states."""
         cov = StateCoverage()
         cov.add_state(DICOMState.IDLE)
-        uncovered = cov.get_uncovered_states()
+        all_states = set(DICOMState)
+        uncovered = cov.get_uncovered_states(all_states)
         assert DICOMState.IDLE not in uncovered
         assert DICOMState.ABORT in uncovered
         assert len(uncovered) == len(DICOMState) - 1

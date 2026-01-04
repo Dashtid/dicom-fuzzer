@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any
 
+from dicom_fuzzer.core.constants import SEVERITY_SCORES, Severity
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -58,16 +59,6 @@ class RootCauseCategory(Enum):
     PARSING_ERROR = auto()
     PROTOCOL_VIOLATION = auto()
     UNKNOWN = auto()
-
-
-class Severity(Enum):
-    """Crash severity levels."""
-
-    CRITICAL = 5  # Remote code execution potential
-    HIGH = 4  # Memory corruption, privilege escalation
-    MEDIUM = 3  # Denial of service, info disclosure
-    LOW = 2  # Limited impact crashes
-    INFO = 1  # Non-security crashes
 
 
 @dataclass
@@ -615,9 +606,11 @@ class SemanticBucketer:
 
         """
         filtered = [
-            b for b in self.buckets.values() if b.severity.value >= min_severity.value
+            b
+            for b in self.buckets.values()
+            if SEVERITY_SCORES[b.severity] >= SEVERITY_SCORES[min_severity]
         ]
-        return sorted(filtered, key=lambda b: b.severity.value, reverse=True)
+        return sorted(filtered, key=lambda b: SEVERITY_SCORES[b.severity], reverse=True)
 
     def get_buckets_by_impact(self, impact: ImpactCategory) -> list[SemanticBucket]:
         """Get buckets with a specific impact category.

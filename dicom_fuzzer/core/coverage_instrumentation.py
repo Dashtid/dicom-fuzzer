@@ -9,37 +9,18 @@ import threading
 import time
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+# Import unified coverage types
+from dicom_fuzzer.core.coverage_types import (
+    CoverageInfo,
+    ExecutionCoverageInfo,
+)
 from dicom_fuzzer.utils.hashing import hash_string, short_hash
 
-
-@dataclass
-class CoverageInfo:
-    """Stores coverage information for a single execution."""
-
-    edges: set[tuple[str, int, str, int]] = field(default_factory=set)
-    branches: set[tuple[str, int, bool]] = field(default_factory=set)
-    functions: set[str] = field(default_factory=set)
-    lines: set[tuple[str, int]] = field(default_factory=set)
-    execution_time: float = 0.0
-    input_hash: str | None = None
-    new_coverage: bool = False
-
-    def merge(self, other: "CoverageInfo") -> None:
-        """Merge another coverage info into this one."""
-        self.edges.update(other.edges)
-        self.branches.update(other.branches)
-        self.functions.update(other.functions)
-        self.lines.update(other.lines)
-
-    def get_coverage_hash(self) -> str:
-        """Generate a unique hash for this coverage signature."""
-        coverage_data = sorted(self.edges) + sorted(self.branches)
-        coverage_str = str(coverage_data)
-        return hash_string(coverage_str, 16)
+# Re-export for backward compatibility
+__all__ = ["CoverageInfo", "ExecutionCoverageInfo", "CoverageTracker"]
 
 
 class CoverageTracker:
