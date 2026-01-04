@@ -121,7 +121,8 @@ class TLSSecurityTester:
                 sock.settimeout(self.config.timeout)
                 sock.connect((self.config.target_host, self.config.target_port))
 
-                with context.wrap_socket(sock) as ssock:
+                # Security testing: intentionally test deprecated TLS versions
+                with context.wrap_socket(sock) as ssock:  # lgtm[py/insecure-protocol]
                     actual_version = ssock.version()
 
                     # TLSv1.0 and TLSv1.1 are deprecated
@@ -207,7 +208,8 @@ class TLSSecurityTester:
                 sock.settimeout(self.config.timeout)
                 sock.connect((self.config.target_host, self.config.target_port))
 
-                with context.wrap_socket(sock) as ssock:
+                # Security testing: intentionally test weak ciphers
+                with context.wrap_socket(sock) as ssock:  # lgtm[py/insecure-protocol]
                     negotiated = ssock.cipher()
 
                     return TLSFuzzResult(
@@ -280,7 +282,8 @@ class TLSSecurityTester:
                 sock.settimeout(self.config.timeout)
                 sock.connect((self.config.target_host, self.config.target_port))
 
-                with context.wrap_socket(sock) as ssock:
+                # Security testing: intentionally bypass cert validation
+                with context.wrap_socket(sock) as ssock:  # lgtm[py/insecure-protocol]
                     cert = ssock.getpeercert(binary_form=True)
 
                     return TLSFuzzResult(
@@ -322,7 +325,8 @@ class TLSSecurityTester:
                 sock.connect((self.config.target_host, self.config.target_port))
 
                 try:
-                    with context.wrap_socket(
+                    # Security testing: intentionally test expired cert handling
+                    with context.wrap_socket(  # lgtm[py/insecure-protocol]
                         sock, server_hostname=self.config.target_host
                     ):
                         return TLSFuzzResult(
@@ -381,7 +385,10 @@ class TLSSecurityTester:
                 sock.connect((self.config.target_host, self.config.target_port))
 
                 try:
-                    with context.wrap_socket(sock, server_hostname=wrong_hostname):
+                    # Security testing: intentionally test hostname mismatch
+                    with context.wrap_socket(
+                        sock, server_hostname=wrong_hostname
+                    ):  # lgtm[py/insecure-protocol]
                         return TLSFuzzResult(
                             test_type="hostname_mismatch",
                             target=f"{self.config.target_host}:{self.config.target_port}",

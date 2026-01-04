@@ -72,10 +72,11 @@ class DICOMAuthTester:
                 sock.connect((self.config.target_host, self.config.target_port))
 
                 if self.config.use_tls:
+                    # Security testing: intentionally allow weak TLS for vulnerability detection
                     context = ssl.create_default_context()
                     context.check_hostname = False
                     context.verify_mode = ssl.CERT_NONE
-                    sock = context.wrap_socket(sock)
+                    sock = context.wrap_socket(sock)  # lgtm[py/insecure-protocol]
 
                 sock.send(pdu)
                 response = sock.recv(4096)
@@ -220,10 +221,11 @@ class DICOMAuthTester:
                 sock.connect((self.config.target_host, self.config.target_port))
 
                 if self.config.use_tls:
+                    # Security testing: intentionally allow weak TLS for vulnerability detection
                     context = ssl.create_default_context()
                     context.check_hostname = False
                     context.verify_mode = ssl.CERT_NONE
-                    sock = context.wrap_socket(sock)
+                    sock = context.wrap_socket(sock)  # lgtm[py/insecure-protocol]
 
                 sock.send(pdu)
                 response = sock.recv(4096)

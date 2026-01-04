@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from dicom_fuzzer.core.gui_monitor_types import (
     GUIResponse,
@@ -29,8 +29,8 @@ from dicom_fuzzer.core.gui_monitor_types import (
 )
 from dicom_fuzzer.core.state_coverage import StateCoverageTracker
 
-if TYPE_CHECKING:
-    from dicom_fuzzer.core.gui_monitor import GUIMonitor
+# Note: GUIMonitor is imported at runtime in __init__ to avoid circular import
+# TYPE_CHECKING import not needed with 'from __future__ import annotations'
 
 # Optional imports for process management
 try:

@@ -52,13 +52,13 @@ class MutationStrategyBase(ABC):
             Tuple of (mutated Dataset, list of mutation records)
 
         """
-        ...
+        pass  # Abstract method - implemented by subclasses
 
     @property
     @abstractmethod
     def strategy_name(self) -> str:
         """Return the strategy name for record-keeping."""
-        ...
+        pass  # Abstract property - implemented by subclasses
 
 
 __all__ = ["MutationStrategyBase"]

@@ -151,8 +151,8 @@ class CoverageGuidedMutator:
 
     def _init_strategies(self) -> None:
         """Initialize all mutation strategies."""
-        # Basic mutations
-        for mutation_type in MutationType:
+        # Basic mutations - iterate over enum members explicitly
+        for mutation_type in list(MutationType):
             self.strategies[mutation_type] = MutationStrategy(mutation_type)
 
         # Disable certain strategies if not DICOM-aware
@@ -832,7 +832,7 @@ class CoverageGuidedMutator:
         recent_history = self.mutation_history[-500:]
         recent_success = {}
 
-        for mutation_type in MutationType:
+        for mutation_type in list(MutationType):
             successes = sum(
                 1 for mt, success in recent_history if mt == mutation_type and success
             )
