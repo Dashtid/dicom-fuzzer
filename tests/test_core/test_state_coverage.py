@@ -23,7 +23,8 @@ class TestStateTransition:
         assert transition.from_state == "initial"
         assert transition.to_state == "loading"
         assert transition.trigger == "file_open"
-        assert transition.timestamp == 0.0
+        # __post_init__ auto-sets timestamp to time.time() when 0
+        assert transition.timestamp > 0
         assert transition.test_file is None
 
     def test_full_initialization(self) -> None:

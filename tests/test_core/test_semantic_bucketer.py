@@ -60,18 +60,23 @@ class TestSeverity:
     """Tests for Severity enum."""
 
     def test_severity_levels(self):
-        """Test severity levels exist and have correct values."""
-        assert Severity.CRITICAL.value == 5
-        assert Severity.HIGH.value == 4
-        assert Severity.MEDIUM.value == 3
-        assert Severity.LOW.value == 2
-        assert Severity.INFO.value == 1
+        """Test severity levels exist and have correct string values."""
+        # After unification, Severity inherits from str, Enum
+        assert Severity.CRITICAL.value == "critical"
+        assert Severity.HIGH.value == "high"
+        assert Severity.MEDIUM.value == "medium"
+        assert Severity.LOW.value == "low"
+        assert Severity.INFO.value == "info"
+        assert Severity.UNKNOWN.value == "unknown"
 
     def test_severity_ordering(self):
-        """Test severity ordering."""
-        assert Severity.CRITICAL.value > Severity.HIGH.value
-        assert Severity.HIGH.value > Severity.MEDIUM.value
-        assert Severity.MEDIUM.value > Severity.LOW.value
+        """Test severity ordering using SEVERITY_SCORES."""
+        from dicom_fuzzer.core.constants import SEVERITY_SCORES
+
+        assert SEVERITY_SCORES[Severity.CRITICAL] > SEVERITY_SCORES[Severity.HIGH]
+        assert SEVERITY_SCORES[Severity.HIGH] > SEVERITY_SCORES[Severity.MEDIUM]
+        assert SEVERITY_SCORES[Severity.MEDIUM] > SEVERITY_SCORES[Severity.LOW]
+        assert SEVERITY_SCORES[Severity.LOW] > SEVERITY_SCORES[Severity.INFO]
 
 
 class TestCrashContext:

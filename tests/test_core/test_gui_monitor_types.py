@@ -47,7 +47,7 @@ class TestSeverityLevel:
 
     def test_all_values_exist(self) -> None:
         """Verify all severity levels exist."""
-        expected = ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"]
+        expected = ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL", "UNKNOWN"]
         for name in expected:
             assert hasattr(SeverityLevel, name)
 
@@ -55,10 +55,12 @@ class TestSeverityLevel:
         """Verify enum values are strings."""
         assert SeverityLevel.INFO.value == "info"
         assert SeverityLevel.CRITICAL.value == "critical"
+        assert SeverityLevel.UNKNOWN.value == "unknown"
 
     def test_member_count(self) -> None:
         """Verify the correct number of severity levels."""
-        assert len(SeverityLevel) == 5
+        # After unification: INFO, LOW, MEDIUM, HIGH, CRITICAL, UNKNOWN
+        assert len(SeverityLevel) == 6
 
 
 class TestGUIResponse:
