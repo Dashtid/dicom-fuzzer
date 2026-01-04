@@ -81,12 +81,17 @@ class TestFrameTimeCorruptionStrategy:
 
     def test_mutate_returns_records(self) -> None:
         """Test mutate returns mutation records."""
+        from unittest.mock import patch
+
         dataset = Dataset()
         dataset.NumberOfFrames = 5
         dataset.FrameTime = 33.33
 
         strategy = FrameTimeCorruptionStrategy(severity="moderate")
-        mutated, records = strategy.mutate(dataset, mutation_count=1)
+        # Force a mutation type that always creates a record (not corrupt_temporal_index
+        # which requires PerFrameFunctionalGroupsSequence to create records)
+        with patch("random.choice", return_value="negative_frame_time"):
+            mutated, records = strategy.mutate(dataset, mutation_count=1)
 
         assert isinstance(records, list)
         assert len(records) >= 1
