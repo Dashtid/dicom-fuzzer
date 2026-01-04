@@ -67,47 +67,8 @@ class PowerSchedule(Enum):
     LINEAR = "linear"  # Linear
 
 
-@dataclass
-class CoverageMap:
-    """Shared memory coverage bitmap."""
-
-    size: int = MAP_SIZE
-    virgin_bits: bytearray = field(default_factory=lambda: bytearray(MAP_SIZE))
-    total_bits: int = 0
-    new_bits: int = 0
-
-    def update(self, trace_bits: bytes) -> bool:
-        """Update coverage map with new trace.
-
-        Returns:
-            True if new coverage was found.
-
-        """
-        has_new = False
-
-        for i, (virgin, trace) in enumerate(
-            zip(self.virgin_bits, trace_bits, strict=False)
-        ):
-            if trace and not virgin:
-                self.virgin_bits[i] = trace
-                self.new_bits += 1
-                has_new = True
-            elif trace and virgin:
-                # Count transitions
-                if trace > virgin:
-                    self.virgin_bits[i] = trace
-                    has_new = True
-
-        self.total_bits = sum(1 for b in self.virgin_bits if b > 0)
-        return has_new
-
-    def get_coverage_percent(self) -> float:
-        """Get coverage as percentage of map."""
-        return (self.total_bits / self.size) * 100
-
-    def compute_hash(self) -> str:
-        """Compute hash of coverage state."""
-        return hashlib.sha256(bytes(self.virgin_bits)).hexdigest()[:16]
+# Import unified CoverageMap from coverage_types (after enums for consistency)
+from dicom_fuzzer.core.coverage_types import CoverageMap  # noqa: E402
 
 
 @dataclass

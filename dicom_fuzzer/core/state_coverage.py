@@ -14,35 +14,14 @@ from __future__ import annotations
 
 import threading
 import time
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+# Import unified state transition type
+from dicom_fuzzer.core.coverage_types import GUIStateTransition
 
-@dataclass
-class StateTransition:
-    """Represents a state transition in the application.
-
-    AFLNet-style state tracking for GUI applications.
-    """
-
-    from_state: str
-    to_state: str
-    trigger: str  # What caused the transition (e.g., "file_load", "dialog_open")
-    timestamp: float = 0.0
-    test_file: Path | None = None
-
-    def __hash__(self) -> int:
-        return hash((self.from_state, self.to_state, self.trigger))
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, StateTransition):
-            return False
-        return (
-            self.from_state == other.from_state
-            and self.to_state == other.to_state
-            and self.trigger == other.trigger
-        )
+# Backward compatibility alias
+StateTransition = GUIStateTransition
 
 
 class StateCoverageTracker:

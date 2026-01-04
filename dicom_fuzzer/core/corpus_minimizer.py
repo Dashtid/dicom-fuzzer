@@ -31,51 +31,13 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+# Import unified types from central location
+from dicom_fuzzer.core.coverage_types import SeedCoverageInfo
+
 logger = logging.getLogger(__name__)
 
-
-# =============================================================================
-# Coverage Tracking
-# =============================================================================
-
-
-class CoverageType(Enum):
-    """Types of coverage tracking."""
-
-    EDGE = "edge"  # Basic block edge coverage
-    BRANCH = "branch"  # Branch coverage
-    PATH = "path"  # Full path coverage
-    FUNCTION = "function"  # Function-level coverage
-
-
-@dataclass
-class CoverageInfo:
-    """Coverage information for a seed.
-
-    Attributes:
-        seed_path: Path to the seed file
-        coverage_hash: Hash of coverage bitmap
-        edges_hit: Number of unique edges hit
-        branches_hit: Number of unique branches hit
-        bitmap: Raw coverage bitmap (optional)
-        exec_time_us: Execution time in microseconds
-        file_size: Size of seed file in bytes
-
-    """
-
-    seed_path: Path
-    coverage_hash: str = ""
-    edges_hit: int = 0
-    branches_hit: int = 0
-    bitmap: bytes = b""
-    exec_time_us: float = 0.0
-    file_size: int = 0
-
-    def __post_init__(self) -> None:
-        if not self.coverage_hash and self.bitmap:
-            self.coverage_hash = hashlib.sha256(self.bitmap).hexdigest()[:16]
-        if self.seed_path and self.seed_path.exists():
-            self.file_size = self.seed_path.stat().st_size
+# Backward compatibility alias
+CoverageInfo = SeedCoverageInfo
 
 
 @dataclass

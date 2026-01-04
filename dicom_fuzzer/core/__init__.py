@@ -20,6 +20,7 @@ from .constants import (
     SEVERITY_SCORES,
     BugSeverity,
     ByteMutationType,
+    CoverageType,
     CrashSeverity,
     GUIResponseType,
     MutationType,
@@ -35,8 +36,6 @@ from .corpus_minimizer import (
     CorpusStats,
     CorpusSynchronizer,
     CoverageCollector,
-    CoverageInfo,
-    CoverageType,
     FuzzerNode,
     MinimizationConfig,
     SimpleCoverageCollector,
@@ -45,6 +44,21 @@ from .corpus_minimizer import (
     TargetCoverageCollector,
     create_sync_node,
     minimize_corpus,
+)
+
+# Unified Coverage Types (v1.8.0)
+from .coverage_types import (
+    CoverageInfo,
+    CoverageInsight,
+    CoverageMap,
+    CoverageSnapshot,
+    ExecutionCoverageInfo,
+    GUIStateTransition,
+    ProtocolStateTransition,
+    SeedCoverageInfo,
+    StateCoverage,
+    StateFingerprint,
+    StateTransition,
 )
 from .crash_triage import (
     CrashTriage,
@@ -111,7 +125,6 @@ from .gui_monitor import (
     MonitorConfig,
     ResponseAwareFuzzer,
     StateCoverageTracker,
-    StateTransition,
 )
 from .lazy_loader import (
     LazyDicomLoader,
@@ -130,7 +143,6 @@ from .multiframe_handler import (
 from .mutator import DicomMutator
 from .parser import DicomParser
 from .persistent_fuzzer import (
-    CoverageMap,
     MOptScheduler,
     PersistentFuzzer,
     PowerSchedule,
@@ -157,8 +169,6 @@ from .state_aware_fuzzer import (
     MessageSequence,
     ProtocolMessage,
     StateAwareFuzzer,
-    StateCoverage,
-    StateFingerprint,
     StateGuidedHavoc,
     StateInferenceEngine,
     StateMutator,
@@ -199,6 +209,19 @@ __all__ = [
     "Severity",
     "SeverityLevel",
     "SEVERITY_SCORES",
+    # Unified Coverage Types (v1.8.0)
+    "CoverageInfo",
+    "CoverageInsight",
+    "CoverageMap",
+    "CoverageSnapshot",
+    "CoverageType",
+    "ExecutionCoverageInfo",
+    "GUIStateTransition",
+    "ProtocolStateTransition",
+    "SeedCoverageInfo",
+    "StateCoverage",
+    "StateFingerprint",
+    "StateTransition",
     # Core functionality
     "DicomFuzzingError",
     "NetworkTimeoutError",
@@ -275,15 +298,12 @@ __all__ = [
     "MonitorConfig",
     "ResponseAwareFuzzer",  # Backward compatibility alias for GUIFuzzer
     "StateCoverageTracker",
-    "StateTransition",
     # Advanced Fuzzing Engines (v1.5.0)
     # State-Aware Protocol Fuzzing
     "DICOMState",
     "MessageSequence",
     "ProtocolMessage",
     "StateAwareFuzzer",
-    "StateCoverage",
-    "StateFingerprint",
     "StateGuidedHavoc",
     "StateInferenceEngine",
     "StateMutator",
@@ -300,7 +320,6 @@ __all__ = [
     "ParseResult",
     "PydicomParser",
     # Persistent Mode Fuzzing
-    "CoverageMap",
     "MOptScheduler",
     "PersistentFuzzer",
     "PowerSchedule",
@@ -328,8 +347,6 @@ __all__ = [
     "CorpusStats",
     "CorpusSynchronizer",
     "CoverageCollector",
-    "CoverageInfo",
-    "CoverageType",
     "FuzzerNode",
     "MinimizationConfig",
     "SimpleCoverageCollector",

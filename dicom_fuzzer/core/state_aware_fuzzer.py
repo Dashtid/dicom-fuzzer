@@ -68,121 +68,16 @@ class StateTransitionType(Enum):
     CRASH = "crash"
 
 
-@dataclass
-class StateFingerprint:
-    """Fingerprint of a protocol state using LSH.
+# Import unified types from coverage_types
+# (after enums to avoid circular import since coverage_types TYPE_CHECKING imports DICOMState)
+from dicom_fuzzer.core.coverage_types import (  # noqa: E402
+    ProtocolStateTransition,
+    StateCoverage,
+    StateFingerprint,
+)
 
-    Based on StateAFL's approach of using locality-sensitive hashing
-    to identify unique application states from memory snapshots.
-    """
-
-    hash_value: str
-    state: DICOMState
-    timestamp: float = 0.0
-    coverage_bitmap: bytes = b""
-    response_pattern: str = ""
-    memory_regions: list[tuple[int, int, bytes]] = field(default_factory=list)
-    message_sequence_hash: str = ""
-
-    def __post_init__(self) -> None:
-        if not self.timestamp:
-            self.timestamp = time.time()
-
-    def similarity(self, other: StateFingerprint) -> float:
-        """Calculate Jaccard similarity with another fingerprint."""
-        if not self.coverage_bitmap or not other.coverage_bitmap:
-            return 0.0
-
-        # Convert to sets of covered edges
-        self_edges = {i for i, b in enumerate(self.coverage_bitmap) if b > 0}
-        other_edges = {i for i, b in enumerate(other.coverage_bitmap) if b > 0}
-
-        if not self_edges and not other_edges:
-            return 1.0
-        if not self_edges or not other_edges:
-            return 0.0
-
-        intersection = len(self_edges & other_edges)
-        union = len(self_edges | other_edges)
-        return intersection / union if union > 0 else 0.0
-
-
-@dataclass
-class StateTransition:
-    """Records a state transition in the protocol."""
-
-    from_state: DICOMState
-    to_state: DICOMState
-    trigger_message: bytes
-    transition_type: StateTransitionType
-    response: bytes = b""
-    duration_ms: float = 0.0
-    timestamp: float = 0.0
-    coverage_increase: int = 0
-
-    def __post_init__(self) -> None:
-        if not self.timestamp:
-            self.timestamp = time.time()
-
-
-@dataclass
-class StateCoverage:
-    """Tracks coverage of protocol states."""
-
-    visited_states: set[DICOMState] = field(default_factory=set)
-    state_transitions: dict[tuple[DICOMState, DICOMState], int] = field(
-        default_factory=lambda: defaultdict(int)
-    )
-    unique_fingerprints: dict[str, StateFingerprint] = field(default_factory=dict)
-    state_depths: dict[DICOMState, int] = field(default_factory=dict)
-    # Statistics
-    total_transitions: int = 0
-    new_states_found: int = 0
-    new_transitions_found: int = 0
-
-    def add_state(self, state: DICOMState, depth: int = 0) -> bool:
-        """Add a visited state. Returns True if new."""
-        is_new = state not in self.visited_states
-        self.visited_states.add(state)
-        if state not in self.state_depths or self.state_depths[state] > depth:
-            self.state_depths[state] = depth
-        if is_new:
-            self.new_states_found += 1
-        return is_new
-
-    def add_transition(self, from_state: DICOMState, to_state: DICOMState) -> bool:
-        """Add a state transition. Returns True if new."""
-        key = (from_state, to_state)
-        is_new = self.state_transitions[key] == 0
-        self.state_transitions[key] += 1
-        self.total_transitions += 1
-        if is_new:
-            self.new_transitions_found += 1
-        return is_new
-
-    def add_fingerprint(self, fingerprint: StateFingerprint) -> bool:
-        """Add a state fingerprint. Returns True if new/interesting."""
-        # Check similarity with existing fingerprints
-        for existing in self.unique_fingerprints.values():
-            if fingerprint.similarity(existing) > 0.95:
-                return False
-
-        self.unique_fingerprints[fingerprint.hash_value] = fingerprint
-        return True
-
-    def get_coverage_score(self) -> float:
-        """Calculate state coverage score."""
-        total_states = len(DICOMState)
-        visited_ratio = len(self.visited_states) / total_states
-        # Weight by transition coverage
-        max_transitions = total_states * total_states
-        transition_ratio = len(self.state_transitions) / max_transitions
-        return (visited_ratio * 0.6 + transition_ratio * 0.4) * 100
-
-    def get_uncovered_states(self) -> set[DICOMState]:
-        """Get states not yet visited."""
-        all_states = set(DICOMState)
-        return all_states - self.visited_states
+# Backward compatibility alias
+StateTransition = ProtocolStateTransition
 
 
 @dataclass
@@ -848,7 +743,9 @@ class StateAwareFuzzer:
                 "unique_fingerprints": len(self.coverage.unique_fingerprints),
             },
             "coverage_score": self.coverage.get_coverage_score(),
-            "uncovered_states": [s.name for s in self.coverage.get_uncovered_states()],
+            "uncovered_states": [
+                s.name for s in self.coverage.get_uncovered_states(set(DICOMState))
+            ],
         }
 
     def save_corpus(self, output_dir: Path | str) -> int:

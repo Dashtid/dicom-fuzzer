@@ -387,3 +387,29 @@ class ProtocolResponseType(str, Enum):
 
 # Default ResponseType alias for backward compatibility
 ResponseType = GUIResponseType
+
+
+# =============================================================================
+# Coverage Type Enum
+# Types of coverage tracking for unified coverage API
+# =============================================================================
+
+
+class CoverageType(str, Enum):
+    """Types of coverage tracking.
+
+    Used to categorize different coverage tracking approaches:
+        EDGE: Control-flow edge coverage (AFL-style)
+        BRANCH: Branch coverage with direction
+        PATH: Full execution path coverage
+        FUNCTION: Function-level coverage
+        LINE: Line-level source coverage
+        STATE: Protocol/GUI state coverage
+    """
+
+    EDGE = "edge"
+    BRANCH = "branch"
+    PATH = "path"
+    FUNCTION = "function"
+    LINE = "line"
+    STATE = "state"
