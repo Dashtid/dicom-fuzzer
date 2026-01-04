@@ -312,7 +312,6 @@ Enhanced fuzzing for 3D medical imaging applications that process patient studie
 
 - Updated SECURITY.md with 12 CVE samples table
 - Enhanced examples directory with new practical examples
-- Code coverage reporting with Codecov integration
 
 ## [1.3.0] - 2025-12-09 - Synthetic DICOM & Directory Support
 
