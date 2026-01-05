@@ -313,6 +313,96 @@ def parse_strategies(strategies_str: str | None) -> list:
     return [s for s in strategies if s in valid_strategies]
 
 
+def _check_dependencies(issues: list[str], warnings: list[str]) -> None:
+    """Check Python version and required dependencies."""
+    if sys.version_info < (3, 11):
+        warnings.append(
+            f"Python {sys.version_info.major}.{sys.version_info.minor} "
+            "detected. Python 3.11+ recommended for best performance."
+        )
+
+    try:
+        import pydicom  # noqa: F401
+    except ImportError:
+        issues.append("Missing required dependency: pydicom")
+
+    try:
+        import psutil  # noqa: F401
+    except ImportError:
+        warnings.append("Missing optional dependency: psutil (for resource monitoring)")
+
+
+def _check_disk_space(output_dir: Path, issues: list[str], warnings: list[str]) -> None:
+    """Check available disk space."""
+    try:
+        stat = shutil.disk_usage(output_dir.parent if output_dir.exists() else ".")
+        free_space_mb = stat.free / (1024 * 1024)
+        if free_space_mb < 100:
+            issues.append(
+                f"Insufficient disk space: {free_space_mb:.0f}MB (need >100MB)"
+            )
+        elif free_space_mb < 1024:
+            warnings.append(f"Low disk space: {free_space_mb:.0f}MB (recommend >1GB)")
+    except Exception as e:
+        warnings.append(f"Could not check disk space: {e}")
+
+
+def _check_output_dir(output_dir: Path, issues: list[str]) -> None:
+    """Check output directory is writable."""
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        test_file = output_dir / ".write_test"
+        test_file.write_text("test")
+        test_file.unlink()
+    except Exception as e:
+        issues.append(f"Output directory not writable: {e}")
+
+
+def _check_target(target: str | None, issues: list[str]) -> None:
+    """Check target executable exists."""
+    if not target:
+        return
+    target_path = Path(target)
+    if not target_path.exists():
+        issues.append(f"Target executable not found: {target}")
+    elif not target_path.is_file():
+        issues.append(f"Target path is not a file: {target}")
+
+
+def _check_resource_limits(
+    resource_limits: ResourceLimits | None, warnings: list[str]
+) -> None:
+    """Check resource limits are reasonable."""
+    if not resource_limits:
+        return
+    if resource_limits.max_memory_mb and resource_limits.max_memory_mb < 128:
+        warnings.append("Memory limit very low (<128MB), may cause frequent OOM errors")
+    if resource_limits.max_cpu_seconds and resource_limits.max_cpu_seconds < 1:
+        warnings.append("CPU time limit very low (<1s), may cause frequent timeouts")
+
+
+def _report_health_check(issues: list[str], warnings: list[str], verbose: bool) -> None:
+    """Report health check results."""
+    passed = len(issues) == 0
+    if not verbose and passed:
+        return
+
+    if issues:
+        cli.warning("Pre-flight check found critical issues:")
+        for issue in issues:
+            cli.error(issue)
+
+    if warnings and verbose:
+        cli.warning("Pre-flight check warnings:")
+        for warn_msg in warnings:
+            cli.warning(warn_msg)
+
+    if passed and not warnings:
+        cli.success("Pre-flight checks passed")
+    elif passed:
+        cli.success(f"Pre-flight checks passed with {len(warnings)} warning(s)")
+
+
 def pre_campaign_health_check(
     output_dir: Path,
     target: str | None = None,
@@ -334,89 +424,17 @@ def pre_campaign_health_check(
         tuple of (passed: bool, issues: list[str])
 
     """
-    issues = []
-    warnings = []
+    issues: list[str] = []
+    warnings: list[str] = []
 
-    # Check Python version
-    if sys.version_info < (3, 11):
-        warnings.append(
-            f"Python {sys.version_info.major}.{sys.version_info.minor} "
-            "detected. Python 3.11+ recommended for best performance."
-        )
+    _check_dependencies(issues, warnings)
+    _check_disk_space(output_dir, issues, warnings)
+    _check_output_dir(output_dir, issues)
+    _check_target(target, issues)
+    _check_resource_limits(resource_limits, warnings)
+    _report_health_check(issues, warnings, verbose)
 
-    # Check required dependencies
-    try:
-        import pydicom  # noqa: F401
-    except ImportError:
-        issues.append("Missing required dependency: pydicom")
-
-    try:
-        import psutil  # noqa: F401
-    except ImportError:
-        warnings.append("Missing optional dependency: psutil (for resource monitoring)")
-
-    # Check disk space
-    try:
-        stat = shutil.disk_usage(output_dir.parent if output_dir.exists() else ".")
-        free_space_mb = stat.free / (1024 * 1024)
-        if free_space_mb < 100:
-            issues.append(
-                f"Insufficient disk space: {free_space_mb:.0f}MB (need >100MB)"
-            )
-        elif free_space_mb < 1024:
-            warnings.append(f"Low disk space: {free_space_mb:.0f}MB (recommend >1GB)")
-    except Exception as e:
-        warnings.append(f"Could not check disk space: {e}")
-
-    # Check output directory is writable
-    try:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        test_file = output_dir / ".write_test"
-        test_file.write_text("test")
-        test_file.unlink()
-    except Exception as e:
-        issues.append(f"Output directory not writable: {e}")
-
-    # Check target executable if specified
-    if target:
-        target_path = Path(target)
-        if not target_path.exists():
-            issues.append(f"Target executable not found: {target}")
-        elif not target_path.is_file():
-            issues.append(f"Target path is not a file: {target}")
-
-    # Check resource limits are reasonable
-    if resource_limits:
-        if resource_limits.max_memory_mb and resource_limits.max_memory_mb < 128:
-            warnings.append(
-                "Memory limit very low (<128MB), may cause frequent OOM errors"
-            )
-
-        if resource_limits.max_cpu_seconds and resource_limits.max_cpu_seconds < 1:
-            warnings.append(
-                "CPU time limit very low (<1s), may cause frequent timeouts"
-            )
-
-    # Report results
-    passed = len(issues) == 0
-
-    if verbose or not passed:
-        if issues:
-            cli.warning("Pre-flight check found critical issues:")
-            for issue in issues:
-                cli.error(issue)
-
-        if warnings and verbose:
-            cli.warning("Pre-flight check warnings:")
-            for warn_msg in warnings:
-                cli.warning(warn_msg)
-
-        if passed and not warnings:
-            cli.success("Pre-flight checks passed")
-        elif passed:
-            cli.success(f"Pre-flight checks passed with {len(warnings)} warning(s)")
-
-    return passed, issues + warnings
+    return len(issues) == 0, issues + warnings
 
 
 # ============================================================================

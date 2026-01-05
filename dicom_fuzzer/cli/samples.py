@@ -304,6 +304,114 @@ def run_list_sources(args: argparse.Namespace) -> int:
     return 0
 
 
+def _generate_preamble_attacks(
+    output_dir: Path, verbose: bool
+) -> tuple[int, str | None]:
+    """Generate preamble attack samples."""
+    try:
+        from dicom_fuzzer.generators.preamble_attacks.generator import (
+            PreambleAttackGenerator,
+        )
+
+        preamble_dir = output_dir / "preamble_attacks"
+        preamble_dir.mkdir(parents=True, exist_ok=True)
+
+        gen = PreambleAttackGenerator()
+        count = 0
+
+        pe_path = gen.create_pe_dicom(preamble_dir / "pe_dicom_polyglot.dcm")
+        if pe_path:
+            count += 1
+            if verbose:
+                print(f"    [+] {pe_path.name}")
+
+        elf_path = gen.create_elf_dicom(preamble_dir / "elf_dicom_polyglot.dcm")
+        if elf_path:
+            count += 1
+            if verbose:
+                print(f"    [+] {elf_path.name}")
+
+        print(f"    [+] Preamble attacks: {count} samples")
+        return count, None
+    except Exception as e:
+        print(f"    [-] Failed: {e}")
+        return 0, f"Preamble attacks: {e}"
+
+
+def _generate_cve_samples(output_dir: Path, verbose: bool) -> tuple[int, str | None]:
+    """Generate CVE reproduction samples."""
+    try:
+        from dicom_fuzzer.generators.cve_reproductions.generator import (
+            CVESampleGenerator,
+        )
+
+        cve_dir = output_dir / "cve_reproductions"
+        cve_gen = CVESampleGenerator(cve_dir)
+        cve_results = cve_gen.generate_all()
+        count = sum(1 for p in cve_results.values() if p is not None)
+
+        if verbose:
+            for cve_id, cve_path in cve_results.items():
+                if cve_path:
+                    print(f"    [+] {cve_id}: {cve_path.name}")
+
+        print(f"    [+] CVE reproductions: {count} samples")
+        return count, None
+    except Exception as e:
+        print(f"    [-] Failed: {e}")
+        return 0, f"CVE samples: {e}"
+
+
+def _generate_parser_stress(output_dir: Path, verbose: bool) -> tuple[int, str | None]:
+    """Generate parser stress samples."""
+    try:
+        from dicom_fuzzer.generators.parser_stress.generator import (
+            ParserStressGenerator,
+        )
+
+        stress_dir = output_dir / "parser_stress"
+        stress_gen = ParserStressGenerator(stress_dir)
+        stress_results = stress_gen.generate_all()
+        count = sum(1 for p in stress_results.values() if p is not None)
+
+        if verbose:
+            for name, stress_path in stress_results.items():
+                if stress_path:
+                    print(f"    [+] {name}: {stress_path.name}")
+
+        print(f"    [+] Parser stress: {count} samples")
+        return count, None
+    except Exception as e:
+        print(f"    [-] Failed: {e}")
+        return 0, f"Parser stress: {e}"
+
+
+def _generate_compliance_violations(
+    output_dir: Path, verbose: bool
+) -> tuple[int, str | None]:
+    """Generate compliance violation samples."""
+    try:
+        from dicom_fuzzer.generators.compliance_violations.generator import (
+            ComplianceViolationGenerator,
+        )
+
+        compliance_dir = output_dir / "compliance_violations"
+        compliance_gen = ComplianceViolationGenerator(compliance_dir)
+        compliance_results = compliance_gen.generate_all()
+        count = sum(len(samples) for samples in compliance_results.values())
+
+        if verbose:
+            for category, samples in compliance_results.items():
+                for sample_name, sample_path in samples.items():
+                    print(f"    [+] {category}/{sample_name}: {sample_path.name}")
+
+        print(f"    [+] Compliance violations: {count} samples")
+        return count, None
+    except Exception as e:
+        print(f"    [-] Failed: {e}")
+        return 0, f"Compliance violations: {e}"
+
+
 def run_malicious(args: argparse.Namespace) -> int:
     """Generate all categories of malicious samples."""
     output_dir = Path(args.output)
@@ -320,103 +428,20 @@ def run_malicious(args: argparse.Namespace) -> int:
     total_generated = 0
     errors: list[str] = []
 
-    # Generate preamble attacks
-    print("[i] Generating preamble attack samples...")
-    try:
-        from dicom_fuzzer.generators.preamble_attacks.generator import (
-            PreambleAttackGenerator,
-        )
+    # Generate each category
+    generators = [
+        ("preamble attack", _generate_preamble_attacks),
+        ("CVE reproduction", _generate_cve_samples),
+        ("parser stress", _generate_parser_stress),
+        ("compliance violation", _generate_compliance_violations),
+    ]
 
-        preamble_dir = output_dir / "preamble_attacks"
-        preamble_dir.mkdir(parents=True, exist_ok=True)
-
-        gen = PreambleAttackGenerator()
-        pe_path = gen.create_pe_dicom(preamble_dir / "pe_dicom_polyglot.dcm")
-        if pe_path:
-            total_generated += 1
-            if args.verbose:
-                print(f"    [+] {pe_path.name}")
-
-        elf_path = gen.create_elf_dicom(preamble_dir / "elf_dicom_polyglot.dcm")
-        if elf_path:
-            total_generated += 1
-            if args.verbose:
-                print(f"    [+] {elf_path.name}")
-
-        print("    [+] Preamble attacks: 2 samples")
-    except Exception as e:
-        errors.append(f"Preamble attacks: {e}")
-        print(f"    [-] Failed: {e}")
-
-    # Generate CVE samples
-    print("[i] Generating CVE reproduction samples...")
-    try:
-        from dicom_fuzzer.generators.cve_reproductions.generator import (
-            CVESampleGenerator,
-        )
-
-        cve_dir = output_dir / "cve_reproductions"
-        cve_gen = CVESampleGenerator(cve_dir)
-        cve_results = cve_gen.generate_all()
-        cve_count = sum(1 for p in cve_results.values() if p is not None)
-        total_generated += cve_count
-
-        if args.verbose:
-            for cve_id, cve_path in cve_results.items():
-                if cve_path:
-                    print(f"    [+] {cve_id}: {cve_path.name}")
-
-        print(f"    [+] CVE reproductions: {cve_count} samples")
-    except Exception as e:
-        errors.append(f"CVE samples: {e}")
-        print(f"    [-] Failed: {e}")
-
-    # Generate parser stress samples
-    print("[i] Generating parser stress samples...")
-    try:
-        from dicom_fuzzer.generators.parser_stress.generator import (
-            ParserStressGenerator,
-        )
-
-        stress_dir = output_dir / "parser_stress"
-        stress_gen = ParserStressGenerator(stress_dir)
-        stress_results = stress_gen.generate_all()
-        stress_count = sum(1 for p in stress_results.values() if p is not None)
-        total_generated += stress_count
-
-        if args.verbose:
-            for name, stress_path in stress_results.items():
-                if stress_path:
-                    print(f"    [+] {name}: {stress_path.name}")
-
-        print(f"    [+] Parser stress: {stress_count} samples")
-    except Exception as e:
-        errors.append(f"Parser stress: {e}")
-        print(f"    [-] Failed: {e}")
-
-    # Generate compliance violation samples
-    print("[i] Generating compliance violation samples...")
-    try:
-        from dicom_fuzzer.generators.compliance_violations.generator import (
-            ComplianceViolationGenerator,
-        )
-
-        compliance_dir = output_dir / "compliance_violations"
-        compliance_gen = ComplianceViolationGenerator(compliance_dir)
-        compliance_results = compliance_gen.generate_all()
-        # compliance_results is dict[str, dict[str, Path]] - nested structure
-        compliance_count = sum(len(samples) for samples in compliance_results.values())
-        total_generated += compliance_count
-
-        if args.verbose:
-            for category, samples in compliance_results.items():
-                for sample_name, sample_path in samples.items():
-                    print(f"    [+] {category}/{sample_name}: {sample_path.name}")
-
-        print(f"    [+] Compliance violations: {compliance_count} samples")
-    except Exception as e:
-        errors.append(f"Compliance violations: {e}")
-        print(f"    [-] Failed: {e}")
+    for name, generator_func in generators:
+        print(f"[i] Generating {name} samples...")
+        count, error = generator_func(output_dir, args.verbose)
+        total_generated += count
+        if error:
+            errors.append(error)
 
     # Summary
     print("\n" + "=" * 70)

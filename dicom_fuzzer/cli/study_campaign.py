@@ -408,12 +408,18 @@ def _save_campaign_results(
     log(f"[+] Results saved to: {results_file}", log_file)
 
 
-def run_campaign(args: argparse.Namespace) -> int:
-    """Execute the study-level fuzzing campaign."""
-    # Validate arguments
+def _validate_campaign_args(
+    args: argparse.Namespace,
+) -> tuple[Path, Path, Path] | None:
+    """Validate campaign arguments and return paths.
+
+    Returns:
+        Tuple of (target_path, study_path, output_path) or None if invalid.
+
+    """
     if not args.study:
         print("[-] --study is required when using --target")
-        return 1
+        return None
 
     target_path = Path(args.target)
     study_path = Path(args.study)
@@ -421,20 +427,37 @@ def run_campaign(args: argparse.Namespace) -> int:
 
     if not target_path.exists():
         print(f"[-] Target executable not found: {target_path}")
-        return 1
+        return None
 
     if not study_path.exists():
         print(f"[-] Study directory not found: {study_path}")
-        return 1
+        return None
 
-    # Create output directories
+    return target_path, study_path, output_path
+
+
+def _setup_campaign_dirs(output_path: Path) -> tuple[Path, Path]:
+    """Create campaign directories and return paths.
+
+    Returns:
+        Tuple of (crashes_dir, log_file).
+
+    """
     output_path.mkdir(parents=True, exist_ok=True)
     crashes_dir = output_path / "crashes"
     crashes_dir.mkdir(exist_ok=True)
-
     log_file = output_path / "campaign.log"
+    return crashes_dir, log_file
 
-    # Print header
+
+def _log_campaign_header(
+    target_path: Path,
+    study_path: Path,
+    output_path: Path,
+    args: argparse.Namespace,
+    log_file: Path,
+) -> None:
+    """Log campaign header information."""
     log("=" * 70, log_file)
     log("STUDY-LEVEL FUZZING CAMPAIGN", log_file)
     log("=" * 70, log_file)
@@ -445,6 +468,284 @@ def run_campaign(args: argparse.Namespace) -> int:
     log(f"Severity: {args.severity}", log_file)
     log(f"Total tests planned: {args.count}", log_file)
     log("=" * 70, log_file)
+
+
+def _setup_viewer_adapter(
+    adapter_name: str | None, log_file: Path
+) -> tuple[object | None, int | None]:
+    """Setup viewer adapter if specified.
+
+    Returns:
+        Tuple of (adapter, error_code). error_code is None if successful.
+
+    """
+    if not adapter_name:
+        return None, None
+
+    try:
+        from dicom_fuzzer.adapters import get_adapter
+
+        adapter = get_adapter(adapter_name)
+        log(f"[+] Using adapter: {adapter.name}", log_file)
+        return adapter, None
+    except ImportError:
+        log("[-] Adapters module not available", log_file)
+        return None, 1
+    except ValueError as e:
+        log(f"[-] {e}", log_file)
+        return None, 1
+
+
+def _get_strategies(strategy_arg: str, strategy_map: dict) -> list:
+    """Get list of strategies based on CLI argument."""
+    if strategy_arg == "all":
+        return list(strategy_map.values())
+    return [strategy_map[strategy_arg]]
+
+
+def _get_severities(severity_arg: str) -> list[str]:
+    """Get list of severities for campaign cycling."""
+    severities = ["moderate", "aggressive", "extreme"]
+    if severity_arg != "moderate":
+        try:
+            start_idx = severities.index(severity_arg)
+            return severities[start_idx:]
+        except ValueError:
+            return [severity_arg]
+    return severities
+
+
+def _process_test_result(
+    result: object,
+    stats: dict,
+    test_id: int,
+    output_study: Path,
+    records: list,
+    harness: object,
+    viewer_adapter: object | None,
+    args: argparse.Namespace,
+    log_file: Path,
+) -> bool:
+    """Process test result, update stats, and save crash artifacts.
+
+    Returns:
+        True if campaign should stop (--stop-on-crash triggered).
+
+    """
+    stats["total"] += 1
+    status = result.status
+    if status in stats:
+        stats[status] += 1
+
+    if result.is_failure():
+        log(
+            f"  [!] {result.status.upper()}: {result.error_message or 'unknown'}",
+            log_file,
+        )
+        if result.error_message and "Render failed" in result.error_message:
+            stats["render_failed"] += 1
+        harness.save_crash_artifact(
+            result,
+            output_study,
+            test_id,
+            mutation_records=[r.__dict__ for r in records],
+            viewer_adapter=viewer_adapter,
+        )
+        if args.stop_on_crash and result.status == "crash":
+            log("[!] Stopping on crash (--stop-on-crash)", log_file)
+            return True
+    else:
+        log(
+            f"  [+] OK (mem: {result.memory_peak_mb:.1f}MB, "
+            f"time: {result.duration_seconds:.1f}s)",
+            log_file,
+        )
+
+    if args.verbose:
+        for record in records:
+            print(f"    - {record.strategy}: {record.tag} -> {record.mutated_value}")
+
+    return False
+
+
+def _log_progress(
+    test_id: int, total_count: int, start_time: float, log_file: Path
+) -> None:
+    """Log campaign progress every 10 tests."""
+    if test_id % 10 != 0:
+        return
+    elapsed = time.time() - start_time
+    rate = test_id / elapsed if elapsed > 0 else 0
+    remaining = (total_count - test_id) / rate / 60 if rate > 0 else 0
+    log(
+        f"  Progress: {test_id}/{total_count} "
+        f"({rate * 60:.2f} tests/min, ~{remaining:.1f}min remaining)",
+        log_file,
+    )
+
+
+def _log_campaign_summary(stats: dict, elapsed_total: float, log_file: Path) -> None:
+    """Log final campaign summary."""
+    log("", log_file)
+    log("=" * 70, log_file)
+    log("CAMPAIGN COMPLETE", log_file)
+    log("=" * 70, log_file)
+    log(f"Duration: {elapsed_total / 60:.2f} minutes", log_file)
+    log(f"Total tests: {stats['total']}", log_file)
+    log(f"Success: {stats['success']}", log_file)
+    log(f"Crashes: {stats['crash']}", log_file)
+    log(f"Memory exceeded: {stats['memory_exceeded']}", log_file)
+    if stats["render_failed"] > 0:
+        log(f"Render failed: {stats['render_failed']}", log_file)
+    log(f"Errors: {stats['error']}", log_file)
+    log("=" * 70, log_file)
+
+
+def _run_campaign_loop(
+    args: argparse.Namespace,
+    study_path: Path,
+    severities: list[str],
+    strategies: list,
+    harness: object,
+    viewer_adapter: object | None,
+    stats: dict,
+    log_file: Path,
+    start_campaign: float,
+) -> bool:
+    """Run the main campaign test loop.
+
+    Returns:
+        True if campaign was stopped early (e.g., --stop-on-crash).
+
+    """
+    from dicom_fuzzer.strategies.study_mutator import StudyMutator
+
+    test_id = 0
+    try:
+        for severity in severities:
+            mutator = StudyMutator(severity=severity)
+            for strategy in strategies:
+                tests_per_combo = max(
+                    1, args.count // (len(severities) * len(strategies))
+                )
+                for _ in range(tests_per_combo):
+                    if test_id >= args.count:
+                        return False
+
+                    test_id += 1
+                    should_stop = _run_single_campaign_test(
+                        test_id=test_id,
+                        args=args,
+                        study_path=study_path,
+                        strategy=strategy,
+                        severity=severity,
+                        mutator=mutator,
+                        harness=harness,
+                        viewer_adapter=viewer_adapter,
+                        stats=stats,
+                        log_file=log_file,
+                    )
+                    if should_stop:
+                        return True
+
+                    _log_progress(test_id, args.count, start_campaign, log_file)
+
+                if test_id >= args.count:
+                    return False
+            if test_id >= args.count:
+                return False
+
+    except KeyboardInterrupt:
+        log("[i] Campaign interrupted by user", log_file)
+
+    return False
+
+
+def _run_single_campaign_test(
+    test_id: int,
+    args: argparse.Namespace,
+    study_path: Path,
+    strategy: object,
+    severity: str,
+    mutator: object,
+    harness: object,
+    viewer_adapter: object | None,
+    stats: dict,
+    log_file: Path,
+) -> bool:
+    """Run a single test in the campaign.
+
+    Returns:
+        True if campaign should stop (--stop-on-crash triggered).
+
+    """
+    with tempfile.TemporaryDirectory(prefix="fuzz_study_") as temp_dir:
+        temp_path = Path(temp_dir)
+        try:
+            # Load and mutate study
+            study = mutator.load_study(study_path)
+            mutated_datasets, records = mutator.mutate_study(
+                study,
+                strategy=strategy,
+                mutation_count=args.mutations_per_test,
+            )
+
+            # Save mutated study
+            output_study = temp_path / "study"
+            output_study.mkdir()
+            for series_idx, datasets in enumerate(mutated_datasets):
+                series_dir = output_study / f"series_{series_idx:03d}"
+                series_dir.mkdir(parents=True, exist_ok=True)
+                for ds_idx, ds in enumerate(datasets):
+                    ds.save_as(str(series_dir / f"slice_{ds_idx:04d}.dcm"))
+
+            log(
+                f"[{test_id}/{args.count}] Testing "
+                f"{strategy.value}/{severity} (mutations: {len(records)})",
+                log_file,
+            )
+
+            # Test with target
+            result = harness.test_study_directory(
+                output_study,
+                viewer_adapter=viewer_adapter,
+                series_name=args.series_name,
+            )
+
+            # Process result and check if we should stop
+            return _process_test_result(
+                result=result,
+                stats=stats,
+                test_id=test_id,
+                output_study=output_study,
+                records=records,
+                harness=harness,
+                viewer_adapter=viewer_adapter,
+                args=args,
+                log_file=log_file,
+            )
+
+        except Exception as e:
+            log(f"  [-] Error: {e}", log_file)
+            stats["error"] += 1
+            if args.verbose:
+                traceback.print_exc()
+            return False
+
+
+def run_campaign(args: argparse.Namespace) -> int:
+    """Execute the study-level fuzzing campaign."""
+    # Validate arguments
+    paths = _validate_campaign_args(args)
+    if paths is None:
+        return 1
+    target_path, study_path, output_path = paths
+
+    # Create output directories
+    crashes_dir, log_file = _setup_campaign_dirs(output_path)
+
+    # Print header
+    _log_campaign_header(target_path, study_path, output_path, args, log_file)
 
     try:
         from dicom_fuzzer.core.target_harness import TargetConfig, TargetHarness
@@ -471,20 +772,8 @@ def run_campaign(args: argparse.Namespace) -> int:
             "mixed-modality": StudyMutationStrategy.MIXED_MODALITY_STUDY,
         }
 
-        if args.strategy == "all":
-            strategies = list(strategy_map.values())
-        else:
-            strategies = [strategy_map[args.strategy]]
-
-        # Severity cycling for longer campaigns
-        severities = ["moderate", "aggressive", "extreme"]
-        if args.severity != "moderate":
-            # Start from specified severity
-            try:
-                start_idx = severities.index(args.severity)
-                severities = severities[start_idx:]
-            except ValueError:
-                severities = [args.severity]
+        strategies = _get_strategies(args.strategy, strategy_map)
+        severities = _get_severities(args.severity)
 
         # Statistics
         stats = {
@@ -499,19 +788,9 @@ def run_campaign(args: argparse.Namespace) -> int:
         }
 
         # Setup viewer adapter if specified
-        viewer_adapter = None
-        if args.adapter:
-            try:
-                from dicom_fuzzer.adapters import get_adapter
-
-                viewer_adapter = get_adapter(args.adapter)
-                log(f"[+] Using adapter: {viewer_adapter.name}", log_file)
-            except ImportError:
-                log("[-] Adapters module not available", log_file)
-                return 1
-            except ValueError as e:
-                log(f"[-] {e}", log_file)
-                return 1
+        viewer_adapter, error_code = _setup_viewer_adapter(args.adapter, log_file)
+        if error_code is not None:
+            return error_code
 
         # Load source study
         log("[i] Loading source study...", log_file)
@@ -523,183 +802,26 @@ def run_campaign(args: argparse.Namespace) -> int:
             log_file,
         )
 
-        test_id = 0
         start_campaign = time.time()
-
-        # Main campaign loop
-        try:
-            for severity in severities:
-                mutator = StudyMutator(severity=severity)
-
-                for strategy in strategies:
-                    # Calculate tests per combination
-                    tests_per_combo = args.count // (len(severities) * len(strategies))
-                    tests_per_combo = max(1, tests_per_combo)
-
-                    for _ in range(tests_per_combo):
-                        if test_id >= args.count:
-                            break
-
-                        test_id += 1
-
-                        # Create temp directory for mutated study
-                        with tempfile.TemporaryDirectory(
-                            prefix="fuzz_study_"
-                        ) as temp_dir:
-                            temp_path = Path(temp_dir)
-
-                            try:
-                                # Reload study for fresh mutation
-                                study = mutator.load_study(study_path)
-
-                                # Apply mutations
-                                mutated_datasets, records = mutator.mutate_study(
-                                    study,
-                                    strategy=strategy,
-                                    mutation_count=args.mutations_per_test,
-                                )
-
-                                # Save mutated study
-                                output_study = temp_path / "study"
-                                output_study.mkdir()
-                                for series_idx, datasets in enumerate(mutated_datasets):
-                                    series_dir = (
-                                        output_study / f"series_{series_idx:03d}"
-                                    )
-                                    series_dir.mkdir(parents=True, exist_ok=True)
-                                    for ds_idx, ds in enumerate(datasets):
-                                        ds.save_as(
-                                            str(series_dir / f"slice_{ds_idx:04d}.dcm")
-                                        )
-
-                                log(
-                                    f"[{test_id}/{args.count}] Testing "
-                                    f"{strategy.value}/{severity} "
-                                    f"(mutations: {len(records)})",
-                                    log_file,
-                                )
-
-                                # Test with target (adapter handles viewport loading)
-                                result = harness.test_study_directory(
-                                    output_study,
-                                    viewer_adapter=viewer_adapter,
-                                    series_name=args.series_name,
-                                )
-
-                                # Update stats
-                                stats["total"] += 1
-                                status = result.status
-                                if status in stats:
-                                    stats[status] += 1
-
-                                # Log result
-                                if result.is_failure():
-                                    log(
-                                        f"  [!] {result.status.upper()}: "
-                                        f"{result.error_message or 'unknown'}",
-                                        log_file,
-                                    )
-                                    # Check if this is a render failure
-                                    if (
-                                        result.error_message
-                                        and "Render failed" in result.error_message
-                                    ):
-                                        stats["render_failed"] += 1
-                                    harness.save_crash_artifact(
-                                        result,
-                                        output_study,
-                                        test_id,
-                                        mutation_records=[r.__dict__ for r in records],
-                                        viewer_adapter=viewer_adapter,
-                                    )
-                                    if args.stop_on_crash and result.status == "crash":
-                                        log(
-                                            "[!] Stopping on crash (--stop-on-crash)",
-                                            log_file,
-                                        )
-                                        raise KeyboardInterrupt
-                                else:
-                                    log(
-                                        f"  [+] OK (mem: {result.memory_peak_mb:.1f}MB, "
-                                        f"time: {result.duration_seconds:.1f}s)",
-                                        log_file,
-                                    )
-
-                                if args.verbose:
-                                    for record in records:
-                                        print(
-                                            f"    - {record.strategy}: "
-                                            f"{record.tag} -> {record.mutated_value}"
-                                        )
-
-                            except Exception as e:
-                                log(f"  [-] Error: {e}", log_file)
-                                stats["error"] += 1
-                                if args.verbose:
-                                    traceback.print_exc()
-
-                        # Progress update every 10 tests
-                        if test_id % 10 == 0:
-                            elapsed = time.time() - start_campaign
-                            rate = test_id / elapsed if elapsed > 0 else 0
-                            remaining = (
-                                (args.count - test_id) / rate / 60 if rate > 0 else 0
-                            )
-                            log(
-                                f"  Progress: {test_id}/{args.count} "
-                                f"({rate * 60:.2f} tests/min, "
-                                f"~{remaining:.1f}min remaining)",
-                                log_file,
-                            )
-
-                    if test_id >= args.count:
-                        break
-                if test_id >= args.count:
-                    break
-
-        except KeyboardInterrupt:
-            log("[i] Campaign interrupted by user", log_file)
+        _run_campaign_loop(
+            args=args,
+            study_path=study_path,
+            severities=severities,
+            strategies=strategies,
+            harness=harness,
+            viewer_adapter=viewer_adapter,
+            stats=stats,
+            log_file=log_file,
+            start_campaign=start_campaign,
+        )
 
         # Final summary
         elapsed_total = time.time() - start_campaign
         stats["end_time"] = datetime.now().isoformat()
-
-        log("", log_file)
-        log("=" * 70, log_file)
-        log("CAMPAIGN COMPLETE", log_file)
-        log("=" * 70, log_file)
-        log(f"Duration: {elapsed_total / 60:.2f} minutes", log_file)
-        log(f"Total tests: {stats['total']}", log_file)
-        log(f"Success: {stats['success']}", log_file)
-        log(f"Crashes: {stats['crash']}", log_file)
-        log(f"Memory exceeded: {stats['memory_exceeded']}", log_file)
-        if stats["render_failed"] > 0:
-            log(f"Render failed: {stats['render_failed']}", log_file)
-        log(f"Errors: {stats['error']}", log_file)
-        log("=" * 70, log_file)
-
-        # Save results JSON
-        results_file = output_path / "campaign_results.json"
-        with open(results_file, "w") as f:
-            json.dump(
-                {
-                    "config": {
-                        "target": str(target_path),
-                        "study": str(study_path),
-                        "strategy": args.strategy,
-                        "severity": args.severity,
-                        "count": args.count,
-                        "timeout": args.timeout,
-                        "memory_limit": args.memory_limit,
-                        "adapter": args.adapter,
-                    },
-                    "stats": stats,
-                },
-                f,
-                indent=2,
-            )
-
-        log(f"[+] Results saved to: {results_file}", log_file)
+        _log_campaign_summary(stats, elapsed_total, log_file)
+        _save_campaign_results(
+            output_path, target_path, study_path, args, stats, log_file
+        )
 
         # Return non-zero if crashes found
         return 1 if stats["crash"] > 0 else 0
