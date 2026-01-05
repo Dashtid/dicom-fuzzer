@@ -466,7 +466,7 @@ class GUIMonitor:
 # Import GUIFuzzer for backward compatibility
 # Cyclic import is intentional: gui_fuzzer imports GUIMonitor at runtime in __init__
 from dicom_fuzzer.core.gui_fuzzer import (  # noqa: E402
-    GUIFuzzer,  # lgtm[py/cyclic-import]
+    GUIFuzzer,
 )
 
 # Backward compatibility alias

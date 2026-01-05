@@ -76,7 +76,7 @@ class DICOMAuthTester:
                     context = ssl.create_default_context()
                     context.check_hostname = False
                     context.verify_mode = ssl.CERT_NONE
-                    sock = context.wrap_socket(sock)  # lgtm[py/insecure-protocol]
+                    sock = context.wrap_socket(sock)
 
                 sock.send(pdu)
                 response = sock.recv(4096)
@@ -225,7 +225,7 @@ class DICOMAuthTester:
                     context = ssl.create_default_context()
                     context.check_hostname = False
                     context.verify_mode = ssl.CERT_NONE
-                    sock = context.wrap_socket(sock)  # lgtm[py/insecure-protocol]
+                    sock = context.wrap_socket(sock)
 
                 sock.send(pdu)
                 response = sock.recv(4096)
