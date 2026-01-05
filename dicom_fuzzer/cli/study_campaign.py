@@ -246,6 +246,168 @@ def log(message: str, log_file: Path | None = None) -> None:
             f.write(formatted + "\n")
 
 
+def _run_single_test(
+    test_id: int,
+    total_tests: int,
+    study_path: Path,
+    strategy: object,
+    severity: str,
+    mutations_per_test: int,
+    harness: object,
+    viewer_adapter: object | None,
+    series_name: str | None,
+    log_file: Path | None,
+    verbose: bool,
+) -> dict:
+    """Execute a single test iteration.
+
+    Args:
+        test_id: Current test number.
+        total_tests: Total planned tests.
+        study_path: Path to source study.
+        strategy: Mutation strategy to use.
+        severity: Mutation severity level.
+        mutations_per_test: Number of mutations per test.
+        harness: TargetHarness instance.
+        viewer_adapter: Optional viewer adapter.
+        series_name: Optional series name for adapter.
+        log_file: Optional log file path.
+        verbose: Whether to print verbose output.
+
+    Returns:
+        dict with keys: status, is_failure, error_message, records
+
+    """
+    from dicom_fuzzer.strategies.study_mutator import StudyMutator
+
+    result_info = {
+        "status": "error",
+        "is_failure": False,
+        "error_message": None,
+        "records": [],
+        "render_failed": False,
+    }
+
+    mutator = StudyMutator(severity=severity)
+
+    with tempfile.TemporaryDirectory(prefix="fuzz_study_") as temp_dir:
+        temp_path = Path(temp_dir)
+
+        try:
+            # Reload study for fresh mutation
+            study = mutator.load_study(study_path)
+
+            # Apply mutations
+            mutated_datasets, records = mutator.mutate_study(
+                study,
+                strategy=strategy,
+                mutation_count=mutations_per_test,
+            )
+            result_info["records"] = records
+
+            # Save mutated study
+            output_study = temp_path / "study"
+            output_study.mkdir()
+            for series_idx, datasets in enumerate(mutated_datasets):
+                series_dir = output_study / f"series_{series_idx:03d}"
+                series_dir.mkdir(parents=True, exist_ok=True)
+                for ds_idx, ds in enumerate(datasets):
+                    ds.save_as(str(series_dir / f"slice_{ds_idx:04d}.dcm"))
+
+            log(
+                f"[{test_id}/{total_tests}] Testing "
+                f"{strategy.value}/{severity} "
+                f"(mutations: {len(records)})",
+                log_file,
+            )
+
+            # Test with target
+            result = harness.test_study_directory(
+                output_study,
+                viewer_adapter=viewer_adapter,
+                series_name=series_name,
+            )
+
+            result_info["status"] = result.status
+            result_info["is_failure"] = result.is_failure()
+            result_info["error_message"] = result.error_message
+            result_info["result"] = result
+            result_info["output_study"] = output_study
+
+            # Log result
+            if result.is_failure():
+                log(
+                    f"  [!] {result.status.upper()}: "
+                    f"{result.error_message or 'unknown'}",
+                    log_file,
+                )
+                if result.error_message and "Render failed" in result.error_message:
+                    result_info["render_failed"] = True
+            else:
+                log(
+                    f"  [+] OK (mem: {result.memory_peak_mb:.1f}MB, "
+                    f"time: {result.duration_seconds:.1f}s)",
+                    log_file,
+                )
+
+            if verbose:
+                for record in records:
+                    print(
+                        f"    - {record.strategy}: "
+                        f"{record.tag} -> {record.mutated_value}"
+                    )
+
+        except Exception as e:
+            log(f"  [-] Error: {e}", log_file)
+            result_info["status"] = "error"
+            result_info["error_message"] = str(e)
+            if verbose:
+                traceback.print_exc()
+
+    return result_info
+
+
+def _save_campaign_results(
+    output_path: Path,
+    target_path: Path,
+    study_path: Path,
+    args: argparse.Namespace,
+    stats: dict,
+    log_file: Path | None,
+) -> None:
+    """Save campaign results to JSON file.
+
+    Args:
+        output_path: Output directory.
+        target_path: Path to target executable.
+        study_path: Path to source study.
+        args: Command line arguments.
+        stats: Campaign statistics.
+        log_file: Optional log file path.
+
+    """
+    results_file = output_path / "campaign_results.json"
+    with open(results_file, "w") as f:
+        json.dump(
+            {
+                "config": {
+                    "target": str(target_path),
+                    "study": str(study_path),
+                    "strategy": args.strategy,
+                    "severity": args.severity,
+                    "count": args.count,
+                    "timeout": args.timeout,
+                    "memory_limit": args.memory_limit,
+                    "adapter": args.adapter,
+                },
+                "stats": stats,
+            },
+            f,
+            indent=2,
+        )
+    log(f"[+] Results saved to: {results_file}", log_file)
+
+
 def run_campaign(args: argparse.Namespace) -> int:
     """Execute the study-level fuzzing campaign."""
     # Validate arguments
