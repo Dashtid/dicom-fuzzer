@@ -35,6 +35,42 @@ STRIP_TAGS = [
 OVERLAY_GROUP_START = 0x6000
 OVERLAY_GROUP_END = 0x601E
 
+# Tags to strip for pixel data reduction
+_PIXEL_DATA_TAGS = [
+    (0x7FE0, 0x0010),  # PixelData
+    (0x7FE0, 0x0008),  # FloatPixelData
+    (0x7FE0, 0x0009),  # DoubleFloatPixelData
+    (0x7FE0, 0x0001),  # ExtendedOffsetTable
+    (0x7FE0, 0x0002),  # ExtendedOffsetTableLengths
+]
+_WAVEFORM_TAG = (0x5400, 0x0100)
+
+
+def _delete_tag_if_present(ds: Any, tag: tuple[int, int]) -> None:
+    """Delete a tag from dataset if present."""
+    if tag in ds:
+        del ds[tag]
+
+
+def _strip_tags(ds: Any, strip_overlays: bool, strip_waveforms: bool) -> None:
+    """Strip pixel data and optional bulk data tags from dataset."""
+    # Strip pixel data tags
+    for tag in _PIXEL_DATA_TAGS:
+        _delete_tag_if_present(ds, tag)
+
+    # Strip overlay data (groups 6000-601E)
+    if strip_overlays:
+        for group in range(OVERLAY_GROUP_START, OVERLAY_GROUP_END + 1, 2):
+            _delete_tag_if_present(ds, (group, 0x3000))
+
+    # Strip waveform data
+    if strip_waveforms:
+        _delete_tag_if_present(ds, _WAVEFORM_TAG)
+
+    # Clean file_meta if present
+    if hasattr(ds, "file_meta"):
+        _delete_tag_if_present(ds.file_meta, (0x7FE0, 0x0010))
+
 
 def strip_pixel_data(
     input_path: Path,
@@ -60,58 +96,29 @@ def strip_pixel_data(
     try:
         import pydicom
 
-        # Read DICOM file
         ds = pydicom.dcmread(str(input_path), force=True)
         original_size = input_path.stat().st_size
 
-        # Strip PixelData
-        if (0x7FE0, 0x0010) in ds:
-            del ds[0x7FE0, 0x0010]
-        if (0x7FE0, 0x0008) in ds:
-            del ds[0x7FE0, 0x0008]
-        if (0x7FE0, 0x0009) in ds:
-            del ds[0x7FE0, 0x0009]
+        _strip_tags(ds, strip_overlays, strip_waveforms)
 
-        # Strip extended offset tables
-        if (0x7FE0, 0x0001) in ds:
-            del ds[0x7FE0, 0x0001]
-        if (0x7FE0, 0x0002) in ds:
-            del ds[0x7FE0, 0x0002]
-
-        # Strip overlay data (groups 6000-601E)
-        if strip_overlays:
-            for group in range(OVERLAY_GROUP_START, OVERLAY_GROUP_END + 1, 2):
-                if (group, 0x3000) in ds:
-                    del ds[group, 0x3000]
-
-        # Strip waveform data
-        if strip_waveforms:
-            if (0x5400, 0x0100) in ds:
-                del ds[0x5400, 0x0100]
-
-        # Update file meta information if present
-        if hasattr(ds, "file_meta"):
-            # Remove any encapsulated pixel data markers
-            if (0x7FE0, 0x0010) in ds.file_meta:
-                del ds.file_meta[0x7FE0, 0x0010]
-
-        # Save stripped file
         output_path.parent.mkdir(parents=True, exist_ok=True)
         ds.save_as(str(output_path), write_like_original=False)
 
-        new_size = output_path.stat().st_size
-        bytes_saved = original_size - new_size
-
+        bytes_saved = original_size - output_path.stat().st_size
         return True, bytes_saved
 
     except Exception as e:
         logger.debug(f"Failed to strip pixel data from {input_path.name}: {e}")
-        # Fall back to copying original file
-        try:
-            shutil.copy2(input_path, output_path)
-            return True, 0
-        except Exception:
-            return False, 0
+        return _fallback_copy(input_path, output_path)
+
+
+def _fallback_copy(input_path: Path, output_path: Path) -> tuple[bool, int]:
+    """Fall back to copying original file."""
+    try:
+        shutil.copy2(input_path, output_path)
+        return True, 0
+    except Exception:
+        return False, 0
 
 
 def optimize_corpus(

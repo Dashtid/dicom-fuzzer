@@ -401,6 +401,124 @@ class HavocMutator(Mutator):
 
     def __init__(self, intensity: int = 32) -> None:
         self.intensity = intensity
+        self._mutation_handlers = [
+            self._flip_bit,
+            self._interesting_byte,
+            self._arith_byte,
+            self._negate_byte,
+            self._delete_bytes,
+            self._clone_bytes,
+            self._insert_random,
+            self._overwrite_random,
+            self._set_byte_zero,
+            self._set_byte_ff,
+            self._set_word_zero,
+            self._set_word_ff,
+            self._set_dword_zero,
+            self._set_dword_ff,
+            self._interesting_dword,
+            self._swap_bytes,
+        ]
+
+    def _flip_bit(self, data: bytearray) -> None:
+        """Flip single bit."""
+        pos = random.randint(0, len(data) * 8 - 1)
+        data[pos // 8] ^= 1 << (pos % 8)
+
+    def _interesting_byte(self, data: bytearray) -> None:
+        """Set byte to interesting value."""
+        pos = random.randint(0, len(data) - 1)
+        data[pos] = random.choice(INTERESTING_8_UNSIGNED)
+
+    def _arith_byte(self, data: bytearray) -> None:
+        """Add/sub small value."""
+        pos = random.randint(0, len(data) - 1)
+        delta = random.randint(-35, 35)
+        data[pos] = (data[pos] + delta) & 0xFF
+
+    def _negate_byte(self, data: bytearray) -> None:
+        """Negate byte."""
+        pos = random.randint(0, len(data) - 1)
+        data[pos] ^= 0xFF
+
+    def _delete_bytes(self, data: bytearray) -> None:
+        """Delete bytes."""
+        if len(data) > 4:
+            del_len = random.randint(1, min(16, len(data) - 1))
+            pos = random.randint(0, len(data) - del_len)
+            del data[pos : pos + del_len]
+
+    def _clone_bytes(self, data: bytearray) -> None:
+        """Clone bytes."""
+        if len(data) > 1:
+            clone_len = random.randint(1, min(16, len(data)))
+            src = random.randint(0, len(data) - clone_len)
+            dst = random.randint(0, len(data))
+            data[dst:dst] = data[src : src + clone_len]
+
+    def _insert_random(self, data: bytearray) -> None:
+        """Insert random bytes."""
+        ins_len = random.randint(1, 16)
+        pos = random.randint(0, len(data))
+        data[pos:pos] = bytes(random.randint(0, 255) for _ in range(ins_len))
+
+    def _overwrite_random(self, data: bytearray) -> None:
+        """Overwrite with random bytes."""
+        if len(data) > 1:
+            ow_len = random.randint(1, min(16, len(data)))
+            pos = random.randint(0, len(data) - ow_len)
+            data[pos : pos + ow_len] = bytes(
+                random.randint(0, 255) for _ in range(ow_len)
+            )
+
+    def _set_byte_zero(self, data: bytearray) -> None:
+        """Set byte to zero."""
+        if len(data) >= 1:
+            pos = random.randint(0, len(data) - 1)
+            data[pos] = 0
+
+    def _set_byte_ff(self, data: bytearray) -> None:
+        """Set byte to 0xFF."""
+        if len(data) >= 1:
+            pos = random.randint(0, len(data) - 1)
+            data[pos] = 0xFF
+
+    def _set_word_zero(self, data: bytearray) -> None:
+        """Set word to zero."""
+        if len(data) >= 2:
+            pos = random.randint(0, len(data) - 2)
+            data[pos : pos + 2] = b"\x00\x00"
+
+    def _set_word_ff(self, data: bytearray) -> None:
+        """Set word to 0xFFFF."""
+        if len(data) >= 2:
+            pos = random.randint(0, len(data) - 2)
+            data[pos : pos + 2] = b"\xff\xff"
+
+    def _set_dword_zero(self, data: bytearray) -> None:
+        """Set dword to zero."""
+        if len(data) >= 4:
+            pos = random.randint(0, len(data) - 4)
+            data[pos : pos + 4] = b"\x00\x00\x00\x00"
+
+    def _set_dword_ff(self, data: bytearray) -> None:
+        """Set dword to 0xFFFFFFFF."""
+        if len(data) >= 4:
+            pos = random.randint(0, len(data) - 4)
+            data[pos : pos + 4] = b"\xff\xff\xff\xff"
+
+    def _interesting_dword(self, data: bytearray) -> None:
+        """Set dword to interesting value."""
+        if len(data) >= 4:
+            pos = random.randint(0, len(data) - 4)
+            val = random.choice(INTERESTING_32_UNSIGNED)
+            struct.pack_into("<I", data, pos, val)
+
+    def _swap_bytes(self, data: bytearray) -> None:
+        """Swap adjacent bytes."""
+        if len(data) >= 2:
+            pos = random.randint(0, len(data) - 2)
+            data[pos], data[pos + 1] = data[pos + 1], data[pos]
 
     def mutate(self, data: bytes, seed: SeedEntry) -> bytes:
         """Apply random havoc mutations."""
@@ -411,85 +529,8 @@ class HavocMutator(Mutator):
         num_mutations = random.randint(1, self.intensity)
 
         for _ in range(num_mutations):
-            mutation_type = random.randint(0, 15)
-
-            if mutation_type == 0:
-                # Flip single bit
-                pos = random.randint(0, len(data) * 8 - 1)
-                data[pos // 8] ^= 1 << (pos % 8)
-
-            elif mutation_type == 1:
-                # Set byte to interesting value
-                pos = random.randint(0, len(data) - 1)
-                data[pos] = random.choice(INTERESTING_8_UNSIGNED)
-
-            elif mutation_type == 2:
-                # Add/sub small value
-                pos = random.randint(0, len(data) - 1)
-                delta = random.randint(-35, 35)
-                data[pos] = (data[pos] + delta) & 0xFF
-
-            elif mutation_type == 3:
-                # Negate byte
-                pos = random.randint(0, len(data) - 1)
-                data[pos] ^= 0xFF
-
-            elif mutation_type == 4:
-                # Delete bytes
-                if len(data) > 4:
-                    del_len = random.randint(1, min(16, len(data) - 1))
-                    pos = random.randint(0, len(data) - del_len)
-                    del data[pos : pos + del_len]
-
-            elif mutation_type == 5:
-                # Clone bytes
-                if len(data) > 1:
-                    clone_len = random.randint(1, min(16, len(data)))
-                    src = random.randint(0, len(data) - clone_len)
-                    dst = random.randint(0, len(data))
-                    data[dst:dst] = data[src : src + clone_len]
-
-            elif mutation_type == 6:
-                # Insert random bytes
-                ins_len = random.randint(1, 16)
-                pos = random.randint(0, len(data))
-                data[pos:pos] = bytes(random.randint(0, 255) for _ in range(ins_len))
-
-            elif mutation_type == 7:
-                # Overwrite with random bytes
-                if len(data) > 1:
-                    ow_len = random.randint(1, min(16, len(data)))
-                    pos = random.randint(0, len(data) - ow_len)
-                    data[pos : pos + ow_len] = bytes(
-                        random.randint(0, 255) for _ in range(ow_len)
-                    )
-
-            elif mutation_type <= 11:
-                # Various byte operations
-                if len(data) >= 2:
-                    pos = random.randint(0, len(data) - 2)
-                    if mutation_type == 8:
-                        data[pos] = 0
-                    elif mutation_type == 9:
-                        data[pos] = 0xFF
-                    elif mutation_type == 10:
-                        data[pos : pos + 2] = b"\x00\x00"
-                    else:
-                        data[pos : pos + 2] = b"\xff\xff"
-
-            elif mutation_type <= 15 and len(data) >= 4:
-                # Word/dword operations
-                pos = random.randint(0, len(data) - 4)
-                if mutation_type == 12:
-                    data[pos : pos + 4] = b"\x00\x00\x00\x00"
-                elif mutation_type == 13:
-                    data[pos : pos + 4] = b"\xff\xff\xff\xff"
-                elif mutation_type == 14:
-                    val = random.choice(INTERESTING_32_UNSIGNED)
-                    struct.pack_into("<I", data, pos, val)
-                else:
-                    # Swap adjacent bytes
-                    data[pos], data[pos + 1] = data[pos + 1], data[pos]
+            handler = random.choice(self._mutation_handlers)
+            handler(data)
 
         return bytes(data)
 

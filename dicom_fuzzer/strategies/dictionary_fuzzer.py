@@ -79,6 +79,18 @@ class DictionaryFuzzer:
         0x00080058,  # Failed SOP Instance UID List
     }
 
+    # VR types that require binary data (skip mutation)
+    _BINARY_VRS = frozenset({"OB", "OW", "OD", "OF", "OL", "OV", "UN"})
+
+    # Integer VR types with their valid ranges: (min, max, wrap_or_clamp)
+    # wrap_or_clamp: "wrap" = modulo, "clamp" = min/max
+    _INT_VR_RANGES: dict[str, tuple[int, int, str]] = {
+        "US": (0, 65535, "wrap"),
+        "SS": (-32768, 32767, "clamp"),
+        "UL": (0, 4294967295, "wrap"),
+        "SL": (-2147483648, 2147483647, "clamp"),
+    }
+
     def __init__(self) -> None:
         """Initialize the dictionary fuzzer."""
         self.dictionaries = DICOMDictionaries()
@@ -136,138 +148,100 @@ class DictionaryFuzzer:
 
         return mutated
 
+    def _get_value_for_severity(
+        self, tag_int: int, severity: MutationSeverity
+    ) -> str | int | float:
+        """Get a mutation value based on severity level."""
+        if severity == MutationSeverity.MINIMAL:
+            return self._get_valid_value(tag_int)
+        elif severity == MutationSeverity.MODERATE:
+            if random.random() < 0.7:
+                return self._get_valid_value(tag_int)
+            return self._get_edge_case_value()
+        elif severity == MutationSeverity.AGGRESSIVE:
+            if random.random() < 0.5:
+                return self._get_edge_case_value()
+            return self._get_malicious_value()
+        return self._get_malicious_value()  # EXTREME
+
+    def _convert_to_int_vr(self, value: str, vr: str) -> int:
+        """Convert string value to integer for integer VR types."""
+        if not value.replace(".", "").replace("-", "").isdigit():
+            return 0
+        int_value = int(float(value))
+        min_val, max_val, mode = self._INT_VR_RANGES[vr]
+        if min_val <= int_value <= max_val:
+            return int_value
+        if mode == "wrap":
+            return abs(int_value) % (max_val + 1)
+        return max(min_val, min(max_val, int_value))  # clamp
+
+    def _convert_to_float_vr(self, value: str) -> float:
+        """Convert string value to float for FL/FD VR types."""
+        str_value = str(value)
+        cleaned = str_value.replace(".", "").replace("-", "")
+        cleaned = cleaned.replace("e", "").replace("E", "")
+        return float(str_value) if cleaned.isdigit() else 0.0
+
+    def _convert_to_string_vr(self, value: str) -> str:
+        """Convert string value to numeric string for IS/DS VR types."""
+        str_value = str(value)
+        if str_value.replace(".", "").replace("-", "").isdigit():
+            return str(float(str_value))
+        return "0.0"
+
+    def _convert_numeric_value(
+        self, value: str, vr: str, tag: int
+    ) -> str | int | float | None:
+        """Convert string value to appropriate numeric type for VR."""
+        try:
+            if vr in self._INT_VR_RANGES:
+                return self._convert_to_int_vr(value, vr)
+            elif vr in {"FL", "FD"}:
+                return self._convert_to_float_vr(value)
+            elif vr in {"IS", "DS"}:
+                return self._convert_to_string_vr(value)
+            elif vr == "AT":
+                logger.debug(f"Skipping mutation of AT tag {tag:08X}")
+                return None
+            return value
+        except (ValueError, AttributeError):
+            logger.debug(f"Skipped tag {tag:08X}: cannot convert '{value}' to {vr}")
+            return None
+
     def _mutate_tag(
         self, dataset: Dataset, tag: int, severity: MutationSeverity
     ) -> None:
-        """Mutate a specific tag using dictionary values.
-
-        CONCEPT: We choose a value from the appropriate dictionary based on
-        the tag type and severity level.
-
-        Args:
-            dataset: Dataset to mutate (modified in place)
-            tag: Tag to mutate
-            severity: Mutation severity
-
-        """
+        """Mutate a specific tag using dictionary values."""
         tag_int = int(tag)
+        value: str | int | float = self._get_value_for_severity(tag_int, severity)
 
-        # Determine mutation strategy based on severity
-        # Value can be str (from dictionaries) or int/float (after numeric conversion)
-        value: str | int | float
-        if severity == MutationSeverity.MINIMAL:
-            value = self._get_valid_value(tag_int)
-        elif severity == MutationSeverity.MODERATE:
-            if random.random() < 0.7:
-                value = self._get_valid_value(tag_int)
-            else:
-                value = self._get_edge_case_value()
-        elif severity == MutationSeverity.AGGRESSIVE:
-            if random.random() < 0.5:
-                value = self._get_edge_case_value()
-            else:
-                value = self._get_malicious_value()
-        else:  # EXTREME
-            value = self._get_malicious_value()
-
-        # Apply the mutation with VR type validation
         try:
-            # Get the VR (Value Representation) of this tag
             vr = dataset[tag].VR
 
-            # Skip binary/complex VR types that require bytes or special handling
-            # OB = Other Byte, OW = Other Word (pixel data), OD = Other Double
-            # OF = Other Float, OL = Other Long, OV = Other 64-bit Very Long
-            binary_vrs = {"OB", "OW", "OD", "OF", "OL", "OV", "UN"}
-            if vr in binary_vrs:
+            # Skip binary VR types
+            if vr in self._BINARY_VRS:
                 logger.debug(f"Skipping mutation of binary VR tag {tag:08X} (VR={vr})")
                 return
 
-            # UI (Unique Identifier) VR only supports ASCII digits, periods, and spaces
-            # Must not contain unicode or special characters
+            # Handle UI (Unique Identifier) VR specially
             if vr == "UI":
-                # Generate a valid UID instead of using arbitrary values
                 root = random.choice(DICOMDictionaries.get_dictionary("uid_roots"))
                 value = DICOMDictionaries.generate_random_uid(root)
                 dataset[tag].value = value
-                logger.debug(
-                    f"Mutated UI tag {tag:08X}",
-                    old_value=str(dataset[tag].value)[:50],
-                    new_value=str(value)[:50],
-                )
+                logger.debug(f"Mutated UI tag {tag:08X}", new_value=str(value)[:50])
                 return
 
-            # For numeric VRs, skip string-only mutations to avoid save errors
-            # US = Unsigned Short, SS = Signed Short, UL = Unsigned Long, SL = Signed Long
-            # IS = Integer String, DS = Decimal String, FL = Float, FD = Double
+            # Convert string values to appropriate numeric types
             numeric_vrs = {"US", "SS", "UL", "SL", "IS", "DS", "FL", "FD", "AT"}
-
             if vr in numeric_vrs and isinstance(value, str):
-                # Try to convert string to appropriate numeric type
-                try:
-                    if vr in {"US", "SS", "UL", "SL"}:
-                        # Integer types with range checking
-                        if value.replace(".", "").replace("-", "").isdigit():
-                            int_value = int(float(value))
-                            # Validate ranges for each VR type
-                            if vr == "US" and not (0 <= int_value <= 65535):
-                                int_value = (
-                                    abs(int_value) % 65536
-                                )  # Wrap to valid range
-                            elif vr == "SS" and not (-32768 <= int_value <= 32767):
-                                int_value = max(
-                                    -32768, min(32767, int_value)
-                                )  # Clamp to range
-                            elif vr == "UL" and not (0 <= int_value <= 4294967295):
-                                int_value = (
-                                    abs(int_value) % 4294967296
-                                )  # Wrap to valid range
-                            elif vr == "SL" and not (
-                                -2147483648 <= int_value <= 2147483647
-                            ):
-                                int_value = max(
-                                    -2147483648, min(2147483647, int_value)
-                                )  # Clamp
-                            value = int_value  # Keep as integer for pydicom
-                        else:
-                            value = 0  # Default to integer 0
-                    elif vr in {"FL", "FD"}:
-                        # Float types - keep as float for pydicom
-                        str_value = str(value)
-                        value = (
-                            float(str_value)
-                            if str_value.replace(".", "")
-                            .replace("-", "")
-                            .replace("e", "")
-                            .replace("E", "")
-                            .isdigit()
-                            else 0.0
-                        )
-                    elif vr in {"IS", "DS"}:
-                        # Integer String and Decimal String - keep as string
-                        str_value = str(value)
-                        value = str(
-                            float(str_value)
-                            if str_value.replace(".", "").replace("-", "").isdigit()
-                            else 0.0
-                        )
-                    elif vr == "AT":
-                        # Attribute Tag - needs special handling, skip for now
-                        logger.debug(f"Skipping mutation of AT tag {tag:08X}")
-                        return
-                except (ValueError, AttributeError):
-                    # If conversion fails, skip this mutation
-                    logger.debug(
-                        f"Skipped tag {tag:08X}: cannot convert '{value}' to {vr}"
-                    )
+                converted = self._convert_numeric_value(value, vr, tag)
+                if converted is None:
                     return
+                value = converted
 
             dataset[tag].value = value
-            logger.debug(
-                f"Mutated tag {tag:08X}",
-                old_value=str(dataset[tag].value)[:50],
-                new_value=str(value)[:50],
-            )
+            logger.debug(f"Mutated tag {tag:08X}", new_value=str(value)[:50])
         except Exception as e:
             logger.debug(f"Failed to mutate tag {tag:08X}: {e}")
 

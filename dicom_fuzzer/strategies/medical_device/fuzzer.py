@@ -641,51 +641,45 @@ class MedicalDeviceSecurityFuzzer:
 
         return dataset
 
-    def _apply_complex_mutation(
-        self, dataset: Dataset, mutation: SecurityMutation
-    ) -> None:
-        """Apply a complex mutation requiring multiple changes.
-
-        Args:
-            dataset: Dataset to mutate
-            mutation: Complex mutation to apply
-
-        """
-        value = mutation.mutated_value
-        if not isinstance(value, dict):
-            return
-
-        # Handle dimension mutations
+    def _apply_dimension_mutation(self, dataset: Dataset, value: dict) -> None:
+        """Apply dimension mutations (rows/cols)."""
         if "rows" in value and "cols" in value:
             if (0x0028, 0x0010) in dataset:
                 dataset[0x0028, 0x0010].value = value["rows"]
             if (0x0028, 0x0011) in dataset:
                 dataset[0x0028, 0x0011].value = value["cols"]
 
-        # Handle bit allocation mutations
-        if "bits_allocated" in value:
-            if (0x0028, 0x0100) in dataset:
-                dataset[0x0028, 0x0100].value = value["bits_allocated"]
-        if "bits_stored" in value:
-            if (0x0028, 0x0101) in dataset:
-                dataset[0x0028, 0x0101].value = value["bits_stored"]
+    def _apply_bits_mutation(self, dataset: Dataset, value: dict) -> None:
+        """Apply bit allocation mutations."""
+        if "bits_allocated" in value and (0x0028, 0x0100) in dataset:
+            dataset[0x0028, 0x0100].value = value["bits_allocated"]
+        if "bits_stored" in value and (0x0028, 0x0101) in dataset:
+            dataset[0x0028, 0x0101].value = value["bits_stored"]
 
-        # Handle pixel data mutations
-        if "data_size" in value:
-            size = value["data_size"]
-            if "pattern" in value:
-                # Generate pattern data
-                if value["pattern"] == "overflow":
-                    pixel_data = b"\x41" * size  # 'A' pattern
-                else:
-                    pixel_data = os.urandom(size)
-            else:
-                pixel_data = os.urandom(size)
+    def _apply_pixel_mutation(self, dataset: Dataset, value: dict) -> None:
+        """Apply pixel data mutations."""
+        if "data_size" not in value:
+            return
 
-            if (0x7FE0, 0x0010) in dataset:
-                dataset[0x7FE0, 0x0010].value = pixel_data
+        size = value["data_size"]
+        pattern = value.get("pattern")
+        pixel_data = b"\x41" * size if pattern == "overflow" else os.urandom(size)
 
-        # Handle sequence depth mutations
+        if (0x7FE0, 0x0010) in dataset:
+            dataset[0x7FE0, 0x0010].value = pixel_data
+
+    def _apply_complex_mutation(
+        self, dataset: Dataset, mutation: SecurityMutation
+    ) -> None:
+        """Apply a complex mutation requiring multiple changes."""
+        value = mutation.mutated_value
+        if not isinstance(value, dict):
+            return
+
+        self._apply_dimension_mutation(dataset, value)
+        self._apply_bits_mutation(dataset, value)
+        self._apply_pixel_mutation(dataset, value)
+
         if "depth" in value:
             self._create_nested_sequence(dataset, mutation.tag, value["depth"])
 

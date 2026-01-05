@@ -132,31 +132,100 @@ class UIValidator:
         """
         return self.app is not None and self._connected_pid is not None
 
-    def validate_patient_info(self, expected: ExpectedValues) -> UIValidationResult:
-        """Check displayed patient info matches expected values.
-
-        Extracts all visible text from the application window and checks
-        whether expected values appear in the displayed content.
-
-        Args:
-            expected: Expected values to validate against.
+    def _check_value(
+        self,
+        displayed_text: str,
+        value: str | None,
+        check_name: str,
+        variants_func: callable | None = None,
+    ) -> tuple[bool | None, str | None]:
+        """Check if a value or its variants are in displayed text.
 
         Returns:
-            UIValidationResult with pass/fail status and details.
+            Tuple of (found or None if no value, error message or None)
 
         """
-        if not self.is_connected():
-            return UIValidationResult(
-                passed=False,
-                errors=["Not connected to application"],
-            )
+        if not value:
+            return None, None
+        if variants_func:
+            found = any(v in displayed_text for v in variants_func(value))
+        else:
+            found = value in displayed_text
+        error = None if found else f"{check_name} '{value}' not found in UI"
+        return found, error
 
+    def _check_series_count(
+        self, displayed_text: str, count: int | None
+    ) -> tuple[bool | None, str | None]:
+        """Check if series count is visible in UI."""
+        if count is None:
+            return None, None
+        count_str = str(count)
+        text_lower = displayed_text.lower()
+        found = (
+            f"{count_str} series" in text_lower
+            or f"series: {count_str}" in text_lower
+            or f"({count_str})" in displayed_text
+        )
+        error = None if found else f"Series count '{count}' not confirmed in UI"
+        return found, error
+
+    def _run_validations(
+        self, displayed_text: str, expected: ExpectedValues
+    ) -> tuple[dict[str, bool], list[str], list[str]]:
+        """Run all validation checks and return results."""
         errors: list[str] = []
         warnings: list[str] = []
         checks: dict[str, bool] = {}
 
+        validations = [
+            (expected.patient_id, "patient_id", "Patient ID", None, True),
+            (
+                expected.patient_name,
+                "patient_name",
+                "Patient name",
+                self._get_name_variants,
+                True,
+            ),
+            (
+                expected.study_date,
+                "study_date",
+                "Study date",
+                self._get_date_variants,
+                False,
+            ),
+            (expected.modality, "modality", "Modality", None, False),
+        ]
+
+        for value, key, label, variants_func, is_error in validations:
+            found, msg = self._check_value(displayed_text, value, label, variants_func)
+            if found is not None:
+                checks[key] = found
+                if msg:
+                    (errors if is_error else warnings).append(msg)
+
+        found, msg = self._check_series_count(displayed_text, expected.series_count)
+        if found is not None:
+            checks["series_count"] = found
+            if msg:
+                warnings.append(msg)
+
+        for key, value in expected.custom_checks.items():
+            found = value in displayed_text
+            checks[f"custom_{key}"] = found
+            if not found:
+                errors.append(f"Custom check '{key}': '{value}' not found in UI")
+
+        return checks, errors, warnings
+
+    def validate_patient_info(self, expected: ExpectedValues) -> UIValidationResult:
+        """Check displayed patient info matches expected values."""
+        if not self.is_connected():
+            return UIValidationResult(
+                passed=False, errors=["Not connected to application"]
+            )
+
         try:
-            # Find main window
             main_window = self.app.window(title_re=self.window_title_pattern)
             if not main_window.exists():
                 return UIValidationResult(
@@ -166,82 +235,20 @@ class UIValidator:
                     ],
                 )
 
-            # Extract all visible text
             displayed_text = self._extract_all_text(main_window)
-
-            # Check patient ID
-            if expected.patient_id:
-                found = expected.patient_id in displayed_text
-                checks["patient_id"] = found
-                if not found:
-                    errors.append(f"Patient ID '{expected.patient_id}' not found in UI")
-
-            # Check patient name
-            if expected.patient_name:
-                # Handle DICOM name format (LastName^FirstName)
-                name_variants = self._get_name_variants(expected.patient_name)
-                found = any(variant in displayed_text for variant in name_variants)
-                checks["patient_name"] = found
-                if not found:
-                    errors.append(
-                        f"Patient name '{expected.patient_name}' not found in UI"
-                    )
-
-            # Check study date
-            if expected.study_date:
-                # Handle various date formats
-                date_variants = self._get_date_variants(expected.study_date)
-                found = any(variant in displayed_text for variant in date_variants)
-                checks["study_date"] = found
-                if not found:
-                    warnings.append(
-                        f"Study date '{expected.study_date}' not found in UI"
-                    )
-
-            # Check modality
-            if expected.modality:
-                found = expected.modality in displayed_text
-                checks["modality"] = found
-                if not found:
-                    warnings.append(f"Modality '{expected.modality}' not found in UI")
-
-            # Check series count (if visible in UI)
-            if expected.series_count is not None:
-                # Look for series count indicators
-                count_str = str(expected.series_count)
-                # Common patterns: "3 series", "Series: 3", "3/3"
-                found = (
-                    f"{count_str} series" in displayed_text.lower()
-                    or f"series: {count_str}" in displayed_text.lower()
-                    or f"({count_str})" in displayed_text
-                )
-                checks["series_count"] = found
-                if not found:
-                    warnings.append(
-                        f"Series count '{expected.series_count}' not confirmed in UI"
-                    )
-
-            # Check custom values
-            for key, value in expected.custom_checks.items():
-                found = value in displayed_text
-                checks[f"custom_{key}"] = found
-                if not found:
-                    errors.append(f"Custom check '{key}': '{value}' not found in UI")
+            checks, errors, warnings = self._run_validations(displayed_text, expected)
 
             return UIValidationResult(
                 passed=len(errors) == 0,
                 checks=checks,
                 errors=errors,
                 warnings=warnings,
-                extracted_text=displayed_text[:2000],  # Truncate for logging
+                extracted_text=displayed_text[:2000],
             )
 
         except Exception as e:
             logger.error(f"Error during validation: {e}")
-            return UIValidationResult(
-                passed=False,
-                errors=[f"Validation error: {e}"],
-            )
+            return UIValidationResult(passed=False, errors=[f"Validation error: {e}"])
 
     def check_error_dialogs(self) -> list[str]:
         """Check for error/warning dialogs in the application.

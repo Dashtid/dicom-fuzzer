@@ -31,6 +31,149 @@ class TemporalAttacksMixin:
 
     severity: str  # Type hint for mixin
 
+    # Default SOP Class UID for CT Image Storage
+    _CT_SOP_CLASS_UID = "1.2.840.10008.5.1.4.1.1.2"
+
+    # --- Cross-Slice Reference Helpers ---
+
+    def _create_ref_record(
+        self,
+        attack_type: str,
+        slice_index: int | None,
+        mutated_value: str,
+        tag: str = "ReferencedImageSequence",
+        details: dict | None = None,
+    ) -> SeriesMutationRecord:
+        """Create a SeriesMutationRecord for cross-slice reference attacks."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        return SeriesMutationRecord(
+            strategy="cross_slice_reference",
+            slice_index=slice_index,
+            tag=tag,
+            original_value="<none>",
+            mutated_value=mutated_value,
+            severity=self.severity,
+            details={"attack_type": attack_type, **(details or {})},
+        )
+
+    def _add_reference(
+        self, ds: Dataset, instance_uid: str, class_uid: str | None = None
+    ) -> None:
+        """Add a reference item to dataset's ReferencedImageSequence."""
+        if not hasattr(ds, "ReferencedImageSequence"):
+            ds.ReferencedImageSequence = pydicom.Sequence([])
+
+        ref_item = pydicom.Dataset()
+        ref_item.ReferencedSOPClassUID = class_uid or self._CT_SOP_CLASS_UID
+        ref_item.ReferencedSOPInstanceUID = instance_uid
+        ds.ReferencedImageSequence.append(ref_item)
+
+    def _handle_reference_nonexistent(
+        self, datasets: list[Dataset], existing_uids: list[str]
+    ) -> SeriesMutationRecord:
+        """Handle reference_nonexistent attack type."""
+        slice_idx = random.randint(0, len(datasets) - 1)
+        fake_uid = generate_uid() + ".NONEXISTENT.999"
+        self._add_reference(datasets[slice_idx], fake_uid)
+        return self._create_ref_record(
+            attack_type="reference_nonexistent",
+            slice_index=slice_idx,
+            mutated_value=f"references {fake_uid[:40]}...",
+            details={"fake_uid": fake_uid},
+        )
+
+    def _handle_circular_reference(
+        self, datasets: list[Dataset], existing_uids: list[str]
+    ) -> SeriesMutationRecord | None:
+        """Handle circular_reference attack type."""
+        if len(datasets) < 3:
+            return None
+
+        for i in range(min(3, len(datasets))):
+            next_idx = (i + 1) % min(3, len(datasets))
+            next_uid = (
+                existing_uids[next_idx]
+                if next_idx < len(existing_uids)
+                else generate_uid()
+            )
+            self._add_reference(datasets[i], next_uid)
+
+        return self._create_ref_record(
+            attack_type="circular_reference",
+            slice_index=None,
+            mutated_value="circular: 0->1->2->0",
+        )
+
+    def _handle_invalid_uid_format(
+        self, datasets: list[Dataset], existing_uids: list[str]
+    ) -> SeriesMutationRecord:
+        """Handle invalid_uid_format attack type."""
+        invalid_uids = [
+            "",
+            "not.a.valid.uid.format!@#$%",
+            "a" * 100,
+            "1.2.3.",
+            ".1.2.3",
+            "1..2..3",
+            "\x00\x00\x00",
+        ]
+        slice_idx = random.randint(0, len(datasets) - 1)
+        invalid_uid = random.choice(invalid_uids)
+        self._add_reference(datasets[slice_idx], invalid_uid)
+        return self._create_ref_record(
+            attack_type="invalid_uid_format",
+            slice_index=slice_idx,
+            mutated_value=repr(invalid_uid)[:50],
+            tag="ReferencedSOPInstanceUID",
+        )
+
+    def _handle_self_reference(
+        self, datasets: list[Dataset], existing_uids: list[str]
+    ) -> SeriesMutationRecord:
+        """Handle self_reference attack type."""
+        slice_idx = random.randint(0, len(datasets) - 1)
+        ds = datasets[slice_idx]
+        own_uid = getattr(ds, "SOPInstanceUID", generate_uid())
+        class_uid = getattr(ds, "SOPClassUID", self._CT_SOP_CLASS_UID)
+        self._add_reference(ds, own_uid, class_uid)
+        return self._create_ref_record(
+            attack_type="self_reference",
+            slice_index=slice_idx,
+            mutated_value="<self_reference>",
+        )
+
+    def _handle_duplicate_references(
+        self, datasets: list[Dataset], existing_uids: list[str]
+    ) -> SeriesMutationRecord:
+        """Handle duplicate_references attack type."""
+        slice_idx = random.randint(0, len(datasets) - 1)
+        target_uid = existing_uids[0] if existing_uids else generate_uid()
+        for _ in range(10):
+            self._add_reference(datasets[slice_idx], target_uid)
+        return self._create_ref_record(
+            attack_type="duplicate_references",
+            slice_index=slice_idx,
+            mutated_value="10x duplicate references",
+        )
+
+    def _handle_missing_reference_chain(
+        self, datasets: list[Dataset], existing_uids: list[str]
+    ) -> SeriesMutationRecord | None:
+        """Handle missing_reference_chain attack type."""
+        if len(datasets) < 2:
+            return None
+
+        uid1 = existing_uids[1] if len(existing_uids) > 1 else generate_uid()
+        self._add_reference(datasets[0], uid1)
+        self._add_reference(datasets[1], generate_uid() + ".MISSING")
+
+        return self._create_ref_record(
+            attack_type="missing_reference_chain",
+            slice_index=None,
+            mutated_value="broken chain: 0->1->missing",
+        )
+
     def _mutate_cross_slice_reference(
         self, datasets: list[Dataset], series: DicomSeries, mutation_count: int
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
@@ -45,219 +188,27 @@ class TemporalAttacksMixin:
 
         Targets: Series reconstruction, slice linking, registration algorithms
         """
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
-
         records: list[SeriesMutationRecord] = []
 
-        # Collect existing SOPInstanceUIDs for reference
-        existing_uids = []
-        for ds in datasets:
-            if hasattr(ds, "SOPInstanceUID"):
-                existing_uids.append(str(ds.SOPInstanceUID))
+        existing_uids = [
+            str(ds.SOPInstanceUID) for ds in datasets if hasattr(ds, "SOPInstanceUID")
+        ]
+
+        attack_handlers = {
+            "reference_nonexistent": self._handle_reference_nonexistent,
+            "circular_reference": self._handle_circular_reference,
+            "invalid_uid_format": self._handle_invalid_uid_format,
+            "self_reference": self._handle_self_reference,
+            "duplicate_references": self._handle_duplicate_references,
+            "missing_reference_chain": self._handle_missing_reference_chain,
+        }
 
         for _ in range(mutation_count):
-            attack_type = random.choice(
-                [
-                    "reference_nonexistent",
-                    "circular_reference",
-                    "invalid_uid_format",
-                    "self_reference",
-                    "duplicate_references",
-                    "missing_reference_chain",
-                ]
-            )
-
-            if attack_type == "reference_nonexistent":
-                # Add reference to a SOP Instance that doesn't exist
-                slice_idx = random.randint(0, len(datasets) - 1)
-                ds = datasets[slice_idx]
-
-                fake_uid = generate_uid() + ".NONEXISTENT.999"
-
-                # Add to ReferencedImageSequence
-                if not hasattr(ds, "ReferencedImageSequence"):
-                    ds.ReferencedImageSequence = pydicom.Sequence([])
-
-                ref_item = pydicom.Dataset()
-                ref_item.ReferencedSOPClassUID = (
-                    "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
-                )
-                ref_item.ReferencedSOPInstanceUID = fake_uid
-                ds.ReferencedImageSequence.append(ref_item)
-
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="cross_slice_reference",
-                        slice_index=slice_idx,
-                        tag="ReferencedImageSequence",
-                        original_value="<none>",
-                        mutated_value=f"references {fake_uid[:40]}...",
-                        severity=self.severity,
-                        details={"attack_type": attack_type, "fake_uid": fake_uid},
-                    )
-                )
-
-            elif attack_type == "circular_reference":
-                # Create A -> B -> C -> A circular reference
-                if len(datasets) >= 3:
-                    for i in range(min(3, len(datasets))):
-                        ds = datasets[i]
-                        next_idx = (i + 1) % min(3, len(datasets))
-                        next_uid = (
-                            existing_uids[next_idx]
-                            if next_idx < len(existing_uids)
-                            else generate_uid()
-                        )
-
-                        if not hasattr(ds, "ReferencedImageSequence"):
-                            ds.ReferencedImageSequence = pydicom.Sequence([])
-
-                        ref_item = pydicom.Dataset()
-                        ref_item.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-                        ref_item.ReferencedSOPInstanceUID = next_uid
-                        ds.ReferencedImageSequence.append(ref_item)
-
-                    records.append(
-                        SeriesMutationRecord(
-                            strategy="cross_slice_reference",
-                            slice_index=None,
-                            tag="ReferencedImageSequence",
-                            original_value="<no_circular>",
-                            mutated_value="circular: 0->1->2->0",
-                            severity=self.severity,
-                            details={"attack_type": attack_type},
-                        )
-                    )
-
-            elif attack_type == "invalid_uid_format":
-                # Use completely invalid UID format
-                slice_idx = random.randint(0, len(datasets) - 1)
-                ds = datasets[slice_idx]
-
-                invalid_uids = [
-                    "",  # Empty
-                    "not.a.valid.uid.format!@#$%",  # Special chars
-                    "a" * 100,  # Too long, letters
-                    "1.2.3.",  # Trailing dot
-                    ".1.2.3",  # Leading dot
-                    "1..2..3",  # Double dots
-                    "\x00\x00\x00",  # Null bytes
-                ]
-                invalid_uid = random.choice(invalid_uids)
-
-                if not hasattr(ds, "ReferencedImageSequence"):
-                    ds.ReferencedImageSequence = pydicom.Sequence([])
-
-                ref_item = pydicom.Dataset()
-                ref_item.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-                ref_item.ReferencedSOPInstanceUID = invalid_uid
-                ds.ReferencedImageSequence.append(ref_item)
-
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="cross_slice_reference",
-                        slice_index=slice_idx,
-                        tag="ReferencedSOPInstanceUID",
-                        original_value="<none>",
-                        mutated_value=repr(invalid_uid)[:50],
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "self_reference":
-                # Slice references itself
-                slice_idx = random.randint(0, len(datasets) - 1)
-                ds = datasets[slice_idx]
-                own_uid = getattr(ds, "SOPInstanceUID", generate_uid())
-
-                if not hasattr(ds, "ReferencedImageSequence"):
-                    ds.ReferencedImageSequence = pydicom.Sequence([])
-
-                ref_item = pydicom.Dataset()
-                ref_item.ReferencedSOPClassUID = getattr(
-                    ds, "SOPClassUID", "1.2.840.10008.5.1.4.1.1.2"
-                )
-                ref_item.ReferencedSOPInstanceUID = own_uid
-                ds.ReferencedImageSequence.append(ref_item)
-
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="cross_slice_reference",
-                        slice_index=slice_idx,
-                        tag="ReferencedImageSequence",
-                        original_value="<none>",
-                        mutated_value="<self_reference>",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "duplicate_references":
-                # Same slice referenced multiple times
-                slice_idx = random.randint(0, len(datasets) - 1)
-                ds = datasets[slice_idx]
-
-                target_uid = existing_uids[0] if existing_uids else generate_uid()
-
-                if not hasattr(ds, "ReferencedImageSequence"):
-                    ds.ReferencedImageSequence = pydicom.Sequence([])
-
-                # Add same reference 10 times
-                for _ in range(10):
-                    ref_item = pydicom.Dataset()
-                    ref_item.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-                    ref_item.ReferencedSOPInstanceUID = target_uid
-                    ds.ReferencedImageSequence.append(ref_item)
-
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="cross_slice_reference",
-                        slice_index=slice_idx,
-                        tag="ReferencedImageSequence",
-                        original_value="<none>",
-                        mutated_value="10x duplicate references",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "missing_reference_chain":
-                # Create broken reference chain A -> B -> [missing]
-                if len(datasets) >= 2:
-                    # First slice references second
-                    ds0 = datasets[0]
-                    if not hasattr(ds0, "ReferencedImageSequence"):
-                        ds0.ReferencedImageSequence = pydicom.Sequence([])
-
-                    ref_item = pydicom.Dataset()
-                    ref_item.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-                    ref_item.ReferencedSOPInstanceUID = (
-                        existing_uids[1] if len(existing_uids) > 1 else generate_uid()
-                    )
-                    ds0.ReferencedImageSequence.append(ref_item)
-
-                    # Second slice references non-existent
-                    ds1 = datasets[1]
-                    if not hasattr(ds1, "ReferencedImageSequence"):
-                        ds1.ReferencedImageSequence = pydicom.Sequence([])
-
-                    ref_item2 = pydicom.Dataset()
-                    ref_item2.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-                    ref_item2.ReferencedSOPInstanceUID = generate_uid() + ".MISSING"
-                    ds1.ReferencedImageSequence.append(ref_item2)
-
-                    records.append(
-                        SeriesMutationRecord(
-                            strategy="cross_slice_reference",
-                            slice_index=None,
-                            tag="ReferencedImageSequence",
-                            original_value="<none>",
-                            mutated_value="broken chain: 0->1->missing",
-                            severity=self.severity,
-                            details={"attack_type": attack_type},
-                        )
-                    )
+            attack_type = random.choice(list(attack_handlers.keys()))
+            handler = attack_handlers[attack_type]
+            record = handler(datasets, existing_uids)
+            if record:
+                records.append(record)
 
         return datasets, records
 
