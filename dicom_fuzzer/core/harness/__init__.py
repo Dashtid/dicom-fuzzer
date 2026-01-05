@@ -1,10 +1,10 @@
-"""Target Harness for GUI Application Testing.
+"""Target Harness Package.
 
 Provides a reusable harness for testing target applications (DICOM viewers, etc.)
 with mutated DICOM studies. Monitors for crashes, memory issues, and timeouts.
 
 Example usage:
-    from dicom_fuzzer.core.target_harness import TargetHarness, TargetConfig
+    from dicom_fuzzer.core.harness import TargetHarness, TargetConfig
 
     config = TargetConfig(
         executable=Path("/path/to/viewer.exe"),
@@ -13,32 +13,26 @@ Example usage:
     )
     harness = TargetHarness(config, crash_dir=Path("./crashes"))
     result = harness.test_study_directory(Path("./mutated_study"))
-
-Note: This module re-exports from the `harness` subpackage for backward
-compatibility. New code should import directly from the subpackage modules.
 """
 
-# Re-export all public symbols from the harness subpackage
-from dicom_fuzzer.core.harness import (
+from dicom_fuzzer.core.harness.harness import TargetHarness
+from dicom_fuzzer.core.harness.monitoring import (
+    is_psutil_available,
+    kill_target_processes,
+    monitor_process,
+    run_observation_phase,
+)
+from dicom_fuzzer.core.harness.types import (
     DEFAULT_OBSERVATION_PHASES,
     CrashArtifact,
     ObservationPhase,
     PhasedTestResult,
     PhaseResult,
     TargetConfig,
-    TargetHarness,
     TestResult,
     TestStatus,
     ValidationResult,
-    is_psutil_available,
 )
-
-
-# Backward compatibility alias
-def _is_psutil_available() -> bool:
-    """Check if psutil is available (backward compatibility)."""
-    return is_psutil_available()
-
 
 __all__ = [
     # Main class
@@ -53,4 +47,9 @@ __all__ = [
     "PhaseResult",
     "PhasedTestResult",
     "DEFAULT_OBSERVATION_PHASES",
+    # Monitoring functions
+    "is_psutil_available",
+    "monitor_process",
+    "run_observation_phase",
+    "kill_target_processes",
 ]
