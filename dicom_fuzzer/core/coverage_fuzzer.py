@@ -187,6 +187,70 @@ class CoverageGuidedFuzzer:
         logger.info("Added seed to corpus", seed_id=seed_id)
         return seed_id
 
+    def _execute_and_check_crash(
+        self,
+        mutated_dataset: Dataset,
+        entry_id: str,
+        parent_id: str,
+    ) -> tuple[CoverageSnapshot | None, bool]:
+        """Execute target function and detect crashes.
+
+        Returns:
+            Tuple of (coverage, crash_detected)
+
+        """
+        coverage = None
+        crash = False
+
+        try:
+            if self.target_function:
+                coverage = self._execute_with_coverage(mutated_dataset, entry_id)
+        except KeyboardInterrupt:
+            raise
+        except SystemExit:
+            raise
+        except (ValueError, TypeError, AttributeError, KeyError, OSError) as e:
+            crash = True
+            self._record_crash(entry_id, parent_id, mutated_dataset, e)
+        except Exception as e:
+            logger.warning(
+                "Unexpected exception during fuzzing - treating as crash",
+                exception_type=type(e).__name__,
+                error=str(e),
+                entry_id=entry_id,
+            )
+            crash = True
+            self._record_crash(entry_id, parent_id, mutated_dataset, e)
+
+        return coverage, crash
+
+    def _handle_interesting_result(
+        self,
+        entry_id: str,
+        mutated_dataset: Dataset,
+        coverage: CoverageSnapshot | None,
+        crash: bool,
+        parent_id: str,
+    ) -> CorpusEntry | None:
+        """Handle an interesting fuzzing result by adding to corpus."""
+        added = self.corpus_manager.add_entry(
+            entry_id=entry_id,
+            dataset=mutated_dataset,
+            coverage=coverage,
+            parent_id=parent_id,
+            crash_triggered=crash,
+        )
+
+        if added:
+            logger.info(
+                "Added interesting input to corpus",
+                entry_id=entry_id,
+                crash=crash,
+                parent=parent_id,
+            )
+            return self.corpus_manager.get_entry(entry_id)
+        return None
+
     def fuzz_iteration(self) -> CorpusEntry | None:
         """Perform one fuzzing iteration.
 
@@ -197,83 +261,41 @@ class CoverageGuidedFuzzer:
             New corpus entry if interesting, None otherwise
 
         """
-        # Select input to mutate
         parent = self._select_input()
         if not parent:
             logger.warning("No corpus entries available for fuzzing")
             return None
 
-        # Mutate it - use get_dataset() for lazy-loading support
         parent_dataset = parent.get_dataset()
         if parent_dataset is None:
             logger.warning(
                 "Parent dataset is None, skipping iteration", parent_id=parent.entry_id
             )
             return None
-        mutated_dataset = self._mutate_input(parent_dataset)
 
-        # Generate entry ID
+        mutated_dataset = self._mutate_input(parent_dataset)
         entry_id = generate_corpus_entry_id(parent.generation + 1)
 
-        # Execute and track coverage
-        coverage = None
-        crash = False
+        coverage, crash = self._execute_and_check_crash(
+            mutated_dataset, entry_id, parent.entry_id
+        )
 
-        try:
-            if self.target_function:
-                coverage = self._execute_with_coverage(mutated_dataset, entry_id)
-        except KeyboardInterrupt:
-            # User requested stop - propagate immediately
-            raise
-        except SystemExit:
-            # System exit - propagate immediately
-            raise
-        except (ValueError, TypeError, AttributeError, KeyError) as e:
-            # Target function crashed due to malformed input - this is what we want!
-            crash = True
-            self._record_crash(entry_id, parent.entry_id, mutated_dataset, e)
-        except OSError as e:
-            # I/O errors from file operations - likely input-triggered
-            crash = True
-            self._record_crash(entry_id, parent.entry_id, mutated_dataset, e)
-        except Exception as e:
-            # Catch other unexpected exceptions, but log them as potential fuzzer bugs
-            logger.warning(
-                "Unexpected exception during fuzzing - treating as crash",
-                exception_type=type(e).__name__,
-                error=str(e),
-                entry_id=entry_id,
-            )
-            crash = True
-            self._record_crash(entry_id, parent.entry_id, mutated_dataset, e)
-
-        # Check if this is interesting
-        is_interesting = False
-        if crash:
-            is_interesting = True
-        elif coverage and self.coverage_tracker.is_interesting(coverage):
+        is_interesting = crash
+        if (
+            not is_interesting
+            and coverage
+            and self.coverage_tracker.is_interesting(coverage)
+        ):
             is_interesting = True
             with self._lock:
                 self.stats.interesting_inputs_found += 1
 
-        # Add to corpus if interesting
         if is_interesting:
-            added = self.corpus_manager.add_entry(
-                entry_id=entry_id,
-                dataset=mutated_dataset,
-                coverage=coverage,
-                parent_id=parent.entry_id,
-                crash_triggered=crash,
+            result = self._handle_interesting_result(
+                entry_id, mutated_dataset, coverage, crash, parent.entry_id
             )
-
-            if added:
-                logger.info(
-                    "Added interesting input to corpus",
-                    entry_id=entry_id,
-                    crash=crash,
-                    parent=parent.entry_id,
-                )
-                return self.corpus_manager.get_entry(entry_id)
+            if result:
+                return result
 
         with self._lock:
             self.stats.total_iterations += 1

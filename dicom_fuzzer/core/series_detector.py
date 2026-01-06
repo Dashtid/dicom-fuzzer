@@ -135,33 +135,9 @@ class SeriesDetector:
 
         return self.detect_series(dicom_files, validate=validate)
 
-    def _find_dicom_files(self, directory: Path, recursive: bool = True) -> list[Path]:
-        """Find all DICOM files in directory.
-
-        Args:
-            directory: Directory to scan
-            recursive: If True, scan subdirectories
-
-        Returns:
-            List of paths to DICOM files (deduplicated)
-
-        """
-        # Use set to automatically deduplicate paths
-        # (handles case-insensitive filesystems where *.dcm and *.DCM match same files)
-        dicom_files_set: set[Path] = set()
-        patterns = ["*.dcm", "*.DCM", "*.dicom", "*.DICOM"]
-
-        if recursive:
-            for pattern in patterns:
-                dicom_files_set.update(directory.rglob(pattern))
-        else:
-            for pattern in patterns:
-                dicom_files_set.update(directory.glob(pattern))
-
-        # Also try files without typical extension (common in DICOM)
-        # DICOM files often use SOP Instance UIDs as filenames (e.g., 1.2.752.37.1.1.xxx)
-        # These have dots but no real extension like .dcm
-        typical_non_dicom_extensions = {
+    # Common non-DICOM extensions to skip when scanning for extension-less files
+    _NON_DICOM_EXTENSIONS = frozenset(
+        {
             ".txt",
             ".xml",
             ".json",
@@ -187,27 +163,46 @@ class SeriesDetector:
             ".doc",
             ".docx",
         }
-        if recursive:
-            for file_path in directory.rglob("*"):
-                if file_path.is_file():
-                    suffix = file_path.suffix.lower()
-                    # Check files with no extension OR unusual extensions (like .1232220170407)
-                    if not suffix or suffix not in typical_non_dicom_extensions:
-                        if file_path not in dicom_files_set and self._is_dicom_file(
-                            file_path
-                        ):
-                            dicom_files_set.add(file_path)
-        else:
-            for file_path in directory.glob("*"):
-                if file_path.is_file():
-                    suffix = file_path.suffix.lower()
-                    if not suffix or suffix not in typical_non_dicom_extensions:
-                        if file_path not in dicom_files_set and self._is_dicom_file(
-                            file_path
-                        ):
-                            dicom_files_set.add(file_path)
+    )
 
-        # Convert set back to list for consistent return type
+    def _scan_extensionless_files(
+        self,
+        directory: Path,
+        dicom_files_set: set[Path],
+        recursive: bool,
+    ) -> None:
+        """Scan for DICOM files without standard extensions."""
+        glob_func = directory.rglob if recursive else directory.glob
+        for file_path in glob_func("*"):
+            if not file_path.is_file():
+                continue
+            suffix = file_path.suffix.lower()
+            if suffix and suffix in self._NON_DICOM_EXTENSIONS:
+                continue
+            if file_path not in dicom_files_set and self._is_dicom_file(file_path):
+                dicom_files_set.add(file_path)
+
+    def _find_dicom_files(self, directory: Path, recursive: bool = True) -> list[Path]:
+        """Find all DICOM files in directory.
+
+        Args:
+            directory: Directory to scan
+            recursive: If True, scan subdirectories
+
+        Returns:
+            List of paths to DICOM files (deduplicated)
+
+        """
+        dicom_files_set: set[Path] = set()
+        patterns = ["*.dcm", "*.DCM", "*.dicom", "*.DICOM"]
+        glob_func = directory.rglob if recursive else directory.glob
+
+        for pattern in patterns:
+            dicom_files_set.update(glob_func(pattern))
+
+        # Also check files without typical extension (common in DICOM)
+        self._scan_extensionless_files(directory, dicom_files_set, recursive)
+
         dicom_files = list(dicom_files_set)
         logger.info(f"Found {len(dicom_files)} DICOM files")
         return dicom_files

@@ -25,6 +25,8 @@ USAGE:
     )
 """
 
+from __future__ import annotations
+
 import copy
 import random
 from dataclasses import dataclass, field
@@ -400,6 +402,122 @@ class StudyMutator:
 
         return all_datasets, records
 
+    def _for_attack_different(
+        self,
+        all_datasets: list[list[Dataset]],
+        series_idx: int,
+        study: DicomStudy,
+    ) -> StudyMutationRecord:
+        """Apply different FoR per series attack."""
+        new_for = generate_uid()
+        original = None
+        for ds in all_datasets[series_idx]:
+            original = getattr(ds, "FrameOfReferenceUID", None)
+            ds.FrameOfReferenceUID = new_for
+        return StudyMutationRecord(
+            strategy="frame_of_reference",
+            series_index=series_idx,
+            series_uid=study.series_list[series_idx].series_uid,
+            tag="FrameOfReferenceUID",
+            original_value=str(original) if original else "<none>",
+            mutated_value=new_for,
+            severity=self.severity,
+            details={"attack_type": "different_for_per_series"},
+        )
+
+    def _for_attack_same_unrelated(
+        self,
+        all_datasets: list[list[Dataset]],
+        study: DicomStudy,
+    ) -> StudyMutationRecord | None:
+        """Apply same FoR to unrelated series attack."""
+        if len(all_datasets) <= 1:
+            return None
+        shared_for = generate_uid()
+        for series_datasets in all_datasets:
+            for ds in series_datasets:
+                ds.FrameOfReferenceUID = shared_for
+        return StudyMutationRecord(
+            strategy="frame_of_reference",
+            series_index=None,
+            series_uid=None,
+            tag="FrameOfReferenceUID",
+            original_value="<various>",
+            mutated_value=shared_for,
+            severity=self.severity,
+            details={
+                "attack_type": "same_for_unrelated",
+                "series_count": len(all_datasets),
+            },
+        )
+
+    def _for_attack_empty(
+        self,
+        all_datasets: list[list[Dataset]],
+        series_idx: int,
+        study: DicomStudy,
+    ) -> StudyMutationRecord:
+        """Apply empty FoR attack."""
+        original = None
+        for ds in all_datasets[series_idx]:
+            original = getattr(ds, "FrameOfReferenceUID", None)
+            ds.FrameOfReferenceUID = ""
+        return StudyMutationRecord(
+            strategy="frame_of_reference",
+            series_index=series_idx,
+            series_uid=study.series_list[series_idx].series_uid,
+            tag="FrameOfReferenceUID",
+            original_value=str(original) if original else "<none>",
+            mutated_value="<empty>",
+            severity=self.severity,
+            details={"attack_type": "empty_for"},
+        )
+
+    def _for_attack_invalid(
+        self,
+        all_datasets: list[list[Dataset]],
+        series_idx: int,
+        study: DicomStudy,
+    ) -> StudyMutationRecord:
+        """Apply invalid FoR attack."""
+        original = None
+        for ds in all_datasets[series_idx]:
+            original = getattr(ds, "FrameOfReferenceUID", None)
+            ds.FrameOfReferenceUID = "INVALID-FoR-!@#$%"
+        return StudyMutationRecord(
+            strategy="frame_of_reference",
+            series_index=series_idx,
+            series_uid=study.series_list[series_idx].series_uid,
+            tag="FrameOfReferenceUID",
+            original_value=str(original) if original else "<none>",
+            mutated_value="INVALID-FoR-!@#$%",
+            severity=self.severity,
+            details={"attack_type": "invalid_for"},
+        )
+
+    def _for_attack_inconsistent(
+        self,
+        all_datasets: list[list[Dataset]],
+        series_idx: int,
+        study: DicomStudy,
+    ) -> StudyMutationRecord:
+        """Apply inconsistent FoR within series attack."""
+        for ds in all_datasets[series_idx]:
+            ds.FrameOfReferenceUID = generate_uid()
+        return StudyMutationRecord(
+            strategy="frame_of_reference",
+            series_index=series_idx,
+            series_uid=study.series_list[series_idx].series_uid,
+            tag="FrameOfReferenceUID",
+            original_value="<consistent>",
+            mutated_value="<inconsistent_per_slice>",
+            severity=self.severity,
+            details={
+                "attack_type": "inconsistent_within_series",
+                "slice_count": len(all_datasets[series_idx]),
+            },
+        )
+
     def _mutate_frame_of_reference(
         self,
         all_datasets: list[list[Dataset]],
@@ -415,6 +533,13 @@ class StudyMutator:
 
         Targets: Image registration, PET/CT fusion, treatment planning
         """
+        attack_types = [
+            "different_for_per_series",
+            "same_for_unrelated",
+            "empty_for",
+            "invalid_for",
+            "inconsistent_within_series",
+        ]
         records: list[StudyMutationRecord] = []
 
         for _ in range(mutation_count):
@@ -422,119 +547,22 @@ class StudyMutator:
                 break
 
             series_idx = random.randint(0, len(all_datasets) - 1)
+            attack_type = random.choice(attack_types)
 
-            attack_type = random.choice(
-                [
-                    "different_for_per_series",
-                    "same_for_unrelated",
-                    "empty_for",
-                    "invalid_for",
-                    "inconsistent_within_series",
-                ]
-            )
-
+            record: StudyMutationRecord | None = None
             if attack_type == "different_for_per_series":
-                # Each series gets different FoR (breaks registration)
-                new_for = generate_uid()
-                for ds in all_datasets[series_idx]:
-                    original = getattr(ds, "FrameOfReferenceUID", None)
-                    ds.FrameOfReferenceUID = new_for
-
-                records.append(
-                    StudyMutationRecord(
-                        strategy="frame_of_reference",
-                        series_index=series_idx,
-                        series_uid=study.series_list[series_idx].series_uid,
-                        tag="FrameOfReferenceUID",
-                        original_value=str(original) if original else "<none>",
-                        mutated_value=new_for,
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "same_for_unrelated" and len(all_datasets) > 1:
-                # Force same FoR on all series (confuses fusion)
-                shared_for = generate_uid()
-                for series_datasets in all_datasets:
-                    for ds in series_datasets:
-                        ds.FrameOfReferenceUID = shared_for
-
-                records.append(
-                    StudyMutationRecord(
-                        strategy="frame_of_reference",
-                        series_index=None,
-                        series_uid=None,
-                        tag="FrameOfReferenceUID",
-                        original_value="<various>",
-                        mutated_value=shared_for,
-                        severity=self.severity,
-                        details={
-                            "attack_type": attack_type,
-                            "series_count": len(all_datasets),
-                        },
-                    )
-                )
-
+                record = self._for_attack_different(all_datasets, series_idx, study)
+            elif attack_type == "same_for_unrelated":
+                record = self._for_attack_same_unrelated(all_datasets, study)
             elif attack_type == "empty_for":
-                # Empty FoR (may cause null pointer)
-                for ds in all_datasets[series_idx]:
-                    original = getattr(ds, "FrameOfReferenceUID", None)
-                    ds.FrameOfReferenceUID = ""
-
-                records.append(
-                    StudyMutationRecord(
-                        strategy="frame_of_reference",
-                        series_index=series_idx,
-                        series_uid=study.series_list[series_idx].series_uid,
-                        tag="FrameOfReferenceUID",
-                        original_value=str(original) if original else "<none>",
-                        mutated_value="<empty>",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
+                record = self._for_attack_empty(all_datasets, series_idx, study)
             elif attack_type == "invalid_for":
-                # Invalid UID characters
-                for ds in all_datasets[series_idx]:
-                    original = getattr(ds, "FrameOfReferenceUID", None)
-                    ds.FrameOfReferenceUID = "INVALID-FoR-!@#$%"
-
-                records.append(
-                    StudyMutationRecord(
-                        strategy="frame_of_reference",
-                        series_index=series_idx,
-                        series_uid=study.series_list[series_idx].series_uid,
-                        tag="FrameOfReferenceUID",
-                        original_value=str(original) if original else "<none>",
-                        mutated_value="INVALID-FoR-!@#$%",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
+                record = self._for_attack_invalid(all_datasets, series_idx, study)
             elif attack_type == "inconsistent_within_series":
-                # Different FoR within same series (should be consistent)
-                for _i, ds in enumerate(all_datasets[series_idx]):
-                    original = getattr(ds, "FrameOfReferenceUID", None)
-                    ds.FrameOfReferenceUID = generate_uid()
+                record = self._for_attack_inconsistent(all_datasets, series_idx, study)
 
-                records.append(
-                    StudyMutationRecord(
-                        strategy="frame_of_reference",
-                        series_index=series_idx,
-                        series_uid=study.series_list[series_idx].series_uid,
-                        tag="FrameOfReferenceUID",
-                        original_value="<consistent>",
-                        mutated_value="<inconsistent_per_slice>",
-                        severity=self.severity,
-                        details={
-                            "attack_type": attack_type,
-                            "slice_count": len(all_datasets[series_idx]),
-                        },
-                    )
-                )
+            if record:
+                records.append(record)
 
         return all_datasets, records
 
@@ -654,6 +682,130 @@ class StudyMutator:
 
         return all_datasets, records
 
+    def _study_meta_uid_mismatch(
+        self,
+        all_datasets: list[list[Dataset]],
+        study: DicomStudy,
+        records: list[StudyMutationRecord],
+    ) -> None:
+        """Apply study UID mismatch attack."""
+        if len(all_datasets) <= 1:
+            return
+        for series_idx, series_datasets in enumerate(all_datasets):
+            new_uid = generate_uid()
+            original = (
+                getattr(series_datasets[0], "StudyInstanceUID", None)
+                if series_datasets
+                else None
+            )
+            for ds in series_datasets:
+                ds.StudyInstanceUID = new_uid
+            records.append(
+                StudyMutationRecord(
+                    strategy="study_metadata",
+                    series_index=series_idx,
+                    series_uid=study.series_list[series_idx].series_uid,
+                    tag="StudyInstanceUID",
+                    original_value=str(original) if original else "<none>",
+                    mutated_value=new_uid,
+                    severity=self.severity,
+                    details={"attack_type": "study_uid_mismatch"},
+                )
+            )
+
+    def _study_meta_date_conflict(
+        self,
+        all_datasets: list[list[Dataset]],
+        study: DicomStudy,
+        records: list[StudyMutationRecord],
+    ) -> None:
+        """Apply study date conflict attack."""
+        series_idx = random.randint(0, len(all_datasets) - 1)
+        new_date = f"{random.randint(1990, 2030)}{random.randint(1, 12):02d}{random.randint(1, 28):02d}"
+        original = (
+            getattr(all_datasets[series_idx][0], "StudyDate", None)
+            if all_datasets[series_idx]
+            else None
+        )
+        for ds in all_datasets[series_idx]:
+            ds.StudyDate = new_date
+        records.append(
+            StudyMutationRecord(
+                strategy="study_metadata",
+                series_index=series_idx,
+                series_uid=study.series_list[series_idx].series_uid,
+                tag="StudyDate",
+                original_value=str(original) if original else "<none>",
+                mutated_value=new_date,
+                severity=self.severity,
+                details={"attack_type": "study_date_conflict"},
+            )
+        )
+
+    def _study_meta_extreme_id(
+        self,
+        all_datasets: list[list[Dataset]],
+        study: DicomStudy,
+        records: list[StudyMutationRecord],
+    ) -> None:
+        """Apply extreme study ID attack."""
+        series_idx = random.randint(0, len(all_datasets) - 1)
+        extreme_ids = [
+            "A" * 1000,
+            "",
+            "\x00\x00",
+            "../../../etc/passwd",
+            "<script>alert(1)</script>",
+        ]
+        new_id = random.choice(extreme_ids)
+        original = (
+            getattr(all_datasets[series_idx][0], "StudyID", None)
+            if all_datasets[series_idx]
+            else None
+        )
+        for ds in all_datasets[series_idx]:
+            ds.StudyID = new_id
+        records.append(
+            StudyMutationRecord(
+                strategy="study_metadata",
+                series_index=series_idx,
+                series_uid=study.series_list[series_idx].series_uid,
+                tag="StudyID",
+                original_value=str(original) if original else "<none>",
+                mutated_value=repr(new_id)[:50],
+                severity=self.severity,
+                details={"attack_type": "extreme_study_id"},
+            )
+        )
+
+    def _study_meta_empty_uid(
+        self,
+        all_datasets: list[list[Dataset]],
+        study: DicomStudy,
+        records: list[StudyMutationRecord],
+    ) -> None:
+        """Apply empty study UID attack."""
+        series_idx = random.randint(0, len(all_datasets) - 1)
+        original = (
+            getattr(all_datasets[series_idx][0], "StudyInstanceUID", None)
+            if all_datasets[series_idx]
+            else None
+        )
+        for ds in all_datasets[series_idx]:
+            ds.StudyInstanceUID = ""
+        records.append(
+            StudyMutationRecord(
+                strategy="study_metadata",
+                series_index=series_idx,
+                series_uid=study.series_list[series_idx].series_uid,
+                tag="StudyInstanceUID",
+                original_value=str(original) if original else "<none>",
+                mutated_value="<empty>",
+                severity=self.severity,
+                details={"attack_type": "empty_study_uid"},
+            )
+        )
+
     def _mutate_study_metadata(
         self,
         all_datasets: list[list[Dataset]],
@@ -670,109 +822,18 @@ class StudyMutator:
         Targets: Study grouping, timeline views, reporting
         """
         records: list[StudyMutationRecord] = []
+        handlers = {
+            "uid_mismatch": self._study_meta_uid_mismatch,
+            "date_conflict": self._study_meta_date_conflict,
+            "extreme_id": self._study_meta_extreme_id,
+            "empty_uid": self._study_meta_empty_uid,
+        }
 
         for _ in range(mutation_count):
             if len(all_datasets) < 1:
                 break
-
-            attack_type = random.choice(
-                [
-                    "study_uid_mismatch",
-                    "study_date_conflict",
-                    "extreme_study_id",
-                    "empty_study_uid",
-                ]
-            )
-
-            if attack_type == "study_uid_mismatch" and len(all_datasets) > 1:
-                # Give each series different StudyInstanceUID
-                for series_idx, series_datasets in enumerate(all_datasets):
-                    new_study_uid = generate_uid()
-                    for ds in series_datasets:
-                        original = getattr(ds, "StudyInstanceUID", None)
-                        ds.StudyInstanceUID = new_study_uid
-
-                    records.append(
-                        StudyMutationRecord(
-                            strategy="study_metadata",
-                            series_index=series_idx,
-                            series_uid=study.series_list[series_idx].series_uid,
-                            tag="StudyInstanceUID",
-                            original_value=str(original) if original else "<none>",
-                            mutated_value=new_study_uid,
-                            severity=self.severity,
-                            details={"attack_type": attack_type},
-                        )
-                    )
-
-            elif attack_type == "study_date_conflict":
-                # Different study dates across series
-                series_idx = random.randint(0, len(all_datasets) - 1)
-                new_date = f"{random.randint(1990, 2030)}{random.randint(1, 12):02d}{random.randint(1, 28):02d}"
-                for ds in all_datasets[series_idx]:
-                    original = getattr(ds, "StudyDate", None)
-                    ds.StudyDate = new_date
-
-                records.append(
-                    StudyMutationRecord(
-                        strategy="study_metadata",
-                        series_index=series_idx,
-                        series_uid=study.series_list[series_idx].series_uid,
-                        tag="StudyDate",
-                        original_value=str(original) if original else "<none>",
-                        mutated_value=new_date,
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "extreme_study_id":
-                # Very long or special characters in StudyID
-                series_idx = random.randint(0, len(all_datasets) - 1)
-                extreme_ids = [
-                    "A" * 1000,  # Very long
-                    "",  # Empty
-                    "\x00\x00",  # Null bytes
-                    "../../../etc/passwd",  # Path traversal
-                    "<script>alert(1)</script>",  # XSS attempt
-                ]
-                new_id = random.choice(extreme_ids)
-                for ds in all_datasets[series_idx]:
-                    original = getattr(ds, "StudyID", None)
-                    ds.StudyID = new_id
-
-                records.append(
-                    StudyMutationRecord(
-                        strategy="study_metadata",
-                        series_index=series_idx,
-                        series_uid=study.series_list[series_idx].series_uid,
-                        tag="StudyID",
-                        original_value=str(original) if original else "<none>",
-                        mutated_value=repr(new_id)[:50],
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "empty_study_uid":
-                # Empty StudyInstanceUID
-                series_idx = random.randint(0, len(all_datasets) - 1)
-                for ds in all_datasets[series_idx]:
-                    original = getattr(ds, "StudyInstanceUID", None)
-                    ds.StudyInstanceUID = ""
-
-                records.append(
-                    StudyMutationRecord(
-                        strategy="study_metadata",
-                        series_index=series_idx,
-                        series_uid=study.series_list[series_idx].series_uid,
-                        tag="StudyInstanceUID",
-                        original_value=str(original) if original else "<none>",
-                        mutated_value="<empty>",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
+            handler = handlers[random.choice(list(handlers.keys()))]
+            handler(all_datasets, study, records)
 
         return all_datasets, records
 

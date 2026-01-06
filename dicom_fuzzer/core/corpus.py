@@ -212,6 +212,42 @@ class CorpusManager:
             existing_entries=len(self.corpus),
         )
 
+    def _extract_corpus_entry_fields(
+        self,
+        entry: CorpusEntry,
+        coverage: CoverageSnapshot | None,
+        parent_id: str | None,
+        crash_triggered: bool,
+    ) -> tuple[str, Dataset | None, CoverageSnapshot | None, str | None, bool]:
+        """Extract fields from CorpusEntry for backward compatibility."""
+        entry_id = entry.entry_id
+        dataset = entry.dataset
+        coverage = entry.coverage if hasattr(entry, "coverage") else coverage
+        if hasattr(entry, "metadata") and entry.metadata:
+            parent_id = entry.metadata.get("parent_id", parent_id)
+            crash_triggered = entry.metadata.get("crash_triggered", crash_triggered)
+        return entry_id, dataset, coverage, parent_id, crash_triggered
+
+    def _is_duplicate_coverage(
+        self, coverage: CoverageSnapshot, fitness: float, entry_id: str
+    ) -> bool:
+        """Check if we already have a better entry with this coverage."""
+        cov_hash = coverage.coverage_hash()
+        if cov_hash not in self.coverage_map:
+            return False
+        existing_ids = self.coverage_map[cov_hash]
+        if not existing_ids:
+            return False
+        existing_entry = self.corpus[list(existing_ids)[0]]
+        if existing_entry.fitness_score >= fitness:
+            self.total_rejected += 1
+            logger.debug(
+                f"Rejected duplicate coverage {entry_id}",
+                existing_entry=list(existing_ids)[0],
+            )
+            return True
+        return False
+
     def add_entry(
         self,
         entry_id: str | CorpusEntry,
@@ -238,31 +274,18 @@ class CorpusManager:
             True if entry was added, False if rejected
 
         """
-        # Handle CorpusEntry object for backward compatibility
         if isinstance(entry_id, CorpusEntry):
-            entry = entry_id
-            entry_id = entry.entry_id
-            dataset = entry.dataset
-            coverage = entry.coverage if hasattr(entry, "coverage") else coverage
-            parent_id = (
-                entry.metadata.get("parent_id")
-                if hasattr(entry, "metadata") and entry.metadata
-                else parent_id
-            )
-            crash_triggered = (
-                entry.metadata.get("crash_triggered", False)
-                if hasattr(entry, "metadata") and entry.metadata
-                else crash_triggered
+            entry_id, dataset, coverage, parent_id, crash_triggered = (
+                self._extract_corpus_entry_fields(
+                    entry_id, coverage, parent_id, crash_triggered
+                )
             )
 
-        # Validate dataset
         if dataset is None:
             raise ValueError("dataset is required")
 
-        # Calculate fitness score
         fitness = self._calculate_fitness(dataset, coverage, crash_triggered)
 
-        # Check if this meets minimum threshold
         if fitness < self.min_fitness_threshold and not crash_triggered:
             self.total_rejected += 1
             logger.debug(
@@ -272,22 +295,8 @@ class CorpusManager:
             )
             return False
 
-        # Check for duplicate coverage
-        if coverage:
-            cov_hash = coverage.coverage_hash()
-            if cov_hash in self.coverage_map:
-                # We already have a test case with this coverage
-                existing_ids = self.coverage_map[cov_hash]
-                if existing_ids:
-                    # Keep the one with higher fitness
-                    existing_entry = self.corpus[list(existing_ids)[0]]
-                    if existing_entry.fitness_score >= fitness:
-                        self.total_rejected += 1
-                        logger.debug(
-                            f"Rejected duplicate coverage {entry_id}",
-                            existing_entry=list(existing_ids)[0],
-                        )
-                        return False
+        if coverage and self._is_duplicate_coverage(coverage, fitness, entry_id):
+            return False
 
         # Determine generation
         generation = 0

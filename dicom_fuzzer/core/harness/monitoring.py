@@ -16,7 +16,6 @@ from dicom_fuzzer.core.harness.types import (
     ObservationPhase,
     PhaseResult,
     TestResult,
-    TestStatus,
     ValidationResult,
 )
 
@@ -31,6 +30,44 @@ def is_psutil_available() -> bool:
         return True
     except ImportError:
         return False
+
+
+def _check_process_memory(
+    psutil_proc: object,
+    process: subprocess.Popen,
+    input_path: Path,
+    memory_peak: float,
+    memory_limit_mb: int,
+    start_time: float,
+) -> tuple[float, TestResult | None]:
+    """Check memory usage and return updated peak and optional result if exceeded."""
+    import psutil
+
+    try:
+        mem_info = psutil_proc.memory_info()  # type: ignore[attr-defined]
+        mem_mb = mem_info.rss / (1024 * 1024)
+        memory_peak = max(memory_peak, mem_mb)
+
+        if mem_mb > memory_limit_mb:
+            process.kill()
+            return memory_peak, TestResult(
+                input_path=input_path,
+                status="memory_exceeded",
+                memory_peak_mb=memory_peak,
+                duration_seconds=time.time() - start_time,
+                error_message=f"Memory limit exceeded: {mem_mb:.1f} MB",
+                process_pid=process.pid,
+            )
+    except psutil.NoSuchProcess:
+        return memory_peak, TestResult(
+            input_path=input_path,
+            status="crash",
+            memory_peak_mb=memory_peak,
+            duration_seconds=time.time() - start_time,
+            error_message="Process disappeared unexpectedly",
+            process_pid=process.pid,
+        )
+    return memory_peak, None
 
 
 def monitor_process(
@@ -56,7 +93,6 @@ def monitor_process(
     memory_peak = 0.0
     psutil_proc = None
 
-    # Try to get psutil process handle
     if is_psutil_available():
         import psutil
 
@@ -74,61 +110,39 @@ def monitor_process(
     elapsed = time.time() - start_time
     while elapsed < timeout_seconds:
         try:
-            # Check if process exited
             exit_code = process.poll()
             if exit_code is not None:
-                status: TestStatus
-                error_msg = None
-
-                if exit_code == 0:
-                    status = "success"
-                elif exit_code < 0 or exit_code > 1:
-                    # Negative exit codes on Unix indicate signals
-                    # Exit codes > 1 typically indicate errors
-                    status = "crash"
-                    error_msg = f"Exit code: {exit_code}"
-                else:
-                    # Exit code 1 is typically a normal error exit
-                    status = "success"
-
+                if exit_code in (0, 1):
+                    return TestResult(
+                        input_path=input_path,
+                        status="success",
+                        exit_code=exit_code,
+                        memory_peak_mb=memory_peak,
+                        duration_seconds=time.time() - start_time,
+                        error_message=None,
+                        process_pid=process.pid,
+                    )
                 return TestResult(
                     input_path=input_path,
-                    status=status,
+                    status="crash",
                     exit_code=exit_code,
                     memory_peak_mb=memory_peak,
                     duration_seconds=time.time() - start_time,
-                    error_message=error_msg,
+                    error_message=f"Exit code: {exit_code}",
                     process_pid=process.pid,
                 )
 
-            # Check memory if psutil available
             if psutil_proc is not None:
-                import psutil
-
-                try:
-                    mem_info = psutil_proc.memory_info()
-                    mem_mb = mem_info.rss / (1024 * 1024)
-                    memory_peak = max(memory_peak, mem_mb)
-
-                    if mem_mb > memory_limit_mb:
-                        process.kill()
-                        return TestResult(
-                            input_path=input_path,
-                            status="memory_exceeded",
-                            memory_peak_mb=memory_peak,
-                            duration_seconds=time.time() - start_time,
-                            error_message=f"Memory limit exceeded: {mem_mb:.1f} MB",
-                            process_pid=process.pid,
-                        )
-                except psutil.NoSuchProcess:
-                    return TestResult(
-                        input_path=input_path,
-                        status="crash",
-                        memory_peak_mb=memory_peak,
-                        duration_seconds=time.time() - start_time,
-                        error_message="Process disappeared unexpectedly",
-                        process_pid=process.pid,
-                    )
+                memory_peak, result = _check_process_memory(
+                    psutil_proc,
+                    process,
+                    input_path,
+                    memory_peak,
+                    memory_limit_mb,
+                    start_time,
+                )
+                if result:
+                    return result
 
             time.sleep(0.5)
             elapsed = time.time() - start_time
@@ -137,9 +151,8 @@ def monitor_process(
             logger.warning("Error during monitoring", error=str(e))
             break
 
-    # Timeout reached - kill process and mark as success
-    # (GUI apps typically don't exit on their own)
-    pid = process.pid  # Store before killing
+    # Timeout: kill and mark success (GUI apps don't exit on their own)
+    pid = process.pid
     try:
         process.kill()
         process.wait(timeout=3)
@@ -153,6 +166,86 @@ def monitor_process(
         duration_seconds=time.time() - start_time,
         process_pid=pid,
     )
+
+
+def _classify_exit_code(exit_code: int) -> tuple[str, str | None]:
+    """Classify process exit code into status and error message."""
+    if exit_code == 0 or exit_code == 1:
+        return "success", None
+    return "crash", f"Exit code: {exit_code}"
+
+
+def _check_phase_memory(
+    psutil_proc: object,
+    process: subprocess.Popen,
+    phase_name: str,
+    phase_start: float,
+    memory_peak: float,
+    memory_limit: int,
+) -> tuple[float, PhaseResult | None]:
+    """Check memory usage and return updated peak and optional result if exceeded."""
+    import psutil
+
+    try:
+        mem_info = psutil_proc.memory_info()  # type: ignore[attr-defined]
+        mem_mb = mem_info.rss / (1024 * 1024)
+        memory_peak = max(memory_peak, mem_mb)
+
+        if mem_mb > memory_limit:
+            process.kill()
+            return memory_peak, PhaseResult(
+                phase_name=phase_name,
+                status="memory_exceeded",
+                duration_seconds=time.time() - phase_start,
+                memory_peak_mb=memory_peak,
+                error_message=f"Memory limit exceeded: {mem_mb:.1f} MB > {memory_limit} MB",
+            )
+    except psutil.NoSuchProcess:
+        return memory_peak, PhaseResult(
+            phase_name=phase_name,
+            status="crash",
+            duration_seconds=time.time() - phase_start,
+            memory_peak_mb=memory_peak,
+            error_message="Process disappeared during phase",
+        )
+    return memory_peak, None
+
+
+def _run_phase_validation(
+    phase: ObservationPhase,
+    process_pid: int,
+    phase_start: float,
+    memory_peak: float,
+) -> tuple[ValidationResult | None, PhaseResult | None]:
+    """Run validation callback and return result and optional failure PhaseResult."""
+    if phase.validation_callback is None:
+        return None, None
+
+    try:
+        validation_result = phase.validation_callback(process_pid)
+        if not validation_result.passed:
+            return validation_result, PhaseResult(
+                phase_name=phase.name,
+                status="validation_failed",
+                duration_seconds=time.time() - phase_start,
+                memory_peak_mb=memory_peak,
+                validation_result=validation_result,
+                error_message=validation_result.message,
+            )
+        return validation_result, None
+    except Exception as e:
+        logger.warning("Validation callback failed", phase=phase.name, error=str(e))
+        validation_result = ValidationResult(
+            passed=False, message=f"Validation error: {e}"
+        )
+        return validation_result, PhaseResult(
+            phase_name=phase.name,
+            status="validation_failed",
+            duration_seconds=time.time() - phase_start,
+            memory_peak_mb=memory_peak,
+            validation_result=validation_result,
+            error_message=f"Validation error: {e}",
+        )
 
 
 def run_observation_phase(
@@ -175,7 +268,6 @@ def run_observation_phase(
     memory_peak = 0.0
     memory_limit = phase.memory_limit_mb or default_memory_limit
 
-    # Get psutil handle if available
     psutil_proc = None
     if is_psutil_available():
         import psutil
@@ -190,23 +282,12 @@ def run_observation_phase(
                 error_message="Process exited before phase started",
             )
 
-    # Monitor for phase duration
     elapsed = 0.0
     while elapsed < phase.duration_seconds:
         try:
-            # Check if process exited
             exit_code = process.poll()
             if exit_code is not None:
-                if exit_code == 0:
-                    status = "success"
-                    error_msg = None
-                elif exit_code < 0 or exit_code > 1:
-                    status = "crash"
-                    error_msg = f"Exit code: {exit_code}"
-                else:
-                    status = "success"
-                    error_msg = None
-
+                status, error_msg = _classify_exit_code(exit_code)
                 return PhaseResult(
                     phase_name=phase.name,
                     status=status,
@@ -215,76 +296,31 @@ def run_observation_phase(
                     error_message=error_msg,
                 )
 
-            # Check memory
             if psutil_proc is not None:
-                import psutil
-
-                try:
-                    mem_info = psutil_proc.memory_info()
-                    mem_mb = mem_info.rss / (1024 * 1024)
-                    memory_peak = max(memory_peak, mem_mb)
-
-                    if mem_mb > memory_limit:
-                        process.kill()
-                        return PhaseResult(
-                            phase_name=phase.name,
-                            status="memory_exceeded",
-                            duration_seconds=time.time() - phase_start,
-                            memory_peak_mb=memory_peak,
-                            error_message=f"Memory limit exceeded: {mem_mb:.1f} MB > {memory_limit} MB",
-                        )
-                except psutil.NoSuchProcess:
-                    return PhaseResult(
-                        phase_name=phase.name,
-                        status="crash",
-                        duration_seconds=time.time() - phase_start,
-                        memory_peak_mb=memory_peak,
-                        error_message="Process disappeared during phase",
-                    )
+                memory_peak, result = _check_phase_memory(
+                    psutil_proc,
+                    process,
+                    phase.name,
+                    phase_start,
+                    memory_peak,
+                    memory_limit,
+                )
+                if result:
+                    return result
 
             time.sleep(0.5)
             elapsed = time.time() - phase_start
-
         except Exception as e:
             logger.warning(
-                "Error during phase monitoring",
-                phase=phase.name,
-                error=str(e),
+                "Error during phase monitoring", phase=phase.name, error=str(e)
             )
             break
 
-    # Phase completed successfully - run validation callback if present
-    validation_result = None
-    if phase.validation_callback is not None:
-        try:
-            validation_result = phase.validation_callback(process.pid)
-            if not validation_result.passed:
-                return PhaseResult(
-                    phase_name=phase.name,
-                    status="validation_failed",
-                    duration_seconds=time.time() - phase_start,
-                    memory_peak_mb=memory_peak,
-                    validation_result=validation_result,
-                    error_message=validation_result.message,
-                )
-        except Exception as e:
-            logger.warning(
-                "Validation callback failed",
-                phase=phase.name,
-                error=str(e),
-            )
-            validation_result = ValidationResult(
-                passed=False,
-                message=f"Validation error: {e}",
-            )
-            return PhaseResult(
-                phase_name=phase.name,
-                status="validation_failed",
-                duration_seconds=time.time() - phase_start,
-                memory_peak_mb=memory_peak,
-                validation_result=validation_result,
-                error_message=f"Validation error: {e}",
-            )
+    validation_result, failure_result = _run_phase_validation(
+        phase, process.pid, phase_start, memory_peak
+    )
+    if failure_result:
+        return failure_result
 
     return PhaseResult(
         phase_name=phase.name,

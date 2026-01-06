@@ -9,6 +9,8 @@ Goal: Given a crash caused by N mutations, find the minimal subset
 This helps identify the root cause vulnerability.
 """
 
+from __future__ import annotations
+
 import copy
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -16,6 +18,7 @@ from pathlib import Path
 
 import pydicom
 from pydicom.dataset import Dataset
+from pydicom.tag import BaseTag
 
 from dicom_fuzzer.core.fuzzing_session import MutationRecord
 
@@ -279,6 +282,35 @@ class MutationMinimizer:
 
         return mutated
 
+    def _parse_tag(self, tag_str: str) -> BaseTag | None:
+        """Parse tag string to pydicom Tag, returning None on failure."""
+        try:
+            clean = tag_str.strip("()").replace(",", "")
+            return pydicom.tag.Tag(int(clean[:4], 16), int(clean[4:], 16))
+        except (ValueError, IndexError):
+            return None
+
+    def _apply_modify_mutation(
+        self, dataset: Dataset, tag: BaseTag, value: object
+    ) -> None:
+        """Apply modify/replace/flip_bits/insert mutation."""
+        if value is not None and tag in dataset:
+            try:
+                dataset[tag].value = value
+            except (ValueError, TypeError):
+                if isinstance(value, str):
+                    dataset[tag].value = value.encode("utf-8", errors="replace")
+
+    def _apply_corrupt_mutation(
+        self, dataset: Dataset, tag: BaseTag, value: object
+    ) -> None:
+        """Apply corruption mutation."""
+        if tag in dataset and value is not None:
+            try:
+                dataset[tag].value = value
+            except (ValueError, TypeError):
+                dataset[tag].value = b"\x00" * 8
+
     def _apply_single_mutation(
         self, dataset: Dataset, mutation: MutationRecord
     ) -> None:
@@ -289,47 +321,22 @@ class MutationMinimizer:
             mutation: Mutation record to replay
 
         """
-        # Skip if no target tag specified
         if not mutation.target_tag:
             return
 
-        # Parse tag from string format "(GGGG,EEEE)" to pydicom Tag
-        try:
-            tag_str = mutation.target_tag.strip("()").replace(",", "")
-            tag = pydicom.tag.Tag(int(tag_str[:4], 16), int(tag_str[4:], 16))
-        except (ValueError, IndexError):
+        tag = self._parse_tag(mutation.target_tag)
+        if tag is None:
             return
 
-        # Apply mutation based on type
         mutation_type = mutation.mutation_type.lower()
 
         if mutation_type == "delete":
-            # Delete the element if it exists
             if tag in dataset:
                 del dataset[tag]
-
         elif mutation_type in ("modify", "replace", "flip_bits", "insert"):
-            # Set to mutated value if available
-            if mutation.mutated_value is not None and tag in dataset:
-                try:
-                    # Try to set the value - may fail for incompatible types
-                    dataset[tag].value = mutation.mutated_value
-                except (ValueError, TypeError):
-                    # If direct assignment fails, try bytes for raw data
-                    if isinstance(mutation.mutated_value, str):
-                        dataset[tag].value = mutation.mutated_value.encode(
-                            "utf-8", errors="replace"
-                        )
-
+            self._apply_modify_mutation(dataset, tag, mutation.mutated_value)
         elif mutation_type == "corrupt":
-            # For corruption, use mutated_value or corrupt with zeros
-            if tag in dataset:
-                if mutation.mutated_value is not None:
-                    try:
-                        dataset[tag].value = mutation.mutated_value
-                    except (ValueError, TypeError):
-                        # Fallback: set to empty or zeros based on VR
-                        dataset[tag].value = b"\x00" * 8
+            self._apply_corrupt_mutation(dataset, tag, mutation.mutated_value)
 
     def _split_list(self, lst: list, n: int) -> list[list]:
         """Split list into n roughly equal parts.

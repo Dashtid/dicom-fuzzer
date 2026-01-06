@@ -6,10 +6,16 @@ NOTE: This CLI module provides a simplified interface to the core calibration fu
 For advanced usage, import dicom_fuzzer.strategies.calibration_fuzzer directly.
 """
 
+from __future__ import annotations
+
 import argparse
 import sys
 import traceback
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pydicom.dataset import Dataset
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -161,6 +167,29 @@ def run_list_categories() -> int:
     return 0
 
 
+def _apply_category_mutations(
+    ds_copy: Dataset,
+    categories: list[str],
+    category_methods: dict,
+    verbose: bool,
+) -> Dataset:
+    """Apply mutations for specified categories."""
+    for category in categories:
+        method = category_methods[category]
+        try:
+            fuzzed_ds, records = method(ds_copy)
+            ds_copy = fuzzed_ds
+            if verbose:
+                for record in records:
+                    print(
+                        f"  [{category}] {record.attack_type}: {record.original_value} -> {record.mutated_value}"
+                    )
+        except Exception as e:
+            if verbose:
+                print(f"  [!] {category} skipped: {e}")
+    return ds_copy
+
+
 def run_calibration_mutation(args: argparse.Namespace) -> int:
     """Execute calibration mutation."""
     print("\n" + "=" * 70)
@@ -194,8 +223,6 @@ def run_calibration_mutation(args: argparse.Namespace) -> int:
         )
 
         fuzzer = CalibrationFuzzer(severity=args.severity)
-
-        # Map CLI category to fuzzer methods
         category_methods = {
             "pixel-spacing": fuzzer.fuzz_pixel_spacing,
             "hounsfield": fuzzer.fuzz_hounsfield_rescale,
@@ -203,32 +230,16 @@ def run_calibration_mutation(args: argparse.Namespace) -> int:
             "slice-thickness": fuzzer.fuzz_slice_thickness,
         }
 
-        if args.category == "all":
-            categories = list(category_methods.keys())
-        else:
-            categories = [args.category]
+        categories = (
+            list(category_methods.keys()) if args.category == "all" else [args.category]
+        )
 
         generated = 0
         for i in range(args.count):
-            # Clone dataset for each mutation
             ds_copy = dataset.copy()
-
-            for category in categories:
-                method = category_methods[category]
-                try:
-                    fuzzed_ds, records = method(ds_copy)
-                    ds_copy = fuzzed_ds
-
-                    if args.verbose:
-                        for record in records:
-                            print(
-                                f"  [{category}] {record.attack_type}: {record.original_value} -> {record.mutated_value}"
-                            )
-                except Exception as e:
-                    if args.verbose:
-                        print(f"  [!] {category} skipped: {e}")
-
-            # Save mutated file
+            ds_copy = _apply_category_mutations(
+                ds_copy, categories, category_methods, args.verbose
+            )
             output_file = output_path / f"calibration_{i:04d}.dcm"
             pydicom.dcmwrite(str(output_file), ds_copy)
             generated += 1

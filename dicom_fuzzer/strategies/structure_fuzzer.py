@@ -224,6 +224,35 @@ class StructureFuzzer:
 
         return dataset
 
+    def _corrupt_preamble(self, file_data: bytearray) -> bytearray:
+        """Corrupt the 128-byte preamble."""
+        if len(file_data) >= 128:
+            for _ in range(10):
+                pos = random.randint(0, 127)
+                file_data[pos] = random.randint(0, 255)
+        return file_data
+
+    def _corrupt_dicm_prefix(self, file_data: bytearray) -> bytearray:
+        """Corrupt the DICM prefix at bytes 128-131."""
+        if len(file_data) >= 132:
+            file_data[128:132] = b"XXXX"
+        return file_data
+
+    def _corrupt_transfer_syntax(self, file_data: bytearray) -> bytearray:
+        """Corrupt transfer syntax UID area."""
+        if len(file_data) >= 200:
+            for _ in range(5):
+                pos = random.randint(132, min(200, len(file_data) - 1))
+                file_data[pos] = random.randint(0, 255)
+        return file_data
+
+    def _truncate_file(self, file_data: bytearray) -> bytearray:
+        """Truncate file at random position."""
+        if len(file_data) > 1000:
+            truncate_pos = random.randint(500, len(file_data) - 1)
+            return file_data[:truncate_pos]
+        return file_data
+
     def corrupt_file_header(
         self, file_path: str, output_path: str | None = None
     ) -> str | None:
@@ -243,48 +272,20 @@ class StructureFuzzer:
             Path to corrupted file, or None on failure
 
         """
+        corruption_handlers = {
+            "corrupt_preamble": self._corrupt_preamble,
+            "corrupt_dicm_prefix": self._corrupt_dicm_prefix,
+            "corrupt_transfer_syntax": self._corrupt_transfer_syntax,
+            "truncate_file": self._truncate_file,
+        }
+
         try:
-            # Read the entire file as binary
             with open(file_path, "rb") as f:
                 file_data = bytearray(f.read())
 
-            # Apply binary corruptions
-            corruption_type = random.choice(
-                [
-                    "corrupt_preamble",
-                    "corrupt_dicm_prefix",
-                    "corrupt_transfer_syntax",
-                    "truncate_file",
-                ]
-            )
+            corruption_type = random.choice(list(corruption_handlers.keys()))
+            file_data = corruption_handlers[corruption_type](file_data)
 
-            if corruption_type == "corrupt_preamble":
-                # Corrupt the 128-byte preamble
-                if len(file_data) >= 128:
-                    for _ in range(10):
-                        pos = random.randint(0, 127)
-                        file_data[pos] = random.randint(0, 255)
-
-            elif corruption_type == "corrupt_dicm_prefix":
-                # Corrupt the "DICM" prefix at bytes 128-131
-                if len(file_data) >= 132:
-                    file_data[128:132] = b"XXXX"
-
-            elif corruption_type == "corrupt_transfer_syntax":
-                # Corrupt transfer syntax UID (if we can find it)
-                # This is a simplistic approach - just corrupt random bytes
-                if len(file_data) >= 200:
-                    for _ in range(5):
-                        pos = random.randint(132, min(200, len(file_data) - 1))
-                        file_data[pos] = random.randint(0, 255)
-
-            elif corruption_type == "truncate_file":
-                # Truncate file at random position (simulates incomplete transfer)
-                if len(file_data) > 1000:
-                    truncate_pos = random.randint(500, len(file_data) - 1)
-                    file_data = file_data[:truncate_pos]
-
-            # Write corrupted file
             if output_path is None:
                 output_path = file_path.replace(".dcm", "_header_corrupted.dcm")
 

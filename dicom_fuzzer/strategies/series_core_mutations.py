@@ -201,6 +201,146 @@ class CoreMutationsMixin:
 
         return datasets, records
 
+    def _slice_pos_randomize_z(
+        self,
+        ds: Dataset,
+        slice_idx: int,
+        original: tuple,
+        datasets: list[Dataset],
+        records: list[SeriesMutationRecord],
+    ) -> None:
+        """Randomize z-coordinate attack."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        ds.ImagePositionPatient[2] = random.uniform(-1000, 1000)
+        records.append(
+            SeriesMutationRecord(
+                strategy="slice_position_attack",
+                slice_index=slice_idx,
+                tag="ImagePositionPatient",
+                original_value=str(original),
+                mutated_value=str(tuple(ds.ImagePositionPatient)),
+                severity=self.severity,
+                details={"attack_type": "randomize_z"},
+            )
+        )
+
+    def _slice_pos_duplicate(
+        self,
+        ds: Dataset,
+        slice_idx: int,
+        original: tuple,
+        datasets: list[Dataset],
+        records: list[SeriesMutationRecord],
+    ) -> None:
+        """Duplicate position from another slice."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        if len(datasets) <= 1:
+            return
+        other_idx = random.choice([i for i in range(len(datasets)) if i != slice_idx])
+        if not hasattr(datasets[other_idx], "ImagePositionPatient"):
+            return
+        ds.ImagePositionPatient = list(datasets[other_idx].ImagePositionPatient)
+        records.append(
+            SeriesMutationRecord(
+                strategy="slice_position_attack",
+                slice_index=slice_idx,
+                tag="ImagePositionPatient",
+                original_value=str(original),
+                mutated_value=str(tuple(ds.ImagePositionPatient)),
+                severity=self.severity,
+                details={
+                    "attack_type": "duplicate_position",
+                    "duplicated_from": other_idx,
+                },
+            )
+        )
+
+    def _slice_pos_extreme(
+        self,
+        ds: Dataset,
+        slice_idx: int,
+        original: tuple,
+        datasets: list[Dataset],
+        records: list[SeriesMutationRecord],
+        value_type: str,
+    ) -> None:
+        """Apply extreme value attack (nan, inf, or large)."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        if value_type == "nan":
+            ds.ImagePositionPatient[2] = float("nan")
+            mutated = "NaN"
+        elif value_type == "inf":
+            ds.ImagePositionPatient[2] = (
+                float("inf") if random.random() > 0.5 else float("-inf")
+            )
+            mutated = str(ds.ImagePositionPatient[2])
+        else:  # large
+            ds.ImagePositionPatient[2] = 1e308 if random.random() > 0.5 else -1e308
+            mutated = f"{ds.ImagePositionPatient[2]:.2e}"
+
+        records.append(
+            SeriesMutationRecord(
+                strategy="slice_position_attack",
+                slice_index=slice_idx,
+                tag="ImagePositionPatient",
+                original_value=str(original),
+                mutated_value=mutated,
+                severity=self.severity,
+                details={"attack_type": f"extreme_value_{value_type}"},
+            )
+        )
+
+    def _slice_pos_negative(
+        self,
+        ds: Dataset,
+        slice_idx: int,
+        original: tuple,
+        datasets: list[Dataset],
+        records: list[SeriesMutationRecord],
+    ) -> None:
+        """Make all position components negative."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        ds.ImagePositionPatient = [-abs(x) for x in ds.ImagePositionPatient]
+        records.append(
+            SeriesMutationRecord(
+                strategy="slice_position_attack",
+                slice_index=slice_idx,
+                tag="ImagePositionPatient",
+                original_value=str(original),
+                mutated_value=str(tuple(ds.ImagePositionPatient)),
+                severity=self.severity,
+                details={"attack_type": "negative_position"},
+            )
+        )
+
+    def _slice_pos_zero(
+        self,
+        ds: Dataset,
+        slice_idx: int,
+        original: tuple,
+        datasets: list[Dataset],
+        records: list[SeriesMutationRecord],
+    ) -> None:
+        """Set position to origin."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        ds.ImagePositionPatient = [0.0, 0.0, 0.0]
+        records.append(
+            SeriesMutationRecord(
+                strategy="slice_position_attack",
+                slice_index=slice_idx,
+                tag="ImagePositionPatient",
+                original_value=str(original),
+                mutated_value="[0.0, 0.0, 0.0]",
+                severity=self.severity,
+                details={"attack_type": "zero_position"},
+            )
+        )
+
     def _mutate_slice_position_attack(
         self, datasets: list[Dataset], series: DicomSeries, mutation_count: int
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
@@ -215,144 +355,32 @@ class CoreMutationsMixin:
 
         Targets: CVE-2025-35975 (out-of-bounds write), CVE-2025-36521 (OOB read)
         """
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
-
         records: list[SeriesMutationRecord] = []
-        available_slices = list(range(len(datasets)))
 
         for _ in range(mutation_count):
-            if not available_slices:
-                break
-
-            slice_idx = random.choice(available_slices)
+            slice_idx = random.randint(0, len(datasets) - 1)
             ds = datasets[slice_idx]
 
             if not hasattr(ds, "ImagePositionPatient"):
                 continue
 
             original = tuple(ds.ImagePositionPatient)
-
-            attack_type = random.choice(
-                [
-                    "randomize_z",
-                    "duplicate_position",
-                    "extreme_value_nan",
-                    "extreme_value_inf",
-                    "extreme_value_large",
-                    "negative_position",
-                    "zero_position",
-                ]
+            attack = random.choice(
+                ["randomize_z", "duplicate", "nan", "inf", "large", "negative", "zero"]
             )
 
-            if attack_type == "randomize_z":
-                ds.ImagePositionPatient[2] = random.uniform(-1000, 1000)
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="slice_position_attack",
-                        slice_index=slice_idx,
-                        tag="ImagePositionPatient",
-                        original_value=str(original),
-                        mutated_value=str(tuple(ds.ImagePositionPatient)),
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
+            if attack == "randomize_z":
+                self._slice_pos_randomize_z(ds, slice_idx, original, datasets, records)
+            elif attack == "duplicate":
+                self._slice_pos_duplicate(ds, slice_idx, original, datasets, records)
+            elif attack in ("nan", "inf", "large"):
+                self._slice_pos_extreme(
+                    ds, slice_idx, original, datasets, records, attack
                 )
-
-            elif attack_type == "duplicate_position":
-                if len(datasets) > 1:
-                    other_idx = random.choice(
-                        [i for i in range(len(datasets)) if i != slice_idx]
-                    )
-                    if hasattr(datasets[other_idx], "ImagePositionPatient"):
-                        ds.ImagePositionPatient = list(
-                            datasets[other_idx].ImagePositionPatient
-                        )
-                        records.append(
-                            SeriesMutationRecord(
-                                strategy="slice_position_attack",
-                                slice_index=slice_idx,
-                                tag="ImagePositionPatient",
-                                original_value=str(original),
-                                mutated_value=str(tuple(ds.ImagePositionPatient)),
-                                severity=self.severity,
-                                details={
-                                    "attack_type": attack_type,
-                                    "duplicated_from": other_idx,
-                                },
-                            )
-                        )
-
-            elif attack_type == "extreme_value_nan":
-                ds.ImagePositionPatient[2] = float("nan")
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="slice_position_attack",
-                        slice_index=slice_idx,
-                        tag="ImagePositionPatient",
-                        original_value=str(original),
-                        mutated_value="NaN",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "extreme_value_inf":
-                ds.ImagePositionPatient[2] = (
-                    float("inf") if random.random() > 0.5 else float("-inf")
-                )
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="slice_position_attack",
-                        slice_index=slice_idx,
-                        tag="ImagePositionPatient",
-                        original_value=str(original),
-                        mutated_value=str(ds.ImagePositionPatient[2]),
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "extreme_value_large":
-                ds.ImagePositionPatient[2] = 1e308 if random.random() > 0.5 else -1e308
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="slice_position_attack",
-                        slice_index=slice_idx,
-                        tag="ImagePositionPatient",
-                        original_value=str(original),
-                        mutated_value=f"{ds.ImagePositionPatient[2]:.2e}",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "negative_position":
-                ds.ImagePositionPatient = [-abs(x) for x in ds.ImagePositionPatient]
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="slice_position_attack",
-                        slice_index=slice_idx,
-                        tag="ImagePositionPatient",
-                        original_value=str(original),
-                        mutated_value=str(tuple(ds.ImagePositionPatient)),
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "zero_position":
-                ds.ImagePositionPatient = [0.0, 0.0, 0.0]
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="slice_position_attack",
-                        slice_index=slice_idx,
-                        tag="ImagePositionPatient",
-                        original_value=str(original),
-                        mutated_value="[0.0, 0.0, 0.0]",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
+            elif attack == "negative":
+                self._slice_pos_negative(ds, slice_idx, original, datasets, records)
+            elif attack == "zero":
+                self._slice_pos_zero(ds, slice_idx, original, datasets, records)
 
         return datasets, records
 

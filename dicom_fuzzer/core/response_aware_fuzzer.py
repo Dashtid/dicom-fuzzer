@@ -289,6 +289,37 @@ class ResponseAnalyzer:
 
         self.baseline_established = True
 
+    def _check_timing_anomaly(self, response: ParsedResponse) -> AnomalyType | None:
+        """Check for timing anomalies."""
+        avg_time = self.fingerprint.avg_response_time()
+        if avg_time > 0 and response.response_time_ms > avg_time * 3:
+            return AnomalyType.TIMING_ANOMALY
+        return None
+
+    def _check_crash_indicators(self, response: ParsedResponse) -> AnomalyType | None:
+        """Check for crash indicators."""
+        if response.response_type == ResponseType.DISCONNECT:
+            return AnomalyType.CRASH_INDICATION
+        if response.response_type == ResponseType.TIMEOUT and self.baseline_established:
+            return AnomalyType.CRASH_INDICATION
+        return None
+
+    def _check_state_violations(self, response: ParsedResponse) -> AnomalyType | None:
+        """Check for state violations (new rejection/abort reasons)."""
+        if response.response_type == ResponseType.REJECT:
+            reject_key = (
+                response.reject_result,
+                response.reject_source,
+                response.reject_reason,
+            )
+            if reject_key not in self.fingerprint.rejection_reasons:
+                return AnomalyType.STATE_VIOLATION
+        if response.response_type == ResponseType.ABORT:
+            abort_key = (response.abort_source, response.abort_reason)
+            if abort_key not in self.fingerprint.abort_reasons:
+                return AnomalyType.STATE_VIOLATION
+        return None
+
     def analyze(self, response: ParsedResponse) -> list[AnomalyType]:
         """Analyze response for anomalies.
 
@@ -301,38 +332,21 @@ class ResponseAnalyzer:
         """
         anomalies: list[AnomalyType] = []
 
-        # Check timing anomalies
-        avg_time = self.fingerprint.avg_response_time()
-        if avg_time > 0 and response.response_time_ms > avg_time * 3:
-            anomalies.append(AnomalyType.TIMING_ANOMALY)
+        timing = self._check_timing_anomaly(response)
+        if timing:
+            anomalies.append(timing)
 
-        # Check for crash indicators
-        if response.response_type == ResponseType.TIMEOUT:
-            if self.baseline_established:
-                anomalies.append(AnomalyType.CRASH_INDICATION)
+        crash = self._check_crash_indicators(response)
+        if crash:
+            anomalies.append(crash)
 
-        if response.response_type == ResponseType.DISCONNECT:
-            anomalies.append(AnomalyType.CRASH_INDICATION)
-
-        # Check for unexpected responses
         if self.baseline_established:
             if response.response_type not in self.fingerprint.common_responses:
                 anomalies.append(AnomalyType.UNEXPECTED_RESPONSE)
 
-        # Check for new rejection/abort reasons
-        if response.response_type == ResponseType.REJECT:
-            reject_key = (
-                response.reject_result,
-                response.reject_source,
-                response.reject_reason,
-            )
-            if reject_key not in self.fingerprint.rejection_reasons:
-                anomalies.append(AnomalyType.STATE_VIOLATION)
-
-        if response.response_type == ResponseType.ABORT:
-            abort_key = (response.abort_source, response.abort_reason)
-            if abort_key not in self.fingerprint.abort_reasons:
-                anomalies.append(AnomalyType.STATE_VIOLATION)
+        state = self._check_state_violations(response)
+        if state:
+            anomalies.append(state)
 
         # Update fingerprint
         self.fingerprint.common_responses[response.response_type] += 1

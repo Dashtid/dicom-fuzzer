@@ -269,6 +269,75 @@ class StateGuidedHavoc(StateMutator):
     def __init__(self, intensity: int = 10) -> None:
         self.intensity = intensity
 
+    def _mut_insert(
+        self,
+        messages: list[ProtocolMessage],
+        unexplored: set[DICOMState],
+    ) -> None:
+        """Insert a state trigger at random position."""
+        if unexplored:
+            target = random.choice(list(unexplored))
+            trigger = self._generate_state_trigger(target)
+            messages.insert(random.randint(0, len(messages)), trigger)
+
+    def _mut_delete(
+        self,
+        messages: list[ProtocolMessage],
+        unexplored: set[DICOMState],
+    ) -> None:
+        """Delete a random message."""
+        if len(messages) > 1:
+            messages.pop(random.randint(0, len(messages) - 1))
+
+    def _mut_swap(
+        self,
+        messages: list[ProtocolMessage],
+        unexplored: set[DICOMState],
+    ) -> None:
+        """Swap two random messages."""
+        if len(messages) > 1:
+            i, j = random.sample(range(len(messages)), 2)
+            messages[i], messages[j] = messages[j], messages[i]
+
+    def _mut_duplicate(
+        self,
+        messages: list[ProtocolMessage],
+        unexplored: set[DICOMState],
+    ) -> None:
+        """Duplicate a random message."""
+        if messages:
+            pos = random.randint(0, len(messages) - 1)
+            messages.insert(pos, messages[pos])
+
+    def _mut_truncate(
+        self,
+        messages: list[ProtocolMessage],
+        unexplored: set[DICOMState],
+    ) -> None:
+        """Truncate a random message's data."""
+        if not messages:
+            return
+        pos = random.randint(0, len(messages) - 1)
+        msg = messages[pos]
+        if len(msg.data) > 10:
+            truncate_len = random.randint(1, len(msg.data) // 2)
+            messages[pos] = ProtocolMessage(
+                data=msg.data[:truncate_len],
+                message_type=msg.message_type,
+                is_mutated=True,
+                mutation_info="truncated",
+            )
+
+    def _mut_inject_trigger(
+        self,
+        messages: list[ProtocolMessage],
+        unexplored: set[DICOMState],
+    ) -> None:
+        """Append a state trigger message."""
+        if unexplored:
+            target = random.choice(list(unexplored))
+            messages.append(self._generate_state_trigger(target))
+
     def mutate(
         self,
         sequence: MessageSequence,
@@ -282,68 +351,26 @@ class StateGuidedHavoc(StateMutator):
         new_messages = list(sequence.messages)
 
         # Get unexplored transitions from current state
-        explored_next_states = {
-            to_state
-            for (from_state, to_state) in coverage.state_transitions
-            if from_state == current_state
+        explored_next = {
+            to for (from_s, to) in coverage.state_transitions if from_s == current_state
         }
-        unexplored_states = set(DICOMState) - explored_next_states
+        unexplored = set(DICOMState) - explored_next
 
-        # Bias mutations toward triggering unexplored transitions
+        # Dispatch table for mutation handlers
+        handlers = [
+            self._mut_insert,
+            self._mut_delete,
+            self._mut_swap,
+            self._mut_duplicate,
+            self._mut_truncate,
+            self._mut_inject_trigger,
+        ]
+
         for _ in range(self.intensity):
-            mutation_type = random.choice(
-                [
-                    "insert_message",
-                    "delete_message",
-                    "swap_messages",
-                    "duplicate_message",
-                    "truncate_message",
-                    "inject_state_trigger",
-                ]
-            )
+            handler = random.choice(handlers)
+            handler(new_messages, unexplored)
 
-            if mutation_type == "insert_message":
-                if unexplored_states:
-                    target_state = random.choice(list(unexplored_states))
-                    trigger_msg = self._generate_state_trigger(target_state)
-                    pos = random.randint(0, len(new_messages))
-                    new_messages.insert(pos, trigger_msg)
-
-            elif mutation_type == "delete_message" and len(new_messages) > 1:
-                pos = random.randint(0, len(new_messages) - 1)
-                new_messages.pop(pos)
-
-            elif mutation_type == "swap_messages" and len(new_messages) > 1:
-                i, j = random.sample(range(len(new_messages)), 2)
-                new_messages[i], new_messages[j] = new_messages[j], new_messages[i]
-
-            elif mutation_type == "duplicate_message" and new_messages:
-                pos = random.randint(0, len(new_messages) - 1)
-                new_messages.insert(pos, new_messages[pos])
-
-            elif mutation_type == "truncate_message" and new_messages:
-                pos = random.randint(0, len(new_messages) - 1)
-                msg = new_messages[pos]
-                if len(msg.data) > 10:
-                    truncate_len = random.randint(1, len(msg.data) // 2)
-                    new_messages[pos] = ProtocolMessage(
-                        data=msg.data[:truncate_len],
-                        message_type=msg.message_type,
-                        is_mutated=True,
-                        mutation_info="truncated",
-                    )
-
-            elif mutation_type == "inject_state_trigger":
-                if unexplored_states:
-                    target_state = random.choice(list(unexplored_states))
-                    trigger_msg = self._generate_state_trigger(target_state)
-                    new_messages.append(trigger_msg)
-
-        new_seq = MessageSequence(
-            messages=new_messages,
-            final_state=sequence.final_state,
-        )
-        return new_seq
+        return MessageSequence(messages=new_messages, final_state=sequence.final_state)
 
     def _generate_state_trigger(self, target_state: DICOMState) -> ProtocolMessage:
         """Generate a message likely to trigger transition to target state."""

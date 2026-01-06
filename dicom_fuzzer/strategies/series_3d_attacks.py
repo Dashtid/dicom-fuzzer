@@ -391,6 +391,130 @@ class Reconstruction3DAttacksMixin:
 
         return datasets, records
 
+    def _voxel_attack_extreme_ratio(
+        self, ds: Dataset, slice_idx: int, records: list[SeriesMutationRecord]
+    ) -> None:
+        """Apply 100:1 aspect ratio attack."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        if not hasattr(ds, "PixelSpacing"):
+            return
+        original = list(ds.PixelSpacing)
+        ds.PixelSpacing = [0.1, 10.0]
+        records.append(
+            SeriesMutationRecord(
+                strategy="voxel_aspect_ratio",
+                slice_index=slice_idx,
+                tag="PixelSpacing",
+                original_value=str(original),
+                mutated_value="[0.1, 10.0] (100:1 ratio)",
+                severity=self.severity,
+                details={"attack_type": "extreme_ratio"},
+            )
+        )
+
+    def _voxel_attack_non_square(
+        self, ds: Dataset, slice_idx: int, records: list[SeriesMutationRecord]
+    ) -> None:
+        """Apply non-square pixels attack (4:1 ratio)."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        if not hasattr(ds, "PixelSpacing"):
+            return
+        original = list(ds.PixelSpacing)
+        ds.PixelSpacing = [0.5, 2.0]
+        records.append(
+            SeriesMutationRecord(
+                strategy="voxel_aspect_ratio",
+                slice_index=slice_idx,
+                tag="PixelSpacing",
+                original_value=str(original),
+                mutated_value="[0.5, 2.0] (4:1 ratio)",
+                severity=self.severity,
+                details={"attack_type": "non_square_pixels"},
+            )
+        )
+
+    def _voxel_attack_pancake(
+        self, ds: Dataset, slice_idx: int, records: list[SeriesMutationRecord]
+    ) -> None:
+        """Apply pancake voxels attack (100mm thickness)."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        if not hasattr(ds, "SliceThickness"):
+            return
+        original = ds.SliceThickness
+        ds.SliceThickness = 100.0
+        records.append(
+            SeriesMutationRecord(
+                strategy="voxel_aspect_ratio",
+                slice_index=slice_idx,
+                tag="SliceThickness",
+                original_value=str(original),
+                mutated_value="100.0mm (pancake)",
+                severity=self.severity,
+                details={"attack_type": "pancake_voxels"},
+            )
+        )
+
+    def _voxel_attack_needle(
+        self, ds: Dataset, slice_idx: int, records: list[SeriesMutationRecord]
+    ) -> None:
+        """Apply needle voxels attack (0.001mm thickness)."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        if not hasattr(ds, "SliceThickness"):
+            return
+        original = ds.SliceThickness
+        ds.SliceThickness = 0.001
+        records.append(
+            SeriesMutationRecord(
+                strategy="voxel_aspect_ratio",
+                slice_index=slice_idx,
+                tag="SliceThickness",
+                original_value=str(original),
+                mutated_value="0.001mm (needle)",
+                severity=self.severity,
+                details={"attack_type": "needle_voxels"},
+            )
+        )
+
+    def _voxel_attack_zero(
+        self, ds: Dataset, slice_idx: int, records: list[SeriesMutationRecord]
+    ) -> None:
+        """Apply zero dimension attack."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        target = random.choice(["PixelSpacing", "SliceThickness"])
+        if target == "PixelSpacing" and hasattr(ds, "PixelSpacing"):
+            original = list(ds.PixelSpacing)
+            ds.PixelSpacing = [0.0, 0.0]
+            records.append(
+                SeriesMutationRecord(
+                    strategy="voxel_aspect_ratio",
+                    slice_index=slice_idx,
+                    tag="PixelSpacing",
+                    original_value=str(original),
+                    mutated_value="[0.0, 0.0]",
+                    severity=self.severity,
+                    details={"attack_type": "zero_dimension"},
+                )
+            )
+        elif target == "SliceThickness" and hasattr(ds, "SliceThickness"):
+            original = ds.SliceThickness
+            ds.SliceThickness = 0.0
+            records.append(
+                SeriesMutationRecord(
+                    strategy="voxel_aspect_ratio",
+                    slice_index=slice_idx,
+                    tag="SliceThickness",
+                    original_value=str(original),
+                    mutated_value="0.0",
+                    severity=self.severity,
+                    details={"attack_type": "zero_dimension"},
+                )
+            )
+
     def _mutate_voxel_aspect_ratio(
         self, datasets: list[Dataset], series: DicomSeries, mutation_count: int
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
@@ -404,129 +528,19 @@ class Reconstruction3DAttacksMixin:
 
         Targets: Volume rendering, measurements, interpolation
         """
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
-
-        records = []
+        records: list[SeriesMutationRecord] = []
+        handlers = [
+            self._voxel_attack_extreme_ratio,
+            self._voxel_attack_non_square,
+            self._voxel_attack_pancake,
+            self._voxel_attack_needle,
+            self._voxel_attack_zero,
+        ]
 
         for _ in range(mutation_count):
             slice_idx = random.randint(0, len(datasets) - 1)
-            ds = datasets[slice_idx]
-
-            attack_type = random.choice(
-                [
-                    "extreme_ratio",
-                    "non_square_pixels",
-                    "pancake_voxels",
-                    "needle_voxels",
-                    "zero_dimension",
-                ]
-            )
-
-            if attack_type == "extreme_ratio":
-                # 100:1 aspect ratio in-plane
-                if hasattr(ds, "PixelSpacing"):
-                    original = list(ds.PixelSpacing)
-                    ds.PixelSpacing = [0.1, 10.0]  # 100:1 ratio
-
-                    records.append(
-                        SeriesMutationRecord(
-                            strategy="voxel_aspect_ratio",
-                            slice_index=slice_idx,
-                            tag="PixelSpacing",
-                            original_value=str(original),
-                            mutated_value="[0.1, 10.0] (100:1 ratio)",
-                            severity=self.severity,
-                            details={"attack_type": attack_type},
-                        )
-                    )
-
-            elif attack_type == "non_square_pixels":
-                # Different row/column spacing
-                if hasattr(ds, "PixelSpacing"):
-                    original = list(ds.PixelSpacing)
-                    ds.PixelSpacing = [0.5, 2.0]  # 4:1 ratio
-
-                    records.append(
-                        SeriesMutationRecord(
-                            strategy="voxel_aspect_ratio",
-                            slice_index=slice_idx,
-                            tag="PixelSpacing",
-                            original_value=str(original),
-                            mutated_value="[0.5, 2.0] (4:1 ratio)",
-                            severity=self.severity,
-                            details={"attack_type": attack_type},
-                        )
-                    )
-
-            elif attack_type == "pancake_voxels":
-                # SliceThickness >> PixelSpacing (very thick slices)
-                if hasattr(ds, "SliceThickness"):
-                    original = ds.SliceThickness
-                    ds.SliceThickness = 100.0  # 100mm thick slices
-
-                    records.append(
-                        SeriesMutationRecord(
-                            strategy="voxel_aspect_ratio",
-                            slice_index=slice_idx,
-                            tag="SliceThickness",
-                            original_value=str(original),
-                            mutated_value="100.0mm (pancake)",
-                            severity=self.severity,
-                            details={"attack_type": attack_type},
-                        )
-                    )
-
-            elif attack_type == "needle_voxels":
-                # SliceThickness << PixelSpacing (very thin slices)
-                if hasattr(ds, "SliceThickness"):
-                    original = ds.SliceThickness
-                    ds.SliceThickness = 0.001  # 1 micrometer
-
-                    records.append(
-                        SeriesMutationRecord(
-                            strategy="voxel_aspect_ratio",
-                            slice_index=slice_idx,
-                            tag="SliceThickness",
-                            original_value=str(original),
-                            mutated_value="0.001mm (needle)",
-                            severity=self.severity,
-                            details={"attack_type": attack_type},
-                        )
-                    )
-
-            elif attack_type == "zero_dimension":
-                # Zero spacing or thickness
-                target = random.choice(["PixelSpacing", "SliceThickness"])
-                if target == "PixelSpacing" and hasattr(ds, "PixelSpacing"):
-                    original = list(ds.PixelSpacing)
-                    ds.PixelSpacing = [0.0, 0.0]
-
-                    records.append(
-                        SeriesMutationRecord(
-                            strategy="voxel_aspect_ratio",
-                            slice_index=slice_idx,
-                            tag="PixelSpacing",
-                            original_value=str(original),
-                            mutated_value="[0.0, 0.0]",
-                            severity=self.severity,
-                            details={"attack_type": attack_type},
-                        )
-                    )
-                elif target == "SliceThickness" and hasattr(ds, "SliceThickness"):
-                    original = ds.SliceThickness
-                    ds.SliceThickness = 0.0
-
-                    records.append(
-                        SeriesMutationRecord(
-                            strategy="voxel_aspect_ratio",
-                            slice_index=slice_idx,
-                            tag="SliceThickness",
-                            original_value=str(original),
-                            mutated_value="0.0",
-                            severity=self.severity,
-                            details={"attack_type": attack_type},
-                        )
-                    )
+            handler = random.choice(handlers)
+            handler(datasets[slice_idx], slice_idx, records)
 
         return datasets, records
 

@@ -572,55 +572,65 @@ class InputToStateResolver:
         result[offset : offset + len(value)] = value
         return bytes(result)
 
-    def _arithmetic_solving(self, data: bytes, comp: ComparisonRecord) -> list[bytes]:
-        """Generate arithmetic-based solving mutations."""
+    def _solve_equality(
+        self, data: bytes, pos: int, val2: int, size: int
+    ) -> list[bytes]:
+        """Solve equality comparison by replacing with target value."""
+        mutated = self._apply_int_mutation(data, pos, val2, size)
+        return [mutated] if mutated else []
+
+    def _solve_less_than(
+        self, data: bytes, pos: int, val2: int, size: int
+    ) -> list[bytes]:
+        """Solve less-than by trying values less than target."""
+        if val2 <= 0:
+            return []
         mutations: list[bytes] = []
-        ints = comp.as_integers()
-
-        if not ints:
-            return mutations
-
-        val1, val2 = ints
-
-        # Try to find val1 in data and replace with solving value
-        positions = self._find_integer_positions(data, val1, comp.size)
-
-        for pos in positions[:3]:
-            # For equality, replace with val2
-            if comp.comp_type == ComparisonType.EQUAL:
-                mutated = self._apply_int_mutation(data, pos, val2, comp.size)
+        for delta in [1, 2, 10, 100]:
+            new_val = val2 - delta
+            if new_val >= 0:
+                mutated = self._apply_int_mutation(data, pos, new_val, size)
                 if mutated:
                     mutations.append(mutated)
+        return mutations
 
-            # For less-than, try values less than val2
+    def _solve_greater_than(
+        self, data: bytes, pos: int, val2: int, size: int
+    ) -> list[bytes]:
+        """Solve greater-than by trying values greater than target."""
+        max_val = (1 << (size * 8)) - 1
+        mutations: list[bytes] = []
+        for delta in [1, 2, 10, 100]:
+            new_val = val2 + delta
+            if new_val <= max_val:
+                mutated = self._apply_int_mutation(data, pos, new_val, size)
+                if mutated:
+                    mutations.append(mutated)
+        return mutations
+
+    def _arithmetic_solving(self, data: bytes, comp: ComparisonRecord) -> list[bytes]:
+        """Generate arithmetic-based solving mutations."""
+        ints = comp.as_integers()
+        if not ints:
+            return []
+
+        val1, val2 = ints
+        positions = self._find_integer_positions(data, val1, comp.size)
+
+        mutations: list[bytes] = []
+        for pos in positions[:3]:
+            if comp.comp_type == ComparisonType.EQUAL:
+                mutations.extend(self._solve_equality(data, pos, val2, comp.size))
             elif comp.comp_type in (
                 ComparisonType.LESS_THAN,
                 ComparisonType.LESS_EQUAL,
             ):
-                if val2 > 0:
-                    for delta in [1, 2, 10, 100]:
-                        new_val = val2 - delta
-                        if new_val >= 0:
-                            mutated = self._apply_int_mutation(
-                                data, pos, new_val, comp.size
-                            )
-                            if mutated:
-                                mutations.append(mutated)
-
-            # For greater-than, try values greater than val2
+                mutations.extend(self._solve_less_than(data, pos, val2, comp.size))
             elif comp.comp_type in (
                 ComparisonType.GREATER_THAN,
                 ComparisonType.GREATER_EQUAL,
             ):
-                max_val = (1 << (comp.size * 8)) - 1
-                for delta in [1, 2, 10, 100]:
-                    new_val = val2 + delta
-                    if new_val <= max_val:
-                        mutated = self._apply_int_mutation(
-                            data, pos, new_val, comp.size
-                        )
-                        if mutated:
-                            mutations.append(mutated)
+                mutations.extend(self._solve_greater_than(data, pos, val2, comp.size))
 
         return mutations
 

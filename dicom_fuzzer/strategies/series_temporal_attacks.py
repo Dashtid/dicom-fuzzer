@@ -212,6 +212,152 @@ class TemporalAttacksMixin:
 
         return datasets, records
 
+    def _temporal_randomize(
+        self, datasets: list[Dataset], records: list[SeriesMutationRecord]
+    ) -> None:
+        """Randomize acquisition times across all slices."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        for ds in datasets:
+            ds.AcquisitionTime = (
+                f"{random.randint(0, 23):02d}{random.randint(0, 59):02d}"
+                f"{random.randint(0, 59):02d}"
+            )
+        records.append(
+            SeriesMutationRecord(
+                strategy="temporal_inconsistency",
+                slice_index=None,
+                tag="AcquisitionTime",
+                original_value="<sequential>",
+                mutated_value="<randomized>",
+                severity=self.severity,
+                details={"attack_type": "randomize_acquisition_time"},
+            )
+        )
+
+    def _temporal_duplicate(
+        self, datasets: list[Dataset], records: list[SeriesMutationRecord]
+    ) -> None:
+        """Set all slices to identical timestamp."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        for ds in datasets:
+            ds.AcquisitionTime = "120000.000000"
+            ds.AcquisitionDateTime = "20230101120000.000000"
+        records.append(
+            SeriesMutationRecord(
+                strategy="temporal_inconsistency",
+                slice_index=None,
+                tag="AcquisitionTime",
+                original_value="<unique>",
+                mutated_value="all=120000.000000",
+                severity=self.severity,
+                details={"attack_type": "duplicate_timestamps"},
+            )
+        )
+
+    def _temporal_extreme_date(
+        self, datasets: list[Dataset], records: list[SeriesMutationRecord], past: bool
+    ) -> None:
+        """Set extreme date (1900 or 9999)."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        slice_idx = random.randint(0, len(datasets) - 1)
+        ds = datasets[slice_idx]
+        if past:
+            ds.AcquisitionDate = "19000101"
+            ds.AcquisitionDateTime = "19000101000000.000000"
+            mutated = "19000101"
+        else:
+            ds.AcquisitionDate = "99991231"
+            ds.AcquisitionDateTime = "99991231235959.999999"
+            mutated = "99991231"
+        records.append(
+            SeriesMutationRecord(
+                strategy="temporal_inconsistency",
+                slice_index=slice_idx,
+                tag="AcquisitionDate",
+                original_value="<modern>",
+                mutated_value=mutated,
+                severity=self.severity,
+                details={
+                    "attack_type": "extreme_past_date"
+                    if past
+                    else "extreme_future_date"
+                },
+            )
+        )
+
+    def _temporal_invalid_format(
+        self, datasets: list[Dataset], records: list[SeriesMutationRecord]
+    ) -> None:
+        """Set invalid time format."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        slice_idx = random.randint(0, len(datasets) - 1)
+        invalid_times = [
+            "25:00:00",
+            "12:60:00",
+            "-1:00:00",
+            "abc",
+            "",
+            "999999999999",
+            "12.34.56",
+        ]
+        datasets[slice_idx].AcquisitionTime = random.choice(invalid_times)
+        records.append(
+            SeriesMutationRecord(
+                strategy="temporal_inconsistency",
+                slice_index=slice_idx,
+                tag="AcquisitionTime",
+                original_value="<valid>",
+                mutated_value=repr(datasets[slice_idx].AcquisitionTime),
+                severity=self.severity,
+                details={"attack_type": "invalid_time_format"},
+            )
+        )
+
+    def _temporal_reversal(
+        self, datasets: list[Dataset], records: list[SeriesMutationRecord]
+    ) -> None:
+        """Reverse temporal order vs InstanceNumber."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        for i, ds in enumerate(datasets):
+            ds.AcquisitionTime = f"12{len(datasets) - 1 - i:02d}00.000000"
+            ds.InstanceNumber = i + 1
+        records.append(
+            SeriesMutationRecord(
+                strategy="temporal_inconsistency",
+                slice_index=None,
+                tag="AcquisitionTime",
+                original_value="<matches_instance_order>",
+                mutated_value="<reversed_vs_instance>",
+                severity=self.severity,
+                details={"attack_type": "temporal_order_reversal"},
+            )
+        )
+
+    def _temporal_subsecond(
+        self, datasets: list[Dataset], records: list[SeriesMutationRecord]
+    ) -> None:
+        """Conflicts within same millisecond."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        for i, ds in enumerate(datasets):
+            ds.AcquisitionTime = f"120000.{(i * 7) % 1000:06d}"
+        records.append(
+            SeriesMutationRecord(
+                strategy="temporal_inconsistency",
+                slice_index=None,
+                tag="AcquisitionTime",
+                original_value="<spread_over_seconds>",
+                mutated_value="<all_within_1ms>",
+                severity=self.severity,
+                details={"attack_type": "subsecond_conflicts"},
+            )
+        )
+
     def _mutate_temporal_inconsistency(
         self, datasets: list[Dataset], series: DicomSeries, mutation_count: int
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
@@ -226,169 +372,32 @@ class TemporalAttacksMixin:
 
         Targets: 4D reconstruction, temporal sorting, cine viewers
         """
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
-
         records: list[SeriesMutationRecord] = []
+        attacks = [
+            "randomize",
+            "duplicate",
+            "past",
+            "future",
+            "invalid",
+            "reversal",
+            "subsecond",
+        ]
 
         for _ in range(mutation_count):
-            attack_type = random.choice(
-                [
-                    "randomize_acquisition_time",
-                    "duplicate_timestamps",
-                    "extreme_past_date",
-                    "extreme_future_date",
-                    "invalid_time_format",
-                    "temporal_order_reversal",
-                    "subsecond_conflicts",
-                ]
-            )
-
-            if attack_type == "randomize_acquisition_time":
-                # Completely randomize acquisition times
-                for _i, ds in enumerate(datasets):
-                    random_hour = random.randint(0, 23)
-                    random_min = random.randint(0, 59)
-                    random_sec = random.randint(0, 59)
-                    ds.AcquisitionTime = (
-                        f"{random_hour:02d}{random_min:02d}{random_sec:02d}"
-                    )
-
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="temporal_inconsistency",
-                        slice_index=None,
-                        tag="AcquisitionTime",
-                        original_value="<sequential>",
-                        mutated_value="<randomized>",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "duplicate_timestamps":
-                # All slices have identical timestamp
-                duplicate_time = "120000.000000"
-                for ds in datasets:
-                    ds.AcquisitionTime = duplicate_time
-                    ds.AcquisitionDateTime = "20230101120000.000000"
-
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="temporal_inconsistency",
-                        slice_index=None,
-                        tag="AcquisitionTime",
-                        original_value="<unique>",
-                        mutated_value=f"all={duplicate_time}",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "extreme_past_date":
-                # Date from 1900
-                slice_idx = random.randint(0, len(datasets) - 1)
-                ds = datasets[slice_idx]
-                ds.AcquisitionDate = "19000101"
-                ds.AcquisitionDateTime = "19000101000000.000000"
-
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="temporal_inconsistency",
-                        slice_index=slice_idx,
-                        tag="AcquisitionDate",
-                        original_value="<modern>",
-                        mutated_value="19000101",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "extreme_future_date":
-                # Date in year 9999
-                slice_idx = random.randint(0, len(datasets) - 1)
-                ds = datasets[slice_idx]
-                ds.AcquisitionDate = "99991231"
-                ds.AcquisitionDateTime = "99991231235959.999999"
-
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="temporal_inconsistency",
-                        slice_index=slice_idx,
-                        tag="AcquisitionDate",
-                        original_value="<modern>",
-                        mutated_value="99991231",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "invalid_time_format":
-                # Invalid DICOM time format
-                slice_idx = random.randint(0, len(datasets) - 1)
-                ds = datasets[slice_idx]
-
-                invalid_times = [
-                    "25:00:00",  # Invalid hour
-                    "12:60:00",  # Invalid minute
-                    "-1:00:00",  # Negative
-                    "abc",  # Non-numeric
-                    "",  # Empty
-                    "999999999999",  # Too long
-                    "12.34.56",  # Wrong separator
-                ]
-                ds.AcquisitionTime = random.choice(invalid_times)
-
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="temporal_inconsistency",
-                        slice_index=slice_idx,
-                        tag="AcquisitionTime",
-                        original_value="<valid>",
-                        mutated_value=repr(ds.AcquisitionTime),
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "temporal_order_reversal":
-                # Acquisition times in reverse order vs InstanceNumber
-                for i, ds in enumerate(datasets):
-                    reversed_idx = len(datasets) - 1 - i
-                    # Time increases as instance number decreases
-                    ds.AcquisitionTime = f"12{reversed_idx:02d}00.000000"
-                    # But keep InstanceNumber sequential
-                    ds.InstanceNumber = i + 1
-
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="temporal_inconsistency",
-                        slice_index=None,
-                        tag="AcquisitionTime",
-                        original_value="<matches_instance_order>",
-                        mutated_value="<reversed_vs_instance>",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "subsecond_conflicts":
-                # Multiple acquisitions in same millisecond
-                base_time = "120000"
-                for i, ds in enumerate(datasets):
-                    # All within same millisecond but different microseconds
-                    microsec = (i * 7) % 1000  # Spread within 1ms
-                    ds.AcquisitionTime = f"{base_time}.{microsec:06d}"
-
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="temporal_inconsistency",
-                        slice_index=None,
-                        tag="AcquisitionTime",
-                        original_value="<spread_over_seconds>",
-                        mutated_value="<all_within_1ms>",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
+            attack = random.choice(attacks)
+            if attack == "randomize":
+                self._temporal_randomize(datasets, records)
+            elif attack == "duplicate":
+                self._temporal_duplicate(datasets, records)
+            elif attack == "past":
+                self._temporal_extreme_date(datasets, records, past=True)
+            elif attack == "future":
+                self._temporal_extreme_date(datasets, records, past=False)
+            elif attack == "invalid":
+                self._temporal_invalid_format(datasets, records)
+            elif attack == "reversal":
+                self._temporal_reversal(datasets, records)
+            elif attack == "subsecond":
+                self._temporal_subsecond(datasets, records)
 
         return datasets, records

@@ -60,6 +60,81 @@ class CrashCoverageCorrelation:
     vulnerable_functions: set[str] = field(default_factory=set)
 
 
+def _build_safe_coverage(
+    safe_inputs: list[str] | None, coverage_data: dict[str, set[str]]
+) -> set[str]:
+    """Build baseline coverage from safe inputs."""
+    safe_coverage: set[str] = set()
+    if safe_inputs:
+        for safe_input in safe_inputs:
+            if safe_input in coverage_data:
+                safe_coverage |= coverage_data[safe_input]
+    return safe_coverage
+
+
+def _process_crash(
+    crash: object,
+    coverage_data: dict[str, set[str]],
+    coverage_tracker: dict[str, CoverageInsight],
+    safe_coverage: set[str],
+    correlation: CrashCoverageCorrelation,
+) -> None:
+    """Process a single crash and update coverage tracking."""
+    crash_input = str(crash.test_case_path)  # type: ignore[attr-defined]
+    if crash_input not in coverage_data:
+        logger.warning(f"No coverage data for crash input: {crash_input}")
+        return
+
+    crash_coverage = coverage_data[crash_input]
+    crash_id = crash.crash_id  # type: ignore[attr-defined]
+
+    for coverage_id in crash_coverage:
+        if coverage_id not in coverage_tracker:
+            coverage_tracker[coverage_id] = CoverageInsight(identifier=coverage_id)
+        insight = coverage_tracker[coverage_id]
+        insight.total_hits += 1
+        insight.crash_hits += 1
+        insight.unique_crashes.add(crash_id)
+
+    crash_only = crash_coverage - safe_coverage
+    if crash_only:
+        correlation.crash_only_coverage[crash_id] = crash_only
+        logger.debug(f"Crash {crash_id}: {len(crash_only)} unique code paths")
+
+
+def _update_safe_hits(
+    safe_inputs: list[str] | None,
+    coverage_data: dict[str, set[str]],
+    coverage_tracker: dict[str, CoverageInsight],
+) -> None:
+    """Update coverage tracker with safe input hits."""
+    for safe_input in safe_inputs or []:
+        if safe_input not in coverage_data:
+            continue
+        for coverage_id in coverage_data[safe_input]:
+            if coverage_id not in coverage_tracker:
+                coverage_tracker[coverage_id] = CoverageInsight(identifier=coverage_id)
+            insight = coverage_tracker[coverage_id]
+            insight.total_hits += 1
+            insight.safe_hits += 1
+
+
+def _identify_dangerous_paths(
+    coverage_tracker: dict[str, CoverageInsight],
+) -> list[tuple[str, float]]:
+    """Identify and sort dangerous code paths by crash rate."""
+    for insight in coverage_tracker.values():
+        insight.update_crash_rate()
+
+    dangerous = [
+        (identifier, insight.crash_rate)
+        for identifier, insight in coverage_tracker.items()
+        if insight.crash_rate > 0.5 and insight.total_hits >= 3
+    ]
+    dangerous.sort(key=lambda x: x[1], reverse=True)
+    return dangerous
+
+
 def correlate_crashes_with_coverage(
     crashes: list,
     coverage_data: dict[str, set[str]],
@@ -80,81 +155,28 @@ def correlate_crashes_with_coverage(
 
     """
     correlation = CrashCoverageCorrelation()
-
-    # Build coverage insights
     coverage_tracker: dict[str, CoverageInsight] = defaultdict(
         lambda: CoverageInsight(identifier="")
     )
 
-    # Track safe coverage (baseline)
-    safe_coverage: set[str] = set()
-    if safe_inputs:
-        for safe_input in safe_inputs:
-            if safe_input in coverage_data:
-                safe_coverage |= coverage_data[safe_input]
+    safe_coverage = _build_safe_coverage(safe_inputs, coverage_data)
 
-    # Process each crash
     for crash in crashes:
-        # Get coverage for crash-triggering input
-        crash_input = str(crash.test_case_path)
-        if crash_input not in coverage_data:
-            logger.warning(f"No coverage data for crash input: {crash_input}")
-            continue
+        _process_crash(
+            crash, coverage_data, coverage_tracker, safe_coverage, correlation
+        )
 
-        crash_coverage = coverage_data[crash_input]
-
-        # Update coverage insights for each hit
-        for coverage_id in crash_coverage:
-            if coverage_id not in coverage_tracker:
-                coverage_tracker[coverage_id] = CoverageInsight(identifier=coverage_id)
-
-            insight = coverage_tracker[coverage_id]
-            insight.total_hits += 1
-            insight.crash_hits += 1
-            insight.unique_crashes.add(crash.crash_id)
-
-        # Find coverage unique to this crash
-        crash_only = crash_coverage - safe_coverage
-        if crash_only:
-            correlation.crash_only_coverage[crash.crash_id] = crash_only
-            logger.debug(f"Crash {crash.crash_id}: {len(crash_only)} unique code paths")
-
-    # Update safe hits
-    for safe_input in safe_inputs or []:
-        if safe_input not in coverage_data:
-            continue
-
-        for coverage_id in coverage_data[safe_input]:
-            if coverage_id not in coverage_tracker:
-                coverage_tracker[coverage_id] = CoverageInsight(identifier=coverage_id)
-
-            insight = coverage_tracker[coverage_id]
-            insight.total_hits += 1
-            insight.safe_hits += 1
-
-    # Calculate crash rates
-    for insight in coverage_tracker.values():
-        insight.update_crash_rate()
+    _update_safe_hits(safe_inputs, coverage_data, coverage_tracker)
 
     correlation.coverage_insights = dict(coverage_tracker)
-
-    # Identify dangerous paths (high crash rate)
-    dangerous = [
-        (identifier, insight.crash_rate)
-        for identifier, insight in coverage_tracker.items()
-        if insight.crash_rate > 0.5  # >50% crash rate
-        and insight.total_hits >= 3  # Minimum sample size
-    ]
-
-    # Sort by crash rate descending
-    dangerous.sort(key=lambda x: x[1], reverse=True)
-    correlation.dangerous_paths = dangerous
-
-    # Extract vulnerable functions
-    correlation.vulnerable_functions = _extract_functions_from_coverage(dangerous)
+    correlation.dangerous_paths = _identify_dangerous_paths(coverage_tracker)
+    correlation.vulnerable_functions = _extract_functions_from_coverage(
+        correlation.dangerous_paths
+    )
 
     logger.info(
-        f"Coverage correlation complete: {len(dangerous)} dangerous paths identified"
+        f"Coverage correlation complete: "
+        f"{len(correlation.dangerous_paths)} dangerous paths identified"
     )
 
     return correlation
