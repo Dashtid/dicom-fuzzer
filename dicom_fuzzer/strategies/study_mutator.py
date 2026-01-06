@@ -566,6 +566,106 @@ class StudyMutator:
 
         return all_datasets, records
 
+    def _patient_attack_different_id(
+        self,
+        all_datasets: list[list[Dataset]],
+        series_idx: int,
+        study: DicomStudy,
+    ) -> StudyMutationRecord:
+        """Apply different patient ID attack."""
+        new_patient_id = f"FUZZED_{random.randint(10000, 99999)}"
+        original = None
+        for ds in all_datasets[series_idx]:
+            original = getattr(ds, "PatientID", None)
+            ds.PatientID = new_patient_id
+        return StudyMutationRecord(
+            strategy="patient_consistency",
+            series_index=series_idx,
+            series_uid=study.series_list[series_idx].series_uid,
+            tag="PatientID",
+            original_value=str(original) if original else "<none>",
+            mutated_value=new_patient_id,
+            severity=self.severity,
+            details={"attack_type": "different_patient_id"},
+        )
+
+    def _patient_attack_demographics(
+        self,
+        all_datasets: list[list[Dataset]],
+        series_idx: int,
+        study: DicomStudy,
+    ) -> StudyMutationRecord:
+        """Apply conflicting demographics attack."""
+        new_sex = random.choice(["M", "F", "O", "INVALID", ""])
+        original = None
+        for ds in all_datasets[series_idx]:
+            original = getattr(ds, "PatientSex", None)
+            ds.PatientSex = new_sex
+        return StudyMutationRecord(
+            strategy="patient_consistency",
+            series_index=series_idx,
+            series_uid=study.series_list[series_idx].series_uid,
+            tag="PatientSex",
+            original_value=str(original) if original else "<none>",
+            mutated_value=new_sex,
+            severity=self.severity,
+            details={"attack_type": "conflicting_demographics"},
+        )
+
+    def _patient_attack_mixed_name(
+        self,
+        all_datasets: list[list[Dataset]],
+        series_idx: int,
+        study: DicomStudy,
+    ) -> StudyMutationRecord:
+        """Apply mixed patient name attack."""
+        new_name = f"FUZZED^PATIENT^{random.randint(1, 999)}"
+        original = None
+        for ds in all_datasets[series_idx]:
+            original = getattr(ds, "PatientName", None)
+            ds.PatientName = new_name
+        return StudyMutationRecord(
+            strategy="patient_consistency",
+            series_index=series_idx,
+            series_uid=study.series_list[series_idx].series_uid,
+            tag="PatientName",
+            original_value=str(original) if original else "<none>",
+            mutated_value=new_name,
+            severity=self.severity,
+            details={"attack_type": "mixed_patient_name"},
+        )
+
+    def _patient_attack_birthdate(
+        self,
+        all_datasets: list[list[Dataset]],
+        series_idx: int,
+        study: DicomStudy,
+    ) -> StudyMutationRecord:
+        """Apply conflicting birthdate attack."""
+        new_birthdate = f"{random.randint(1920, 2020)}{random.randint(1, 12):02d}{random.randint(1, 28):02d}"
+        original = None
+        for ds in all_datasets[series_idx]:
+            original = getattr(ds, "PatientBirthDate", None)
+            ds.PatientBirthDate = new_birthdate
+        return StudyMutationRecord(
+            strategy="patient_consistency",
+            series_index=series_idx,
+            series_uid=study.series_list[series_idx].series_uid,
+            tag="PatientBirthDate",
+            original_value=str(original) if original else "<none>",
+            mutated_value=new_birthdate,
+            severity=self.severity,
+            details={"attack_type": "conflicting_birthdate"},
+        )
+
+    # Patient consistency attack dispatch table
+    _PATIENT_ATTACK_HANDLERS = [
+        _patient_attack_different_id,
+        _patient_attack_demographics,
+        _patient_attack_mixed_name,
+        _patient_attack_birthdate,
+    ]
+
     def _mutate_patient_consistency(
         self,
         all_datasets: list[list[Dataset]],
@@ -585,100 +685,11 @@ class StudyMutator:
 
         for _ in range(mutation_count):
             if len(all_datasets) < 2:
-                # Need at least 2 series for cross-series attacks
                 break
 
-            attack_type = random.choice(
-                [
-                    "different_patient_id",
-                    "conflicting_demographics",
-                    "mixed_patient_name",
-                    "conflicting_birthdate",
-                ]
-            )
-
-            # Pick a series to corrupt (not first, to maintain some valid reference)
             series_idx = random.randint(1, len(all_datasets) - 1)
-
-            if attack_type == "different_patient_id":
-                # Change PatientID in one series
-                new_patient_id = f"FUZZED_{random.randint(10000, 99999)}"
-                for ds in all_datasets[series_idx]:
-                    original = getattr(ds, "PatientID", None)
-                    ds.PatientID = new_patient_id
-
-                records.append(
-                    StudyMutationRecord(
-                        strategy="patient_consistency",
-                        series_index=series_idx,
-                        series_uid=study.series_list[series_idx].series_uid,
-                        tag="PatientID",
-                        original_value=str(original) if original else "<none>",
-                        mutated_value=new_patient_id,
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "conflicting_demographics":
-                # Change PatientSex to conflict
-                new_sex = random.choice(["M", "F", "O", "INVALID", ""])
-                for ds in all_datasets[series_idx]:
-                    original = getattr(ds, "PatientSex", None)
-                    ds.PatientSex = new_sex
-
-                records.append(
-                    StudyMutationRecord(
-                        strategy="patient_consistency",
-                        series_index=series_idx,
-                        series_uid=study.series_list[series_idx].series_uid,
-                        tag="PatientSex",
-                        original_value=str(original) if original else "<none>",
-                        mutated_value=new_sex,
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "mixed_patient_name":
-                # Different patient name
-                new_name = f"FUZZED^PATIENT^{random.randint(1, 999)}"
-                for ds in all_datasets[series_idx]:
-                    original = getattr(ds, "PatientName", None)
-                    ds.PatientName = new_name
-
-                records.append(
-                    StudyMutationRecord(
-                        strategy="patient_consistency",
-                        series_index=series_idx,
-                        series_uid=study.series_list[series_idx].series_uid,
-                        tag="PatientName",
-                        original_value=str(original) if original else "<none>",
-                        mutated_value=new_name,
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "conflicting_birthdate":
-                # Different birthdate
-                new_birthdate = f"{random.randint(1920, 2020)}{random.randint(1, 12):02d}{random.randint(1, 28):02d}"
-                for ds in all_datasets[series_idx]:
-                    original = getattr(ds, "PatientBirthDate", None)
-                    ds.PatientBirthDate = new_birthdate
-
-                records.append(
-                    StudyMutationRecord(
-                        strategy="patient_consistency",
-                        series_index=series_idx,
-                        series_uid=study.series_list[series_idx].series_uid,
-                        tag="PatientBirthDate",
-                        original_value=str(original) if original else "<none>",
-                        mutated_value=new_birthdate,
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
+            handler = random.choice(self._PATIENT_ATTACK_HANDLERS)
+            records.append(handler(self, all_datasets, series_idx, study))
 
         return all_datasets, records
 

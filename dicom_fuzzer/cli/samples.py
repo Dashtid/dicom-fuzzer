@@ -7,6 +7,7 @@ for security testing.
 
 import argparse
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from dicom_fuzzer.core.synthetic import SyntheticDicomGenerator
@@ -807,34 +808,32 @@ def run_strip_pixel_data(args: argparse.Namespace) -> int:
         return 1
 
 
+# Action dispatch table: (arg_name, handler_function)
+_ACTION_DISPATCH: list[tuple[str, Callable[[argparse.Namespace], int]]] = [
+    ("generate", run_generate),
+    ("list_sources", run_list_sources),
+    ("malicious", run_malicious),
+    ("preamble_attacks", run_preamble_attacks),
+    ("cve_samples", run_cve_samples),
+    ("parser_stress", run_parser_stress),
+    ("compliance", run_compliance),
+    ("scan", run_scan),
+    ("sanitize", run_sanitize),
+    ("strip_pixel_data", run_strip_pixel_data),
+]
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for samples subcommand."""
     parser = create_parser()
     args = parser.parse_args(argv)
 
-    if args.generate:
-        return run_generate(args)
-    elif args.list_sources:
-        return run_list_sources(args)
-    elif args.malicious:
-        return run_malicious(args)
-    elif args.preamble_attacks:
-        return run_preamble_attacks(args)
-    elif args.cve_samples:
-        return run_cve_samples(args)
-    elif args.parser_stress:
-        return run_parser_stress(args)
-    elif args.compliance:
-        return run_compliance(args)
-    elif args.scan:
-        return run_scan(args)
-    elif args.sanitize:
-        return run_sanitize(args)
-    elif args.strip_pixel_data:
-        return run_strip_pixel_data(args)
-    else:
-        parser.print_help()
-        return 1
+    for arg_name, handler in _ACTION_DISPATCH:
+        if getattr(args, arg_name, False):
+            return handler(args)
+
+    parser.print_help()
+    return 1
 
 
 if __name__ == "__main__":

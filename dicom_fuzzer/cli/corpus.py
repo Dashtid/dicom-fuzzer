@@ -357,6 +357,37 @@ def run_merge(args: argparse.Namespace) -> int:
         return 1
 
 
+def _validate_minimize_study_args(
+    args: argparse.Namespace,
+) -> tuple[Path, Path, Path] | None:
+    """Validate arguments for study minimization.
+
+    Returns:
+        Tuple of (study_dir, target_path, output_dir) on success, None on failure.
+
+    """
+    study_dir = Path(args.minimize_study)
+    if not study_dir.exists():
+        print(f"[-] Study directory not found: {study_dir}")
+        return None
+
+    if not args.target:
+        print("[-] --target is required for --minimize-study")
+        return None
+
+    target_path = Path(args.target)
+    if not target_path.exists():
+        print(f"[-] Target executable not found: {target_path}")
+        return None
+
+    output_dir = (
+        Path(args.output)
+        if args.output
+        else study_dir.parent / f"{study_dir.name}_minimized"
+    )
+    return study_dir, target_path, output_dir
+
+
 def run_minimize_study(args: argparse.Namespace) -> int:
     """Minimize a crashing 3D study to find trigger slice(s)."""
     from dicom_fuzzer.core.study_minimizer import (
@@ -366,26 +397,10 @@ def run_minimize_study(args: argparse.Namespace) -> int:
     )
     from dicom_fuzzer.core.target_runner import TargetRunner
 
-    study_dir = Path(args.minimize_study)
-
-    if not study_dir.exists():
-        print(f"[-] Study directory not found: {study_dir}")
+    paths = _validate_minimize_study_args(args)
+    if paths is None:
         return 1
-
-    if not args.target:
-        print("[-] --target is required for --minimize-study")
-        return 1
-
-    target_path = Path(args.target)
-    if not target_path.exists():
-        print(f"[-] Target executable not found: {target_path}")
-        return 1
-
-    output_dir = (
-        Path(args.output)
-        if args.output
-        else study_dir.parent / f"{study_dir.name}_minimized"
-    )
+    study_dir, target_path, output_dir = paths
 
     print("\n" + "=" * 70)
     print("  Study Minimization")

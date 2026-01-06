@@ -365,6 +365,16 @@ class CorpusMinimizer:
 
         return coverages
 
+    @staticmethod
+    def _find_new_edges(bitmap: bytes, covered_edges: set[int]) -> set[int]:
+        """Find edges in bitmap not in covered_edges."""
+        return {i for i, b in enumerate(bitmap) if b > 0 and i not in covered_edges}
+
+    @staticmethod
+    def _efficiency(c: CoverageInfo) -> float:
+        """Calculate edges per byte efficiency."""
+        return c.edges_hit / c.file_size if c.file_size > 0 else 0.0
+
     def _select_minimal_set(self, coverages: list[CoverageInfo]) -> list[CoverageInfo]:
         """Select minimal set of seeds that covers all edges.
 
@@ -377,38 +387,23 @@ class CorpusMinimizer:
         if not coverages:
             return []
 
-        # Track which edges are covered
         covered_edges: set[int] = set()
         selected: list[CoverageInfo] = []
+        selected_hashes: set[str] = set()
+        sorted_coverages = sorted(coverages, key=self._efficiency, reverse=True)
 
-        # Sort by efficiency (edges per byte)
-        def efficiency(c: CoverageInfo) -> float:
-            if c.file_size == 0:
-                return 0.0
-            return c.edges_hit / c.file_size
-
-        sorted_coverages = sorted(coverages, key=efficiency, reverse=True)
-
-        # Greedy selection
         for cov in sorted_coverages:
             if len(selected) >= self.config.max_corpus_size:
                 break
 
-            # Find new edges this seed covers
-            new_edges = set()
-            for i, b in enumerate(cov.bitmap):
-                if b > 0 and i not in covered_edges:
-                    new_edges.add(i)
+            if self.config.dedup_by_coverage and cov.coverage_hash in selected_hashes:
+                continue
 
-            # Check if seed contributes enough new coverage
+            new_edges = self._find_new_edges(cov.bitmap, covered_edges)
             if len(new_edges) >= self.config.min_edge_contribution:
                 selected.append(cov)
                 covered_edges.update(new_edges)
-
-            # If using deduplication, also skip exact coverage duplicates
-            if self.config.dedup_by_coverage:
-                if cov.coverage_hash in {c.coverage_hash for c in selected}:
-                    continue
+                selected_hashes.add(cov.coverage_hash)
 
         return selected
 

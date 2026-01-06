@@ -425,12 +425,58 @@ class DifferentialAnalyzer:
         "(0028,0011)",  # Columns
     }
 
+    def _compare_tag_presence(
+        self,
+        impl_a: ImplementationType,
+        impl_b: ImplementationType,
+        result_a: ParseResult,
+        result_b: ParseResult,
+    ) -> list[Difference]:
+        """Compare tag presence between two results."""
+        differences: list[Difference] = []
+        tags_a = set(result_a.tags_found.keys())
+        tags_b = set(result_b.tags_found.keys())
+
+        for tag in tags_a - tags_b:
+            severity = (
+                BugSeverity.HIGH
+                if tag in self.SECURITY_CRITICAL_TAGS
+                else BugSeverity.MEDIUM
+            )
+            differences.append(
+                Difference(
+                    diff_type=DifferenceType.TAG_PRESENCE,
+                    description=f"Tag {tag} present only in {impl_a.value}",
+                    impl_a=impl_a,
+                    impl_b=impl_b,
+                    tag=tag,
+                    severity=severity,
+                )
+            )
+
+        for tag in tags_b - tags_a:
+            severity = (
+                BugSeverity.HIGH
+                if tag in self.SECURITY_CRITICAL_TAGS
+                else BugSeverity.MEDIUM
+            )
+            differences.append(
+                Difference(
+                    diff_type=DifferenceType.TAG_PRESENCE,
+                    description=f"Tag {tag} present only in {impl_b.value}",
+                    impl_a=impl_a,
+                    impl_b=impl_b,
+                    tag=tag,
+                    severity=severity,
+                )
+            )
+        return differences
+
     def analyze(
         self, results: dict[ImplementationType, ParseResult]
     ) -> list[Difference]:
         """Compare results from different implementations."""
         differences: list[Difference] = []
-
         impls = list(results.keys())
 
         for i in range(len(impls)):
@@ -438,7 +484,6 @@ class DifferentialAnalyzer:
                 impl_a, impl_b = impls[i], impls[j]
                 result_a, result_b = results[impl_a], results[impl_b]
 
-                # Check parse success/failure divergence
                 if result_a.success != result_b.success:
                     severity = (
                         BugSeverity.HIGH if result_a.success else BugSeverity.MEDIUM
@@ -455,53 +500,18 @@ class DifferentialAnalyzer:
                             severity=severity,
                         )
                     )
-                    continue  # Can't compare further if one failed
+                    continue
 
                 if not result_a.success or not result_b.success:
                     continue
 
-                # Compare tag presence
-                tags_a = set(result_a.tags_found.keys())
-                tags_b = set(result_b.tags_found.keys())
-
-                only_in_a = tags_a - tags_b
-                only_in_b = tags_b - tags_a
-
-                for tag in only_in_a:
-                    severity = (
-                        BugSeverity.HIGH
-                        if tag in self.SECURITY_CRITICAL_TAGS
-                        else BugSeverity.MEDIUM
-                    )
-                    differences.append(
-                        Difference(
-                            diff_type=DifferenceType.TAG_PRESENCE,
-                            description=f"Tag {tag} present only in {impl_a.value}",
-                            impl_a=impl_a,
-                            impl_b=impl_b,
-                            tag=tag,
-                            severity=severity,
-                        )
-                    )
-
-                for tag in only_in_b:
-                    severity = (
-                        BugSeverity.HIGH
-                        if tag in self.SECURITY_CRITICAL_TAGS
-                        else BugSeverity.MEDIUM
-                    )
-                    differences.append(
-                        Difference(
-                            diff_type=DifferenceType.TAG_PRESENCE,
-                            description=f"Tag {tag} present only in {impl_b.value}",
-                            impl_a=impl_a,
-                            impl_b=impl_b,
-                            tag=tag,
-                            severity=severity,
-                        )
-                    )
+                differences.extend(
+                    self._compare_tag_presence(impl_a, impl_b, result_a, result_b)
+                )
 
                 # Compare values for common tags
+                tags_a = set(result_a.tags_found.keys())
+                tags_b = set(result_b.tags_found.keys())
                 common_tags = tags_a & tags_b
                 for tag in common_tags:
                     value_a = result_a.values.get(tag)

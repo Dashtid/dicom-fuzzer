@@ -439,6 +439,39 @@ class MoonLightMinimizer:
         """
         self._time_cache[seed] = time_seconds
 
+    def _find_best_seed(
+        self,
+        remaining_seeds: list[Path],
+        seed_coverage: dict[Path, set[str]],
+        covered: set[str],
+    ) -> tuple[Path | None, int]:
+        """Find best seed to add based on weighted set cover score.
+
+        Returns:
+            Tuple of (best_seed, new_coverage_count) or (None, 0) if no seed adds coverage.
+
+        """
+        best_seed = None
+        best_score = float("inf")
+        best_new_coverage = 0
+
+        for seed in remaining_seeds:
+            new_coverage = seed_coverage[seed] - covered
+            if not new_coverage:
+                continue
+
+            weight = self.compute_seed_weight(seed)
+            score = weight / len(new_coverage)
+
+            if score < best_score or (
+                score == best_score and len(new_coverage) > best_new_coverage
+            ):
+                best_seed = seed
+                best_score = score
+                best_new_coverage = len(new_coverage)
+
+        return best_seed, best_new_coverage
+
     def minimize(
         self,
         seeds: list[Path],
@@ -457,50 +490,23 @@ class MoonLightMinimizer:
         if not seeds:
             return []
 
-        # Collect coverage for all seeds
-        seed_coverage: dict[Path, set[str]] = {}
-        for seed in seeds:
-            seed_coverage[seed] = self.get_coverage(seed)
+        seed_coverage: dict[Path, set[str]] = {
+            seed: self.get_coverage(seed) for seed in seeds
+        }
 
-        # Compute total coverage if not provided
         if target_coverage is None:
-            target_coverage = set()
-            for cov in seed_coverage.values():
-                target_coverage |= cov
+            target_coverage = set().union(*seed_coverage.values())
 
         if not target_coverage:
             return seeds[:1] if seeds else []
 
-        # Weighted set cover algorithm (greedy approximation)
         selected: list[Path] = []
         covered: set[str] = set()
         remaining_seeds = list(seeds)
 
         while covered != target_coverage and remaining_seeds:
-            best_seed = None
-            best_score = float("inf")
-            best_new_coverage = 0
-
-            for seed in remaining_seeds:
-                # Calculate new coverage this seed would add
-                new_coverage = seed_coverage[seed] - covered
-                if not new_coverage:
-                    continue
-
-                # Weighted set cover score: weight / |new coverage|
-                weight = self.compute_seed_weight(seed)
-                score = weight / len(new_coverage)
-
-                # Lower score is better
-                if score < best_score or (
-                    score == best_score and len(new_coverage) > best_new_coverage
-                ):
-                    best_seed = seed
-                    best_score = score
-                    best_new_coverage = len(new_coverage)
-
+            best_seed, _ = self._find_best_seed(remaining_seeds, seed_coverage, covered)
             if best_seed is None:
-                # No more seeds add coverage
                 break
 
             selected.append(best_seed)

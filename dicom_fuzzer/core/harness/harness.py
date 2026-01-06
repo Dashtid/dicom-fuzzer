@@ -84,6 +84,47 @@ class TargetHarness:
                 "psutil not available - memory monitoring disabled",
             )
 
+    def _create_error_result(
+        self, input_path: Path, error_message: str, start_time: float
+    ) -> TestResult:
+        """Create error TestResult and increment error stat."""
+        self._stats["error"] += 1
+        return TestResult(
+            input_path=input_path,
+            status="error",
+            error_message=error_message,
+            duration_seconds=time.time() - start_time,
+        )
+
+    def _try_adapter_render(
+        self,
+        viewer_adapter: ViewerAdapter | None,
+        pid: int,
+        study_dir: Path,
+        series_name: str | None,
+    ) -> tuple[bool, str | None]:
+        """Try to connect adapter and render study.
+
+        Returns:
+            Tuple of (render_failed, error_message).
+
+        """
+        if viewer_adapter is None:
+            return False, None
+
+        if not viewer_adapter.connect(pid=pid):
+            logger.warning("Could not connect adapter to viewer")
+            return False, None
+
+        logger.debug("Adapter connected", pid=pid)
+        render_result = viewer_adapter.load_study_into_viewport(
+            study_dir, series_name=series_name, timeout=self.config.timeout_seconds / 2
+        )
+        if not render_result.success:
+            logger.warning("Render failed", error=render_result.error_message)
+            return True, render_result.error_message
+        return False, None
+
     def test_study_directory(
         self,
         study_dir: Path,
@@ -140,24 +181,9 @@ class TargetHarness:
             time.sleep(self.config.startup_delay_seconds)
 
             # Connect adapter and load series into viewport (if adapter provided)
-            render_failed = False
-            render_error = None
-            if viewer_adapter is not None:
-                if viewer_adapter.connect(pid=process.pid):
-                    logger.debug("Adapter connected", pid=process.pid)
-                    render_result = viewer_adapter.load_study_into_viewport(
-                        study_dir,
-                        series_name=series_name,
-                        timeout=self.config.timeout_seconds / 2,
-                    )
-                    if not render_result.success:
-                        render_failed = True
-                        render_error = render_result.error_message
-                        logger.warning(
-                            "Render failed", error=render_result.error_message
-                        )
-                else:
-                    logger.warning("Could not connect adapter to viewer")
+            render_failed, render_error = self._try_adapter_render(
+                viewer_adapter, process.pid, study_dir, series_name
+            )
 
             # Monitor process
             result = monitor_process(
@@ -181,31 +207,17 @@ class TargetHarness:
                 )
 
         except FileNotFoundError as e:
-            result = TestResult(
-                input_path=study_dir,
-                status="error",
-                error_message=f"Executable not found: {e}",
-                duration_seconds=time.time() - start_time,
+            result = self._create_error_result(
+                study_dir, f"Executable not found: {e}", start_time
             )
-            self._stats["error"] += 1
 
         except PermissionError as e:
-            result = TestResult(
-                input_path=study_dir,
-                status="error",
-                error_message=f"Permission denied: {e}",
-                duration_seconds=time.time() - start_time,
+            result = self._create_error_result(
+                study_dir, f"Permission denied: {e}", start_time
             )
-            self._stats["error"] += 1
 
         except Exception as e:
-            result = TestResult(
-                input_path=study_dir,
-                status="error",
-                error_message=str(e),
-                duration_seconds=time.time() - start_time,
-            )
-            self._stats["error"] += 1
+            result = self._create_error_result(study_dir, str(e), start_time)
             logger.exception("Error during test", error=str(e))
 
         finally:

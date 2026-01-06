@@ -101,6 +101,32 @@ class MutationMinimizer:
             else 0.0,
         )
 
+    def _try_subsets(
+        self, original: Dataset, subsets: list[list[MutationRecord]]
+    ) -> list[MutationRecord] | None:
+        """Try each subset to find one that crashes. Returns crashing subset or None."""
+        for subset in subsets:
+            if not subset:
+                continue
+            test_dataset = self._apply_mutations(original, subset)
+            self.test_count += 1
+            if self.crash_tester(test_dataset):
+                return subset
+        return None
+
+    def _try_complements(
+        self, original: Dataset, subsets: list[list[MutationRecord]], current_len: int
+    ) -> list[MutationRecord] | None:
+        """Try complement sets. Returns crashing complement or None."""
+        for i in range(len(subsets)):
+            complement = [m for j, sub in enumerate(subsets) for m in sub if j != i]
+            if len(complement) < current_len:
+                test_dataset = self._apply_mutations(original, complement)
+                self.test_count += 1
+                if self.crash_tester(test_dataset):
+                    return complement
+        return None
+
     def _delta_debugging(
         self, original: Dataset, mutations: list[MutationRecord]
     ) -> list[MutationRecord]:
@@ -116,53 +142,27 @@ class MutationMinimizer:
             Minimal mutation list that still triggers crash
 
         """
-        # Start with full set
         current_set = mutations.copy()
-        n = 2  # Granularity
+        n = 2
 
         while len(current_set) > 1 and self.test_count < self.max_iterations:
-            # Split current set into n subsets
             subsets = self._split_list(current_set, n)
 
-            # Try each subset individually
-            found_smaller = False
-            for subset in subsets:
-                if not subset:
-                    continue
+            result = self._try_subsets(original, subsets)
+            if result is not None:
+                current_set = result
+                n = max(2, n - 1)
+                continue
 
-                test_dataset = self._apply_mutations(original, subset)
-                self.test_count += 1
+            result = self._try_complements(original, subsets, len(current_set))
+            if result is not None:
+                current_set = result
+                n = max(2, n - 1)
+                continue
 
-                if self.crash_tester(test_dataset):
-                    # This smaller subset still crashes!
-                    current_set = subset
-                    found_smaller = True
-                    n = max(2, n - 1)  # Reduce granularity
-                    break
-
-            if not found_smaller:
-                # Try complement sets (remove one subset at a time)
-                for i, _ in enumerate(subsets):
-                    complement = [
-                        m for j, sub in enumerate(subsets) for m in sub if j != i
-                    ]
-
-                    if len(complement) < len(current_set):
-                        test_dataset = self._apply_mutations(original, complement)
-                        self.test_count += 1
-
-                        if self.crash_tester(test_dataset):
-                            # Removing this subset still crashes
-                            current_set = complement
-                            found_smaller = True
-                            n = max(2, n - 1)
-                            break
-
-            if not found_smaller:
-                # Increase granularity
-                if n >= len(current_set):
-                    break  # Can't split further
-                n = min(len(current_set), n * 2)
+            if n >= len(current_set):
+                break
+            n = min(len(current_set), n * 2)
 
         return current_set
 

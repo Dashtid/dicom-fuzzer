@@ -505,6 +505,39 @@ class InputToStateResolver:
 
         return positions
 
+    def _apply_position_mutations(
+        self, input_data: bytes, positions: list[int], value: bytes
+    ) -> list[bytes]:
+        """Apply mutations at given positions."""
+        mutations = []
+        for pos in positions[:3]:
+            mutated = self._apply_mutation(input_data, pos, value)
+            if mutated:
+                mutations.append(mutated)
+        return mutations
+
+    def _apply_region_mutations(
+        self,
+        input_data: bytes,
+        comp: Any,
+        value: bytes,
+        colorized_regions: list[ColorizedRegion],
+        comparison_log: ComparisonLog,
+    ) -> list[bytes]:
+        """Apply mutations to colorized regions affected by comparison."""
+        mutations = []
+        for region in colorized_regions[:5]:
+            affected = [
+                comparison_log.comparisons[i]
+                for i in region.affected_comparisons
+                if i < len(comparison_log.comparisons)
+            ]
+            if comp in affected:
+                mutated = self._apply_mutation(input_data, region.offset, value)
+                if mutated:
+                    mutations.append(mutated)
+        return mutations
+
     def generate_solving_mutations(
         self,
         input_data: bytes,
@@ -524,42 +557,31 @@ class InputToStateResolver:
         """
         mutations = []
         attempts = 0
+        max_attempts = self.config.max_solving_attempts
 
         for comp in comparison_log.comparisons:
-            if attempts >= self.config.max_solving_attempts:
+            if attempts >= max_attempts:
                 break
 
-            solving_values = comp.get_solving_values()
-
-            for value in solving_values:
-                # Strategy 1: Direct replacement at matching positions
+            for value in comp.get_solving_values():
                 positions = self._find_value_positions(input_data, comp.operand1)
-                for pos in positions[:3]:  # Limit positions per value
-                    mutated = self._apply_mutation(input_data, pos, value)
-                    if mutated:
-                        mutations.append(mutated)
-                        attempts += 1
+                pos_mutations = self._apply_position_mutations(
+                    input_data, positions, value
+                )
+                mutations.extend(pos_mutations)
+                attempts += len(pos_mutations)
 
-                # Strategy 2: Placement in colorized regions
                 if colorized_regions:
-                    for region in colorized_regions[:5]:
-                        if comp in [
-                            comparison_log.comparisons[i]
-                            for i in region.affected_comparisons
-                            if i < len(comparison_log.comparisons)
-                        ]:
-                            mutated = self._apply_mutation(
-                                input_data, region.offset, value
-                            )
-                            if mutated:
-                                mutations.append(mutated)
-                                attempts += 1
+                    region_mutations = self._apply_region_mutations(
+                        input_data, comp, value, colorized_regions, comparison_log
+                    )
+                    mutations.extend(region_mutations)
+                    attempts += len(region_mutations)
 
-                # Strategy 3: Arithmetic solving
                 if self.config.enable_arithmetic and comp.size <= 8:
-                    arith_mutations = self._arithmetic_solving(input_data, comp)
-                    mutations.extend(arith_mutations[:3])
-                    attempts += len(arith_mutations[:3])
+                    arith_mutations = self._arithmetic_solving(input_data, comp)[:3]
+                    mutations.extend(arith_mutations)
+                    attempts += len(arith_mutations)
 
         return mutations
 

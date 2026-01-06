@@ -179,6 +179,28 @@ def setup_logging(verbose: bool = False) -> None:
     )
 
 
+def _scan_directory_for_dicom(
+    path: Path, recursive: bool, extensions: set[str]
+) -> list[Path]:
+    """Scan directory for DICOM files.
+
+    Args:
+        path: Directory path to scan.
+        recursive: If True, scan recursively.
+        extensions: Set of valid DICOM extensions.
+
+    Returns:
+        List of found DICOM file paths.
+
+    """
+    iterator = path.rglob("*") if recursive else path.iterdir()
+    return [
+        file_path
+        for file_path in iterator
+        if file_path.is_file() and _is_potential_dicom(file_path, extensions)
+    ]
+
+
 def validate_input_path(input_path: str, recursive: bool = False) -> list[Path]:
     """Validate input path and return list of DICOM files.
 
@@ -202,24 +224,8 @@ def validate_input_path(input_path: str, recursive: bool = False) -> list[Path]:
         return [path]
 
     if path.is_dir():
-        # Find DICOM files in directory
-        dicom_extensions = {".dcm", ".dicom", ".dic", ""}  # Include no extension
-        files = []
-
-        if recursive:
-            # Recursive scan
-            for file_path in path.rglob("*"):
-                if file_path.is_file() and _is_potential_dicom(
-                    file_path, dicom_extensions
-                ):
-                    files.append(file_path)
-        else:
-            # Non-recursive scan (immediate children only)
-            for file_path in path.iterdir():
-                if file_path.is_file() and _is_potential_dicom(
-                    file_path, dicom_extensions
-                ):
-                    files.append(file_path)
+        dicom_extensions = {".dcm", ".dicom", ".dic", ""}
+        files = _scan_directory_for_dicom(path, recursive, dicom_extensions)
 
         if not files:
             print(f"Error: No DICOM files found in '{input_path}'")
@@ -229,7 +235,6 @@ def validate_input_path(input_path: str, recursive: bool = False) -> list[Path]:
 
         return sorted(files)
 
-    # Path exists but is neither file nor directory (e.g., symlink, device)
     print(f"Error: '{input_path}' is not a regular file or directory")
     sys.exit(1)
 
@@ -442,6 +447,34 @@ def pre_campaign_health_check(
 # ============================================================================
 
 
+def _run_optional_controllers(
+    args: argparse.Namespace,
+    files: list[Path],
+    input_files: list[Path],
+    output_path: Path,
+    resource_limits: ResourceLimits | None,
+) -> int:
+    """Run optional fuzzing controllers based on args.
+
+    Returns:
+        Exit code (0 for success, non-zero for errors).
+
+    """
+    if getattr(args, "network_fuzz", False):
+        NetworkFuzzingController.run(args, files)
+
+    if getattr(args, "security_fuzz", False):
+        num_files = getattr(args, "count", 100)
+        SecurityFuzzingController.run(args, input_files[0], output_path, num_files)
+
+    if getattr(args, "target", None):
+        result = TargetTestingController.run(args, files, output_path, resource_limits)
+        if result != 0:
+            return result
+
+    return 0
+
+
 def main() -> int:
     """Execute DICOM fuzzing campaign with specified parameters.
 
@@ -449,21 +482,17 @@ def main() -> int:
         Exit code (0 for success, non-zero for errors)
 
     """
-    # Handle subcommands via registry lookup (lazy import for faster startup)
     if len(sys.argv) > 1 and sys.argv[1] in SUBCOMMANDS:
         module = importlib.import_module(SUBCOMMANDS[sys.argv[1]])
         exit_code: int = module.main(sys.argv[2:])
         return exit_code
 
-    # Parse command-line arguments
     parser = create_parser()
     args = parser.parse_args()
 
-    # Handle output modes
     quiet_mode = getattr(args, "quiet", False)
     json_mode = getattr(args, "json", False)
 
-    # Setup logging (verbose overrides quiet)
     if quiet_mode and not args.verbose:
         logging.getLogger().setLevel(logging.ERROR)
         setup_logging(False)
@@ -471,22 +500,15 @@ def main() -> int:
         setup_logging(args.verbose)
 
     try:
-        # Create resource limits from args
         resource_limits = _create_resource_limits(args)
-
-        # Validate input path
         recursive = getattr(args, "recursive", False)
         input_files = validate_input_path(args.input_file, recursive)
-
-        # Parse strategies
         selected_strategies = parse_strategies(getattr(args, "strategies", None))
 
-        # Setup output directory
         output_path = Path(args.output)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Run pre-campaign health check
-        passed, issues = pre_campaign_health_check(
+        passed, _ = pre_campaign_health_check(
             output_path,
             target=getattr(args, "target", None),
             resource_limits=resource_limits,
@@ -496,30 +518,14 @@ def main() -> int:
             cli.error("Pre-flight check failed. Fix issues and retry.")
             return 1
 
-        # Run file generation campaign
         runner = CampaignRunner(args, input_files, selected_strategies)
         runner.display_header()
         files, results_data = runner.generate_files()
         runner.display_results(files, results_data, json_mode, quiet_mode)
 
-        # Optional: Network fuzzing
-        if getattr(args, "network_fuzz", False):
-            NetworkFuzzingController.run(args, files)
-
-        # Optional: Security fuzzing
-        if getattr(args, "security_fuzz", False):
-            num_files = getattr(args, "count", 100)
-            SecurityFuzzingController.run(args, input_files[0], output_path, num_files)
-
-        # Optional: Target testing
-        if getattr(args, "target", None):
-            result = TargetTestingController.run(
-                args, files, output_path, resource_limits
-            )
-            if result != 0:
-                return result
-
-        return 0
+        return _run_optional_controllers(
+            args, files, input_files, output_path, resource_limits
+        )
 
     except KeyboardInterrupt:
         print("\n\n[INTERRUPTED] Campaign stopped by user")
