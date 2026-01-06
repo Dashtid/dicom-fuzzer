@@ -10,6 +10,7 @@ from __future__ import annotations
 import random
 import struct
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -366,7 +367,7 @@ class UIDGenerator:
             UID that might cause collision issues.
 
         """
-        strategies = [
+        strategies: list[Callable[[], str]] = [
             # Exact duplicate
             lambda: existing_uid,
             # Case variation (shouldn't matter for UIDs but might trigger bugs)

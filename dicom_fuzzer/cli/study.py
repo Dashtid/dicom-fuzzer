@@ -1,5 +1,3 @@
-from typing import Any
-
 """Study-Level Mutation Subcommand for DICOM Fuzzer.
 
 Study-level fuzzing targeting cross-series relationships and study-wide consistency.
@@ -12,6 +10,7 @@ import argparse
 import sys
 import traceback
 from pathlib import Path
+from typing import Any
 
 
 def create_parser() -> argparse.ArgumentParser:

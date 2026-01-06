@@ -23,7 +23,8 @@ from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.corpus import CorpusEntry, CorpusManager
 from dicom_fuzzer.core.coverage_tracker import CoverageSnapshot, CoverageTracker
-from dicom_fuzzer.core.mutator import DicomMutator, MutationSeverity
+from dicom_fuzzer.core.mutator import DicomMutator
+from dicom_fuzzer.core.types import MutationSeverity
 from dicom_fuzzer.utils.identifiers import (
     generate_campaign_id,
     generate_corpus_entry_id,

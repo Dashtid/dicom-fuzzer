@@ -1,5 +1,3 @@
-from typing import Any
-
 #!/usr/bin/env python3
 """Unified Report Generator - Generate Reports from Fuzzing Session Data
 
@@ -21,6 +19,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))

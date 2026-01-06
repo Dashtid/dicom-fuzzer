@@ -1,10 +1,10 @@
-from typing import Any
-
 """Report Analytics.
 
 Generates analytics sections for fuzzing reports including
 mutation analysis, CVE coverage, and severity distribution.
 """
+
+from typing import Any
 
 
 class ReportAnalytics:

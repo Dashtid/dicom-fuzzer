@@ -20,8 +20,9 @@ import pydicom
 from dicom_fuzzer.utils.hashing import short_hash
 from dicom_fuzzer.utils.logger import get_logger
 
+from .constants import MutationType
 from .corpus_manager import CorpusManager, HistoricalCorpusManager
-from .coverage_guided_mutator import CoverageGuidedMutator, MutationType
+from .coverage_guided_mutator import CoverageGuidedMutator
 from .coverage_instrumentation import CoverageInfo, CoverageTracker
 from .crash_analyzer import CrashAnalyzer
 from .reporter import ReportGenerator
