@@ -37,7 +37,7 @@ class FuzzingConfig:
     """Configuration for coverage-guided fuzzing."""
 
     # Target configuration
-    target_function: Callable | None = None
+    target_function: Callable[..., Any] | None = None
     target_binary: str | None = None
     target_modules: list[str] = field(default_factory=list)
 

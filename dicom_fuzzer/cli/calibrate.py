@@ -12,7 +12,7 @@ import argparse
 import sys
 import traceback
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pydicom.dataset import Dataset
@@ -170,7 +170,7 @@ def run_list_categories() -> int:
 def _apply_category_mutations(
     ds_copy: Dataset,
     categories: list[str],
-    category_methods: dict,
+    category_methods: dict[str, Any],
     verbose: bool,
 ) -> Dataset:
     """Apply mutations for specified categories."""

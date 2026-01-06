@@ -676,7 +676,7 @@ class CoverageAwarePrioritizer:
         }
 
 
-def validate_corpus_quality(corpus_dir: Path) -> dict:
+def validate_corpus_quality(corpus_dir: Path) -> dict[str, Any]:
     """Validate corpus quality and provide statistics.
 
     Args:

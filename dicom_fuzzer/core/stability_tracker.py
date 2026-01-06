@@ -16,6 +16,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 from dicom_fuzzer.utils.hashing import hash_file_quick, md5_hash
 from dicom_fuzzer.utils.logger import get_logger
@@ -193,7 +194,7 @@ class StabilityTracker:
         """
         return self.metrics
 
-    def get_unstable_inputs_report(self) -> list[dict]:
+    def get_unstable_inputs_report(self) -> list[dict[str, Any]]:
         """Get detailed report of unstable inputs.
 
         Returns:
@@ -265,7 +266,7 @@ class StabilityTracker:
 
 
 def generate_execution_signature(
-    exit_code: int, output_hash: str | None = None, coverage: set | None = None
+    exit_code: int, output_hash: str | None = None, coverage: "set[str] | None" = None
 ) -> str:
     """Generate signature for an execution.
 

@@ -338,7 +338,9 @@ class MutationMinimizer:
         elif mutation_type == "corrupt":
             self._apply_corrupt_mutation(dataset, tag, mutation.mutated_value)
 
-    def _split_list(self, lst: list, n: int) -> list[list]:
+    def _split_list(
+        self, lst: list[MutationRecord], n: int
+    ) -> list[list[MutationRecord]]:
         """Split list into n roughly equal parts.
 
         Args:

@@ -124,7 +124,7 @@ class ServerFingerprint:
     supported_transfer_syntaxes: set[str] = field(default_factory=set)
 
     # Anomalies detected
-    anomaly_count: Counter = field(default_factory=Counter)
+    anomaly_count: Counter[AnomalyType] = field(default_factory=Counter)
 
     def avg_response_time(self) -> float:
         """Calculate average response time."""

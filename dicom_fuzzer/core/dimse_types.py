@@ -105,7 +105,7 @@ class DICOMElement:
 
     tag: tuple[int, int]
     vr: str
-    value: bytes | str | int | float | list
+    value: bytes | str | int | float | list[bytes | str | int | float]
 
     def encode(self, explicit_vr: bool = True) -> bytes:
         """Encode element to bytes.

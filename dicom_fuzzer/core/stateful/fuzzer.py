@@ -6,6 +6,7 @@ High-level orchestrator for state machine-based fuzzing.
 import random
 import time
 from collections.abc import Callable, Generator
+from typing import Any
 
 from dicom_fuzzer.core.stateful.config import StateMachineConfig
 from dicom_fuzzer.core.stateful.enums import (
@@ -155,7 +156,7 @@ class StatefulFuzzer:
         self.coverage.sequences_executed += 1
         return results
 
-    def get_coverage_stats(self) -> dict:
+    def get_coverage_stats(self) -> dict[str, Any]:
         """Get current coverage statistics.
 
         Returns:

@@ -16,6 +16,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -149,7 +150,7 @@ class StatisticsCollector:
         self.total_iterations = 0
 
         # Severity-based statistics
-        self.severity_stats: dict[str, dict] = defaultdict(
+        self.severity_stats: dict[str, dict[str, int]] = defaultdict(
             lambda: {"count": 0, "mutations": 0}
         )
 
@@ -304,7 +305,7 @@ class StatisticsCollector:
         """
         return dict(self.mutated_tags)
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """Get complete statistics summary.
 
         Returns:

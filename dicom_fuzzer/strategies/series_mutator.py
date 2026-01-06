@@ -28,6 +28,7 @@ import copy
 import random
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 import numpy as np
 import pydicom
@@ -75,9 +76,9 @@ class SeriesMutationRecord(SerializableMixin):
     original_value: str | None = None
     mutated_value: str | None = None
     severity: str = "moderate"
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
-    def _custom_serialization(self, data: dict) -> dict:
+    def _custom_serialization(self, data: dict[str, Any]) -> dict[str, Any]:
         """Ensure values are converted to strings for JSON serialization."""
         # Convert values to strings if present (handles non-string types)
         if data.get("original_value") is not None:

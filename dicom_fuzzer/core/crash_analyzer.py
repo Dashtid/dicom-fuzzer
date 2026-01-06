@@ -91,7 +91,7 @@ class CrashAnalyzer:
         self.crash_dir = Path(crash_dir)
         self.crash_dir.mkdir(parents=True, exist_ok=True)
         self.crashes: list[CrashReport] = []
-        self.crash_hashes: set = set()  # For deduplication
+        self.crash_hashes: set[str] = set()  # For deduplication
 
     def analyze_exception(
         self, exception: Exception, test_case_path: str
@@ -148,7 +148,9 @@ class CrashAnalyzer:
 
         return report
 
-    def analyze_crash(self, crash_file: Path, exception: Exception) -> dict:
+    def analyze_crash(
+        self, crash_file: Path, exception: Exception
+    ) -> dict[str, str | bool]:
         """Analyze a crash and return results as dictionary.
 
         This method provides compatibility with test expectations and uses

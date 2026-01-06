@@ -3,6 +3,8 @@
 Generates FDA compliance and regulatory sections for fuzzing reports.
 """
 
+from typing import Any
+
 
 class ComplianceFormatter:
     """Generates FDA compliance sections for fuzzing reports."""
@@ -17,7 +19,10 @@ class ComplianceFormatter:
         self.enable_triage = enable_triage
 
     def format_fda_compliance_section(
-        self, data: dict, crashes: list[dict], fuzzed_files: dict
+        self,
+        data: dict[str, Any],
+        crashes: list[dict[str, Any]],
+        fuzzed_files: dict[str, Any],
     ) -> str:
         """Generate FDA compliance and regulatory sections.
 
@@ -118,7 +123,9 @@ class ComplianceFormatter:
             </div>
 """
 
-    def format_compliance_checklist(self, data: dict, crashes: list[dict]) -> str:
+    def format_compliance_checklist(
+        self, data: dict[str, Any], crashes: list[dict[str, Any]]
+    ) -> str:
         """Generate FDA compliance testing checklist.
 
         Args:

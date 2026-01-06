@@ -19,6 +19,7 @@ import time
 import traceback
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -258,7 +259,7 @@ def _run_single_test(
     series_name: str | None,
     log_file: Path | None,
     verbose: bool,
-) -> dict:
+) -> dict[str, Any]:
     """Execute a single test iteration.
 
     Args:
@@ -372,7 +373,7 @@ def _save_campaign_results(
     target_path: Path,
     study_path: Path,
     args: argparse.Namespace,
-    stats: dict,
+    stats: dict[str, Any],
     log_file: Path | None,
 ) -> None:
     """Save campaign results to JSON file.
@@ -496,7 +497,7 @@ def _setup_viewer_adapter(
         return None, 1
 
 
-def _get_strategies(strategy_arg: str, strategy_map: dict) -> list:
+def _get_strategies(strategy_arg: str, strategy_map: dict[str, Any]) -> list[Any]:
     """Get list of strategies based on CLI argument."""
     if strategy_arg == "all":
         return list(strategy_map.values())
@@ -517,10 +518,10 @@ def _get_severities(severity_arg: str) -> list[str]:
 
 def _process_test_result(
     result: object,
-    stats: dict,
+    stats: dict[str, Any],
     test_id: int,
     output_study: Path,
-    records: list,
+    records: list[Any],
     harness: object,
     viewer_adapter: object | None,
     args: argparse.Namespace,
@@ -584,7 +585,9 @@ def _log_progress(
     )
 
 
-def _log_campaign_summary(stats: dict, elapsed_total: float, log_file: Path) -> None:
+def _log_campaign_summary(
+    stats: dict[str, Any], elapsed_total: float, log_file: Path
+) -> None:
     """Log final campaign summary."""
     log("", log_file)
     log("=" * 70, log_file)
@@ -605,10 +608,10 @@ def _run_campaign_loop(
     args: argparse.Namespace,
     study_path: Path,
     severities: list[str],
-    strategies: list,
+    strategies: list[Any],
     harness: object,
     viewer_adapter: object | None,
-    stats: dict,
+    stats: dict[str, Any],
     log_file: Path,
     start_campaign: float,
 ) -> bool:
@@ -670,7 +673,7 @@ def _run_single_campaign_test(
     mutator: object,
     harness: object,
     viewer_adapter: object | None,
-    stats: dict,
+    stats: dict[str, Any],
     log_file: Path,
 ) -> bool:
     """Run a single test in the campaign.

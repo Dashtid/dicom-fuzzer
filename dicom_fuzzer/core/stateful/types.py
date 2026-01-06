@@ -5,6 +5,7 @@ Dataclasses for state transitions, results, and fuzzing sequences.
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 from dicom_fuzzer.core.stateful.enums import (
     AssociationState,
@@ -31,7 +32,7 @@ class StateTransition:
     to_state: AssociationState
     event: ProtocolEvent
     transition_type: TransitionType = TransitionType.VALID
-    action: Callable | None = None
+    action: Callable[[], Any] | None = None
     description: str = ""
 
 

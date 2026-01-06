@@ -66,7 +66,9 @@ class CoverageTracker:
         self._module_cache[filename] = result
         return result
 
-    def _trace_function(self, frame: Any, event: str, arg: Any) -> Callable | None:
+    def _trace_function(
+        self, frame: Any, event: str, arg: Any
+    ) -> "Callable[[Any, str, Any], Callable[..., Any] | None] | None":
         """Trace function for sys.settrace.
 
         Tracks code execution at the line and branch level.
@@ -185,7 +187,9 @@ class CoverageTracker:
                 ),
             }
 
-    def get_uncovered_edges(self, recent_coverage: CoverageInfo) -> set[tuple]:
+    def get_uncovered_edges(
+        self, recent_coverage: CoverageInfo
+    ) -> set[tuple[str, int, str, int]]:
         """Get edges that haven't been covered yet.
 
         Useful for targeted fuzzing.
@@ -508,7 +512,9 @@ class EnhancedCoverageTracker(CoverageTracker):
         self.global_bitmap = bytearray(bitmap_size)
         self._execution_bitmap: bytearray | None = None
 
-    def _trace_function(self, frame: Any, event: str, arg: Any) -> Callable | None:
+    def _trace_function(
+        self, frame: Any, event: str, arg: Any
+    ) -> "Callable[[Any, str, Any], Callable[..., Any] | None] | None":
         """Enhanced trace function with bitmap updates."""
         result = super()._trace_function(frame, event, arg)
 

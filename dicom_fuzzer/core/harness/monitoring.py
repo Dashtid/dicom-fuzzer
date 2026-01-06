@@ -34,7 +34,7 @@ def is_psutil_available() -> bool:
 
 def _check_process_memory(
     psutil_proc: object,
-    process: subprocess.Popen,
+    process: subprocess.Popen[bytes],
     input_path: Path,
     memory_peak: float,
     memory_limit_mb: int,
@@ -71,7 +71,7 @@ def _check_process_memory(
 
 
 def monitor_process(
-    process: subprocess.Popen,
+    process: subprocess.Popen[bytes],
     input_path: Path,
     start_time: float,
     timeout_seconds: float,
@@ -177,7 +177,7 @@ def _classify_exit_code(exit_code: int) -> tuple[str, str | None]:
 
 def _check_phase_memory(
     psutil_proc: object,
-    process: subprocess.Popen,
+    process: subprocess.Popen[bytes],
     phase_name: str,
     phase_start: float,
     memory_peak: float,
@@ -249,7 +249,7 @@ def _run_phase_validation(
 
 
 def run_observation_phase(
-    process: subprocess.Popen,
+    process: subprocess.Popen[bytes],
     phase: ObservationPhase,
     default_memory_limit: int,
 ) -> PhaseResult:

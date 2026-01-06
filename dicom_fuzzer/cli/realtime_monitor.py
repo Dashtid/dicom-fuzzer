@@ -98,7 +98,7 @@ class RealtimeMonitor:
         elapsed = time.time() - self.start_time
         print(f"\rWaiting for session data... ({elapsed:.0f}s)", end="", flush=True)
 
-    def _display_stats(self, data: dict) -> None:
+    def _display_stats(self, data: dict[str, Any]) -> None:
         """Display statistics from session data."""
         # Clear screen (platform independent)
         print("\033[2J\033[H", end="")
@@ -266,7 +266,7 @@ def monitor_loop(session_id: str, update_interval: int = 1) -> None:
         time.sleep(update_interval)
 
 
-def get_session_stats(session_id: str) -> dict:
+def get_session_stats(session_id: str) -> dict[str, Any]:
     """Get statistics for a fuzzing session.
 
     Args:

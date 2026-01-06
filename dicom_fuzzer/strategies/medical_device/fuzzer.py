@@ -641,7 +641,9 @@ class MedicalDeviceSecurityFuzzer:
 
         return dataset
 
-    def _apply_dimension_mutation(self, dataset: Dataset, value: dict) -> None:
+    def _apply_dimension_mutation(
+        self, dataset: Dataset, value: dict[str, Any]
+    ) -> None:
         """Apply dimension mutations (rows/cols)."""
         if "rows" in value and "cols" in value:
             if (0x0028, 0x0010) in dataset:
@@ -649,14 +651,14 @@ class MedicalDeviceSecurityFuzzer:
             if (0x0028, 0x0011) in dataset:
                 dataset[0x0028, 0x0011].value = value["cols"]
 
-    def _apply_bits_mutation(self, dataset: Dataset, value: dict) -> None:
+    def _apply_bits_mutation(self, dataset: Dataset, value: dict[str, Any]) -> None:
         """Apply bit allocation mutations."""
         if "bits_allocated" in value and (0x0028, 0x0100) in dataset:
             dataset[0x0028, 0x0100].value = value["bits_allocated"]
         if "bits_stored" in value and (0x0028, 0x0101) in dataset:
             dataset[0x0028, 0x0101].value = value["bits_stored"]
 
-    def _apply_pixel_mutation(self, dataset: Dataset, value: dict) -> None:
+    def _apply_pixel_mutation(self, dataset: Dataset, value: dict[str, Any]) -> None:
         """Apply pixel data mutations."""
         if "data_size" not in value:
             return

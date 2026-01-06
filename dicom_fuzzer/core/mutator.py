@@ -130,7 +130,7 @@ class DicomMutator:
         self.current_session: MutationSession | None = None
 
         # OPTIMIZATION: Cache for applicable strategies based on dataset features
-        self._strategy_cache: dict[tuple, list[MutationStrategy]] = {}
+        self._strategy_cache: dict[tuple[Any, ...], list[MutationStrategy]] = {}
 
         # LEARNING: Load default configuration
         self._load_default_config()

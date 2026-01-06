@@ -32,6 +32,7 @@ import random
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 import pydicom
 from pydicom.dataset import Dataset
@@ -70,9 +71,9 @@ class StudyMutationRecord(SerializableMixin):
     original_value: str | None = None
     mutated_value: str | None = None
     severity: str = "moderate"
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
-    def _custom_serialization(self, data: dict) -> dict:
+    def _custom_serialization(self, data: dict[str, Any]) -> dict[str, Any]:
         """Ensure values are converted to strings for JSON serialization."""
         if data.get("original_value") is not None:
             data["original_value"] = str(data["original_value"])

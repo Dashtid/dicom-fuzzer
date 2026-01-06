@@ -14,7 +14,7 @@ Strategies:
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
@@ -239,7 +239,7 @@ class Reconstruction3DAttacksMixin:
         slice_index: int | None,
         original_value: str,
         mutated_value: str,
-        details: dict | None = None,
+        details: dict[str, Any] | None = None,
     ) -> SeriesMutationRecord:
         """Create a SeriesMutationRecord for slice overlap attacks."""
         from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord

@@ -31,6 +31,7 @@ USAGE:
 
 import random
 from dataclasses import dataclass, field
+from typing import Any
 
 from pydicom.dataset import Dataset
 
@@ -50,9 +51,9 @@ class CalibrationMutationRecord(SerializableMixin):
     mutated_value: str | None = None
     attack_type: str = ""
     severity: str = "moderate"
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
-    def _custom_serialization(self, data: dict) -> dict:
+    def _custom_serialization(self, data: dict[str, Any]) -> dict[str, Any]:
         """Ensure values are serializable."""
         if data.get("original_value") is not None:
             data["original_value"] = str(data["original_value"])
@@ -106,7 +107,7 @@ class CalibrationFuzzer:
         )
 
     def _ps_simple(
-        self, dataset: Dataset, value: list, attack_type: str, display: str
+        self, dataset: Dataset, value: list[float], attack_type: str, display: str
     ) -> CalibrationMutationRecord | None:
         """Apply simple PixelSpacing mutation."""
         if not hasattr(dataset, "PixelSpacing"):
@@ -137,7 +138,7 @@ class CalibrationFuzzer:
         )
 
     # Attack type specifications: (value, display_string)
-    _PS_SIMPLE_ATTACKS: dict[str, tuple[list, str]] = {
+    _PS_SIMPLE_ATTACKS: dict[str, tuple[list[float], str]] = {
         "zero": ([0.0, 0.0], "[0.0, 0.0]"),
         "negative": ([-1.0, -1.0], "[-1.0, -1.0]"),
         "extreme_small": ([1e-10, 1e-10], "[1e-10, 1e-10]"),

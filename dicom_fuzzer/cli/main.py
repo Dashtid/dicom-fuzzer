@@ -142,7 +142,9 @@ def parse_target_config(config_path: str) -> dict[str, Any]:
     return config
 
 
-def apply_resource_limits(resource_limits: dict | ResourceLimits | None) -> None:
+def apply_resource_limits(
+    resource_limits: dict[str, Any] | ResourceLimits | None,
+) -> None:
     """Apply resource limits to current process.
 
     Args:
@@ -288,7 +290,7 @@ def validate_input_file(file_path: str) -> Path:
     return path
 
 
-def parse_strategies(strategies_str: str | None) -> list:
+def parse_strategies(strategies_str: str | None) -> list[str]:
     """Parse comma-separated strategy list.
 
     Args:

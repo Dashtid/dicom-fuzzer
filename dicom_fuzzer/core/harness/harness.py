@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import structlog
 
@@ -383,7 +383,7 @@ class TargetHarness:
         result: TestResult,
         study_dir: Path,
         test_id: int,
-        mutation_records: list | None = None,
+        mutation_records: list[dict[str, str | int | float | None]] | None = None,
         viewer_adapter: ViewerAdapter | None = None,
     ) -> CrashArtifact:
         """Save crash artifact for later analysis.
@@ -464,7 +464,7 @@ class TargetHarness:
         """
         return kill_target_processes(self.config.process_pattern)
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, Any]:
         """Get harness statistics.
 
         Returns:

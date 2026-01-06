@@ -1,3 +1,5 @@
+from typing import Any
+
 """Study-Level Mutation Subcommand for DICOM Fuzzer.
 
 Study-level fuzzing targeting cross-series relationships and study-wide consistency.
@@ -120,14 +122,16 @@ def run_list_strategies() -> int:
     return 0
 
 
-def _resolve_study_strategies(strategy_name: str, strategy_map: dict) -> list:
+def _resolve_study_strategies(
+    strategy_name: str, strategy_map: dict[str, Any]
+) -> list[Any]:
     """Resolve strategy name to list of strategies."""
     if strategy_name == "all":
         return list(strategy_map.values())
     return [strategy_map[strategy_name]]
 
 
-def _save_mutated_study(output_path: Path, fuzzed_study: list) -> None:
+def _save_mutated_study(output_path: Path, fuzzed_study: list[Any]) -> None:
     """Save mutated study datasets to output directory."""
     for idx, datasets in enumerate(fuzzed_study):
         series_dir = output_path / f"series_{idx:03d}"

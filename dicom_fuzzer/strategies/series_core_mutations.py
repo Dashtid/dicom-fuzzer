@@ -217,7 +217,7 @@ class CoreMutationsMixin:
         self,
         ds: Dataset,
         slice_idx: int,
-        original: tuple,
+        original: tuple[float, float, float],
         datasets: list[Dataset],
         records: list[SeriesMutationRecord],
     ) -> None:
@@ -241,7 +241,7 @@ class CoreMutationsMixin:
         self,
         ds: Dataset,
         slice_idx: int,
-        original: tuple,
+        original: tuple[float, float, float],
         datasets: list[Dataset],
         records: list[SeriesMutationRecord],
     ) -> None:
@@ -273,7 +273,7 @@ class CoreMutationsMixin:
         self,
         ds: Dataset,
         slice_idx: int,
-        original: tuple,
+        original: tuple[float, float, float],
         datasets: list[Dataset],
         records: list[SeriesMutationRecord],
         value_type: str,
@@ -309,7 +309,7 @@ class CoreMutationsMixin:
         self,
         ds: Dataset,
         slice_idx: int,
-        original: tuple,
+        original: tuple[float, float, float],
         datasets: list[Dataset],
         records: list[SeriesMutationRecord],
     ) -> None:
@@ -333,7 +333,7 @@ class CoreMutationsMixin:
         self,
         ds: Dataset,
         slice_idx: int,
-        original: tuple,
+        original: tuple[float, float, float],
         datasets: list[Dataset],
         records: list[SeriesMutationRecord],
     ) -> None:

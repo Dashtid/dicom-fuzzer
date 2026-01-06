@@ -113,7 +113,7 @@ class GUITargetRunner:
         )
 
     def _monitor_process(
-        self, process: subprocess.Popen, test_file_path: Path, start_time: float
+        self, process: subprocess.Popen[bytes], test_file_path: Path, start_time: float
     ) -> tuple[bool, bool, float, int | None]:
         """Monitor process until timeout, crash, or normal exit.
 
@@ -165,7 +165,9 @@ class GUITargetRunner:
 
         return crashed, timed_out, peak_memory, exit_code
 
-    def _check_memory(self, process: subprocess.Popen) -> tuple[float, bool] | None:
+    def _check_memory(
+        self, process: subprocess.Popen[bytes]
+    ) -> tuple[float, bool] | None:
         """Check process memory usage.
 
         Returns:
@@ -188,7 +190,7 @@ class GUITargetRunner:
         except psutil.NoSuchProcess:
             return None
 
-    def _capture_output(self, process: subprocess.Popen) -> tuple[str, str]:
+    def _capture_output(self, process: subprocess.Popen[bytes]) -> tuple[str, str]:
         """Capture process stdout and stderr."""
         try:
             raw_stdout, raw_stderr = process.communicate(timeout=1)
@@ -277,7 +279,7 @@ class GUITargetRunner:
             stderr=stderr_data,
         )
 
-    def _kill_process_tree(self, process: subprocess.Popen) -> None:
+    def _kill_process_tree(self, process: subprocess.Popen[bytes]) -> None:
         """Kill process and all its children."""
         try:
             parent = psutil.Process(process.pid)

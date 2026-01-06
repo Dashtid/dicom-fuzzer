@@ -69,7 +69,7 @@ class MemorySnapshot:
     timestamp: float
     process_memory_mb: float
     system_memory_percent: float
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -84,7 +84,7 @@ class StressTestResult:
     dimensions: tuple[int, int]
     memory_snapshots: list[MemorySnapshot] = field(default_factory=list)
     memory_peak_mb: float = 0.0
-    crashes: list[dict] = field(default_factory=list)
+    crashes: list[dict[str, Any]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     success: bool = True
 
@@ -310,7 +310,7 @@ class StressTester:
         slice_index: int,
         total_slices: int,
         pattern: str,
-    ) -> np.ndarray:
+    ) -> "np.ndarray[Any, Any]":
         """Generate pixel data with specified pattern.
 
         Args:

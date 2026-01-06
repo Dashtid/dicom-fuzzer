@@ -318,7 +318,7 @@ class CoverageCorrelator:
 
 def correlate_session_coverage(
     session_file: Path, coverage_file: Path | None = None
-) -> dict:
+) -> dict[str, Any]:
     """Correlate entire fuzzing session with coverage.
 
     Args:

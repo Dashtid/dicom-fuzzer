@@ -14,6 +14,8 @@ from dicom_fuzzer.cli import output as cli
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from dicom_fuzzer.core.network_fuzzer_base import NetworkFuzzResult
+
 logger = logging.getLogger(__name__)
 
 # Check for network fuzzer availability
@@ -112,7 +114,9 @@ class NetworkFuzzingController:
             return 1
 
     @staticmethod
-    def _display_results(results: list, verbose: bool = False) -> None:
+    def _display_results(
+        results: list[NetworkFuzzResult], verbose: bool = False
+    ) -> None:
         """Display network fuzzing results.
 
         Args:

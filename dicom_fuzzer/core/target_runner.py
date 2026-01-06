@@ -317,7 +317,7 @@ class TargetRunner:
     def _handle_windows_crash(
         self,
         test_file: Path,
-        result: subprocess.CompletedProcess,
+        result: subprocess.CompletedProcess[str],
     ) -> Any:
         """Handle Windows-specific crash analysis."""
         if not self.windows_crash_handler or result.returncode is None:
@@ -338,7 +338,7 @@ class TargetRunner:
     def _build_success_result(
         self,
         test_file: Path,
-        result: subprocess.CompletedProcess,
+        result: subprocess.CompletedProcess[str],
         execution_time: float,
         retry_count: int,
         crash_info: Any,
@@ -503,18 +503,22 @@ class TargetRunner:
             retry_count=retry,
         )
 
-    def _collect_process_output(self, process: Any) -> tuple[str, str]:
+    def _collect_process_output(
+        self, process: subprocess.Popen[bytes]
+    ) -> tuple[str, str]:
         """Collect stdout/stderr from process."""
         stdout_val = ""
         stderr_val = ""
         if process.stdout and self.collect_stdout:
             try:
-                stdout_val = process.stdout.read()
+                raw_stdout = process.stdout.read()
+                stdout_val = raw_stdout.decode("utf-8", errors="replace")
             except Exception as e:
                 logger.debug(f"Error reading stdout: {e}")
         if process.stderr and self.collect_stderr:
             try:
-                stderr_val = process.stderr.read()
+                raw_stderr = process.stderr.read()
+                stderr_val = raw_stderr.decode("utf-8", errors="replace")
             except Exception as e:
                 logger.debug(f"Error reading stderr: {e}")
         return stdout_val, stderr_val
@@ -637,11 +641,10 @@ class TargetRunner:
         logger.debug(f"Testing with monitoring: {test_file_path.name}")
 
         try:
-            process = subprocess.Popen(
+            process: subprocess.Popen[bytes] = subprocess.Popen(
                 [str(self.target_executable), str(test_file_path)],
                 stdout=subprocess.PIPE if self.collect_stdout else subprocess.DEVNULL,
                 stderr=subprocess.PIPE if self.collect_stderr else subprocess.DEVNULL,
-                text=True,
             )
 
             monitor_result = self.process_monitor.monitor_process(process)

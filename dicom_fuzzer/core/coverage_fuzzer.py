@@ -97,7 +97,7 @@ class CoverageGuidedFuzzer:
     def __init__(
         self,
         corpus_dir: Path,
-        target_function: Callable | None = None,
+        target_function: Callable[..., Any] | None = None,
         max_corpus_size: int = 1000,
         mutation_severity: MutationSeverity = MutationSeverity.MODERATE,
     ):

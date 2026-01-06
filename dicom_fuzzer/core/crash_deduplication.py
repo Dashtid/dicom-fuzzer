@@ -10,6 +10,7 @@ by analyzing multiple crash characteristics:
 
 from dataclasses import dataclass
 from difflib import SequenceMatcher
+from typing import Any
 
 from dicom_fuzzer.core.fuzzing_session import CrashRecord
 from dicom_fuzzer.utils.hashing import hash_string
@@ -106,7 +107,7 @@ class CrashDeduplicator:
         """Get count of unique crash groups."""
         return len(self.crash_groups)
 
-    def get_deduplication_stats(self) -> dict:
+    def get_deduplication_stats(self) -> dict[str, int | float | list[int]]:
         """Get deduplication statistics.
 
         Returns:
@@ -418,7 +419,7 @@ class CrashDeduplicator:
         return overall
 
     def _compare_mutation_type_distribution(
-        self, seq1: list[tuple], seq2: list[tuple]
+        self, seq1: list[tuple[str, str, object]], seq2: list[tuple[str, str, object]]
     ) -> float:
         """Compare distribution of mutation types between two sequences.
 
@@ -471,7 +472,7 @@ class CrashDeduplicator:
         return float(0.5 * jaccard + 0.5 * cosine)
 
     def _compare_strategy_frequency(
-        self, seq1: list[tuple], seq2: list[tuple]
+        self, seq1: list[tuple[str, str, object]], seq2: list[tuple[str, str, object]]
     ) -> float:
         """Compare distribution of mutation strategies between two sequences.
 
@@ -549,8 +550,8 @@ class CrashDeduplicator:
 
 
 def deduplicate_session_crashes(
-    session_data: dict, config: DeduplicationConfig | None = None
-) -> dict:
+    session_data: dict[str, Any], config: DeduplicationConfig | None = None
+) -> dict[str, Any]:
     """Deduplicate crashes from a fuzzing session.
 
     Args:

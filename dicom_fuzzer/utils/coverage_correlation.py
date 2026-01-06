@@ -136,7 +136,7 @@ def _identify_dangerous_paths(
 
 
 def correlate_crashes_with_coverage(
-    crashes: list,
+    crashes: list[dict[str, str]],
     coverage_data: dict[str, set[str]],
     safe_inputs: list[str] | None = None,
 ) -> CrashCoverageCorrelation:

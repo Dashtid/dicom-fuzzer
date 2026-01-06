@@ -11,7 +11,7 @@ Strategies:
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pydicom
 from pydicom.dataset import Dataset
@@ -42,7 +42,7 @@ class TemporalAttacksMixin:
         slice_index: int | None,
         mutated_value: str,
         tag: str = "ReferencedImageSequence",
-        details: dict | None = None,
+        details: dict[str, Any] | None = None,
     ) -> SeriesMutationRecord:
         """Create a SeriesMutationRecord for cross-slice reference attacks."""
         from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord

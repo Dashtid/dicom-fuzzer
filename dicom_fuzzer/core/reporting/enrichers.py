@@ -4,6 +4,7 @@ Enriches crash records with automated triage analysis.
 """
 
 from datetime import datetime
+from typing import Any
 
 from dicom_fuzzer.core.crash_triage import CrashTriageEngine
 from dicom_fuzzer.core.fuzzing_session import CrashRecord
@@ -21,7 +22,7 @@ class CrashTriageEnricher:
         """
         self.triage_engine = triage_engine or CrashTriageEngine()
 
-    def enrich_crashes(self, session_data: dict) -> dict:
+    def enrich_crashes(self, session_data: dict[str, Any]) -> dict[str, Any]:
         """Enrich crash records with automated triage analysis.
 
         Args:

@@ -132,7 +132,7 @@ class ProcessMonitor:
                 "Install with: pip install psutil"
             )
 
-    def monitor_process(self, process: subprocess.Popen) -> MonitorResult:
+    def monitor_process(self, process: subprocess.Popen[bytes]) -> MonitorResult:
         """Monitor a running process until completion or hang detection.
 
         Args:
@@ -147,7 +147,7 @@ class ProcessMonitor:
 
         return self._enhanced_monitor(process)
 
-    def _basic_monitor(self, process: subprocess.Popen) -> MonitorResult:
+    def _basic_monitor(self, process: subprocess.Popen[bytes]) -> MonitorResult:
         """Basic monitoring using only subprocess wait (no psutil).
 
         Args:
@@ -190,7 +190,7 @@ class ProcessMonitor:
                 duration_seconds=duration,
             )
 
-    def _enhanced_monitor(self, process: subprocess.Popen) -> MonitorResult:
+    def _enhanced_monitor(self, process: subprocess.Popen[bytes]) -> MonitorResult:
         """Enhanced monitoring with CPU/memory tracking.
 
         Args:
@@ -321,7 +321,7 @@ class ProcessMonitor:
             # Sleep before next sample
             time.sleep(self.poll_interval)
 
-    def _terminate_process(self, process: subprocess.Popen) -> None:
+    def _terminate_process(self, process: subprocess.Popen[bytes]) -> None:
         """Terminate a process gracefully, then forcefully.
 
         Args:

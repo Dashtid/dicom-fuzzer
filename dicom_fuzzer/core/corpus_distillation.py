@@ -20,6 +20,7 @@ from collections.abc import Callable, Generator
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import (
+    Any,
     Generic,
     TypeVar,
 )
@@ -91,7 +92,7 @@ class DistillationConfig:
     diversity_clusters: int = 0  # Auto-detect if 0
 
     # Custom weight function (optional)
-    custom_weight_fn: Callable[[SeedInfo], float] | None = None
+    custom_weight_fn: Callable[[SeedInfo[Any]], float] | None = None
 
 
 @dataclass
@@ -857,7 +858,7 @@ class IncrementalDistiller(Generic[T]):
         """
         return list(self.corpus.values())
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, int | float]:
         """Get corpus statistics.
 
         Returns:

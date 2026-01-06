@@ -91,7 +91,9 @@ def _hash_result(result: Any) -> str:
     return hash_any(result)
 
 
-def create_stateless_test_wrapper(test_function: Callable) -> Callable:
+def create_stateless_test_wrapper(
+    test_function: Callable[..., Any],
+) -> Callable[..., Any]:
     """Create a stateless wrapper around test function.
 
     CONCEPT: Ensures fresh state for each test by:

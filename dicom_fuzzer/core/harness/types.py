@@ -9,7 +9,7 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 # Status type for test results
 TestStatus = Literal["success", "crash", "memory_exceeded", "timeout", "error"]
@@ -82,7 +82,7 @@ class TestResult:
     timestamp: datetime = field(default_factory=datetime.now)
     process_pid: int | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         data = asdict(self)
         data["input_path"] = str(self.input_path)
@@ -90,7 +90,7 @@ class TestResult:
         return data
 
     @classmethod
-    def from_dict(cls, data: dict) -> TestResult:
+    def from_dict(cls, data: dict[str, Any]) -> TestResult:
         """Create from dictionary."""
         data = data.copy()
         data["input_path"] = Path(data["input_path"])
@@ -133,7 +133,7 @@ class ValidationResult:
 
     passed: bool
     message: str | None = None
-    details: dict | None = None
+    details: dict[str, Any] | None = None
 
 
 @dataclass
@@ -205,7 +205,7 @@ class PhasedTestResult(TestResult):
     phase_results: list[PhaseResult] = field(default_factory=list)
     failed_phase: str | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         data = super().to_dict()
         data["phase_results"] = [

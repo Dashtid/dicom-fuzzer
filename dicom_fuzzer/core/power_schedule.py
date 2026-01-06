@@ -152,7 +152,7 @@ class PowerSchedule(ABC):
         self,
         total_executions: int,
         total_discoveries: int,
-        edge_frequency: dict[tuple, int],
+        edge_frequency: dict[tuple[str, int, str, int], int],
         corpus_size: int,
     ) -> None:
         """Update global statistics used in calculations.
@@ -609,7 +609,7 @@ class PowerScheduleManager:
         self,
         total_executions: int,
         total_discoveries: int,
-        edge_frequency: dict[tuple, int],
+        edge_frequency: dict[tuple[str, int, str, int], int],
         corpus_size: int,
     ) -> None:
         """Update global statistics for schedule calculations."""

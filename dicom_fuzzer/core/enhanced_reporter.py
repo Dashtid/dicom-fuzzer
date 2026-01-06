@@ -14,6 +14,7 @@ components. For direct access to individual formatters, import from the
 """
 
 from pathlib import Path
+from typing import Any
 
 from dicom_fuzzer.core.crash_triage import CrashTriageEngine
 from dicom_fuzzer.core.html_templates import (
@@ -56,7 +57,9 @@ class EnhancedReportGenerator:
         self._analytics = ReportAnalytics(enable_triage=enable_triage)
         self._compliance = ComplianceFormatter(enable_triage=enable_triage)
 
-    def _enrich_crashes_with_triage(self, session_data: dict) -> dict:
+    def _enrich_crashes_with_triage(
+        self, session_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Enrich crash records with automated triage analysis.
 
         Args:
@@ -72,7 +75,7 @@ class EnhancedReportGenerator:
 
     def generate_html_report(
         self,
-        session_data: dict,
+        session_data: dict[str, Any],
         output_path: Path | None = None,
     ) -> Path:
         """Generate comprehensive HTML report from session data.
@@ -101,7 +104,7 @@ class EnhancedReportGenerator:
 
         return output_path
 
-    def _generate_html_document(self, data: dict) -> str:
+    def _generate_html_document(self, data: dict[str, Any]) -> str:
         """Generate complete HTML document."""
         session_info = data["session_info"]
         stats = data["statistics"]

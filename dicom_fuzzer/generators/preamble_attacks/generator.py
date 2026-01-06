@@ -18,7 +18,7 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 # Attempt to import pydicom for DICOM operations
 try:
@@ -363,7 +363,7 @@ class PreambleAttackGenerator:
             f.write(marker)
             f.write(shellcode)
 
-    def validate_polyglot(self, path: str | Path) -> dict:
+    def validate_polyglot(self, path: str | Path) -> dict[str, Any]:
         """Validate that a file is a valid polyglot.
 
         Args:

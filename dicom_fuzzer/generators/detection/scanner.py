@@ -14,6 +14,7 @@ import struct
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 
 class Severity(Enum):
@@ -34,7 +35,7 @@ class Finding:
     category: str
     description: str
     offset: int | None = None
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -352,7 +353,7 @@ class DicomSecurityScanner:
         return results
 
 
-def _result_to_dict(r: ScanResult) -> dict:
+def _result_to_dict(r: ScanResult) -> dict[str, Any]:
     """Convert a ScanResult to a JSON-serializable dict."""
     return {
         "path": str(r.path),

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 
 class MultiFrameMutationStrategy(Enum):
@@ -83,9 +84,9 @@ class MultiFrameMutationRecord:
     original_value: str | None = None
     mutated_value: str | None = None
     severity: str = "moderate"
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert record to dictionary for serialization.
 
         Returns:

@@ -65,7 +65,7 @@ class DICOMGenerator:
         self.skip_write_errors = skip_write_errors
         self.stats = GenerationStats()
 
-    def generate(self, output_path: str, tags: dict | None = None) -> Path:
+    def generate(self, output_path: str, tags: dict[str, Any] | None = None) -> Path:
         """Generate a single DICOM file from scratch.
 
         Args:
@@ -164,7 +164,7 @@ class DICOMGenerator:
 
         return generated_files
 
-    def _select_fuzzers(self, strategies: list[str] | None) -> dict:
+    def _select_fuzzers(self, strategies: list[str] | None) -> dict[str, Any]:
         """Select fuzzers based on strategy names."""
         all_fuzzers = {
             "metadata": MetadataFuzzer(),

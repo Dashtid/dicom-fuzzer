@@ -5,6 +5,7 @@ Generates HTML sections for fuzzing reports.
 
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from dicom_fuzzer.core.html_templates import escape_html
 
@@ -21,7 +22,9 @@ class HTMLSectionFormatter:
         """
         self.enable_triage = enable_triage
 
-    def format_session_overview(self, session_info: dict, stats: dict) -> str:
+    def format_session_overview(
+        self, session_info: dict[str, Any], stats: dict[str, Any]
+    ) -> str:
         """Generate session overview section.
 
         Args:
@@ -105,7 +108,9 @@ class HTMLSectionFormatter:
 
         return html
 
-    def format_crash_summary(self, crashes: list[dict], fuzzed_files: dict) -> str:
+    def format_crash_summary(
+        self, crashes: list[dict[str, Any]], fuzzed_files: dict[str, Any]
+    ) -> str:
         """Generate crash summary table.
 
         Args:
@@ -168,7 +173,7 @@ class HTMLSectionFormatter:
 
         return html
 
-    def _format_critical_crashes_table(self, crashes: list[dict]) -> str:
+    def _format_critical_crashes_table(self, crashes: list[dict[str, Any]]) -> str:
         """Format the critical crashes table.
 
         Args:
@@ -218,7 +223,9 @@ class HTMLSectionFormatter:
 """
         return html
 
-    def format_crash_details(self, crashes: list[dict], fuzzed_files: dict) -> str:
+    def format_crash_details(
+        self, crashes: list[dict[str, Any]], fuzzed_files: dict[str, Any]
+    ) -> str:
         """Generate detailed crash information.
 
         Args:
@@ -242,7 +249,9 @@ class HTMLSectionFormatter:
 
         return html
 
-    def _format_single_crash(self, crash: dict, fuzzed_files: dict) -> str:
+    def _format_single_crash(
+        self, crash: dict[str, Any], fuzzed_files: dict[str, Any]
+    ) -> str:
         """Format a single crash detail section.
 
         Args:
@@ -341,7 +350,7 @@ class HTMLSectionFormatter:
 
         return html
 
-    def _format_triage_info(self, triage: dict) -> str:
+    def _format_triage_info(self, triage: dict[str, Any]) -> str:
         """Format triage information.
 
         Args:
@@ -374,7 +383,7 @@ class HTMLSectionFormatter:
 """
         return html
 
-    def _format_mutation_history(self, mutations: list[dict]) -> str:
+    def _format_mutation_history(self, mutations: list[dict[str, Any]]) -> str:
         """Format mutation history section.
 
         Args:

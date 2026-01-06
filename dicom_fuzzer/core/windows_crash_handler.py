@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from dicom_fuzzer.utils.hashing import hash_string
 from dicom_fuzzer.utils.logger import get_logger
@@ -497,7 +497,7 @@ class WindowsCrashHandler:
         logger.info(f"Crash report saved: {report_path}")
         return report_path
 
-    def classify_for_triage(self, crash_info: WindowsCrashInfo) -> dict:
+    def classify_for_triage(self, crash_info: WindowsCrashInfo) -> dict[str, Any]:
         """Classify crash for triage and prioritization.
 
         Returns a dictionary suitable for integration with CrashAnalyzer.

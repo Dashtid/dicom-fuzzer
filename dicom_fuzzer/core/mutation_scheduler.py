@@ -18,6 +18,7 @@ import random
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -557,7 +558,7 @@ class MutationScheduler:
             for op, s in self.stats.items()
         }
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """Get summary of scheduler state.
 
         Returns:
@@ -594,7 +595,7 @@ class MutationScheduler:
             ],
         }
 
-    def export_state(self) -> dict:
+    def export_state(self) -> dict[str, Any]:
         """Export scheduler state for persistence.
 
         Returns:
@@ -622,10 +623,10 @@ class MutationScheduler:
 
     def _restore_operator_dict(
         self,
-        state: dict,
+        state: dict[str, Any],
         key: str,
-        target: dict,
-        value_transform: Callable | None = None,
+        target: dict[MutationOperator, Any],
+        value_transform: Callable[[Any], Any] | None = None,
     ) -> None:
         """Restore an operator dictionary from state.
 
@@ -644,7 +645,7 @@ class MutationScheduler:
             except KeyError:
                 logger.debug("Skipping unknown operator in %s: %s", key, op_name)
 
-    def import_state(self, state: dict) -> None:
+    def import_state(self, state: dict[str, Any]) -> None:
         """Import scheduler state from persistence.
 
         Args:

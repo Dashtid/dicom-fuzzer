@@ -13,6 +13,7 @@ Based on 2025 best practices for automated crash triaging systems.
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 from dicom_fuzzer.core.constants import Severity
 from dicom_fuzzer.core.fuzzing_session import CrashRecord
@@ -161,7 +162,7 @@ class CrashTriageEngine:
         triages = [self.triage_crash(crash) for crash in crashes]
         return sorted(triages, key=lambda t: t.priority_score, reverse=True)
 
-    def get_triage_summary(self, triages: list[CrashTriage]) -> dict:
+    def get_triage_summary(self, triages: list[CrashTriage]) -> dict[str, Any]:
         """Get summary statistics for triage results.
 
         Args:
@@ -485,7 +486,7 @@ class CrashTriageEngine:
         return md5_hash(id_str)
 
 
-def triage_session_crashes(crashes: list[CrashRecord]) -> dict:
+def triage_session_crashes(crashes: list[CrashRecord]) -> dict[str, Any]:
     """Triage all crashes from a fuzzing session.
 
     Args:

@@ -1,3 +1,5 @@
+from typing import Any
+
 """Report Analytics.
 
 Generates analytics sections for fuzzing reports including
@@ -18,7 +20,7 @@ class ReportAnalytics:
         self.enable_triage = enable_triage
 
     def format_mutation_analysis(
-        self, fuzzed_files: dict, crashes: list | None = None
+        self, fuzzed_files: dict[str, Any], crashes: list[dict[str, Any]] | None = None
     ) -> str:
         """Generate mutation strategy analysis.
 
@@ -110,7 +112,7 @@ class ReportAnalytics:
 
         return html
 
-    def _format_critical_crashes_section(self, crashes: list[dict]) -> str:
+    def _format_critical_crashes_section(self, crashes: list[dict[str, Any]]) -> str:
         """Format the critical crashes section.
 
         Args:
@@ -160,7 +162,7 @@ class ReportAnalytics:
 """
         return html
 
-    def format_cve_coverage(self, fuzzed_files: dict) -> str:
+    def format_cve_coverage(self, fuzzed_files: dict[str, Any]) -> str:
         """Generate CVE mutation coverage analysis.
 
         Args:
@@ -317,7 +319,7 @@ class ReportAnalytics:
             </details>
 """
 
-    def format_severity_distribution(self, crashes: list[dict]) -> str:
+    def format_severity_distribution(self, crashes: list[dict[str, Any]]) -> str:
         """Generate crash severity distribution chart.
 
         Args:
@@ -382,7 +384,7 @@ class ReportAnalytics:
         return html
 
     def _format_severity_bar_chart(
-        self, severity_counts: dict, colors: dict, total: int
+        self, severity_counts: dict[str, int], colors: dict[str, str], total: int
     ) -> str:
         """Format the severity bar chart.
 
