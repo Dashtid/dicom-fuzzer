@@ -541,8 +541,8 @@ class TestSBOMGeneration:
         """Test SBOM section has proper structure."""
         generator = EnhancedReportGenerator(output_dir=str(temp_report_dir))
 
-        # Access the internal method
-        sbom_html = generator._generate_sbom_summary()
+        # Access via the compliance formatter component
+        sbom_html = generator._compliance.format_sbom_summary()
 
         # Check for expected elements
         assert "SBOM" in sbom_html
@@ -552,7 +552,7 @@ class TestSBOMGeneration:
         """Test SBOM includes dicom-fuzzer package."""
         generator = EnhancedReportGenerator(output_dir=str(temp_report_dir))
 
-        sbom_html = generator._generate_sbom_summary()
+        sbom_html = generator._compliance.format_sbom_summary()
 
         # Should reference dicom-fuzzer
         assert "dicom" in sbom_html.lower() or "fuzzer" in sbom_html.lower()
@@ -596,7 +596,7 @@ class TestCVECoverage:
         """Test CVE coverage counts mutations correctly."""
         generator = EnhancedReportGenerator(output_dir=str(temp_report_dir))
 
-        cve_html = generator._generate_cve_coverage(fuzzed_files_with_cve)
+        cve_html = generator._analytics.format_cve_coverage(fuzzed_files_with_cve)
 
         # Should show CVE identifiers
         assert "CVE" in cve_html
@@ -605,7 +605,7 @@ class TestCVECoverage:
         """Test CVE coverage with no fuzzed files."""
         generator = EnhancedReportGenerator(output_dir=str(temp_report_dir))
 
-        cve_html = generator._generate_cve_coverage({})
+        cve_html = generator._analytics.format_cve_coverage({})
 
         # Should handle empty input gracefully
         assert len(cve_html) > 0
@@ -623,7 +623,7 @@ class TestCVECoverage:
             }
         }
 
-        cve_html = generator._generate_cve_coverage(fuzzed_files)
+        cve_html = generator._analytics.format_cve_coverage(fuzzed_files)
 
         # Should still produce output
         assert len(cve_html) > 0
@@ -653,7 +653,7 @@ class TestSeverityDistribution:
             {"severity": "informational"},
         ]
 
-        severity_html = generator._generate_severity_distribution(crashes)
+        severity_html = generator._analytics.format_severity_distribution(crashes)
 
         # Check for severity levels in output
         assert "critical" in severity_html.lower() or "Critical" in severity_html
@@ -662,7 +662,7 @@ class TestSeverityDistribution:
         """Test severity distribution with no crashes."""
         generator = EnhancedReportGenerator(output_dir=str(temp_report_dir))
 
-        severity_html = generator._generate_severity_distribution([])
+        severity_html = generator._analytics.format_severity_distribution([])
 
         # Should show success message or empty state
         assert len(severity_html) > 0
@@ -677,7 +677,7 @@ class TestSeverityDistribution:
             {"severity": "high"},
         ]
 
-        severity_html = generator._generate_severity_distribution(crashes)
+        severity_html = generator._analytics.format_severity_distribution(crashes)
 
         assert "high" in severity_html.lower() or "High" in severity_html
 
@@ -703,7 +703,9 @@ class TestComplianceChecklist:
         }
         crashes = [{"crash_id": "1"}, {"crash_id": "2"}]
 
-        checklist_html = generator._generate_compliance_checklist(data, crashes)
+        checklist_html = generator._compliance.format_compliance_checklist(
+            data, crashes
+        )
 
         # Should have checklist items
         assert len(checklist_html) > 0
@@ -715,7 +717,9 @@ class TestComplianceChecklist:
         data = {"statistics": {"files_fuzzed": 10, "mutations_applied": 50}}
         crashes = [{"crash_id": "1"}, {"crash_id": "2"}, {"crash_id": "3"}]
 
-        checklist_html = generator._generate_compliance_checklist(data, crashes)
+        checklist_html = generator._compliance.format_compliance_checklist(
+            data, crashes
+        )
 
         # Checklist should exist
         assert len(checklist_html) > 0
@@ -727,7 +731,9 @@ class TestComplianceChecklist:
         data = {"statistics": {"files_fuzzed": 100, "mutations_applied": 1000}}
         crashes = []
 
-        checklist_html = generator._generate_compliance_checklist(data, crashes)
+        checklist_html = generator._compliance.format_compliance_checklist(
+            data, crashes
+        )
 
         # Should still produce checklist
         assert len(checklist_html) > 0
@@ -740,7 +746,9 @@ class TestComplianceChecklist:
         data = {"statistics": {"files_fuzzed": 1, "mutations_applied": 5}}
         crashes = []
 
-        checklist_html = generator._generate_compliance_checklist(data, crashes)
+        checklist_html = generator._compliance.format_compliance_checklist(
+            data, crashes
+        )
 
         # Should still produce output
         assert len(checklist_html) > 0
