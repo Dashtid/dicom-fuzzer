@@ -585,9 +585,19 @@ class TestMain:
         with tempfile.TemporaryDirectory() as tmpdir:
             yield Path(tmpdir)
 
+    def _patch_dispatch(self, arg_name: str, mock_handler: MagicMock):
+        """Helper to patch _ACTION_DISPATCH for a specific action."""
+        original_dispatch = samples._ACTION_DISPATCH.copy()
+        new_dispatch = [
+            (name, mock_handler if name == arg_name else handler)
+            for name, handler in original_dispatch
+        ]
+        return patch.object(samples, "_ACTION_DISPATCH", new_dispatch)
+
     def test_main_generate(self):
         """Test main with --generate."""
-        with patch.object(samples, "run_generate", return_value=0) as mock_run:
+        mock_run = MagicMock(return_value=0)
+        with self._patch_dispatch("generate", mock_run):
             result = samples.main(["--generate"])
 
         assert result == 0
@@ -595,7 +605,8 @@ class TestMain:
 
     def test_main_list_sources(self):
         """Test main with --list-sources."""
-        with patch.object(samples, "run_list_sources", return_value=0) as mock_run:
+        mock_run = MagicMock(return_value=0)
+        with self._patch_dispatch("list_sources", mock_run):
             result = samples.main(["--list-sources"])
 
         assert result == 0
@@ -603,7 +614,8 @@ class TestMain:
 
     def test_main_malicious(self):
         """Test main with --malicious."""
-        with patch.object(samples, "run_malicious", return_value=0) as mock_run:
+        mock_run = MagicMock(return_value=0)
+        with self._patch_dispatch("malicious", mock_run):
             result = samples.main(["--malicious"])
 
         assert result == 0
@@ -611,7 +623,8 @@ class TestMain:
 
     def test_main_preamble_attacks(self):
         """Test main with --preamble-attacks."""
-        with patch.object(samples, "run_preamble_attacks", return_value=0) as mock_run:
+        mock_run = MagicMock(return_value=0)
+        with self._patch_dispatch("preamble_attacks", mock_run):
             result = samples.main(["--preamble-attacks"])
 
         assert result == 0
@@ -619,7 +632,8 @@ class TestMain:
 
     def test_main_cve_samples(self):
         """Test main with --cve-samples."""
-        with patch.object(samples, "run_cve_samples", return_value=0) as mock_run:
+        mock_run = MagicMock(return_value=0)
+        with self._patch_dispatch("cve_samples", mock_run):
             result = samples.main(["--cve-samples"])
 
         assert result == 0
@@ -627,7 +641,8 @@ class TestMain:
 
     def test_main_parser_stress(self):
         """Test main with --parser-stress."""
-        with patch.object(samples, "run_parser_stress", return_value=0) as mock_run:
+        mock_run = MagicMock(return_value=0)
+        with self._patch_dispatch("parser_stress", mock_run):
             result = samples.main(["--parser-stress"])
 
         assert result == 0
@@ -635,7 +650,8 @@ class TestMain:
 
     def test_main_compliance(self):
         """Test main with --compliance."""
-        with patch.object(samples, "run_compliance", return_value=0) as mock_run:
+        mock_run = MagicMock(return_value=0)
+        with self._patch_dispatch("compliance", mock_run):
             result = samples.main(["--compliance"])
 
         assert result == 0
@@ -643,7 +659,8 @@ class TestMain:
 
     def test_main_scan(self):
         """Test main with --scan."""
-        with patch.object(samples, "run_scan", return_value=0) as mock_run:
+        mock_run = MagicMock(return_value=0)
+        with self._patch_dispatch("scan", mock_run):
             result = samples.main(["--scan", "./files"])
 
         assert result == 0
@@ -651,7 +668,8 @@ class TestMain:
 
     def test_main_sanitize(self):
         """Test main with --sanitize."""
-        with patch.object(samples, "run_sanitize", return_value=0) as mock_run:
+        mock_run = MagicMock(return_value=0)
+        with self._patch_dispatch("sanitize", mock_run):
             result = samples.main(["--sanitize", "file.dcm"])
 
         assert result == 0
@@ -659,7 +677,8 @@ class TestMain:
 
     def test_main_strip_pixel_data(self):
         """Test main with --strip-pixel-data."""
-        with patch.object(samples, "run_strip_pixel_data", return_value=0) as mock_run:
+        mock_run = MagicMock(return_value=0)
+        with self._patch_dispatch("strip_pixel_data", mock_run):
             result = samples.main(["--strip-pixel-data", "./corpus"])
 
         assert result == 0
@@ -674,8 +693,9 @@ class TestMain:
 
     def test_main_none_argv(self):
         """Test main with None argv uses sys.argv."""
+        mock_run = MagicMock(return_value=0)
         with patch("sys.argv", ["samples", "--list-sources"]):
-            with patch.object(samples, "run_list_sources", return_value=0) as mock_run:
+            with self._patch_dispatch("list_sources", mock_run):
                 result = samples.main(None)
 
         assert result == 0
