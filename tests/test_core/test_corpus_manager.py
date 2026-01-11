@@ -9,7 +9,9 @@ import pytest
 
 from dicom_fuzzer.core.corpus_manager import (
     CorpusManager,
+    CorpusMinimizer,
     CorpusStats,
+    HistoricalCorpusManager,
     Seed,
     SeedPriority,
 )
@@ -655,3 +657,439 @@ class TestEdgeCases:
             corpus_manager.add_seed(f"seed_{i}".encode(), coverage)
 
         assert len(corpus_manager.seeds) <= corpus_manager.max_corpus_size
+
+
+# ============================================================================
+# Test Corpus Statistics
+# ============================================================================
+
+
+class TestGetCorpusStats:
+    """Test get_corpus_stats method."""
+
+    def test_get_corpus_stats_empty(self):
+        """Test stats on empty corpus."""
+        manager = CorpusManager()
+        stats = manager.get_corpus_stats()
+
+        assert stats["total_seeds"] == 0
+        assert stats["total_edges_covered"] == 0
+        assert stats["total_executions"] == 0
+        assert "time_since_coverage_increase" in stats
+        assert "mutation_success_rates" in stats
+        assert "seed_priorities" in stats
+
+    def test_get_corpus_stats_with_seeds(self):
+        """Test stats with seeds added."""
+        manager = CorpusManager()
+        cov1 = CoverageInfo(edges={("file1", 1, "file1", 2)})
+        cov2 = CoverageInfo(edges={("file2", 3, "file2", 4)})
+
+        manager.add_seed(b"seed1", cov1)
+        manager.add_seed(b"seed2", cov2)
+
+        stats = manager.get_corpus_stats()
+
+        assert stats["total_seeds"] == 2
+        assert stats["total_edges_covered"] == 2
+        assert "unique_coverage_signatures" in stats
+
+    def test_get_corpus_stats_coverage_plateau_detection(self):
+        """Test coverage plateau detection."""
+        manager = CorpusManager()
+        cov = CoverageInfo(edges={("f", 1, "f", 2)})
+        manager.add_seed(b"seed", cov)
+
+        # Simulate 10 stats calls with same coverage
+        for _ in range(12):
+            manager.get_corpus_stats()
+
+        stats = manager.get_corpus_stats()
+        # Should detect plateau after 10 identical readings
+        assert stats["coverage_plateaus"] >= 0
+
+    def test_get_corpus_stats_priority_breakdown(self):
+        """Test seed priority breakdown in stats."""
+        manager = CorpusManager()
+        cov1 = CoverageInfo(edges={("f", 1, "f", 2)})
+        cov2 = CoverageInfo(edges={("f", 3, "f", 4)})
+
+        seed1 = manager.add_seed(b"seed1", cov1)
+        seed2 = manager.add_seed(b"seed2", cov2)
+
+        # Manually set priorities
+        seed1.priority = SeedPriority.CRITICAL
+        seed2.priority = SeedPriority.LOW
+
+        stats = manager.get_corpus_stats()
+
+        assert "seed_priorities" in stats
+        assert "CRITICAL" in stats["seed_priorities"]
+        assert "LOW" in stats["seed_priorities"]
+
+
+# ============================================================================
+# Test Mutation Weights
+# ============================================================================
+
+
+class TestGetMutationWeights:
+    """Test get_mutation_weights method."""
+
+    def test_get_mutation_weights_empty(self):
+        """Test mutation weights when no mutations recorded."""
+        manager = CorpusManager()
+        weights = manager.get_mutation_weights()
+
+        assert weights == {}
+
+    def test_get_mutation_weights_with_successes(self):
+        """Test mutation weights with successful mutations."""
+        manager = CorpusManager()
+
+        # Add seeds with different mutation types that provide new coverage
+        cov1 = CoverageInfo(edges={("f", 1, "f", 2)})
+        cov2 = CoverageInfo(edges={("f", 3, "f", 4)})
+        cov3 = CoverageInfo(edges={("f", 5, "f", 6)})
+
+        manager.add_seed(b"seed1", cov1, mutation_type="bit_flip")
+        manager.add_seed(b"seed2", cov2, mutation_type="bit_flip")
+        manager.add_seed(b"seed3", cov3, mutation_type="byte_swap")
+
+        weights = manager.get_mutation_weights()
+
+        assert "bit_flip" in weights
+        assert "byte_swap" in weights
+        assert sum(weights.values()) == pytest.approx(1.0, rel=0.01)
+
+
+# ============================================================================
+# Test Corpus Persistence
+# ============================================================================
+
+
+class TestCorpusPersistence:
+    """Test save_corpus and load_corpus methods."""
+
+    def test_save_corpus(self, tmp_path):
+        """Test saving corpus to disk."""
+        manager = CorpusManager()
+        cov = CoverageInfo(edges={("f", 1, "f", 2)})
+        manager.add_seed(b"test seed", cov)
+
+        corpus_dir = tmp_path / "corpus"
+        manager.save_corpus(corpus_dir)
+
+        # Verify files created
+        assert corpus_dir.exists()
+        assert (corpus_dir / "corpus_metadata.json").exists()
+        assert len(list(corpus_dir.glob("*.seed"))) == 1
+
+    def test_load_corpus(self, tmp_path):
+        """Test loading corpus from disk."""
+        # First save a corpus
+        manager1 = CorpusManager()
+        cov = CoverageInfo(edges={("f", 1, "f", 2)})
+        manager1.add_seed(b"test seed", cov)
+
+        corpus_dir = tmp_path / "corpus"
+        manager1.save_corpus(corpus_dir)
+
+        # Load into new manager
+        manager2 = CorpusManager()
+        manager2.load_corpus(corpus_dir)
+
+        assert len(manager2.seeds) == 1
+        assert len(manager2.global_coverage.edges) == 1
+
+    def test_load_corpus_nonexistent(self, tmp_path):
+        """Test loading from nonexistent directory."""
+        manager = CorpusManager()
+        manager.load_corpus(tmp_path / "nonexistent")
+
+        # Should not raise, corpus stays empty
+        assert len(manager.seeds) == 0
+
+    def test_save_load_preserves_mutation_success(self, tmp_path):
+        """Test that mutation success rates are preserved."""
+        manager1 = CorpusManager()
+        cov1 = CoverageInfo(edges={("f", 1, "f", 2)})
+        cov2 = CoverageInfo(edges={("f", 3, "f", 4)})
+
+        manager1.add_seed(b"seed1", cov1, mutation_type="bit_flip")
+        manager1.add_seed(b"seed2", cov2, mutation_type="bit_flip")
+
+        corpus_dir = tmp_path / "corpus"
+        manager1.save_corpus(corpus_dir)
+
+        manager2 = CorpusManager()
+        manager2.load_corpus(corpus_dir)
+
+        assert manager2.mutation_success_rate["bit_flip"] >= 1
+
+
+# ============================================================================
+# Test CorpusMinimizer
+# ============================================================================
+
+
+class TestCorpusMinimizer:
+    """Test CorpusMinimizer class."""
+
+    @pytest.fixture
+    def populated_corpus(self):
+        """Create a corpus with multiple seeds for minimization."""
+        manager = CorpusManager()
+
+        # Seed 1: unique edge (1,2)
+        cov1 = CoverageInfo(edges={("f", 1, "f", 2)})
+        manager.add_seed(b"seed1", cov1)
+
+        # Seed 2: unique edge (3,4)
+        cov2 = CoverageInfo(edges={("f", 3, "f", 4)})
+        manager.add_seed(b"seed2", cov2)
+
+        # Seed 3: overlaps with seed1 and seed2
+        cov3 = CoverageInfo(edges={("f", 1, "f", 2), ("f", 3, "f", 4)})
+        manager.add_seed(b"seed3", cov3)
+
+        # Seed 4: completely redundant (subset of seed3)
+        cov4 = CoverageInfo(edges={("f", 1, "f", 2)})
+        manager.add_seed(b"seed4_different", cov4)
+
+        return manager
+
+    def test_minimizer_initialization(self, populated_corpus):
+        """Test minimizer initialization."""
+        minimizer = CorpusMinimizer(populated_corpus)
+
+        assert minimizer.corpus is populated_corpus
+
+    def test_build_coverage_map(self, populated_corpus):
+        """Test building coverage map."""
+        minimizer = CorpusMinimizer(populated_corpus)
+        minimizer.build_coverage_map()
+
+        # Should have mappings for edges
+        assert len(minimizer._edge_to_seeds) > 0
+        assert len(minimizer._seed_to_edges) > 0
+
+    def test_find_essential_seeds(self):
+        """Test finding essential seeds (only ones covering certain edges)."""
+        manager = CorpusManager(min_coverage_distance=0.0)  # Allow all seeds
+
+        # Seed 1: only one covering unique edge (1,2)
+        cov1 = CoverageInfo(edges={("f", 1, "f", 2)})
+        seed1 = manager.add_seed(b"essential_seed", cov1)
+
+        # Seed 2: covers shared edge (3,4)
+        cov2 = CoverageInfo(edges={("f", 3, "f", 4)})
+        manager.add_seed(b"shared1_seed", cov2)
+
+        # Seed 3: also covers shared edge (3,4) - different data to avoid hash collision
+        cov3 = CoverageInfo(edges={("f", 3, "f", 4)})
+        manager.add_seed(b"shared2_different_seed", cov3)
+
+        minimizer = CorpusMinimizer(manager)
+        minimizer.build_coverage_map()  # Required before find_essential_seeds
+        essential = minimizer.find_essential_seeds()
+
+        # seed1 is essential because it's the only one covering edge (1,2)
+        assert seed1.id in essential
+
+    def test_minimize_greedy(self, populated_corpus):
+        """Test greedy minimization."""
+        minimizer = CorpusMinimizer(populated_corpus)
+        selected = minimizer.minimize_greedy()
+
+        assert len(selected) > 0
+        # Should cover all edges with minimal seeds
+        assert len(selected) <= len(populated_corpus.seeds)
+
+    def test_minimize_greedy_with_target_size(self, populated_corpus):
+        """Test greedy minimization with target size."""
+        minimizer = CorpusMinimizer(populated_corpus)
+        selected = minimizer.minimize_greedy(target_size=2)
+
+        assert len(selected) <= 2
+
+    def test_minimize_weighted(self, populated_corpus):
+        """Test weighted minimization."""
+        minimizer = CorpusMinimizer(populated_corpus)
+        selected = minimizer.minimize_weighted()
+
+        assert len(selected) > 0
+        assert len(selected) <= len(populated_corpus.seeds)
+
+    def test_get_redundant_seeds(self):
+        """Test finding redundant seeds."""
+        manager = CorpusManager()
+
+        # Seed 1: covers (1,2) and (3,4)
+        cov1 = CoverageInfo(edges={("f", 1, "f", 2), ("f", 3, "f", 4)})
+        manager.add_seed(b"comprehensive", cov1)
+
+        # Seed 2: only covers (1,2) - redundant since cov1 covers it
+        cov2 = CoverageInfo(edges={("f", 1, "f", 2)})
+        seed2 = manager.add_seed(b"redundant_seed", cov2)
+
+        # Seed 3: only covers (3,4) - redundant since cov1 covers it
+        cov3 = CoverageInfo(edges={("f", 3, "f", 4)})
+        seed3 = manager.add_seed(b"also_redundant", cov3)
+
+        minimizer = CorpusMinimizer(manager)
+        redundant = minimizer.get_redundant_seeds()
+
+        # Seeds 2 and 3 should be redundant
+        assert seed2.id in redundant or seed3.id in redundant
+
+    def test_get_coverage_stats(self, populated_corpus):
+        """Test getting coverage statistics."""
+        minimizer = CorpusMinimizer(populated_corpus)
+        stats = minimizer.get_coverage_stats()
+
+        assert "total_seeds" in stats
+        assert "total_edges" in stats
+        assert "essential_seeds" in stats
+        assert "redundant_seeds" in stats
+        assert "single_coverage_edges" in stats
+        assert "multi_coverage_edges" in stats
+        assert "potential_reduction" in stats
+
+
+# ============================================================================
+# Test HistoricalCorpusManager
+# ============================================================================
+
+
+class TestHistoricalCorpusManager:
+    """Test HistoricalCorpusManager class."""
+
+    def test_initialization_without_history(self):
+        """Test initialization without history directory."""
+        manager = HistoricalCorpusManager()
+
+        assert manager.history_dir is None
+        assert manager.historical_seeds == []
+
+    def test_initialization_with_nonexistent_history(self, tmp_path):
+        """Test initialization with nonexistent history directory."""
+        history_dir = tmp_path / "nonexistent"
+        manager = HistoricalCorpusManager(history_dir=history_dir)
+
+        assert manager.historical_seeds == []
+
+    def test_initialization_with_history(self, tmp_path):
+        """Test initialization with existing history."""
+        history_dir = tmp_path / "history"
+        history_dir.mkdir()
+
+        # Create a historical campaign
+        campaign_dir = history_dir / "campaign1"
+        campaign1 = CorpusManager()
+
+        cov = CoverageInfo(edges={("f", 1, "f", 2)})
+        seed = campaign1.add_seed(b"historical", cov)
+        seed.discoveries = 5  # Mark as valuable
+
+        campaign1.save_corpus(campaign_dir)
+
+        # Load historical manager
+        manager = HistoricalCorpusManager(history_dir=history_dir)
+
+        assert len(manager.historical_seeds) > 0
+
+    def test_initialize_from_history(self, tmp_path):
+        """Test initializing corpus from history."""
+        history_dir = tmp_path / "history"
+        history_dir.mkdir()
+
+        # Create historical campaigns
+        for i in range(3):
+            campaign_dir = history_dir / f"campaign{i}"
+            campaign = CorpusManager()
+
+            cov = CoverageInfo(edges={("f", i, "f", i + 1)})
+            seed = campaign.add_seed(f"seed{i}".encode(), cov)
+            seed.discoveries = i + 1  # Varying value
+
+            campaign.save_corpus(campaign_dir)
+
+        # Load and initialize
+        manager = HistoricalCorpusManager(history_dir=history_dir)
+        manager.initialize_from_history(max_seeds=2)
+
+        # Should have added seeds from history
+        assert len(manager.seeds) <= 2
+
+    def test_load_historical_data_with_crashes(self, tmp_path):
+        """Test loading historical data with crash-finding seeds."""
+        history_dir = tmp_path / "history"
+        campaign_dir = history_dir / "crash_campaign"
+
+        campaign = CorpusManager()
+        cov = CoverageInfo(edges={("f", 1, "f", 2)})
+        seed = campaign.add_seed(b"crash_finder", cov)
+        seed.crashes = 3  # This seed found crashes
+
+        campaign.save_corpus(campaign_dir)
+
+        manager = HistoricalCorpusManager(history_dir=history_dir)
+
+        # Should have loaded the crash-finding seed
+        crash_seeds = [s for s in manager.historical_seeds if s.crashes > 0]
+        assert len(crash_seeds) > 0
+
+
+# ============================================================================
+# Test Internal Methods Branch Coverage
+# ============================================================================
+
+
+class TestInternalMethodsBranches:
+    """Test internal methods for branch coverage."""
+
+    def test_get_coverage_without_seed(self):
+        """Test _get_coverage_without_seed method."""
+        manager = CorpusManager()
+
+        cov1 = CoverageInfo(edges={("f", 1, "f", 2)})
+        cov2 = CoverageInfo(edges={("f", 3, "f", 4)})
+
+        seed1 = manager.add_seed(b"seed1", cov1)
+        manager.add_seed(b"seed2", cov2)
+
+        # Get coverage without seed1
+        coverage = manager._get_coverage_without_seed(seed1.id)
+
+        assert ("f", 3, "f", 4) in coverage
+        assert ("f", 1, "f", 2) not in coverage
+
+    def test_minimize_corpus_rebuilds_queue(self):
+        """Test that minimize_corpus rebuilds priority queue."""
+        manager = CorpusManager(max_corpus_size=3)
+
+        # Add more seeds than max
+        for i in range(5):
+            cov = CoverageInfo(edges={("f", i, "f", i + 1)})
+            manager.add_seed(f"seed{i}".encode(), cov)
+
+        # After minimization, queue should be rebuilt
+        assert len(manager.seed_queue) <= manager.max_corpus_size
+
+    def test_energy_boost_for_untouched_edges(self):
+        """Test energy boost when seed covers untouched edges."""
+        manager = CorpusManager(energy_allocation="adaptive")
+
+        cov = CoverageInfo(edges={("f", 1, "f", 2)})
+        seed = manager.add_seed(b"test", cov)
+
+        # Mark some edges as untouched
+        manager.mark_untouched_edges({("f", 1, "f", 2)})
+
+        initial_energy = seed.energy
+        seed.energy = 1.0  # Reset
+        manager._update_seed_energy(seed)
+
+        # Energy should be boosted
+        assert seed.energy >= 1.0

@@ -613,7 +613,18 @@ class TestFullPipelineIntegration:
         temp_corpus_dir: Path,
         sample_dataset: Dataset,
     ) -> None:
-        """Test complete fuzzing pipeline from generation to analysis."""
+        """Test complete fuzzing pipeline from generation to analysis.
+
+        Seeds random state to ensure deterministic fuzzing behavior.
+        """
+        import random
+
+        import numpy as np
+
+        # Seed for deterministic fuzzing
+        random.seed(42)
+        np.random.seed(42)
+
         # 1. Generate fuzzed files
         seed_file = temp_output_dir / "seed.dcm"
         sample_dataset.save_as(str(seed_file))
@@ -625,7 +636,6 @@ class TestFullPipelineIntegration:
         )
 
         # At least one file should be generated
-        # (fuzzing may create invalid files that are skipped)
         assert len(fuzzed_files) >= 1
 
         # 2. Set up coverage-guided fuzzer

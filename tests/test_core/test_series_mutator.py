@@ -135,6 +135,24 @@ class TestMutateSeries:
         with pytest.raises(ValueError, match="Invalid strategy"):
             mutator.mutate_series(sample_series, strategy="invalid_strategy")
 
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_mutate_with_enum_strategy(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test mutation with SeriesMutationStrategy enum (not string)."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="moderate", seed=42)
+        # Use enum instead of string
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series,
+            strategy=SeriesMutationStrategy.METADATA_CORRUPTION,
+            mutation_count=2,
+        )
+
+        assert len(fuzzed_datasets) == 5
+        assert len(records) >= 1
+
 
 class TestMetadataCorruption:
     """Test metadata_corruption mutation strategy."""
@@ -368,6 +386,32 @@ class TestSeriesMutationRecord:
         assert data["strategy"] == "slice_position_attack"
         assert data["slice_index"] == 2
         assert data["details"]["attack_type"] == "randomize_z"
+
+    def test_mutation_record_none_values(self):
+        """Test SeriesMutationRecord with None values for branch coverage."""
+        record = SeriesMutationRecord(
+            strategy="test",
+            original_value=None,
+            mutated_value=None,
+        )
+
+        data = record.to_dict()
+        # _custom_serialization should handle None values
+        assert data["original_value"] is None
+        assert data["mutated_value"] is None
+
+    def test_mutation_record_non_string_values(self):
+        """Test SeriesMutationRecord with non-string values for branch coverage."""
+        record = SeriesMutationRecord(
+            strategy="test",
+            original_value=12345,  # int
+            mutated_value=[1.0, 2.0, 3.0],  # list
+        )
+
+        data = record.to_dict()
+        # _custom_serialization should convert to strings
+        assert data["original_value"] == "12345"
+        assert data["mutated_value"] == "[1.0, 2.0, 3.0]"
 
 
 class TestSeriesMutationStrategy:

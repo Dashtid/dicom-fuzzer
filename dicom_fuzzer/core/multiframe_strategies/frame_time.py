@@ -94,25 +94,35 @@ class FrameTimeCorruptionStrategy(MutationStrategyBase):
         """Apply frame time corruption mutations."""
         records: list[MultiFrameMutationRecord] = []
 
-        # Dispatch table for FrameTime value attacks
-        time_attacks = [
-            ("negative_frame_time", -33.33, "-33.33"),
-            ("zero_frame_time", 0.0, "0.0"),
-            ("nan_frame_time", float("nan"), "NaN"),
-            ("extreme_time_values", 1e308, "1e308"),
+        attack_types = [
+            "negative_frame_time",
+            "zero_frame_time",
+            "nan_frame_time",
+            "extreme_time_values",
+            "invalid_time_vector",
+            "corrupt_temporal_index",
         ]
 
         for _ in range(mutation_count):
-            attack_choice = random.randint(0, 5)
+            attack_type = random.choice(attack_types)
 
-            if attack_choice < 4:
-                attack_type, value, display = time_attacks[attack_choice]
+            if attack_type == "negative_frame_time":
                 records.append(
-                    self._set_frame_time(dataset, value, display, attack_type)
+                    self._set_frame_time(dataset, -33.33, "-33.33", attack_type)
                 )
-            elif attack_choice == 4:
+            elif attack_type == "zero_frame_time":
+                records.append(self._set_frame_time(dataset, 0.0, "0.0", attack_type))
+            elif attack_type == "nan_frame_time":
+                records.append(
+                    self._set_frame_time(dataset, float("nan"), "NaN", attack_type)
+                )
+            elif attack_type == "extreme_time_values":
+                records.append(
+                    self._set_frame_time(dataset, 1e308, "1e308", attack_type)
+                )
+            elif attack_type == "invalid_time_vector":
                 records.append(self._attack_invalid_vector(dataset))
-            else:
+            elif attack_type == "corrupt_temporal_index":
                 record = self._attack_temporal_index(dataset)
                 if record:
                     records.append(record)

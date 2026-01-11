@@ -210,6 +210,122 @@ class TestStateCoverageTracker:
         assert "trigger" in detail
 
 
+class TestStateCoverageTrackerBranchCoverage:
+    """Additional tests for branch coverage in StateCoverageTracker."""
+
+    def test_record_state_without_current_sequence(self) -> None:
+        """Test recording state when no execution started (empty sequence)."""
+        tracker = StateCoverageTracker()
+        # Don't call start_execution - _current_sequence is empty
+
+        # This should still work but won't create a transition
+        is_new = tracker.record_state("loading", trigger="test")
+        assert is_new is True
+
+        coverage = tracker.get_state_coverage()
+        assert "loading" in coverage["states_visited"]
+        # No transition since there was no from_state
+        assert coverage["unique_transitions"] == 0
+
+    def test_record_state_without_test_file(self) -> None:
+        """Test recording state without test_file (None)."""
+        tracker = StateCoverageTracker()
+        tracker.start_execution()
+
+        # Record without test_file
+        tracker.record_state("loading", trigger="test", test_file=None)
+
+        # Should not be in interesting_inputs
+        inputs = tracker.get_interesting_inputs()
+        assert len(inputs) == 0
+
+    def test_end_execution_empty_sequence(self) -> None:
+        """Test ending execution with empty sequence."""
+        tracker = StateCoverageTracker()
+        # Don't call start_execution
+
+        # End execution with no sequence
+        sequence = tracker.end_execution()
+
+        assert sequence == []
+        assert tracker.get_state_coverage()["total_executions"] == 0
+
+    def test_is_interesting_all_states_common(self) -> None:
+        """Test is_interesting when all states are common across files."""
+        tracker = StateCoverageTracker()
+        file1 = Path("/test/file1.dcm")
+        file2 = Path("/test/file2.dcm")
+
+        # File 1 reaches some states
+        tracker.start_execution()
+        tracker.record_state("loading", test_file=file1)
+        tracker.record_state("normal", test_file=file1)
+        tracker.end_execution()
+
+        # File 2 reaches the same states
+        tracker.start_execution()
+        tracker.record_state("loading", test_file=file2)
+        tracker.record_state("normal", test_file=file2)
+        tracker.end_execution()
+
+        # Both files reached the same states, so neither is uniquely interesting
+        # (initial was reached by start_execution, not by files)
+        # file2's states are all also in file1, so file2 is not interesting
+        result = tracker.is_interesting(file2)
+        assert result is False
+
+    def test_is_interesting_with_unique_state(self) -> None:
+        """Test is_interesting when file has a unique state not in others."""
+        tracker = StateCoverageTracker()
+        file1 = Path("/test/file1.dcm")
+        file2 = Path("/test/file2.dcm")
+
+        # File 1 reaches common states only
+        tracker.start_execution()
+        tracker.record_state("loading", test_file=file1)
+        tracker.end_execution()
+
+        # File 2 reaches a unique state
+        tracker.start_execution()
+        tracker.record_state("loading", test_file=file2)
+        tracker.record_state("unique_crash", test_file=file2)
+        tracker.end_execution()
+
+        # File 2 has a unique state
+        assert tracker.is_interesting(file2) is True
+
+    def test_interesting_inputs_ranking(self) -> None:
+        """Test that interesting inputs are ranked by states reached."""
+        tracker = StateCoverageTracker()
+        file1 = Path("/test/file1.dcm")
+        file2 = Path("/test/file2.dcm")
+        file3 = Path("/test/file3.dcm")
+
+        # File 1 reaches 1 state
+        tracker.start_execution()
+        tracker.record_state("state1", test_file=file1)
+        tracker.end_execution()
+
+        # File 2 reaches 3 states
+        tracker.start_execution()
+        tracker.record_state("state2", test_file=file2)
+        tracker.record_state("state3", test_file=file2)
+        tracker.record_state("state4", test_file=file2)
+        tracker.end_execution()
+
+        # File 3 reaches 2 states
+        tracker.start_execution()
+        tracker.record_state("state5", test_file=file3)
+        tracker.record_state("state6", test_file=file3)
+        tracker.end_execution()
+
+        inputs = tracker.get_interesting_inputs()
+        # Should be ranked by number of states: file2 (3), file3 (2), file1 (1)
+        assert inputs[0] == file2
+        assert inputs[1] == file3
+        assert inputs[2] == file1
+
+
 class TestBackwardCompatibility:
     """Test backward compatibility with gui_monitor module."""
 

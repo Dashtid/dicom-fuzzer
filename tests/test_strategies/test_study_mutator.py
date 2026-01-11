@@ -589,7 +589,15 @@ class TestMutateStudyEdgeCases:
     def test_mutate_random_strategy_selection(
         self, mutator, single_series_study, single_series_datasets
     ):
-        """Test mutate_study with None strategy selects randomly."""
+        """Test mutate_study with None strategy selects randomly.
+
+        Seeds random state to ensure deterministic strategy selection.
+        """
+        import random
+
+        # Seed to ensure deterministic strategy selection
+        random.seed(42)
+
         with patch.object(
             mutator, "_load_study_datasets", return_value=single_series_datasets
         ):
@@ -599,6 +607,7 @@ class TestMutateStudyEdgeCases:
                 mutation_count=1,
             )
 
+        # With seeded random, should consistently produce mutations
         assert len(records) > 0
 
     def test_severity_mutation_count_minimal(

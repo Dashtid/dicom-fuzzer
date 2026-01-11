@@ -655,3 +655,196 @@ class TestStudyCorpusManagerStatistics:
         assert "study_id" in studies[0]
         assert "total_slices" in studies[0]
         assert "modalities" in studies[0]
+
+
+class TestStudyCorpusManagerBranchCoverage:
+    """Additional tests for branch coverage in StudyCorpusManager."""
+
+    def test_init_no_auto_load(self, temp_corpus_dir):
+        """Test init with auto_load=False skips loading."""
+        # Create an index file first
+        corpus_dir = temp_corpus_dir / "corpus"
+        manager1 = StudyCorpusManager(corpus_dir)
+        manager1.studies["test"] = StudyCorpusEntry(
+            study_id="test",
+            study_dir=str(corpus_dir),
+            study_uid="1.2.3",
+        )
+        manager1.save_index()
+
+        # New manager with auto_load=False
+        manager2 = StudyCorpusManager(corpus_dir, auto_load=False)
+        assert len(manager2.studies) == 0
+
+    def test_get_next_study_crash_triggering_priority(self, temp_corpus_dir):
+        """Test crash-triggering studies get priority boost."""
+        manager = StudyCorpusManager(temp_corpus_dir / "corpus")
+
+        # Add non-crash study with priority 2
+        manager.studies["normal"] = StudyCorpusEntry(
+            study_id="normal",
+            study_dir=str(temp_corpus_dir),
+            study_uid="1.2.3.1",
+            priority=2,
+        )
+
+        # Add crash-triggering study with priority 3 (lower initial priority)
+        manager.studies["crasher"] = StudyCorpusEntry(
+            study_id="crasher",
+            study_dir=str(temp_corpus_dir),
+            study_uid="1.2.3.2",
+            priority=3,
+            crashes_triggered=[CrashInfo("a", "CRASH", "2023-01-01")],
+        )
+
+        result = manager.get_next_study()
+        # Crash-triggering study should get priority boost
+        assert result.study_id == "crasher"
+
+    def test_get_next_study_invalid_last_tested_format(self, temp_corpus_dir):
+        """Test get_next_study with invalid last_tested datetime format."""
+        manager = StudyCorpusManager(temp_corpus_dir / "corpus")
+
+        manager.studies["invalid_date"] = StudyCorpusEntry(
+            study_id="invalid_date",
+            study_dir=str(temp_corpus_dir),
+            study_uid="1.2.3.1",
+            priority=3,
+            last_tested="not-a-valid-datetime",  # Invalid format
+        )
+
+        # Should not raise, just use recency_penalty = 0
+        result = manager.get_next_study()
+        assert result is not None
+        assert result.study_id == "invalid_date"
+
+    def test_get_next_study_never_tested_highest_priority(self, temp_corpus_dir):
+        """Test never-tested studies get highest priority."""
+        from datetime import datetime
+
+        manager = StudyCorpusManager(temp_corpus_dir / "corpus")
+
+        # Study that was recently tested
+        manager.studies["tested"] = StudyCorpusEntry(
+            study_id="tested",
+            study_dir=str(temp_corpus_dir),
+            study_uid="1.2.3.1",
+            priority=2,
+            last_tested=datetime.now().isoformat(),
+        )
+
+        # Study that was never tested
+        manager.studies["untested"] = StudyCorpusEntry(
+            study_id="untested",
+            study_dir=str(temp_corpus_dir),
+            study_uid="1.2.3.2",
+            priority=3,  # Lower initial priority
+            last_tested=None,
+        )
+
+        result = manager.get_next_study()
+        # Never-tested should have higher priority despite higher numeric priority
+        assert result.study_id == "untested"
+
+    def test_update_priority_nonexistent_study(self, temp_corpus_dir):
+        """Test update_priority for nonexistent study logs warning."""
+        manager = StudyCorpusManager(temp_corpus_dir / "corpus")
+
+        # Should not raise, just log warning
+        manager.update_priority("nonexistent_id", crash_found=True)
+
+    def test_update_priority_no_crash_no_new_priority(
+        self, temp_corpus_dir, sample_study_dir
+    ):
+        """Test update_priority without crash or new_priority just updates test_count."""
+        manager = StudyCorpusManager(temp_corpus_dir / "corpus")
+        added = manager.add_study(sample_study_dir, priority=3)
+
+        initial_priority = manager.studies[added.study_id].priority
+        manager.update_priority(added.study_id)
+
+        # Priority should stay the same
+        assert manager.studies[added.study_id].priority == initial_priority
+        assert manager.studies[added.study_id].test_count == 1
+
+    def test_record_mutation_nonexistent_study(self, temp_corpus_dir):
+        """Test record_mutation for nonexistent study does nothing."""
+        manager = StudyCorpusManager(temp_corpus_dir / "corpus")
+
+        # Should not raise, just skip
+        manager.record_mutation("nonexistent", "some_mutation")
+
+    def test_load_index_nonexistent_file(self, temp_corpus_dir):
+        """Test load_index with nonexistent file logs warning."""
+        manager = StudyCorpusManager(temp_corpus_dir / "corpus", auto_load=False)
+
+        # Delete index file if it exists
+        index_path = temp_corpus_dir / "corpus" / "study_corpus_index.json"
+        if index_path.exists():
+            index_path.unlink()
+
+        # Should not raise, just log warning
+        manager.load_index()
+        assert len(manager.studies) == 0
+
+    def test_load_index_invalid_json(self, temp_corpus_dir):
+        """Test load_index with invalid JSON raises error."""
+        corpus_dir = temp_corpus_dir / "corpus"
+        manager = StudyCorpusManager(corpus_dir, auto_load=False)
+
+        # Write invalid JSON
+        index_path = corpus_dir / "study_corpus_index.json"
+        index_path.write_text("{ invalid json }")
+
+        with pytest.raises(json.JSONDecodeError):
+            manager.load_index()
+
+    def test_remove_study_delete_files_not_in_corpus(self, temp_corpus_dir):
+        """Test remove_study with delete_files=True but path outside corpus."""
+        manager = StudyCorpusManager(temp_corpus_dir / "corpus")
+
+        # Add study with path outside corpus directory
+        external_path = temp_corpus_dir / "external"
+        external_path.mkdir()
+
+        manager.studies["external"] = StudyCorpusEntry(
+            study_id="external",
+            study_dir=str(external_path),
+            study_uid="1.2.3",
+        )
+
+        # Should remove from index but not delete files (path not relative to corpus)
+        result = manager.remove_study("external", delete_files=True)
+
+        assert result is True
+        assert "external" not in manager.studies
+        # External directory should still exist
+        assert external_path.exists()
+
+    def test_get_statistics_empty_corpus(self, temp_corpus_dir):
+        """Test get_statistics with empty corpus."""
+        manager = StudyCorpusManager(temp_corpus_dir / "corpus")
+
+        stats = manager.get_statistics()
+
+        assert stats["study_count"] == 0
+        assert stats["total_slices"] == 0
+        assert stats["average_slices_per_study"] == 0
+
+    def test_list_studies_long_uid_truncation(self, temp_corpus_dir):
+        """Test list_studies truncates long study UIDs."""
+        manager = StudyCorpusManager(temp_corpus_dir / "corpus")
+
+        # Add study with very long UID
+        long_uid = "1.2.3." + "4" * 100
+        manager.studies["long_uid"] = StudyCorpusEntry(
+            study_id="long_uid",
+            study_dir=str(temp_corpus_dir),
+            study_uid=long_uid,
+            total_slices=10,
+        )
+
+        studies = manager.list_studies()
+
+        # UID should be truncated
+        assert len(studies[0]["study_uid"]) <= 43  # 40 + "..."

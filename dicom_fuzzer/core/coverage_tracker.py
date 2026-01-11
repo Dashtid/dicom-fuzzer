@@ -191,6 +191,11 @@ class CoverageTracker:
             # Clear current coverage
             self.current_coverage = set()
 
+        # Save original trace function (may be coverage.py's tracer)
+        # CRITICAL: This preserves any existing trace function (like coverage.py's)
+        # so we can restore it after our tracing is complete
+        original_trace = sys.gettrace()
+
         # Start tracing
         sys.settrace(self._trace_function)
         logger.debug(f"Started coverage tracing for test case: {test_case_id}")
@@ -198,8 +203,8 @@ class CoverageTracker:
         try:
             yield
         finally:
-            # Stop tracing
-            sys.settrace(None)
+            # Restore original tracing (not None - that would break coverage.py)
+            sys.settrace(original_trace)
 
             # Acquire lock for thread-safe access to coverage data
             with self._lock:

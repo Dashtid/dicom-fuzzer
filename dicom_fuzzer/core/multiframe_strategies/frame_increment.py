@@ -75,16 +75,16 @@ class FrameIncrementStrategy(MutationStrategyBase):
                 )
 
             elif attack_type == "invalid_format":
-                # Use invalid format (should be tag tuple/list)
-                # Store as raw bytes which is invalid
-                dataset.add_new((0x0028, 0x0009), "AT", b"\xff\xff\xff\xff")
+                # Use invalid/unusual tag value (0xFFFF, 0xFFFF)
+                # This creates a valid pydicom element but with an edge-case tag pointer
+                dataset.FrameIncrementPointer = (0xFFFF, 0xFFFF)
 
                 records.append(
                     MultiFrameMutationRecord(
                         strategy=self.strategy_name,
                         tag="FrameIncrementPointer",
                         original_value=str(original) if original else "<none>",
-                        mutated_value="<invalid_bytes>",
+                        mutated_value="(FFFF,FFFF)",
                         severity=self.severity,
                         details={"attack_type": attack_type},
                     )

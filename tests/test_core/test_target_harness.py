@@ -352,6 +352,10 @@ class TestTargetHarness:
         assert len(saved_records) == 2
 
     @pytest.mark.skipif(not shutil.which("python"), reason="Requires python")
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows subprocess handling causes pytest to exit with code 15",
+    )
     def test_test_study_directory_success(
         self, tmp_path: Path, mock_target: Path, sample_study: Path
     ) -> None:
@@ -383,6 +387,10 @@ class TestTargetHarness:
         assert result.duration_seconds > 0
 
     @pytest.mark.skipif(not shutil.which("python"), reason="Requires python")
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows subprocess handling causes pytest to exit with code 15",
+    )
     def test_test_study_directory_crash(
         self, tmp_path: Path, crashing_target: Path, sample_study: Path
     ) -> None:
@@ -410,6 +418,10 @@ class TestTargetHarness:
         assert result.error_message is not None
 
     @pytest.mark.skipif(not shutil.which("python"), reason="Requires python")
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows subprocess handling causes pytest to exit with code 15",
+    )
     def test_test_study_directory_timeout(
         self, tmp_path: Path, hanging_target: Path, sample_study: Path
     ) -> None:
@@ -810,6 +822,10 @@ class TestPhasedObservation:
         assert "not found" in result.error_message.lower()
 
     @pytest.mark.skipif(not shutil.which("python"), reason="Requires python")
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows subprocess handling causes pytest to exit with code 15",
+    )
     def test_phased_observation_success(
         self, tmp_path: Path, sample_study: Path, mock_target: Path
     ) -> None:
@@ -848,6 +864,10 @@ class TestPhasedObservation:
         assert result.phase_results[1].phase_name == "phase2"
 
     @pytest.mark.skipif(not shutil.which("python"), reason="Requires python")
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows subprocess handling causes pytest to exit with code 15",
+    )
     def test_phased_observation_crash_in_phase(
         self, tmp_path: Path, sample_study: Path, crashing_target: Path
     ) -> None:

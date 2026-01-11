@@ -623,6 +623,179 @@ class TestCoverageInsight:
         assert insight.crash_rate == 0.0
 
 
+class TestCoverageTypesBranchCoverage:
+    """Additional tests for branch coverage in coverage_types."""
+
+    def test_seed_coverage_info_no_hash_no_bitmap(self) -> None:
+        """Test SeedCoverageInfo with no hash and no bitmap (branch: hash stays empty)."""
+        info = SeedCoverageInfo(seed_path=Path("nonexistent.dcm"))
+        assert info.coverage_hash == ""  # No bitmap means no auto-hash
+
+    def test_seed_coverage_info_with_hash_and_bitmap(self) -> None:
+        """Test SeedCoverageInfo with pre-set hash and bitmap (hash preserved)."""
+        info = SeedCoverageInfo(
+            seed_path=Path("test.dcm"),
+            coverage_hash="preexisting",
+            bitmap=b"\x01\x02\x03",
+        )
+        # Pre-set hash should be preserved, not overwritten
+        assert info.coverage_hash == "preexisting"
+
+    def test_seed_coverage_info_existing_file_size(self, tmp_path: Path) -> None:
+        """Test SeedCoverageInfo auto-calculates file size for existing file."""
+        test_file = tmp_path / "test.dcm"
+        test_file.write_bytes(b"x" * 100)
+
+        info = SeedCoverageInfo(seed_path=test_file)
+        assert info.file_size == 100
+
+    def test_seed_coverage_info_nonexistent_file_size(self) -> None:
+        """Test SeedCoverageInfo with nonexistent file (no size calculation)."""
+        info = SeedCoverageInfo(seed_path=Path("/nonexistent/path.dcm"))
+        assert info.file_size == 0
+
+    def test_coverage_map_update_trace_zero_virgin_nonzero(self) -> None:
+        """Test CoverageMap update when trace is 0 but virgin is nonzero."""
+        cov_map = CoverageMap()
+
+        # First update with trace at position 100
+        trace1 = bytearray(MAP_SIZE)
+        trace1[100] = 5
+        cov_map.update(bytes(trace1))
+        assert cov_map.virgin_bits[100] == 5
+
+        # Second trace with 0 at position 100 - should not change virgin
+        trace2 = bytearray(MAP_SIZE)
+        trace2[100] = 0  # trace is 0, virgin is 5
+        has_new = cov_map.update(bytes(trace2))
+
+        # No change since trace is 0
+        assert cov_map.virgin_bits[100] == 5
+
+    def test_coverage_map_update_trace_equal_virgin(self) -> None:
+        """Test CoverageMap update when trace equals virgin (no update)."""
+        cov_map = CoverageMap()
+
+        trace = bytearray(MAP_SIZE)
+        trace[100] = 3
+        cov_map.update(bytes(trace))
+
+        # Same trace again - trace == virgin, so no update
+        has_new = cov_map.update(bytes(trace))
+        assert has_new is False
+        assert cov_map.virgin_bits[100] == 3
+
+    def test_coverage_map_update_trace_less_than_virgin(self) -> None:
+        """Test CoverageMap update when trace < virgin (no update)."""
+        cov_map = CoverageMap()
+
+        # First trace with higher value
+        trace1 = bytearray(MAP_SIZE)
+        trace1[100] = 10
+        cov_map.update(bytes(trace1))
+
+        # Second trace with lower value
+        trace2 = bytearray(MAP_SIZE)
+        trace2[100] = 5  # Less than virgin
+        has_new = cov_map.update(bytes(trace2))
+
+        # Virgin should not decrease
+        assert cov_map.virgin_bits[100] == 10
+
+    def test_gui_state_transition_inequality_with_non_transition(self) -> None:
+        """Test GUIStateTransition inequality with non-transition object."""
+        transition = GUIStateTransition(from_state="a", to_state="b")
+
+        assert transition != "not a transition"
+        assert transition != 123
+        assert transition is not None
+        assert transition != {"from_state": "a", "to_state": "b"}
+
+    def test_gui_state_transition_explicit_timestamp(self) -> None:
+        """Test GUIStateTransition with explicit timestamp (not auto-set)."""
+        transition = GUIStateTransition(
+            from_state="a", to_state="b", timestamp=12345.67
+        )
+        assert transition.timestamp == 12345.67
+
+    def test_protocol_state_transition_explicit_timestamp(self) -> None:
+        """Test ProtocolStateTransition with explicit timestamp."""
+        transition = ProtocolStateTransition(
+            from_state="IDLE",
+            to_state="ASSOCIATED",
+            timestamp=98765.43,
+        )
+        assert transition.timestamp == 98765.43
+
+    def test_state_fingerprint_explicit_timestamp(self) -> None:
+        """Test StateFingerprint with explicit timestamp."""
+        fp = StateFingerprint(
+            hash_value="abc",
+            state="IDLE",
+            timestamp=11111.22,
+        )
+        assert fp.timestamp == 11111.22
+
+    def test_state_fingerprint_similarity_one_empty_bitmap(self) -> None:
+        """Test StateFingerprint similarity when only one bitmap is empty."""
+        fp1 = StateFingerprint(
+            hash_value="a",
+            state="IDLE",
+            coverage_bitmap=bytes([1, 0, 1, 0]),
+        )
+        fp2 = StateFingerprint(hash_value="b", state="IDLE", coverage_bitmap=b"")
+
+        assert fp1.similarity(fp2) == 0.0
+        assert fp2.similarity(fp1) == 0.0
+
+    def test_state_fingerprint_similarity_both_empty_edges(self) -> None:
+        """Test StateFingerprint similarity when both have no edges (all zeros)."""
+        fp1 = StateFingerprint(
+            hash_value="a",
+            state="IDLE",
+            coverage_bitmap=bytes([0, 0, 0, 0]),
+        )
+        fp2 = StateFingerprint(
+            hash_value="b",
+            state="IDLE",
+            coverage_bitmap=bytes([0, 0, 0, 0]),
+        )
+
+        # Both empty edge sets should return 1.0 similarity
+        assert fp1.similarity(fp2) == 1.0
+
+    def test_state_fingerprint_similarity_one_empty_edges(self) -> None:
+        """Test StateFingerprint similarity when one has no edges."""
+        fp1 = StateFingerprint(
+            hash_value="a",
+            state="IDLE",
+            coverage_bitmap=bytes([1, 0, 1, 0]),
+        )
+        fp2 = StateFingerprint(
+            hash_value="b",
+            state="IDLE",
+            coverage_bitmap=bytes([0, 0, 0, 0]),  # No edges
+        )
+
+        assert fp1.similarity(fp2) == 0.0
+
+    def test_state_coverage_add_state_new_depth_tracking(self) -> None:
+        """Test StateCoverage add_state depth tracking for new state."""
+        cov = StateCoverage()
+
+        # Add state first time with depth 3
+        cov.add_state("STATE_A", depth=3)
+        assert cov.state_depths["STATE_A"] == 3
+
+        # Add again with higher depth - should not update
+        cov.add_state("STATE_A", depth=5)
+        assert cov.state_depths["STATE_A"] == 3
+
+        # Add again with lower depth - should update
+        cov.add_state("STATE_A", depth=1)
+        assert cov.state_depths["STATE_A"] == 1
+
+
 class TestCoverageTypesBackwardCompatibility:
     """Test backward compatibility for coverage type imports."""
 

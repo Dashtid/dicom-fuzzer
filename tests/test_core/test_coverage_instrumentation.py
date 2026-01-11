@@ -335,19 +335,22 @@ class TestTrackCoverageContextManager:
 
     def test_track_coverage_restores_old_trace(self):
         """Test old trace function is restored after tracking."""
-        old_trace = Mock()
-        sys.settrace(old_trace)
+        # Save original trace (may be coverage.py's tracer)
+        original_trace = sys.gettrace()
+
+        mock_trace = Mock()
+        sys.settrace(mock_trace)
 
         tracker = CoverageTracker()
 
         with tracker.track_coverage():
             pass
 
-        # Old trace should be restored
-        assert sys.gettrace() == old_trace
+        # Mock trace should be restored (not None, not our trace)
+        assert sys.gettrace() == mock_trace
 
-        # Cleanup
-        sys.settrace(None)
+        # Restore original trace (preserve coverage.py's tracer)
+        sys.settrace(original_trace)
 
     def test_track_coverage_exception_still_cleans_up(self):
         """Test cleanup happens even if exception occurs."""

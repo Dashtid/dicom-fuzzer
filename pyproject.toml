@@ -275,30 +275,27 @@ addopts = [
     "--strict-config",
     # Modern import mode (pytest 2025 best practice for new projects)
     "--import-mode=importlib",
-    # Parallel execution with pytest-xdist (optimized for 4k+ tests)
-    # Using 'auto' lets xdist determine optimal worker count based on CPU cores
-    "-n=auto",
-    # worksteal distribution works better for tests with varying durations
-    # It allows idle workers to steal tests from busy workers
-    "--dist=worksteal",
+    # Parallel execution with pytest-xdist (DISABLED - crashes on Windows + Python 3.13)
+    # Re-enable when pytest-xdist fixes compatibility issues
+    # "-n=auto",
+    # "--dist=worksteal",
     # Reduce output verbosity for faster execution (less I/O overhead)
     "-q",
     # Short tracebacks reduce output processing time
     "--tb=short",
-    # Coverage options - use source_pkgs config from [tool.coverage.run]
-    "--cov=dicom_fuzzer",
-    "--cov-report=term-missing",
-    "--cov-report=html:artifacts/reports/coverage/htmlcov",
-    "--cov-report=xml:artifacts/reports/coverage/coverage.xml",
     # Show test durations (slowest 10 tests)
     "--durations=10",
-    # Timeout for individual tests (prevents hanging)
-    "--timeout=30",
+    # NOTE: pytest-timeout removed from default addopts
+    # For coverage runs: use -p no:timeout (Windows kills process without saving data)
+    # For regular runs: add --timeout=30 manually if needed
     # Rerun flaky tests (handles hypothesis + xdist race conditions)
     "--reruns=2",
     "--reruns-delay=1",
-    # NOTE: Coverage threshold removed from default options to allow individual test runs
-    # For full suite coverage check, use: pytest --cov-fail-under=55
+    # NOTE: Coverage is OPT-IN for accurate and reliable measurements
+    # Use one of these methods for coverage:
+    #   1. pytest --cov (uses [tool.coverage.run] config)
+    #   2. coverage run -m pytest (direct coverage.py, more reliable)
+    #   3. ./scripts/coverage.ps1 or ./scripts/coverage.sh (recommended)
     # CI/CD enforces 55% minimum coverage threshold via GitHub Actions
 ]
 testpaths = ["tests"]
@@ -353,48 +350,24 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-# Source package to measure - use source_pkgs for reliable detection with xdist
+# Simple coverage config - use with: coverage run --source=dicom_fuzzer -m pytest -p no:cov
 source_pkgs = ["dicom_fuzzer"]
-# Let coverage.py manage data files - critical for xdist parallel workers
-# Do NOT set data_file when using xdist - it causes data combination issues
 branch = true
-# Enable parallel mode for proper worker data combination
-parallel = true
-# Handle SIGTERM gracefully (important for subprocess/worker cleanup)
-sigterm = true
-# Use relative paths for cross-worker compatibility
 relative_files = true
-# Concurrency modes - thread for async, multiprocessing for subprocess workers
-concurrency = ["thread", "multiprocessing"]
 omit = [
     "*/tests/*",
-    "*/test_*",
-    "*/__main__.py",
+    "*/.venv/*",
 ]
 
 [tool.coverage.report]
 show_missing = true
-skip_covered = false
+skip_covered = true
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
-    "if self.debug:",
-    "if settings.DEBUG",
-    "raise AssertionError",
     "raise NotImplementedError",
-    "if 0:",
     "if __name__ == .__main__.:",
-    "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
-]
-
-[tool.coverage.paths]
-# Normalize paths across parallel workers for consistent coverage combination
-# This handles different import paths that workers might use
-# Note: Forward slashes work on all platforms including Windows
-source = [
-    "dicom_fuzzer/",
-    "*/site-packages/dicom_fuzzer/",
 ]
 
 [tool.coverage.html]
