@@ -7,6 +7,7 @@ such as incorrect patient information display, wrong measurements, or missing se
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -137,7 +138,7 @@ class UIValidator:
         displayed_text: str,
         value: str | None,
         check_name: str,
-        variants_func: callable | None = None,
+        variants_func: Callable[[str], list[str]] | None = None,
     ) -> tuple[bool | None, str | None]:
         """Check if a value or its variants are in displayed text.
 
