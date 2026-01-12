@@ -98,6 +98,7 @@ dev = [
     "pytest-cov>=4.1.0",       # Coverage reporting
     "pytest-asyncio>=1.2.0",   # Async test support (latest stable)
     "pytest-xdist>=3.8.0",     # Parallel test execution
+    "pytest-split>=0.9.0",     # Split tests across CI jobs (memory optimization)
     "pytest-timeout>=2.4.0",   # Test timeouts
     "pytest-rerunfailures>=14.0",  # Retry flaky tests (handles xdist race conditions)
     "pytest-benchmark>=5.0.0", # Performance regression testing

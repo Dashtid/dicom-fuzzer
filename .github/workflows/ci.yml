@@ -92,22 +92,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest]
         python-version: ['3.11', '3.12', '3.13']
-        exclude:
-          # Test all Python versions on Linux, but only latest on macOS/Windows to reduce CI time
-          - os: macos-latest
-            python-version: '3.11'
-          - os: macos-latest
-            python-version: '3.12'
-          - os: macos-latest
-            python-version: '3.13'
-          - os: windows-latest
-            python-version: '3.11'
-          - os: windows-latest
-            python-version: '3.12'
-          - os: windows-latest
-            python-version: '3.13'
+        # Split tests into 4 groups to reduce memory usage (OOM prevention)
+        group: [1, 2, 3, 4]
 
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
@@ -124,19 +112,23 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
-      - name: Run tests with coverage
-        # Note: Parallelism disabled due to pytest-xdist worker crashes on CI runners
-        # Sequential tests are slower but more reliable
+      - name: Run tests (group ${{ matrix.group }}/4)
+        # Split tests across 4 jobs to reduce memory usage and prevent OOM kills
+        # Coverage only on group 1 to avoid merging complexity
         run: |
-          uv run pytest tests/ -m "not slow" -o "addopts=" --cov=dicom_fuzzer --cov-report=xml --cov-report=term-missing --cov-report=html --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
-        timeout-minutes: 45
+          if [ "${{ matrix.group }}" == "1" ]; then
+            uv run pytest tests/ -m "not slow" -o "addopts=" --splits 4 --group ${{ matrix.group }} --cov=dicom_fuzzer --cov-report=xml --cov-report=term-missing --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
+          else
+            uv run pytest tests/ -m "not slow" -o "addopts=" --splits 4 --group ${{ matrix.group }} --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
+          fi
+        timeout-minutes: 20
 
-      - name: Archive coverage HTML report
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+      - name: Archive coverage report
+        if: matrix.group == 1 && matrix.python-version == '3.13'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         with:
-          name: coverage-html-report
-          path: htmlcov/
+          name: coverage-xml-report
+          path: coverage.xml
           retention-days: 30
           if-no-files-found: ignore
 
@@ -144,7 +136,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         with:
-          name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}
+          name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}-group${{ matrix.group }}
           path: |
             junit.xml
             .pytest_cache/
@@ -158,22 +150,19 @@ jobs:
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
+      - name: Download coverage artifact
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4
         with:
-          version: "latest"
-          enable-cache: true
+          name: coverage-xml-report
+          path: .
+        continue-on-error: true
 
-      - name: Set up Python
-        run: uv python install 3.13
-
-      - name: Install dependencies
-        run: uv sync --all-extras
-
-      - name: Run tests with coverage
-        # Note: Parallelism disabled due to pytest-xdist worker crashes on CI runners
-        run: uv run pytest tests/ -m "not slow" -o "addopts=" --cov=dicom_fuzzer --cov-report=xml:coverage.xml --cov-report=term --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
-        timeout-minutes: 45
+      - name: Download test results
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4
+        with:
+          name: test-results-ubuntu-latest-py3.13-group1
+          path: .
+        continue-on-error: true
 
       - name: Pytest coverage comment
         uses: MishaKav/pytest-coverage-comment@7939938b4bd400473e09b8c89534918d036c4523  # main
