@@ -87,7 +87,7 @@ jobs:
         run: uv run mypy --config-file=pyproject.toml --ignore-missing-imports dicom_fuzzer/
 
   test:
-    name: Test (Python ${{ matrix.python-version }} on ${{ matrix.os }})
+    name: Test (Py${{ matrix.python-version }}-g${{ matrix.group }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
