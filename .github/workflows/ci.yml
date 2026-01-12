@@ -94,8 +94,9 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: ['3.11', '3.12', '3.13']
-        # Split tests into 6 groups to reduce memory usage (OOM prevention)
-        group: [1, 2, 3, 4, 5, 6]
+        # Split tests into 8 groups to reduce memory usage (OOM prevention)
+        # Python 3.13 uses more memory, requires more groups
+        group: [1, 2, 3, 4, 5, 6, 7, 8]
 
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
@@ -112,16 +113,16 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
-      - name: Run tests (group ${{ matrix.group }}/6)
-        # Split tests across 6 jobs to reduce memory usage and prevent OOM kills
+      - name: Run tests (group ${{ matrix.group }}/8)
+        # Split tests across 8 jobs to reduce memory usage and prevent OOM kills
         # Coverage only on group 1 to avoid merging complexity
         run: |
           if [ "${{ matrix.group }}" == "1" ]; then
-            uv run pytest tests/ -m "not slow" -o "addopts=" --splits 6 --group ${{ matrix.group }} --cov=dicom_fuzzer --cov-report=xml --cov-report=term-missing --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
+            uv run pytest tests/ -m "not slow" -o "addopts=" --splits 8 --group ${{ matrix.group }} --cov=dicom_fuzzer --cov-report=xml --cov-report=term-missing --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
           else
-            uv run pytest tests/ -m "not slow" -o "addopts=" --splits 6 --group ${{ matrix.group }} --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
+            uv run pytest tests/ -m "not slow" -o "addopts=" --splits 8 --group ${{ matrix.group }} --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
           fi
-        timeout-minutes: 15
+        timeout-minutes: 10
 
       - name: Archive coverage report
         if: matrix.group == 1 && matrix.python-version == '3.13'
