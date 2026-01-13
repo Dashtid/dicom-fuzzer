@@ -678,14 +678,22 @@ class TestCoverageFuzzE2E:
 
     def test_coverage_fuzz_basic(self, sample_dicom_file, tmp_path):
         """Test basic coverage-guided fuzzing."""
+        import shutil
+
         from dicom_fuzzer.cli.coverage_fuzz import main
 
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
+        # Create seeds directory with the sample file
+        seeds_dir = tmp_path / "seeds"
+        seeds_dir.mkdir()
+        shutil.copy(sample_dicom_file, seeds_dir / "sample.dcm")
+
         args = [
             "coverage_fuzz",
-            str(sample_dicom_file),
+            "--seeds",
+            str(seeds_dir),
             "--output",
             str(output_dir),
             "--iterations",
@@ -696,14 +704,25 @@ class TestCoverageFuzzE2E:
             with patch(
                 "dicom_fuzzer.cli.coverage_fuzz.CoverageGuidedFuzzer"
             ) as mock_fuzzer_class:
+                # Create mock fuzzer stats result
+                mock_stats = MagicMock()
+                mock_stats.total_executions = 10
+                mock_stats.unique_crashes = 0
+                mock_stats.corpus_size = 5
+                mock_stats.max_coverage = 100
+                mock_stats.exec_per_sec = 10.0
+                mock_stats.total_crashes = 0
+                mock_stats.current_coverage = 100
+                mock_stats.coverage_increases = 5
+                mock_stats.mutation_stats = {}
+
+                # Create async mock for run() method
+                async def mock_run():
+                    return mock_stats
+
                 mock_fuzzer = MagicMock()
-                mock_fuzzer.fuzz.return_value = MagicMock(
-                    total_iterations=10,
-                    unique_crashes=0,
-                    corpus_size=5,
-                    total_coverage=100,
-                )
-                mock_fuzzer.get_report.return_value = "Test Report"
+                mock_fuzzer.run = mock_run
+                mock_fuzzer.stats = mock_stats
                 mock_fuzzer_class.return_value = mock_fuzzer
 
                 try:
@@ -716,12 +735,18 @@ class TestCoverageFuzzE2E:
 
     def test_coverage_fuzz_with_target(self, sample_dicom_file, tmp_path):
         """Test coverage-guided fuzzing with target executable."""
+        import shutil
         import sys
 
         from dicom_fuzzer.cli.coverage_fuzz import main as coverage_fuzz_main
 
         output_dir = tmp_path / "output"
         output_dir.mkdir()
+
+        # Create seeds directory with the sample file
+        seeds_dir = tmp_path / "seeds"
+        seeds_dir.mkdir()
+        shutil.copy(sample_dicom_file, seeds_dir / "sample.dcm")
 
         # Create mock target
         if sys.platform == "win32":
@@ -734,7 +759,8 @@ class TestCoverageFuzzE2E:
 
         args = [
             "coverage_fuzz",
-            str(sample_dicom_file),
+            "--seeds",
+            str(seeds_dir),
             "--output",
             str(output_dir),
             "--iterations",
@@ -747,14 +773,25 @@ class TestCoverageFuzzE2E:
             with patch(
                 "dicom_fuzzer.cli.coverage_fuzz.CoverageGuidedFuzzer"
             ) as mock_fuzzer_class:
+                # Create mock fuzzer stats result
+                mock_stats = MagicMock()
+                mock_stats.total_executions = 5
+                mock_stats.unique_crashes = 0
+                mock_stats.corpus_size = 3
+                mock_stats.max_coverage = 50
+                mock_stats.exec_per_sec = 5.0
+                mock_stats.total_crashes = 0
+                mock_stats.current_coverage = 50
+                mock_stats.coverage_increases = 2
+                mock_stats.mutation_stats = {}
+
+                # Create async mock for run() method
+                async def mock_run():
+                    return mock_stats
+
                 mock_fuzzer = MagicMock()
-                mock_fuzzer.fuzz.return_value = MagicMock(
-                    total_iterations=5,
-                    unique_crashes=0,
-                    corpus_size=3,
-                    total_coverage=50,
-                )
-                mock_fuzzer.get_report.return_value = "Test Report"
+                mock_fuzzer.run = mock_run
+                mock_fuzzer.stats = mock_stats
                 mock_fuzzer_class.return_value = mock_fuzzer
 
                 try:

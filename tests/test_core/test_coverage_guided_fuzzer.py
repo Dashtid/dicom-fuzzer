@@ -736,16 +736,52 @@ class TestVerboseLogging:
     @pytest.mark.asyncio
     async def test_verbose_logging_enabled(self):
         """Test verbose logging output (lines 513-514)."""
+
+        import pydicom
+
         with tempfile.TemporaryDirectory() as tmpdir:
 
             def simple_target(data: bytes) -> bool:
                 return True
+
+            # Create a seed directory with a proper DICOM file
+            # The minimal DICOM must be large enough for mutations to work
+            seed_dir = Path(tmpdir) / "seeds"
+            seed_dir.mkdir()
+
+            # Create a DICOM file that's large enough for all mutation types
+            ds = pydicom.Dataset()
+            ds.PatientName = "Test^Patient"
+            ds.PatientID = "12345678901234567890"
+            ds.StudyDate = "20240101"
+            ds.StudyTime = "120000"
+            ds.Modality = "CT"
+            ds.SeriesNumber = 1
+            ds.InstanceNumber = 1
+            ds.Rows = 64
+            ds.Columns = 64
+            ds.BitsAllocated = 8
+            ds.BitsStored = 8
+            ds.HighBit = 7
+            ds.PixelRepresentation = 0
+            ds.SamplesPerPixel = 1
+            ds.PhotometricInterpretation = "MONOCHROME2"
+            # Add some pixel data to make the file larger (64x64 = 4096 bytes)
+            ds.PixelData = b"\x80" * (64 * 64)
+            ds.file_meta = pydicom.filereader.FileMetaDataset()
+            ds.file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
+            ds.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+            ds.file_meta.MediaStorageSOPInstanceUID = pydicom.uid.generate_uid()
+
+            seed_file = seed_dir / "seed.dcm"
+            ds.save_as(seed_file, write_like_original=False)
 
             config = FuzzingConfig(
                 target_function=simple_target,
                 max_iterations=10,
                 report_interval=5,
                 verbose=True,  # Enable verbose logging
+                seed_dir=seed_dir,
                 output_dir=Path(tmpdir) / "output",
                 crash_dir=Path(tmpdir) / "crashes",
             )
@@ -754,6 +790,8 @@ class TestVerboseLogging:
             stats = await fuzzer.run()
 
             # Verify execution completed with verbose mode
+            # With a proper seed file, mutations should always produce results
+            assert stats.corpus_size > 0
             assert stats.total_executions > 0
 
 
