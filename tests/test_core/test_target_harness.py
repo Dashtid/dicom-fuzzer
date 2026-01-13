@@ -555,8 +555,20 @@ class TestPsutilAvailability:
         # psutil should be available in the test environment
         assert _is_psutil_available() is True
 
+    @pytest.mark.slow
     def test_harness_without_psutil(self, tmp_path: Path) -> None:
-        """Test harness works without psutil (degraded mode)."""
+        """Test harness works without psutil (degraded mode).
+
+        Note: Marked as slow to help pytest-split allocate this test
+        appropriately, as it often runs at a point in the test sequence
+        where memory pressure from previous tests may cause OOM in CI.
+        """
+        import gc
+
+        # Aggressive garbage collection before test
+        gc.collect()
+        gc.collect()
+
         executable = tmp_path / "test.exe"
         executable.touch()
         crash_dir = tmp_path / "crashes"
@@ -572,6 +584,9 @@ class TestPsutilAvailability:
             # kill_target_processes should return 0 without psutil
             killed = harness.kill_target_processes()
             assert killed == 0
+
+        # Cleanup
+        gc.collect()
 
 
 class TestObservationPhase:
