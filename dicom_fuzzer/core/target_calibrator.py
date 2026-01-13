@@ -370,6 +370,26 @@ class TargetCalibrator:
 
         return exit_code, execution_time, timed_out
 
+    def _classify_target_type(
+        self, exits: int, timeouts: int, errors: int, crashes: int
+    ) -> TargetType:
+        """Classify target type based on run counts."""
+        threshold = self.DETECTION_RUNS * 0.6
+        if timeouts >= threshold:
+            logger.info("[+] Detected: GUI application (stays running)")
+            return TargetType.GUI
+        if crashes >= threshold:
+            logger.warning("[!] Detected: Application crashes on valid input")
+            return TargetType.ERROR
+        if exits >= threshold:
+            logger.info("[+] Detected: CLI application (exits after processing)")
+            return TargetType.CLI
+        if errors >= threshold:
+            logger.warning("[!] Detected: Application returns errors on valid input")
+            return TargetType.ERROR
+        logger.warning("[!] Could not determine target type (mixed behavior)")
+        return TargetType.UNKNOWN
+
     def _phase1_detect_target_type(self) -> None:
         """Phase 1: Detect if target is CLI or GUI application."""
         logger.info("[i] Phase 1: Detecting target type...")
@@ -380,10 +400,7 @@ class TargetCalibrator:
             self.result.target_type = TargetType.UNKNOWN
             return
 
-        exits_count = 0
-        timeout_count = 0
-        error_count = 0
-        crash_count = 0
+        exits, timeouts, errors, crashes = 0, 0, 0, 0
 
         for i in range(self.DETECTION_RUNS):
             exit_code, exec_time, timed_out = self._run_target(
@@ -397,31 +414,18 @@ class TargetCalibrator:
                 )
 
             if timed_out:
-                timeout_count += 1
+                timeouts += 1
             elif exit_code is not None:
                 if exit_code in self.CRASH_EXIT_CODES or exit_code < 0:
-                    crash_count += 1
+                    crashes += 1
                 elif exit_code == 0:
-                    exits_count += 1
+                    exits += 1
                 else:
-                    error_count += 1
+                    errors += 1
 
-        # Classify based on majority behavior
-        if timeout_count >= self.DETECTION_RUNS * 0.6:
-            self.result.target_type = TargetType.GUI
-            logger.info("[+] Detected: GUI application (stays running)")
-        elif crash_count >= self.DETECTION_RUNS * 0.6:
-            self.result.target_type = TargetType.ERROR
-            logger.warning("[!] Detected: Application crashes on valid input")
-        elif exits_count >= self.DETECTION_RUNS * 0.6:
-            self.result.target_type = TargetType.CLI
-            logger.info("[+] Detected: CLI application (exits after processing)")
-        elif error_count >= self.DETECTION_RUNS * 0.6:
-            self.result.target_type = TargetType.ERROR
-            logger.warning("[!] Detected: Application returns errors on valid input")
-        else:
-            self.result.target_type = TargetType.UNKNOWN
-            logger.warning("[!] Could not determine target type (mixed behavior)")
+        self.result.target_type = self._classify_target_type(
+            exits, timeouts, errors, crashes
+        )
 
     def _phase2_calibrate_timeout(self) -> None:
         """Phase 2: Calibrate timeout based on execution speed."""

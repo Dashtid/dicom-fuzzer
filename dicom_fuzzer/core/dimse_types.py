@@ -10,6 +10,7 @@ from __future__ import annotations
 import random
 import struct
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -53,6 +54,45 @@ class SOPClass(Enum):
     MODALITY_WORKLIST_FIND = "1.2.840.10008.5.1.4.31"
 
 
+# VR type sets for encoding
+_STRING_VRS = frozenset(
+    {
+        "AE",
+        "AS",
+        "CS",
+        "DA",
+        "DS",
+        "DT",
+        "IS",
+        "LO",
+        "LT",
+        "PN",
+        "SH",
+        "ST",
+        "TM",
+        "UC",
+        "UI",
+        "UR",
+        "UT",
+    }
+)
+_BINARY_VRS = frozenset({"OB", "OW", "OD", "OF", "OL", "UN"})
+
+# Numeric VR encoding specs: (min_val, max_val, struct_format, default)
+_NUMERIC_VR_SPECS: dict[str, tuple[int, int, str, int]] = {
+    "SS": (-32768, 32767, "<h", 0),
+    "US": (0, 65535, "<H", 0),
+    "SL": (-2147483648, 2147483647, "<l", 0),
+    "UL": (0, 4294967295, "<L", 0),
+}
+
+# Float VR encoding specs: (struct_format, default)
+_FLOAT_VR_SPECS: dict[str, tuple[str, float]] = {
+    "FL": ("<f", 0.0),
+    "FD": ("<d", 0.0),
+}
+
+
 @dataclass
 class DICOMElement:
     """A DICOM data element.
@@ -66,7 +106,7 @@ class DICOMElement:
 
     tag: tuple[int, int]
     vr: str
-    value: bytes | str | int | float | list
+    value: bytes | str | int | float | list[bytes | str | int | float]
 
     def encode(self, explicit_vr: bool = True) -> bytes:
         """Encode element to bytes.
@@ -131,91 +171,52 @@ class DICOMElement:
 
         vr = self.vr
 
-        if vr in (
-            "AE",
-            "AS",
-            "CS",
-            "DA",
-            "DS",
-            "DT",
-            "IS",
-            "LO",
-            "LT",
-            "PN",
-            "SH",
-            "ST",
-            "TM",
-            "UC",
-            "UI",
-            "UR",
-            "UT",
-        ):
-            # String types
-            if isinstance(self.value, str):
-                encoded = self.value.encode("utf-8")
-            else:
-                encoded = str(self.value).encode("utf-8")
-            return self._pad_value(encoded)
+        # String VRs
+        if vr in _STRING_VRS:
+            return self._encode_string()
 
-        elif vr in ("SS",):
-            try:
-                # Clamp to valid signed short range (-32768 to 32767) for fuzzed values
-                val = int(self.value)  # type: ignore[arg-type]
-                val = max(-32768, min(val, 32767))
-                return struct.pack("<h", val)
-            except (ValueError, TypeError):
-                # Handle fuzzed data that doesn't match VR
-                return struct.pack("<h", 0)
+        # Numeric integer VRs
+        if vr in _NUMERIC_VR_SPECS:
+            return self._encode_numeric(vr)
 
-        elif vr in ("US",):
-            try:
-                # Clamp to valid unsigned short range (0-65535) for fuzzed values
-                val = int(self.value)  # type: ignore[arg-type]
-                val = max(0, min(val, 65535))
-                return struct.pack("<H", val)
-            except (ValueError, TypeError):
-                return struct.pack("<H", 0)
+        # Float VRs
+        if vr in _FLOAT_VR_SPECS:
+            return self._encode_float(vr)
 
-        elif vr in ("SL",):
-            try:
-                # Clamp to valid signed long range for fuzzed values
-                val = int(self.value)  # type: ignore[arg-type]
-                val = max(-2147483648, min(val, 2147483647))
-                return struct.pack("<l", val)
-            except (ValueError, TypeError):
-                return struct.pack("<l", 0)
-
-        elif vr in ("UL",):
-            try:
-                # Clamp to valid unsigned long range for fuzzed values
-                val = int(self.value)  # type: ignore[arg-type]
-                val = max(0, min(val, 4294967295))
-                return struct.pack("<L", val)
-            except (ValueError, TypeError):
-                return struct.pack("<L", 0)
-
-        elif vr in ("FL",):
-            try:
-                return struct.pack("<f", float(self.value))  # type: ignore[arg-type]
-            except (ValueError, TypeError):
-                return struct.pack("<f", 0.0)
-
-        elif vr in ("FD",):
-            try:
-                return struct.pack("<d", float(self.value))  # type: ignore[arg-type]
-            except (ValueError, TypeError):
-                return struct.pack("<d", 0.0)
-
-        elif vr in ("OB", "OW", "OD", "OF", "OL", "UN"):
-            # Binary VRs - value should be bytes but might not be after fuzzing
-            # Note: bytes case already handled at top of function
+        # Binary VRs - value should be bytes but might not be after fuzzing
+        if vr in _BINARY_VRS:
             return b""
 
+        # Default to string encoding
+        if isinstance(self.value, str):
+            return self._pad_value(self.value.encode("utf-8"))
+        return b""
+
+    def _encode_string(self) -> bytes:
+        """Encode string VR value."""
+        if isinstance(self.value, str):
+            encoded = self.value.encode("utf-8")
         else:
-            # Default to string encoding
-            if isinstance(self.value, str):
-                return self._pad_value(self.value.encode("utf-8"))
-            return b""
+            encoded = str(self.value).encode("utf-8")
+        return self._pad_value(encoded)
+
+    def _encode_numeric(self, vr: str) -> bytes:
+        """Encode numeric integer VR value with clamping."""
+        min_val, max_val, fmt, default = _NUMERIC_VR_SPECS[vr]
+        try:
+            val = int(self.value)  # type: ignore[arg-type]
+            val = max(min_val, min(val, max_val))
+            return struct.pack(fmt, val)
+        except (ValueError, TypeError):
+            return struct.pack(fmt, default)
+
+    def _encode_float(self, vr: str) -> bytes:
+        """Encode float VR value."""
+        fmt, default = _FLOAT_VR_SPECS[vr]
+        try:
+            return struct.pack(fmt, float(self.value))  # type: ignore[arg-type]
+        except (ValueError, TypeError):
+            return struct.pack(fmt, default)
 
     def _pad_value(self, value: bytes) -> bytes:
         """Pad value to even length."""
@@ -366,7 +367,7 @@ class UIDGenerator:
             UID that might cause collision issues.
 
         """
-        strategies = [
+        strategies: list[Callable[[], str]] = [
             # Exact duplicate
             lambda: existing_uid,
             # Case variation (shouldn't matter for UIDs but might trigger bugs)

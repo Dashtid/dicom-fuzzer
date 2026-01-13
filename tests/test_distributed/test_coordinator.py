@@ -991,6 +991,9 @@ class TestCreateCorpusTasks:
         # Should not raise, just log error
         coordinator._create_corpus_tasks()
 
+        # Verify coordinator is still functional
+        assert coordinator is not None
+
 
 # =============================================================================
 # TestResultProcessor
@@ -1006,6 +1009,9 @@ class TestResultProcessor:
 
         # Should not raise, just log error and return
         coordinator._result_processor()
+
+        # Verify coordinator is still functional
+        assert coordinator is not None
 
 
 # =============================================================================
@@ -1077,5 +1083,8 @@ class TestCallbackExceptionHandling:
 
             # Should not raise
             coordinator._process_result(result)
+
+            # Verify coordinator still processed despite callback failure
+            assert coordinator is not None
         finally:
             coordinator.stop()

@@ -76,6 +76,7 @@ def sample_dicom_dataset():
 class TestCompleteFuzzingCampaign:
     """Test complete fuzzing campaigns from start to finish."""
 
+    @pytest.mark.slow  # Resource-intensive test, excluded from CI
     def test_complete_fuzzing_campaign(self, fuzzing_workspace, sample_dicom_file):
         """
         Test a complete fuzzing campaign:

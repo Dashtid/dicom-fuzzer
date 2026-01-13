@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    pass
+    from dicom_fuzzer.strategies.medical_device_security import SecurityMutation
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +151,7 @@ class SecurityFuzzingController:
             return 1
 
     @staticmethod
-    def _parse_cves(cve_str: str | None) -> list | None:
+    def _parse_cves(cve_str: str | None) -> list[CVEPattern] | None:
         """Parse CVE target string into enum list.
 
         Args:
@@ -175,7 +175,7 @@ class SecurityFuzzingController:
         return target_cves if target_cves else None
 
     @staticmethod
-    def _parse_vuln_classes(vuln_str: str | None) -> list | None:
+    def _parse_vuln_classes(vuln_str: str | None) -> list[VulnerabilityClass] | None:
         """Parse vulnerability class string into enum list.
 
         Args:
@@ -221,7 +221,7 @@ class SecurityFuzzingController:
     def _apply_mutations(
         input_file: Path,
         output_dir: Path,
-        mutations: list,
+        mutations: list[SecurityMutation],
         security_fuzzer: MedicalDeviceSecurityFuzzer,
     ) -> None:
         """Apply mutations and save fuzzed files.

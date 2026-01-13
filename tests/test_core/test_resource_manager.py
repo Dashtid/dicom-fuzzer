@@ -477,6 +477,8 @@ class TestUnixSpecificResourceLimits:
             mock_resource.setrlimit.assert_any_call(
                 mock_resource.RLIMIT_AS, (512 * 1024 * 1024, 1024 * 1024 * 1024)
             )
+        # Verify setrlimit was called at least once
+        assert mock_resource.setrlimit.called
 
     @patch("platform.system", return_value="Linux")
     @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
@@ -501,6 +503,8 @@ class TestUnixSpecificResourceLimits:
         # Should handle exception gracefully
         with manager.limited_execution():
             pass  # Should not raise
+        # Verify setrlimit was attempted (exception was caught, not propagated)
+        assert mock_resource.setrlimit.called
 
     @patch("platform.system", return_value="Linux")
     @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
@@ -544,6 +548,8 @@ class TestUnixSpecificResourceLimits:
         # Should handle exception gracefully
         with manager.limited_execution():
             pass
+        # Verify setrlimit was attempted (exception was caught, not propagated)
+        assert mock_resource.setrlimit.called
 
     @patch("platform.system", return_value="Linux")
     @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
@@ -589,6 +595,8 @@ class TestUnixSpecificResourceLimits:
         # Should handle exception gracefully (lines 262-263)
         with manager.limited_execution():
             pass  # Should not raise
+        # Verify setrlimit was attempted (exception was caught, not propagated)
+        assert mock_resource.setrlimit.called
 
     @patch("platform.system", return_value="Linux")
     @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
@@ -649,6 +657,8 @@ class TestUnixSpecificResourceLimits:
         # Should not raise even if restoration fails
         with manager.limited_execution():
             pass
+        # Verify setrlimit was called multiple times (set + restore attempts)
+        assert mock_resource.setrlimit.call_count >= 2
 
 
 @pytest.mark.slow  # Skip in CI - these tests mock psutil and sys_resource that crash xdist workers

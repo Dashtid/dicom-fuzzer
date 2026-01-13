@@ -493,3 +493,296 @@ class TestRunMemoryStressTest:
         assert len(results) == 1
         result = results[0]
         assert len(result.memory_snapshots) == 2  # Before and after
+
+
+class TestStressTesterBranchCoverage:
+    """Additional tests for branch coverage."""
+
+    @pytest.fixture
+    def temp_output_dir(self):
+        """Create a temporary directory for test output."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    def test_pixel_pattern_noise_else_branch(self, temp_output_dir):
+        """Test noise pixel pattern (the else branch for unknown patterns)."""
+        config = StressTestConfig(max_slices=10, max_dimensions=(64, 64))
+        tester = StressTester(config)
+
+        series_path = tester.generate_large_series(
+            output_dir=temp_output_dir,
+            slice_count=2,
+            dimensions=(32, 32),
+            pixel_pattern="noise",
+        )
+
+        ds = pydicom.dcmread(next(series_path.glob("*.dcm")))
+        assert hasattr(ds, "PixelData")
+        assert len(ds.PixelData) == 32 * 32 * 2
+
+    def test_pixel_pattern_unknown_falls_to_noise(self, temp_output_dir):
+        """Test unknown pattern falls through to noise (else branch)."""
+        config = StressTestConfig(max_slices=10, max_dimensions=(64, 64))
+        tester = StressTester(config)
+
+        series_path = tester.generate_large_series(
+            output_dir=temp_output_dir,
+            slice_count=2,
+            dimensions=(32, 32),
+            pixel_pattern="unknown_pattern",
+        )
+
+        ds = pydicom.dcmread(next(series_path.glob("*.dcm")))
+        assert hasattr(ds, "PixelData")
+
+    def test_8bit_pixel_data(self, temp_output_dir):
+        """Test 8-bit pixel data generation (bits_allocated=8 branch)."""
+        config = StressTestConfig(
+            max_slices=10,
+            max_dimensions=(64, 64),
+            bits_allocated=8,
+        )
+        tester = StressTester(config)
+
+        series_path = tester.generate_large_series(
+            output_dir=temp_output_dir,
+            slice_count=2,
+            dimensions=(32, 32),
+            pixel_pattern="gradient",
+        )
+
+        ds = pydicom.dcmread(next(series_path.glob("*.dcm")))
+        assert ds.BitsAllocated == 8
+        # 8-bit = 1 byte per pixel
+        assert len(ds.PixelData) == 32 * 32 * 1
+
+    def test_8bit_random_pattern(self, temp_output_dir):
+        """Test 8-bit with random pattern."""
+        config = StressTestConfig(
+            max_slices=10,
+            max_dimensions=(64, 64),
+            bits_allocated=8,
+        )
+        tester = StressTester(config)
+
+        series_path = tester.generate_large_series(
+            output_dir=temp_output_dir,
+            slice_count=2,
+            dimensions=(32, 32),
+            pixel_pattern="random",
+        )
+
+        ds = pydicom.dcmread(next(series_path.glob("*.dcm")))
+        assert ds.BitsAllocated == 8
+
+    def test_8bit_anatomical_pattern(self, temp_output_dir):
+        """Test 8-bit with anatomical pattern."""
+        config = StressTestConfig(
+            max_slices=10,
+            max_dimensions=(64, 64),
+            bits_allocated=8,
+        )
+        tester = StressTester(config)
+
+        series_path = tester.generate_large_series(
+            output_dir=temp_output_dir,
+            slice_count=2,
+            dimensions=(32, 32),
+            pixel_pattern="anatomical",
+        )
+
+        ds = pydicom.dcmread(next(series_path.glob("*.dcm")))
+        assert ds.BitsAllocated == 8
+
+    def test_8bit_noise_pattern(self, temp_output_dir):
+        """Test 8-bit with noise pattern."""
+        config = StressTestConfig(
+            max_slices=10,
+            max_dimensions=(64, 64),
+            bits_allocated=8,
+        )
+        tester = StressTester(config)
+
+        series_path = tester.generate_large_series(
+            output_dir=temp_output_dir,
+            slice_count=2,
+            dimensions=(32, 32),
+            pixel_pattern="noise",
+        )
+
+        ds = pydicom.dcmread(next(series_path.glob("*.dcm")))
+        assert ds.BitsAllocated == 8
+
+    def test_get_current_memory_without_psutil(self):
+        """Test get_current_memory when psutil import fails."""
+        from unittest.mock import patch
+
+        tester = StressTester()
+
+        # Mock the import to raise ImportError
+        with patch.dict("sys.modules", {"psutil": None}):
+            with patch(
+                "dicom_fuzzer.harness.stress_tester.StressTester.get_current_memory"
+            ) as mock_mem:
+                # Simulate ImportError behavior
+                mock_mem.return_value = MemorySnapshot(
+                    timestamp=0.0,
+                    process_memory_mb=0.0,
+                    system_memory_percent=0.0,
+                    details={"error": "psutil not installed"},
+                )
+                snapshot = mock_mem()
+                assert "error" in snapshot.details
+                assert "psutil" in snapshot.details["error"]
+
+    def test_get_current_memory_general_exception(self):
+        """Test get_current_memory when psutil raises exception."""
+        from unittest.mock import MagicMock, patch
+
+        tester = StressTester()
+
+        mock_psutil = MagicMock()
+        mock_psutil.Process.side_effect = RuntimeError("Process error")
+
+        with patch.dict("sys.modules", {"psutil": mock_psutil}):
+            # Call the actual method - it should handle the exception
+            snapshot = tester.get_current_memory()
+            # Should return snapshot with error in details or zero values
+            assert isinstance(snapshot, MemorySnapshot)
+            assert snapshot.timestamp > 0
+
+    def test_run_memory_stress_test_exception_during_generation(self, temp_output_dir):
+        """Test memory stress test when generation fails."""
+        from unittest.mock import patch
+
+        config = StressTestConfig(max_slices=10, max_dimensions=(32, 32))
+        tester = StressTester(config)
+
+        with patch.object(
+            tester, "generate_large_series", side_effect=OSError("Disk full")
+        ):
+            results = tester.run_memory_stress_test(
+                output_dir=temp_output_dir,
+                escalation_steps=[5],
+            )
+
+            assert len(results) == 1
+            assert results[0].success is False
+            assert "Disk full" in results[0].errors[0]
+
+    def test_run_memory_stress_test_stops_on_failure(self, temp_output_dir):
+        """Test that stress test stops after failure."""
+        from unittest.mock import patch
+
+        config = StressTestConfig(max_slices=10, max_dimensions=(32, 32))
+        tester = StressTester(config)
+
+        call_count = 0
+
+        def fail_on_second(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 2:
+                raise MemoryError("Out of memory")
+            return temp_output_dir / f"step_{call_count}"
+
+        with patch.object(tester, "generate_large_series", side_effect=fail_on_second):
+            results = tester.run_memory_stress_test(
+                output_dir=temp_output_dir,
+                escalation_steps=[5, 10, 15],
+            )
+
+            # Should stop after second step fails
+            assert len(results) == 2
+            assert results[0].success is True
+            assert results[1].success is False
+
+    def test_run_memory_stress_test_stops_on_memory_limit(self, temp_output_dir):
+        """Test that stress test stops when memory limit exceeded."""
+        from unittest.mock import patch
+
+        # Very low memory limit
+        config = StressTestConfig(
+            max_slices=10, max_dimensions=(32, 32), memory_limit_mb=1
+        )
+        tester = StressTester(config)
+
+        # Mock get_current_memory to return high memory usage
+        high_memory = MemorySnapshot(
+            timestamp=0.0,
+            process_memory_mb=1000.0,  # Much higher than limit
+            system_memory_percent=90.0,
+        )
+
+        with patch.object(tester, "get_current_memory", return_value=high_memory):
+            results = tester.run_memory_stress_test(
+                output_dir=temp_output_dir,
+                escalation_steps=[5, 10, 15],
+            )
+
+            # Should stop after first step due to memory limit
+            assert len(results) == 1
+            assert results[0].memory_peak_mb > config.memory_limit_mb
+
+    def test_generate_series_with_none_dimensions(self, temp_output_dir):
+        """Test that dimensions=None uses default 512x512."""
+        config = StressTestConfig(max_slices=10, max_dimensions=(512, 512))
+        tester = StressTester(config)
+
+        series_path = tester.generate_large_series(
+            output_dir=temp_output_dir,
+            slice_count=1,
+            dimensions=None,  # Should use default
+        )
+
+        ds = pydicom.dcmread(next(series_path.glob("*.dcm")))
+        assert ds.Rows == 512
+        assert ds.Columns == 512
+
+    def test_single_slice_gradient_division(self, temp_output_dir):
+        """Test gradient with single slice (tests max(total_slices-1, 1) branch)."""
+        config = StressTestConfig(max_slices=10, max_dimensions=(64, 64))
+        tester = StressTester(config)
+
+        # Single slice should not cause division by zero
+        series_path = tester.generate_large_series(
+            output_dir=temp_output_dir,
+            slice_count=1,
+            dimensions=(32, 32),
+            pixel_pattern="gradient",
+        )
+
+        dcm_files = list(series_path.glob("*.dcm"))
+        assert len(dcm_files) == 1
+
+    def test_result_with_crashes(self):
+        """Test StressTestResult with crashes list populated."""
+        result = StressTestResult(
+            start_time=0.0,
+            end_time=100.0,
+            duration_seconds=100.0,
+            series_path=None,
+            slice_count=10,
+            dimensions=(512, 512),
+            crashes=[{"type": "segfault", "address": "0x0"}],
+            success=False,
+        )
+        summary = result.summary()
+        assert "Crashes: 1" in summary
+
+    def test_incremental_series_file_not_exists(self, temp_output_dir):
+        """Test incremental series when file to delete doesn't exist."""
+        config = StressTestConfig(max_slices=10, max_dimensions=(32, 32))
+        tester = StressTester(config)
+
+        # Generate with every_nth pattern - remove files that exist
+        series_path, missing = tester.generate_incremental_series(
+            output_dir=temp_output_dir,
+            slice_count=5,
+            missing_pattern="every_nth",
+        )
+
+        # Files were removed successfully
+        assert 0 in missing
+        # File should not exist
+        assert not (series_path / "slice_00000.dcm").exists()

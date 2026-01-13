@@ -440,3 +440,328 @@ class TestEdgeCases:
         for modality in SOP_CLASS_UIDS:
             filepath = gen.generate_file(modality=modality, rows=16, columns=16)
             assert filepath.exists(), f"Failed to generate {modality}"
+
+
+# ============================================================================
+# Test Additional Methods for Branch Coverage
+# ============================================================================
+
+
+class TestGenerateBatch:
+    """Test generate_batch method."""
+
+    def test_generate_batch_default(self, tmp_path):
+        """Test generating a batch of files with defaults."""
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        files = gen.generate_batch(count=5)
+
+        assert len(files) == 5
+        for f in files:
+            assert f.exists()
+            assert f.suffix == ".dcm"
+
+    def test_generate_batch_single_modality(self, tmp_path):
+        """Test generating batch with single modality."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        files = gen.generate_batch(count=3, modality="MR")
+
+        assert len(files) == 3
+        for f in files:
+            ds = pydicom.dcmread(f)
+            assert ds.Modality == "MR"
+
+    def test_generate_batch_specific_modalities(self, tmp_path):
+        """Test generating batch with specific modalities list."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        files = gen.generate_batch(count=6, modalities=["CT", "MR"])
+
+        assert len(files) == 6
+        modalities_seen = set()
+        for f in files:
+            ds = pydicom.dcmread(f)
+            modalities_seen.add(ds.Modality)
+
+        # Should have used only CT and MR
+        assert modalities_seen.issubset({"CT", "MR"})
+
+    def test_generate_batch_custom_dimensions(self, tmp_path):
+        """Test generating batch with custom dimensions."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        files = gen.generate_batch(count=2, modality="CT", rows=128, columns=64)
+
+        for f in files:
+            ds = pydicom.dcmread(f)
+            assert ds.Rows == 128
+            assert ds.Columns == 64
+
+
+class TestGenerateSeries:
+    """Test generate_series method (series with consistent UIDs)."""
+
+    def test_generate_series_consistent_uids(self, tmp_path):
+        """Test series has consistent patient/study/series UIDs."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        files = gen.generate_series(count=5, modality="CT")
+
+        assert len(files) == 5
+
+        # All files should share same patient/study/series UIDs
+        patient_ids = set()
+        study_uids = set()
+        series_uids = set()
+
+        for f in files:
+            ds = pydicom.dcmread(f)
+            patient_ids.add(ds.PatientID)
+            study_uids.add(ds.StudyInstanceUID)
+            series_uids.add(ds.SeriesInstanceUID)
+
+        assert len(patient_ids) == 1
+        assert len(study_uids) == 1
+        assert len(series_uids) == 1
+
+    def test_generate_series_incremental_instance_numbers(self, tmp_path):
+        """Test series has incremental instance numbers."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        files = gen.generate_series(count=5, modality="CT")
+
+        instance_numbers = []
+        for f in files:
+            ds = pydicom.dcmread(f)
+            instance_numbers.append(ds.InstanceNumber)
+
+        # Should be 1, 2, 3, 4, 5
+        assert instance_numbers == [1, 2, 3, 4, 5]
+
+    def test_generate_series_files_created(self, tmp_path):
+        """Test series files are created with correct naming."""
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        files = gen.generate_series(count=3, modality="CT")
+
+        assert len(files) == 3
+        for i, f in enumerate(files):
+            assert f.exists()
+            assert f"series_{i:04d}" in f.name
+
+    def test_generate_series_custom_dimensions(self, tmp_path):
+        """Test series with custom dimensions."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        files = gen.generate_series(count=2, modality="MR", rows=64, columns=128)
+
+        for f in files:
+            ds = pydicom.dcmread(f)
+            assert ds.Rows == 64
+            assert ds.Columns == 128
+
+
+class TestGenerateSampleFiles:
+    """Test generate_sample_files convenience function."""
+
+    def test_generate_sample_files_basic(self, tmp_path):
+        """Test generate_sample_files function."""
+        from dicom_fuzzer.core.synthetic import generate_sample_files
+
+        files = generate_sample_files(output_dir=tmp_path, count=3)
+
+        assert len(files) == 3
+        for f in files:
+            assert f.exists()
+
+    def test_generate_sample_files_specific_modalities(self, tmp_path):
+        """Test generate_sample_files with specific modalities."""
+        import pydicom
+
+        from dicom_fuzzer.core.synthetic import generate_sample_files
+
+        files = generate_sample_files(
+            output_dir=tmp_path, count=4, modalities=["US", "CR"]
+        )
+
+        assert len(files) == 4
+        for f in files:
+            ds = pydicom.dcmread(f)
+            assert ds.Modality in ["US", "CR"]
+
+
+class TestPixelDataGeneration:
+    """Test pixel data generation for different modalities."""
+
+    def test_rgb_pixel_data(self, tmp_path):
+        """Test RGB pixel data generation for US modality."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        filepath = gen.generate_file(modality="US", rows=64, columns=64)
+
+        ds = pydicom.dcmread(filepath)
+        assert ds.PhotometricInterpretation == "RGB"
+        assert ds.SamplesPerPixel == 3
+        assert ds.PlanarConfiguration == 0
+
+    def test_ct_pixel_data_structure(self, tmp_path):
+        """Test CT has anatomical-like pixel structure."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        filepath = gen.generate_file(modality="CT", rows=64, columns=64)
+
+        ds = pydicom.dcmread(filepath)
+        assert ds.PhotometricInterpretation == "MONOCHROME2"
+        assert ds.SamplesPerPixel == 1
+        assert len(ds.PixelData) == 64 * 64 * 2  # 16-bit
+
+    def test_cr_dx_pixel_data(self, tmp_path):
+        """Test CR/DX X-ray like pixel pattern."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+
+        for modality in ["CR", "DX"]:
+            filepath = gen.generate_file(modality=modality, rows=32, columns=32)
+            ds = pydicom.dcmread(filepath)
+            assert ds.PhotometricInterpretation == "MONOCHROME2"
+            assert len(ds.PixelData) == 32 * 32 * 2
+
+    def test_generic_pixel_data(self, tmp_path):
+        """Test generic pixel data for other modalities."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+
+        # NM uses generic pattern
+        filepath = gen.generate_file(modality="NM", rows=32, columns=32)
+        ds = pydicom.dcmread(filepath)
+        assert len(ds.PixelData) == 32 * 32 * 2
+
+
+class TestModalityTags:
+    """Test modality-specific tag generation."""
+
+    def test_ct_modality_tags(self, tmp_path):
+        """Test CT-specific tags are added."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        filepath = gen.generate_file(modality="CT", rows=32, columns=32)
+
+        ds = pydicom.dcmread(filepath)
+        assert hasattr(ds, "KVP")
+        assert hasattr(ds, "ExposureTime")
+        assert hasattr(ds, "XRayTubeCurrent")
+        assert hasattr(ds, "SliceThickness")
+        assert hasattr(ds, "ConvolutionKernel")
+        assert hasattr(ds, "WindowCenter")
+        assert hasattr(ds, "WindowWidth")
+
+    def test_mr_modality_tags(self, tmp_path):
+        """Test MR-specific tags are added."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        filepath = gen.generate_file(modality="MR", rows=32, columns=32)
+
+        ds = pydicom.dcmread(filepath)
+        assert hasattr(ds, "MagneticFieldStrength")
+        assert hasattr(ds, "RepetitionTime")
+        assert hasattr(ds, "EchoTime")
+        assert hasattr(ds, "FlipAngle")
+
+    def test_us_modality_tags(self, tmp_path):
+        """Test US-specific tags are added."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        filepath = gen.generate_file(modality="US", rows=32, columns=32)
+
+        ds = pydicom.dcmread(filepath)
+        assert hasattr(ds, "TransducerType")
+        assert hasattr(ds, "MechanicalIndex")
+        # ThermalIndex may not be recognized by pydicom in all versions
+
+    def test_pt_modality_tags(self, tmp_path):
+        """Test PT (PET) specific tags are added."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        filepath = gen.generate_file(modality="PT", rows=32, columns=32)
+
+        ds = pydicom.dcmread(filepath)
+        assert hasattr(ds, "Units")
+        assert hasattr(ds, "DecayCorrection")
+
+    def test_nm_modality_tags(self, tmp_path):
+        """Test NM (Nuclear Medicine) specific tags are added."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        filepath = gen.generate_file(modality="NM", rows=32, columns=32)
+
+        ds = pydicom.dcmread(filepath)
+        assert hasattr(ds, "NumberOfFrames")
+
+
+class TestExtraTags:
+    """Test extra_tags parameter."""
+
+    def test_extra_tags_applied(self, tmp_path):
+        """Test extra tags can override existing attributes."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+        extra_tags = {
+            "PatientName": "Override^Name",  # Existing attribute
+            "Modality": "MR",  # Override modality
+        }
+
+        filepath = gen.generate_file(
+            modality="CT",
+            rows=32,
+            columns=32,
+            extra_tags=extra_tags,
+        )
+
+        ds = pydicom.dcmread(filepath)
+        assert str(ds.PatientName) == "Override^Name"
+        assert ds.Modality == "MR"
+
+    def test_extra_tags_override_generated(self, tmp_path):
+        """Test extra tags can override generated values."""
+        import pydicom
+
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+
+        filepath = gen.generate_file(
+            modality="CT",
+            rows=32,
+            columns=32,
+            extra_tags={"Rows": 64},  # Override rows
+        )
+
+        ds = pydicom.dcmread(filepath)
+        assert ds.Rows == 64  # Should be overridden
+
+    def test_extra_tags_nonexistent_attribute(self, tmp_path):
+        """Test extra tags with non-existent attribute is ignored."""
+        gen = SyntheticDicomGenerator(output_dir=tmp_path, seed=42)
+
+        # Should not raise error for non-existent attribute
+        filepath = gen.generate_file(
+            modality="CT",
+            rows=32,
+            columns=32,
+            extra_tags={"NonExistentTag": "value"},
+        )
+
+        assert filepath.exists()

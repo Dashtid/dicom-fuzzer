@@ -299,7 +299,7 @@ class ViewerLauncher3D:
 
         return count
 
-    def _monitor_process(self, process: subprocess.Popen, timeout: int) -> float:
+    def _monitor_process(self, process: subprocess.Popen[bytes], timeout: int) -> float:
         """Monitor process for memory usage and timeout.
 
         Args:
@@ -351,7 +351,7 @@ class ViewerLauncher3D:
 
         return peak_memory
 
-    def _kill_process_tree(self, process: subprocess.Popen) -> None:
+    def _kill_process_tree(self, process: subprocess.Popen[bytes]) -> None:
         """Kill process and all its children.
 
         Args:

@@ -19,6 +19,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -176,7 +177,7 @@ The generated HTML report includes:
 # Additional functions for test compatibility
 
 
-def generate_json_report(data: dict, output_file: str) -> None:
+def generate_json_report(data: dict[str, Any], output_file: str) -> None:
     """Generate JSON report from campaign data.
 
     Args:
@@ -188,7 +189,7 @@ def generate_json_report(data: dict, output_file: str) -> None:
         json.dump(data, f, indent=2)
 
 
-def generate_csv_report(crashes: list, output_file: str) -> None:
+def generate_csv_report(crashes: list[dict[str, Any]], output_file: str) -> None:
     """Generate CSV report from crash data.
 
     Args:
@@ -205,7 +206,7 @@ def generate_csv_report(crashes: list, output_file: str) -> None:
             writer.writerows(crashes)
 
 
-def generate_coverage_chart(coverage_data: dict, output_file: str) -> None:
+def generate_coverage_chart(coverage_data: dict[str, Any], output_file: str) -> None:
     """Generate coverage chart from coverage timeline data.
 
     Args:
@@ -229,7 +230,7 @@ def generate_coverage_chart(coverage_data: dict, output_file: str) -> None:
         Path(output_file).touch()
 
 
-def generate_markdown_report(data: dict, output_file: str) -> None:
+def generate_markdown_report(data: dict[str, Any], output_file: str) -> None:
     """Generate Markdown report from campaign data.
 
     Args:

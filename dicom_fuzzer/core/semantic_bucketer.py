@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Any
 
+from dicom_fuzzer.core.constants import SEVERITY_SCORES, Severity
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -58,16 +59,6 @@ class RootCauseCategory(Enum):
     PARSING_ERROR = auto()
     PROTOCOL_VIOLATION = auto()
     UNKNOWN = auto()
-
-
-class Severity(Enum):
-    """Crash severity levels."""
-
-    CRITICAL = 5  # Remote code execution potential
-    HIGH = 4  # Memory corruption, privilege escalation
-    MEDIUM = 3  # Denial of service, info disclosure
-    LOW = 2  # Limited impact crashes
-    INFO = 1  # Non-security crashes
 
 
 @dataclass
@@ -452,6 +443,23 @@ class SemanticBucketer:
 
         return best_category[0], confidence
 
+    # Root cause -> (severity, boost) mappings for severity inference
+    _ROOT_CAUSE_BOOSTS: dict[RootCauseCategory, tuple[Severity, int]] = {
+        RootCauseCategory.BUFFER_OVERFLOW: (Severity.HIGH, 2),
+        RootCauseCategory.USE_AFTER_FREE: (Severity.HIGH, 2),
+        RootCauseCategory.DOUBLE_FREE: (Severity.HIGH, 2),
+        RootCauseCategory.COMMAND_INJECTION: (Severity.CRITICAL, 2),
+        RootCauseCategory.FORMAT_STRING: (Severity.CRITICAL, 2),
+        RootCauseCategory.ASSERTION_FAILURE: (Severity.MEDIUM, 1),
+        RootCauseCategory.RESOURCE_EXHAUSTION: (Severity.MEDIUM, 1),
+    }
+
+    # Impact category -> (severity, boost) mappings
+    _IMPACT_BOOSTS: dict[ImpactCategory, tuple[Severity, int]] = {
+        ImpactCategory.PRIVACY: (Severity.HIGH, 1),
+        ImpactCategory.AUTHENTICATION: (Severity.CRITICAL, 1),
+    }
+
     def _infer_severity(
         self,
         context: CrashContext,
@@ -465,15 +473,10 @@ class SemanticBucketer:
         text = " ".join(
             filter(
                 None,
-                [
-                    context.crash_type,
-                    context.error_message,
-                    context.stack_trace,
-                ],
+                [context.crash_type, context.error_message, context.stack_trace],
             )
         )
 
-        # Check keyword patterns
         matches: dict[Severity, int] = defaultdict(int)
 
         for severity, patterns in self._severity_re.items():
@@ -481,31 +484,15 @@ class SemanticBucketer:
                 if pattern.search(text):
                     matches[severity] += 1
 
-        # Adjust based on root cause
-        if root_cause in (
-            RootCauseCategory.BUFFER_OVERFLOW,
-            RootCauseCategory.USE_AFTER_FREE,
-            RootCauseCategory.DOUBLE_FREE,
-        ):
-            matches[Severity.HIGH] += 2
+        # Apply root cause boosts
+        if root_cause in self._ROOT_CAUSE_BOOSTS:
+            sev, boost = self._ROOT_CAUSE_BOOSTS[root_cause]
+            matches[sev] += boost
 
-        if root_cause in (
-            RootCauseCategory.COMMAND_INJECTION,
-            RootCauseCategory.FORMAT_STRING,
-        ):
-            matches[Severity.CRITICAL] += 2
-
-        if root_cause in (
-            RootCauseCategory.ASSERTION_FAILURE,
-            RootCauseCategory.RESOURCE_EXHAUSTION,
-        ):
-            matches[Severity.MEDIUM] += 1
-
-        # Adjust based on impact
-        if impact == ImpactCategory.PRIVACY:
-            matches[Severity.HIGH] += 1
-        elif impact == ImpactCategory.AUTHENTICATION:
-            matches[Severity.CRITICAL] += 1
+        # Apply impact boosts
+        if impact in self._IMPACT_BOOSTS:
+            sev, boost = self._IMPACT_BOOSTS[impact]
+            matches[sev] += boost
 
         if not matches:
             return Severity.MEDIUM, 0.4
@@ -615,9 +602,11 @@ class SemanticBucketer:
 
         """
         filtered = [
-            b for b in self.buckets.values() if b.severity.value >= min_severity.value
+            b
+            for b in self.buckets.values()
+            if SEVERITY_SCORES[b.severity] >= SEVERITY_SCORES[min_severity]
         ]
-        return sorted(filtered, key=lambda b: b.severity.value, reverse=True)
+        return sorted(filtered, key=lambda b: SEVERITY_SCORES[b.severity], reverse=True)
 
     def get_buckets_by_impact(self, impact: ImpactCategory) -> list[SemanticBucket]:
         """Get buckets with a specific impact category.

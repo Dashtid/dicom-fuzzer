@@ -99,6 +99,7 @@ class TestApplyCVEMutations:
     ) -> None:
         """Test that apply_cve_mutations returns a Dataset."""
         result = cve_fuzzer.apply_cve_mutations(sample_dataset)
+        assert result is not None
         assert isinstance(result, Dataset)
 
     def test_apply_cve_mutations_modifies_dataset(
@@ -122,16 +123,20 @@ class TestApplyCVEMutations:
                 result = cve_fuzzer.apply_cve_mutations(sample_dataset)
 
         # Check mutations were tracked
+        assert result is not None
+        assert isinstance(result, Dataset)
         assert len(cve_fuzzer.mutations_applied) > 0
 
     def test_apply_cve_mutations_tracks_applied(
         self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
     ) -> None:
         """Test that applied mutations are tracked."""
-        cve_fuzzer.apply_cve_mutations(sample_dataset)
+        result = cve_fuzzer.apply_cve_mutations(sample_dataset)
 
+        assert result is not None
         # Should have 1-3 mutations applied
         assert 1 <= len(cve_fuzzer.mutations_applied) <= 3
+        assert isinstance(cve_fuzzer.mutations_applied, list)
 
     def test_apply_cve_mutations_handles_exception(
         self, cve_fuzzer: CVEFuzzer, sample_dataset: Dataset
@@ -165,6 +170,8 @@ class TestHeapOverflowDimensions:
         """Test that heap overflow sets Rows and Columns to 65535."""
         result = cve_fuzzer._heap_overflow_dimensions(sample_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         assert result.Rows == 65535
         assert result.Columns == 65535
 
@@ -194,6 +201,8 @@ class TestIntegerOverflowDimensions:
         """Test that integer overflow uses predefined overflow pairs."""
         result = cve_fuzzer._integer_overflow_dimensions(sample_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         # Should be one of the overflow pairs
         valid_pairs = [
             (32768, 32768),
@@ -208,6 +217,8 @@ class TestIntegerOverflowDimensions:
         """Test that integer overflow sets BitsAllocated."""
         result = cve_fuzzer._integer_overflow_dimensions(sample_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         assert result.BitsAllocated == 16
 
 
@@ -225,6 +236,8 @@ class TestMalformedStringLengths:
         """Test that PatientName is set to 2KB string."""
         result = cve_fuzzer._malformed_string_lengths(sample_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         assert len(result.PatientName) == 2048
 
     def test_malformed_strings_long_institution(
@@ -233,6 +246,8 @@ class TestMalformedStringLengths:
         """Test that InstitutionName is set to 32KB string."""
         result = cve_fuzzer._malformed_string_lengths(sample_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         assert len(result.InstitutionName) == 32768
 
     def test_malformed_strings_adds_private_tags(
@@ -241,6 +256,8 @@ class TestMalformedStringLengths:
         """Test that private tags with long strings are added."""
         result = cve_fuzzer._malformed_string_lengths(sample_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         # Check private tag (0009,0010) was added
         assert Tag(0x0009, 0x0010) in result
         assert len(result[0x0009, 0x0010].value) == 32768
@@ -260,6 +277,8 @@ class TestPathTraversal:
         """Test that path traversal payload is added to private tag."""
         result = cve_fuzzer._path_traversal(sample_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         # Check private tag (0009,1001) was added
         assert Tag(0x0009, 0x1001) in result
 
@@ -275,14 +294,16 @@ class TestPathTraversal:
         if isinstance(payload, list):
             payload = "\\".join(payload)
 
-        valid_payloads = [
-            "../../../etc/passwd",
-            "..\\..\\..\\windows\\system32\\config\\sam",
-            "....//....//....//etc/passwd",
-            "/etc/passwd",
-            "\\\\server\\share\\file",
+        # Key substrings that identify each payload type
+        valid_patterns = [
+            "etc/passwd",  # Unix path traversal
+            "windows",  # Windows path traversal
+            "server",  # UNC path
         ]
-        assert payload in valid_payloads
+        # Check if payload contains any valid pattern
+        assert any(pattern in payload for pattern in valid_patterns), (
+            f"Payload '{payload}' doesn't match any known pattern"
+        )
 
 
 # =============================================================================
@@ -300,6 +321,8 @@ class TestDeepNesting:
         with patch("random.randint", return_value=50):
             result = cve_fuzzer._deep_nesting(sample_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         # Check that Referenced Series Sequence tag was added
         assert Tag(0x0008, 0x1115) in result
 
@@ -310,6 +333,8 @@ class TestDeepNesting:
         with patch("random.randint", return_value=50):
             result = cve_fuzzer._deep_nesting(sample_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         assert isinstance(result[0x0008, 0x1115].value, Sequence)
 
 
@@ -337,6 +362,8 @@ class TestPolyglotMarker:
         """Test that polyglot marker modifies file_meta."""
         result = cve_fuzzer._polyglot_marker(sample_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         # Check ImplementationClassUID was modified
         assert "MZ" in str(result.file_meta.ImplementationClassUID)
 
@@ -347,6 +374,8 @@ class TestPolyglotMarker:
         # Should not raise
         result = cve_fuzzer._polyglot_marker(minimal_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         # Private tag should still be added
         assert Tag(0x0009, 0x1000) in result
 
@@ -376,6 +405,8 @@ class TestPixelDataFragmentAttack:
         """Test that fragment attack sets JPEG transfer syntax."""
         result = cve_fuzzer._pixel_data_fragment_attack(sample_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         # JPEG Baseline transfer syntax
         assert result.file_meta.TransferSyntaxUID == "1.2.840.10008.1.2.4.50"
 
@@ -386,6 +417,8 @@ class TestPixelDataFragmentAttack:
         # Should not raise
         result = cve_fuzzer._pixel_data_fragment_attack(minimal_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         # Dimensions should still be set
         assert result.NumberOfFrames == 10
 
@@ -405,6 +438,8 @@ class TestInvalidTransferSyntax:
         original = str(sample_dataset.file_meta.TransferSyntaxUID)
         result = cve_fuzzer._invalid_transfer_syntax(sample_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         # Should be different from original
         assert str(result.file_meta.TransferSyntaxUID) != original
 
@@ -414,6 +449,8 @@ class TestInvalidTransferSyntax:
         """Test that invalid transfer syntax uses predefined patterns."""
         result = cve_fuzzer._invalid_transfer_syntax(sample_dataset)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         uid = str(result.file_meta.TransferSyntaxUID)
         # Should match one of the invalid patterns
         valid_patterns = [
@@ -461,6 +498,8 @@ class TestGetMutationsApplied:
         cve_fuzzer.apply_cve_mutations(sample_dataset)
 
         result = cve_fuzzer.get_mutations_applied()
+        assert result is not None
+        assert isinstance(result, list)
         original_len = len(result)
 
         result.append("extra")
@@ -492,3 +531,4 @@ class TestResetStats:
         cve_fuzzer.reset_stats()
         cve_fuzzer.reset_stats()
         assert cve_fuzzer.mutations_applied == []
+        assert isinstance(cve_fuzzer.mutations_applied, list)

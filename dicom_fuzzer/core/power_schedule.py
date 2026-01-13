@@ -26,6 +26,7 @@ from __future__ import annotations
 import math
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any
@@ -151,7 +152,7 @@ class PowerSchedule(ABC):
         self,
         total_executions: int,
         total_discoveries: int,
-        edge_frequency: dict[tuple, int],
+        edge_frequency: dict[tuple[str, int, str, int], int],
         corpus_size: int,
     ) -> None:
         """Update global statistics used in calculations.
@@ -457,36 +458,36 @@ class AdaptiveSchedule(PowerSchedule):
         self._update_phase()
         return self.schedules[self.current_phase].calculate_energy(metrics)
 
+    # Phase transition rules: (condition_func, next_phase)
+    # Each rule takes (time_in_phase, time_since_coverage) and returns bool
+    _PHASE_TRANSITIONS: dict[str, list[tuple[Callable[[float, float], bool], str]]] = {
+        "explore": [
+            (lambda tip, tsc: tip > 300 or tsc > 120, "exploit"),
+        ],
+        "exploit": [
+            (lambda tip, tsc: tsc > 180, "rare"),
+            (lambda tip, tsc: tsc < 30, "fast"),
+        ],
+        "rare": [
+            (lambda tip, tsc: tsc < 60, "explore"),
+            (lambda tip, tsc: tip > 120, "fast"),
+        ],
+        "fast": [
+            (lambda tip, tsc: tsc > 120, "rare"),
+        ],
+    }
+
     def _update_phase(self) -> None:
         """Update the current scheduling phase based on progress."""
         time_in_phase = time.time() - self.phase_start_time
         time_since_coverage = time.time() - self.last_coverage_increase
 
-        if self.current_phase == "explore":
-            # Switch to exploit after initial exploration or plateau
-            if time_in_phase > 300 or time_since_coverage > 120:
-                self._switch_phase("exploit")
-
-        elif self.current_phase == "exploit":
-            # Switch to rare if stuck
-            if time_since_coverage > 180:
-                self._switch_phase("rare")
-            # Switch to fast if doing well
-            elif time_since_coverage < 30:
-                self._switch_phase("fast")
-
-        elif self.current_phase == "rare":
-            # Switch back to explore if rare found something
-            if time_since_coverage < 60:
-                self._switch_phase("explore")
-            # Switch to fast if rare isn't helping
-            elif time_in_phase > 120:
-                self._switch_phase("fast")
-
-        elif self.current_phase == "fast":
-            # Switch to rare if plateau
-            if time_since_coverage > 120:
-                self._switch_phase("rare")
+        for condition, next_phase in self._PHASE_TRANSITIONS.get(
+            self.current_phase, []
+        ):
+            if condition(time_in_phase, time_since_coverage):
+                self._switch_phase(next_phase)
+                break
 
     def _switch_phase(self, new_phase: str) -> None:
         """Switch to a new scheduling phase."""
@@ -608,7 +609,7 @@ class PowerScheduleManager:
         self,
         total_executions: int,
         total_discoveries: int,
-        edge_frequency: dict[tuple, int],
+        edge_frequency: dict[tuple[str, int, str, int], int],
         corpus_size: int,
     ) -> None:
         """Update global statistics for schedule calculations."""

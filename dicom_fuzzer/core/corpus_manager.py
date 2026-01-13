@@ -123,8 +123,8 @@ class SeedCorpusManager:
 
         # Coverage tracking
         self.global_coverage = CoverageInfo()
-        self.unique_edges: set[tuple] = set()
-        self.untouched_edges: set[tuple] = set()
+        self.unique_edges: set[tuple[str, int, str, int]] = set()
+        self.untouched_edges: set[tuple[str, int, str, int]] = set()
 
         # Statistics
         self.stats = CorpusStats()
@@ -331,7 +331,9 @@ class SeedCorpusManager:
         self.seed_queue = list(self.seeds.values())
         heapq.heapify(self.seed_queue)
 
-    def _get_coverage_without_seed(self, seed_id: str) -> set[tuple]:
+    def _get_coverage_without_seed(
+        self, seed_id: str
+    ) -> set[tuple[str, int, str, int]]:
         """Get total coverage excluding a specific seed."""
         coverage = set()
         for sid, seed in self.seeds.items():
@@ -339,7 +341,7 @@ class SeedCorpusManager:
                 coverage.update(seed.coverage.edges)
         return coverage
 
-    def mark_untouched_edges(self, edges: set[tuple]) -> None:
+    def mark_untouched_edges(self, edges: set[tuple[str, int, str, int]]) -> None:
         """Mark edges as untouched (high priority for exploration)."""
         self.untouched_edges.update(edges)
 
@@ -461,8 +463,10 @@ class CorpusMinimizer:
 
         """
         self.corpus = corpus
-        self._edge_to_seeds: dict[tuple, set[str]] = defaultdict(set)
-        self._seed_to_edges: dict[str, set[tuple]] = {}
+        self._edge_to_seeds: dict[tuple[str, int, str, int], set[str]] = defaultdict(
+            set
+        )
+        self._seed_to_edges: dict[str, set[tuple[str, int, str, int]]] = {}
 
     def build_coverage_map(self) -> None:
         """Build mappings between edges and seeds."""
@@ -506,7 +510,7 @@ class CorpusMinimizer:
 
         # Start with essential seeds
         selected = self.find_essential_seeds()
-        covered_edges: set[tuple] = set()
+        covered_edges: set[tuple[str, int, str, int]] = set()
 
         # Add coverage from essential seeds
         for seed_id in selected:
@@ -587,7 +591,7 @@ class CorpusMinimizer:
         sorted_seeds = sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
         selected = set()
-        covered_edges: set[tuple] = set()
+        covered_edges: set[tuple[str, int, str, int]] = set()
         all_edges = set(self._edge_to_seeds.keys())
 
         for seed_id, _ in sorted_seeds:

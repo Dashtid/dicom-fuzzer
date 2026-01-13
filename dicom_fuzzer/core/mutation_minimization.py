@@ -9,6 +9,8 @@ Goal: Given a crash caused by N mutations, find the minimal subset
 This helps identify the root cause vulnerability.
 """
 
+from __future__ import annotations
+
 import copy
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -16,6 +18,7 @@ from pathlib import Path
 
 import pydicom
 from pydicom.dataset import Dataset
+from pydicom.tag import BaseTag
 
 from dicom_fuzzer.core.fuzzing_session import MutationRecord
 
@@ -98,6 +101,32 @@ class MutationMinimizer:
             else 0.0,
         )
 
+    def _try_subsets(
+        self, original: Dataset, subsets: list[list[MutationRecord]]
+    ) -> list[MutationRecord] | None:
+        """Try each subset to find one that crashes. Returns crashing subset or None."""
+        for subset in subsets:
+            if not subset:
+                continue
+            test_dataset = self._apply_mutations(original, subset)
+            self.test_count += 1
+            if self.crash_tester(test_dataset):
+                return subset
+        return None
+
+    def _try_complements(
+        self, original: Dataset, subsets: list[list[MutationRecord]], current_len: int
+    ) -> list[MutationRecord] | None:
+        """Try complement sets. Returns crashing complement or None."""
+        for i in range(len(subsets)):
+            complement = [m for j, sub in enumerate(subsets) for m in sub if j != i]
+            if len(complement) < current_len:
+                test_dataset = self._apply_mutations(original, complement)
+                self.test_count += 1
+                if self.crash_tester(test_dataset):
+                    return complement
+        return None
+
     def _delta_debugging(
         self, original: Dataset, mutations: list[MutationRecord]
     ) -> list[MutationRecord]:
@@ -113,53 +142,27 @@ class MutationMinimizer:
             Minimal mutation list that still triggers crash
 
         """
-        # Start with full set
         current_set = mutations.copy()
-        n = 2  # Granularity
+        n = 2
 
         while len(current_set) > 1 and self.test_count < self.max_iterations:
-            # Split current set into n subsets
             subsets = self._split_list(current_set, n)
 
-            # Try each subset individually
-            found_smaller = False
-            for subset in subsets:
-                if not subset:
-                    continue
+            result = self._try_subsets(original, subsets)
+            if result is not None:
+                current_set = result
+                n = max(2, n - 1)
+                continue
 
-                test_dataset = self._apply_mutations(original, subset)
-                self.test_count += 1
+            result = self._try_complements(original, subsets, len(current_set))
+            if result is not None:
+                current_set = result
+                n = max(2, n - 1)
+                continue
 
-                if self.crash_tester(test_dataset):
-                    # This smaller subset still crashes!
-                    current_set = subset
-                    found_smaller = True
-                    n = max(2, n - 1)  # Reduce granularity
-                    break
-
-            if not found_smaller:
-                # Try complement sets (remove one subset at a time)
-                for i, _ in enumerate(subsets):
-                    complement = [
-                        m for j, sub in enumerate(subsets) for m in sub if j != i
-                    ]
-
-                    if len(complement) < len(current_set):
-                        test_dataset = self._apply_mutations(original, complement)
-                        self.test_count += 1
-
-                        if self.crash_tester(test_dataset):
-                            # Removing this subset still crashes
-                            current_set = complement
-                            found_smaller = True
-                            n = max(2, n - 1)
-                            break
-
-            if not found_smaller:
-                # Increase granularity
-                if n >= len(current_set):
-                    break  # Can't split further
-                n = min(len(current_set), n * 2)
+            if n >= len(current_set):
+                break
+            n = min(len(current_set), n * 2)
 
         return current_set
 
@@ -279,6 +282,35 @@ class MutationMinimizer:
 
         return mutated
 
+    def _parse_tag(self, tag_str: str) -> BaseTag | None:
+        """Parse tag string to pydicom Tag, returning None on failure."""
+        try:
+            clean = tag_str.strip("()").replace(",", "")
+            return pydicom.tag.Tag(int(clean[:4], 16), int(clean[4:], 16))
+        except (ValueError, IndexError):
+            return None
+
+    def _apply_modify_mutation(
+        self, dataset: Dataset, tag: BaseTag, value: object
+    ) -> None:
+        """Apply modify/replace/flip_bits/insert mutation."""
+        if value is not None and tag in dataset:
+            try:
+                dataset[tag].value = value
+            except (ValueError, TypeError):
+                if isinstance(value, str):
+                    dataset[tag].value = value.encode("utf-8", errors="replace")
+
+    def _apply_corrupt_mutation(
+        self, dataset: Dataset, tag: BaseTag, value: object
+    ) -> None:
+        """Apply corruption mutation."""
+        if tag in dataset and value is not None:
+            try:
+                dataset[tag].value = value
+            except (ValueError, TypeError):
+                dataset[tag].value = b"\x00" * 8
+
     def _apply_single_mutation(
         self, dataset: Dataset, mutation: MutationRecord
     ) -> None:
@@ -289,49 +321,26 @@ class MutationMinimizer:
             mutation: Mutation record to replay
 
         """
-        # Skip if no target tag specified
         if not mutation.target_tag:
             return
 
-        # Parse tag from string format "(GGGG,EEEE)" to pydicom Tag
-        try:
-            tag_str = mutation.target_tag.strip("()").replace(",", "")
-            tag = pydicom.tag.Tag(int(tag_str[:4], 16), int(tag_str[4:], 16))
-        except (ValueError, IndexError):
+        tag = self._parse_tag(mutation.target_tag)
+        if tag is None:
             return
 
-        # Apply mutation based on type
         mutation_type = mutation.mutation_type.lower()
 
         if mutation_type == "delete":
-            # Delete the element if it exists
             if tag in dataset:
                 del dataset[tag]
-
         elif mutation_type in ("modify", "replace", "flip_bits", "insert"):
-            # Set to mutated value if available
-            if mutation.mutated_value is not None and tag in dataset:
-                try:
-                    # Try to set the value - may fail for incompatible types
-                    dataset[tag].value = mutation.mutated_value
-                except (ValueError, TypeError):
-                    # If direct assignment fails, try bytes for raw data
-                    if isinstance(mutation.mutated_value, str):
-                        dataset[tag].value = mutation.mutated_value.encode(
-                            "utf-8", errors="replace"
-                        )
-
+            self._apply_modify_mutation(dataset, tag, mutation.mutated_value)
         elif mutation_type == "corrupt":
-            # For corruption, use mutated_value or corrupt with zeros
-            if tag in dataset:
-                if mutation.mutated_value is not None:
-                    try:
-                        dataset[tag].value = mutation.mutated_value
-                    except (ValueError, TypeError):
-                        # Fallback: set to empty or zeros based on VR
-                        dataset[tag].value = b"\x00" * 8
+            self._apply_corrupt_mutation(dataset, tag, mutation.mutated_value)
 
-    def _split_list(self, lst: list, n: int) -> list[list]:
+    def _split_list(
+        self, lst: list[MutationRecord], n: int
+    ) -> list[list[MutationRecord]]:
         """Split list into n roughly equal parts.
 
         Args:

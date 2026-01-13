@@ -34,7 +34,7 @@ from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from pydicom.dataset import Dataset
 
@@ -185,7 +185,7 @@ class SeriesCache:
         self._total_size_bytes = 0
         logger.info("Cache CLEARED")
 
-    def get_statistics(self) -> dict:
+    def get_statistics(self) -> dict[str, Any]:
         """Get cache statistics.
 
         Returns:

@@ -15,6 +15,7 @@ Based on 2025 best practices from CASR (crash triage) and FuzzManager (coverage 
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from dicom_fuzzer.strategies.series_mutator import (
     SeriesMutationRecord,
@@ -78,7 +79,7 @@ class Series3DReport:
     total_series_fuzzed: int = 0
     total_mutations_applied: int = 0
     total_crashes: int = 0
-    crash_details: list[dict] = field(default_factory=list)
+    crash_details: list[dict[str, Any]] = field(default_factory=list)
     generated_at: datetime = field(default_factory=datetime.now)
 
     def add_series_summary(self, summary: SeriesMutationSummary) -> None:

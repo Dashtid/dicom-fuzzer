@@ -18,6 +18,7 @@ import random
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -557,7 +558,7 @@ class MutationScheduler:
             for op, s in self.stats.items()
         }
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """Get summary of scheduler state.
 
         Returns:
@@ -594,7 +595,7 @@ class MutationScheduler:
             ],
         }
 
-    def export_state(self) -> dict:
+    def export_state(self) -> dict[str, Any]:
         """Export scheduler state for persistence.
 
         Returns:
@@ -620,57 +621,52 @@ class MutationScheduler:
             "fitness_history": self.fitness_history[-100:],  # Last 100 entries
         }
 
-    def import_state(self, state: dict) -> None:
+    def _restore_operator_dict(
+        self,
+        state: dict[str, Any],
+        key: str,
+        target: dict[MutationOperator, Any],
+        value_transform: Callable[[Any], Any] | None = None,
+    ) -> None:
+        """Restore an operator dictionary from state.
+
+        Args:
+            state: State dictionary containing saved data.
+            key: Key in state dict to restore from.
+            target: Target dictionary to update.
+            value_transform: Optional transform for values (e.g., OperatorStats).
+
+        """
+        for op_name, value in state.get(key, {}).items():
+            try:
+                op = MutationOperator[op_name]
+                if op in target:
+                    target[op] = value_transform(value) if value_transform else value
+            except KeyError:
+                logger.debug("Skipping unknown operator in %s: %s", key, op_name)
+
+    def import_state(self, state: dict[str, Any]) -> None:
         """Import scheduler state from persistence.
 
         Args:
             state: Previously exported state dictionary.
 
         """
-        # Restore weights
-        for op_name, weight in state.get("weights", {}).items():
-            try:
-                op = MutationOperator[op_name]
-                if op in self.weights:
-                    self.weights[op] = weight
-            except KeyError:
-                logger.debug("Skipping unknown operator in weights: %s", op_name)
-
-        # Restore statistics
-        for op_name, stats_dict in state.get("stats", {}).items():
-            try:
-                op = MutationOperator[op_name]
-                if op in self.stats:
-                    self.stats[op] = OperatorStats(**stats_dict)
-            except KeyError as stats_err:
-                logger.debug(
-                    "Skipping unknown operator in stats: %s (%s)", op_name, stats_err
-                )
-
-        # Restore global best
-        for op_name, weight in state.get("global_best", {}).items():
-            try:
-                op = MutationOperator[op_name]
-                if op in self.global_best:
-                    self.global_best[op] = weight
-            except KeyError as best_err:
-                logger.debug(
-                    "Skipping unknown operator in global_best: %s (%s)",
-                    op_name,
-                    best_err,
-                )
+        self._restore_operator_dict(state, "weights", self.weights)
+        self._restore_operator_dict(
+            state, "stats", self.stats, lambda d: OperatorStats(**d)
+        )
+        self._restore_operator_dict(state, "global_best", self.global_best)
 
         self.global_best_fitness = state.get("global_best_fitness", 0.0)
+        self.total_executions = state.get("total_executions", 0)
+        self.fitness_history = state.get("fitness_history", [])
 
-        # Restore mode
         mode_name = state.get("mode", "CORE")
         try:
             self.mode = SchedulerMode[mode_name]
         except KeyError:
             self.mode = SchedulerMode.CORE
-
-        self.total_executions = state.get("total_executions", 0)
-        self.fitness_history = state.get("fitness_history", [])
 
 
 class OperatorSchedulerIntegration:

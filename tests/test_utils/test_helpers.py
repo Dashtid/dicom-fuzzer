@@ -79,6 +79,7 @@ class TestValidateFilePath:
 
         result = validate_file_path(test_file, must_exist=True)
 
+        assert result is not None
         assert result == test_file.resolve()
 
     def test_validate_nonexistent_file_must_exist(self, tmp_path):
@@ -94,6 +95,7 @@ class TestValidateFilePath:
 
         result = validate_file_path(test_file, must_exist=False)
 
+        assert result is not None
         assert result == test_file.resolve()
 
     def test_validate_directory_raises_error(self, tmp_path):
@@ -108,6 +110,7 @@ class TestValidateFilePath:
 
         result = validate_file_path(test_file, must_exist=True, max_size=1000)
 
+        assert result is not None
         assert result == test_file.resolve()
 
     def test_validate_file_exceeds_max_size(self, tmp_path):
@@ -125,6 +128,7 @@ class TestValidateFilePath:
 
         result = validate_file_path(str(test_file), must_exist=True)
 
+        assert result is not None
         assert result == test_file.resolve()
 
 
@@ -135,6 +139,7 @@ class TestEnsureDirectory:
         """Test ensuring existing directory."""
         result = ensure_directory(tmp_path)
 
+        assert result is not None
         assert result == tmp_path.resolve()
         assert result.exists()
 
@@ -144,6 +149,7 @@ class TestEnsureDirectory:
 
         result = ensure_directory(new_dir)
 
+        assert result is not None
         assert result == new_dir.resolve()
         assert result.exists()
         assert result.is_dir()
@@ -154,6 +160,7 @@ class TestEnsureDirectory:
 
         result = ensure_directory(nested)
 
+        assert result is not None
         assert result == nested.resolve()
         assert result.exists()
 
@@ -163,6 +170,7 @@ class TestEnsureDirectory:
 
         result = ensure_directory(str(new_dir))
 
+        assert result is not None
         assert result == new_dir.resolve()
         assert result.exists()
 
@@ -178,6 +186,7 @@ class TestSafeFileRead:
 
         result = safe_file_read(test_file, binary=True)
 
+        assert result is not None
         assert result == content
         assert isinstance(result, bytes)
 
@@ -189,6 +198,7 @@ class TestSafeFileRead:
 
         result = safe_file_read(test_file, binary=False)
 
+        assert result is not None
         assert result == content
         assert isinstance(result, str)
 
@@ -215,6 +225,8 @@ class TestTagToHex:
 
         result = tag_to_hex(tag)
 
+        assert result is not None
+        assert isinstance(result, str)
         assert result == "(0008, 0016)"
 
     def test_tag_to_hex_private(self):
@@ -223,6 +235,8 @@ class TestTagToHex:
 
         result = tag_to_hex(tag)
 
+        assert result is not None
+        assert isinstance(result, str)
         assert result == "(0009, 0010)"
 
     def test_tag_to_hex_pixel_data(self):
@@ -231,6 +245,8 @@ class TestTagToHex:
 
         result = tag_to_hex(tag)
 
+        assert result is not None
+        assert isinstance(result, str)
         assert result == "(7FE0, 0010)"
 
 
@@ -241,6 +257,9 @@ class TestHexToTag:
         """Test parsing hex with parentheses."""
         result = hex_to_tag("(0008,0016)")
 
+        assert result is not None
+        assert hasattr(result, "group")
+        assert hasattr(result, "element")
         assert result.group == 0x0008
         assert result.element == 0x0016
 
@@ -248,6 +267,9 @@ class TestHexToTag:
         """Test parsing hex with spaces."""
         result = hex_to_tag("( 0008, 0016 )")
 
+        assert result is not None
+        assert hasattr(result, "group")
+        assert hasattr(result, "element")
         assert result.group == 0x0008
         assert result.element == 0x0016
 
@@ -255,6 +277,9 @@ class TestHexToTag:
         """Test parsing plain hex string."""
         result = hex_to_tag("00080016")
 
+        assert result is not None
+        assert hasattr(result, "group")
+        assert hasattr(result, "element")
         assert result.group == 0x0008
         assert result.element == 0x0016
 
@@ -303,6 +328,8 @@ class TestRandomString:
         """Test random string has correct length."""
         result = random_string(10)
 
+        assert result is not None
+        assert isinstance(result, str)
         assert len(result) == 10
 
     def test_random_string_default_charset(self):
@@ -324,6 +351,8 @@ class TestRandomString:
         """Test random string with zero length."""
         result = random_string(0)
 
+        assert result is not None
+        assert isinstance(result, str)
         assert result == ""
 
 
@@ -341,6 +370,8 @@ class TestRandomBytes:
         """Test random bytes with zero length."""
         result = random_bytes(0)
 
+        assert result is not None
+        assert isinstance(result, bytes)
         assert result == b""
 
 
@@ -351,6 +382,8 @@ class TestRandomDicomDate:
         """Test random date has correct format."""
         result = random_dicom_date()
 
+        assert result is not None
+        assert isinstance(result, str)
         assert len(result) == 8
         assert result.isdigit()
 
@@ -358,6 +391,8 @@ class TestRandomDicomDate:
         """Test random date is within range."""
         result = random_dicom_date(2020, 2020)
 
+        assert result is not None
+        assert isinstance(result, str)
         assert result.startswith("2020")
 
     def test_random_date_default_end_year(self):
@@ -377,6 +412,8 @@ class TestRandomDicomTime:
         """Test random time has correct format."""
         result = random_dicom_time()
 
+        assert result is not None
+        assert isinstance(result, str)
         assert len(result) == 6
         assert result.isdigit()
 
@@ -400,6 +437,8 @@ class TestRandomDicomDatetime:
         """Test random datetime has correct format."""
         result = random_dicom_datetime()
 
+        assert result is not None
+        assert isinstance(result, str)
         assert len(result) == 14
         assert result.isdigit()
 
@@ -411,6 +450,8 @@ class TestRandomPersonName:
         """Test random name has correct format."""
         result = random_person_name()
 
+        assert result is not None
+        assert isinstance(result, str)
         assert "^" in result
         parts = result.split("^")
         assert len(parts) >= 2
@@ -432,6 +473,8 @@ class TestRandomPatientId:
         """Test random patient ID format."""
         result = random_patient_id()
 
+        assert result is not None
+        assert isinstance(result, str)
         assert result.startswith("PAT")
         assert len(result) == 9  # "PAT" + 6 digits
 
@@ -443,6 +486,8 @@ class TestRandomAccessionNumber:
         """Test random accession number format."""
         result = random_accession_number()
 
+        assert result is not None
+        assert isinstance(result, str)
         assert result.startswith("ACC")
         assert len(result) == 10  # "ACC" + 7 digits
 
@@ -528,21 +573,30 @@ class TestFormatBytes:
 
     def test_format_bytes_bytes(self):
         """Test formatting bytes."""
-        assert format_bytes(512) == "512 B"
+        result = format_bytes(512)
+        assert result is not None
+        assert isinstance(result, str)
+        assert result == "512 B"
 
     def test_format_kilobytes(self):
         """Test formatting kilobytes."""
         result = format_bytes(2 * KB)
+        assert result is not None
+        assert isinstance(result, str)
         assert "2.00 KB" in result
 
     def test_format_megabytes(self):
         """Test formatting megabytes."""
         result = format_bytes(5 * MB)
+        assert result is not None
+        assert isinstance(result, str)
         assert "5.00 MB" in result
 
     def test_format_gigabytes(self):
         """Test formatting gigabytes."""
         result = format_bytes(2 * GB)
+        assert result is not None
+        assert isinstance(result, str)
         assert "2.00 GB" in result
 
 
@@ -552,16 +606,22 @@ class TestFormatDuration:
     def test_format_seconds(self):
         """Test formatting seconds."""
         result = format_duration(30.5)
+        assert result is not None
+        assert isinstance(result, str)
         assert "30.50s" in result
 
     def test_format_minutes(self):
         """Test formatting minutes."""
         result = format_duration(90)
+        assert result is not None
+        assert isinstance(result, str)
         assert "1m" in result
 
     def test_format_hours(self):
         """Test formatting hours."""
         result = format_duration(3661)
+        assert result is not None
+        assert isinstance(result, str)
         assert "1h" in result
         assert "1m" in result
 
@@ -572,22 +632,30 @@ class TestTruncateString:
     def test_truncate_short_string(self):
         """Test truncating string shorter than max."""
         result = truncate_string("hello", 10)
+        assert result is not None
+        assert isinstance(result, str)
         assert result == "hello"
 
     def test_truncate_long_string(self):
         """Test truncating long string."""
         result = truncate_string("hello world", 8)
+        assert result is not None
+        assert isinstance(result, str)
         assert result == "hello..."
         assert len(result) == 8
 
     def test_truncate_custom_suffix(self):
         """Test truncating with custom suffix."""
         result = truncate_string("hello world", 9, suffix="!")
+        assert result is not None
+        assert isinstance(result, str)
         assert result.endswith("!")
 
     def test_truncate_very_short_max(self):
         """Test truncating with very short max length."""
         result = truncate_string("hello", 2)
+        assert result is not None
+        assert isinstance(result, str)
         assert result == "he"
 
 
@@ -640,28 +708,38 @@ class TestChunkList:
         """Test chunking list with even division."""
         result = chunk_list([1, 2, 3, 4], 2)
 
+        assert result is not None
+        assert isinstance(result, list)
         assert result == [[1, 2], [3, 4]]
 
     def test_chunk_list_uneven(self):
         """Test chunking list with uneven division."""
         result = chunk_list([1, 2, 3, 4, 5], 2)
 
+        assert result is not None
+        assert isinstance(result, list)
         assert result == [[1, 2], [3, 4], [5]]
 
     def test_chunk_list_single(self):
         """Test chunking with size 1."""
         result = chunk_list([1, 2, 3], 1)
 
+        assert result is not None
+        assert isinstance(result, list)
         assert result == [[1], [2], [3]]
 
     def test_chunk_list_larger_than_list(self):
         """Test chunking with size larger than list."""
         result = chunk_list([1, 2], 5)
 
+        assert result is not None
+        assert isinstance(result, list)
         assert result == [[1, 2]]
 
     def test_chunk_list_empty(self):
         """Test chunking empty list."""
         result = chunk_list([], 3)
 
+        assert result is not None
+        assert isinstance(result, list)
         assert result == []

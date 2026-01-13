@@ -225,6 +225,10 @@ class TestFuzzingCoordinator:
         coordinator = FuzzingCoordinator()
         coordinator.stop()  # Should not raise
 
+        # Verify coordinator is still functional
+        assert coordinator is not None
+        assert coordinator._running is False
+
     def test_is_running(self) -> None:
         """Test is_running method."""
         coordinator = FuzzingCoordinator()

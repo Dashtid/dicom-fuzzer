@@ -15,6 +15,7 @@ This enables both manual review and automated processing.
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer, CrashReport
 from dicom_fuzzer.utils.identifiers import generate_timestamp_id
@@ -113,7 +114,7 @@ class ReportGenerator:
         return report_path
 
     def generate_performance_html_report(
-        self, metrics: dict, campaign_name: str = "DICOM Fuzzing"
+        self, metrics: dict[str, Any], campaign_name: str = "DICOM Fuzzing"
     ) -> Path:
         """Generate HTML report for performance metrics.
 
@@ -140,7 +141,7 @@ class ReportGenerator:
 
     def generate_report(
         self,
-        report_data: dict,
+        report_data: dict[str, Any],
         format: str = "json",
         campaign_name: str = "DICOM Fuzzing",
     ) -> Path:
@@ -175,7 +176,7 @@ class ReportGenerator:
 
         return report_path
 
-    def _crash_to_dict(self, crash: CrashReport) -> dict:
+    def _crash_to_dict(self, crash: CrashReport) -> dict[str, Any]:
         """Convert CrashReport to dictionary."""
         return {
             "crash_type": crash.crash_type.value,
@@ -382,7 +383,7 @@ class ReportGenerator:
 
         return html
 
-    def _generate_performance_section(self, metrics: dict) -> str:
+    def _generate_performance_section(self, metrics: dict[str, Any]) -> str:
         """Generate performance metrics section HTML."""
         html = "<h2>Performance Metrics</h2>\n<div class='summary-grid'>\n"
 

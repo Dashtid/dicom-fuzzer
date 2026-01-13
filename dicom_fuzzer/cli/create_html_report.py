@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from types import ModuleType
+from typing import Any
 
 # Import jinja2 at module level for test compatibility
 jinja2: ModuleType | None
@@ -311,7 +312,7 @@ def load_template(template_file: str) -> str:
         return f.read()
 
 
-def render_report(template: str, data: dict) -> str:
+def render_report(template: str, data: dict[str, Any]) -> str:
     """Render HTML report using template and data.
 
     Args:
@@ -347,7 +348,7 @@ def save_report(content: str, output_file: str) -> None:
         f.write(content)
 
 
-def create_report_with_charts(data: dict, output_dir: str) -> dict:
+def create_report_with_charts(data: dict[str, Any], output_dir: str) -> dict[str, Any]:
     """Create HTML report with embedded charts.
 
     Args:
@@ -362,7 +363,7 @@ def create_report_with_charts(data: dict, output_dir: str) -> dict:
     return {"data": data, "charts": charts, "output_dir": output_dir}
 
 
-def generate_charts(data: dict) -> dict:
+def generate_charts(data: dict[str, Any]) -> dict[str, str]:
     """Generate base64-encoded charts for report.
 
     Args:

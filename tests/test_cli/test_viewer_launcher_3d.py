@@ -531,8 +531,13 @@ class TestEdgeCasesAndExceptionPaths:
         mock_wait_procs.return_value = ([], [])
 
         launcher = ViewerLauncher3D(generic_config)
-        # Should not raise
+        # Should not raise - exception is caught and handled
         launcher._kill_process_tree(mock_process)
+
+        # Verify child kill was attempted despite NoSuchProcess
+        mock_child.kill.assert_called_once()
+        # Verify wait_procs was still called
+        mock_wait_procs.assert_called_once()
 
     @patch("dicom_fuzzer.harness.viewer_launcher_3d.psutil.Process")
     @patch("dicom_fuzzer.harness.viewer_launcher_3d.psutil.wait_procs")
@@ -552,8 +557,13 @@ class TestEdgeCasesAndExceptionPaths:
         mock_wait_procs.return_value = ([], [])
 
         launcher = ViewerLauncher3D(generic_config)
-        # Should not raise
+        # Should not raise - exception is caught and handled
         launcher._kill_process_tree(mock_process)
+
+        # Verify parent kill was attempted despite NoSuchProcess
+        mock_parent.kill.assert_called_once()
+        # Verify wait_procs was still called
+        mock_wait_procs.assert_called_once()
 
     @patch("dicom_fuzzer.harness.viewer_launcher_3d.psutil.Process")
     def test_kill_process_tree_general_exception(
@@ -568,6 +578,9 @@ class TestEdgeCasesAndExceptionPaths:
         launcher = ViewerLauncher3D(generic_config)
         # Should not raise, just log warning
         launcher._kill_process_tree(mock_process)
+
+        # Verify psutil.Process was called with the process pid
+        mock_psutil_process.assert_called_once_with(12345)
 
     def test_correlate_crash_instance_pattern(self, generic_config, temp_series_folder):
         """Test crash correlation with instance/file pattern (line 425)."""

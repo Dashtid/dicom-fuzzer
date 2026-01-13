@@ -8,12 +8,13 @@ Includes CVE-based security mutations by default for vulnerability discovery.
 
 import random
 import struct
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any
 
 import numpy as np
 
+from dicom_fuzzer.core.constants import MutationType
 from dicom_fuzzer.strategies.cve_mutations import (
     apply_cve_mutation,
     get_mutation_func,
@@ -24,54 +25,6 @@ from .corpus_manager import Seed
 from .coverage_instrumentation import CoverageInfo
 
 logger = get_logger(__name__)
-
-
-class MutationType(Enum):
-    """Types of mutations available."""
-
-    # Byte-level mutations
-    BIT_FLIP = "bit_flip"
-    BYTE_FLIP = "byte_flip"
-    RANDOM_BYTE = "random_byte"
-    BYTE_INSERT = "byte_insert"
-    BYTE_DELETE = "byte_delete"
-
-    # Arithmetic mutations
-    ARITHMETIC_INC = "arithmetic_inc"
-    ARITHMETIC_DEC = "arithmetic_dec"
-    ARITHMETIC_RANDOM = "arithmetic_random"
-
-    # Block mutations
-    BLOCK_REMOVE = "block_remove"
-    BLOCK_DUPLICATE = "block_duplicate"
-    BLOCK_SHUFFLE = "block_shuffle"
-
-    # DICOM-specific mutations
-    DICOM_TAG_CORRUPT = "dicom_tag_corrupt"
-    DICOM_VR_MISMATCH = "dicom_vr_mismatch"
-    DICOM_LENGTH_OVERFLOW = "dicom_length_overflow"
-    DICOM_SEQUENCE_NEST = "dicom_sequence_nest"
-    DICOM_TRANSFER_SYNTAX = "dicom_transfer_syntax"
-
-    # Interesting values
-    INTERESTING_BYTES = "interesting_bytes"
-    INTERESTING_INTS = "interesting_ints"
-    BOUNDARY_VALUES = "boundary_values"
-
-    # Grammar-based
-    GRAMMAR_MUTATE = "grammar_mutate"
-    DICTIONARY_REPLACE = "dictionary_replace"
-
-    # CVE-based security mutations (enabled by default)
-    CVE_HEAP_OVERFLOW = "cve_heap_overflow"
-    CVE_INTEGER_OVERFLOW = "cve_integer_overflow"
-    CVE_MALFORMED_LENGTH = "cve_malformed_length"
-    CVE_PATH_TRAVERSAL = "cve_path_traversal"
-    CVE_DEEP_NESTING = "cve_deep_nesting"
-    CVE_POLYGLOT = "cve_polyglot"
-    CVE_ENCAPSULATED_PIXEL = "cve_encapsulated_pixel"
-    CVE_JPEG_CODEC = "cve_jpeg_codec"
-    CVE_RANDOM = "cve_random"  # Apply random CVE mutation
 
 
 @dataclass
@@ -197,10 +150,53 @@ class CoverageGuidedMutator:
         self.mutation_history: list[tuple[MutationType, bool]] = []
         self.coverage_history: list[int] = []
 
+        # Initialize mutation dispatch table
+        self._mutation_handlers = self._build_mutation_handlers()
+
+    def _build_mutation_handlers(
+        self,
+    ) -> dict[MutationType, Callable[[bytearray], bytearray]]:
+        """Build dispatch table for mutation handlers."""
+        return {
+            # Basic mutations
+            MutationType.BIT_FLIP: self._bit_flip,
+            MutationType.BYTE_FLIP: self._byte_flip,
+            MutationType.RANDOM_BYTE: self._random_byte,
+            MutationType.BYTE_INSERT: self._byte_insert,
+            MutationType.BYTE_DELETE: self._byte_delete,
+            MutationType.ARITHMETIC_INC: lambda d: self._arithmetic_mutation(d, 1),
+            MutationType.ARITHMETIC_DEC: lambda d: self._arithmetic_mutation(d, -1),
+            MutationType.ARITHMETIC_RANDOM: (
+                lambda d: self._arithmetic_mutation(d, random.randint(-255, 255))
+            ),
+            MutationType.BLOCK_REMOVE: self._block_remove,
+            MutationType.BLOCK_DUPLICATE: self._block_duplicate,
+            MutationType.BLOCK_SHUFFLE: self._block_shuffle,
+            MutationType.INTERESTING_BYTES: self._interesting_bytes,
+            MutationType.INTERESTING_INTS: self._interesting_ints,
+            MutationType.BOUNDARY_VALUES: self._boundary_values,
+            # DICOM-specific mutations
+            MutationType.DICOM_TAG_CORRUPT: self._dicom_tag_corrupt,
+            MutationType.DICOM_VR_MISMATCH: self._dicom_vr_mismatch,
+            MutationType.DICOM_LENGTH_OVERFLOW: self._dicom_length_overflow,
+            MutationType.DICOM_SEQUENCE_NEST: self._dicom_sequence_nest,
+            MutationType.DICOM_TRANSFER_SYNTAX: self._dicom_transfer_syntax,
+            # CVE-based security mutations
+            MutationType.CVE_HEAP_OVERFLOW: self._cve_heap_overflow,
+            MutationType.CVE_INTEGER_OVERFLOW: self._cve_integer_overflow,
+            MutationType.CVE_MALFORMED_LENGTH: self._cve_malformed_length,
+            MutationType.CVE_PATH_TRAVERSAL: self._cve_path_traversal,
+            MutationType.CVE_DEEP_NESTING: self._cve_deep_nesting,
+            MutationType.CVE_POLYGLOT: self._cve_polyglot,
+            MutationType.CVE_ENCAPSULATED_PIXEL: self._cve_encapsulated_pixel,
+            MutationType.CVE_JPEG_CODEC: self._cve_jpeg_codec,
+            MutationType.CVE_RANDOM: self._cve_random,
+        }
+
     def _init_strategies(self) -> None:
         """Initialize all mutation strategies."""
-        # Basic mutations
-        for mutation_type in MutationType:
+        # Basic mutations - iterate over enum members explicitly
+        for mutation_type in list(MutationType):
             self.strategies[mutation_type] = MutationStrategy(mutation_type)
 
         # Disable certain strategies if not DICOM-aware
@@ -320,99 +316,16 @@ class CoverageGuidedMutator:
     def _apply_mutation(
         self, data: bytearray, mutation_type: MutationType
     ) -> bytearray | None:
-        """Apply specific mutation to data."""
+        """Apply specific mutation to data using dispatch table."""
         if len(data) == 0:
             return None
 
+        handler = self._mutation_handlers.get(mutation_type)
+        if handler is None:
+            return data.copy()
+
         mutated = data.copy()
-
-        if mutation_type == MutationType.BIT_FLIP:
-            mutated = self._bit_flip(mutated)
-
-        elif mutation_type == MutationType.BYTE_FLIP:
-            mutated = self._byte_flip(mutated)
-
-        elif mutation_type == MutationType.RANDOM_BYTE:
-            mutated = self._random_byte(mutated)
-
-        elif mutation_type == MutationType.BYTE_INSERT:
-            mutated = self._byte_insert(mutated)
-
-        elif mutation_type == MutationType.BYTE_DELETE:
-            mutated = self._byte_delete(mutated)
-
-        elif mutation_type == MutationType.ARITHMETIC_INC:
-            mutated = self._arithmetic_mutation(mutated, 1)
-
-        elif mutation_type == MutationType.ARITHMETIC_DEC:
-            mutated = self._arithmetic_mutation(mutated, -1)
-
-        elif mutation_type == MutationType.ARITHMETIC_RANDOM:
-            mutated = self._arithmetic_mutation(mutated, random.randint(-255, 255))
-
-        elif mutation_type == MutationType.BLOCK_REMOVE:
-            mutated = self._block_remove(mutated)
-
-        elif mutation_type == MutationType.BLOCK_DUPLICATE:
-            mutated = self._block_duplicate(mutated)
-
-        elif mutation_type == MutationType.BLOCK_SHUFFLE:
-            mutated = self._block_shuffle(mutated)
-
-        elif mutation_type == MutationType.INTERESTING_BYTES:
-            mutated = self._interesting_bytes(mutated)
-
-        elif mutation_type == MutationType.INTERESTING_INTS:
-            mutated = self._interesting_ints(mutated)
-
-        elif mutation_type == MutationType.BOUNDARY_VALUES:
-            mutated = self._boundary_values(mutated)
-
-        # DICOM-specific mutations
-        elif mutation_type == MutationType.DICOM_TAG_CORRUPT:
-            mutated = self._dicom_tag_corrupt(mutated)
-
-        elif mutation_type == MutationType.DICOM_VR_MISMATCH:
-            mutated = self._dicom_vr_mismatch(mutated)
-
-        elif mutation_type == MutationType.DICOM_LENGTH_OVERFLOW:
-            mutated = self._dicom_length_overflow(mutated)
-
-        elif mutation_type == MutationType.DICOM_SEQUENCE_NEST:
-            mutated = self._dicom_sequence_nest(mutated)
-
-        elif mutation_type == MutationType.DICOM_TRANSFER_SYNTAX:
-            mutated = self._dicom_transfer_syntax(mutated)
-
-        # CVE-based security mutations
-        elif mutation_type == MutationType.CVE_HEAP_OVERFLOW:
-            mutated = self._cve_heap_overflow(mutated)
-
-        elif mutation_type == MutationType.CVE_INTEGER_OVERFLOW:
-            mutated = self._cve_integer_overflow(mutated)
-
-        elif mutation_type == MutationType.CVE_MALFORMED_LENGTH:
-            mutated = self._cve_malformed_length(mutated)
-
-        elif mutation_type == MutationType.CVE_PATH_TRAVERSAL:
-            mutated = self._cve_path_traversal(mutated)
-
-        elif mutation_type == MutationType.CVE_DEEP_NESTING:
-            mutated = self._cve_deep_nesting(mutated)
-
-        elif mutation_type == MutationType.CVE_POLYGLOT:
-            mutated = self._cve_polyglot(mutated)
-
-        elif mutation_type == MutationType.CVE_ENCAPSULATED_PIXEL:
-            mutated = self._cve_encapsulated_pixel(mutated)
-
-        elif mutation_type == MutationType.CVE_JPEG_CODEC:
-            mutated = self._cve_jpeg_codec(mutated)
-
-        elif mutation_type == MutationType.CVE_RANDOM:
-            mutated = self._cve_random(mutated)
-
-        return mutated
+        return handler(mutated)
 
     # Basic mutation operations
     def _bit_flip(self, data: bytearray) -> bytearray:
@@ -880,7 +793,7 @@ class CoverageGuidedMutator:
         recent_history = self.mutation_history[-500:]
         recent_success = {}
 
-        for mutation_type in MutationType:
+        for mutation_type in list(MutationType):
             successes = sum(
                 1 for mt, success in recent_history if mt == mutation_type and success
             )

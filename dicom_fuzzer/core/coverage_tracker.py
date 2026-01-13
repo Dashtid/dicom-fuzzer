@@ -17,13 +17,12 @@ import threading
 from collections import deque
 from collections.abc import Callable, Generator
 from contextlib import AbstractContextManager, contextmanager
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 from types import FrameType
 from typing import TYPE_CHECKING, Any
 
-from dicom_fuzzer.utils.hashing import hash_string
+# Import unified coverage types
+from dicom_fuzzer.core.coverage_types import CoverageSnapshot
 from dicom_fuzzer.utils.logger import get_logger
 
 # Maximum number of coverage snapshots to keep in history
@@ -36,75 +35,8 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-
-@dataclass
-class CoverageSnapshot:
-    """Represents the coverage state at a point in time.
-
-    CONCEPT: A snapshot is like a photograph of which code lines were executed.
-    We use this to compare different test cases and find which ones explore new code.
-
-    Attributes:
-        lines_covered: Set of (filename, line_number) tuples that were executed
-        branches_covered: Set of (filename, line_number, branch_id) tuples
-        timestamp: When this snapshot was taken
-        test_case_id: Identifier for the test case that produced this coverage
-
-    """
-
-    lines_covered: set[tuple[str, int]] = field(default_factory=set)
-    branches_covered: set[tuple[str, int, int]] = field(default_factory=set)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
-    test_case_id: str = ""
-    total_lines: int = 0
-    total_branches: int = 0
-
-    def __post_init__(self) -> None:
-        """Calculate totals after initialization."""
-        self.total_lines = len(self.lines_covered)
-        self.total_branches = len(self.branches_covered)
-
-    def coverage_hash(self) -> str:
-        """Generate a unique hash for this coverage pattern.
-
-        CONCEPT: We use a hash to quickly check if two test cases have the
-        same coverage. If they do, one is redundant.
-
-        Returns:
-            SHA-256 hash of the coverage pattern
-
-        """
-        # Sort for consistency
-        lines_str = ",".join(
-            f"{filename}:{line}" for filename, line in sorted(self.lines_covered)
-        )
-        branches_str = ",".join(
-            f"{filename}:{line}:{branch}"
-            for filename, line, branch in sorted(self.branches_covered)
-        )
-        combined = f"{lines_str}|{branches_str}"
-        return hash_string(combined)
-
-    def new_coverage_vs(self, other: "CoverageSnapshot") -> set[tuple[str, int]]:
-        """Find lines covered by this snapshot but not the other.
-
-        CONCEPT: This tells us what new code paths a test case discovered.
-        If a test case covers new lines, it's "interesting" and worth keeping.
-
-        Args:
-            other: Another coverage snapshot to compare against
-
-        Returns:
-            Set of newly covered (filename, line_number) tuples
-
-        """
-        return self.lines_covered - other.lines_covered
-
-    def coverage_percentage(self, total_possible_lines: int) -> float:
-        """Calculate coverage as a percentage."""
-        if total_possible_lines == 0:
-            return 0.0
-        return (self.total_lines / total_possible_lines) * 100.0
+# Re-export for backward compatibility
+__all__ = ["CoverageSnapshot", "CoverageTracker"]
 
 
 class CoverageTracker:
@@ -259,6 +191,11 @@ class CoverageTracker:
             # Clear current coverage
             self.current_coverage = set()
 
+        # Save original trace function (may be coverage.py's tracer)
+        # CRITICAL: This preserves any existing trace function (like coverage.py's)
+        # so we can restore it after our tracing is complete
+        original_trace = sys.gettrace()
+
         # Start tracing
         sys.settrace(self._trace_function)
         logger.debug(f"Started coverage tracing for test case: {test_case_id}")
@@ -266,8 +203,8 @@ class CoverageTracker:
         try:
             yield
         finally:
-            # Stop tracing
-            sys.settrace(None)
+            # Restore original tracing (not None - that would break coverage.py)
+            sys.settrace(original_trace)
 
             # Acquire lock for thread-safe access to coverage data
             with self._lock:

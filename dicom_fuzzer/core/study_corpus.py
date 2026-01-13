@@ -241,7 +241,7 @@ class StudyCorpusManager:
         if not self.studies:
             return None
 
-        def priority_score(entry: StudyCorpusEntry) -> tuple:
+        def priority_score(entry: StudyCorpusEntry) -> tuple[float, str]:
             """Calculate priority score (lower = higher priority)."""
             # Base priority
             score = entry.priority

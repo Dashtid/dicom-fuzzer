@@ -297,14 +297,17 @@ class TestTraceExecution:
         """Test that tracing stops even if exception occurs."""
         tracker = CoverageTracker()
 
+        # Save original trace to verify it's restored after exception
+        original_trace = sys.gettrace()
+
         try:
             with tracker.trace_execution("test_6"):
                 raise ValueError("Test exception")
         except ValueError:
             pass  # Expected exception
 
-        # Should have stopped tracing (sys.settrace should be None)
-        assert sys.gettrace() is None
+        # Should have restored original tracing (preserves coverage.py's tracer)
+        assert sys.gettrace() == original_trace
 
 
 class TestInterestingCaseDetection:

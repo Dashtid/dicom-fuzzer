@@ -300,7 +300,7 @@ class DicomParser:
 
         return private_tags
 
-    def get_pixel_data(self, validate: bool = True) -> np.ndarray | None:
+    def get_pixel_data(self, validate: bool = True) -> "np.ndarray[Any, Any] | None":
         """Extract pixel array with validation.
 
         Args:
@@ -333,7 +333,7 @@ class DicomParser:
                 ) from e
             return None
 
-    def _validate_pixel_data(self, pixel_array: np.ndarray) -> None:
+    def _validate_pixel_data(self, pixel_array: "np.ndarray[Any, Any]") -> None:
         """Validate pixel data integrity and safety.
 
         Args:

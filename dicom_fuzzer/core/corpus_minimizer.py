@@ -31,51 +31,17 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+# Import unified types from central location
+from dicom_fuzzer.core.constants import CoverageType
+from dicom_fuzzer.core.coverage_types import SeedCoverageInfo
+
 logger = logging.getLogger(__name__)
 
+# Backward compatibility alias
+CoverageInfo = SeedCoverageInfo
 
-# =============================================================================
-# Coverage Tracking
-# =============================================================================
-
-
-class CoverageType(Enum):
-    """Types of coverage tracking."""
-
-    EDGE = "edge"  # Basic block edge coverage
-    BRANCH = "branch"  # Branch coverage
-    PATH = "path"  # Full path coverage
-    FUNCTION = "function"  # Function-level coverage
-
-
-@dataclass
-class CoverageInfo:
-    """Coverage information for a seed.
-
-    Attributes:
-        seed_path: Path to the seed file
-        coverage_hash: Hash of coverage bitmap
-        edges_hit: Number of unique edges hit
-        branches_hit: Number of unique branches hit
-        bitmap: Raw coverage bitmap (optional)
-        exec_time_us: Execution time in microseconds
-        file_size: Size of seed file in bytes
-
-    """
-
-    seed_path: Path
-    coverage_hash: str = ""
-    edges_hit: int = 0
-    branches_hit: int = 0
-    bitmap: bytes = b""
-    exec_time_us: float = 0.0
-    file_size: int = 0
-
-    def __post_init__(self) -> None:
-        if not self.coverage_hash and self.bitmap:
-            self.coverage_hash = hashlib.sha256(self.bitmap).hexdigest()[:16]
-        if self.seed_path and self.seed_path.exists():
-            self.file_size = self.seed_path.stat().st_size
+# Re-export CoverageType for backward compatibility
+__all__ = ["CoverageType", "CoverageInfo", "SeedCoverageInfo"]
 
 
 @dataclass
@@ -399,6 +365,16 @@ class CorpusMinimizer:
 
         return coverages
 
+    @staticmethod
+    def _find_new_edges(bitmap: bytes, covered_edges: set[int]) -> set[int]:
+        """Find edges in bitmap not in covered_edges."""
+        return {i for i, b in enumerate(bitmap) if b > 0 and i not in covered_edges}
+
+    @staticmethod
+    def _efficiency(c: CoverageInfo) -> float:
+        """Calculate edges per byte efficiency."""
+        return c.edges_hit / c.file_size if c.file_size > 0 else 0.0
+
     def _select_minimal_set(self, coverages: list[CoverageInfo]) -> list[CoverageInfo]:
         """Select minimal set of seeds that covers all edges.
 
@@ -411,38 +387,23 @@ class CorpusMinimizer:
         if not coverages:
             return []
 
-        # Track which edges are covered
         covered_edges: set[int] = set()
         selected: list[CoverageInfo] = []
+        selected_hashes: set[str] = set()
+        sorted_coverages = sorted(coverages, key=self._efficiency, reverse=True)
 
-        # Sort by efficiency (edges per byte)
-        def efficiency(c: CoverageInfo) -> float:
-            if c.file_size == 0:
-                return 0.0
-            return c.edges_hit / c.file_size
-
-        sorted_coverages = sorted(coverages, key=efficiency, reverse=True)
-
-        # Greedy selection
         for cov in sorted_coverages:
             if len(selected) >= self.config.max_corpus_size:
                 break
 
-            # Find new edges this seed covers
-            new_edges = set()
-            for i, b in enumerate(cov.bitmap):
-                if b > 0 and i not in covered_edges:
-                    new_edges.add(i)
+            if self.config.dedup_by_coverage and cov.coverage_hash in selected_hashes:
+                continue
 
-            # Check if seed contributes enough new coverage
+            new_edges = self._find_new_edges(cov.bitmap, covered_edges)
             if len(new_edges) >= self.config.min_edge_contribution:
                 selected.append(cov)
                 covered_edges.update(new_edges)
-
-            # If using deduplication, also skip exact coverage duplicates
-            if self.config.dedup_by_coverage:
-                if cov.coverage_hash in {c.coverage_hash for c in selected}:
-                    continue
+                selected_hashes.add(cov.coverage_hash)
 
         return selected
 

@@ -29,6 +29,7 @@ import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from pydicom.dataset import Dataset
 
@@ -62,7 +63,7 @@ class SeriesMetadata(SerializableMixin):
     # Fuzzed series info
     mutation_strategy: str | None = None
     mutation_count: int = 0
-    mutations_applied: list[dict] = field(default_factory=list)
+    mutations_applied: list[dict[str, Any]] = field(default_factory=list)
 
     # File info
     slice_files: list[str] = field(default_factory=list)
@@ -101,7 +102,7 @@ class SeriesWriter:
         series: DicomSeries,
         datasets: list[Dataset] | None = None,
         mutation_strategy: str | None = None,
-        mutations_applied: list[dict] | None = None,
+        mutations_applied: list[dict[str, Any]] | None = None,
         original_series: DicomSeries | None = None,
     ) -> SeriesMetadata:
         """Write a complete DICOM series to disk with metadata.
@@ -210,7 +211,7 @@ class SeriesWriter:
         dataset: Dataset,
         output_name: str,
         mutation_strategy: str | None = None,
-        mutations_applied: list[dict] | None = None,
+        mutations_applied: list[dict[str, Any]] | None = None,
     ) -> Path:
         """Write a single DICOM slice to disk (for backward compatibility).
 

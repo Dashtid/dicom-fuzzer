@@ -100,7 +100,10 @@ class TestMutationMinimizer:
         # Note: This tests the algorithm behavior when crash doesn't happen
         # In real scenario, we'd start with a crashing set
         # This tests edge case handling
-        MutationMinimizer(never_crashes, max_iterations=100)
+        minimizer = MutationMinimizer(never_crashes, max_iterations=100)
+
+        # Verify minimizer was created
+        assert minimizer is not None
 
     def test_binary_minimization(self, test_mutations):
         """Test binary search minimization."""

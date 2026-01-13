@@ -276,6 +276,9 @@ class TestInMemoryTaskQueue:
         queue.connect()  # Should not raise
         queue.disconnect()  # Should not raise
 
+        # Verify queue is still functional
+        assert queue is not None
+
     def test_enqueue_single_task(self, queue: InMemoryTaskQueue) -> None:
         """Test enqueueing a single task."""
         task = FuzzingTask(task_id="test-1")

@@ -31,6 +31,7 @@ USAGE:
 
 import random
 from dataclasses import dataclass, field
+from typing import Any
 
 from pydicom.dataset import Dataset
 
@@ -50,9 +51,9 @@ class CalibrationMutationRecord(SerializableMixin):
     mutated_value: str | None = None
     attack_type: str = ""
     severity: str = "moderate"
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
-    def _custom_serialization(self, data: dict) -> dict:
+    def _custom_serialization(self, data: dict[str, Any]) -> dict[str, Any]:
         """Ensure values are serializable."""
         if data.get("original_value") is not None:
             data["original_value"] = str(data["original_value"])
@@ -86,190 +87,97 @@ class CalibrationFuzzer:
 
         logger.info(f"CalibrationFuzzer initialized (severity={severity})")
 
+    # --- PixelSpacing Attack Handlers ---
+
+    def _ps_mismatch(self, dataset: Dataset) -> CalibrationMutationRecord | None:
+        """PixelSpacing different from ImagerPixelSpacing."""
+        if not hasattr(dataset, "PixelSpacing"):
+            return None
+        original = list(dataset.PixelSpacing)
+        dataset.PixelSpacing = [1.0, 1.0]
+        dataset.ImagerPixelSpacing = [0.5, 0.5]
+        return CalibrationMutationRecord(
+            category="pixel_spacing",
+            tag="PixelSpacing/ImagerPixelSpacing",
+            original_value=str(original),
+            mutated_value="PS=[1.0,1.0] IPS=[0.5,0.5]",
+            attack_type="mismatch",
+            severity=self.severity,
+            details={"ratio": 2.0},
+        )
+
+    def _ps_simple(
+        self, dataset: Dataset, value: list[float], attack_type: str, display: str
+    ) -> CalibrationMutationRecord | None:
+        """Apply simple PixelSpacing mutation."""
+        if not hasattr(dataset, "PixelSpacing"):
+            return None
+        original = list(dataset.PixelSpacing)
+        dataset.PixelSpacing = value
+        return CalibrationMutationRecord(
+            category="pixel_spacing",
+            tag="PixelSpacing",
+            original_value=str(original),
+            mutated_value=display,
+            attack_type=attack_type,
+            severity=self.severity,
+        )
+
+    def _ps_calibration_type(self, dataset: Dataset) -> CalibrationMutationRecord:
+        """Invalid calibration type."""
+        original_cal_type = getattr(dataset, "PixelSpacingCalibrationType", None)
+        invalid_types = ["", "INVALID", "GEOMETRY" * 10, "\x00\x00"]
+        dataset.PixelSpacingCalibrationType = random.choice(invalid_types)
+        return CalibrationMutationRecord(
+            category="pixel_spacing",
+            tag="PixelSpacingCalibrationType",
+            original_value=str(original_cal_type) if original_cal_type else "<none>",
+            mutated_value=repr(dataset.PixelSpacingCalibrationType)[:50],
+            attack_type="calibration_type",
+            severity=self.severity,
+        )
+
+    # Attack type specifications: (value, display_string)
+    _PS_SIMPLE_ATTACKS: dict[str, tuple[list[float], str]] = {
+        "zero": ([0.0, 0.0], "[0.0, 0.0]"),
+        "negative": ([-1.0, -1.0], "[-1.0, -1.0]"),
+        "extreme_small": ([1e-10, 1e-10], "[1e-10, 1e-10]"),
+        "extreme_large": ([1e10, 1e10], "[1e10, 1e10]"),
+        "nan": ([float("nan"), float("nan")], "[NaN, NaN]"),
+        "inconsistent": ([0.1, 100.0], "[0.1, 100.0] (1000:1 ratio)"),
+    }
+
+    _PS_ATTACK_TYPES = [
+        "mismatch",
+        "zero",
+        "negative",
+        "extreme_small",
+        "extreme_large",
+        "nan",
+        "inconsistent",
+        "calibration_type",
+    ]
+
     def fuzz_pixel_spacing(
         self, dataset: Dataset, attack_type: str | None = None
     ) -> tuple[Dataset, list[CalibrationMutationRecord]]:
-        """Fuzz PixelSpacing and related calibration tags.
-
-        Attack types:
-        - mismatch: PixelSpacing != ImagerPixelSpacing
-        - zero: Zero spacing (divide by zero)
-        - negative: Negative spacing
-        - extreme: Very large/small values
-        - nan: NaN values
-        - inconsistent: Different X/Y spacing
-        - calibration_type: Invalid PixelSpacingCalibrationType
-
-        Args:
-            dataset: DICOM dataset to mutate
-            attack_type: Specific attack (random if None)
-
-        Returns:
-            Tuple of (mutated dataset, mutation records)
-
-        """
+        """Fuzz PixelSpacing and related calibration tags."""
         records: list[CalibrationMutationRecord] = []
 
         if attack_type is None:
-            attack_type = random.choice(
-                [
-                    "mismatch",
-                    "zero",
-                    "negative",
-                    "extreme_small",
-                    "extreme_large",
-                    "nan",
-                    "inconsistent",
-                    "calibration_type",
-                ]
-            )
+            attack_type = random.choice(self._PS_ATTACK_TYPES)
 
+        record: CalibrationMutationRecord | None = None
         if attack_type == "mismatch":
-            # PixelSpacing different from ImagerPixelSpacing
-            if hasattr(dataset, "PixelSpacing"):
-                original = list(dataset.PixelSpacing)
-                # Set PixelSpacing to different value
-                dataset.PixelSpacing = [1.0, 1.0]
-                # Set ImagerPixelSpacing to conflicting value
-                dataset.ImagerPixelSpacing = [0.5, 0.5]
-
-                records.append(
-                    CalibrationMutationRecord(
-                        category="pixel_spacing",
-                        tag="PixelSpacing/ImagerPixelSpacing",
-                        original_value=str(original),
-                        mutated_value="PS=[1.0,1.0] IPS=[0.5,0.5]",
-                        attack_type=attack_type,
-                        severity=self.severity,
-                        details={"ratio": 2.0},
-                    )
-                )
-
-        elif attack_type == "zero":
-            # Zero spacing (divide by zero in calculations)
-            if hasattr(dataset, "PixelSpacing"):
-                original = list(dataset.PixelSpacing)
-                dataset.PixelSpacing = [0.0, 0.0]
-
-                records.append(
-                    CalibrationMutationRecord(
-                        category="pixel_spacing",
-                        tag="PixelSpacing",
-                        original_value=str(original),
-                        mutated_value="[0.0, 0.0]",
-                        attack_type=attack_type,
-                        severity=self.severity,
-                    )
-                )
-
-        elif attack_type == "negative":
-            # Negative spacing
-            if hasattr(dataset, "PixelSpacing"):
-                original = list(dataset.PixelSpacing)
-                dataset.PixelSpacing = [-1.0, -1.0]
-
-                records.append(
-                    CalibrationMutationRecord(
-                        category="pixel_spacing",
-                        tag="PixelSpacing",
-                        original_value=str(original),
-                        mutated_value="[-1.0, -1.0]",
-                        attack_type=attack_type,
-                        severity=self.severity,
-                    )
-                )
-
-        elif attack_type == "extreme_small":
-            # Extremely small spacing
-            if hasattr(dataset, "PixelSpacing"):
-                original = list(dataset.PixelSpacing)
-                dataset.PixelSpacing = [1e-10, 1e-10]
-
-                records.append(
-                    CalibrationMutationRecord(
-                        category="pixel_spacing",
-                        tag="PixelSpacing",
-                        original_value=str(original),
-                        mutated_value="[1e-10, 1e-10]",
-                        attack_type=attack_type,
-                        severity=self.severity,
-                    )
-                )
-
-        elif attack_type == "extreme_large":
-            # Extremely large spacing
-            if hasattr(dataset, "PixelSpacing"):
-                original = list(dataset.PixelSpacing)
-                dataset.PixelSpacing = [1e10, 1e10]
-
-                records.append(
-                    CalibrationMutationRecord(
-                        category="pixel_spacing",
-                        tag="PixelSpacing",
-                        original_value=str(original),
-                        mutated_value="[1e10, 1e10]",
-                        attack_type=attack_type,
-                        severity=self.severity,
-                    )
-                )
-
-        elif attack_type == "nan":
-            # NaN spacing
-            if hasattr(dataset, "PixelSpacing"):
-                original = list(dataset.PixelSpacing)
-                dataset.PixelSpacing = [float("nan"), float("nan")]
-
-                records.append(
-                    CalibrationMutationRecord(
-                        category="pixel_spacing",
-                        tag="PixelSpacing",
-                        original_value=str(original),
-                        mutated_value="[NaN, NaN]",
-                        attack_type=attack_type,
-                        severity=self.severity,
-                    )
-                )
-
-        elif attack_type == "inconsistent":
-            # Very different X/Y spacing
-            if hasattr(dataset, "PixelSpacing"):
-                original = list(dataset.PixelSpacing)
-                dataset.PixelSpacing = [0.1, 100.0]  # 1000:1 ratio
-
-                records.append(
-                    CalibrationMutationRecord(
-                        category="pixel_spacing",
-                        tag="PixelSpacing",
-                        original_value=str(original),
-                        mutated_value="[0.1, 100.0] (1000:1 ratio)",
-                        attack_type=attack_type,
-                        severity=self.severity,
-                    )
-                )
-
+            record = self._ps_mismatch(dataset)
         elif attack_type == "calibration_type":
-            # Invalid calibration type
-            original_cal_type = getattr(dataset, "PixelSpacingCalibrationType", None)
-            invalid_types = [
-                "",
-                "INVALID",
-                "GEOMETRY" * 10,  # Very long
-                "\x00\x00",  # Null bytes
-            ]
-            dataset.PixelSpacingCalibrationType = random.choice(invalid_types)
+            record = self._ps_calibration_type(dataset)
+        elif attack_type in self._PS_SIMPLE_ATTACKS:
+            value, display = self._PS_SIMPLE_ATTACKS[attack_type]
+            record = self._ps_simple(dataset, value, attack_type, display)
 
-            records.append(
-                CalibrationMutationRecord(
-                    category="pixel_spacing",
-                    tag="PixelSpacingCalibrationType",
-                    original_value=str(original_cal_type)
-                    if original_cal_type
-                    else "<none>",
-                    mutated_value=repr(dataset.PixelSpacingCalibrationType)[:50],
-                    attack_type=attack_type,
-                    severity=self.severity,
-                )
-            )
+        if record:
+            records.append(record)
 
         return dataset, records
 

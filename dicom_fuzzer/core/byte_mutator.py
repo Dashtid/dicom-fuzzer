@@ -36,6 +36,8 @@ from dicom_fuzzer.core.constants import (
     INTERESTING_8,
     INTERESTING_16,
     INTERESTING_32,
+    ByteMutationType,
+    MutationType,
 )
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -50,23 +52,8 @@ class MutationStage(Enum):
     SPLICE = auto()  # Combine with other inputs
 
 
-class ByteMutationType(Enum):
-    """Types of byte-level mutations."""
-
-    BIT_FLIP_1 = "bit_flip_1"
-    BIT_FLIP_2 = "bit_flip_2"
-    BIT_FLIP_4 = "bit_flip_4"
-    BYTE_FLIP_1 = "byte_flip_1"
-    BYTE_FLIP_2 = "byte_flip_2"
-    BYTE_FLIP_4 = "byte_flip_4"
-    ARITH_8 = "arith_8"
-    ARITH_16 = "arith_16"
-    ARITH_32 = "arith_32"
-    INTEREST_8 = "interest_8"
-    INTEREST_16 = "interest_16"
-    INTEREST_32 = "interest_32"
-    HAVOC = "havoc"
-    SPLICE = "splice"
+# Re-export for backward compatibility (ByteMutationType is now alias to MutationType)
+__all__ = ["ByteMutationType", "MutationType", "MutationStage"]
 
 
 @dataclass

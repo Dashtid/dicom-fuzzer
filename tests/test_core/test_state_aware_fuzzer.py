@@ -314,7 +314,8 @@ class TestStateCoverage:
         """Test getting uncovered states."""
         cov = StateCoverage()
         cov.add_state(DICOMState.IDLE)
-        uncovered = cov.get_uncovered_states()
+        all_states = set(DICOMState)
+        uncovered = cov.get_uncovered_states(all_states)
         assert DICOMState.IDLE not in uncovered
         assert DICOMState.ABORT in uncovered
         assert len(uncovered) == len(DICOMState) - 1
@@ -832,3 +833,314 @@ class TestStateAwareFuzzer:
         score = fuzzer._compute_seed_score(seq)
         # Score should be reduced by 50% for long sequence
         assert score >= 0.0
+
+    def test_run_limited_iterations(self) -> None:
+        """Test run with limited iterations."""
+
+        def mock_target(data: bytes) -> bytes:
+            return b"\x02\x00\x00"  # A-ASSOCIATE-AC
+
+        fuzzer = StateAwareFuzzer(target_callback=mock_target)
+        fuzzer.add_seed([b"\x01\x00\x00"])
+        stats = fuzzer.run(iterations=10)
+
+        assert stats["total_executions"] == 10
+        assert "elapsed_seconds" in stats
+        assert "corpus_size" in stats
+
+    def test_run_without_seeds(self) -> None:
+        """Test run creates empty sequence if no seeds."""
+
+        def mock_target(data: bytes) -> bytes:
+            return b"\x04\x00\x00"
+
+        fuzzer = StateAwareFuzzer(target_callback=mock_target)
+        stats = fuzzer.run(iterations=5)
+        assert stats["total_executions"] == 5
+
+    def test_execute_sequence_crash_handling(self) -> None:
+        """Test execute_sequence handles target crashes."""
+
+        def crashing_target(data: bytes) -> bytes:
+            raise Exception("Simulated crash")
+
+        fuzzer = StateAwareFuzzer(target_callback=crashing_target)
+        seq = MessageSequence(messages=[ProtocolMessage(data=b"\x01\x00")])
+
+        is_interesting, response = fuzzer.execute_sequence(seq)
+
+        assert is_interesting is True  # Crashes are interesting
+        assert fuzzer.total_crashes == 1
+        assert len(fuzzer.crash_sequences) == 1
+
+    def test_get_statistics(self) -> None:
+        """Test get_statistics returns proper structure."""
+
+        def mock_target(data: bytes) -> bytes:
+            return b"\x02\x00\x00"
+
+        fuzzer = StateAwareFuzzer(target_callback=mock_target)
+        fuzzer.add_seed([b"\x01\x00\x00"])
+        fuzzer.run(iterations=5)
+
+        stats = fuzzer.get_statistics()
+
+        assert "total_executions" in stats
+        assert "total_crashes" in stats
+        assert "elapsed_seconds" in stats
+        assert "executions_per_second" in stats
+        assert "corpus_size" in stats
+        assert "interesting_sequences" in stats
+        assert "state_coverage" in stats
+        assert "coverage_score" in stats
+        assert "uncovered_states" in stats
+
+    def test_get_statistics_no_start_time(self) -> None:
+        """Test get_statistics before run() is called."""
+        fuzzer = StateAwareFuzzer()
+        stats = fuzzer.get_statistics()
+        assert stats["elapsed_seconds"] == 0
+        assert stats["executions_per_second"] == 0
+
+    def test_save_corpus(self, tmp_path) -> None:
+        """Test save_corpus writes sequences to disk."""
+        fuzzer = StateAwareFuzzer()
+        fuzzer.add_seed([b"\x01\x00\x00", b"\x02\x00\x00"])
+        fuzzer.corpus[0].state_path = [DICOMState.IDLE, DICOMState.DATA_TRANSFER]
+        fuzzer.corpus[0].final_state = DICOMState.DATA_TRANSFER
+        fuzzer.corpus[0].compute_hash()
+
+        output_dir = tmp_path / "corpus"
+        count = fuzzer.save_corpus(output_dir)
+
+        assert count == 1
+        assert output_dir.exists()
+        seq_dir = output_dir / "seq_00000"
+        assert seq_dir.exists()
+        assert (seq_dir / "msg_000.bin").exists()
+        assert (seq_dir / "msg_001.bin").exists()
+        assert (seq_dir / "metadata.json").exists()
+
+    def test_export_state_machine(self) -> None:
+        """Test export_state_machine returns state machine data."""
+
+        def mock_target(data: bytes) -> bytes:
+            return b"\x02\x00\x00"
+
+        fuzzer = StateAwareFuzzer(target_callback=mock_target)
+        fuzzer.add_seed([b"\x01\x00\x00"])
+        fuzzer.run(iterations=3)
+
+        sm = fuzzer.export_state_machine()
+
+        assert "states" in sm
+        assert "visited_states" in sm
+        assert "transitions" in sm
+        assert "inferred_machine" in sm
+        assert len(sm["states"]) == len(DICOMState)
+
+
+class TestStateGuidedHavocHandlers:
+    """Test individual mutation handlers in StateGuidedHavoc."""
+
+    def test_mut_insert_with_unexplored(self) -> None:
+        """Test _mut_insert adds state trigger."""
+        mutator = StateGuidedHavoc()
+        messages = [ProtocolMessage(data=b"\x01\x00")]
+        unexplored = {DICOMState.ABORT}
+        initial_len = len(messages)
+
+        mutator._mut_insert(messages, unexplored)
+
+        assert len(messages) == initial_len + 1
+
+    def test_mut_insert_empty_unexplored(self) -> None:
+        """Test _mut_insert does nothing with no unexplored states."""
+        mutator = StateGuidedHavoc()
+        messages = [ProtocolMessage(data=b"\x01\x00")]
+        initial_len = len(messages)
+
+        mutator._mut_insert(messages, set())
+
+        assert len(messages) == initial_len
+
+    def test_mut_delete_removes_message(self) -> None:
+        """Test _mut_delete removes a message."""
+        mutator = StateGuidedHavoc()
+        messages = [
+            ProtocolMessage(data=b"\x01"),
+            ProtocolMessage(data=b"\x02"),
+            ProtocolMessage(data=b"\x03"),
+        ]
+
+        mutator._mut_delete(messages, set())
+
+        assert len(messages) == 2
+
+    def test_mut_delete_single_message(self) -> None:
+        """Test _mut_delete preserves single message."""
+        mutator = StateGuidedHavoc()
+        messages = [ProtocolMessage(data=b"\x01")]
+
+        mutator._mut_delete(messages, set())
+
+        assert len(messages) == 1
+
+    def test_mut_swap_swaps_messages(self) -> None:
+        """Test _mut_swap swaps two messages."""
+        random.seed(42)
+        mutator = StateGuidedHavoc()
+        msg1 = ProtocolMessage(data=b"\x01")
+        msg2 = ProtocolMessage(data=b"\x02")
+        messages = [msg1, msg2]
+
+        mutator._mut_swap(messages, set())
+
+        # Order may have changed
+        assert len(messages) == 2
+
+    def test_mut_swap_single_message(self) -> None:
+        """Test _mut_swap does nothing with single message."""
+        mutator = StateGuidedHavoc()
+        messages = [ProtocolMessage(data=b"\x01")]
+
+        mutator._mut_swap(messages, set())
+
+        assert len(messages) == 1
+
+    def test_mut_duplicate_duplicates_message(self) -> None:
+        """Test _mut_duplicate adds duplicate."""
+        mutator = StateGuidedHavoc()
+        messages = [ProtocolMessage(data=b"\x01")]
+
+        mutator._mut_duplicate(messages, set())
+
+        assert len(messages) == 2
+
+    def test_mut_duplicate_empty_list(self) -> None:
+        """Test _mut_duplicate does nothing with empty list."""
+        mutator = StateGuidedHavoc()
+        messages: list[ProtocolMessage] = []
+
+        mutator._mut_duplicate(messages, set())
+
+        assert len(messages) == 0
+
+    def test_mut_truncate_shortens_message(self) -> None:
+        """Test _mut_truncate shortens message data."""
+        random.seed(42)
+        mutator = StateGuidedHavoc()
+        messages = [ProtocolMessage(data=b"\x01" * 50)]
+        original_len = len(messages[0].data)
+
+        mutator._mut_truncate(messages, set())
+
+        assert len(messages[0].data) < original_len
+        assert messages[0].is_mutated is True
+
+    def test_mut_truncate_short_message(self) -> None:
+        """Test _mut_truncate ignores short messages."""
+        mutator = StateGuidedHavoc()
+        messages = [ProtocolMessage(data=b"\x01")]
+
+        mutator._mut_truncate(messages, set())
+
+        assert len(messages[0].data) == 1
+
+    def test_mut_truncate_empty_list(self) -> None:
+        """Test _mut_truncate does nothing with empty list."""
+        mutator = StateGuidedHavoc()
+        messages: list[ProtocolMessage] = []
+
+        mutator._mut_truncate(messages, set())
+
+        assert len(messages) == 0
+
+    def test_mut_inject_trigger_appends(self) -> None:
+        """Test _mut_inject_trigger appends state trigger."""
+        mutator = StateGuidedHavoc()
+        messages = [ProtocolMessage(data=b"\x01")]
+        unexplored = {DICOMState.RELEASE_REQUESTED}
+
+        mutator._mut_inject_trigger(messages, unexplored)
+
+        assert len(messages) == 2
+
+    def test_mut_inject_trigger_empty_unexplored(self) -> None:
+        """Test _mut_inject_trigger does nothing with no unexplored states."""
+        mutator = StateGuidedHavoc()
+        messages = [ProtocolMessage(data=b"\x01")]
+
+        mutator._mut_inject_trigger(messages, set())
+
+        assert len(messages) == 1
+
+
+class TestCreateSampleFuzzer:
+    """Test create_sample_fuzzer factory function."""
+
+    def test_creates_fuzzer(self) -> None:
+        """Test function creates a configured fuzzer."""
+        from dicom_fuzzer.core.state_aware_fuzzer import create_sample_fuzzer
+
+        fuzzer = create_sample_fuzzer()
+
+        assert isinstance(fuzzer, StateAwareFuzzer)
+        assert fuzzer.config.max_iterations == 1000
+        assert fuzzer.config.max_depth == 10
+        assert fuzzer.target_callback is not None
+        assert len(fuzzer.corpus) == 1
+
+    def test_mock_target_associate_rq(self) -> None:
+        """Test mock target responds to A-ASSOCIATE-RQ."""
+        from dicom_fuzzer.core.state_aware_fuzzer import create_sample_fuzzer
+
+        fuzzer = create_sample_fuzzer()
+        response = fuzzer.target_callback(b"\x01" + b"\x00" * 10)
+
+        assert response[0:1] == b"\x02"  # A-ASSOCIATE-AC
+
+    def test_mock_target_p_data(self) -> None:
+        """Test mock target responds to P-DATA-TF."""
+        from dicom_fuzzer.core.state_aware_fuzzer import create_sample_fuzzer
+
+        fuzzer = create_sample_fuzzer()
+        response = fuzzer.target_callback(b"\x04" + b"\x00" * 10)
+
+        assert response[0:1] == b"\x04"  # P-DATA response
+
+    def test_mock_target_release_rq(self) -> None:
+        """Test mock target responds to A-RELEASE-RQ."""
+        from dicom_fuzzer.core.state_aware_fuzzer import create_sample_fuzzer
+
+        fuzzer = create_sample_fuzzer()
+        response = fuzzer.target_callback(b"\x05" + b"\x00" * 10)
+
+        assert response[0:1] == b"\x06"  # A-RELEASE-RP
+
+    def test_mock_target_unknown_pdu(self) -> None:
+        """Test mock target returns empty for unknown PDU."""
+        from dicom_fuzzer.core.state_aware_fuzzer import create_sample_fuzzer
+
+        fuzzer = create_sample_fuzzer()
+        response = fuzzer.target_callback(b"\xff" + b"\x00" * 10)
+
+        assert response == b""
+
+    def test_mock_target_empty_data(self) -> None:
+        """Test mock target handles empty data."""
+        from dicom_fuzzer.core.state_aware_fuzzer import create_sample_fuzzer
+
+        fuzzer = create_sample_fuzzer()
+        response = fuzzer.target_callback(b"")
+
+        assert response == b""
+
+    def test_sample_fuzzer_can_run(self) -> None:
+        """Test sample fuzzer can execute a run."""
+        from dicom_fuzzer.core.state_aware_fuzzer import create_sample_fuzzer
+
+        fuzzer = create_sample_fuzzer()
+        stats = fuzzer.run(iterations=5)
+
+        assert stats["total_executions"] == 5

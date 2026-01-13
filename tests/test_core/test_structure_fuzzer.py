@@ -20,7 +20,9 @@ class TestStructureFuzzerInitialization:
         """Test fuzzer initializes with corruption strategies."""
         fuzzer = StructureFuzzer()
 
+        assert fuzzer is not None
         assert hasattr(fuzzer, "corruption_strategies")
+        assert isinstance(fuzzer.corruption_strategies, list)
         assert len(fuzzer.corruption_strategies) == 4
 
 
@@ -43,6 +45,7 @@ class TestMutateStructure:
 
         mutated = fuzzer.mutate_structure(sample_dataset)
 
+        assert mutated is not None
         assert isinstance(mutated, Dataset)
 
 
@@ -61,8 +64,10 @@ class TestCorruptTagOrdering:
 
         mutated = fuzzer._corrupt_tag_ordering(ds)
 
+        assert mutated is not None
         assert isinstance(mutated, Dataset)
         assert len(list(mutated.keys())) == len(list(ds.keys()))
+        assert len(list(mutated.keys())) == 5
 
 
 class TestCorruptLengthFields:
@@ -83,6 +88,7 @@ class TestCorruptLengthFields:
         with patch("random.choice", side_effect=[list(ds.keys())[0], "overflow"]):
             mutated = fuzzer._corrupt_length_fields(ds)
 
+        assert mutated is not None
         assert isinstance(mutated, Dataset)
 
 
@@ -97,6 +103,7 @@ class TestInsertUnexpectedTags:
 
         mutated = fuzzer._insert_unexpected_tags(ds)
 
+        assert mutated is not None
         assert isinstance(mutated, Dataset)
 
 
@@ -112,6 +119,7 @@ class TestDuplicateTags:
 
         mutated = fuzzer._duplicate_tags(ds)
 
+        assert mutated is not None
         assert isinstance(mutated, Dataset)
 
     def test_duplicate_tags_empty_dataset(self):
@@ -121,6 +129,7 @@ class TestDuplicateTags:
 
         mutated = fuzzer._duplicate_tags(ds)
 
+        assert mutated is not None
         assert isinstance(mutated, Dataset)
 
 
@@ -144,6 +153,7 @@ class TestCorruptFileHeader:
             output = fuzzer.corrupt_file_header(str(test_file))
 
         assert output is not None
+        assert isinstance(output, str)
         assert Path(output).exists()
 
     def test_corrupt_file_header_dicm_prefix(self, tmp_path):
@@ -181,6 +191,8 @@ class TestCorruptFileHeader:
             output = fuzzer.corrupt_file_header(str(test_file))
 
         assert output is not None
+        assert isinstance(output, str)
+        assert Path(output).exists()
 
     def test_corrupt_file_header_truncate(self, tmp_path):
         """Test file truncation."""
@@ -238,6 +250,7 @@ class TestAdditionalCoverage:
 
         mutated = fuzzer._corrupt_tag_ordering(ds)
 
+        assert mutated is not None
         assert isinstance(mutated, Dataset)
 
     def test_corrupt_tag_ordering_with_file_meta(self):
@@ -291,6 +304,7 @@ class TestAdditionalCoverage:
 
         mutated = fuzzer._corrupt_length_fields(ds)
 
+        assert mutated is not None
         assert isinstance(mutated, Dataset)
 
 
@@ -310,6 +324,7 @@ class TestIntegrationScenarios:
         for _ in range(3):
             ds = fuzzer.mutate_structure(ds)
 
+        assert ds is not None
         assert isinstance(ds, Dataset)
 
     def test_all_corruption_strategies(self):

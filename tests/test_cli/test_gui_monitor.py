@@ -526,6 +526,8 @@ class TestGUIMonitorMonitorLoop:
             monitor._monitoring = True
             # Should return early without psutil
             monitor._monitor_loop(mock_process, None)
+            # Verify no responses were generated (early return)
+            assert len(monitor.get_responses()) == 0
         finally:
             gm.HAS_PSUTIL = original
 
@@ -571,15 +573,19 @@ class TestGUIMonitorMemoryChecks:
 
     @patch("dicom_fuzzer.core.gui_monitor.psutil")
     def test_check_memory_nosuchprocess(self, mock_psutil: MagicMock) -> None:
-        """Test memory check handles NoSuchProcess."""
+        """Test memory check handles NoSuchProcess gracefully."""
         monitor = GUIMonitor()
 
         mock_ps_process = MagicMock()
         mock_ps_process.memory_info.side_effect = mock_psutil.NoSuchProcess(123)
         mock_psutil.NoSuchProcess = Exception
 
-        # Should not raise
+        # Should not raise - exception is handled internally
         monitor._check_memory(mock_ps_process, None)
+        # Verify no crash-related responses (exception was caught gracefully)
+        assert all(
+            r.response_type != ResponseType.CRASH for r in monitor.get_responses()
+        )
 
 
 class TestGUIMonitorHangDetection:
@@ -626,34 +632,40 @@ class TestGUIMonitorDialogChecks:
         """Test dialog check returns early without pywinauto."""
         monitor = GUIMonitor()
 
-        # Should not raise
+        # Should not raise - returns early without pywinauto
         monitor._check_dialogs(12345, None)
+        # Verify no dialog responses generated (early return)
+        assert len(monitor.get_responses()) == 0
 
     @patch("dicom_fuzzer.core.gui_monitor.HAS_PYWINAUTO", True)
     @patch("dicom_fuzzer.core.gui_monitor.Application")
     def test_check_dialogs_element_not_found(self, mock_app_class: MagicMock) -> None:
-        """Test dialog check handles ElementNotFoundError."""
+        """Test dialog check handles ElementNotFoundError gracefully."""
         monitor = GUIMonitor()
 
         from dicom_fuzzer.core.gui_monitor import ElementNotFoundError
 
         mock_app_class.return_value.connect.side_effect = ElementNotFoundError()
 
-        # Should not raise
+        # Should not raise - exception is handled internally
         monitor._check_dialogs(12345, None)
+        # Verify no dialog responses (element not found is expected)
+        assert len(monitor.get_responses()) == 0
 
     @patch("dicom_fuzzer.core.gui_monitor.HAS_PYWINAUTO", True)
     @patch("dicom_fuzzer.core.gui_monitor.Application")
     def test_check_dialogs_generic_exception(self, mock_app_class: MagicMock) -> None:
-        """Test dialog check handles generic exceptions."""
+        """Test dialog check handles generic exceptions gracefully."""
         monitor = GUIMonitor()
 
         mock_app_class.return_value.connect.side_effect = RuntimeError(
             "Connection failed"
         )
 
-        # Should not raise
+        # Should not raise - exception is handled internally
         monitor._check_dialogs(12345, None)
+        # Verify no dialog responses (exception was caught)
+        assert len(monitor.get_responses()) == 0
 
 
 class TestGUIMonitorWindowTexts:

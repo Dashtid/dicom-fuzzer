@@ -14,6 +14,7 @@ import struct
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 
 class Severity(Enum):
@@ -34,7 +35,7 @@ class Finding:
     category: str
     description: str
     offset: int | None = None
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -352,91 +353,82 @@ class DicomSecurityScanner:
         return results
 
 
+def _result_to_dict(r: ScanResult) -> dict[str, Any]:
+    """Convert a ScanResult to a JSON-serializable dict."""
+    return {
+        "path": str(r.path),
+        "is_dicom": r.is_dicom,
+        "is_clean": r.is_clean,
+        "max_severity": r.max_severity.value if r.max_severity else None,
+        "findings": [
+            {
+                "severity": f.severity.value,
+                "category": f.category,
+                "description": f.description,
+                "offset": f.offset,
+                "details": f.details,
+            }
+            for f in r.findings
+        ],
+        "error": r.error,
+    }
+
+
+def _print_result_text(r: ScanResult, verbose: bool) -> None:
+    """Print a ScanResult in human-readable text format."""
+    if r.is_clean:
+        status = "[CLEAN]"
+    elif r.max_severity:
+        status = f"[{r.max_severity.value.upper()}]"
+    else:
+        status = "[UNKNOWN]"
+    print(f"{status} {r.path}")
+
+    if r.error:
+        print(f"  Error: {r.error}")
+        return
+
+    for f in r.findings:
+        if not verbose and f.severity == Severity.INFO:
+            continue
+        print(f"  [{f.severity.value.upper()}] {f.category}: {f.description}")
+        if f.offset is not None:
+            print(f"    Offset: {f.offset}")
+        if f.details:
+            for k, v in f.details.items():
+                print(f"    {k}: {v}")
+
+
 def main() -> None:
     """CLI entry point."""
     import argparse
     import json
 
     parser = argparse.ArgumentParser(description="Scan DICOM files for security issues")
+    parser.add_argument("path", help="File or directory to scan")
     parser.add_argument(
-        "path",
-        help="File or directory to scan",
+        "-r", "--recursive", action="store_true", help="Scan recursively"
     )
+    parser.add_argument("-j", "--json", action="store_true", help="Output as JSON")
     parser.add_argument(
-        "-r",
-        "--recursive",
-        action="store_true",
-        help="Scan directories recursively",
-    )
-    parser.add_argument(
-        "-j",
-        "--json",
-        action="store_true",
-        help="Output results as JSON",
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Show all findings including INFO level",
+        "-v", "--verbose", action="store_true", help="Include INFO level"
     )
 
     args = parser.parse_args()
-
     scanner = DicomSecurityScanner()
     path = Path(args.path)
 
-    if path.is_file():
-        results = [scanner.scan_file(path)]
-    else:
-        results = scanner.scan_directory(path, recursive=args.recursive)
+    results = (
+        [scanner.scan_file(path)]
+        if path.is_file()
+        else scanner.scan_directory(path, recursive=args.recursive)
+    )
 
     if args.json:
-        output = []
-        for r in results:
-            output.append(
-                {
-                    "path": str(r.path),
-                    "is_dicom": r.is_dicom,
-                    "is_clean": r.is_clean,
-                    "max_severity": r.max_severity.value if r.max_severity else None,
-                    "findings": [
-                        {
-                            "severity": f.severity.value,
-                            "category": f.category,
-                            "description": f.description,
-                            "offset": f.offset,
-                            "details": f.details,
-                        }
-                        for f in r.findings
-                    ],
-                    "error": r.error,
-                }
-            )
-        print(json.dumps(output, indent=2))
+        print(json.dumps([_result_to_dict(r) for r in results], indent=2))
     else:
         for r in results:
-            if r.is_clean:
-                status = "[CLEAN]"
-            elif r.max_severity:
-                status = f"[{r.max_severity.value.upper()}]"
-            else:
-                status = "[UNKNOWN]"
-            print(f"{status} {r.path}")
-
-            if r.error:
-                print(f"  Error: {r.error}")
-                continue
-
-            for f in r.findings:
-                if not args.verbose and f.severity == Severity.INFO:
-                    continue
-                print(f"  [{f.severity.value.upper()}] {f.category}: {f.description}")
-                if f.offset is not None:
-                    print(f"    Offset: {f.offset}")
-                if f.details:
-                    for k, v in f.details.items():
-                        print(f"    {k}: {v}")
+            _print_result_text(r, args.verbose)
 
 
 if __name__ == "__main__":

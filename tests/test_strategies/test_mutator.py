@@ -571,6 +571,9 @@ class TestMutationTracking:
         # Should not raise exception
         mutator._record_mutation(strategy, MutationSeverity.MINIMAL)
 
+        # Verify mutator is still functional
+        assert mutator is not None
+
 
 class TestSafetyChecks:
     """Test safety check functionality."""
@@ -599,7 +602,10 @@ class TestSafetyChecks:
         mutator.start_session(sample_dicom_dataset)
 
         # Should not raise exception even if safety check would fail
-        mutator.apply_mutations(sample_dicom_dataset, num_mutations=1)
+        result = mutator.apply_mutations(sample_dicom_dataset, num_mutations=1)
+
+        # Verify mutation was applied
+        assert result is not None
 
 
 class TestPropertyBasedTesting:

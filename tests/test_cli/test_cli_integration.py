@@ -61,8 +61,9 @@ class TestArgumentParsing:
                 with patch("dicom_fuzzer.cli.main.Path.mkdir"):
                     try:
                         main()
-                    except SystemExit:
-                        pass  # May exit after completion
+                    except SystemExit as e:
+                        # Verify successful exit (0) or normal completion
+                        assert e.code is None or e.code == 0
 
     def test_parse_strategies(self):
         """Test strategy string parsing."""

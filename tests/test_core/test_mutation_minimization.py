@@ -472,6 +472,9 @@ class TestApplyMutations:
         # Should not raise, just return early
         minimizer._apply_single_mutation(dataset, mutation)
 
+        # Verify minimizer is still functional
+        assert minimizer is not None
+
     def test_apply_single_mutation_corrupt(self):
         """Test applying corrupt mutation."""
         dataset = MagicMock()

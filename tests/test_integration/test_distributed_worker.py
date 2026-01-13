@@ -121,6 +121,9 @@ class TestFuzzingWorker:
         worker._running = True  # Simulate running
         worker.start(blocking=False)  # Should return early
 
+        # Verify worker state unchanged
+        assert worker._running is True
+
     def test_get_status(self, temp_working_dir: str) -> None:
         """Test getting worker status."""
         config = WorkerConfig(

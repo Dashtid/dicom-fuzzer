@@ -296,8 +296,11 @@ class TestMutationApplication:
         mutator.register_strategy(strategy)
 
         # Should handle gracefully or raise error
-        _ = mutator.apply_mutations(basic_dataset, num_mutations=1)
+        result = mutator.apply_mutations(basic_dataset, num_mutations=1)
         # Implementation may vary - just ensure it doesn't crash
+
+        # Verify result is valid
+        assert result is not None
 
     def test_apply_mutations_no_strategies_registered(self, basic_dataset):
         """Test applying mutations when no strategies registered."""

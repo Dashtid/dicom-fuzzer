@@ -112,6 +112,103 @@ class GUITargetRunner:
             f"startup_delay={startup_delay}s"
         )
 
+    def _monitor_process(
+        self, process: subprocess.Popen[bytes], test_file_path: Path, start_time: float
+    ) -> tuple[bool, bool, float, int | None]:
+        """Monitor process until timeout, crash, or normal exit.
+
+        Returns:
+            Tuple of (crashed, timed_out, peak_memory, exit_code)
+
+        """
+        poll_interval = 0.1
+        peak_memory = 0.0
+        crashed = False
+        timed_out = False
+        exit_code = None
+
+        while True:
+            elapsed = time.time() - start_time
+
+            # Check if process exited
+            exit_code = process.poll()
+            if exit_code is not None:
+                if exit_code != 0:
+                    crashed = True
+                    self.crashes += 1
+                    logger.warning(
+                        f"GUI app crashed: {test_file_path.name} "
+                        f"(exit_code={exit_code})"
+                    )
+                break
+
+            # Check timeout
+            if elapsed >= self.timeout:
+                timed_out = True
+                self.timeouts += 1
+                break
+
+            # Monitor memory
+            mem_result = self._check_memory(process)
+            if mem_result is None:
+                crashed = True
+                self.crashes += 1
+                break
+
+            mem_mb, exceeded = mem_result
+            peak_memory = max(peak_memory, mem_mb)
+            if exceeded:
+                crashed = True
+                break
+
+            time.sleep(poll_interval)
+
+        return crashed, timed_out, peak_memory, exit_code
+
+    def _check_memory(
+        self, process: subprocess.Popen[bytes]
+    ) -> tuple[float, bool] | None:
+        """Check process memory usage.
+
+        Returns:
+            Tuple of (memory_mb, exceeded_limit) or None if process not found.
+
+        """
+        try:
+            ps_process = psutil.Process(process.pid)
+            mem_info = ps_process.memory_info()
+            mem_mb = mem_info.rss / (1024 * 1024)
+
+            if self.memory_limit_mb and mem_mb > self.memory_limit_mb:
+                logger.warning(
+                    f"Memory limit exceeded: {mem_mb:.1f}MB > {self.memory_limit_mb}MB"
+                )
+                self.memory_exceeded += 1
+                return mem_mb, True
+
+            return mem_mb, False
+        except psutil.NoSuchProcess:
+            return None
+
+    def _capture_output(self, process: subprocess.Popen[bytes]) -> tuple[str, str]:
+        """Capture process stdout and stderr."""
+        try:
+            raw_stdout, raw_stderr = process.communicate(timeout=1)
+            stdout = (
+                raw_stdout.decode("utf-8", errors="replace")
+                if isinstance(raw_stdout, bytes)
+                else ""
+            )
+            stderr = (
+                raw_stderr.decode("utf-8", errors="replace")
+                if isinstance(raw_stderr, bytes)
+                else ""
+            )
+            return stdout, stderr
+        except Exception as comm_err:
+            logger.debug(f"Failed to capture process output: {comm_err}")
+            return "", ""
+
     def execute_test(self, test_file: Path | str) -> GUIExecutionResult:
         """Execute GUI application with a test file.
 
@@ -127,16 +224,15 @@ class GUITargetRunner:
 
         self.total_tests += 1
         start_time = time.time()
-        peak_memory = 0.0
         crashed = False
         timed_out = False
+        peak_memory = 0.0
         exit_code = None
         stdout_data = ""
         stderr_data = ""
 
         process = None
         try:
-            # Launch GUI application with test file
             process = subprocess.Popen(
                 [str(self.target_executable), str(test_file_path)],
                 stdout=subprocess.PIPE,
@@ -148,57 +244,14 @@ class GUITargetRunner:
                 ),
             )
 
-            # Wait for startup delay if specified
             if self.startup_delay > 0:
                 logger.debug(f"Waiting {self.startup_delay}s for app to start...")
                 time.sleep(self.startup_delay)
                 start_time = time.time()
 
-            # Monitor process until timeout or crash
-            poll_interval = 0.1
-            while True:
-                elapsed = time.time() - start_time
-
-                # Check if process exited (crash or normal exit)
-                exit_code = process.poll()
-                if exit_code is not None:
-                    if exit_code != 0:
-                        crashed = True
-                        self.crashes += 1
-                        logger.warning(
-                            f"GUI app crashed: {test_file_path.name} "
-                            f"(exit_code={exit_code})"
-                        )
-                    break
-
-                # Check timeout
-                if elapsed >= self.timeout:
-                    timed_out = True
-                    self.timeouts += 1
-                    break
-
-                # Monitor memory
-                try:
-                    ps_process = psutil.Process(process.pid)
-                    mem_info = ps_process.memory_info()
-                    mem_mb = mem_info.rss / (1024 * 1024)
-                    peak_memory = max(peak_memory, mem_mb)
-
-                    # Check memory limit
-                    if self.memory_limit_mb and mem_mb > self.memory_limit_mb:
-                        logger.warning(
-                            f"Memory limit exceeded: {mem_mb:.1f}MB > "
-                            f"{self.memory_limit_mb}MB"
-                        )
-                        self.memory_exceeded += 1
-                        crashed = True
-                        break
-                except psutil.NoSuchProcess:
-                    crashed = True
-                    self.crashes += 1
-                    break
-
-                time.sleep(poll_interval)
+            crashed, timed_out, peak_memory, exit_code = self._monitor_process(
+                process, test_file_path, start_time
+            )
 
         except Exception as e:
             logger.error(f"Error testing {test_file_path.name}: {e}")
@@ -207,29 +260,12 @@ class GUITargetRunner:
 
         finally:
             execution_time = time.time() - start_time
-
-            # Kill process if still running
             if process and process.poll() is None:
                 self._kill_process_tree(process)
-
-            # Capture any output
             if process:
-                try:
-                    raw_stdout, raw_stderr = process.communicate(timeout=1)
-                    if isinstance(raw_stdout, bytes):
-                        stdout_data = raw_stdout.decode("utf-8", errors="replace")
-                    if isinstance(raw_stderr, bytes):
-                        stderr_data = raw_stderr.decode("utf-8", errors="replace")
-                except Exception as comm_err:
-                    logger.debug(f"Failed to capture process output: {comm_err}")
+                stdout_data, stderr_data = self._capture_output(process)
 
-        # Determine status
-        if crashed:
-            status = ExecutionStatus.CRASH
-        elif timed_out:
-            status = ExecutionStatus.SUCCESS  # Timeout is SUCCESS for GUI apps
-        else:
-            status = ExecutionStatus.SUCCESS
+        status = ExecutionStatus.CRASH if crashed else ExecutionStatus.SUCCESS
 
         return GUIExecutionResult(
             test_file=test_file_path,
@@ -243,7 +279,7 @@ class GUITargetRunner:
             stderr=stderr_data,
         )
 
-    def _kill_process_tree(self, process: subprocess.Popen) -> None:
+    def _kill_process_tree(self, process: subprocess.Popen[bytes]) -> None:
         """Kill process and all its children."""
         try:
             parent = psutil.Process(process.pid)

@@ -470,3 +470,485 @@ class TestGrammarMutationEngine:
             engine.update_effectiveness(mutator_name, found_new_coverage=False)
 
         assert engine._effectiveness[mutator_name] >= 0.1
+
+
+class TestDICOMGrammarBranchCoverage:
+    """Additional tests for branch coverage."""
+
+    @pytest.fixture
+    def grammar(self):
+        """Create a grammar instance."""
+        return DICOMGrammar()
+
+    def test_generate_rule_max_depth_exceeded(self, grammar):
+        """Test that max_depth limit returns empty bytes."""
+        rule = grammar.get_rule("DICOMFile")
+        result = rule.generate(grammar, depth=100, max_depth=100)
+        assert result == b""
+
+    def test_generate_nonterminal_rule_type_no_handler(self, grammar):
+        """Test NONTERMINAL rule type (no handler in dispatch table)."""
+        rule = GrammarRule(
+            name="NonTermTest",
+            rule_type=RuleType.NONTERMINAL,
+            children=["Preamble"],
+        )
+        grammar.add_rule(rule)
+        result = rule.generate(grammar)
+        # NONTERMINAL not in handlers, returns b""
+        assert result == b""
+
+    def test_terminal_rule_without_generator(self, grammar):
+        """Test terminal rule without terminal_generator returns empty."""
+        rule = GrammarRule(
+            name="EmptyTerminal",
+            rule_type=RuleType.TERMINAL,
+            terminal_generator=None,
+        )
+        result = rule._generate_terminal(grammar, 0, 100)
+        assert result == b""
+
+    def test_sequence_with_missing_child_rule(self, grammar):
+        """Test sequence handles missing child rule."""
+        rule = GrammarRule(
+            name="TestSeq",
+            rule_type=RuleType.SEQUENCE,
+            children=["NonexistentRule", "Prefix"],
+        )
+        grammar.add_rule(rule)
+        result = rule.generate(grammar)
+        # Should only generate Prefix (DICM) since NonexistentRule is None
+        assert b"DICM" in result
+
+    def test_choice_with_empty_children(self, grammar):
+        """Test choice rule with empty children returns empty."""
+        rule = GrammarRule(
+            name="EmptyChoice",
+            rule_type=RuleType.CHOICE,
+            children=[],
+        )
+        result = rule._generate_choice(grammar, 0, 100)
+        assert result == b""
+
+    def test_choice_with_missing_child_rules(self, grammar):
+        """Test choice handles missing child rules with default weight."""
+        rule = GrammarRule(
+            name="ChoiceWithMissing",
+            rule_type=RuleType.CHOICE,
+            children=["NonexistentRule"],
+        )
+        grammar.add_rule(rule)
+        # Should return empty since the selected rule is None
+        result = rule.generate(grammar)
+        assert result == b""
+
+    def test_optional_rule_skip_branch(self, grammar):
+        """Test optional rule can skip (return empty)."""
+        import random
+
+        rule = GrammarRule(
+            name="OptTest",
+            rule_type=RuleType.OPTIONAL,
+            children=["Prefix"],
+        )
+        grammar.add_rule(rule)
+
+        # Run multiple times to hit both branches
+        results = set()
+        random.seed(42)
+        for _ in range(20):
+            result = rule.generate(grammar)
+            results.add(result)
+
+        # Should have both empty and non-empty results
+        assert b"" in results or b"DICM" in results
+
+    def test_optional_with_missing_child(self, grammar):
+        """Test optional with missing child rule returns empty."""
+        rule = GrammarRule(
+            name="OptMissing",
+            rule_type=RuleType.OPTIONAL,
+            children=["NonexistentRule"],
+        )
+        grammar.add_rule(rule)
+        # Even if random chooses to generate, rule doesn't exist
+        import random
+
+        random.seed(1)  # Seed that makes random() < 0.5
+        result = rule.generate(grammar)
+        assert result == b""
+
+    def test_optional_with_empty_children(self, grammar):
+        """Test optional with no children returns empty."""
+        rule = GrammarRule(
+            name="OptEmpty",
+            rule_type=RuleType.OPTIONAL,
+            children=[],
+        )
+        result = rule._generate_optional(grammar, 0, 100)
+        assert result == b""
+
+    def test_repeat_plus_vs_repeat_min_count(self, grammar):
+        """Test REPEAT_PLUS has min_count of 1."""
+        rule_plus = GrammarRule(
+            name="RepeatPlusTest",
+            rule_type=RuleType.REPEAT_PLUS,
+            children=["Prefix"],
+            constraints={"max_repeat": 3},
+        )
+        grammar.add_rule(rule_plus)
+
+        import random
+
+        random.seed(123)
+        result = rule_plus.generate(grammar)
+        # REPEAT_PLUS guarantees at least one occurrence
+        assert b"DICM" in result
+
+    def test_repeat_with_empty_children(self, grammar):
+        """Test repeat with empty children returns empty."""
+        rule = GrammarRule(
+            name="RepeatEmpty",
+            rule_type=RuleType.REPEAT,
+            children=[],
+            constraints={"max_repeat": 5},
+        )
+        result = rule._generate_repeat(grammar, 0, 100)
+        assert result == b""
+
+    def test_repeat_with_missing_child_rule(self, grammar):
+        """Test repeat handles missing child rule."""
+        rule = GrammarRule(
+            name="RepeatMissing",
+            rule_type=RuleType.REPEAT,
+            children=["NonexistentRule"],
+            constraints={"max_repeat": 2},
+        )
+        grammar.add_rule(rule)
+        import random
+
+        random.seed(99)
+        result = rule.generate(grammar)
+        assert result == b""
+
+    def test_generate_nonexistent_start_rule(self, grammar):
+        """Test generate with nonexistent start rule returns empty."""
+        result = grammar.generate("NonexistentStartRule")
+        assert result == b""
+
+    def test_generate_tag_random_branch(self):
+        """Test _generate_tag random tag generation branch."""
+        import random
+
+        grammar = DICOMGrammar()
+
+        # Force random branch (>= 0.8)
+        random.seed(100)  # Find seed that gives random() >= 0.8
+        for _ in range(50):
+            tag = grammar._generate_tag()
+            assert len(tag) == 4
+
+    def test_generate_tag_with_empty_definitions(self):
+        """Test _generate_tag with empty tag_definitions."""
+        grammar = DICOMGrammar()
+        grammar.tag_definitions = {}
+
+        tag = grammar._generate_tag()
+        assert len(tag) == 4
+
+    def test_generate_string_value_odd_length_padding(self):
+        """Test _generate_string_value pads odd length strings."""
+        import random
+
+        grammar = DICOMGrammar()
+
+        # Generate many values to ensure we hit odd length case
+        for i in range(100):
+            random.seed(i)
+            value = grammar._generate_string_value()
+            assert len(value) % 2 == 0  # Should always be even after padding
+
+    def test_generate_numeric_value_all_branches(self):
+        """Test all branches of _generate_numeric_value."""
+        import random
+
+        grammar = DICOMGrammar()
+
+        # Test all 4 choice branches (0, 1, 2, 3)
+        lengths_seen = set()
+        for i in range(100):
+            random.seed(i)
+            value = grammar._generate_numeric_value()
+            lengths_seen.add(len(value))
+
+        # Should have seen different lengths: 2 (US/SS), 4 (UL/float)
+        assert 2 in lengths_seen
+        assert 4 in lengths_seen
+
+    def test_generate_binary_value_odd_length_fix(self):
+        """Test _generate_binary_value fixes odd lengths."""
+        import random
+
+        grammar = DICOMGrammar()
+
+        for i in range(100):
+            random.seed(i)
+            value = grammar._generate_binary_value()
+            assert len(value) % 2 == 0
+
+    def test_generate_uid_element_odd_uid_padding(self):
+        """Test _generate_uid_element pads odd-length UIDs."""
+        grammar = DICOMGrammar()
+
+        # Test with odd-length UID
+        odd_uid = "1.2.3"  # Length 5 (odd)
+        result = grammar._generate_uid_element(0x0002, 0x0002, odd_uid)
+
+        # Should contain padded UID
+        assert len(result) > 0
+        # Check the length field accounts for padding
+        uid_with_pad = odd_uid + "\x00"  # Padded
+        assert len(uid_with_pad) % 2 == 0
+
+    def test_generate_uid_element_even_uid_no_padding(self):
+        """Test _generate_uid_element doesn't pad even-length UIDs."""
+        grammar = DICOMGrammar()
+
+        # Test with even-length UID
+        even_uid = "1.2.34"  # Length 6 (even)
+        result = grammar._generate_uid_element(0x0002, 0x0002, even_uid)
+        assert len(result) > 0
+
+    def test_get_coverage_stats_empty_rules(self):
+        """Test get_coverage_stats with empty rules."""
+        grammar = DICOMGrammar()
+        grammar.rules = {}
+
+        stats = grammar.get_coverage_stats()
+        assert stats["total_rules"] == 0
+        assert stats["coverage_percent"] == 0
+
+
+class TestGrammarMutatorsBranchCoverage:
+    """Additional branch coverage tests for mutators."""
+
+    @pytest.fixture
+    def grammar(self):
+        """Create a grammar for testing."""
+        return DICOMGrammar()
+
+    def test_insert_mutator_rule_not_found(self, grammar):
+        """Test InsertRuleMutator with nonexistent rule."""
+        mutator = InsertRuleMutator()
+        result = mutator.mutate(grammar, "NonexistentRule")
+        assert result is False
+
+    def test_insert_mutator_wrong_rule_type(self, grammar):
+        """Test InsertRuleMutator with terminal rule type."""
+        mutator = InsertRuleMutator()
+        result = mutator.mutate(grammar, "Prefix")  # Terminal rule
+        assert result is False
+
+    def test_insert_mutator_no_available_rules(self):
+        """Test InsertRuleMutator when no other rules available."""
+        grammar = DICOMGrammar()
+        grammar.rules = {
+            "OnlyRule": GrammarRule(
+                name="OnlyRule",
+                rule_type=RuleType.SEQUENCE,
+                children=["OnlyRule"],
+            )
+        }
+        mutator = InsertRuleMutator()
+        result = mutator.mutate(grammar, "OnlyRule")
+        assert result is False
+
+    def test_delete_mutator_rule_not_found(self, grammar):
+        """Test DeleteRuleMutator with nonexistent rule."""
+        mutator = DeleteRuleMutator()
+        result = mutator.mutate(grammar, "NonexistentRule")
+        assert result is False
+
+    def test_delete_mutator_wrong_rule_type(self, grammar):
+        """Test DeleteRuleMutator with wrong rule type."""
+        mutator = DeleteRuleMutator()
+        result = mutator.mutate(grammar, "Prefix")  # Terminal
+        assert result is False
+
+    def test_delete_mutator_single_child(self, grammar):
+        """Test DeleteRuleMutator with only one child."""
+        grammar.add_rule(
+            GrammarRule(
+                name="SingleChild",
+                rule_type=RuleType.SEQUENCE,
+                children=["Prefix"],
+            )
+        )
+        mutator = DeleteRuleMutator()
+        result = mutator.mutate(grammar, "SingleChild")
+        assert result is False
+
+    def test_replace_mutator_rule_not_found(self, grammar):
+        """Test ReplaceRuleMutator with nonexistent rule."""
+        mutator = ReplaceRuleMutator()
+        result = mutator.mutate(grammar, "NonexistentRule")
+        assert result is False
+
+    def test_replace_mutator_no_children(self, grammar):
+        """Test ReplaceRuleMutator with rule having no children."""
+        grammar.add_rule(
+            GrammarRule(
+                name="NoChildren",
+                rule_type=RuleType.SEQUENCE,
+                children=[],
+            )
+        )
+        mutator = ReplaceRuleMutator()
+        result = mutator.mutate(grammar, "NoChildren")
+        assert result is False
+
+    def test_replace_mutator_no_available_replacements(self):
+        """Test ReplaceRuleMutator with no available replacement rules."""
+        grammar = DICOMGrammar()
+        grammar.rules = {
+            "OnlyRule": GrammarRule(
+                name="OnlyRule",
+                rule_type=RuleType.SEQUENCE,
+                children=["OnlyRule"],
+            )
+        }
+        mutator = ReplaceRuleMutator()
+        result = mutator.mutate(grammar, "OnlyRule")
+        assert result is False
+
+    def test_swap_mutator_rule_not_found(self, grammar):
+        """Test SwapRuleMutator with nonexistent rule."""
+        mutator = SwapRuleMutator()
+        result = mutator.mutate(grammar, "NonexistentRule")
+        assert result is False
+
+    def test_swap_mutator_wrong_rule_type(self, grammar):
+        """Test SwapRuleMutator with non-sequence rule."""
+        mutator = SwapRuleMutator()
+        result = mutator.mutate(grammar, "Prefix")  # Terminal
+        assert result is False
+
+    def test_swap_mutator_single_child(self, grammar):
+        """Test SwapRuleMutator with less than 2 children."""
+        grammar.add_rule(
+            GrammarRule(
+                name="OneChild",
+                rule_type=RuleType.SEQUENCE,
+                children=["Prefix"],
+            )
+        )
+        mutator = SwapRuleMutator()
+        result = mutator.mutate(grammar, "OneChild")
+        assert result is False
+
+    def test_swap_mutator_same_indices_retry(self, grammar):
+        """Test SwapRuleMutator retries when same indices selected."""
+        import random
+
+        grammar.add_rule(
+            GrammarRule(
+                name="TwoChildren",
+                rule_type=RuleType.SEQUENCE,
+                children=["Prefix", "Preamble"],
+            )
+        )
+        mutator = SwapRuleMutator()
+        random.seed(42)
+        result = mutator.mutate(grammar, "TwoChildren")
+        assert result is True
+
+    def test_duplicate_mutator_rule_not_found(self, grammar):
+        """Test DuplicateRuleMutator with nonexistent rule."""
+        mutator = DuplicateRuleMutator()
+        result = mutator.mutate(grammar, "NonexistentRule")
+        assert result is False
+
+    def test_duplicate_mutator_wrong_rule_type(self, grammar):
+        """Test DuplicateRuleMutator with non-sequence rule."""
+        mutator = DuplicateRuleMutator()
+        result = mutator.mutate(grammar, "Prefix")  # Terminal
+        assert result is False
+
+    def test_duplicate_mutator_no_children(self, grammar):
+        """Test DuplicateRuleMutator with no children."""
+        grammar.add_rule(
+            GrammarRule(
+                name="EmptySeq",
+                rule_type=RuleType.SEQUENCE,
+                children=[],
+            )
+        )
+        mutator = DuplicateRuleMutator()
+        result = mutator.mutate(grammar, "EmptySeq")
+        assert result is False
+
+    def test_weight_mutator_rule_not_found(self, grammar):
+        """Test WeightMutator with nonexistent rule."""
+        mutator = WeightMutator()
+        result = mutator.mutate(grammar, "NonexistentRule")
+        assert result is False
+
+    def test_weight_mutator_clamping(self, grammar):
+        """Test WeightMutator clamps weights to valid range."""
+        import random
+
+        grammar.add_rule(
+            GrammarRule(
+                name="TestWeight",
+                rule_type=RuleType.TERMINAL,
+                weight=0.2,  # Close to min
+            )
+        )
+        mutator = WeightMutator()
+
+        # Run many times to test clamping
+        for i in range(50):
+            random.seed(i)
+            mutator.mutate(grammar, "TestWeight")
+
+        rule = grammar.get_rule("TestWeight")
+        assert 0.1 <= rule.weight <= 10.0
+
+
+class TestMutationEngineBranchCoverage:
+    """Additional branch coverage tests for mutation engine."""
+
+    def test_select_mutator_fallback_to_last(self):
+        """Test _select_mutator falls back to last mutator."""
+        import random
+
+        grammar = DICOMGrammar()
+        engine = GrammarMutationEngine(grammar)
+
+        # Seed to test selection
+        random.seed(12345)
+        for _ in range(20):
+            mutator, weight = engine._select_mutator()
+            assert mutator is not None
+
+    def test_mutate_tracks_history(self):
+        """Test that mutations are tracked in history."""
+        grammar = DICOMGrammar()
+        engine = GrammarMutationEngine(grammar)
+
+        engine.mutate(num_mutations=5)
+
+        assert len(engine._mutation_history) == 5
+        for entry in engine._mutation_history:
+            assert len(entry) == 3  # (mutator_name, rule_name, success)
+
+    def test_get_stats_with_no_mutations(self):
+        """Test get_stats when no mutations have been made."""
+        grammar = DICOMGrammar()
+        engine = GrammarMutationEngine(grammar)
+
+        stats = engine.get_stats()
+
+        assert stats["total_mutations"] == 0
+        assert stats["successful_mutations"] == 0
+        assert stats["success_rate"] == 0

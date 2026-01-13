@@ -10,6 +10,7 @@ import argparse
 import sys
 import traceback
 from pathlib import Path
+from typing import Any
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -120,6 +121,24 @@ def run_list_strategies() -> int:
     return 0
 
 
+def _resolve_study_strategies(
+    strategy_name: str, strategy_map: dict[str, Any]
+) -> list[Any]:
+    """Resolve strategy name to list of strategies."""
+    if strategy_name == "all":
+        return list(strategy_map.values())
+    return [strategy_map[strategy_name]]
+
+
+def _save_mutated_study(output_path: Path, fuzzed_study: list[Any]) -> None:
+    """Save mutated study datasets to output directory."""
+    for idx, datasets in enumerate(fuzzed_study):
+        series_dir = output_path / f"series_{idx:03d}"
+        series_dir.mkdir(parents=True, exist_ok=True)
+        for ds_idx, ds in enumerate(datasets):
+            ds.save_as(str(series_dir / f"slice_{ds_idx:04d}.dcm"))
+
+
 def run_study_mutation(args: argparse.Namespace) -> int:
     """Execute study mutation."""
     print("\n" + "=" * 70)
@@ -150,10 +169,8 @@ def run_study_mutation(args: argparse.Namespace) -> int:
         print("[i] Loading study...")
         mutator = StudyMutator(severity=args.severity)
         study = mutator.load_study(study_path)
-
         print(f"[+] Loaded study with {len(study.series_list)} series")
 
-        # Map CLI strategy to enum
         strategy_map = {
             "cross-series": StudyMutationStrategy.CROSS_SERIES_REFERENCE,
             "frame-of-reference": StudyMutationStrategy.FRAME_OF_REFERENCE,
@@ -161,14 +178,10 @@ def run_study_mutation(args: argparse.Namespace) -> int:
             "study-metadata": StudyMutationStrategy.STUDY_METADATA,
             "mixed-modality": StudyMutationStrategy.MIXED_MODALITY_STUDY,
         }
-
-        if args.strategy == "all":
-            strategies = list(strategy_map.values())
-        else:
-            strategies = [strategy_map[args.strategy]]
+        strategies = _resolve_study_strategies(args.strategy, strategy_map)
 
         total_records = []
-        fuzzed_study = None  # Initialize to avoid uninitialized variable warning
+        fuzzed_study = None
         for strategy in strategies:
             print(f"[i] Applying {strategy.value}...")
             fuzzed_study, records = mutator.mutate_study(
@@ -182,15 +195,9 @@ def run_study_mutation(args: argparse.Namespace) -> int:
                     )
 
         print(f"\n[+] Applied {len(total_records)} mutations")
-
         print("[i] Saving mutated study...")
-        # Save each series in the mutated study
         assert fuzzed_study is not None, "No strategies applied"
-        for idx, datasets in enumerate(fuzzed_study):
-            series_dir = output_path / f"series_{idx:03d}"
-            series_dir.mkdir(parents=True, exist_ok=True)
-            for ds_idx, ds in enumerate(datasets):
-                ds.save_as(str(series_dir / f"slice_{ds_idx:04d}.dcm"))
+        _save_mutated_study(output_path, fuzzed_study)
 
         print(f"\n[+] Mutated study saved to: {output_path}")
         return 0

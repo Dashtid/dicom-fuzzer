@@ -175,7 +175,7 @@ Examples:
     return parser
 
 
-def create_status_table(stats: dict) -> Table:
+def create_status_table(stats: dict[str, Any]) -> Table:
     """Create a status table for live display."""
     table = Table(title="Fuzzing Status", expand=True)
 
@@ -196,7 +196,7 @@ def create_status_table(stats: dict) -> Table:
     return table
 
 
-def create_mutation_table(mutation_stats: dict) -> Table:
+def create_mutation_table(mutation_stats: dict[str, Any]) -> Table:
     """Create mutation statistics table."""
     table = Table(title="Mutation Statistics", expand=True)
 

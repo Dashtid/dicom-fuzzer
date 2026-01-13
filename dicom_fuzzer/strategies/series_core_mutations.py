@@ -34,6 +34,156 @@ class CoreMutationsMixin:
 
     severity: str  # Type hint for mixin
 
+    def _corrupt_invalid_series_uid(
+        self, ds: Dataset, slice_idx: int
+    ) -> SeriesMutationRecord:
+        """Corrupt with invalid series UID."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        original = ds.SeriesInstanceUID if hasattr(ds, "SeriesInstanceUID") else None
+        ds.SeriesInstanceUID = generate_uid() + ".999.FUZZED"
+        return SeriesMutationRecord(
+            strategy="metadata_corruption",
+            slice_index=slice_idx,
+            tag="SeriesInstanceUID",
+            original_value=original,
+            mutated_value=ds.SeriesInstanceUID,
+            severity=self.severity,
+            details={"corruption_type": "invalid_series_uid"},
+        )
+
+    def _corrupt_invalid_study_uid(
+        self, ds: Dataset, slice_idx: int
+    ) -> SeriesMutationRecord:
+        """Corrupt with invalid study UID."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        original = ds.StudyInstanceUID if hasattr(ds, "StudyInstanceUID") else None
+        ds.StudyInstanceUID = "!@#$%INVALID_UID^&*()"
+        return SeriesMutationRecord(
+            strategy="metadata_corruption",
+            slice_index=slice_idx,
+            tag="StudyInstanceUID",
+            original_value=original,
+            mutated_value=ds.StudyInstanceUID,
+            severity=self.severity,
+            details={"corruption_type": "invalid_study_uid"},
+        )
+
+    def _corrupt_missing_modality(
+        self, ds: Dataset, slice_idx: int
+    ) -> SeriesMutationRecord:
+        """Delete modality tag."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        original = ds.Modality if hasattr(ds, "Modality") else None
+        if hasattr(ds, "Modality"):
+            del ds.Modality
+        return SeriesMutationRecord(
+            strategy="metadata_corruption",
+            slice_index=slice_idx,
+            tag="Modality",
+            original_value=original,
+            mutated_value="<deleted>",
+            severity=self.severity,
+            details={"corruption_type": "missing_modality"},
+        )
+
+    def _corrupt_empty_series_uid(
+        self, ds: Dataset, slice_idx: int
+    ) -> SeriesMutationRecord:
+        """Set empty series UID."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        original = ds.SeriesInstanceUID if hasattr(ds, "SeriesInstanceUID") else None
+        ds.SeriesInstanceUID = ""
+        return SeriesMutationRecord(
+            strategy="metadata_corruption",
+            slice_index=slice_idx,
+            tag="SeriesInstanceUID",
+            original_value=original,
+            mutated_value="",
+            severity=self.severity,
+            details={"corruption_type": "empty_series_uid"},
+        )
+
+    def _corrupt_extreme_uid_length(
+        self, ds: Dataset, slice_idx: int
+    ) -> SeriesMutationRecord:
+        """Set extremely long UID."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        original = ds.SeriesInstanceUID if hasattr(ds, "SeriesInstanceUID") else None
+        ds.SeriesInstanceUID = "1.2." + ".".join(["999"] * 30)
+        return SeriesMutationRecord(
+            strategy="metadata_corruption",
+            slice_index=slice_idx,
+            tag="SeriesInstanceUID",
+            original_value=original,
+            mutated_value=ds.SeriesInstanceUID,
+            severity=self.severity,
+            details={
+                "corruption_type": "extreme_uid_length",
+                "length": len(ds.SeriesInstanceUID),
+            },
+        )
+
+    def _corrupt_invalid_uid_chars(
+        self, ds: Dataset, slice_idx: int
+    ) -> SeriesMutationRecord:
+        """Set UID with invalid characters."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        original = ds.SeriesInstanceUID if hasattr(ds, "SeriesInstanceUID") else None
+        ds.SeriesInstanceUID = "1.2.840.ABC.INVALID"
+        return SeriesMutationRecord(
+            strategy="metadata_corruption",
+            slice_index=slice_idx,
+            tag="SeriesInstanceUID",
+            original_value=original,
+            mutated_value=ds.SeriesInstanceUID,
+            severity=self.severity,
+            details={"corruption_type": "uid_with_invalid_chars"},
+        )
+
+    def _corrupt_type_confusion_modality(
+        self, ds: Dataset, slice_idx: int
+    ) -> SeriesMutationRecord:
+        """Set invalid modality type."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        original = ds.Modality if hasattr(ds, "Modality") else None
+        invalid_modalities = [
+            "999",
+            "",
+            "XXXXXXXXXXXXXXXXXXXX",
+            "CT\\MR",
+            "null",
+            "\x00\x00",
+            "A" * 100,
+        ]
+        ds.Modality = random.choice(invalid_modalities)
+        return SeriesMutationRecord(
+            strategy="metadata_corruption",
+            slice_index=slice_idx,
+            tag="Modality",
+            original_value=original,
+            mutated_value=repr(ds.Modality),
+            severity=self.severity,
+            details={"corruption_type": "type_confusion_modality"},
+        )
+
+    # Corruption handler dispatch table
+    _METADATA_CORRUPTION_HANDLERS: list[str] = [
+        "_corrupt_invalid_series_uid",
+        "_corrupt_invalid_study_uid",
+        "_corrupt_missing_modality",
+        "_corrupt_empty_series_uid",
+        "_corrupt_extreme_uid_length",
+        "_corrupt_invalid_uid_chars",
+        "_corrupt_type_confusion_modality",
+    ]
+
     def _mutate_metadata_corruption(
         self, datasets: list[Dataset], series: DicomSeries, mutation_count: int
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
@@ -47,8 +197,6 @@ class CoreMutationsMixin:
 
         Targets: CVE-2025-5943 (out-of-bounds write in DICOM parser)
         """
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
-
         records: list[SeriesMutationRecord] = []
         available_slices = list(range(len(datasets)))
 
@@ -59,147 +207,151 @@ class CoreMutationsMixin:
             slice_idx = random.choice(available_slices)
             ds = datasets[slice_idx]
 
-            corruption_type = random.choice(
-                [
-                    "invalid_series_uid",
-                    "invalid_study_uid",
-                    "missing_modality",
-                    "empty_series_uid",
-                    "extreme_uid_length",
-                    "uid_with_invalid_chars",
-                    "type_confusion_modality",
-                ]
-            )
-
-            if corruption_type == "invalid_series_uid":
-                original = (
-                    ds.SeriesInstanceUID if hasattr(ds, "SeriesInstanceUID") else None
-                )
-                ds.SeriesInstanceUID = generate_uid() + ".999.FUZZED"
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="metadata_corruption",
-                        slice_index=slice_idx,
-                        tag="SeriesInstanceUID",
-                        original_value=original,
-                        mutated_value=ds.SeriesInstanceUID,
-                        severity=self.severity,
-                        details={"corruption_type": corruption_type},
-                    )
-                )
-
-            elif corruption_type == "invalid_study_uid":
-                original = (
-                    ds.StudyInstanceUID if hasattr(ds, "StudyInstanceUID") else None
-                )
-                ds.StudyInstanceUID = "!@#$%INVALID_UID^&*()"
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="metadata_corruption",
-                        slice_index=slice_idx,
-                        tag="StudyInstanceUID",
-                        original_value=original,
-                        mutated_value=ds.StudyInstanceUID,
-                        severity=self.severity,
-                        details={"corruption_type": corruption_type},
-                    )
-                )
-
-            elif corruption_type == "missing_modality":
-                original = ds.Modality if hasattr(ds, "Modality") else None
-                if hasattr(ds, "Modality"):
-                    del ds.Modality
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="metadata_corruption",
-                        slice_index=slice_idx,
-                        tag="Modality",
-                        original_value=original,
-                        mutated_value="<deleted>",
-                        severity=self.severity,
-                        details={"corruption_type": corruption_type},
-                    )
-                )
-
-            elif corruption_type == "empty_series_uid":
-                original = (
-                    ds.SeriesInstanceUID if hasattr(ds, "SeriesInstanceUID") else None
-                )
-                ds.SeriesInstanceUID = ""
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="metadata_corruption",
-                        slice_index=slice_idx,
-                        tag="SeriesInstanceUID",
-                        original_value=original,
-                        mutated_value="",
-                        severity=self.severity,
-                        details={"corruption_type": corruption_type},
-                    )
-                )
-
-            elif corruption_type == "extreme_uid_length":
-                original = (
-                    ds.SeriesInstanceUID if hasattr(ds, "SeriesInstanceUID") else None
-                )
-                ds.SeriesInstanceUID = "1.2." + ".".join(["999"] * 30)
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="metadata_corruption",
-                        slice_index=slice_idx,
-                        tag="SeriesInstanceUID",
-                        original_value=original,
-                        mutated_value=ds.SeriesInstanceUID,
-                        severity=self.severity,
-                        details={
-                            "corruption_type": corruption_type,
-                            "length": len(ds.SeriesInstanceUID),
-                        },
-                    )
-                )
-
-            elif corruption_type == "uid_with_invalid_chars":
-                original = (
-                    ds.SeriesInstanceUID if hasattr(ds, "SeriesInstanceUID") else None
-                )
-                ds.SeriesInstanceUID = "1.2.840.ABC.INVALID"
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="metadata_corruption",
-                        slice_index=slice_idx,
-                        tag="SeriesInstanceUID",
-                        original_value=original,
-                        mutated_value=ds.SeriesInstanceUID,
-                        severity=self.severity,
-                        details={"corruption_type": corruption_type},
-                    )
-                )
-
-            elif corruption_type == "type_confusion_modality":
-                original = ds.Modality if hasattr(ds, "Modality") else None
-                invalid_modalities = [
-                    "999",
-                    "",
-                    "XXXXXXXXXXXXXXXXXXXX",
-                    "CT\\MR",
-                    "null",
-                    "\x00\x00",
-                    "A" * 100,
-                ]
-                ds.Modality = random.choice(invalid_modalities)
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="metadata_corruption",
-                        slice_index=slice_idx,
-                        tag="Modality",
-                        original_value=original,
-                        mutated_value=repr(ds.Modality),
-                        severity=self.severity,
-                        details={"corruption_type": corruption_type},
-                    )
-                )
+            handler_name = random.choice(self._METADATA_CORRUPTION_HANDLERS)
+            handler = getattr(self, handler_name)
+            records.append(handler(ds, slice_idx))
 
         return datasets, records
+
+    def _slice_pos_randomize_z(
+        self,
+        ds: Dataset,
+        slice_idx: int,
+        original: tuple[float, float, float],
+        datasets: list[Dataset],
+        records: list[SeriesMutationRecord],
+    ) -> None:
+        """Randomize z-coordinate attack."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        ds.ImagePositionPatient[2] = random.uniform(-1000, 1000)
+        records.append(
+            SeriesMutationRecord(
+                strategy="slice_position_attack",
+                slice_index=slice_idx,
+                tag="ImagePositionPatient",
+                original_value=str(original),
+                mutated_value=str(tuple(ds.ImagePositionPatient)),
+                severity=self.severity,
+                details={"attack_type": "randomize_z"},
+            )
+        )
+
+    def _slice_pos_duplicate(
+        self,
+        ds: Dataset,
+        slice_idx: int,
+        original: tuple[float, float, float],
+        datasets: list[Dataset],
+        records: list[SeriesMutationRecord],
+    ) -> None:
+        """Duplicate position from another slice."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        if len(datasets) <= 1:
+            return
+        other_idx = random.choice([i for i in range(len(datasets)) if i != slice_idx])
+        if not hasattr(datasets[other_idx], "ImagePositionPatient"):
+            return
+        ds.ImagePositionPatient = list(datasets[other_idx].ImagePositionPatient)
+        records.append(
+            SeriesMutationRecord(
+                strategy="slice_position_attack",
+                slice_index=slice_idx,
+                tag="ImagePositionPatient",
+                original_value=str(original),
+                mutated_value=str(tuple(ds.ImagePositionPatient)),
+                severity=self.severity,
+                details={
+                    "attack_type": "duplicate_position",
+                    "duplicated_from": other_idx,
+                },
+            )
+        )
+
+    def _slice_pos_extreme(
+        self,
+        ds: Dataset,
+        slice_idx: int,
+        original: tuple[float, float, float],
+        datasets: list[Dataset],
+        records: list[SeriesMutationRecord],
+        value_type: str,
+    ) -> None:
+        """Apply extreme value attack (nan, inf, or large)."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        if value_type == "nan":
+            ds.ImagePositionPatient[2] = float("nan")
+            mutated = "NaN"
+        elif value_type == "inf":
+            ds.ImagePositionPatient[2] = (
+                float("inf") if random.random() > 0.5 else float("-inf")
+            )
+            mutated = str(ds.ImagePositionPatient[2])
+        else:  # large
+            ds.ImagePositionPatient[2] = 1e308 if random.random() > 0.5 else -1e308
+            mutated = f"{ds.ImagePositionPatient[2]:.2e}"
+
+        records.append(
+            SeriesMutationRecord(
+                strategy="slice_position_attack",
+                slice_index=slice_idx,
+                tag="ImagePositionPatient",
+                original_value=str(original),
+                mutated_value=mutated,
+                severity=self.severity,
+                details={"attack_type": f"extreme_value_{value_type}"},
+            )
+        )
+
+    def _slice_pos_negative(
+        self,
+        ds: Dataset,
+        slice_idx: int,
+        original: tuple[float, float, float],
+        datasets: list[Dataset],
+        records: list[SeriesMutationRecord],
+    ) -> None:
+        """Make all position components negative."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        ds.ImagePositionPatient = [-abs(x) for x in ds.ImagePositionPatient]
+        records.append(
+            SeriesMutationRecord(
+                strategy="slice_position_attack",
+                slice_index=slice_idx,
+                tag="ImagePositionPatient",
+                original_value=str(original),
+                mutated_value=str(tuple(ds.ImagePositionPatient)),
+                severity=self.severity,
+                details={"attack_type": "negative_position"},
+            )
+        )
+
+    def _slice_pos_zero(
+        self,
+        ds: Dataset,
+        slice_idx: int,
+        original: tuple[float, float, float],
+        datasets: list[Dataset],
+        records: list[SeriesMutationRecord],
+    ) -> None:
+        """Set position to origin."""
+        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+
+        ds.ImagePositionPatient = [0.0, 0.0, 0.0]
+        records.append(
+            SeriesMutationRecord(
+                strategy="slice_position_attack",
+                slice_index=slice_idx,
+                tag="ImagePositionPatient",
+                original_value=str(original),
+                mutated_value="[0.0, 0.0, 0.0]",
+                severity=self.severity,
+                details={"attack_type": "zero_position"},
+            )
+        )
 
     def _mutate_slice_position_attack(
         self, datasets: list[Dataset], series: DicomSeries, mutation_count: int
@@ -215,144 +367,32 @@ class CoreMutationsMixin:
 
         Targets: CVE-2025-35975 (out-of-bounds write), CVE-2025-36521 (OOB read)
         """
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
-
         records: list[SeriesMutationRecord] = []
-        available_slices = list(range(len(datasets)))
 
         for _ in range(mutation_count):
-            if not available_slices:
-                break
-
-            slice_idx = random.choice(available_slices)
+            slice_idx = random.randint(0, len(datasets) - 1)
             ds = datasets[slice_idx]
 
             if not hasattr(ds, "ImagePositionPatient"):
                 continue
 
             original = tuple(ds.ImagePositionPatient)
-
-            attack_type = random.choice(
-                [
-                    "randomize_z",
-                    "duplicate_position",
-                    "extreme_value_nan",
-                    "extreme_value_inf",
-                    "extreme_value_large",
-                    "negative_position",
-                    "zero_position",
-                ]
+            attack = random.choice(
+                ["randomize_z", "duplicate", "nan", "inf", "large", "negative", "zero"]
             )
 
-            if attack_type == "randomize_z":
-                ds.ImagePositionPatient[2] = random.uniform(-1000, 1000)
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="slice_position_attack",
-                        slice_index=slice_idx,
-                        tag="ImagePositionPatient",
-                        original_value=str(original),
-                        mutated_value=str(tuple(ds.ImagePositionPatient)),
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
+            if attack == "randomize_z":
+                self._slice_pos_randomize_z(ds, slice_idx, original, datasets, records)
+            elif attack == "duplicate":
+                self._slice_pos_duplicate(ds, slice_idx, original, datasets, records)
+            elif attack in ("nan", "inf", "large"):
+                self._slice_pos_extreme(
+                    ds, slice_idx, original, datasets, records, attack
                 )
-
-            elif attack_type == "duplicate_position":
-                if len(datasets) > 1:
-                    other_idx = random.choice(
-                        [i for i in range(len(datasets)) if i != slice_idx]
-                    )
-                    if hasattr(datasets[other_idx], "ImagePositionPatient"):
-                        ds.ImagePositionPatient = list(
-                            datasets[other_idx].ImagePositionPatient
-                        )
-                        records.append(
-                            SeriesMutationRecord(
-                                strategy="slice_position_attack",
-                                slice_index=slice_idx,
-                                tag="ImagePositionPatient",
-                                original_value=str(original),
-                                mutated_value=str(tuple(ds.ImagePositionPatient)),
-                                severity=self.severity,
-                                details={
-                                    "attack_type": attack_type,
-                                    "duplicated_from": other_idx,
-                                },
-                            )
-                        )
-
-            elif attack_type == "extreme_value_nan":
-                ds.ImagePositionPatient[2] = float("nan")
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="slice_position_attack",
-                        slice_index=slice_idx,
-                        tag="ImagePositionPatient",
-                        original_value=str(original),
-                        mutated_value="NaN",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "extreme_value_inf":
-                ds.ImagePositionPatient[2] = (
-                    float("inf") if random.random() > 0.5 else float("-inf")
-                )
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="slice_position_attack",
-                        slice_index=slice_idx,
-                        tag="ImagePositionPatient",
-                        original_value=str(original),
-                        mutated_value=str(ds.ImagePositionPatient[2]),
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "extreme_value_large":
-                ds.ImagePositionPatient[2] = 1e308 if random.random() > 0.5 else -1e308
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="slice_position_attack",
-                        slice_index=slice_idx,
-                        tag="ImagePositionPatient",
-                        original_value=str(original),
-                        mutated_value=f"{ds.ImagePositionPatient[2]:.2e}",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "negative_position":
-                ds.ImagePositionPatient = [-abs(x) for x in ds.ImagePositionPatient]
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="slice_position_attack",
-                        slice_index=slice_idx,
-                        tag="ImagePositionPatient",
-                        original_value=str(original),
-                        mutated_value=str(tuple(ds.ImagePositionPatient)),
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
-
-            elif attack_type == "zero_position":
-                ds.ImagePositionPatient = [0.0, 0.0, 0.0]
-                records.append(
-                    SeriesMutationRecord(
-                        strategy="slice_position_attack",
-                        slice_index=slice_idx,
-                        tag="ImagePositionPatient",
-                        original_value=str(original),
-                        mutated_value="[0.0, 0.0, 0.0]",
-                        severity=self.severity,
-                        details={"attack_type": attack_type},
-                    )
-                )
+            elif attack == "negative":
+                self._slice_pos_negative(ds, slice_idx, original, datasets, records)
+            elif attack == "zero":
+                self._slice_pos_zero(ds, slice_idx, original, datasets, records)
 
         return datasets, records
 

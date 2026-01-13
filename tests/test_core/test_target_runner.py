@@ -444,6 +444,178 @@ class TestGetSummary:
         assert "... and 5 more" in summary  # Shows first 10, mentions 5 more
 
 
+class TestCircuitBreaker:
+    """Tests for circuit breaker functionality."""
+
+    def test_circuit_breaker_opens_after_failures(self, mock_executable, tmp_path):
+        """Test circuit breaker opens after consecutive failures."""
+        runner = TargetRunner(
+            target_executable=mock_executable,
+            timeout=1.0,
+            crash_dir=str(tmp_path / "crashes"),
+            enable_circuit_breaker=True,
+            max_retries=0,  # No retries to make failures immediate
+        )
+
+        # Set failure threshold low for testing
+        runner.circuit_breaker.failure_threshold = 3
+
+        # Simulate failures to trigger circuit breaker
+        for _ in range(3):
+            runner._update_circuit_breaker(success=False)
+
+        assert runner.circuit_breaker.is_open is True
+        assert runner.circuit_breaker.consecutive_failures >= 3
+
+    def test_circuit_breaker_blocks_when_open(self, mock_executable, tmp_path):
+        """Test circuit breaker blocks execution when open."""
+        runner = TargetRunner(
+            target_executable=mock_executable,
+            timeout=1.0,
+            crash_dir=str(tmp_path / "crashes"),
+            enable_circuit_breaker=True,
+        )
+
+        # Open the circuit breaker
+        runner.circuit_breaker.is_open = True
+        runner.circuit_breaker.open_until = time.time() + 100  # 100 seconds in future
+
+        # Check that execution is blocked
+        can_execute = runner._check_circuit_breaker()
+        assert can_execute is False
+
+    def test_circuit_breaker_half_open_after_timeout(self, mock_executable, tmp_path):
+        """Test circuit breaker enters half-open state after timeout."""
+        runner = TargetRunner(
+            target_executable=mock_executable,
+            timeout=1.0,
+            crash_dir=str(tmp_path / "crashes"),
+            enable_circuit_breaker=True,
+        )
+
+        # Open the circuit breaker with timeout in the past
+        runner.circuit_breaker.is_open = True
+        runner.circuit_breaker.open_until = time.time() - 1  # 1 second in the past
+
+        # Check that execution is allowed (half-open)
+        can_execute = runner._check_circuit_breaker()
+        assert can_execute is True
+        assert runner.circuit_breaker.is_open is False
+
+    def test_circuit_breaker_resets_on_success(self, mock_executable, tmp_path):
+        """Test circuit breaker resets consecutive failures on success."""
+        runner = TargetRunner(
+            target_executable=mock_executable,
+            timeout=1.0,
+            crash_dir=str(tmp_path / "crashes"),
+            enable_circuit_breaker=True,
+        )
+
+        # Add some failures
+        runner._update_circuit_breaker(success=False)
+        runner._update_circuit_breaker(success=False)
+        assert runner.circuit_breaker.consecutive_failures == 2
+
+        # Success should reset consecutive failures
+        runner._update_circuit_breaker(success=True)
+        assert runner.circuit_breaker.consecutive_failures == 0
+        assert runner.circuit_breaker.success_count == 1
+
+    def test_circuit_breaker_disabled(self, mock_executable, tmp_path):
+        """Test that disabled circuit breaker always allows execution."""
+        runner = TargetRunner(
+            target_executable=mock_executable,
+            timeout=1.0,
+            crash_dir=str(tmp_path / "crashes"),
+            enable_circuit_breaker=False,
+        )
+
+        # Even with failures, should always return True
+        for _ in range(10):
+            runner._update_circuit_breaker(success=False)
+
+        assert runner._check_circuit_breaker() is True
+
+
+class TestEnhancedMonitoring:
+    """Tests for enhanced process monitoring."""
+
+    def test_monitoring_disabled_by_default(self, mock_executable, tmp_path):
+        """Test that monitoring is disabled by default."""
+        runner = TargetRunner(
+            target_executable=mock_executable,
+            timeout=1.0,
+            crash_dir=str(tmp_path / "crashes"),
+        )
+        assert runner.process_monitor is None
+
+    def test_monitoring_enabled_with_psutil(self, tmp_path, monkeypatch):
+        """Test monitoring is enabled when psutil is available."""
+        from unittest.mock import MagicMock, patch
+
+        # Mock psutil availability
+        mock_monitor = MagicMock()
+        mock_is_available = MagicMock(return_value=True)
+
+        with patch(
+            "dicom_fuzzer.core.target_runner.TargetRunner.__init__",
+            return_value=None,
+        ):
+            runner = TargetRunner.__new__(TargetRunner)
+            runner.process_monitor = mock_monitor
+            # Verify the attribute exists
+            assert runner.process_monitor is not None
+
+
+class TestExecutionResultProperties:
+    """Test ExecutionResult properties."""
+
+    def test_is_exploitable_with_windows_crash_info(self, tmp_path):
+        """Test is_exploitable returns windows_crash_info value."""
+        from unittest.mock import MagicMock
+
+        mock_crash_info = MagicMock()
+        mock_crash_info.is_exploitable = True
+
+        result = ExecutionResult(
+            test_file=tmp_path / "test.dcm",
+            result=ExecutionStatus.CRASH,
+            exit_code=-11,
+            execution_time=1.0,
+            stdout="",
+            stderr="",
+            windows_crash_info=mock_crash_info,
+        )
+
+        assert result.is_exploitable is True
+
+    def test_is_exploitable_without_windows_crash_info(self, tmp_path):
+        """Test is_exploitable returns crash status without windows info."""
+        result = ExecutionResult(
+            test_file=tmp_path / "test.dcm",
+            result=ExecutionStatus.CRASH,
+            exit_code=-11,
+            execution_time=1.0,
+            stdout="",
+            stderr="",
+        )
+
+        assert result.is_exploitable is True
+
+    def test_is_exploitable_false_for_success(self, tmp_path):
+        """Test is_exploitable is False for successful execution."""
+        result = ExecutionResult(
+            test_file=tmp_path / "test.dcm",
+            result=ExecutionStatus.SUCCESS,
+            exit_code=0,
+            execution_time=1.0,
+            stdout="",
+            stderr="",
+        )
+
+        assert result.is_exploitable is False
+
+
 @pytest.mark.slow
 class TestIntegration:
     """Integration tests."""

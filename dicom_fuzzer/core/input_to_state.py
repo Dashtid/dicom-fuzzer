@@ -505,6 +505,39 @@ class InputToStateResolver:
 
         return positions
 
+    def _apply_position_mutations(
+        self, input_data: bytes, positions: list[int], value: bytes
+    ) -> list[bytes]:
+        """Apply mutations at given positions."""
+        mutations = []
+        for pos in positions[:3]:
+            mutated = self._apply_mutation(input_data, pos, value)
+            if mutated:
+                mutations.append(mutated)
+        return mutations
+
+    def _apply_region_mutations(
+        self,
+        input_data: bytes,
+        comp: Any,
+        value: bytes,
+        colorized_regions: list[ColorizedRegion],
+        comparison_log: ComparisonLog,
+    ) -> list[bytes]:
+        """Apply mutations to colorized regions affected by comparison."""
+        mutations = []
+        for region in colorized_regions[:5]:
+            affected = [
+                comparison_log.comparisons[i]
+                for i in region.affected_comparisons
+                if i < len(comparison_log.comparisons)
+            ]
+            if comp in affected:
+                mutated = self._apply_mutation(input_data, region.offset, value)
+                if mutated:
+                    mutations.append(mutated)
+        return mutations
+
     def generate_solving_mutations(
         self,
         input_data: bytes,
@@ -524,42 +557,31 @@ class InputToStateResolver:
         """
         mutations = []
         attempts = 0
+        max_attempts = self.config.max_solving_attempts
 
         for comp in comparison_log.comparisons:
-            if attempts >= self.config.max_solving_attempts:
+            if attempts >= max_attempts:
                 break
 
-            solving_values = comp.get_solving_values()
-
-            for value in solving_values:
-                # Strategy 1: Direct replacement at matching positions
+            for value in comp.get_solving_values():
                 positions = self._find_value_positions(input_data, comp.operand1)
-                for pos in positions[:3]:  # Limit positions per value
-                    mutated = self._apply_mutation(input_data, pos, value)
-                    if mutated:
-                        mutations.append(mutated)
-                        attempts += 1
+                pos_mutations = self._apply_position_mutations(
+                    input_data, positions, value
+                )
+                mutations.extend(pos_mutations)
+                attempts += len(pos_mutations)
 
-                # Strategy 2: Placement in colorized regions
                 if colorized_regions:
-                    for region in colorized_regions[:5]:
-                        if comp in [
-                            comparison_log.comparisons[i]
-                            for i in region.affected_comparisons
-                            if i < len(comparison_log.comparisons)
-                        ]:
-                            mutated = self._apply_mutation(
-                                input_data, region.offset, value
-                            )
-                            if mutated:
-                                mutations.append(mutated)
-                                attempts += 1
+                    region_mutations = self._apply_region_mutations(
+                        input_data, comp, value, colorized_regions, comparison_log
+                    )
+                    mutations.extend(region_mutations)
+                    attempts += len(region_mutations)
 
-                # Strategy 3: Arithmetic solving
                 if self.config.enable_arithmetic and comp.size <= 8:
-                    arith_mutations = self._arithmetic_solving(input_data, comp)
-                    mutations.extend(arith_mutations[:3])
-                    attempts += len(arith_mutations[:3])
+                    arith_mutations = self._arithmetic_solving(input_data, comp)[:3]
+                    mutations.extend(arith_mutations)
+                    attempts += len(arith_mutations)
 
         return mutations
 
@@ -572,55 +594,65 @@ class InputToStateResolver:
         result[offset : offset + len(value)] = value
         return bytes(result)
 
-    def _arithmetic_solving(self, data: bytes, comp: ComparisonRecord) -> list[bytes]:
-        """Generate arithmetic-based solving mutations."""
+    def _solve_equality(
+        self, data: bytes, pos: int, val2: int, size: int
+    ) -> list[bytes]:
+        """Solve equality comparison by replacing with target value."""
+        mutated = self._apply_int_mutation(data, pos, val2, size)
+        return [mutated] if mutated else []
+
+    def _solve_less_than(
+        self, data: bytes, pos: int, val2: int, size: int
+    ) -> list[bytes]:
+        """Solve less-than by trying values less than target."""
+        if val2 <= 0:
+            return []
         mutations: list[bytes] = []
-        ints = comp.as_integers()
-
-        if not ints:
-            return mutations
-
-        val1, val2 = ints
-
-        # Try to find val1 in data and replace with solving value
-        positions = self._find_integer_positions(data, val1, comp.size)
-
-        for pos in positions[:3]:
-            # For equality, replace with val2
-            if comp.comp_type == ComparisonType.EQUAL:
-                mutated = self._apply_int_mutation(data, pos, val2, comp.size)
+        for delta in [1, 2, 10, 100]:
+            new_val = val2 - delta
+            if new_val >= 0:
+                mutated = self._apply_int_mutation(data, pos, new_val, size)
                 if mutated:
                     mutations.append(mutated)
+        return mutations
 
-            # For less-than, try values less than val2
+    def _solve_greater_than(
+        self, data: bytes, pos: int, val2: int, size: int
+    ) -> list[bytes]:
+        """Solve greater-than by trying values greater than target."""
+        max_val = (1 << (size * 8)) - 1
+        mutations: list[bytes] = []
+        for delta in [1, 2, 10, 100]:
+            new_val = val2 + delta
+            if new_val <= max_val:
+                mutated = self._apply_int_mutation(data, pos, new_val, size)
+                if mutated:
+                    mutations.append(mutated)
+        return mutations
+
+    def _arithmetic_solving(self, data: bytes, comp: ComparisonRecord) -> list[bytes]:
+        """Generate arithmetic-based solving mutations."""
+        ints = comp.as_integers()
+        if not ints:
+            return []
+
+        val1, val2 = ints
+        positions = self._find_integer_positions(data, val1, comp.size)
+
+        mutations: list[bytes] = []
+        for pos in positions[:3]:
+            if comp.comp_type == ComparisonType.EQUAL:
+                mutations.extend(self._solve_equality(data, pos, val2, comp.size))
             elif comp.comp_type in (
                 ComparisonType.LESS_THAN,
                 ComparisonType.LESS_EQUAL,
             ):
-                if val2 > 0:
-                    for delta in [1, 2, 10, 100]:
-                        new_val = val2 - delta
-                        if new_val >= 0:
-                            mutated = self._apply_int_mutation(
-                                data, pos, new_val, comp.size
-                            )
-                            if mutated:
-                                mutations.append(mutated)
-
-            # For greater-than, try values greater than val2
+                mutations.extend(self._solve_less_than(data, pos, val2, comp.size))
             elif comp.comp_type in (
                 ComparisonType.GREATER_THAN,
                 ComparisonType.GREATER_EQUAL,
             ):
-                max_val = (1 << (comp.size * 8)) - 1
-                for delta in [1, 2, 10, 100]:
-                    new_val = val2 + delta
-                    if new_val <= max_val:
-                        mutated = self._apply_int_mutation(
-                            data, pos, new_val, comp.size
-                        )
-                        if mutated:
-                            mutations.append(mutated)
+                mutations.extend(self._solve_greater_than(data, pos, val2, comp.size))
 
         return mutations
 

@@ -28,161 +28,20 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum, auto
 from pathlib import Path
 from typing import Any
 
+from dicom_fuzzer.core.constants import DICOMState, StateTransitionType
+from dicom_fuzzer.core.coverage_types import (
+    ProtocolStateTransition,
+    StateCoverage,
+    StateFingerprint,
+)
+
 logger = logging.getLogger(__name__)
 
-
-class DICOMState(Enum):
-    """DICOM protocol states based on DIMSE state machine."""
-
-    IDLE = auto()
-    ASSOCIATION_REQUESTED = auto()
-    ASSOCIATION_ESTABLISHED = auto()
-    ASSOCIATION_REJECTED = auto()
-    DATA_TRANSFER = auto()
-    RELEASE_REQUESTED = auto()
-    RELEASE_COMPLETED = auto()
-    ABORT = auto()
-    # Extended states for sub-operations
-    C_STORE_PENDING = auto()
-    C_FIND_PENDING = auto()
-    C_MOVE_PENDING = auto()
-    C_GET_PENDING = auto()
-    N_CREATE_PENDING = auto()
-    N_SET_PENDING = auto()
-    N_DELETE_PENDING = auto()
-    N_ACTION_PENDING = auto()
-    N_EVENT_PENDING = auto()
-
-
-class StateTransitionType(Enum):
-    """Types of state transitions."""
-
-    VALID = "valid"
-    INVALID = "invalid"
-    TIMEOUT = "timeout"
-    ERROR = "error"
-    CRASH = "crash"
-
-
-@dataclass
-class StateFingerprint:
-    """Fingerprint of a protocol state using LSH.
-
-    Based on StateAFL's approach of using locality-sensitive hashing
-    to identify unique application states from memory snapshots.
-    """
-
-    hash_value: str
-    state: DICOMState
-    timestamp: float = 0.0
-    coverage_bitmap: bytes = b""
-    response_pattern: str = ""
-    memory_regions: list[tuple[int, int, bytes]] = field(default_factory=list)
-    message_sequence_hash: str = ""
-
-    def __post_init__(self) -> None:
-        if not self.timestamp:
-            self.timestamp = time.time()
-
-    def similarity(self, other: StateFingerprint) -> float:
-        """Calculate Jaccard similarity with another fingerprint."""
-        if not self.coverage_bitmap or not other.coverage_bitmap:
-            return 0.0
-
-        # Convert to sets of covered edges
-        self_edges = {i for i, b in enumerate(self.coverage_bitmap) if b > 0}
-        other_edges = {i for i, b in enumerate(other.coverage_bitmap) if b > 0}
-
-        if not self_edges and not other_edges:
-            return 1.0
-        if not self_edges or not other_edges:
-            return 0.0
-
-        intersection = len(self_edges & other_edges)
-        union = len(self_edges | other_edges)
-        return intersection / union if union > 0 else 0.0
-
-
-@dataclass
-class StateTransition:
-    """Records a state transition in the protocol."""
-
-    from_state: DICOMState
-    to_state: DICOMState
-    trigger_message: bytes
-    transition_type: StateTransitionType
-    response: bytes = b""
-    duration_ms: float = 0.0
-    timestamp: float = 0.0
-    coverage_increase: int = 0
-
-    def __post_init__(self) -> None:
-        if not self.timestamp:
-            self.timestamp = time.time()
-
-
-@dataclass
-class StateCoverage:
-    """Tracks coverage of protocol states."""
-
-    visited_states: set[DICOMState] = field(default_factory=set)
-    state_transitions: dict[tuple[DICOMState, DICOMState], int] = field(
-        default_factory=lambda: defaultdict(int)
-    )
-    unique_fingerprints: dict[str, StateFingerprint] = field(default_factory=dict)
-    state_depths: dict[DICOMState, int] = field(default_factory=dict)
-    # Statistics
-    total_transitions: int = 0
-    new_states_found: int = 0
-    new_transitions_found: int = 0
-
-    def add_state(self, state: DICOMState, depth: int = 0) -> bool:
-        """Add a visited state. Returns True if new."""
-        is_new = state not in self.visited_states
-        self.visited_states.add(state)
-        if state not in self.state_depths or self.state_depths[state] > depth:
-            self.state_depths[state] = depth
-        if is_new:
-            self.new_states_found += 1
-        return is_new
-
-    def add_transition(self, from_state: DICOMState, to_state: DICOMState) -> bool:
-        """Add a state transition. Returns True if new."""
-        key = (from_state, to_state)
-        is_new = self.state_transitions[key] == 0
-        self.state_transitions[key] += 1
-        self.total_transitions += 1
-        if is_new:
-            self.new_transitions_found += 1
-        return is_new
-
-    def add_fingerprint(self, fingerprint: StateFingerprint) -> bool:
-        """Add a state fingerprint. Returns True if new/interesting."""
-        # Check similarity with existing fingerprints
-        for existing in self.unique_fingerprints.values():
-            if fingerprint.similarity(existing) > 0.95:
-                return False
-
-        self.unique_fingerprints[fingerprint.hash_value] = fingerprint
-        return True
-
-    def get_coverage_score(self) -> float:
-        """Calculate state coverage score."""
-        total_states = len(DICOMState)
-        visited_ratio = len(self.visited_states) / total_states
-        # Weight by transition coverage
-        max_transitions = total_states * total_states
-        transition_ratio = len(self.state_transitions) / max_transitions
-        return (visited_ratio * 0.6 + transition_ratio * 0.4) * 100
-
-    def get_uncovered_states(self) -> set[DICOMState]:
-        """Get states not yet visited."""
-        all_states = set(DICOMState)
-        return all_states - self.visited_states
+# Backward compatibility alias
+StateTransition = ProtocolStateTransition
 
 
 @dataclass
@@ -410,6 +269,75 @@ class StateGuidedHavoc(StateMutator):
     def __init__(self, intensity: int = 10) -> None:
         self.intensity = intensity
 
+    def _mut_insert(
+        self,
+        messages: list[ProtocolMessage],
+        unexplored: set[DICOMState],
+    ) -> None:
+        """Insert a state trigger at random position."""
+        if unexplored:
+            target = random.choice(list(unexplored))
+            trigger = self._generate_state_trigger(target)
+            messages.insert(random.randint(0, len(messages)), trigger)
+
+    def _mut_delete(
+        self,
+        messages: list[ProtocolMessage],
+        unexplored: set[DICOMState],
+    ) -> None:
+        """Delete a random message."""
+        if len(messages) > 1:
+            messages.pop(random.randint(0, len(messages) - 1))
+
+    def _mut_swap(
+        self,
+        messages: list[ProtocolMessage],
+        unexplored: set[DICOMState],
+    ) -> None:
+        """Swap two random messages."""
+        if len(messages) > 1:
+            i, j = random.sample(range(len(messages)), 2)
+            messages[i], messages[j] = messages[j], messages[i]
+
+    def _mut_duplicate(
+        self,
+        messages: list[ProtocolMessage],
+        unexplored: set[DICOMState],
+    ) -> None:
+        """Duplicate a random message."""
+        if messages:
+            pos = random.randint(0, len(messages) - 1)
+            messages.insert(pos, messages[pos])
+
+    def _mut_truncate(
+        self,
+        messages: list[ProtocolMessage],
+        unexplored: set[DICOMState],
+    ) -> None:
+        """Truncate a random message's data."""
+        if not messages:
+            return
+        pos = random.randint(0, len(messages) - 1)
+        msg = messages[pos]
+        if len(msg.data) > 10:
+            truncate_len = random.randint(1, len(msg.data) // 2)
+            messages[pos] = ProtocolMessage(
+                data=msg.data[:truncate_len],
+                message_type=msg.message_type,
+                is_mutated=True,
+                mutation_info="truncated",
+            )
+
+    def _mut_inject_trigger(
+        self,
+        messages: list[ProtocolMessage],
+        unexplored: set[DICOMState],
+    ) -> None:
+        """Append a state trigger message."""
+        if unexplored:
+            target = random.choice(list(unexplored))
+            messages.append(self._generate_state_trigger(target))
+
     def mutate(
         self,
         sequence: MessageSequence,
@@ -423,68 +351,26 @@ class StateGuidedHavoc(StateMutator):
         new_messages = list(sequence.messages)
 
         # Get unexplored transitions from current state
-        explored_next_states = {
-            to_state
-            for (from_state, to_state) in coverage.state_transitions
-            if from_state == current_state
+        explored_next = {
+            to for (from_s, to) in coverage.state_transitions if from_s == current_state
         }
-        unexplored_states = set(DICOMState) - explored_next_states
+        unexplored = set(DICOMState) - explored_next
 
-        # Bias mutations toward triggering unexplored transitions
+        # Dispatch table for mutation handlers
+        handlers = [
+            self._mut_insert,
+            self._mut_delete,
+            self._mut_swap,
+            self._mut_duplicate,
+            self._mut_truncate,
+            self._mut_inject_trigger,
+        ]
+
         for _ in range(self.intensity):
-            mutation_type = random.choice(
-                [
-                    "insert_message",
-                    "delete_message",
-                    "swap_messages",
-                    "duplicate_message",
-                    "truncate_message",
-                    "inject_state_trigger",
-                ]
-            )
+            handler = random.choice(handlers)
+            handler(new_messages, unexplored)
 
-            if mutation_type == "insert_message":
-                if unexplored_states:
-                    target_state = random.choice(list(unexplored_states))
-                    trigger_msg = self._generate_state_trigger(target_state)
-                    pos = random.randint(0, len(new_messages))
-                    new_messages.insert(pos, trigger_msg)
-
-            elif mutation_type == "delete_message" and len(new_messages) > 1:
-                pos = random.randint(0, len(new_messages) - 1)
-                new_messages.pop(pos)
-
-            elif mutation_type == "swap_messages" and len(new_messages) > 1:
-                i, j = random.sample(range(len(new_messages)), 2)
-                new_messages[i], new_messages[j] = new_messages[j], new_messages[i]
-
-            elif mutation_type == "duplicate_message" and new_messages:
-                pos = random.randint(0, len(new_messages) - 1)
-                new_messages.insert(pos, new_messages[pos])
-
-            elif mutation_type == "truncate_message" and new_messages:
-                pos = random.randint(0, len(new_messages) - 1)
-                msg = new_messages[pos]
-                if len(msg.data) > 10:
-                    truncate_len = random.randint(1, len(msg.data) // 2)
-                    new_messages[pos] = ProtocolMessage(
-                        data=msg.data[:truncate_len],
-                        message_type=msg.message_type,
-                        is_mutated=True,
-                        mutation_info="truncated",
-                    )
-
-            elif mutation_type == "inject_state_trigger":
-                if unexplored_states:
-                    target_state = random.choice(list(unexplored_states))
-                    trigger_msg = self._generate_state_trigger(target_state)
-                    new_messages.append(trigger_msg)
-
-        new_seq = MessageSequence(
-            messages=new_messages,
-            final_state=sequence.final_state,
-        )
-        return new_seq
+        return MessageSequence(messages=new_messages, final_state=sequence.final_state)
 
     def _generate_state_trigger(self, target_state: DICOMState) -> ProtocolMessage:
         """Generate a message likely to trigger transition to target state."""
@@ -848,7 +734,9 @@ class StateAwareFuzzer:
                 "unique_fingerprints": len(self.coverage.unique_fingerprints),
             },
             "coverage_score": self.coverage.get_coverage_score(),
-            "uncovered_states": [s.name for s in self.coverage.get_uncovered_states()],
+            "uncovered_states": [
+                s.name for s in self.coverage.get_uncovered_states(set(DICOMState))
+            ],
         }
 
     def save_corpus(self, output_dir: Path | str) -> int:

@@ -18,7 +18,7 @@ import json
 import shutil
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
@@ -357,6 +357,37 @@ def run_merge(args: argparse.Namespace) -> int:
         return 1
 
 
+def _validate_minimize_study_args(
+    args: argparse.Namespace,
+) -> tuple[Path, Path, Path] | None:
+    """Validate arguments for study minimization.
+
+    Returns:
+        Tuple of (study_dir, target_path, output_dir) on success, None on failure.
+
+    """
+    study_dir = Path(args.minimize_study)
+    if not study_dir.exists():
+        print(f"[-] Study directory not found: {study_dir}")
+        return None
+
+    if not args.target:
+        print("[-] --target is required for --minimize-study")
+        return None
+
+    target_path = Path(args.target)
+    if not target_path.exists():
+        print(f"[-] Target executable not found: {target_path}")
+        return None
+
+    output_dir = (
+        Path(args.output)
+        if args.output
+        else study_dir.parent / f"{study_dir.name}_minimized"
+    )
+    return study_dir, target_path, output_dir
+
+
 def run_minimize_study(args: argparse.Namespace) -> int:
     """Minimize a crashing 3D study to find trigger slice(s)."""
     from dicom_fuzzer.core.study_minimizer import (
@@ -366,26 +397,10 @@ def run_minimize_study(args: argparse.Namespace) -> int:
     )
     from dicom_fuzzer.core.target_runner import TargetRunner
 
-    study_dir = Path(args.minimize_study)
-
-    if not study_dir.exists():
-        print(f"[-] Study directory not found: {study_dir}")
+    paths = _validate_minimize_study_args(args)
+    if paths is None:
         return 1
-
-    if not args.target:
-        print("[-] --target is required for --minimize-study")
-        return 1
-
-    target_path = Path(args.target)
-    if not target_path.exists():
-        print(f"[-] Target executable not found: {target_path}")
-        return 1
-
-    output_dir = (
-        Path(args.output)
-        if args.output
-        else study_dir.parent / f"{study_dir.name}_minimized"
-    )
+    study_dir, target_path, output_dir = paths
 
     print("\n" + "=" * 70)
     print("  Study Minimization")
@@ -461,14 +476,52 @@ def run_minimize_study(args: argparse.Namespace) -> int:
         return 1
 
 
-def run_generate_study(args: argparse.Namespace) -> int:
-    """Generate mutated study corpus from a source study.
+def _generate_single_study(
+    args: argparse.Namespace,
+    source_dir: Path,
+    mutator: Any,
+    corpus: Any,
+    strategy: Any,
+    index: int,
+) -> bool:
+    """Generate a single mutated study and add to corpus.
 
-    Creates multiple mutated versions of a source study using study-level
-    mutation strategies and saves them to a corpus for fuzzing campaigns.
+    Returns True on success, False on error.
     """
     import tempfile
 
+    study = mutator.load_study(source_dir)
+    mutated_datasets, records = mutator.mutate_study(
+        study, strategy=strategy, mutation_count=args.mutations_per_study
+    )
+
+    with tempfile.TemporaryDirectory(prefix="gen_study_") as temp_dir:
+        temp_path = Path(temp_dir)
+        study_dir = temp_path / f"study_{index:04d}"
+        study_dir.mkdir()
+
+        for series_idx, datasets in enumerate(mutated_datasets):
+            series_dir = study_dir / f"series_{series_idx:03d}"
+            series_dir.mkdir(parents=True, exist_ok=True)
+            for ds_idx, ds in enumerate(datasets):
+                ds.save_as(str(series_dir / f"slice_{ds_idx:04d}.dcm"))
+
+        entry = corpus.add_study(study_dir, copy_to_corpus=True)
+        for record in records:
+            corpus.record_mutation(entry.study_id, f"{record.strategy}:{record.tag}")
+
+    if args.verbose:
+        print(
+            f"  [{index + 1}/{args.count}] {strategy.value} - {len(records)} mutations"
+        )
+    elif (index + 1) % 10 == 0:
+        print(f"  Progress: {index + 1}/{args.count}")
+
+    return True
+
+
+def run_generate_study(args: argparse.Namespace) -> int:
+    """Generate mutated study corpus from a source study."""
     from dicom_fuzzer.core.study_corpus import StudyCorpusManager
     from dicom_fuzzer.strategies.study_mutator import (
         StudyMutationStrategy,
@@ -476,17 +529,14 @@ def run_generate_study(args: argparse.Namespace) -> int:
     )
 
     source_dir = Path(args.generate_study)
-
     if not source_dir.exists():
         print(f"[-] Source study not found: {source_dir}")
         return 1
-
     if not args.output:
         print("[-] --output is required for --generate-study")
         return 1
 
     output_dir = Path(args.output)
-
     print("\n" + "=" * 70)
     print("  Study Corpus Generation")
     print("=" * 70)
@@ -499,7 +549,6 @@ def run_generate_study(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        # Map CLI strategy names to enum values
         strategy_map = {
             "cross-series": StudyMutationStrategy.CROSS_SERIES_REFERENCE,
             "frame-of-reference": StudyMutationStrategy.FRAME_OF_REFERENCE,
@@ -507,83 +556,37 @@ def run_generate_study(args: argparse.Namespace) -> int:
             "study-metadata": StudyMutationStrategy.STUDY_METADATA,
             "mixed-modality": StudyMutationStrategy.MIXED_MODALITY_STUDY,
         }
+        strategies = (
+            list(StudyMutationStrategy)
+            if args.strategy == "all"
+            else [strategy_map[args.strategy]]
+        )
 
-        if args.strategy == "all":
-            strategies = list(StudyMutationStrategy)
-        else:
-            strategies = [strategy_map[args.strategy]]
-
-        # Initialize mutator and corpus manager
         mutator = StudyMutator(severity=args.severity)
         corpus = StudyCorpusManager(output_dir)
 
-        # Load source study
         print("[i] Loading source study...")
         source_study = mutator.load_study(source_dir)
         print(
-            f"[+] Loaded: {source_study.series_count} series, "
-            f"{source_study.get_total_slices()} slices"
+            f"[+] Loaded: {source_study.series_count} series, {source_study.get_total_slices()} slices"
         )
-
-        # Generate mutated studies
         print(f"\n[i] Generating {args.count} mutated studies...")
-        generated = 0
-        errors = 0
 
+        generated, errors = 0, 0
         for i in range(args.count):
             strategy = strategies[i % len(strategies)]
-
             try:
-                # Reload study for fresh mutation each time
-                study = mutator.load_study(source_dir)
-
-                # Apply mutations
-                mutated_datasets, records = mutator.mutate_study(
-                    study,
-                    strategy=strategy,
-                    mutation_count=args.mutations_per_study,
-                )
-
-                # Save mutated study to temp directory
-                with tempfile.TemporaryDirectory(prefix="gen_study_") as temp_dir:
-                    temp_path = Path(temp_dir)
-                    study_dir = temp_path / f"study_{i:04d}"
-                    study_dir.mkdir()
-
-                    # Save each series
-                    for series_idx, datasets in enumerate(mutated_datasets):
-                        series_dir = study_dir / f"series_{series_idx:03d}"
-                        series_dir.mkdir(parents=True, exist_ok=True)
-                        for ds_idx, ds in enumerate(datasets):
-                            ds.save_as(str(series_dir / f"slice_{ds_idx:04d}.dcm"))
-
-                    # Add to corpus (copies files)
-                    entry = corpus.add_study(study_dir, copy_to_corpus=True)
-
-                    # Record mutations
-                    for record in records:
-                        mutation_desc = f"{record.strategy}:{record.tag}"
-                        corpus.record_mutation(entry.study_id, mutation_desc)
-
-                generated += 1
-
-                if args.verbose:
-                    print(
-                        f"  [{i + 1}/{args.count}] {strategy.value} - "
-                        f"{len(records)} mutations"
-                    )
-                elif (i + 1) % 10 == 0:
-                    print(f"  Progress: {i + 1}/{args.count}")
-
+                if _generate_single_study(
+                    args, source_dir, mutator, corpus, strategy, i
+                ):
+                    generated += 1
             except Exception as e:
                 errors += 1
                 if args.verbose:
                     print(f"  [-] Error at {i + 1}: {e}")
 
-        # Save corpus index
         corpus.save_index()
 
-        # Summary
         print("\n" + "=" * 70)
         print("  Generation Complete")
         print("=" * 70)
@@ -591,12 +594,10 @@ def run_generate_study(args: argparse.Namespace) -> int:
         print(f"  Errors:     {errors}")
         print(f"  Corpus:     {output_dir}")
         print(f"  Index:      {corpus.index_path}")
-
         stats = corpus.get_statistics()
         print(f"\n  Total slices: {stats['total_slices']}")
         print(f"  Modalities:   {stats['modality_distribution']}")
         print("=" * 70 + "\n")
-
         return 0
 
     except Exception as e:

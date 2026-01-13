@@ -1,0 +1,55 @@
+# Coverage.py configuration - REQUIRED for reliable measurement
+#
+# CRITICAL: This file must exist separately from pyproject.toml because:
+# 1. Subprocesses spawned during testing may not read pyproject.toml
+# 2. pytest-cov 7.0+ removed subprocess support, relying on coverage.py native support
+# 3. pyproject.toml [tool.coverage] sections can be inconsistently read
+#
+# Reference: https://pytest-cov.readthedocs.io/en/latest/config.html
+
+[run]
+# Package to measure - use package name, not path
+source = dicom_fuzzer
+
+# Branch coverage for if/else paths
+branch = true
+
+# Use relative paths for cross-platform compatibility
+relative_files = true
+
+# Concurrency support (if using multiprocessing/threading)
+concurrency = thread
+
+# Single data file mode (parallel=true can cause data loss on Windows)
+parallel = false
+
+# Omit test files and virtual environment
+omit =
+    */tests/*
+    */.venv/*
+    */conftest.py
+
+[report]
+# Show missing line numbers
+show_missing = true
+
+# Skip fully-covered files in terminal report
+skip_covered = true
+
+# Lines to exclude from coverage
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    @(abc\.)?abstractmethod
+    \.\.\.
+
+# Fail if coverage is below threshold (set to 0 to disable)
+fail_under = 0
+
+[html]
+directory = artifacts/reports/coverage/htmlcov
+
+[xml]
+output = artifacts/reports/coverage/coverage.xml

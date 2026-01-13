@@ -375,6 +375,72 @@ class CampaignAnalyzer:
         self.performance_data = metrics
         return metrics
 
+    def _recommend_coverage(self) -> list[str]:
+        """Generate coverage-based recommendations."""
+        if not self.coverage_data:
+            return []
+        recommendations: list[str] = []
+        best_strategy = max(
+            self.coverage_data.items(), key=lambda x: x[1].correlation_score()
+        )
+        recommendations.append(
+            f"[+] Prioritize '{best_strategy[0]}' strategy "
+            f"(correlation score: {best_strategy[1].correlation_score():.2f})"
+        )
+        weak_strategies = [
+            strategy
+            for strategy, corr in self.coverage_data.items()
+            if corr.correlation_score() < 0.3
+        ]
+        if weak_strategies:
+            recommendations.append(
+                f"[!] Consider reducing usage of: {', '.join(weak_strategies)}"
+            )
+        return recommendations
+
+    def _recommend_trends(self) -> list[str]:
+        """Generate trend-based recommendations."""
+        if not self.trend_data:
+            return []
+        recommendations: list[str] = []
+        if self.trend_data.is_plateauing():
+            recommendations.append(
+                "[!] Campaign appears to be plateauing - consider stopping or changing strategies"
+            )
+        crash_rate = self.trend_data.crash_discovery_rate()
+        if crash_rate > 1.0:
+            recommendations.append(
+                f"[+] High crash discovery rate ({crash_rate:.2f}/hour) - continue fuzzing"
+            )
+        elif crash_rate < 0.1:
+            recommendations.append(
+                f"[!] Low crash discovery rate ({crash_rate:.2f}/hour) - consider adjusting strategies"
+            )
+        return recommendations
+
+    def _recommend_performance(self) -> list[str]:
+        """Generate performance-based recommendations."""
+        if not self.performance_data:
+            return []
+        recommendations: list[str] = []
+        if self.performance_data.throughput_score() < 0.5:
+            recommendations.append(
+                "[!] Low throughput score - consider performance optimization"
+            )
+        if self.performance_data.cache_hit_rate < 50.0:
+            recommendations.append(
+                f"[!] Low cache hit rate ({self.performance_data.cache_hit_rate:.1f}%) - increase cache size"
+            )
+        if self.performance_data.cpu_utilization < 60.0:
+            recommendations.append(
+                f"[!] Low CPU utilization ({self.performance_data.cpu_utilization:.1f}%) - increase worker count"
+            )
+        if self.performance_data.peak_memory_mb > 2000:
+            recommendations.append(
+                f"[!] High memory usage ({self.performance_data.peak_memory_mb:.0f}MB) - consider reducing cache or batch size"
+            )
+        return recommendations
+
     def generate_recommendations(self) -> list[str]:
         """Generate actionable recommendations based on analysis.
 
@@ -382,71 +448,10 @@ class CampaignAnalyzer:
             List of recommendation strings
 
         """
-        recommendations = []
-
-        # Coverage correlation recommendations
-        if self.coverage_data:
-            best_strategy = max(
-                self.coverage_data.items(), key=lambda x: x[1].correlation_score()
-            )
-
-            recommendations.append(
-                f"[+] Prioritize '{best_strategy[0]}' strategy "
-                f"(correlation score: {best_strategy[1].correlation_score():.2f})"
-            )
-
-            # Identify weak strategies
-            weak_strategies = [
-                strategy
-                for strategy, corr in self.coverage_data.items()
-                if corr.correlation_score() < 0.3
-            ]
-
-            if weak_strategies:
-                recommendations.append(
-                    f"[!] Consider reducing usage of: {', '.join(weak_strategies)}"
-                )
-
-        # Trend analysis recommendations
-        if self.trend_data:
-            if self.trend_data.is_plateauing():
-                recommendations.append(
-                    "[!] Campaign appears to be plateauing - consider stopping or changing strategies"
-                )
-
-            crash_rate = self.trend_data.crash_discovery_rate()
-            if crash_rate > 1.0:
-                recommendations.append(
-                    f"[+] High crash discovery rate ({crash_rate:.2f}/hour) - continue fuzzing"
-                )
-            elif crash_rate < 0.1:
-                recommendations.append(
-                    f"[!] Low crash discovery rate ({crash_rate:.2f}/hour) - consider adjusting strategies"
-                )
-
-        # Performance recommendations
-        if self.performance_data:
-            throughput = self.performance_data.throughput_score()
-
-            if throughput < 0.5:
-                recommendations.append(
-                    "[!] Low throughput score - consider performance optimization"
-                )
-
-            if self.performance_data.cache_hit_rate < 50.0:
-                recommendations.append(
-                    f"[!] Low cache hit rate ({self.performance_data.cache_hit_rate:.1f}%) - increase cache size"
-                )
-
-            if self.performance_data.cpu_utilization < 60.0:
-                recommendations.append(
-                    f"[!] Low CPU utilization ({self.performance_data.cpu_utilization:.1f}%) - increase worker count"
-                )
-
-            if self.performance_data.peak_memory_mb > 2000:
-                recommendations.append(
-                    f"[!] High memory usage ({self.performance_data.peak_memory_mb:.0f}MB) - consider reducing cache or batch size"
-                )
+        recommendations: list[str] = []
+        recommendations.extend(self._recommend_coverage())
+        recommendations.extend(self._recommend_trends())
+        recommendations.extend(self._recommend_performance())
 
         if not recommendations:
             recommendations.append(

@@ -54,6 +54,31 @@ class ConfigValidator:
         self.warnings: list[ValidationResult] = []
         self.info: list[ValidationResult] = []
 
+    def _log_results(self) -> None:
+        """Log all validation results."""
+        if self.info:
+            logger.info(f"Pre-flight info ({len(self.info)}):")
+            for result in self.info:
+                logger.info(f"  [INFO] {result.message}")
+        if self.warnings:
+            logger.warning(f"Pre-flight warnings ({len(self.warnings)}):")
+            for result in self.warnings:
+                logger.warning(f"  [WARN] {result.message}")
+        if self.errors:
+            logger.error(f"Pre-flight errors ({len(self.errors)}):")
+            for result in self.errors:
+                logger.error(f"  [ERROR] {result.message}")
+
+    def _determine_overall_result(self) -> bool:
+        """Determine if validation passed based on errors, warnings, and strict mode."""
+        if self.errors:
+            return False
+        if self.warnings and self.strict:
+            logger.error("Strict mode enabled - treating warnings as errors")
+            return False
+        logger.info("All pre-flight checks passed")
+        return True
+
     def validate_all(
         self,
         input_file: Path | None = None,
@@ -77,57 +102,21 @@ class ConfigValidator:
         """
         logger.info("Running pre-flight validation checks...")
 
-        # Python environment checks
         self._check_python_version()
         self._check_dependencies()
 
-        # File system checks
         if input_file:
             self._validate_input_file(input_file)
-
         if output_dir:
             self._validate_output_dir(output_dir)
-
         if output_dir and num_files:
             self._check_disk_space(output_dir, min_disk_space_mb, num_files)
-
-        # Target application checks
         if target_executable:
             self._validate_target_executable(target_executable)
 
-        # System checks
         self._check_system_resources()
-
-        # Compile results
-        has_errors = len(self.errors) > 0
-        has_warnings = len(self.warnings) > 0
-
-        # Log results
-        if self.info:
-            logger.info(f"Pre-flight info ({len(self.info)}):")
-            for result in self.info:
-                logger.info(f"  [INFO] {result.message}")
-
-        if has_warnings:
-            logger.warning(f"Pre-flight warnings ({len(self.warnings)}):")
-            for result in self.warnings:
-                logger.warning(f"  [WARN] {result.message}")
-
-        if has_errors:
-            logger.error(f"Pre-flight errors ({len(self.errors)}):")
-            for result in self.errors:
-                logger.error(f"  [ERROR] {result.message}")
-
-        # Determine overall pass/fail
-        if has_errors:
-            return False
-
-        if has_warnings and self.strict:
-            logger.error("Strict mode enabled - treating warnings as errors")
-            return False
-
-        logger.info("All pre-flight checks passed")
-        return True
+        self._log_results()
+        return self._determine_overall_result()
 
     def _check_python_version(self) -> None:
         """Check Python version meets requirements."""

@@ -69,7 +69,7 @@ class FuzzedFileRecord(SerializableMixin):
 
     # Test results (populated if tested against a viewer)
     test_result: str | None = None  # success, crash, hang, error
-    crash_details: dict | None = None
+    crash_details: dict[str, Any] | None = None
 
 
 @dataclass
@@ -102,7 +102,7 @@ class CrashRecord(SerializableMixin):
     reproduction_command: str | None = None
 
     # Mutation tracking for deduplication
-    mutation_sequence: list[tuple] = field(default_factory=list)
+    mutation_sequence: list[tuple[Any, ...]] = field(default_factory=list)
 
 
 class FuzzingSession:
@@ -117,7 +117,7 @@ class FuzzingSession:
         session_name: str | None = None,
         output_dir: str = "./artifacts/fuzzed",
         reports_dir: str = "./artifacts/reports",
-        config: dict | None = None,
+        config: dict[str, Any] | None = None,
         session_id: str | None = None,
         crashes_dir: str | None = None,
     ):
@@ -222,7 +222,7 @@ class FuzzingSession:
         target_element: str | None = None,
         original_value: Any | None = None,
         mutated_value: Any | None = None,
-        parameters: dict | None = None,
+        parameters: dict[str, Any] | None = None,
     ) -> None:
         """Record a mutation applied to the current file.
 
@@ -413,7 +413,7 @@ class FuzzingSession:
 
         return crash
 
-    def generate_session_report(self) -> dict:
+    def generate_session_report(self) -> dict[str, Any]:
         """Generate complete session report.
 
         Returns:
@@ -464,7 +464,7 @@ class FuzzingSession:
 
         return json_path
 
-    def get_session_summary(self) -> dict:
+    def get_session_summary(self) -> dict[str, Any]:
         """Get a summary of the current session.
 
         Returns:
@@ -615,7 +615,7 @@ class FuzzingSession:
                 f.write(f"{stack_trace}\n")
 
     # Test compatibility methods
-    def execute_target(self, input_data: bytes) -> dict:
+    def execute_target(self, input_data: bytes) -> dict[str, Any]:
         """Execute target with input data (stub for test compatibility).
 
         Args:
@@ -640,7 +640,7 @@ class FuzzingSession:
         """
         pass
 
-    def run_iteration(self) -> dict:
+    def run_iteration(self) -> dict[str, Any]:
         """Run a single fuzzing iteration (stub for test compatibility).
 
         Returns:
@@ -653,7 +653,7 @@ class FuzzingSession:
             "crash_found": False,
         }
 
-    def generate_report(self) -> dict:
+    def generate_report(self) -> dict[str, Any]:
         """Generate report (alias for generate_session_report for test compatibility).
 
         Returns:

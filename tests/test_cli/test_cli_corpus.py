@@ -467,6 +467,508 @@ class TestRunMerge:
         assert "Merge failed" in captured.out
 
 
+class TestValidateMinimizeStudyArgs:
+    """Test _validate_minimize_study_args helper function."""
+
+    @pytest.fixture
+    def temp_dir(self):
+        """Create temporary directory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    def test_validate_study_not_found(self, temp_dir, capsys):
+        """Test validation fails when study directory not found."""
+        args = argparse.Namespace(
+            minimize_study="/nonexistent/study",
+            target=None,
+            output=None,
+        )
+
+        result = corpus._validate_minimize_study_args(args)
+
+        assert result is None
+        captured = capsys.readouterr()
+        assert "not found" in captured.out
+
+    def test_validate_target_required(self, temp_dir, capsys):
+        """Test validation fails when target not specified."""
+        study_dir = temp_dir / "study"
+        study_dir.mkdir()
+
+        args = argparse.Namespace(
+            minimize_study=str(study_dir),
+            target=None,
+            output=None,
+        )
+
+        result = corpus._validate_minimize_study_args(args)
+
+        assert result is None
+        captured = capsys.readouterr()
+        assert "--target is required" in captured.out
+
+    def test_validate_target_not_found(self, temp_dir, capsys):
+        """Test validation fails when target executable not found."""
+        study_dir = temp_dir / "study"
+        study_dir.mkdir()
+
+        args = argparse.Namespace(
+            minimize_study=str(study_dir),
+            target="/nonexistent/target.exe",
+            output=None,
+        )
+
+        result = corpus._validate_minimize_study_args(args)
+
+        assert result is None
+        captured = capsys.readouterr()
+        assert "Target executable not found" in captured.out
+
+    def test_validate_success_with_output(self, temp_dir):
+        """Test validation succeeds with all required arguments."""
+        study_dir = temp_dir / "study"
+        study_dir.mkdir()
+        target = temp_dir / "target.exe"
+        target.write_text("fake executable")
+        output_dir = temp_dir / "output"
+
+        args = argparse.Namespace(
+            minimize_study=str(study_dir),
+            target=str(target),
+            output=str(output_dir),
+        )
+
+        result = corpus._validate_minimize_study_args(args)
+
+        assert result is not None
+        study, target_path, output = result
+        assert study == study_dir
+        assert target_path == target
+        assert output == output_dir
+
+    def test_validate_success_default_output(self, temp_dir):
+        """Test validation generates default output directory."""
+        study_dir = temp_dir / "study"
+        study_dir.mkdir()
+        target = temp_dir / "target.exe"
+        target.write_text("fake executable")
+
+        args = argparse.Namespace(
+            minimize_study=str(study_dir),
+            target=str(target),
+            output=None,
+        )
+
+        result = corpus._validate_minimize_study_args(args)
+
+        assert result is not None
+        study, target_path, output = result
+        assert output.name == "study_minimized"
+
+
+class TestRunMinimizeStudy:
+    """Test run_minimize_study function."""
+
+    @pytest.fixture
+    def temp_dir(self):
+        """Create temporary directory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    def test_run_minimize_study_validation_failed(self, capsys):
+        """Test minimize fails when validation fails."""
+        args = argparse.Namespace(
+            minimize_study="/nonexistent/study",
+            target=None,
+            output=None,
+            verbose=False,
+        )
+
+        result = corpus.run_minimize_study(args)
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "not found" in captured.out
+
+    def test_run_minimize_study_success(self, temp_dir, capsys):
+        """Test successful study minimization."""
+        from unittest.mock import MagicMock, patch
+
+        study_dir = temp_dir / "study"
+        study_dir.mkdir()
+        target = temp_dir / "target.exe"
+        target.write_text("fake")
+        output_dir = temp_dir / "output"
+
+        args = argparse.Namespace(
+            minimize_study=str(study_dir),
+            target=str(target),
+            output=str(output_dir),
+            timeout=30.0,
+            max_iterations=10,
+            verbose=False,
+        )
+
+        # Mock the minimizer result
+        mock_result = MagicMock()
+        mock_result.original_slice_count = 10
+        mock_result.minimal_slice_count = 1
+        mock_result.reduction_ratio = 0.1
+        mock_result.iterations = 5
+        mock_result.minimization_time_seconds = 10.5
+        mock_result.crash_reproducible = True
+        mock_result.trigger_slice = MagicMock(name="slice_0003.dcm")
+        mock_result.notes = ["Single slice triggers crash"]
+
+        mock_minimizer = MagicMock()
+        mock_minimizer.minimize.return_value = mock_result
+
+        with (
+            patch("dicom_fuzzer.core.target_runner.TargetRunner") as mock_runner_cls,
+            patch(
+                "dicom_fuzzer.core.study_minimizer.StudyMinimizer",
+                return_value=mock_minimizer,
+            ),
+            patch("dicom_fuzzer.core.study_minimizer.create_crash_test_from_runner"),
+        ):
+            result = corpus.run_minimize_study(args)
+
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Study Minimization" in captured.out
+        assert "TRIGGER SLICE FOUND" in captured.out
+        assert "Minimized study saved to" in captured.out
+
+    def test_run_minimize_study_multi_slice_bug(self, temp_dir, capsys):
+        """Test minimization result with multi-slice bug."""
+        from unittest.mock import MagicMock, patch
+
+        study_dir = temp_dir / "study"
+        study_dir.mkdir()
+        target = temp_dir / "target.exe"
+        target.write_text("fake")
+
+        args = argparse.Namespace(
+            minimize_study=str(study_dir),
+            target=str(target),
+            output=None,
+            timeout=30.0,
+            max_iterations=10,
+            verbose=False,
+        )
+
+        mock_result = MagicMock()
+        mock_result.original_slice_count = 10
+        mock_result.minimal_slice_count = 3  # Multi-slice bug
+        mock_result.reduction_ratio = 0.3
+        mock_result.iterations = 8
+        mock_result.minimization_time_seconds = 15.0
+        mock_result.crash_reproducible = True
+        mock_result.trigger_slice = None  # No single trigger
+        mock_result.notes = []
+
+        mock_minimizer = MagicMock()
+        mock_minimizer.minimize.return_value = mock_result
+
+        with (
+            patch("dicom_fuzzer.core.target_runner.TargetRunner"),
+            patch(
+                "dicom_fuzzer.core.study_minimizer.StudyMinimizer",
+                return_value=mock_minimizer,
+            ),
+            patch("dicom_fuzzer.core.study_minimizer.create_crash_test_from_runner"),
+        ):
+            result = corpus.run_minimize_study(args)
+
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Multi-slice bug: requires 3 slices" in captured.out
+
+    def test_run_minimize_study_file_not_found(self, temp_dir, capsys):
+        """Test minimize handles FileNotFoundError."""
+        from unittest.mock import patch
+
+        study_dir = temp_dir / "study"
+        study_dir.mkdir()
+        target = temp_dir / "target.exe"
+        target.write_text("fake")
+
+        args = argparse.Namespace(
+            minimize_study=str(study_dir),
+            target=str(target),
+            output=None,
+            timeout=30.0,
+            max_iterations=10,
+            verbose=False,
+        )
+
+        with patch(
+            "dicom_fuzzer.core.target_runner.TargetRunner",
+            side_effect=FileNotFoundError("Missing file"),
+        ):
+            result = corpus.run_minimize_study(args)
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "File not found" in captured.out
+
+    def test_run_minimize_study_exception(self, temp_dir, capsys):
+        """Test minimize handles general exceptions."""
+        from unittest.mock import patch
+
+        study_dir = temp_dir / "study"
+        study_dir.mkdir()
+        target = temp_dir / "target.exe"
+        target.write_text("fake")
+
+        args = argparse.Namespace(
+            minimize_study=str(study_dir),
+            target=str(target),
+            output=None,
+            timeout=30.0,
+            max_iterations=10,
+            verbose=True,
+        )
+
+        with patch(
+            "dicom_fuzzer.core.target_runner.TargetRunner",
+            side_effect=RuntimeError("Runner error"),
+        ):
+            result = corpus.run_minimize_study(args)
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "Minimization failed" in captured.out
+
+
+class TestRunGenerateStudy:
+    """Test run_generate_study function."""
+
+    @pytest.fixture
+    def temp_dir(self):
+        """Create temporary directory."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    def test_run_generate_study_source_not_found(self, capsys):
+        """Test generate fails when source not found."""
+        args = argparse.Namespace(
+            generate_study="/nonexistent/source",
+            output="./output",
+            verbose=False,
+        )
+
+        result = corpus.run_generate_study(args)
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "not found" in captured.out
+
+    def test_run_generate_study_output_required(self, temp_dir, capsys):
+        """Test generate fails when output not specified."""
+        source_dir = temp_dir / "source"
+        source_dir.mkdir()
+
+        args = argparse.Namespace(
+            generate_study=str(source_dir),
+            output=None,
+            verbose=False,
+        )
+
+        result = corpus.run_generate_study(args)
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "--output is required" in captured.out
+
+    def test_run_generate_study_success(self, temp_dir, capsys):
+        """Test successful study generation."""
+        from unittest.mock import MagicMock, patch
+
+        source_dir = temp_dir / "source"
+        source_dir.mkdir()
+        output_dir = temp_dir / "output"
+
+        args = argparse.Namespace(
+            generate_study=str(source_dir),
+            output=str(output_dir),
+            count=5,
+            strategy="all",
+            severity="aggressive",
+            mutations_per_study=3,
+            verbose=True,
+        )
+
+        # Mock the study and mutator
+        mock_study = MagicMock()
+        mock_study.series_count = 2
+        mock_study.get_total_slices.return_value = 20
+
+        mock_mutator = MagicMock()
+        mock_mutator.load_study.return_value = mock_study
+        mock_mutator.mutate_study.return_value = (
+            [[MagicMock(), MagicMock()]],
+            [MagicMock(strategy="test", tag="0x00100010")],
+        )
+
+        mock_corpus = MagicMock()
+        mock_entry = MagicMock()
+        mock_entry.study_id = "study_001"
+        mock_corpus.add_study.return_value = mock_entry
+        mock_corpus.get_statistics.return_value = {
+            "total_slices": 100,
+            "modality_distribution": {"CT": 50, "MR": 50},
+        }
+
+        with (
+            patch(
+                "dicom_fuzzer.strategies.study_mutator.StudyMutator",
+                return_value=mock_mutator,
+            ),
+            patch(
+                "dicom_fuzzer.core.study_corpus.StudyCorpusManager",
+                return_value=mock_corpus,
+            ),
+        ):
+            result = corpus.run_generate_study(args)
+
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Study Corpus Generation" in captured.out
+        assert "Generation Complete" in captured.out
+        assert "Generated:  5 studies" in captured.out
+
+    def test_run_generate_study_specific_strategy(self, temp_dir, capsys):
+        """Test generation with specific strategy."""
+        from unittest.mock import MagicMock, patch
+
+        source_dir = temp_dir / "source"
+        source_dir.mkdir()
+        output_dir = temp_dir / "output"
+
+        args = argparse.Namespace(
+            generate_study=str(source_dir),
+            output=str(output_dir),
+            count=2,
+            strategy="cross-series",
+            severity="minimal",
+            mutations_per_study=1,
+            verbose=False,
+        )
+
+        mock_study = MagicMock()
+        mock_study.series_count = 1
+        mock_study.get_total_slices.return_value = 5
+
+        mock_mutator = MagicMock()
+        mock_mutator.load_study.return_value = mock_study
+        mock_mutator.mutate_study.return_value = ([[MagicMock()]], [])
+
+        mock_corpus = MagicMock()
+        mock_corpus.add_study.return_value = MagicMock(study_id="test")
+        mock_corpus.get_statistics.return_value = {
+            "total_slices": 10,
+            "modality_distribution": {},
+        }
+
+        with (
+            patch(
+                "dicom_fuzzer.strategies.study_mutator.StudyMutator",
+                return_value=mock_mutator,
+            ),
+            patch(
+                "dicom_fuzzer.core.study_corpus.StudyCorpusManager",
+                return_value=mock_corpus,
+            ),
+        ):
+            result = corpus.run_generate_study(args)
+
+        assert result == 0
+
+    def test_run_generate_study_with_errors(self, temp_dir, capsys):
+        """Test generation continues despite errors."""
+        from unittest.mock import MagicMock, patch
+
+        source_dir = temp_dir / "source"
+        source_dir.mkdir()
+        output_dir = temp_dir / "output"
+
+        args = argparse.Namespace(
+            generate_study=str(source_dir),
+            output=str(output_dir),
+            count=3,
+            strategy="all",
+            severity="aggressive",
+            mutations_per_study=2,
+            verbose=True,
+        )
+
+        mock_study = MagicMock()
+        mock_study.series_count = 1
+        mock_study.get_total_slices.return_value = 5
+
+        mock_mutator = MagicMock()
+        mock_mutator.load_study.return_value = mock_study
+        # First call succeeds, second fails, third succeeds
+        mock_mutator.mutate_study.side_effect = [
+            ([[MagicMock()]], []),
+            RuntimeError("Mutation failed"),
+            ([[MagicMock()]], []),
+        ]
+
+        mock_corpus = MagicMock()
+        mock_corpus.add_study.return_value = MagicMock(study_id="test")
+        mock_corpus.get_statistics.return_value = {
+            "total_slices": 10,
+            "modality_distribution": {},
+        }
+
+        with (
+            patch(
+                "dicom_fuzzer.strategies.study_mutator.StudyMutator",
+                return_value=mock_mutator,
+            ),
+            patch(
+                "dicom_fuzzer.core.study_corpus.StudyCorpusManager",
+                return_value=mock_corpus,
+            ),
+        ):
+            result = corpus.run_generate_study(args)
+
+        assert result == 0
+        captured = capsys.readouterr()
+        assert "Generated:  2 studies" in captured.out
+        assert "Errors:     1" in captured.out
+
+    def test_run_generate_study_exception(self, temp_dir, capsys):
+        """Test generation handles fatal exceptions."""
+        from unittest.mock import patch
+
+        source_dir = temp_dir / "source"
+        source_dir.mkdir()
+        output_dir = temp_dir / "output"
+
+        args = argparse.Namespace(
+            generate_study=str(source_dir),
+            output=str(output_dir),
+            count=1,
+            strategy="all",
+            severity="aggressive",
+            mutations_per_study=1,
+            verbose=True,
+        )
+
+        with patch(
+            "dicom_fuzzer.strategies.study_mutator.StudyMutator",
+            side_effect=RuntimeError("Import failed"),
+        ):
+            result = corpus.run_generate_study(args)
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "Generation failed" in captured.out
+
+
 class TestMain:
     """Test main function."""
 

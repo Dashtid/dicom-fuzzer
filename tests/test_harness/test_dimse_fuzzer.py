@@ -320,6 +320,9 @@ class TestDatasetMutator:
         # Should have added private elements
         private_elements = [e for e in malformed if e.tag[0] % 2 == 1]
         # May or may not have private elements depending on random chance
+        # Verify mutation completed
+        assert malformed is not None
+        assert isinstance(malformed, list)
 
 
 class TestUIDGenerator:

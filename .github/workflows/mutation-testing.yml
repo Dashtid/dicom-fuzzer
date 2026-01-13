@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       modules:
-        description: 'Specific modules to test (comma-separated, e.g., core.parser,core.validator)'
+        description: 'File paths to mutate (comma-separated, e.g., dicom_fuzzer/utils/hashing.py,dicom_fuzzer/core/parser.py)'
         required: false
         default: ''
 
@@ -65,21 +65,15 @@ jobs:
           if [ -n "$INPUT_MODULES" ]; then
             echo "modules=$INPUT_MODULES" >> $GITHUB_OUTPUT
           else
-            # Default to core modules for regular runs
-            echo "modules=dicom_fuzzer.core.parser,dicom_fuzzer.core.validator,dicom_fuzzer.core.mutator" >> $GITHUB_OUTPUT
+            # Default to small utility modules for faster feedback
+            # These are ~150-500 lines each and have comprehensive tests
+            echo "modules=dicom_fuzzer/utils/hashing.py,dicom_fuzzer/utils/helpers.py,dicom_fuzzer/utils/identifiers.py" >> $GITHUB_OUTPUT
           fi
 
       - name: Run mutation testing
         run: |
-          # Create mutmut config
-          cat > setup.cfg << 'EOF'
-          [mutmut]
-          paths_to_mutate=dicom_fuzzer/core/parser.py,dicom_fuzzer/core/validator.py,dicom_fuzzer/core/mutator.py
-          tests_dir=tests/
-          runner=pytest -x -q --tb=no
-          EOF
-
           # Run mutmut with timeout per mutation
+          # Using --paths-to-mutate from modules step output
           mutmut run --paths-to-mutate="${{ steps.modules.outputs.modules }}" \
             --runner="pytest -x -q --tb=no -p no:randomly" \
             --no-progress || true

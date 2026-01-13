@@ -35,6 +35,42 @@ STRIP_TAGS = [
 OVERLAY_GROUP_START = 0x6000
 OVERLAY_GROUP_END = 0x601E
 
+# Tags to strip for pixel data reduction
+_PIXEL_DATA_TAGS = [
+    (0x7FE0, 0x0010),  # PixelData
+    (0x7FE0, 0x0008),  # FloatPixelData
+    (0x7FE0, 0x0009),  # DoubleFloatPixelData
+    (0x7FE0, 0x0001),  # ExtendedOffsetTable
+    (0x7FE0, 0x0002),  # ExtendedOffsetTableLengths
+]
+_WAVEFORM_TAG = (0x5400, 0x0100)
+
+
+def _delete_tag_if_present(ds: Any, tag: tuple[int, int]) -> None:
+    """Delete a tag from dataset if present."""
+    if tag in ds:
+        del ds[tag]
+
+
+def _strip_tags(ds: Any, strip_overlays: bool, strip_waveforms: bool) -> None:
+    """Strip pixel data and optional bulk data tags from dataset."""
+    # Strip pixel data tags
+    for tag in _PIXEL_DATA_TAGS:
+        _delete_tag_if_present(ds, tag)
+
+    # Strip overlay data (groups 6000-601E)
+    if strip_overlays:
+        for group in range(OVERLAY_GROUP_START, OVERLAY_GROUP_END + 1, 2):
+            _delete_tag_if_present(ds, (group, 0x3000))
+
+    # Strip waveform data
+    if strip_waveforms:
+        _delete_tag_if_present(ds, _WAVEFORM_TAG)
+
+    # Clean file_meta if present
+    if hasattr(ds, "file_meta"):
+        _delete_tag_if_present(ds.file_meta, (0x7FE0, 0x0010))
+
 
 def strip_pixel_data(
     input_path: Path,
@@ -60,58 +96,29 @@ def strip_pixel_data(
     try:
         import pydicom
 
-        # Read DICOM file
         ds = pydicom.dcmread(str(input_path), force=True)
         original_size = input_path.stat().st_size
 
-        # Strip PixelData
-        if (0x7FE0, 0x0010) in ds:
-            del ds[0x7FE0, 0x0010]
-        if (0x7FE0, 0x0008) in ds:
-            del ds[0x7FE0, 0x0008]
-        if (0x7FE0, 0x0009) in ds:
-            del ds[0x7FE0, 0x0009]
+        _strip_tags(ds, strip_overlays, strip_waveforms)
 
-        # Strip extended offset tables
-        if (0x7FE0, 0x0001) in ds:
-            del ds[0x7FE0, 0x0001]
-        if (0x7FE0, 0x0002) in ds:
-            del ds[0x7FE0, 0x0002]
-
-        # Strip overlay data (groups 6000-601E)
-        if strip_overlays:
-            for group in range(OVERLAY_GROUP_START, OVERLAY_GROUP_END + 1, 2):
-                if (group, 0x3000) in ds:
-                    del ds[group, 0x3000]
-
-        # Strip waveform data
-        if strip_waveforms:
-            if (0x5400, 0x0100) in ds:
-                del ds[0x5400, 0x0100]
-
-        # Update file meta information if present
-        if hasattr(ds, "file_meta"):
-            # Remove any encapsulated pixel data markers
-            if (0x7FE0, 0x0010) in ds.file_meta:
-                del ds.file_meta[0x7FE0, 0x0010]
-
-        # Save stripped file
         output_path.parent.mkdir(parents=True, exist_ok=True)
         ds.save_as(str(output_path), write_like_original=False)
 
-        new_size = output_path.stat().st_size
-        bytes_saved = original_size - new_size
-
+        bytes_saved = original_size - output_path.stat().st_size
         return True, bytes_saved
 
     except Exception as e:
         logger.debug(f"Failed to strip pixel data from {input_path.name}: {e}")
-        # Fall back to copying original file
-        try:
-            shutil.copy2(input_path, output_path)
-            return True, 0
-        except Exception:
-            return False, 0
+        return _fallback_copy(input_path, output_path)
+
+
+def _fallback_copy(input_path: Path, output_path: Path) -> tuple[bool, int]:
+    """Fall back to copying original file."""
+    try:
+        shutil.copy2(input_path, output_path)
+        return True, 0
+    except Exception:
+        return False, 0
 
 
 def optimize_corpus(
@@ -432,6 +439,39 @@ class MoonLightMinimizer:
         """
         self._time_cache[seed] = time_seconds
 
+    def _find_best_seed(
+        self,
+        remaining_seeds: list[Path],
+        seed_coverage: dict[Path, set[str]],
+        covered: set[str],
+    ) -> tuple[Path | None, int]:
+        """Find best seed to add based on weighted set cover score.
+
+        Returns:
+            Tuple of (best_seed, new_coverage_count) or (None, 0) if no seed adds coverage.
+
+        """
+        best_seed = None
+        best_score = float("inf")
+        best_new_coverage = 0
+
+        for seed in remaining_seeds:
+            new_coverage = seed_coverage[seed] - covered
+            if not new_coverage:
+                continue
+
+            weight = self.compute_seed_weight(seed)
+            score = weight / len(new_coverage)
+
+            if score < best_score or (
+                score == best_score and len(new_coverage) > best_new_coverage
+            ):
+                best_seed = seed
+                best_score = score
+                best_new_coverage = len(new_coverage)
+
+        return best_seed, best_new_coverage
+
     def minimize(
         self,
         seeds: list[Path],
@@ -450,50 +490,23 @@ class MoonLightMinimizer:
         if not seeds:
             return []
 
-        # Collect coverage for all seeds
-        seed_coverage: dict[Path, set[str]] = {}
-        for seed in seeds:
-            seed_coverage[seed] = self.get_coverage(seed)
+        seed_coverage: dict[Path, set[str]] = {
+            seed: self.get_coverage(seed) for seed in seeds
+        }
 
-        # Compute total coverage if not provided
         if target_coverage is None:
-            target_coverage = set()
-            for cov in seed_coverage.values():
-                target_coverage |= cov
+            target_coverage = set().union(*seed_coverage.values())
 
         if not target_coverage:
             return seeds[:1] if seeds else []
 
-        # Weighted set cover algorithm (greedy approximation)
         selected: list[Path] = []
         covered: set[str] = set()
         remaining_seeds = list(seeds)
 
         while covered != target_coverage and remaining_seeds:
-            best_seed = None
-            best_score = float("inf")
-            best_new_coverage = 0
-
-            for seed in remaining_seeds:
-                # Calculate new coverage this seed would add
-                new_coverage = seed_coverage[seed] - covered
-                if not new_coverage:
-                    continue
-
-                # Weighted set cover score: weight / |new coverage|
-                weight = self.compute_seed_weight(seed)
-                score = weight / len(new_coverage)
-
-                # Lower score is better
-                if score < best_score or (
-                    score == best_score and len(new_coverage) > best_new_coverage
-                ):
-                    best_seed = seed
-                    best_score = score
-                    best_new_coverage = len(new_coverage)
-
+            best_seed, _ = self._find_best_seed(remaining_seeds, seed_coverage, covered)
             if best_seed is None:
-                # No more seeds add coverage
                 break
 
             selected.append(best_seed)
@@ -663,7 +676,7 @@ class CoverageAwarePrioritizer:
         }
 
 
-def validate_corpus_quality(corpus_dir: Path) -> dict:
+def validate_corpus_quality(corpus_dir: Path) -> dict[str, Any]:
     """Validate corpus quality and provide statistics.
 
     Args:

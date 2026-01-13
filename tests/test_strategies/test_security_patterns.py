@@ -78,6 +78,7 @@ class TestCVE20255943Pattern:
 
         # Check that dataset was modified
         assert mutated is not None
+        assert isinstance(mutated, Dataset)
 
         # Verify at least one tag has been modified
         # Note: We can't directly check the oversized length due to pydicom's validation,
@@ -121,6 +122,8 @@ class TestCVE20255943Pattern:
 
     def test_multiple_oversized_lengths(self, security_fuzzer):
         """Test that fuzzer has multiple oversized length options."""
+        assert security_fuzzer.oversized_vr_lengths is not None
+        assert isinstance(security_fuzzer.oversized_vr_lengths, list)
         assert len(security_fuzzer.oversized_vr_lengths) >= 5
         assert 0xFFFF in security_fuzzer.oversized_vr_lengths
         assert 0x10000 in security_fuzzer.oversized_vr_lengths
@@ -158,10 +161,13 @@ class TestHeapSprayPattern:
 
     def test_heap_spray_patterns_defined(self, security_fuzzer):
         """Test that heap spray patterns are properly defined."""
+        assert security_fuzzer.heap_spray_patterns is not None
+        assert isinstance(security_fuzzer.heap_spray_patterns, list)
         assert len(security_fuzzer.heap_spray_patterns) >= 5
 
         # Verify patterns are bytes
         for pattern in security_fuzzer.heap_spray_patterns:
+            assert pattern is not None
             assert isinstance(pattern, bytes)
             assert len(pattern) >= 256
 
@@ -183,13 +189,17 @@ class TestMalformedVRPattern:
 
         # At least check that the function ran without error
         assert mutated is not None
+        assert isinstance(mutated, Dataset)
 
     def test_malformed_vr_codes_defined(self, security_fuzzer):
         """Test that malformed VR codes are defined."""
+        assert security_fuzzer.malformed_vr_codes is not None
+        assert isinstance(security_fuzzer.malformed_vr_codes, list)
         assert len(security_fuzzer.malformed_vr_codes) >= 5
 
         # Verify codes are bytes
         for code in security_fuzzer.malformed_vr_codes:
+            assert code is not None
             assert isinstance(code, bytes)
             assert len(code) == 2
 
@@ -328,6 +338,7 @@ class TestAllPatterns:
 
         # Verify dataset was returned
         assert mutated is not None
+        assert isinstance(mutated, Dataset)
 
         # Verify it's still a valid dataset structure
         assert hasattr(mutated, "PatientName")
@@ -340,6 +351,7 @@ class TestAllPatterns:
         for _ in range(5):
             dataset = security_fuzzer.apply_all_patterns(dataset)
             assert dataset is not None
+            assert isinstance(dataset, Dataset)
 
     def test_pattern_randomization(self, sample_dataset, security_fuzzer):
         """Test that pattern application is randomized."""
@@ -437,6 +449,7 @@ class TestCVE20255943PatternDetailed:
 
         result = security_fuzzer.apply_cve_2025_5943_pattern(ds)
         assert result is not None
+        assert isinstance(result, Dataset)
 
     def test_apply_modifies_existing_tag_value(self, sample_dataset, security_fuzzer):
         """Test that pattern modifies tag values."""
@@ -456,6 +469,7 @@ class TestCVE20255943PatternDetailed:
         security_fuzzer.oversized_vr_lengths = [0x100000]
         mutated = security_fuzzer.apply_cve_2025_5943_pattern(sample_dataset)
         assert mutated is not None
+        assert isinstance(mutated, Dataset)
 
     def test_small_oversized_length_payload(self, sample_dataset, security_fuzzer):
         """Test that small oversized lengths create appropriate payloads."""
@@ -463,6 +477,7 @@ class TestCVE20255943PatternDetailed:
         security_fuzzer.oversized_vr_lengths = [0x8000]
         mutated = security_fuzzer.apply_cve_2025_5943_pattern(sample_dataset)
         assert mutated is not None
+        assert isinstance(mutated, Dataset)
 
 
 class TestHeapSprayPatternDetailed:
@@ -519,6 +534,7 @@ class TestMalformedVRPatternDetailed:
 
         mutated = security_fuzzer.apply_malformed_vr_pattern(ds)
         assert mutated is not None
+        assert isinstance(mutated, Dataset)
 
     def test_malformed_vr_un_value_setting(self, security_fuzzer):
         """Test that UN VR gets arbitrary data set."""
@@ -531,6 +547,7 @@ class TestMalformedVRPatternDetailed:
         for _ in range(20):
             mutated = security_fuzzer.apply_malformed_vr_pattern(ds)
             assert mutated is not None
+            assert isinstance(mutated, Dataset)
 
 
 class TestIntegerOverflowPatternDetailed:
@@ -558,6 +575,7 @@ class TestIntegerOverflowPatternDetailed:
 
         mutated = security_fuzzer_copy.apply_integer_overflow_pattern(ds)
         assert mutated is not None
+        assert isinstance(mutated, Dataset)
 
     def test_integer_overflow_pixel_data_oversized(self, security_fuzzer):
         """Test that oversized PixelData is created for large dimensions."""
@@ -568,6 +586,7 @@ class TestIntegerOverflowPatternDetailed:
 
         mutated = security_fuzzer.apply_integer_overflow_pattern(ds)
         assert mutated is not None
+        assert isinstance(mutated, Dataset)
 
     def test_integer_overflow_without_pixel_data(self, security_fuzzer):
         """Test integer overflow when PixelData doesn't exist."""
@@ -578,6 +597,7 @@ class TestIntegerOverflowPatternDetailed:
 
         mutated = security_fuzzer.apply_integer_overflow_pattern(ds)
         assert mutated is not None
+        assert isinstance(mutated, Dataset)
 
 
 class TestSequenceDepthAttackDetailed:
@@ -610,6 +630,7 @@ class TestSequenceDepthAttackDetailed:
         ds = Dataset()
         mutated = security_fuzzer.apply_sequence_depth_attack(ds)
         assert mutated is not None
+        assert isinstance(mutated, Dataset)
 
 
 class TestEncodingConfusionPatternDetailed:
@@ -652,6 +673,7 @@ class TestEncodingConfusionPatternDetailed:
 
         mutated = security_fuzzer.apply_encoding_confusion_pattern(ds)
         assert mutated is not None
+        assert isinstance(mutated, Dataset)
 
 
 class TestApplyAllPatternsDetailed:
@@ -666,6 +688,7 @@ class TestApplyAllPatternsDetailed:
         # Should complete without raising
         mutated = security_fuzzer.apply_all_patterns(ds)
         assert mutated is not None
+        assert isinstance(mutated, Dataset)
 
     def test_apply_all_patterns_variation(self, sample_dataset, security_fuzzer):
         """Test that apply_all_patterns applies varying numbers of patterns."""
@@ -673,6 +696,7 @@ class TestApplyAllPatternsDetailed:
         for _ in range(20):
             mutated = security_fuzzer.apply_all_patterns(sample_dataset)
             assert mutated is not None
+            assert isinstance(mutated, Dataset)
 
 
 class TestExceptionHandlingPaths:

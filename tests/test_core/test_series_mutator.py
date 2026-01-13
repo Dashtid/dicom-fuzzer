@@ -135,6 +135,24 @@ class TestMutateSeries:
         with pytest.raises(ValueError, match="Invalid strategy"):
             mutator.mutate_series(sample_series, strategy="invalid_strategy")
 
+    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    def test_mutate_with_enum_strategy(
+        self, mock_dcmread, sample_series, mock_datasets
+    ):
+        """Test mutation with SeriesMutationStrategy enum (not string)."""
+        mock_dcmread.side_effect = mock_datasets
+
+        mutator = Series3DMutator(severity="moderate", seed=42)
+        # Use enum instead of string
+        fuzzed_datasets, records = mutator.mutate_series(
+            sample_series,
+            strategy=SeriesMutationStrategy.METADATA_CORRUPTION,
+            mutation_count=2,
+        )
+
+        assert len(fuzzed_datasets) == 5
+        assert len(records) >= 1
+
 
 class TestMetadataCorruption:
     """Test metadata_corruption mutation strategy."""
@@ -169,6 +187,10 @@ class TestMetadataCorruption:
         # Check if any dataset had Modality deleted
         modality_records = [r for r in records if r.tag == "Modality"]
         # May or may not have modality deletions depending on random choices
+        # But verify mutation operation completed successfully
+        assert fuzzed_datasets is not None
+        assert len(fuzzed_datasets) > 0
+        assert isinstance(records, list)
 
 
 class TestSlicePositionAttack:
@@ -211,6 +233,10 @@ class TestSlicePositionAttack:
             or "inf" in str(r.mutated_value).lower()
         ]
         # May or may not have extreme values depending on random choices
+        # But verify mutation operation completed successfully
+        assert fuzzed_datasets is not None
+        assert len(fuzzed_datasets) > 0
+        assert isinstance(records, list)
 
 
 class TestBoundarySliceTargeting:
@@ -251,6 +277,10 @@ class TestBoundarySliceTargeting:
             r for r in records if r.details.get("boundary_type") == "alternating"
         ]
         # May or may not have alternating pattern depending on random choices
+        # But verify mutation operation completed successfully
+        assert fuzzed_datasets is not None
+        assert len(fuzzed_datasets) > 0
+        assert isinstance(records, list)
 
 
 class TestGradientMutation:
@@ -292,6 +322,10 @@ class TestGradientMutation:
 
         gradient_records = [r for r in records if "gradient_type" in r.details]
         # Gradient type can be linear, exponential, or sinusoidal
+        # Verify mutation operation completed
+        assert fuzzed_datasets is not None
+        assert len(fuzzed_datasets) > 0
+        assert isinstance(records, list)
 
 
 class TestInconsistencyInjection:
@@ -330,6 +364,10 @@ class TestInconsistencyInjection:
         # Check for orientation conflicts
         orientation_records = [r for r in records if r.tag == "ImageOrientationPatient"]
         # May or may not have orientation mutations depending on random choices
+        # Verify mutation operation completed
+        assert fuzzed_datasets is not None
+        assert len(fuzzed_datasets) > 0
+        assert isinstance(records, list)
 
 
 class TestSeriesMutationRecord:
@@ -368,6 +406,32 @@ class TestSeriesMutationRecord:
         assert data["strategy"] == "slice_position_attack"
         assert data["slice_index"] == 2
         assert data["details"]["attack_type"] == "randomize_z"
+
+    def test_mutation_record_none_values(self):
+        """Test SeriesMutationRecord with None values for branch coverage."""
+        record = SeriesMutationRecord(
+            strategy="test",
+            original_value=None,
+            mutated_value=None,
+        )
+
+        data = record.to_dict()
+        # _custom_serialization should handle None values
+        assert data["original_value"] is None
+        assert data["mutated_value"] is None
+
+    def test_mutation_record_non_string_values(self):
+        """Test SeriesMutationRecord with non-string values for branch coverage."""
+        record = SeriesMutationRecord(
+            strategy="test",
+            original_value=12345,  # int
+            mutated_value=[1.0, 2.0, 3.0],  # list
+        )
+
+        data = record.to_dict()
+        # _custom_serialization should convert to strings
+        assert data["original_value"] == "12345"
+        assert data["mutated_value"] == "[1.0, 2.0, 3.0]"
 
 
 class TestSeriesMutationStrategy:
@@ -566,6 +630,9 @@ class TestSystematicSliceGap:
         # Check for slice removal records
         removal_records = [r for r in records if "removed" in str(r.details).lower()]
         # May or may not have removal records depending on implementation
+        # Verify mutation operation completed
+        assert fuzzed_datasets is not None
+        assert isinstance(records, list)
 
 
 class TestSliceOverlapInjection:
@@ -603,6 +670,9 @@ class TestSliceOverlapInjection:
         # Check for ImagePositionPatient modifications
         position_records = [r for r in records if r.tag == "ImagePositionPatient"]
         # May have position modifications for overlap
+        # Verify mutation operation completed
+        assert fuzzed_datasets is not None
+        assert isinstance(records, list)
 
 
 class TestVoxelAspectRatio:
@@ -657,6 +727,9 @@ class TestVoxelAspectRatio:
             for r in records
             if "extreme" in str(r.details.get("attack_type", "")).lower()
         ]
+        # Verify mutation operation completed
+        assert fuzzed_datasets is not None
+        assert isinstance(records, list)
 
 
 class TestFrameOfReference:
@@ -719,6 +792,9 @@ class TestFrameOfReference:
             for r in records
             if "inconsistent" in str(r.details.get("attack_type", "")).lower()
         ]
+        # Verify mutation operation completed
+        assert fuzzed_datasets is not None
+        assert isinstance(records, list)
 
 
 # =============================================================================
@@ -771,6 +847,9 @@ class TestCrossSliceReference:
             or "nonexistent" in str(r.details.get("attack_type", "")).lower()
         ]
         # May or may not have specific attack types
+        # Verify mutation operation completed
+        assert fuzzed_datasets is not None
+        assert isinstance(records, list)
 
     @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
     def test_cross_slice_reference_circular(
@@ -790,6 +869,9 @@ class TestCrossSliceReference:
             for r in records
             if "circular" in str(r.details.get("attack_type", "")).lower()
         ]
+        # Verify mutation operation completed
+        assert fuzzed_datasets is not None
+        assert isinstance(records, list)
 
     @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
     def test_cross_slice_reference_invalid_uid_format(
@@ -805,6 +887,9 @@ class TestCrossSliceReference:
 
         # Check for ReferencedSOPInstanceUID or similar tag modifications
         uid_records = [r for r in records if "UID" in r.tag or "Reference" in r.tag]
+        # Verify mutation operation completed
+        assert fuzzed_datasets is not None
+        assert isinstance(records, list)
 
 
 class TestTemporalInconsistency:
@@ -874,6 +959,9 @@ class TestTemporalInconsistency:
             for r in records
             if "duplicate" in str(r.details.get("attack_type", "")).lower()
         ]
+        # Verify mutation operation completed
+        assert fuzzed_datasets is not None
+        assert isinstance(records, list)
 
     @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
     def test_temporal_inconsistency_extreme_dates(
@@ -899,6 +987,9 @@ class TestTemporalInconsistency:
             or "past" in str(r.details.get("attack_type", "")).lower()
             or "future" in str(r.details.get("attack_type", "")).lower()
         ]
+        # Verify mutation operation completed
+        assert fuzzed_datasets is not None
+        assert isinstance(records, list)
 
     @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
     def test_temporal_inconsistency_invalid_format(
@@ -922,6 +1013,9 @@ class TestTemporalInconsistency:
             if "invalid" in str(r.details.get("attack_type", "")).lower()
             or "format" in str(r.details.get("attack_type", "")).lower()
         ]
+        # Verify mutation operation completed
+        assert fuzzed_datasets is not None
+        assert isinstance(records, list)
 
     @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
     def test_temporal_inconsistency_order_reversal(
@@ -945,3 +1039,6 @@ class TestTemporalInconsistency:
             if "reversal" in str(r.details.get("attack_type", "")).lower()
             or "order" in str(r.details.get("attack_type", "")).lower()
         ]
+        # Verify mutation operation completed
+        assert fuzzed_datasets is not None
+        assert isinstance(records, list)

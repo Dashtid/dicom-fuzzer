@@ -335,19 +335,22 @@ class TestTrackCoverageContextManager:
 
     def test_track_coverage_restores_old_trace(self):
         """Test old trace function is restored after tracking."""
-        old_trace = Mock()
-        sys.settrace(old_trace)
+        # Save original trace (may be coverage.py's tracer)
+        original_trace = sys.gettrace()
+
+        mock_trace = Mock()
+        sys.settrace(mock_trace)
 
         tracker = CoverageTracker()
 
         with tracker.track_coverage():
             pass
 
-        # Old trace should be restored
-        assert sys.gettrace() == old_trace
+        # Mock trace should be restored (not None, not our trace)
+        assert sys.gettrace() == mock_trace
 
-        # Cleanup
-        sys.settrace(None)
+        # Restore original trace (preserve coverage.py's tracer)
+        sys.settrace(original_trace)
 
     def test_track_coverage_exception_still_cleans_up(self):
         """Test cleanup happens even if exception occurs."""
@@ -838,6 +841,9 @@ class TestFinallyBlockCoverage:
         # Note: This depends on the check happening AFTER we add to current_coverage
         # The finally block checks if current_coverage.edges - global_coverage.edges is non-empty
 
+        # Verify coverage tracking completed
+        assert cov2 is not None
+
 
 class TestBranchCoverageTracker:
     """Test BranchCoverageTracker class for AFL-style bitmap coverage."""
@@ -1232,7 +1238,8 @@ class TestEnhancedCoverageTracker:
             pass
 
         # Bitmap should have been reset at start of tracking
-        # (but may have new coverage from actual tracing)
+        # Verify coverage context was created
+        assert cov is not None
 
     def test_track_coverage_detects_new_bitmap_coverage(self):
         """Test that track_coverage detects new coverage via bitmap."""

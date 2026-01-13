@@ -92,6 +92,30 @@ class AffinityAdapter(ViewerAdapter):
         """Supported viewer process names."""
         return ["Hermes.exe", "Affinity.exe"]
 
+    def _find_main_window(self) -> bool:
+        """Find the main window using pattern matching or fallback."""
+        if self.app is None:
+            return False
+        for pattern in self.MAIN_WINDOW_PATTERNS:
+            try:
+                window = self.app.window(title_re=pattern)
+                if window.exists():
+                    self._main_window = window
+                    logger.debug(f"Found window matching pattern: {pattern}")
+                    return True
+            except Exception:
+                continue
+        # Fallback: try first window
+        try:
+            windows = self.app.windows()
+            if windows:
+                self._main_window = windows[0]
+                logger.debug(f"Using first window: {self._main_window.window_text()}")
+                return True
+        except Exception:
+            pass
+        return False
+
     def connect(self, pid: int | None = None, process_name: str | None = None) -> bool:
         """Connect to Affinity viewer.
 
@@ -113,35 +137,10 @@ class AffinityAdapter(ViewerAdapter):
                 self.app = Application(backend="uia").connect(path=process_name)
                 self._connected_pid = self.app.process
             else:
-                # Default to Hermes.exe
                 self.app = Application(backend="uia").connect(path="Hermes.exe")
                 self._connected_pid = self.app.process
 
-            # Find main window - try multiple patterns
-            self._main_window = None
-            for pattern in self.MAIN_WINDOW_PATTERNS:
-                try:
-                    window = self.app.window(title_re=pattern)
-                    if window.exists():
-                        self._main_window = window
-                        logger.debug(f"Found window matching pattern: {pattern}")
-                        break
-                except Exception:
-                    continue
-
-            if self._main_window is None:
-                # Fallback: try to get any window from this process
-                try:
-                    windows = self.app.windows()
-                    if windows:
-                        self._main_window = windows[0]
-                        logger.debug(
-                            f"Using first window: {self._main_window.window_text()}"
-                        )
-                except Exception:
-                    pass
-
-            if self._main_window is None:
+            if not self._find_main_window():
                 logger.warning("Main window not found")
                 self.disconnect()
                 return False

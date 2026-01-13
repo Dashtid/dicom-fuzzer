@@ -7,10 +7,13 @@ Optimizations for 4k+ tests:
 - Session-scoped fixtures for expensive setup
 """
 
+import gc
+import random
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
 
+import numpy as np
 import pydicom
 import pytest
 from pydicom.dataset import Dataset, FileDataset
@@ -19,6 +22,78 @@ from pydicom.uid import generate_uid
 # Ignore production modules that have class names starting with "Test" but are not test classes
 # This prevents pytest from collecting them as tests
 collect_ignore_glob = ["**/dicom_fuzzer/core/test_minimizer.py"]
+
+
+@pytest.fixture(autouse=True)
+def gc_collect_around_test():
+    """Run garbage collection before and after each test.
+
+    This helps prevent memory accumulation in CI environments where
+    test groups may run many tests before memory pressure causes OOM.
+    Running gc.collect() before each test helps clear any accumulated
+    garbage from previous tests that haven't been collected yet.
+    """
+    gc.collect()  # Before test
+    yield
+    gc.collect()  # After test
+
+
+@pytest.fixture
+def deterministic_random():
+    """Fixture to make random behavior deterministic for a test.
+
+    Saves and restores random state for both Python's random module and numpy.
+    Seeds both with a fixed value (42) for reproducibility.
+
+    Usage:
+        def test_something(deterministic_random):
+            # Random calls are now deterministic
+            result = random.choice([1, 2, 3])  # Always returns same value
+    """
+    # Save current state
+    py_state = random.getstate()
+    np_state = np.random.get_state()
+
+    # Seed with fixed values
+    random.seed(42)
+    np.random.seed(42)
+
+    yield
+
+    # Restore original state
+    random.setstate(py_state)
+    np.random.set_state(np_state)
+
+
+@pytest.fixture
+def seeded_random(request):
+    """Fixture that seeds random with a test-specific but reproducible value.
+
+    Uses the test node ID to generate a unique but reproducible seed per test.
+    This ensures different tests get different random sequences, but each test
+    is individually reproducible.
+
+    Usage:
+        def test_something(seeded_random):
+            # Random calls are deterministic and unique to this test
+            result = random.choice([1, 2, 3])
+    """
+    # Generate seed from test name for reproducibility
+    seed = hash(request.node.nodeid) % (2**32)
+
+    # Save current state
+    py_state = random.getstate()
+    np_state = np.random.get_state()
+
+    # Seed with test-specific value
+    random.seed(seed)
+    np.random.seed(seed)
+
+    yield seed
+
+    # Restore original state
+    random.setstate(py_state)
+    np.random.set_state(np_state)
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:

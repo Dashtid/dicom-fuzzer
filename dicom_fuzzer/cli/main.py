@@ -142,7 +142,9 @@ def parse_target_config(config_path: str) -> dict[str, Any]:
     return config
 
 
-def apply_resource_limits(resource_limits: dict | ResourceLimits | None) -> None:
+def apply_resource_limits(
+    resource_limits: dict[str, Any] | ResourceLimits | None,
+) -> None:
     """Apply resource limits to current process.
 
     Args:
@@ -179,6 +181,28 @@ def setup_logging(verbose: bool = False) -> None:
     )
 
 
+def _scan_directory_for_dicom(
+    path: Path, recursive: bool, extensions: set[str]
+) -> list[Path]:
+    """Scan directory for DICOM files.
+
+    Args:
+        path: Directory path to scan.
+        recursive: If True, scan recursively.
+        extensions: Set of valid DICOM extensions.
+
+    Returns:
+        List of found DICOM file paths.
+
+    """
+    iterator = path.rglob("*") if recursive else path.iterdir()
+    return [
+        file_path
+        for file_path in iterator
+        if file_path.is_file() and _is_potential_dicom(file_path, extensions)
+    ]
+
+
 def validate_input_path(input_path: str, recursive: bool = False) -> list[Path]:
     """Validate input path and return list of DICOM files.
 
@@ -202,24 +226,8 @@ def validate_input_path(input_path: str, recursive: bool = False) -> list[Path]:
         return [path]
 
     if path.is_dir():
-        # Find DICOM files in directory
-        dicom_extensions = {".dcm", ".dicom", ".dic", ""}  # Include no extension
-        files = []
-
-        if recursive:
-            # Recursive scan
-            for file_path in path.rglob("*"):
-                if file_path.is_file() and _is_potential_dicom(
-                    file_path, dicom_extensions
-                ):
-                    files.append(file_path)
-        else:
-            # Non-recursive scan (immediate children only)
-            for file_path in path.iterdir():
-                if file_path.is_file() and _is_potential_dicom(
-                    file_path, dicom_extensions
-                ):
-                    files.append(file_path)
+        dicom_extensions = {".dcm", ".dicom", ".dic", ""}
+        files = _scan_directory_for_dicom(path, recursive, dicom_extensions)
 
         if not files:
             print(f"Error: No DICOM files found in '{input_path}'")
@@ -229,7 +237,6 @@ def validate_input_path(input_path: str, recursive: bool = False) -> list[Path]:
 
         return sorted(files)
 
-    # Path exists but is neither file nor directory (e.g., symlink, device)
     print(f"Error: '{input_path}' is not a regular file or directory")
     sys.exit(1)
 
@@ -283,7 +290,7 @@ def validate_input_file(file_path: str) -> Path:
     return path
 
 
-def parse_strategies(strategies_str: str | None) -> list:
+def parse_strategies(strategies_str: str | None) -> list[str]:
     """Parse comma-separated strategy list.
 
     Args:
@@ -313,6 +320,96 @@ def parse_strategies(strategies_str: str | None) -> list:
     return [s for s in strategies if s in valid_strategies]
 
 
+def _check_dependencies(issues: list[str], warnings: list[str]) -> None:
+    """Check Python version and required dependencies."""
+    if sys.version_info < (3, 11):
+        warnings.append(
+            f"Python {sys.version_info.major}.{sys.version_info.minor} "
+            "detected. Python 3.11+ recommended for best performance."
+        )
+
+    try:
+        import pydicom  # noqa: F401
+    except ImportError:
+        issues.append("Missing required dependency: pydicom")
+
+    try:
+        import psutil  # noqa: F401
+    except ImportError:
+        warnings.append("Missing optional dependency: psutil (for resource monitoring)")
+
+
+def _check_disk_space(output_dir: Path, issues: list[str], warnings: list[str]) -> None:
+    """Check available disk space."""
+    try:
+        stat = shutil.disk_usage(output_dir.parent if output_dir.exists() else ".")
+        free_space_mb = stat.free / (1024 * 1024)
+        if free_space_mb < 100:
+            issues.append(
+                f"Insufficient disk space: {free_space_mb:.0f}MB (need >100MB)"
+            )
+        elif free_space_mb < 1024:
+            warnings.append(f"Low disk space: {free_space_mb:.0f}MB (recommend >1GB)")
+    except Exception as e:
+        warnings.append(f"Could not check disk space: {e}")
+
+
+def _check_output_dir(output_dir: Path, issues: list[str]) -> None:
+    """Check output directory is writable."""
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        test_file = output_dir / ".write_test"
+        test_file.write_text("test")
+        test_file.unlink()
+    except Exception as e:
+        issues.append(f"Output directory not writable: {e}")
+
+
+def _check_target(target: str | None, issues: list[str]) -> None:
+    """Check target executable exists."""
+    if not target:
+        return
+    target_path = Path(target)
+    if not target_path.exists():
+        issues.append(f"Target executable not found: {target}")
+    elif not target_path.is_file():
+        issues.append(f"Target path is not a file: {target}")
+
+
+def _check_resource_limits(
+    resource_limits: ResourceLimits | None, warnings: list[str]
+) -> None:
+    """Check resource limits are reasonable."""
+    if not resource_limits:
+        return
+    if resource_limits.max_memory_mb and resource_limits.max_memory_mb < 128:
+        warnings.append("Memory limit very low (<128MB), may cause frequent OOM errors")
+    if resource_limits.max_cpu_seconds and resource_limits.max_cpu_seconds < 1:
+        warnings.append("CPU time limit very low (<1s), may cause frequent timeouts")
+
+
+def _report_health_check(issues: list[str], warnings: list[str], verbose: bool) -> None:
+    """Report health check results."""
+    passed = len(issues) == 0
+    if not verbose and passed:
+        return
+
+    if issues:
+        cli.warning("Pre-flight check found critical issues:")
+        for issue in issues:
+            cli.error(issue)
+
+    if warnings and verbose:
+        cli.warning("Pre-flight check warnings:")
+        for warn_msg in warnings:
+            cli.warning(warn_msg)
+
+    if passed and not warnings:
+        cli.success("Pre-flight checks passed")
+    elif passed:
+        cli.success(f"Pre-flight checks passed with {len(warnings)} warning(s)")
+
+
 def pre_campaign_health_check(
     output_dir: Path,
     target: str | None = None,
@@ -334,94 +431,50 @@ def pre_campaign_health_check(
         tuple of (passed: bool, issues: list[str])
 
     """
-    issues = []
-    warnings = []
+    issues: list[str] = []
+    warnings: list[str] = []
 
-    # Check Python version
-    if sys.version_info < (3, 11):
-        warnings.append(
-            f"Python {sys.version_info.major}.{sys.version_info.minor} "
-            "detected. Python 3.11+ recommended for best performance."
-        )
+    _check_dependencies(issues, warnings)
+    _check_disk_space(output_dir, issues, warnings)
+    _check_output_dir(output_dir, issues)
+    _check_target(target, issues)
+    _check_resource_limits(resource_limits, warnings)
+    _report_health_check(issues, warnings, verbose)
 
-    # Check required dependencies
-    try:
-        import pydicom  # noqa: F401
-    except ImportError:
-        issues.append("Missing required dependency: pydicom")
-
-    try:
-        import psutil  # noqa: F401
-    except ImportError:
-        warnings.append("Missing optional dependency: psutil (for resource monitoring)")
-
-    # Check disk space
-    try:
-        stat = shutil.disk_usage(output_dir.parent if output_dir.exists() else ".")
-        free_space_mb = stat.free / (1024 * 1024)
-        if free_space_mb < 100:
-            issues.append(
-                f"Insufficient disk space: {free_space_mb:.0f}MB (need >100MB)"
-            )
-        elif free_space_mb < 1024:
-            warnings.append(f"Low disk space: {free_space_mb:.0f}MB (recommend >1GB)")
-    except Exception as e:
-        warnings.append(f"Could not check disk space: {e}")
-
-    # Check output directory is writable
-    try:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        test_file = output_dir / ".write_test"
-        test_file.write_text("test")
-        test_file.unlink()
-    except Exception as e:
-        issues.append(f"Output directory not writable: {e}")
-
-    # Check target executable if specified
-    if target:
-        target_path = Path(target)
-        if not target_path.exists():
-            issues.append(f"Target executable not found: {target}")
-        elif not target_path.is_file():
-            issues.append(f"Target path is not a file: {target}")
-
-    # Check resource limits are reasonable
-    if resource_limits:
-        if resource_limits.max_memory_mb and resource_limits.max_memory_mb < 128:
-            warnings.append(
-                "Memory limit very low (<128MB), may cause frequent OOM errors"
-            )
-
-        if resource_limits.max_cpu_seconds and resource_limits.max_cpu_seconds < 1:
-            warnings.append(
-                "CPU time limit very low (<1s), may cause frequent timeouts"
-            )
-
-    # Report results
-    passed = len(issues) == 0
-
-    if verbose or not passed:
-        if issues:
-            cli.warning("Pre-flight check found critical issues:")
-            for issue in issues:
-                cli.error(issue)
-
-        if warnings and verbose:
-            cli.warning("Pre-flight check warnings:")
-            for warn_msg in warnings:
-                cli.warning(warn_msg)
-
-        if passed and not warnings:
-            cli.success("Pre-flight checks passed")
-        elif passed:
-            cli.success(f"Pre-flight checks passed with {len(warnings)} warning(s)")
-
-    return passed, issues + warnings
+    return len(issues) == 0, issues + warnings
 
 
 # ============================================================================
 # Main Entry Point
 # ============================================================================
+
+
+def _run_optional_controllers(
+    args: argparse.Namespace,
+    files: list[Path],
+    input_files: list[Path],
+    output_path: Path,
+    resource_limits: ResourceLimits | None,
+) -> int:
+    """Run optional fuzzing controllers based on args.
+
+    Returns:
+        Exit code (0 for success, non-zero for errors).
+
+    """
+    if getattr(args, "network_fuzz", False):
+        NetworkFuzzingController.run(args, files)
+
+    if getattr(args, "security_fuzz", False):
+        num_files = getattr(args, "count", 100)
+        SecurityFuzzingController.run(args, input_files[0], output_path, num_files)
+
+    if getattr(args, "target", None):
+        result = TargetTestingController.run(args, files, output_path, resource_limits)
+        if result != 0:
+            return result
+
+    return 0
 
 
 def main() -> int:
@@ -431,21 +484,17 @@ def main() -> int:
         Exit code (0 for success, non-zero for errors)
 
     """
-    # Handle subcommands via registry lookup (lazy import for faster startup)
     if len(sys.argv) > 1 and sys.argv[1] in SUBCOMMANDS:
         module = importlib.import_module(SUBCOMMANDS[sys.argv[1]])
         exit_code: int = module.main(sys.argv[2:])
         return exit_code
 
-    # Parse command-line arguments
     parser = create_parser()
     args = parser.parse_args()
 
-    # Handle output modes
     quiet_mode = getattr(args, "quiet", False)
     json_mode = getattr(args, "json", False)
 
-    # Setup logging (verbose overrides quiet)
     if quiet_mode and not args.verbose:
         logging.getLogger().setLevel(logging.ERROR)
         setup_logging(False)
@@ -453,22 +502,15 @@ def main() -> int:
         setup_logging(args.verbose)
 
     try:
-        # Create resource limits from args
         resource_limits = _create_resource_limits(args)
-
-        # Validate input path
         recursive = getattr(args, "recursive", False)
         input_files = validate_input_path(args.input_file, recursive)
-
-        # Parse strategies
         selected_strategies = parse_strategies(getattr(args, "strategies", None))
 
-        # Setup output directory
         output_path = Path(args.output)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Run pre-campaign health check
-        passed, issues = pre_campaign_health_check(
+        passed, _ = pre_campaign_health_check(
             output_path,
             target=getattr(args, "target", None),
             resource_limits=resource_limits,
@@ -478,30 +520,14 @@ def main() -> int:
             cli.error("Pre-flight check failed. Fix issues and retry.")
             return 1
 
-        # Run file generation campaign
         runner = CampaignRunner(args, input_files, selected_strategies)
         runner.display_header()
         files, results_data = runner.generate_files()
         runner.display_results(files, results_data, json_mode, quiet_mode)
 
-        # Optional: Network fuzzing
-        if getattr(args, "network_fuzz", False):
-            NetworkFuzzingController.run(args, files)
-
-        # Optional: Security fuzzing
-        if getattr(args, "security_fuzz", False):
-            num_files = getattr(args, "count", 100)
-            SecurityFuzzingController.run(args, input_files[0], output_path, num_files)
-
-        # Optional: Target testing
-        if getattr(args, "target", None):
-            result = TargetTestingController.run(
-                args, files, output_path, resource_limits
-            )
-            if result != 0:
-                return result
-
-        return 0
+        return _run_optional_controllers(
+            args, files, input_files, output_path, resource_limits
+        )
 
     except KeyboardInterrupt:
         print("\n\n[INTERRUPTED] Campaign stopped by user")
