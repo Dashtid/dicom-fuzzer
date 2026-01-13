@@ -7,6 +7,7 @@ Optimizations for 4k+ tests:
 - Session-scoped fixtures for expensive setup
 """
 
+import gc
 import random
 import tempfile
 from collections.abc import Generator
@@ -21,6 +22,18 @@ from pydicom.uid import generate_uid
 # Ignore production modules that have class names starting with "Test" but are not test classes
 # This prevents pytest from collecting them as tests
 collect_ignore_glob = ["**/dicom_fuzzer/core/test_minimizer.py"]
+
+
+@pytest.fixture(autouse=True)
+def gc_collect_after_test():
+    """Run garbage collection after each test.
+
+    This helps prevent memory accumulation in CI environments where
+    test groups may run many tests before memory pressure causes OOM.
+    The fixture runs after every test automatically.
+    """
+    yield
+    gc.collect()
 
 
 @pytest.fixture
