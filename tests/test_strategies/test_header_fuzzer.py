@@ -63,11 +63,13 @@ class TestHeaderFuzzerInit:
     def test_required_tags_defined(self, fuzzer: HeaderFuzzer) -> None:
         """Test that required_tags list is defined."""
         assert hasattr(fuzzer, "required_tags")
+        assert isinstance(fuzzer.required_tags, list)
         assert len(fuzzer.required_tags) > 0
 
     def test_required_tags_contains_expected(self, fuzzer: HeaderFuzzer) -> None:
         """Test required_tags contains expected DICOM tags."""
         expected = ["PatientName", "PatientID", "StudyInstanceUID", "SeriesInstanceUID"]
+        assert len(expected) == 4
         for tag in expected:
             assert tag in fuzzer.required_tags
 
@@ -89,6 +91,7 @@ class TestMutateTags:
     ) -> None:
         """Test that mutate_tags returns a Dataset."""
         result = fuzzer.mutate_tags(sample_dataset)
+        assert result is not None
         assert isinstance(result, Dataset)
 
     def test_applies_mutations(
@@ -134,6 +137,7 @@ class TestMutateTags:
             results.append(str(result))
 
         # Results should vary with different seeds
+        assert len(results) == 5
         unique_results = set(results)
         assert len(unique_results) >= 1  # At least some variation expected
 
@@ -149,6 +153,7 @@ class TestOverlongStrings:
     ) -> None:
         """Test InstitutionName is set to overlong value."""
         result = fuzzer._overlong_strings(sample_dataset)
+        assert isinstance(result, Dataset)
         assert len(result.InstitutionName) == 1024  # Way over 64 char limit
 
     def test_creates_overlong_study_description(
@@ -156,6 +161,7 @@ class TestOverlongStrings:
     ) -> None:
         """Test StudyDescription is set to overlong value."""
         result = fuzzer._overlong_strings(sample_dataset)
+        assert isinstance(result, Dataset)
         assert len(result.StudyDescription) == 2048
 
     def test_creates_overlong_manufacturer(
@@ -163,6 +169,7 @@ class TestOverlongStrings:
     ) -> None:
         """Test Manufacturer is set to overlong value."""
         result = fuzzer._overlong_strings(sample_dataset)
+        assert isinstance(result, Dataset)
         assert len(result.Manufacturer) == 512
 
     def test_handles_missing_tags(self, fuzzer: HeaderFuzzer) -> None:
@@ -172,12 +179,14 @@ class TestOverlongStrings:
         result = fuzzer._overlong_strings(ds)
         # Should not raise, just skip missing tags
         assert result is not None
+        assert isinstance(result, Dataset)
 
     def test_uses_repeated_characters(
         self, fuzzer: HeaderFuzzer, sample_dataset: Dataset
     ) -> None:
         """Test that overlong strings use repeated single characters."""
         result = fuzzer._overlong_strings(sample_dataset)
+        assert isinstance(result, Dataset)
         # Should be 'A' * 1024
         assert result.InstitutionName == "A" * 1024
         assert result.StudyDescription == "B" * 2048
@@ -198,6 +207,7 @@ class TestMissingRequiredTags:
 
         result = fuzzer._missing_required_tags(sample_dataset)
 
+        assert isinstance(result, Dataset)
         present_after = [t for t in original_tags if hasattr(result, t)]
         # Should have removed at least one tag
         assert len(present_after) < len(present_before)
@@ -233,6 +243,7 @@ class TestMissingRequiredTags:
         result = fuzzer._missing_required_tags(ds)
         # Should not raise
         assert result is not None
+        assert isinstance(result, Dataset)
 
 
 # =============================================================================
@@ -247,6 +258,7 @@ class TestInvalidVrValues:
         """Test StudyDate receives invalid value."""
         random.seed(42)
         result = fuzzer._invalid_vr_values(sample_dataset)
+        assert isinstance(result, Dataset)
         # Should be one of the invalid date formats
         invalid_dates = [
             "INVALID",
@@ -265,6 +277,7 @@ class TestInvalidVrValues:
         """Test StudyTime receives invalid value."""
         random.seed(42)
         result = fuzzer._invalid_vr_values(sample_dataset)
+        assert isinstance(result, Dataset)
         invalid_times = ["999999", "126000", "120075", "ABCDEF", "12:30:45"]
         assert result.StudyTime in invalid_times
 
@@ -274,8 +287,10 @@ class TestInvalidVrValues:
         """Test SeriesNumber receives invalid IS value."""
         random.seed(42)
         result = fuzzer._invalid_vr_values(sample_dataset)
+        assert isinstance(result, Dataset)
         # Check internal value was set
         elem = result[Tag(0x0020, 0x0011)]
+        assert elem is not None
         invalid_integers = [
             "NOT_A_NUMBER",
             "3.14159",
@@ -291,7 +306,9 @@ class TestInvalidVrValues:
         """Test SliceThickness receives invalid DS value."""
         random.seed(42)
         result = fuzzer._invalid_vr_values(sample_dataset)
+        assert isinstance(result, Dataset)
         elem = result[Tag(0x0018, 0x0050)]
+        assert elem is not None
         invalid_decimals = ["INVALID", "1.2.3", "NaN", "Infinity", "1e999"]
         assert elem._value in invalid_decimals
 
@@ -302,6 +319,7 @@ class TestInvalidVrValues:
         result = fuzzer._invalid_vr_values(ds)
         # Should not raise
         assert result is not None
+        assert isinstance(result, Dataset)
 
 
 # =============================================================================
@@ -314,6 +332,7 @@ class TestBoundaryValues:
         """Test Rows receives boundary value."""
         random.seed(42)
         result = fuzzer._boundary_values(sample_dataset)
+        assert isinstance(result, Dataset)
         boundary_values = [0, 1, 65535, -1, 2147483647]
         assert result.Rows in boundary_values
 
@@ -323,6 +342,7 @@ class TestBoundaryValues:
         """Test Columns receives boundary value."""
         random.seed(42)
         result = fuzzer._boundary_values(sample_dataset)
+        assert isinstance(result, Dataset)
         assert result.Columns in [0, 1, 65535, -1]
 
     def test_boundary_patient_age(
@@ -331,6 +351,7 @@ class TestBoundaryValues:
         """Test PatientAge receives boundary value."""
         random.seed(42)
         result = fuzzer._boundary_values(sample_dataset)
+        assert isinstance(result, Dataset)
         boundary_ages = ["000Y", "999Y", "001D", "999W", "000M"]
         assert result.PatientAge in boundary_ages
 
@@ -381,6 +402,7 @@ class TestBoundaryValues:
         result = fuzzer._boundary_values(ds)
         # Should not raise
         assert result is not None
+        assert isinstance(result, Dataset)
 
 
 # =============================================================================
@@ -397,6 +419,7 @@ class TestHeaderFuzzerIntegration:
         result = fuzzer.mutate_tags(sample_dataset)
 
         # Result should be a valid Dataset
+        assert result is not None
         assert isinstance(result, Dataset)
         # Should still have some structure
         assert hasattr(result, "SOPClassUID") or hasattr(result, "PatientName")
@@ -425,6 +448,7 @@ class TestHeaderFuzzerIntegration:
         ds = Dataset()
         result = fuzzer.mutate_tags(ds)
         # Should not raise
+        assert result is not None
         assert isinstance(result, Dataset)
 
     def test_preserves_sop_tags(

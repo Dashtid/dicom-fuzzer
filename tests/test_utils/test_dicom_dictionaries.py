@@ -20,12 +20,15 @@ class TestTransferSyntaxes:
 
     def test_is_non_empty_list(self):
         """Verify is a non-empty list."""
+        assert TRANSFER_SYNTAXES is not None
         assert isinstance(TRANSFER_SYNTAXES, list)
         assert len(TRANSFER_SYNTAXES) > 0
 
     def test_all_strings(self):
         """Verify all entries are strings."""
+        assert len(TRANSFER_SYNTAXES) > 0
         for ts in TRANSFER_SYNTAXES:
+            assert ts is not None
             assert isinstance(ts, str)
 
     def test_contains_standard_syntaxes(self):
@@ -46,6 +49,7 @@ class TestSopClassUids:
 
     def test_is_non_empty_list(self):
         """Verify is a non-empty list."""
+        assert SOP_CLASS_UIDS is not None
         assert isinstance(SOP_CLASS_UIDS, list)
         assert len(SOP_CLASS_UIDS) > 0
 
@@ -62,6 +66,7 @@ class TestModalityCodes:
 
     def test_is_non_empty_list(self):
         """Verify is a non-empty list."""
+        assert MODALITY_CODES is not None
         assert isinstance(MODALITY_CODES, list)
         assert len(MODALITY_CODES) > 0
 
@@ -99,6 +104,7 @@ class TestInstitutionNames:
 
     def test_is_non_empty_list(self):
         """Verify is a non-empty list."""
+        assert INSTITUTION_NAMES is not None
         assert isinstance(INSTITUTION_NAMES, list)
         assert len(INSTITUTION_NAMES) > 0
 
@@ -150,7 +156,9 @@ class TestDICOMDictionariesClass:
 
     def test_all_dictionaries_is_dict(self):
         """Verify ALL_DICTIONARIES is a dictionary."""
+        assert DICOMDictionaries.ALL_DICTIONARIES is not None
         assert isinstance(DICOMDictionaries.ALL_DICTIONARIES, dict)
+        assert len(DICOMDictionaries.ALL_DICTIONARIES) > 0
 
     def test_all_dictionaries_has_expected_keys(self):
         """Verify all expected dictionary names are present."""
@@ -183,11 +191,15 @@ class TestGetDictionary:
     def test_returns_correct_dictionary(self):
         """Verify returns the correct dictionary by name."""
         result = DICOMDictionaries.get_dictionary("modalities")
+        assert result is not None
+        assert isinstance(result, list)
         assert result == MODALITY_CODES
 
     def test_returns_empty_for_unknown(self):
         """Verify returns empty list for unknown dictionary name."""
         result = DICOMDictionaries.get_dictionary("nonexistent")
+        assert result is not None
+        assert isinstance(result, list)
         assert result == []
 
     def test_all_dictionaries_accessible(self):
@@ -204,7 +216,9 @@ class TestGetAllDictionaryNames:
     def test_returns_list(self):
         """Verify returns a list."""
         result = DICOMDictionaries.get_all_dictionary_names()
+        assert result is not None
         assert isinstance(result, list)
+        assert len(result) > 0
 
     def test_returns_all_keys(self):
         """Verify returns all dictionary keys."""
@@ -223,6 +237,7 @@ class TestGetRandomValue:
     def test_returns_string(self):
         """Verify returns a string."""
         result = DICOMDictionaries.get_random_value("modalities")
+        assert result is not None
         assert isinstance(result, str)
 
     def test_returns_value_from_dictionary(self):
@@ -234,6 +249,8 @@ class TestGetRandomValue:
     def test_returns_empty_for_unknown(self):
         """Verify returns empty string for unknown dictionary."""
         result = DICOMDictionaries.get_random_value("nonexistent")
+        assert result is not None
+        assert isinstance(result, str)
         assert result == ""
 
     def test_randomness(self):
@@ -249,16 +266,22 @@ class TestGenerateRandomUid:
     def test_returns_string(self):
         """Verify returns a string."""
         result = DICOMDictionaries.generate_random_uid()
+        assert result is not None
         assert isinstance(result, str)
+        assert len(result) > 0
 
     def test_default_root(self):
         """Verify uses default root."""
         result = DICOMDictionaries.generate_random_uid()
+        assert result is not None
+        assert isinstance(result, str)
         assert result.startswith("1.2.840.10008.5.")
 
     def test_custom_root(self):
         """Verify uses custom root."""
         result = DICOMDictionaries.generate_random_uid(root="1.2.3.4")
+        assert result is not None
+        assert isinstance(result, str)
         assert result.startswith("1.2.3.4.")
 
     def test_uid_format(self):
@@ -278,7 +301,9 @@ class TestGetEdgeCases:
     def test_returns_dict(self):
         """Verify returns a dictionary."""
         result = DICOMDictionaries.get_edge_cases()
+        assert result is not None
         assert isinstance(result, dict)
+        assert len(result) > 0
 
     def test_has_expected_categories(self):
         """Verify has expected edge case categories."""
@@ -320,11 +345,14 @@ class TestGetMaliciousValues:
     def test_returns_dict(self):
         """Verify returns a dictionary."""
         result = DICOMDictionaries.get_malicious_values()
+        assert result is not None
         assert isinstance(result, dict)
+        assert len(result) > 0
 
     def test_has_expected_categories(self):
         """Verify has expected malicious value categories."""
         result = DICOMDictionaries.get_malicious_values()
+        assert result is not None
         expected_categories = {
             "buffer_overflow",
             "integer_overflow",
@@ -338,25 +366,37 @@ class TestGetMaliciousValues:
     def test_buffer_overflow_values(self):
         """Verify buffer overflow values are long strings."""
         result = DICOMDictionaries.get_malicious_values()
+        assert "buffer_overflow" in result
+        assert len(result["buffer_overflow"]) > 0
         for value in result["buffer_overflow"]:
+            assert isinstance(value, str)
             assert len(value) >= 1024
 
     def test_integer_overflow_values(self):
         """Verify integer overflow values include boundary values."""
         result = DICOMDictionaries.get_malicious_values()
+        assert "integer_overflow" in result
         values = result["integer_overflow"]
+        assert isinstance(values, list)
+        assert len(values) > 0
         assert "2147483647" in values  # INT_MAX
         assert "2147483648" in values  # INT_MAX + 1
 
     def test_path_traversal_values(self):
         """Verify path traversal values include common patterns."""
         result = DICOMDictionaries.get_malicious_values()
+        assert "path_traversal" in result
         values = result["path_traversal"]
+        assert isinstance(values, list)
+        assert len(values) > 0
         assert any("../" in v or "..\\" in v for v in values)
 
     def test_command_injection_values(self):
         """Verify command injection values include common patterns."""
         result = DICOMDictionaries.get_malicious_values()
+        assert "command_injection" in result
         values = result["command_injection"]
+        assert isinstance(values, list)
+        assert len(values) > 0
         shell_chars_found = any(c in "".join(values) for c in [";", "|", "&", "`", "$"])
         assert shell_chars_found

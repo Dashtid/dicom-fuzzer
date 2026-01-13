@@ -28,61 +28,83 @@ class TestConvertToIntVR:
     def test_valid_integer_string(self, fuzzer: DictionaryFuzzer) -> None:
         """Test conversion of valid integer string."""
         result = fuzzer._convert_to_int_vr("42", "US")
+        assert result is not None
+        assert isinstance(result, int)
         assert result == 42
 
     def test_negative_integer_signed(self, fuzzer: DictionaryFuzzer) -> None:
         """Test conversion of negative integer for signed VR."""
         result = fuzzer._convert_to_int_vr("-100", "SS")
+        assert result is not None
+        assert isinstance(result, int)
         assert result == -100
 
     def test_float_string_truncation(self, fuzzer: DictionaryFuzzer) -> None:
         """Test that float strings are truncated to int."""
         result = fuzzer._convert_to_int_vr("42.7", "US")
+        assert result is not None
+        assert isinstance(result, int)
         assert result == 42
 
     def test_non_numeric_returns_zero(self, fuzzer: DictionaryFuzzer) -> None:
         """Test non-numeric strings return 0."""
         result = fuzzer._convert_to_int_vr("abc", "US")
+        assert result is not None
+        assert isinstance(result, int)
         assert result == 0
 
     def test_empty_string_returns_zero(self, fuzzer: DictionaryFuzzer) -> None:
         """Test empty string returns 0."""
         result = fuzzer._convert_to_int_vr("", "US")
+        assert result is not None
+        assert isinstance(result, int)
         assert result == 0
 
     def test_us_wrap_overflow(self, fuzzer: DictionaryFuzzer) -> None:
         """Test US (unsigned short) wraps on overflow."""
         # US max is 65535, mode is "wrap"
         result = fuzzer._convert_to_int_vr("70000", "US")
+        assert result is not None
+        assert isinstance(result, int)
         assert result == 70000 % 65536  # wraps
 
     def test_ss_clamp_overflow(self, fuzzer: DictionaryFuzzer) -> None:
         """Test SS (signed short) clamps on overflow."""
         # SS max is 32767, mode is "clamp"
         result = fuzzer._convert_to_int_vr("50000", "SS")
+        assert result is not None
+        assert isinstance(result, int)
         assert result == 32767  # clamped to max
 
     def test_ss_clamp_underflow(self, fuzzer: DictionaryFuzzer) -> None:
         """Test SS (signed short) clamps on underflow."""
         # SS min is -32768, mode is "clamp"
         result = fuzzer._convert_to_int_vr("-50000", "SS")
+        assert result is not None
+        assert isinstance(result, int)
         assert result == -32768  # clamped to min
 
     def test_ul_wrap_overflow(self, fuzzer: DictionaryFuzzer) -> None:
         """Test UL (unsigned long) wraps on overflow."""
         # UL max is 4294967295
         result = fuzzer._convert_to_int_vr("5000000000", "UL")
+        assert result is not None
+        assert isinstance(result, int)
         assert result == 5000000000 % 4294967296
 
     def test_sl_clamp_range(self, fuzzer: DictionaryFuzzer) -> None:
         """Test SL (signed long) clamps at boundaries."""
         # SL range: -2147483648 to 2147483647
         result = fuzzer._convert_to_int_vr("3000000000", "SL")
+        assert result is not None
+        assert isinstance(result, int)
         assert result == 2147483647  # clamped
 
     def test_value_within_range(self, fuzzer: DictionaryFuzzer) -> None:
         """Test values within range are returned unchanged."""
         result = fuzzer._convert_to_int_vr("1000", "US")
+        assert result is not None
+        assert isinstance(result, int)
         assert result == 1000
 
 
@@ -97,21 +119,29 @@ class TestConvertToFloatVR:
     def test_valid_float_string(self, fuzzer: DictionaryFuzzer) -> None:
         """Test conversion of valid float string."""
         result = fuzzer._convert_to_float_vr("3.14159")
+        assert result is not None
+        assert isinstance(result, float)
         assert abs(result - 3.14159) < 0.00001
 
     def test_integer_string(self, fuzzer: DictionaryFuzzer) -> None:
         """Test conversion of integer string to float."""
         result = fuzzer._convert_to_float_vr("42")
+        assert result is not None
+        assert isinstance(result, float)
         assert result == 42.0
 
     def test_negative_float(self, fuzzer: DictionaryFuzzer) -> None:
         """Test conversion of negative float."""
         result = fuzzer._convert_to_float_vr("-2.5")
+        assert result is not None
+        assert isinstance(result, float)
         assert result == -2.5
 
     def test_scientific_notation(self, fuzzer: DictionaryFuzzer) -> None:
         """Test conversion of scientific notation."""
         result = fuzzer._convert_to_float_vr("1.5e10")
+        assert result is not None
+        assert isinstance(result, float)
         assert result == 1.5e10
 
     def test_scientific_notation_negative_exponent(
@@ -119,16 +149,22 @@ class TestConvertToFloatVR:
     ) -> None:
         """Test conversion of scientific notation with negative exponent."""
         result = fuzzer._convert_to_float_vr("2.5E-3")
+        assert result is not None
+        assert isinstance(result, float)
         assert abs(result - 0.0025) < 0.0000001
 
     def test_non_numeric_returns_zero(self, fuzzer: DictionaryFuzzer) -> None:
         """Test non-numeric strings return 0.0."""
         result = fuzzer._convert_to_float_vr("abc")
+        assert result is not None
+        assert isinstance(result, float)
         assert result == 0.0
 
     def test_empty_string_returns_zero(self, fuzzer: DictionaryFuzzer) -> None:
         """Test empty string returns 0.0."""
         result = fuzzer._convert_to_float_vr("")
+        assert result is not None
+        assert isinstance(result, float)
         assert result == 0.0
 
 
@@ -143,26 +179,36 @@ class TestConvertToStringVR:
     def test_valid_numeric_string(self, fuzzer: DictionaryFuzzer) -> None:
         """Test conversion preserves valid numeric string."""
         result = fuzzer._convert_to_string_vr("42.5")
+        assert result is not None
+        assert isinstance(result, str)
         assert result == "42.5"
 
     def test_integer_string(self, fuzzer: DictionaryFuzzer) -> None:
         """Test integer string converts to float string."""
         result = fuzzer._convert_to_string_vr("42")
+        assert result is not None
+        assert isinstance(result, str)
         assert result == "42.0"
 
     def test_negative_number(self, fuzzer: DictionaryFuzzer) -> None:
         """Test negative number conversion."""
         result = fuzzer._convert_to_string_vr("-123.45")
+        assert result is not None
+        assert isinstance(result, str)
         assert result == "-123.45"
 
     def test_non_numeric_returns_default(self, fuzzer: DictionaryFuzzer) -> None:
         """Test non-numeric returns default '0.0'."""
         result = fuzzer._convert_to_string_vr("not_a_number")
+        assert result is not None
+        assert isinstance(result, str)
         assert result == "0.0"
 
     def test_empty_string_returns_default(self, fuzzer: DictionaryFuzzer) -> None:
         """Test empty string returns default '0.0'."""
         result = fuzzer._convert_to_string_vr("")
+        assert result is not None
+        assert isinstance(result, str)
         assert result == "0.0"
 
 
@@ -177,32 +223,37 @@ class TestConvertNumericValue:
     def test_int_vr_conversion(self, fuzzer: DictionaryFuzzer) -> None:
         """Test conversion for integer VR types."""
         result = fuzzer._convert_numeric_value("100", "US", 0x00280010)
-        assert result == 100
+        assert result is not None
         assert isinstance(result, int)
+        assert result == 100
 
     def test_float_vr_fl(self, fuzzer: DictionaryFuzzer) -> None:
         """Test conversion for FL (float) VR type."""
         result = fuzzer._convert_numeric_value("3.14", "FL", 0x00000000)
-        assert abs(result - 3.14) < 0.001  # type: ignore[operator]
+        assert result is not None
         assert isinstance(result, float)
+        assert abs(result - 3.14) < 0.001  # type: ignore[operator]
 
     def test_float_vr_fd(self, fuzzer: DictionaryFuzzer) -> None:
         """Test conversion for FD (double float) VR type."""
         result = fuzzer._convert_numeric_value("3.14159", "FD", 0x00000000)
-        assert abs(result - 3.14159) < 0.00001  # type: ignore[operator]
+        assert result is not None
         assert isinstance(result, float)
+        assert abs(result - 3.14159) < 0.00001  # type: ignore[operator]
 
     def test_string_vr_is(self, fuzzer: DictionaryFuzzer) -> None:
         """Test conversion for IS (integer string) VR type."""
         result = fuzzer._convert_numeric_value("42", "IS", 0x00000000)
-        assert result == "42.0"
+        assert result is not None
         assert isinstance(result, str)
+        assert result == "42.0"
 
     def test_string_vr_ds(self, fuzzer: DictionaryFuzzer) -> None:
         """Test conversion for DS (decimal string) VR type."""
         result = fuzzer._convert_numeric_value("3.14", "DS", 0x00000000)
-        assert result == "3.14"
+        assert result is not None
         assert isinstance(result, str)
+        assert result == "3.14"
 
     def test_at_vr_returns_none(self, fuzzer: DictionaryFuzzer) -> None:
         """Test AT (attribute tag) VR returns None (skipped)."""
@@ -212,6 +263,8 @@ class TestConvertNumericValue:
     def test_non_numeric_vr_passthrough(self, fuzzer: DictionaryFuzzer) -> None:
         """Test non-numeric VR types pass through unchanged."""
         result = fuzzer._convert_numeric_value("test_value", "LO", 0x00000000)
+        assert result is not None
+        assert isinstance(result, str)
         assert result == "test_value"
 
     def test_conversion_error_returns_none(self, fuzzer: DictionaryFuzzer) -> None:
@@ -239,6 +292,8 @@ class TestMutateTagSpecialCases:
 
         fuzzer._mutate_tag(ds, 0x7FE00010, MutationSeverity.MODERATE)
 
+        assert ds is not None
+        assert isinstance(ds, Dataset)
         assert ds[0x7FE00010].value == original_value
 
     def test_ow_binary_vr_skipped(self, fuzzer: DictionaryFuzzer) -> None:
@@ -249,6 +304,8 @@ class TestMutateTagSpecialCases:
 
         fuzzer._mutate_tag(ds, 0x7FE00010, MutationSeverity.AGGRESSIVE)
 
+        assert ds is not None
+        assert isinstance(ds, Dataset)
         assert ds[0x7FE00010].value == original_value
 
     def test_ui_vr_generates_uid(self, fuzzer: DictionaryFuzzer) -> None:
@@ -260,7 +317,9 @@ class TestMutateTagSpecialCases:
 
         # Should be a new UID (different from original)
         value = ds[0x00080018].value
+        assert value is not None
         assert isinstance(value, str)
+        assert len(value) > 0
         assert "." in value  # UIDs have dots
 
     def test_numeric_vr_conversion(self, fuzzer: DictionaryFuzzer) -> None:
@@ -273,6 +332,7 @@ class TestMutateTagSpecialCases:
             fuzzer._mutate_tag(ds, 0x00280010, MutationSeverity.MODERATE)
 
         # Should have converted to int
+        assert ds[0x00280010].value is not None
         assert isinstance(ds[0x00280010].value, int)
 
     def test_exception_handling(self, fuzzer: DictionaryFuzzer) -> None:
@@ -287,6 +347,7 @@ class TestMutateTagSpecialCases:
 
         # Verify fuzzer is still functional
         assert fuzzer is not None
+        assert isinstance(fuzzer, DictionaryFuzzer)
 
     def test_lo_vr_string_mutation(self, fuzzer: DictionaryFuzzer) -> None:
         """Test LO (long string) VR gets mutated."""
@@ -297,6 +358,7 @@ class TestMutateTagSpecialCases:
 
         # Value should be present (may have changed)
         assert ds[0x00080070].value is not None
+        assert isinstance(ds, Dataset)
 
 
 class TestGetValueForSeverity:
@@ -314,6 +376,8 @@ class TestGetValueForSeverity:
                 0x00080060, MutationSeverity.MINIMAL
             )
             mock.assert_called_once_with(0x00080060)
+            assert result is not None
+            assert isinstance(result, str)
             assert result == "CT"
 
     def test_moderate_mostly_valid(self, fuzzer: DictionaryFuzzer) -> None:
@@ -324,6 +388,8 @@ class TestGetValueForSeverity:
                     0x00080060, MutationSeverity.MODERATE
                 )
                 mock.assert_called_once()
+                assert result is not None
+                assert isinstance(result, str)
                 assert result == "MR"
 
     def test_moderate_sometimes_edge_case(self, fuzzer: DictionaryFuzzer) -> None:
@@ -334,6 +400,8 @@ class TestGetValueForSeverity:
                     0x00080060, MutationSeverity.MODERATE
                 )
                 mock.assert_called_once()
+                assert result is not None
+                assert isinstance(result, str)
                 assert result == ""
 
     def test_aggressive_mixed_values(self, fuzzer: DictionaryFuzzer) -> None:
@@ -346,6 +414,8 @@ class TestGetValueForSeverity:
                     0x00080060, MutationSeverity.AGGRESSIVE
                 )
                 mock.assert_called_once()
+                assert result is not None
+                assert isinstance(result, str)
                 assert result == "\x00"
 
     def test_aggressive_malicious(self, fuzzer: DictionaryFuzzer) -> None:
@@ -358,6 +428,8 @@ class TestGetValueForSeverity:
                     0x00080060, MutationSeverity.AGGRESSIVE
                 )
                 mock.assert_called_once()
+                assert result is not None
+                assert isinstance(result, str)
                 assert result == "'; DROP"
 
     def test_extreme_always_malicious(self, fuzzer: DictionaryFuzzer) -> None:
@@ -369,6 +441,8 @@ class TestGetValueForSeverity:
                 0x00080060, MutationSeverity.EXTREME
             )
             mock.assert_called_once()
+            assert result is not None
+            assert isinstance(result, str)
             assert result == "<script>"
 
 
@@ -385,6 +459,8 @@ class TestGetNumMutations:
         with patch("random.randint", return_value=1) as mock:
             result = fuzzer._get_num_mutations(MutationSeverity.MINIMAL, 20)
             mock.assert_called_once_with(1, 2)  # max(2, 20//20) = 2
+            assert result is not None
+            assert isinstance(result, int)
             assert result == 1
 
     def test_moderate_more_mutations(self, fuzzer: DictionaryFuzzer) -> None:
@@ -392,6 +468,8 @@ class TestGetNumMutations:
         with patch("random.randint", return_value=3) as mock:
             result = fuzzer._get_num_mutations(MutationSeverity.MODERATE, 50)
             mock.assert_called_once_with(2, 5)  # max(5, 50//10) = 5
+            assert result is not None
+            assert isinstance(result, int)
             assert result == 3
 
     def test_aggressive_many_mutations(self, fuzzer: DictionaryFuzzer) -> None:
@@ -399,6 +477,8 @@ class TestGetNumMutations:
         with patch("random.randint", return_value=8) as mock:
             result = fuzzer._get_num_mutations(MutationSeverity.AGGRESSIVE, 50)
             mock.assert_called_once_with(5, 10)  # max(10, 50//5) = 10
+            assert result is not None
+            assert isinstance(result, int)
             assert result == 8
 
     def test_extreme_maximum_mutations(self, fuzzer: DictionaryFuzzer) -> None:
@@ -406,6 +486,8 @@ class TestGetNumMutations:
         with patch("random.randint", return_value=15) as mock:
             result = fuzzer._get_num_mutations(MutationSeverity.EXTREME, 50)
             mock.assert_called_once_with(10, 25)  # max(20, 50//2) = 25
+            assert result is not None
+            assert isinstance(result, int)
             assert result == 15
 
     def test_large_dataset_scales(self, fuzzer: DictionaryFuzzer) -> None:
@@ -414,6 +496,8 @@ class TestGetNumMutations:
             result = fuzzer._get_num_mutations(MutationSeverity.EXTREME, 200)
             # max(20, 200//2) = 100
             mock.assert_called_once_with(10, 100)
+            assert result is not None
+            assert isinstance(result, int)
             assert result == 50
 
 
@@ -432,6 +516,8 @@ class TestGetApplicableTagsEdgeCases:
         ds.SeriesInstanceUID = "1.2.3.4.6"
 
         applicable = fuzzer.get_applicable_tags(ds)
+        assert applicable is not None
+        assert isinstance(applicable, list)
         tag_ints = [tag for tag, _ in applicable]
 
         assert 0x0020000D in tag_ints  # StudyInstanceUID
@@ -445,6 +531,9 @@ class TestGetApplicableTagsEdgeCases:
         ds.PatientName = "Test"  # Not in TAG_TO_DICTIONARY
 
         applicable = fuzzer.get_applicable_tags(ds)
+        assert applicable is not None
+        assert isinstance(applicable, list)
+        assert len(applicable) > 0
         tag_ints = [tag for tag, _ in applicable]
 
         assert 0x00080060 in tag_ints  # Modality
@@ -456,6 +545,8 @@ class TestGetApplicableTagsEdgeCases:
         """Test empty dataset returns empty list."""
         ds = Dataset()
         applicable = fuzzer.get_applicable_tags(ds)
+        assert applicable is not None
+        assert isinstance(applicable, list)
         assert applicable == []
 
     def test_no_applicable_tags(self, fuzzer: DictionaryFuzzer) -> None:
@@ -465,6 +556,8 @@ class TestGetApplicableTagsEdgeCases:
         ds.add(DataElement(0x00110010, "LO", "Private Creator"))
 
         applicable = fuzzer.get_applicable_tags(ds)
+        assert applicable is not None
+        assert isinstance(applicable, list)
         assert applicable == []
 
 
@@ -509,6 +602,7 @@ class TestMutateWithSpecificDictionaryEdgeCases:
                     ds, 0x00080060, "modalities"
                 )
                 assert mutated is not None
+                assert isinstance(mutated, Dataset)
 
 
 class TestInjectEdgeCasesSystematicallyEdgeCases:
@@ -527,6 +621,8 @@ class TestInjectEdgeCasesSystematicallyEdgeCases:
         # The method already handles exceptions internally
         results = fuzzer.inject_edge_cases_systematically(ds, "empty")
         # Should still return results (empty values work fine)
+        assert results is not None
+        assert isinstance(results, list)
         assert len(results) > 0
 
     def test_all_tags_processed(self, fuzzer: DictionaryFuzzer) -> None:
@@ -539,6 +635,8 @@ class TestInjectEdgeCasesSystematicallyEdgeCases:
         results = fuzzer.inject_edge_cases_systematically(ds, "empty")
 
         # Should have mutations for all 3 tags * number of empty edge cases
+        assert results is not None
+        assert isinstance(results, list)
         assert len(results) >= 3
 
 
@@ -560,6 +658,8 @@ class TestMutateIntegration:
         mutated = fuzzer.mutate(ds, MutationSeverity.MODERATE)
 
         # All tags should still be present
+        assert mutated is not None
+        assert isinstance(mutated, Dataset)
         assert 0x00280010 in mutated
         assert 0x00280011 in mutated
         assert 0x00280100 in mutated
@@ -570,8 +670,10 @@ class TestMutateIntegration:
         ds.PatientName = "Original"
         ds.PatientID = "12345"
 
-        fuzzer.mutate(ds, MutationSeverity.EXTREME)
+        result = fuzzer.mutate(ds, MutationSeverity.EXTREME)
 
+        assert result is not None
+        assert isinstance(result, Dataset)
         assert ds.PatientName == "Original"
         assert ds.PatientID == "12345"
 
@@ -581,13 +683,17 @@ class TestMutateIntegration:
         ds.PatientName = "Test"
 
         result = fuzzer.mutate(ds, MutationSeverity.MINIMAL)
+        assert result is not None
         assert isinstance(result, Dataset)
 
         result = fuzzer.mutate(ds, MutationSeverity.MODERATE)
+        assert result is not None
         assert isinstance(result, Dataset)
 
         result = fuzzer.mutate(ds, MutationSeverity.AGGRESSIVE)
+        assert result is not None
         assert isinstance(result, Dataset)
 
         result = fuzzer.mutate(ds, MutationSeverity.EXTREME)
+        assert result is not None
         assert isinstance(result, Dataset)

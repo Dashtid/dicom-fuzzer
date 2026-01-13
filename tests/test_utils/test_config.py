@@ -11,7 +11,9 @@ class TestMutationStrategies:
 
     def test_mutation_strategies_is_dict(self):
         """Verify MUTATION_STRATEGIES is a dictionary."""
+        assert MUTATION_STRATEGIES is not None
         assert isinstance(MUTATION_STRATEGIES, dict)
+        assert len(MUTATION_STRATEGIES) > 0
 
     def test_mutation_strategies_has_expected_keys(self):
         """Verify all expected strategy keys are present."""
@@ -21,6 +23,7 @@ class TestMutationStrategies:
             "pixel_probability",
             "max_mutations_per_file",
         }
+        assert len(expected_keys) == 4
         assert set(MUTATION_STRATEGIES.keys()) == expected_keys
 
     def test_probability_values_in_valid_range(self):
@@ -57,11 +60,14 @@ class TestFakeDataPools:
 
     def test_fake_data_pools_is_dict(self):
         """Verify FAKE_DATA_POOLS is a dictionary."""
+        assert FAKE_DATA_POOLS is not None
         assert isinstance(FAKE_DATA_POOLS, dict)
+        assert len(FAKE_DATA_POOLS) > 0
 
     def test_fake_data_pools_has_expected_keys(self):
         """Verify all expected pool keys are present."""
         expected_keys = {"institutions", "modalities", "manufacturers"}
+        assert len(expected_keys) == 3
         assert set(FAKE_DATA_POOLS.keys()) == expected_keys
 
     def test_institutions_is_non_empty_list(self):

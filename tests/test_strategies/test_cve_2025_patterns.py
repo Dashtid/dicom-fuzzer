@@ -57,6 +57,7 @@ class TestCve202535975:
         """Test that CVE-2025-35975 mutations are generated."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_35975)
+        assert isinstance(cve_mutations, list)
         assert len(cve_mutations) > 0
 
     def test_cve_2025_35975_has_high_severity(
@@ -65,6 +66,7 @@ class TestCve202535975:
         """Test that CVE-2025-35975 mutations have high severity."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_35975)
+        assert len(cve_mutations) > 0
         # All should have severity >= 8 (HIGH)
         assert all(m.severity >= 8 for m in cve_mutations)
 
@@ -74,6 +76,7 @@ class TestCve202535975:
         """Test that CVE-2025-35975 mutations target OOB write."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_35975)
+        assert len(cve_mutations) > 0
         # All should target OOB write vulnerability
         assert all(
             m.vulnerability_class == VulnerabilityClass.OUT_OF_BOUNDS_WRITE
@@ -86,6 +89,7 @@ class TestCve202535975:
         """Test that string overflow patterns are included."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_35975)
+        assert isinstance(cve_mutations, list)
         # Should have mutations with large string values
         string_mutations = [
             m
@@ -100,6 +104,7 @@ class TestCve202535975:
         """Test that pixel data mismatch attack is included."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_35975)
+        assert isinstance(cve_mutations, list)
         # Should have pixel data size mismatch mutation
         pixel_mutations = [m for m in cve_mutations if "pixel" in m.name.lower()]
         assert len(pixel_mutations) > 0
@@ -135,6 +140,7 @@ class TestCve202536521:
         """Test that CVE-2025-36521 mutations are generated."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_36521)
+        assert isinstance(cve_mutations, list)
         assert len(cve_mutations) > 0
 
     def test_cve_2025_36521_has_high_severity(
@@ -143,6 +149,7 @@ class TestCve202536521:
         """Test that CVE-2025-36521 mutations have appropriate severity."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_36521)
+        assert len(cve_mutations) > 0
         # All should have severity >= 7 (HIGH)
         assert all(m.severity >= 7 for m in cve_mutations)
 
@@ -169,6 +176,7 @@ class TestCve202536521:
         """Test that bit allocation attacks are included."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_36521)
+        assert isinstance(cve_mutations, list)
         # Should have mutations with bits_allocated in value
         bit_mutations = [
             m
@@ -208,6 +216,7 @@ class TestCve20255943:
         """Test that CVE-2025-5943 mutations are generated."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_5943)
+        assert isinstance(cve_mutations, list)
         assert len(cve_mutations) > 0
 
     def test_cve_2025_5943_has_critical_severity(
@@ -216,6 +225,7 @@ class TestCve20255943:
         """Test that CVE-2025-5943 mutations have critical severity."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_5943)
+        assert len(cve_mutations) > 0
         # Most should have severity >= 8 (HIGH/CRITICAL)
         high_severity = [m for m in cve_mutations if m.severity >= 8]
         assert len(high_severity) > len(cve_mutations) // 2
@@ -226,6 +236,7 @@ class TestCve20255943:
         """Test that VR length overflow attacks are included."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_5943)
+        assert isinstance(cve_mutations, list)
         # Should have VR length attacks
         vr_length_mutations = [m for m in cve_mutations if "vr_length" in m.name]
         assert len(vr_length_mutations) > 0
@@ -236,6 +247,7 @@ class TestCve20255943:
         """Test that transfer syntax confusion attacks are included."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_5943)
+        assert isinstance(cve_mutations, list)
         # Should have transfer syntax attacks
         ts_mutations = [m for m in cve_mutations if "transfer_syntax" in m.name]
         assert len(ts_mutations) > 0
@@ -246,6 +258,7 @@ class TestCve20255943:
         """Test that pixel header misalignment attacks are included."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_5943)
+        assert isinstance(cve_mutations, list)
         # Should have pixel misalignment attacks
         pixel_mutations = [m for m in cve_mutations if "pixel_misalign" in m.name]
         assert len(pixel_mutations) > 0
@@ -256,6 +269,7 @@ class TestCve20255943:
         """Test that file meta corruption attacks are included."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_5943)
+        assert isinstance(cve_mutations, list)
         # Should have file meta attacks
         meta_mutations = [m for m in cve_mutations if "file_meta" in m.name]
         assert len(meta_mutations) > 0
@@ -284,6 +298,7 @@ class TestCve20255943:
         """Test that exploitability is correctly rated."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_5943)
+        assert len(cve_mutations) > 0
 
         # VR length and pixel attacks should be marked as exploitable
         exploitable = [m for m in cve_mutations if m.exploitability == "exploitable"]
@@ -319,6 +334,7 @@ class TestCVEPatternIntegration:
 
         for cve in cve_2025_patterns:
             mutations = fuzzer.get_mutations_by_cve(cve)
+            assert isinstance(mutations, list)
             assert len(mutations) > 0, f"No mutations for {cve.value}"
 
     def test_cve_mutations_in_summary(self) -> None:
@@ -337,6 +353,7 @@ class TestCVEPatternIntegration:
         summary = fuzzer.get_summary()
 
         # Summary should include CVE counts
+        assert isinstance(summary, dict)
         assert "by_cve" in summary
         assert len(summary["by_cve"]) > 0
 
@@ -356,6 +373,7 @@ class TestCVEPatternIntegration:
         summary = fuzzer.get_summary()
 
         # High-value targets should include CVE patterns
+        assert isinstance(summary, dict)
         high_value = summary.get("high_value_targets", [])
         cve_in_high_value = [t for t in high_value if t.get("cve_pattern") is not None]
         assert len(cve_in_high_value) > 0
@@ -388,6 +406,9 @@ class TestCVEPatternIntegration:
         tags_5943 = {m.tag for m in cve_5943 if m.tag}
 
         # Each CVE should have some unique characteristics
+        assert isinstance(tags_35975, set)
+        assert isinstance(tags_36521, set)
+        assert isinstance(tags_5943, set)
         assert len(tags_35975) > 0
         assert len(tags_36521) > 0
         assert len(tags_5943) > 0
@@ -408,6 +429,7 @@ class TestCVEPatternIntegration:
 
         # Get CVE-2025-5943 mutations and apply them
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_5943)
+        assert isinstance(cve_mutations, list)
         assert len(cve_mutations) > 0
 
         # Apply first mutation
@@ -416,6 +438,7 @@ class TestCVEPatternIntegration:
         ds_copy.update(ds)
         result = fuzzer.apply_mutation(ds_copy, mutation)
         assert result is not None
+        assert isinstance(result, Dataset)
 
 
 class TestCVEPatternEdgeCases:
@@ -430,6 +453,7 @@ class TestCVEPatternEdgeCases:
         mutations = fuzzer.generate_mutations(ds)
 
         # Should still generate mutations (they create new elements)
+        assert isinstance(mutations, list)
         assert len(mutations) > 0
 
     def test_cve_patterns_pixel_data_disabled(self) -> None:
