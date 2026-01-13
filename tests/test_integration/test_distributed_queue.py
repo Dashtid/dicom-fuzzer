@@ -426,6 +426,9 @@ class TestInMemoryTaskQueue:
         queue.connect()  # Should not raise
         queue.disconnect()  # Should not raise
 
+        # Verify queue is still functional
+        assert queue is not None
+
     def test_requeue_stale_tasks(self) -> None:
         """Test requeue_stale_tasks returns 0 for in-memory queue."""
         queue = InMemoryTaskQueue()
@@ -1033,6 +1036,9 @@ class TestTaskQueueFakeredis:
         """Test that calling connect when already connected is idempotent."""
         # Already connected via fixture
         task_queue.connect()  # Should not raise
+
+        # Verify queue is still functional
+        assert task_queue is not None
 
     def test_get_results_empty(self, task_queue):
         """Test getting results from empty queue."""

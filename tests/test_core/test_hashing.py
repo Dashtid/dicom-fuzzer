@@ -33,17 +33,20 @@ class TestHashBytes:
         hash1 = hash_bytes(data)
         hash2 = hash_bytes(data)
         assert hash1 == hash2
+        assert len(hash1) == 64
 
     def test_different_inputs_different_hashes(self):
         """Test that different inputs produce different hashes."""
         hash1 = hash_bytes(b"input1")
         hash2 = hash_bytes(b"input2")
         assert hash1 != hash2
+        assert len(hash1) == len(hash2) == 64
 
     def test_truncation(self):
         """Test hash truncation."""
         result = hash_bytes(b"test", length=16)
         assert len(result) == 16
+        assert all(c in "0123456789abcdef" for c in result)
 
     def test_various_truncation_lengths(self):
         """Test various truncation lengths."""
@@ -63,12 +66,14 @@ class TestHashBytes:
         large_data = b"x" * 1_000_000  # 1MB
         result = hash_bytes(large_data)
         assert len(result) == 64
+        assert isinstance(result, str)
 
     def test_binary_data(self):
         """Test hashing binary data with all byte values."""
         binary_data = bytes(range(256))
         result = hash_bytes(binary_data)
         assert len(result) == 64
+        assert isinstance(result, str)
 
 
 class TestHashString:
@@ -91,17 +96,20 @@ class TestHashString:
         """Test string hash truncation."""
         result = hash_string("test", length=16)
         assert len(result) == 16
+        assert all(c in "0123456789abcdef" for c in result)
 
     def test_unicode_strings(self):
         """Test hashing Unicode strings."""
         unicode_str = "Hello World"
         result = hash_string(unicode_str)
         assert len(result) == 64
+        assert isinstance(result, str)
 
     def test_empty_string(self):
         """Test hashing empty string."""
         result = hash_string("")
         assert len(result) == 64
+        assert result == hash_bytes(b"")
 
 
 class TestHashFile:
@@ -124,6 +132,7 @@ class TestHashFile:
         hash1 = hash_file(test_file)
         hash2 = hash_file(test_file)
         assert hash1 == hash2
+        assert len(hash1) == 64
 
     def test_matches_content_hash(self, tmp_path):
         """Test file hash matches direct content hash."""
@@ -142,6 +151,7 @@ class TestHashFile:
 
         result = hash_file(test_file, length=16)
         assert len(result) == 16
+        assert all(c in "0123456789abcdef" for c in result)
 
     def test_large_file(self, tmp_path):
         """Test hashing large file (tests chunked reading)."""
@@ -151,6 +161,7 @@ class TestHashFile:
 
         result = hash_file(test_file)
         assert len(result) == 64
+        assert isinstance(result, str)
 
     def test_nonexistent_file_raises(self, tmp_path):
         """Test that nonexistent file raises FileNotFoundError."""
@@ -179,6 +190,7 @@ class TestHashFileQuick:
 
         result = hash_file_quick(test_file)
         assert len(result) == 16  # Default truncation
+        assert isinstance(result, str)
 
     def test_custom_length(self, tmp_path):
         """Test custom truncation length."""
@@ -187,6 +199,7 @@ class TestHashFileQuick:
 
         result = hash_file_quick(test_file, length=32)
         assert len(result) == 32
+        assert all(c in "0123456789abcdef" for c in result)
 
     def test_matches_hash_bytes(self, tmp_path):
         """Test quick hash matches truncated hash_bytes."""
@@ -246,11 +259,13 @@ class TestHashAny:
         """Test hash_any truncation."""
         result = hash_any("test", length=16)
         assert len(result) == 16
+        assert all(c in "0123456789abcdef" for c in result)
 
     def test_none_with_truncation(self):
         """Test hashing None with truncation."""
         result = hash_any(None, length=8)
         assert len(result) == 8
+        assert all(c in "0123456789abcdef" for c in result)
 
 
 class TestShortHash:
@@ -260,6 +275,7 @@ class TestShortHash:
         """Test short hash is 16 characters."""
         result = short_hash(b"test data")
         assert len(result) == 16
+        assert isinstance(result, str)
 
     def test_deterministic(self):
         """Test short hash is deterministic."""
@@ -267,6 +283,7 @@ class TestShortHash:
         hash1 = short_hash(data)
         hash2 = short_hash(data)
         assert hash1 == hash2
+        assert len(hash1) == 16
 
     def test_is_hex(self):
         """Test short hash is valid hex."""
@@ -287,6 +304,7 @@ class TestMd5Hash:
         """Test MD5 hash with string input."""
         result = md5_hash("test data")
         assert len(result) == 32
+        assert isinstance(result, str)
 
     def test_string_matches_encoded_bytes(self):
         """Test string MD5 matches encoded bytes MD5."""
@@ -299,6 +317,7 @@ class TestMd5Hash:
         """Test MD5 hash truncation."""
         result = md5_hash(b"test", length=16)
         assert len(result) == 16
+        assert all(c in "0123456789abcdef" for c in result)
 
     def test_deterministic(self):
         """Test MD5 hash is deterministic."""
@@ -306,6 +325,7 @@ class TestMd5Hash:
         hash1 = md5_hash(data)
         hash2 = md5_hash(data)
         assert hash1 == hash2
+        assert len(hash1) == 32
 
     def test_different_from_sha256(self):
         """Test MD5 produces different hash than SHA256."""
@@ -341,12 +361,14 @@ class TestEdgeCases:
         """Test hash_bytes with length=None returns full hash."""
         result = hash_bytes(b"test", length=None)
         assert len(result) == 64  # Full SHA256 hex length
+        assert isinstance(result, str)
 
     def test_hash_special_characters(self):
         """Test hashing strings with special characters."""
         special = "Hello\x00World\n\t\r"
         result = hash_string(special)
         assert len(result) == 64
+        assert isinstance(result, str)
 
     def test_hash_path_object(self):
         """Test hashing Path object via hash_any."""

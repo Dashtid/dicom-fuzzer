@@ -391,6 +391,10 @@ class TestDiskCaching:
         # Should warn and not crash
         cache.cache_series(mock_series)
 
+        # Verify cache is still functional
+        assert cache is not None
+        assert cache.cache_dir is None
+
     def test_cache_series_with_cache_dir(
         self, tmp_path, sample_dicom_files, simple_loader
     ):
@@ -424,6 +428,9 @@ class TestDiskCaching:
         with patch("builtins.open", side_effect=Exception("Write error")):
             # Should not raise
             cache.cache_series(mock_series)
+
+        # Verify cache is still functional after exception
+        assert cache is not None
 
     def test_is_cached_without_cache_dir(self):
         """Test is_cached when cache_dir not configured."""

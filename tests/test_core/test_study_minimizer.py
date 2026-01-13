@@ -530,6 +530,9 @@ class TestCleanup:
         # Should not raise
         minimizer._cleanup_temp_dirs()
 
+        # Verify temp_dirs list was cleared
+        assert len(minimizer._temp_dirs) == 0
+
 
 class TestCreateCrashTestFromRunner:
     """Test create_crash_test_from_runner function."""

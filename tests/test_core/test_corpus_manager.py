@@ -486,8 +486,10 @@ class TestCorpusManagement:
 
     def test_update_seed_crash_nonexistent(self, corpus_manager):
         """Test updating crash for nonexistent seed does nothing."""
+        initial_seeds = len(corpus_manager.seeds)
         corpus_manager.update_seed_crash("nonexistent_id")
-        # Should not raise
+        # Should not raise and seeds should be unchanged
+        assert len(corpus_manager.seeds) == initial_seeds
 
     def test_covers_untouched_edges(self, corpus_manager, coverage_a):
         """Test checking if seed covers untouched edges."""
@@ -601,8 +603,11 @@ class TestCompatibilityMethods:
         entry = Entry()
         entry.entry_id = "test_entry"
 
-        # Should not raise
-        corpus_manager.add_entry(entry)
+        # Should not raise - verify function completes and returns a result
+        result = corpus_manager.add_entry(entry)
+
+        # Verify the function returned (either a seed or None)
+        assert result is None or hasattr(result, "id")
 
 
 # ============================================================================

@@ -41,6 +41,7 @@ class TestMutateStructure:
 
         result = fuzzer.mutate_structure(dataset)
         assert isinstance(result, Dataset)
+        assert result is not None
 
     def test_mutate_structure_applies_strategies(self):
         """Test that mutate_structure applies corruption strategies."""
@@ -85,6 +86,7 @@ class TestCorruptTagOrdering:
             result = fuzzer._corrupt_tag_ordering(dataset)
 
         assert isinstance(result, Dataset)
+        assert result is not None
 
     def test_corrupt_tag_ordering_few_elements(self):
         """Test tag ordering with insufficient elements."""
@@ -95,6 +97,7 @@ class TestCorruptTagOrdering:
 
         result = fuzzer._corrupt_tag_ordering(dataset)
         assert result == dataset
+        assert isinstance(result, Dataset)
 
     def test_corrupt_tag_ordering_preserves_file_meta(self):
         """Test that file_meta is preserved during corruption."""
@@ -135,6 +138,7 @@ class TestCorruptLengthFields:
 
         # Value should have been extended
         assert isinstance(result, Dataset)
+        assert result is not None
 
     def test_corrupt_length_underflow(self):
         """Test length underflow corruption."""
@@ -150,6 +154,7 @@ class TestCorruptLengthFields:
             result = fuzzer._corrupt_length_fields(dataset)
 
         assert isinstance(result, Dataset)
+        assert result is not None
 
     def test_corrupt_length_mismatch(self):
         """Test length mismatch corruption."""
@@ -165,6 +170,7 @@ class TestCorruptLengthFields:
             result = fuzzer._corrupt_length_fields(dataset)
 
         assert isinstance(result, Dataset)
+        assert result is not None
 
     def test_corrupt_length_no_string_tags(self):
         """Test corruption when no string tags exist."""
@@ -176,6 +182,7 @@ class TestCorruptLengthFields:
 
         result = fuzzer._corrupt_length_fields(dataset)
         assert result == dataset
+        assert isinstance(result, Dataset)
 
 
 class TestInsertUnexpectedTags:
@@ -192,6 +199,7 @@ class TestInsertUnexpectedTags:
                 result = fuzzer._insert_unexpected_tags(dataset)
 
         assert isinstance(result, Dataset)
+        assert result is not None
 
     def test_insert_unexpected_tags_handles_failure(self):
         """Test that failures during tag insertion are handled."""
@@ -207,6 +215,7 @@ class TestInsertUnexpectedTags:
                     result = fuzzer._insert_unexpected_tags(dataset)
 
         assert isinstance(result, Dataset)
+        assert result is not None
 
 
 class TestDuplicateTags:
@@ -222,6 +231,7 @@ class TestDuplicateTags:
             result = fuzzer._duplicate_tags(dataset)
 
         assert isinstance(result, Dataset)
+        assert result is not None
 
     def test_duplicate_tags_empty_dataset(self):
         """Test duplication on empty dataset."""
@@ -230,6 +240,7 @@ class TestDuplicateTags:
 
         result = fuzzer._duplicate_tags(dataset)
         assert result == dataset
+        assert isinstance(result, Dataset)
 
     def test_duplicate_tags_handles_failure(self):
         """Test that failures during duplication are handled."""
@@ -245,6 +256,7 @@ class TestDuplicateTags:
                 result = fuzzer._duplicate_tags(dataset)
 
         assert isinstance(result, Dataset)
+        assert result is not None
 
 
 class TestCorruptFileHeader:
@@ -294,6 +306,7 @@ class TestCorruptFileHeader:
             result = fuzzer.corrupt_file_header(str(test_file))
 
         assert result is not None
+        assert Path(result).exists()
 
     def test_corrupt_file_header_truncate(self, tmp_path):
         """Test file truncation."""
@@ -316,8 +329,10 @@ class TestCorruptFileHeader:
         fuzzer = StructureFuzzer()
 
         # Non-existent file
-        result = fuzzer.corrupt_file_header(str(tmp_path / "nonexistent.dcm"))
+        nonexistent_path = tmp_path / "nonexistent.dcm"
+        result = fuzzer.corrupt_file_header(str(nonexistent_path))
         assert result is None
+        assert not nonexistent_path.exists()
 
     def test_corrupt_file_header_auto_output_path(self, tmp_path):
         """Test auto-generated output path."""
@@ -357,6 +372,7 @@ class TestCorruptionHelpers:
 
         # Should return unchanged for short files
         assert len(result) == 50
+        assert isinstance(result, bytearray)
 
     def test_corrupt_dicm_prefix(self):
         """Test _corrupt_dicm_prefix method directly."""
@@ -376,6 +392,7 @@ class TestCorruptionHelpers:
 
         # Should return unchanged for short files
         assert len(result) == 100
+        assert isinstance(result, bytearray)
 
     def test_corrupt_transfer_syntax(self):
         """Test _corrupt_transfer_syntax method directly."""
@@ -385,6 +402,7 @@ class TestCorruptionHelpers:
         result = fuzzer._corrupt_transfer_syntax(file_data)
 
         assert len(result) == 300
+        assert isinstance(result, bytearray)
 
     def test_corrupt_transfer_syntax_short_file(self):
         """Test _corrupt_transfer_syntax with file shorter than 200 bytes."""
@@ -395,6 +413,7 @@ class TestCorruptionHelpers:
 
         # Should return unchanged for short files
         assert len(result) == 100
+        assert isinstance(result, bytearray)
 
     def test_truncate_file(self):
         """Test _truncate_file method directly."""
@@ -415,6 +434,7 @@ class TestCorruptionHelpers:
 
         # Should return unchanged for small files
         assert len(result) == 500
+        assert isinstance(result, bytearray)
 
 
 class TestCorruptLengthFieldsExtended:
@@ -487,6 +507,7 @@ class TestCorruptLengthFieldsExtended:
 
         # Short values shouldn't have mismatch applied (len <= 2)
         assert isinstance(result, Dataset)
+        assert result is not None
 
     def test_corrupt_length_multiple_string_tags(self):
         """Test corruption when multiple string tags exist."""
@@ -531,6 +552,7 @@ class TestMutateStructureIntegration:
             result = fuzzer.mutate_structure(dataset)
 
         assert isinstance(result, Dataset)
+        assert result is not None
 
 
 class TestDuplicateTagsExtended:
@@ -545,6 +567,7 @@ class TestDuplicateTagsExtended:
         # Mock to return a tag, but element might not have value
         result = fuzzer._duplicate_tags(dataset)
         assert isinstance(result, Dataset)
+        assert result is not None
 
     def test_duplicate_tags_with_sequence(self):
         """Test duplication with sequence element."""
@@ -561,6 +584,7 @@ class TestDuplicateTagsExtended:
 
         result = fuzzer._duplicate_tags(dataset)
         assert isinstance(result, Dataset)
+        assert result is not None
 
 
 class TestInsertUnexpectedTagsExtended:
@@ -576,6 +600,7 @@ class TestInsertUnexpectedTagsExtended:
             result = fuzzer._insert_unexpected_tags(dataset)
 
         assert isinstance(result, Dataset)
+        assert result is not None
 
     def test_insert_unexpected_tags_all_types(self):
         """Test inserting all types of unusual tags."""
@@ -612,6 +637,7 @@ class TestCorruptTagOrderingExtended:
 
         # Should return unchanged with only 2 elements
         assert result == dataset
+        assert isinstance(result, Dataset)
 
     def test_corrupt_tag_ordering_many_elements(self):
         """Test tag ordering with many elements."""
@@ -622,3 +648,4 @@ class TestCorruptTagOrderingExtended:
 
         result = fuzzer._corrupt_tag_ordering(dataset)
         assert isinstance(result, Dataset)
+        assert result is not None

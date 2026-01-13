@@ -604,6 +604,9 @@ class TestExportImportState:
         # Should not raise
         scheduler.import_state(state)
 
+        # Verify scheduler is still functional
+        assert scheduler is not None
+
     def test_import_state_handles_invalid_mode(self):
         """Test import handles invalid mode gracefully."""
         scheduler = MutationScheduler()

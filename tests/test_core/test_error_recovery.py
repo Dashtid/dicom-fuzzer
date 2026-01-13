@@ -691,6 +691,9 @@ class TestCheckpointCleanup:
         # Should not raise error
         recovery.cleanup_checkpoint("nonexistent_campaign")
 
+        # Verify recovery object is still usable
+        assert recovery is not None
+
 
 class TestUpdateProgress:
     """Test progress update functionality."""

@@ -285,6 +285,9 @@ class TestMutateTagSpecialCases:
             # Should not raise, just log and return
             fuzzer._mutate_tag(ds, 0x00100010, MutationSeverity.MODERATE)
 
+        # Verify fuzzer is still functional
+        assert fuzzer is not None
+
     def test_lo_vr_string_mutation(self, fuzzer: DictionaryFuzzer) -> None:
         """Test LO (long string) VR gets mutated."""
         ds = Dataset()

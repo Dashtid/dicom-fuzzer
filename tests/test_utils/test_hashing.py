@@ -33,11 +33,13 @@ class TestHashBytes:
         """Verify full SHA256 hash is 64 characters."""
         result = hash_bytes(b"test")
         assert len(result) == 64
+        assert isinstance(result, str)
 
     def test_truncated_hash_length(self):
         """Verify truncated hash has correct length."""
         result = hash_bytes(b"test", length=16)
         assert len(result) == 16
+        assert all(c in "0123456789abcdef" for c in result)
 
     def test_deterministic_output(self):
         """Verify same input produces same output."""
@@ -45,12 +47,14 @@ class TestHashBytes:
         result1 = hash_bytes(data)
         result2 = hash_bytes(data)
         assert result1 == result2
+        assert len(result1) == 64
 
     def test_different_input_different_hash(self):
         """Verify different inputs produce different hashes."""
         result1 = hash_bytes(b"input1")
         result2 = hash_bytes(b"input2")
         assert result1 != result2
+        assert len(result1) == len(result2) == 64
 
     def test_empty_bytes(self):
         """Verify handles empty bytes."""
@@ -66,6 +70,7 @@ class TestHashBytes:
         full_hash = hash_bytes(data)
         truncated = hash_bytes(data, length=16)
         assert full_hash.startswith(truncated)
+        assert len(truncated) == 16
 
     def test_length_zero_returns_full_hash(self):
         """Verify length=0 is treated as None (returns full hash).
@@ -97,16 +102,19 @@ class TestHashString:
         """Verify truncation works."""
         result = hash_string("test", length=8)
         assert len(result) == 8
+        assert all(c in "0123456789abcdef" for c in result)
 
     def test_unicode_input(self):
         """Verify handles unicode strings."""
         result = hash_string("日本語テスト")
         assert len(result) == 64
+        assert isinstance(result, str)
 
     def test_empty_string(self):
         """Verify handles empty string."""
         result = hash_string("")
         assert len(result) == 64
+        assert result == hash_bytes(b"")
 
 
 class TestHashFile:
@@ -134,6 +142,7 @@ class TestHashFile:
         try:
             result = hash_file(temp_path, length=16)
             assert len(result) == 16
+            assert all(c in "0123456789abcdef" for c in result)
         finally:
             temp_path.unlink()
 
@@ -182,6 +191,7 @@ class TestHashFileQuick:
         try:
             result = hash_file_quick(temp_path)
             assert len(result) == 16
+            assert isinstance(result, str)
         finally:
             temp_path.unlink()
 
@@ -194,6 +204,7 @@ class TestHashFileQuick:
         try:
             result = hash_file_quick(temp_path, length=8)
             assert len(result) == 8
+            assert all(c in "0123456789abcdef" for c in result)
         finally:
             temp_path.unlink()
 
@@ -259,6 +270,7 @@ class TestHashAny:
         """Verify truncation works."""
         result = hash_any("test", length=8)
         assert len(result) == 8
+        assert all(c in "0123456789abcdef" for c in result)
 
 
 class TestShortHash:
@@ -268,6 +280,7 @@ class TestShortHash:
         """Verify always returns 16 characters."""
         result = short_hash(b"test data")
         assert len(result) == 16
+        assert isinstance(result, str)
 
     def test_hex_characters_only(self):
         """Verify only hex characters in output."""
@@ -287,6 +300,7 @@ class TestShortHash:
         result1 = short_hash(data)
         result2 = short_hash(data)
         assert result1 == result2
+        assert len(result1) == 16
 
 
 class TestMd5Hash:
@@ -310,11 +324,13 @@ class TestMd5Hash:
         """Verify full MD5 hash is 32 characters."""
         result = md5_hash(b"test")
         assert len(result) == 32
+        assert isinstance(result, str)
 
     def test_truncated_length(self):
         """Verify truncation works."""
         result = md5_hash(b"test", length=8)
         assert len(result) == 8
+        assert all(c in "0123456789abcdef" for c in result)
 
     def test_hex_characters_only(self):
         """Verify only hex characters in output."""

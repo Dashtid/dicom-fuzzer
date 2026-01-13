@@ -494,7 +494,9 @@ class TestGUITargetRunnerKillProcessTree:
             patch("psutil.wait_procs"),
         ):
             # Should not raise
-            mock_runner._kill_process_tree(mock_process)
+            result = mock_runner._kill_process_tree(mock_process)
+            assert result is None  # Gracefully handled terminated parent
+            mock_parent.kill.assert_called_once()  # Kill was attempted
 
     def test_kill_process_tree_process_not_found(self, mock_runner):
         """Test when psutil.Process() raises NoSuchProcess immediately."""
@@ -503,18 +505,26 @@ class TestGUITargetRunnerKillProcessTree:
         mock_process = MagicMock()
         mock_process.pid = 12345
 
-        with patch("psutil.Process", side_effect=psutil.NoSuchProcess(12345)):
+        with patch(
+            "psutil.Process", side_effect=psutil.NoSuchProcess(12345)
+        ) as mock_ps:
             # Should not raise - process already gone
-            mock_runner._kill_process_tree(mock_process)
+            result = mock_runner._kill_process_tree(mock_process)
+            assert result is None  # Gracefully handled missing process
+            mock_ps.assert_called_once_with(12345)  # Attempted to get process
 
     def test_kill_process_tree_general_exception(self, mock_runner):
         """Test handling of unexpected exceptions during kill."""
         mock_process = MagicMock()
         mock_process.pid = 12345
 
-        with patch("psutil.Process", side_effect=OSError("Unexpected error")):
+        with patch(
+            "psutil.Process", side_effect=OSError("Unexpected error")
+        ) as mock_ps:
             # Should not raise - logs warning but continues
-            mock_runner._kill_process_tree(mock_process)
+            result = mock_runner._kill_process_tree(mock_process)
+            assert result is None  # Gracefully handled exception
+            mock_ps.assert_called_once_with(12345)  # Attempted to get process
 
     def test_kill_process_tree_nested_children(self, mock_runner):
         """Test killing deeply nested process tree (recursive=True)."""

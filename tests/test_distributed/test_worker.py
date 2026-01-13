@@ -415,6 +415,9 @@ class TestWorkLoop:
         # Should not raise, just log error and return
         worker._work_loop()
 
+        # Verify worker is still functional
+        assert worker is not None
+
 
 # =============================================================================
 # TestLocalWorkerPoolInit

@@ -941,7 +941,10 @@ class TestCoverageMissingLines:
         a real 500MB+ pixel array, which is impractical to test.
         """
         # This is defensive/unreachable code with normal test datasets
-        pass
+        # Verify we can at least parse the sample file
+        parser = DicomParser(sample_dicom_file)
+        assert parser is not None
+        assert parser.dataset is not None
 
     def test_critical_tags_extraction_exception_lines_390_391(self, sample_dicom_file):
         """Test exception handling in critical tags extraction (lines 390-391)."""

@@ -348,6 +348,9 @@ class TestIncrementalDistiller:
 
         # Redundant seed should not be added (unless it's smaller)
         # Since it doesn't add new coverage and isn't more efficient
+        assert was_added is False
+        assert len(removed) == 0
+        assert len(distiller.get_corpus()) == 1
 
     def test_add_better_seed_replaces(self, distiller):
         """Test that better seed replaces worse one."""

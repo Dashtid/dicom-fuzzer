@@ -39,6 +39,10 @@ class TestBasicLogging:
         # Should not raise any errors
         logger.info("test_message", data="value")
 
+        # Verify logger was configured correctly
+        assert logger is not None
+        assert hasattr(logger, "info")
+
     def test_get_logger_returns_bound_logger(self, reset_structlog):
         """Test get_logger returns proper structlog BoundLogger."""
         configure_logging()

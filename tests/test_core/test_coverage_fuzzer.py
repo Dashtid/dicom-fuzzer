@@ -295,6 +295,9 @@ class TestFuzzingIteration:
         for _ in range(10):
             fuzzer.fuzz_iteration()
 
+        # Verify iterations were attempted
+        assert fuzzer.stats.total_iterations >= 10
+
     def test_fuzz_iteration_interesting_input(self, temp_corpus_dir, sample_dataset):
         """Test that interesting inputs are added to corpus."""
 

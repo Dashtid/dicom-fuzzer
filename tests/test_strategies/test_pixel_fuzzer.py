@@ -17,6 +17,7 @@ class TestPixelFuzzerInit:
         """Test that PixelFuzzer can be instantiated."""
         fuzzer = PixelFuzzer()
         assert fuzzer is not None
+        assert hasattr(fuzzer, "mutate_pixels")
 
 
 class TestMutatePixels:
@@ -51,6 +52,7 @@ class TestMutatePixels:
 
         # Should return dataset unchanged
         assert result is dataset
+        assert result is not None
 
     def test_mutate_pixels_value_error(self):
         """Test mutation handles ValueError from invalid dimensions."""
@@ -66,6 +68,7 @@ class TestMutatePixels:
 
         # Should return dataset without crashing
         assert result is dataset
+        assert result is not None
 
     def test_mutate_pixels_attribute_error(self):
         """Test mutation handles AttributeError."""
@@ -81,6 +84,7 @@ class TestMutatePixels:
 
         # Should return dataset without crashing
         assert result is dataset
+        assert result is not None
 
     def test_mutate_pixels_type_error(self):
         """Test mutation handles TypeError."""
@@ -94,6 +98,7 @@ class TestMutatePixels:
 
         # Should return dataset without crashing
         assert result is dataset
+        assert result is not None
 
     def test_noise_injection_creates_changes(self):
         """Test that noise injection actually modifies pixels."""
@@ -113,6 +118,7 @@ class TestMutatePixels:
 
         # PixelData should be set
         assert dataset.PixelData is not None
+        assert isinstance(dataset.PixelData, bytes)
 
     def test_returns_same_dataset_object(self):
         """Test that the same dataset object is returned."""
@@ -124,6 +130,7 @@ class TestMutatePixels:
         result = fuzzer.mutate_pixels(dataset)
 
         assert result is dataset
+        assert result is not None
 
     def test_pixel_data_converted_to_bytes(self):
         """Test that pixel data is converted to bytes."""

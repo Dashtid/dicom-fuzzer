@@ -753,6 +753,9 @@ class TestStudyCorpusManagerBranchCoverage:
         # Should not raise, just log warning
         manager.update_priority("nonexistent_id", crash_found=True)
 
+        # Verify manager is still functional
+        assert "nonexistent_id" not in manager.studies
+
     def test_update_priority_no_crash_no_new_priority(
         self, temp_corpus_dir, sample_study_dir
     ):
@@ -773,6 +776,9 @@ class TestStudyCorpusManagerBranchCoverage:
 
         # Should not raise, just skip
         manager.record_mutation("nonexistent", "some_mutation")
+
+        # Verify manager is still functional
+        assert "nonexistent" not in manager.studies
 
     def test_load_index_nonexistent_file(self, temp_corpus_dir):
         """Test load_index with nonexistent file logs warning."""

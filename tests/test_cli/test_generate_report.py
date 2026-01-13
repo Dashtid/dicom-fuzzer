@@ -413,11 +413,19 @@ class TestGenerateCoverageChart:
                 with patch.object(_matplotlib.pyplot, "xlabel"):
                     with patch.object(_matplotlib.pyplot, "ylabel"):
                         with patch.object(_matplotlib.pyplot, "title"):
-                            with patch.object(_matplotlib.pyplot, "savefig"):
-                                with patch.object(_matplotlib.pyplot, "close"):
+                            with patch.object(
+                                _matplotlib.pyplot, "savefig"
+                            ) as mock_savefig:
+                                with patch.object(
+                                    _matplotlib.pyplot, "close"
+                                ) as mock_close:
                                     generate_coverage_chart(
                                         coverage_data, str(output_file)
                                     )
+
+                                    # Verify matplotlib functions were called
+                                    mock_savefig.assert_called_once()
+                                    mock_close.assert_called_once()
 
     def test_generate_coverage_chart_without_matplotlib(self, tmp_path):
         """Test coverage chart fallback when matplotlib not available."""

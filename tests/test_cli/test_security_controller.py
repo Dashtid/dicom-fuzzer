@@ -376,10 +376,15 @@ class TestSecurityFuzzingControllerApplyMutations:
             mock_ds = MagicMock()
             mock_read.return_value = mock_ds
 
-            # Should not raise
-            SecurityFuzzingController._apply_mutations(
+            # Should not raise - call returns None on exception
+            result = SecurityFuzzingController._apply_mutations(
                 input_file=sample_dicom,
                 output_dir=output_dir,
                 mutations=[mock_mutation],
                 security_fuzzer=mock_fuzzer,
             )
+
+            # Verify exception was handled gracefully (function completed)
+            assert result is None
+            # Verify apply_mutation was called before the exception
+            mock_fuzzer.apply_mutation.assert_called_once()

@@ -156,6 +156,9 @@ class TestNonOrthogonalOrientation:
             if nan_found:
                 break
         # NaN may or may not be found depending on which slice was selected
+        # Verify mutation completed
+        assert result is not None
+        assert isinstance(result, list)
 
     def test_extreme_values_attack(self, mutator, sample_datasets, mock_series):
         """Test extreme float values attack."""
@@ -498,6 +501,9 @@ class TestSliceOverlapHelpers:
 
         records = mutator._handle_micro_spacing(datasets)
         # Should use default base_z of 0.0
+
+        # Verify records were created
+        assert records is not None
 
 
 class TestVoxelAspectRatio:

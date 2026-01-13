@@ -340,7 +340,8 @@ class TestMain:
         """Test main with --dry-run flag."""
         with patch("sys.argv", ["coverage_fuzz", "--dry-run"]):
             with patch("dicom_fuzzer.cli.coverage_fuzz.console"):
-                main()  # Should not raise with --dry-run
+                result = main()  # Should not raise with --dry-run
+                assert result is None  # main() completes without error
 
     def test_main_with_config_file(self, tmp_path, capsys):
         """Test main loading configuration from file."""
@@ -352,7 +353,8 @@ class TestMain:
             "sys.argv", ["coverage_fuzz", "--config", str(config_file), "--dry-run"]
         ):
             with patch("dicom_fuzzer.cli.coverage_fuzz.console"):
-                main()  # Should not raise
+                result = main()  # Should not raise
+                assert result is None  # main() completes without error
 
     def test_main_keyboard_interrupt(self, capsys):
         """Test main handles keyboard interrupt."""
@@ -362,7 +364,8 @@ class TestMain:
                 side_effect=KeyboardInterrupt(),
             ):
                 with patch("dicom_fuzzer.cli.coverage_fuzz.console"):
-                    main()  # Should not raise, handles interrupt
+                    result = main()  # Should not raise, handles interrupt
+                    assert result is None  # Gracefully handled keyboard interrupt
 
 
 class TestRunCoverageFuzzing:

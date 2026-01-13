@@ -171,7 +171,9 @@ class TestApplyResourceLimits:
     def test_none_limits(self):
         """Test with None limits (should do nothing)."""
         # Should not raise any exception
-        apply_resource_limits(None)
+        result = apply_resource_limits(None)
+        # Verify function completes successfully with no return value
+        assert result is None
 
     def test_dict_limits(self):
         """Test with dict-based resource limits."""
@@ -459,6 +461,9 @@ class TestPreCampaignHealthCheck:
 
                 # pydicom is already imported in the module, so this test
                 # may not catch it. The function checks at import time.
+                # Verify function completed and returned valid results
+                assert isinstance(passed, bool)
+                assert isinstance(issues, list)
 
     def test_unwritable_output_dir_fails(self, tmp_path):
         """Test health check fails when output directory is not writable."""

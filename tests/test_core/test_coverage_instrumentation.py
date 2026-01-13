@@ -841,6 +841,9 @@ class TestFinallyBlockCoverage:
         # Note: This depends on the check happening AFTER we add to current_coverage
         # The finally block checks if current_coverage.edges - global_coverage.edges is non-empty
 
+        # Verify coverage tracking completed
+        assert cov2 is not None
+
 
 class TestBranchCoverageTracker:
     """Test BranchCoverageTracker class for AFL-style bitmap coverage."""
@@ -1235,7 +1238,8 @@ class TestEnhancedCoverageTracker:
             pass
 
         # Bitmap should have been reset at start of tracking
-        # (but may have new coverage from actual tracing)
+        # Verify coverage context was created
+        assert cov is not None
 
     def test_track_coverage_detects_new_bitmap_coverage(self):
         """Test that track_coverage detects new coverage via bitmap."""

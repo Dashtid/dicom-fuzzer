@@ -389,16 +389,18 @@ class TestDisplayStatsFunction:
         assert True
 
     @pytest.mark.skipif(not HAS_RICH, reason="Rich not installed")
-    def test_display_stats_creates_console_if_none(self):
+    def test_display_stats_creates_console_if_none(self, capsys):
         """Test that display_stats creates Console if not provided."""
         stats = {"test": "value"}
 
-        with patch("dicom_fuzzer.cli.realtime_monitor.Console") as mock_console:
-            mock_instance = MagicMock()
-            mock_console.return_value = mock_instance
+        # Call display_stats without providing a console - it should create one
+        display_stats(stats, console=None)
 
-            with patch("dicom_fuzzer.cli.realtime_monitor.HAS_RICH", True):
-                display_stats(stats, console=None)
+        # Verify output was produced (table was printed)
+        captured = capsys.readouterr()
+        assert "Fuzzing Statistics" in captured.out
+        assert "test" in captured.out
+        assert "value" in captured.out
 
     def test_display_stats_empty_dict(self, capsys):
         """Test display_stats with empty dictionary."""

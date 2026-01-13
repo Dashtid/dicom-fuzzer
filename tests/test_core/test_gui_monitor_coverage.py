@@ -145,8 +145,11 @@ class TestGUIMonitorBasicOperations:
         monitor._monitoring = True
 
         mock_process = MagicMock()
-        # Should log warning and return
+        # Should log warning and return without starting a new thread
         monitor.start_monitoring(mock_process)
+
+        # Verify monitoring flag unchanged (still True)
+        assert monitor._monitoring is True
 
         # Reset
         monitor._monitoring = False
