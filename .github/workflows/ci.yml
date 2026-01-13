@@ -165,9 +165,19 @@ jobs:
           path: .
         continue-on-error: true
 
+      - name: Check coverage file exists
+        id: coverage-check
+        run: |
+          if [ -f "./coverage.xml" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::notice::coverage.xml not found, skipping coverage comment"
+          fi
+
       - name: Pytest coverage comment
         uses: MishaKav/pytest-coverage-comment@7939938b4bd400473e09b8c89534918d036c4523  # main
-        if: always()
+        if: steps.coverage-check.outputs.exists == 'true'
         with:
           pytest-xml-coverage-path: ./coverage.xml
           junitxml-path: ./junit.xml
