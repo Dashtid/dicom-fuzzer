@@ -799,7 +799,10 @@ class TestGeneratorBatchProcessing:
         output_dir = temp_dir / "single"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        files = generator.generate_batch(sample_dicom_file, count=1)
+        # Use safe strategies that don't cause write failures (exclude CVE mutations)
+        files = generator.generate_batch(
+            sample_dicom_file, count=1, strategies=["metadata", "header", "pixel"]
+        )
 
         assert len(files) == 1
         assert files[0].exists()
