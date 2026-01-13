@@ -25,15 +25,17 @@ collect_ignore_glob = ["**/dicom_fuzzer/core/test_minimizer.py"]
 
 
 @pytest.fixture(autouse=True)
-def gc_collect_after_test():
-    """Run garbage collection after each test.
+def gc_collect_around_test():
+    """Run garbage collection before and after each test.
 
     This helps prevent memory accumulation in CI environments where
     test groups may run many tests before memory pressure causes OOM.
-    The fixture runs after every test automatically.
+    Running gc.collect() before each test helps clear any accumulated
+    garbage from previous tests that haven't been collected yet.
     """
+    gc.collect()  # Before test
     yield
-    gc.collect()
+    gc.collect()  # After test
 
 
 @pytest.fixture
