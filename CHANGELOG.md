@@ -5,6 +5,63 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-01-13 - Phase 2 Technical Debt Reduction
+
+Major refactoring release focused on modularization, maintainability, and test coverage.
+
+### Changed - Module Splits
+
+- **TLS Fuzzer** (`dicom_tls_fuzzer.py`): Split from ~1000 lines into:
+  - `tls_security_tester.py` - TLS handshake and certificate testing
+  - `tls_types.py` - TLS-related type definitions
+  - `dicom_auth_tester.py` - DICOM authentication testing
+  - `pacs_query_fuzzer.py` - PACS query fuzzing
+
+- **Target Harness** (`target_harness.py`): Split into `harness/` subpackage:
+  - `harness/harness.py` - Core harness functionality
+  - `harness/monitoring.py` - Process monitoring
+  - `harness/types.py` - Type definitions (TargetConfig, TestResult, etc.)
+
+- **Stateful Fuzzer** (`stateful_fuzzer.py`): Split into `stateful/` subpackage:
+  - `stateful/fuzzer.py` - Main fuzzer logic
+  - `stateful/state_machine.py` - State machine implementation
+  - `stateful/sequence_generator.py` - Test sequence generation
+  - `stateful/timing_attacks.py` - Timing attack strategies
+  - `stateful/resource_attacks.py` - Resource exhaustion attacks
+
+- **Enhanced Reporter** (`enhanced_reporter.py`): Split into `reporting/` subpackage:
+  - `reporting/formatters.py` - Output formatting
+  - `reporting/analytics.py` - Statistical analysis
+  - `reporting/compliance.py` - Compliance reporting
+  - `reporting/enrichers.py` - Report enrichment
+
+- **Multiframe Handler** (`multiframe_handler.py`): Split into `multiframe_strategies/`:
+  - Individual strategy files for frame count, timing, dimension overflow, etc.
+
+- **Medical Device Security** (`medical_device_security.py`): Split into `medical_device/`:
+  - `medical_device/fuzzer.py` - Main fuzzer
+  - `medical_device/types.py` - Type definitions
+
+### Added
+
+- `constants.py` - Centralized constants (CVE registry, DICOM limits, etc.)
+- `coverage_types.py` - Coverage-related type definitions
+- `state_coverage.py` - State-based coverage tracking
+- `gui_fuzzer.py` - GUI-specific fuzzing logic
+- `gui_monitor_types.py` - GUI monitoring types
+
+### Added - Tests
+
+- 50+ new test files covering refactored modules
+- Test coverage maintained at 90%+ line coverage
+- Assertion density improvements across test suite
+
+### Fixed
+
+- CI Coverage Comment workflow now handles missing coverage.xml gracefully
+- OOM issues in test groups resolved with gc.collect() optimization
+- E2E CLI tests fixed with proper async mock handling
+
 ## [1.7.2] - 2025-12-24 - CVE Mutations Enabled by Default
 
 Security-focused release that integrates CVE-based mutations into the default fuzzing pipeline.
