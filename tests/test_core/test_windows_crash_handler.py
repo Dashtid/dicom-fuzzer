@@ -214,11 +214,11 @@ class TestWindowsCrashHandlerDetection:
     @pytest.mark.parametrize(
         "code",
         [
-            0xC0000005,  # ACCESS_VIOLATION
-            0xC0000374,  # HEAP_CORRUPTION
-            0xC0000409,  # STACK_BUFFER_OVERRUN
-            0xC00000FD,  # STACK_OVERFLOW
-            0xC0000094,  # INTEGER_DIVIDE_BY_ZERO
+            pytest.param(0xC0000005, id="access_violation"),
+            pytest.param(0xC0000374, id="heap_corruption"),
+            pytest.param(0xC0000409, id="stack_buffer_overrun"),
+            pytest.param(0xC00000FD, id="stack_overflow"),
+            pytest.param(0xC0000094, id="integer_divide_by_zero"),
         ],
     )
     def test_is_windows_crash_unsigned_codes(self, handler, code):
@@ -228,9 +228,9 @@ class TestWindowsCrashHandlerDetection:
     @pytest.mark.parametrize(
         ("code", "expected_unsigned"),
         [
-            (-1073741819, 0xC0000005),  # ACCESS_VIOLATION
-            (-1073740940, 0xC0000374),  # HEAP_CORRUPTION
-            (-1073740791, 0xC0000409),  # STACK_BUFFER_OVERRUN
+            pytest.param(-1073741819, 0xC0000005, id="access_violation_signed"),
+            pytest.param(-1073740940, 0xC0000374, id="heap_corruption_signed"),
+            pytest.param(-1073740791, 0xC0000409, id="stack_buffer_overrun_signed"),
         ],
     )
     def test_is_windows_crash_signed_codes(self, handler, code, expected_unsigned):
@@ -348,12 +348,16 @@ class TestCrashAddressExtraction:
     @pytest.mark.parametrize(
         ("stderr", "expected"),
         [
-            ("at address 0x12345678", 0x12345678),
-            ("at 0xDEADBEEF", 0xDEADBEEF),
-            ("Exception at 0x7FFE12345678", 0x7FFE12345678),
-            ("violation reading address 0xABCD", 0xABCD),
-            ("violation writing 0x1234", 0x1234),
-            ("IP: 0xCAFEBABE", 0xCAFEBABE),
+            pytest.param("at address 0x12345678", 0x12345678, id="at_address"),
+            pytest.param("at 0xDEADBEEF", 0xDEADBEEF, id="at_hex"),
+            pytest.param(
+                "Exception at 0x7FFE12345678", 0x7FFE12345678, id="exception_at"
+            ),
+            pytest.param(
+                "violation reading address 0xABCD", 0xABCD, id="reading_address"
+            ),
+            pytest.param("violation writing 0x1234", 0x1234, id="writing_address"),
+            pytest.param("IP: 0xCAFEBABE", 0xCAFEBABE, id="ip_address"),
         ],
     )
     def test_extract_crash_address_patterns(self, handler, stderr, expected):
@@ -383,11 +387,19 @@ class TestFaultingModuleExtraction:
     @pytest.mark.parametrize(
         ("stderr", "expected"),
         [
-            ("in module kernel32.dll", "kernel32.dll"),
-            ("in ntdll.dll at offset 0x1234", "ntdll.dll"),
-            ("myapp.exe!main+0x42", "myapp.exe"),
-            ("Faulting module: ucrtbase.dll", "ucrtbase.dll"),
-            ("faulting module: VCRUNTIME140.dll", "VCRUNTIME140.dll"),
+            pytest.param("in module kernel32.dll", "kernel32.dll", id="in_module"),
+            pytest.param(
+                "in ntdll.dll at offset 0x1234", "ntdll.dll", id="in_dll_offset"
+            ),
+            pytest.param("myapp.exe!main+0x42", "myapp.exe", id="exe_symbol"),
+            pytest.param(
+                "Faulting module: ucrtbase.dll", "ucrtbase.dll", id="faulting_module"
+            ),
+            pytest.param(
+                "faulting module: VCRUNTIME140.dll",
+                "VCRUNTIME140.dll",
+                id="faulting_lowercase",
+            ),
         ],
     )
     def test_extract_faulting_module_patterns(self, handler, stderr, expected):

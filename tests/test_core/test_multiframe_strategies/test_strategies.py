@@ -241,14 +241,14 @@ class TestStrategySeverityLevels:
     @pytest.mark.parametrize(
         "strategy_cls",
         [
-            FrameCountMismatchStrategy,
-            FrameTimeCorruptionStrategy,
-            PerFrameDimensionStrategy,
-            SharedGroupStrategy,
-            FrameIncrementStrategy,
-            DimensionOverflowStrategy,
-            FunctionalGroupStrategy,
-            PixelDataTruncationStrategy,
+            pytest.param(FrameCountMismatchStrategy, id="frame_count_mismatch"),
+            pytest.param(FrameTimeCorruptionStrategy, id="frame_time_corruption"),
+            pytest.param(PerFrameDimensionStrategy, id="per_frame_dimension"),
+            pytest.param(SharedGroupStrategy, id="shared_group"),
+            pytest.param(FrameIncrementStrategy, id="frame_increment"),
+            pytest.param(DimensionOverflowStrategy, id="dimension_overflow"),
+            pytest.param(FunctionalGroupStrategy, id="functional_group"),
+            pytest.param(PixelDataTruncationStrategy, id="pixel_truncation"),
         ],
     )
     def test_strategy_accepts_severity(self, strategy_cls: type) -> None:
@@ -260,14 +260,14 @@ class TestStrategySeverityLevels:
     @pytest.mark.parametrize(
         "strategy_cls",
         [
-            FrameCountMismatchStrategy,
-            FrameTimeCorruptionStrategy,
-            PerFrameDimensionStrategy,
-            SharedGroupStrategy,
-            FrameIncrementStrategy,
-            DimensionOverflowStrategy,
-            FunctionalGroupStrategy,
-            PixelDataTruncationStrategy,
+            pytest.param(FrameCountMismatchStrategy, id="frame_count_mismatch"),
+            pytest.param(FrameTimeCorruptionStrategy, id="frame_time_corruption"),
+            pytest.param(PerFrameDimensionStrategy, id="per_frame_dimension"),
+            pytest.param(SharedGroupStrategy, id="shared_group"),
+            pytest.param(FrameIncrementStrategy, id="frame_increment"),
+            pytest.param(DimensionOverflowStrategy, id="dimension_overflow"),
+            pytest.param(FunctionalGroupStrategy, id="functional_group"),
+            pytest.param(PixelDataTruncationStrategy, id="pixel_truncation"),
         ],
     )
     def test_strategy_default_severity(self, strategy_cls: type) -> None:

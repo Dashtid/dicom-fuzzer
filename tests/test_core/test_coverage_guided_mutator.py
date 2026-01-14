@@ -320,25 +320,29 @@ class TestApplyMutation:
     @pytest.mark.parametrize(
         "mutation_type",
         [
-            MutationType.BIT_FLIP,
-            MutationType.BYTE_FLIP,
-            MutationType.RANDOM_BYTE,
-            MutationType.BYTE_INSERT,
-            MutationType.BYTE_DELETE,
-            MutationType.ARITHMETIC_INC,
-            MutationType.ARITHMETIC_DEC,
-            MutationType.ARITHMETIC_RANDOM,
-            MutationType.BLOCK_REMOVE,
-            MutationType.BLOCK_DUPLICATE,
-            MutationType.BLOCK_SHUFFLE,
-            MutationType.INTERESTING_BYTES,
-            MutationType.INTERESTING_INTS,
-            MutationType.BOUNDARY_VALUES,
-            MutationType.DICOM_TAG_CORRUPT,
-            MutationType.DICOM_VR_MISMATCH,
-            MutationType.DICOM_LENGTH_OVERFLOW,
-            MutationType.DICOM_SEQUENCE_NEST,
-            MutationType.DICOM_TRANSFER_SYNTAX,
+            pytest.param(MutationType.BIT_FLIP, id="bit_flip"),
+            pytest.param(MutationType.BYTE_FLIP, id="byte_flip"),
+            pytest.param(MutationType.RANDOM_BYTE, id="random_byte"),
+            pytest.param(MutationType.BYTE_INSERT, id="byte_insert"),
+            pytest.param(MutationType.BYTE_DELETE, id="byte_delete"),
+            pytest.param(MutationType.ARITHMETIC_INC, id="arithmetic_inc"),
+            pytest.param(MutationType.ARITHMETIC_DEC, id="arithmetic_dec"),
+            pytest.param(MutationType.ARITHMETIC_RANDOM, id="arithmetic_random"),
+            pytest.param(MutationType.BLOCK_REMOVE, id="block_remove"),
+            pytest.param(MutationType.BLOCK_DUPLICATE, id="block_duplicate"),
+            pytest.param(MutationType.BLOCK_SHUFFLE, id="block_shuffle"),
+            pytest.param(MutationType.INTERESTING_BYTES, id="interesting_bytes"),
+            pytest.param(MutationType.INTERESTING_INTS, id="interesting_ints"),
+            pytest.param(MutationType.BOUNDARY_VALUES, id="boundary_values"),
+            pytest.param(MutationType.DICOM_TAG_CORRUPT, id="dicom_tag_corrupt"),
+            pytest.param(MutationType.DICOM_VR_MISMATCH, id="dicom_vr_mismatch"),
+            pytest.param(
+                MutationType.DICOM_LENGTH_OVERFLOW, id="dicom_length_overflow"
+            ),
+            pytest.param(MutationType.DICOM_SEQUENCE_NEST, id="dicom_sequence_nest"),
+            pytest.param(
+                MutationType.DICOM_TRANSFER_SYNTAX, id="dicom_transfer_syntax"
+            ),
         ],
     )
     def test_apply_all_mutation_types(self, mutation_type):
