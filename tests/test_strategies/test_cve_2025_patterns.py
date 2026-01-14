@@ -57,8 +57,13 @@ class TestCve202535975:
         """Test that CVE-2025-35975 mutations are generated."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_35975)
-        assert isinstance(cve_mutations, list)
-        assert len(cve_mutations) > 0
+        assert isinstance(cve_mutations, list), "Should return list of mutations"
+        assert len(cve_mutations) > 0, "Should generate at least one mutation"
+        # Verify each mutation has required attributes
+        for m in cve_mutations:
+            assert hasattr(m, "severity"), "Mutation should have severity"
+            assert hasattr(m, "vulnerability_class"), "Mutation should have vuln class"
+            assert hasattr(m, "mutated_value"), "Mutation should have mutated value"
 
     def test_cve_2025_35975_has_high_severity(
         self, fuzzer: MedicalDeviceSecurityFuzzer, sample_dataset: Dataset
@@ -66,9 +71,15 @@ class TestCve202535975:
         """Test that CVE-2025-35975 mutations have high severity."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_35975)
-        assert len(cve_mutations) > 0
+        assert len(cve_mutations) > 0, "Should have mutations for this CVE"
         # All should have severity >= 8 (HIGH)
-        assert all(m.severity >= 8 for m in cve_mutations)
+        assert all(m.severity >= 8 for m in cve_mutations), (
+            "All severities should be HIGH (>=8)"
+        )
+        # Verify severity values are in valid range
+        assert all(0 <= m.severity <= 10 for m in cve_mutations), (
+            "Severity should be 0-10"
+        )
 
     def test_cve_2025_35975_targets_oob_write(
         self, fuzzer: MedicalDeviceSecurityFuzzer, sample_dataset: Dataset
@@ -76,12 +87,16 @@ class TestCve202535975:
         """Test that CVE-2025-35975 mutations target OOB write."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_35975)
-        assert len(cve_mutations) > 0
+        assert len(cve_mutations) > 0, "Should generate mutations"
         # All should target OOB write vulnerability
         assert all(
             m.vulnerability_class == VulnerabilityClass.OUT_OF_BOUNDS_WRITE
             for m in cve_mutations
-        )
+        ), "All mutations should target OUT_OF_BOUNDS_WRITE"
+        # Verify vulnerability_class is the correct enum type
+        assert all(
+            isinstance(m.vulnerability_class, VulnerabilityClass) for m in cve_mutations
+        ), "vulnerability_class should be VulnerabilityClass enum"
 
     def test_cve_2025_35975_includes_string_overflow(
         self, fuzzer: MedicalDeviceSecurityFuzzer, sample_dataset: Dataset
@@ -89,14 +104,18 @@ class TestCve202535975:
         """Test that string overflow patterns are included."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_35975)
-        assert isinstance(cve_mutations, list)
+        assert isinstance(cve_mutations, list), "Should return a list"
+        assert len(cve_mutations) > 0, "Should have CVE mutations"
         # Should have mutations with large string values
         string_mutations = [
             m
             for m in cve_mutations
             if isinstance(m.mutated_value, str) and len(m.mutated_value) > 1000
         ]
-        assert len(string_mutations) > 0
+        assert len(string_mutations) > 0, "Should include string overflow mutations"
+        # Verify the string values are sufficiently large for overflow testing
+        for m in string_mutations:
+            assert isinstance(m.mutated_value, str), "Mutated value should be string"
 
     def test_cve_2025_35975_includes_pixel_data_attack(
         self, fuzzer: MedicalDeviceSecurityFuzzer, sample_dataset: Dataset
@@ -104,10 +123,15 @@ class TestCve202535975:
         """Test that pixel data mismatch attack is included."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_35975)
-        assert isinstance(cve_mutations, list)
+        assert isinstance(cve_mutations, list), "Should return a list"
+        assert len(cve_mutations) > 0, "Should generate mutations"
         # Should have pixel data size mismatch mutation
         pixel_mutations = [m for m in cve_mutations if "pixel" in m.name.lower()]
-        assert len(pixel_mutations) > 0
+        assert len(pixel_mutations) > 0, "Should include pixel data attack mutations"
+        # Verify each mutation has a name attribute
+        for m in pixel_mutations:
+            assert hasattr(m, "name"), "Mutation should have name"
+            assert "pixel" in m.name.lower(), "Should be pixel-related mutation"
 
 
 class TestCve202536521:
@@ -140,8 +164,12 @@ class TestCve202536521:
         """Test that CVE-2025-36521 mutations are generated."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_36521)
-        assert isinstance(cve_mutations, list)
-        assert len(cve_mutations) > 0
+        assert isinstance(cve_mutations, list), "Should return a list"
+        assert len(cve_mutations) > 0, "Should generate at least one mutation"
+        # Verify each mutation has required attributes
+        for m in cve_mutations:
+            assert hasattr(m, "severity"), "Mutation should have severity"
+            assert hasattr(m, "vulnerability_class"), "Mutation should have vuln class"
 
     def test_cve_2025_36521_has_high_severity(
         self, fuzzer: MedicalDeviceSecurityFuzzer, sample_dataset: Dataset
@@ -149,9 +177,16 @@ class TestCve202536521:
         """Test that CVE-2025-36521 mutations have appropriate severity."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_36521)
-        assert len(cve_mutations) > 0
+        assert len(cve_mutations) > 0, "Should have mutations for this CVE"
         # All should have severity >= 7 (HIGH)
-        assert all(m.severity >= 7 for m in cve_mutations)
+        assert all(m.severity >= 7 for m in cve_mutations), (
+            "All severities should be HIGH (>=7)"
+        )
+        # Verify severity values are numeric and in valid range
+        assert all(
+            isinstance(m.severity, (int, float)) and 0 <= m.severity <= 10
+            for m in cve_mutations
+        ), "Severity should be numeric 0-10"
 
     def test_cve_2025_36521_targets_dimension_attacks(
         self, fuzzer: MedicalDeviceSecurityFuzzer, sample_dataset: Dataset
@@ -159,6 +194,7 @@ class TestCve202536521:
         """Test that dimension-based attacks are included."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_36521)
+        assert len(cve_mutations) > 0, "Should generate mutations"
         # Should have mutations targeting Rows/Columns
         dimension_mutations = [
             m for m in cve_mutations if m.tag in [(0x0028, 0x0010), (0x0028, 0x0011)]
@@ -168,7 +204,10 @@ class TestCve202536521:
             isinstance(m.mutated_value, dict) and "rows" in m.mutated_value
             for m in cve_mutations
         )
-        assert has_dimension_attack
+        assert has_dimension_attack, "Should include dimension-based attack mutations"
+        # Verify mutations have tag attribute
+        for m in cve_mutations:
+            assert hasattr(m, "tag"), "Mutation should have tag attribute"
 
     def test_cve_2025_36521_targets_bit_allocation(
         self, fuzzer: MedicalDeviceSecurityFuzzer, sample_dataset: Dataset
@@ -176,14 +215,19 @@ class TestCve202536521:
         """Test that bit allocation attacks are included."""
         fuzzer.generate_mutations(sample_dataset)
         cve_mutations = fuzzer.get_mutations_by_cve(CVEPattern.CVE_2025_36521)
-        assert isinstance(cve_mutations, list)
+        assert isinstance(cve_mutations, list), "Should return a list"
+        assert len(cve_mutations) > 0, "Should have mutations"
         # Should have mutations with bits_allocated in value
         bit_mutations = [
             m
             for m in cve_mutations
             if isinstance(m.mutated_value, dict) and "bits_allocated" in m.mutated_value
         ]
-        assert len(bit_mutations) > 0
+        assert len(bit_mutations) > 0, "Should include bit allocation attacks"
+        # Verify mutated_value is properly formatted for bit allocation
+        for m in bit_mutations:
+            assert isinstance(m.mutated_value, dict), "Mutated value should be dict"
+            assert "bits_allocated" in m.mutated_value, "Should have bits_allocated key"
 
 
 class TestCve20255943:
