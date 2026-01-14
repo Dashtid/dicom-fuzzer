@@ -21,47 +21,22 @@ class TestMutationStrategiesConfig:
         assert MUTATION_STRATEGIES is not None
         assert isinstance(MUTATION_STRATEGIES, dict)
 
-    def test_metadata_probability_exists(self):
-        """Test that metadata_probability is defined."""
+    @pytest.mark.parametrize(
+        "key",
+        [
+            pytest.param("metadata_probability", id="metadata"),
+            pytest.param("header_probability", id="header"),
+            pytest.param("pixel_probability", id="pixel"),
+        ],
+    )
+    def test_probability_exists_and_valid(self, key):
+        """Test that probability keys exist and are in valid range [0, 1]."""
         from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
 
-        assert "metadata_probability" in MUTATION_STRATEGIES
-
-    def test_metadata_probability_valid_range(self):
-        """Test that metadata_probability is in valid range [0, 1]."""
-        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
-
-        prob = MUTATION_STRATEGIES["metadata_probability"]
-        assert isinstance(prob, (int, float))
-        assert 0.0 <= prob <= 1.0
-
-    def test_header_probability_exists(self):
-        """Test that header_probability is defined."""
-        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
-
-        assert "header_probability" in MUTATION_STRATEGIES
-
-    def test_header_probability_valid_range(self):
-        """Test that header_probability is in valid range [0, 1]."""
-        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
-
-        prob = MUTATION_STRATEGIES["header_probability"]
-        assert isinstance(prob, (int, float))
-        assert 0.0 <= prob <= 1.0
-
-    def test_pixel_probability_exists(self):
-        """Test that pixel_probability is defined."""
-        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
-
-        assert "pixel_probability" in MUTATION_STRATEGIES
-
-    def test_pixel_probability_valid_range(self):
-        """Test that pixel_probability is in valid range [0, 1]."""
-        from dicom_fuzzer.utils.config import MUTATION_STRATEGIES
-
-        prob = MUTATION_STRATEGIES["pixel_probability"]
-        assert isinstance(prob, (int, float))
-        assert 0.0 <= prob <= 1.0
+        assert key in MUTATION_STRATEGIES, f"Missing key: {key}"
+        prob = MUTATION_STRATEGIES[key]
+        assert isinstance(prob, (int, float)), f"{key} should be numeric"
+        assert 0.0 <= prob <= 1.0, f"{key} should be in range [0, 1]"
 
     def test_max_mutations_per_file_exists(self):
         """Test that max_mutations_per_file is defined."""
@@ -112,85 +87,34 @@ class TestFakeDataPoolsConfig:
         assert FAKE_DATA_POOLS is not None
         assert isinstance(FAKE_DATA_POOLS, dict)
 
-    def test_institutions_exists(self):
-        """Test that institutions pool is defined."""
+    @pytest.mark.parametrize(
+        "pool_name",
+        [
+            pytest.param("institutions", id="institutions"),
+            pytest.param("modalities", id="modalities"),
+            pytest.param("manufacturers", id="manufacturers"),
+        ],
+    )
+    def test_pool_exists_and_valid(self, pool_name):
+        """Test that pool exists, is a non-empty list of strings."""
         from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
-        assert "institutions" in FAKE_DATA_POOLS
+        assert pool_name in FAKE_DATA_POOLS, f"Missing pool: {pool_name}"
+        pool = FAKE_DATA_POOLS[pool_name]
+        assert isinstance(pool, list), f"{pool_name} should be a list"
+        assert len(pool) > 0, f"{pool_name} should not be empty"
+        for item in pool:
+            assert isinstance(item, str), f"Items in {pool_name} should be strings"
+            assert len(item) > 0, f"Items in {pool_name} should be non-empty"
 
-    def test_institutions_is_list(self):
-        """Test that institutions is a list."""
-        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
-
-        assert isinstance(FAKE_DATA_POOLS["institutions"], list)
-
-    def test_institutions_not_empty(self):
-        """Test that institutions list is not empty."""
-        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
-
-        assert len(FAKE_DATA_POOLS["institutions"]) > 0
-
-    def test_institutions_contains_strings(self):
-        """Test that institutions contains string values."""
-        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
-
-        for institution in FAKE_DATA_POOLS["institutions"]:
-            assert isinstance(institution, str)
-            assert len(institution) > 0
-
-    def test_modalities_exists(self):
-        """Test that modalities pool is defined."""
-        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
-
-        assert "modalities" in FAKE_DATA_POOLS
-
-    def test_modalities_is_list(self):
-        """Test that modalities is a list."""
-        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
-
-        assert isinstance(FAKE_DATA_POOLS["modalities"], list)
-
-    def test_modalities_not_empty(self):
-        """Test that modalities list is not empty."""
-        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
-
-        assert len(FAKE_DATA_POOLS["modalities"]) > 0
-
-    def test_modalities_contains_valid_strings(self):
-        """Test that modalities contains valid string values."""
+    def test_modalities_are_uppercase(self):
+        """Test that modality codes follow DICOM conventions (uppercase/alphanumeric)."""
         from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
 
         for modality in FAKE_DATA_POOLS["modalities"]:
-            assert isinstance(modality, str)
-            assert len(modality) > 0
-            # Modality codes are typically uppercase
-            assert modality.isupper() or modality.isalnum()
-
-    def test_manufacturers_exists(self):
-        """Test that manufacturers pool is defined."""
-        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
-
-        assert "manufacturers" in FAKE_DATA_POOLS
-
-    def test_manufacturers_is_list(self):
-        """Test that manufacturers is a list."""
-        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
-
-        assert isinstance(FAKE_DATA_POOLS["manufacturers"], list)
-
-    def test_manufacturers_not_empty(self):
-        """Test that manufacturers list is not empty."""
-        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
-
-        assert len(FAKE_DATA_POOLS["manufacturers"]) > 0
-
-    def test_manufacturers_contains_strings(self):
-        """Test that manufacturers contains string values."""
-        from dicom_fuzzer.utils.config import FAKE_DATA_POOLS
-
-        for manufacturer in FAKE_DATA_POOLS["manufacturers"]:
-            assert isinstance(manufacturer, str)
-            assert len(manufacturer) > 0
+            assert modality.isupper() or modality.isalnum(), (
+                f"Modality '{modality}' should be uppercase or alphanumeric"
+            )
 
     def test_all_required_pools_present(self):
         """Test that all required pools are present."""
