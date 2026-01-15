@@ -105,16 +105,16 @@ jobs:
 
           pytest_opts = config.setdefault('tool', {}).setdefault('pytest', {}).setdefault('ini_options', {})
 
-          # Clear addopts to avoid conflicts with mutmut's internal pytest args
-          # Also ignore test_adapters which has import issues with mutmut's working directory
+          # Configure pytest to only run tests for the mutated modules
+          # This avoids import issues with tests that rely on installed package paths
           import os
           project_root = os.getcwd()
-          pytest_opts['addopts'] = [f'--ignore={os.path.join(project_root, "tests/test_adapters")}']
 
-          # Set absolute testpaths to prevent mutmut's mutants/tests from being collected
-          pytest_opts['testpaths'] = [os.path.join(project_root, 'tests')]
-          print(f"Set pytest testpaths to absolute path: {pytest_opts['testpaths']}")
-          print(f"Set pytest addopts to: {pytest_opts['addopts']}")
+          # Only run tests relevant to the mutated code (utils modules)
+          # This also avoids import issues with test_adapters, test_analytics, etc.
+          pytest_opts['testpaths'] = [os.path.join(project_root, 'tests/test_utils')]
+          pytest_opts['addopts'] = []
+          print(f"Set pytest testpaths to: {pytest_opts['testpaths']}")
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
@@ -305,8 +305,9 @@ jobs:
           pytest_opts = config.setdefault('tool', {}).setdefault('pytest', {}).setdefault('ini_options', {})
           import os
           project_root = os.getcwd()
-          pytest_opts['addopts'] = [f'--ignore={os.path.join(project_root, "tests/test_adapters")}']
-          pytest_opts['testpaths'] = [os.path.join(project_root, 'tests')]
+          # Only run tests relevant to the mutated code
+          pytest_opts['testpaths'] = [os.path.join(project_root, 'tests/test_utils')]
+          pytest_opts['addopts'] = []
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
