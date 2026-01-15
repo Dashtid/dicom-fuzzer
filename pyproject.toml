@@ -392,13 +392,9 @@ skips = ["B101", "B110", "B112", "B311", "B403", "B404", "B603"]
 
 [tool.mutmut]
 # NOTE: mutmut requires Unix (fork support). Run in CI (Linux) or WSL, not native Windows.
-# Usage: mutmut run --paths-to-mutate dicom_fuzzer/utils/hashing.py
+# mutmut 3.x auto-discovers pytest and tests directory
 paths_to_mutate = [
     "dicom_fuzzer/utils/hashing.py",
     "dicom_fuzzer/utils/helpers.py",
     "dicom_fuzzer/utils/identifiers.py",
 ]
-# Use pytest for running tests
-test_runner = "pytest"
-# Only run tests matching the module being mutated
-tests_dir = "tests/"
