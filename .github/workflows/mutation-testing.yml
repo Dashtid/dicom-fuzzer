@@ -91,12 +91,25 @@ jobs:
           grep -A 10 "\[tool.mutmut\]" pyproject.toml || true
 
       - name: Run mutation testing
-        env:
-          # Override pytest addopts to avoid conflicts with mutmut's internal runner
-          PYTEST_ADDOPTS: ""
         run: |
           # mutmut 3.4+ uses paths from pyproject.toml
-          # Clear pytest addopts to avoid conflicts
+          # Clear pytest addopts to avoid conflicts with mutmut's internal pytest args
+          # (mutmut adds --tb=native which conflicts with --tb=short in addopts)
+          python3 << 'EOF'
+          import toml
+
+          with open('pyproject.toml', 'r') as f:
+              config = toml.load(f)
+
+          # Clear pytest addopts to avoid conflicts with mutmut
+          if 'tool' in config and 'pytest' in config['tool'] and 'ini_options' in config['tool']['pytest']:
+              config['tool']['pytest']['ini_options']['addopts'] = []
+              print("Cleared pytest addopts for mutmut compatibility")
+
+          with open('pyproject.toml', 'w') as f:
+              toml.dump(config, f)
+          EOF
+
           mutmut run || true
 
       - name: Generate mutation report
@@ -269,9 +282,22 @@ jobs:
 
       - name: Run mutation testing on changed files
         if: steps.changed-files.outputs.files != ''
-        env:
-          PYTEST_ADDOPTS: ""
         run: |
+          # Clear pytest addopts to avoid conflicts with mutmut's internal pytest args
+          python3 << 'EOF'
+          import toml
+
+          with open('pyproject.toml', 'r') as f:
+              config = toml.load(f)
+
+          if 'tool' in config and 'pytest' in config['tool'] and 'ini_options' in config['tool']['pytest']:
+              config['tool']['pytest']['ini_options']['addopts'] = []
+              print("Cleared pytest addopts for mutmut compatibility")
+
+          with open('pyproject.toml', 'w') as f:
+              toml.dump(config, f)
+          EOF
+
           mutmut run || true
           mutmut results > pr-mutation-results.txt 2>&1 || true
           cat pr-mutation-results.txt
