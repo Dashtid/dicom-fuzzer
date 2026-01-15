@@ -73,24 +73,21 @@ jobs:
 
           echo "Mutating: $PATHS"
 
-          # Activate virtual environment
-          source .venv/bin/activate
-
-          # Debug: show which pytest we're using
-          which pytest
-          pytest --version
+          # With uv, use 'uv run' to execute commands in the venv
+          uv run pytest --version
 
           # mutmut 2.x uses CLI flags and runs all tests for each mutant
-          mutmut run \
+          # Use 'uv run pytest' as the test runner since uv manages the venv
+          uv run mutmut run \
             --paths-to-mutate="$PATHS" \
-            --runner="$(which pytest) tests/test_utils/ -x -q --tb=no" \
+            --runner="uv run pytest tests/test_utils/ -x -q --tb=no" \
             --tests-dir="tests/test_utils/" \
             || true
 
       - name: Generate mutation report
         run: |
           # Get mutation results (mutmut 2.x format)
-          mutmut results > mutation-results.txt 2>&1 || true
+          uv run mutmut results > mutation-results.txt 2>&1 || true
 
           # Show results in logs
           echo "=== Mutation Testing Results ==="
@@ -240,17 +237,14 @@ jobs:
           CHANGED_FILES="${{ steps.changed-files.outputs.files }}"
           echo "Mutating changed files: $CHANGED_FILES"
 
-          # Activate virtual environment
-          source .venv/bin/activate
-
-          # mutmut 2.x uses CLI flags
-          mutmut run \
+          # Use uv run for commands since uv manages the venv
+          uv run mutmut run \
             --paths-to-mutate="$CHANGED_FILES" \
-            --runner="$(which pytest) tests/ -x -q --tb=no" \
+            --runner="uv run pytest tests/ -x -q --tb=no" \
             --tests-dir="tests/" \
             || true
 
-          mutmut results > pr-mutation-results.txt 2>&1 || true
+          uv run mutmut results > pr-mutation-results.txt 2>&1 || true
           cat pr-mutation-results.txt
 
       - name: Comment PR with results
