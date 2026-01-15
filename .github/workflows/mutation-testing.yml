@@ -91,6 +91,8 @@ jobs:
           grep -A 10 "\[tool.mutmut\]" pyproject.toml || true
 
       - name: Run mutation testing
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           # mutmut 3.4+ uses paths from pyproject.toml
           # Clear pytest addopts to avoid conflicts with mutmut's internal pytest args
@@ -288,6 +290,8 @@ jobs:
 
       - name: Run mutation testing on changed files
         if: steps.changed-files.outputs.files != ''
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           # Clear pytest addopts and ensure mutants dir is excluded
           python3 << 'EOF'
