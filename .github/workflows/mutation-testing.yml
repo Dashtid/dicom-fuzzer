@@ -101,10 +101,18 @@ jobs:
           with open('pyproject.toml', 'r') as f:
               config = toml.load(f)
 
+          pytest_opts = config.setdefault('tool', {}).setdefault('pytest', {}).setdefault('ini_options', {})
+
           # Clear pytest addopts to avoid conflicts with mutmut
-          if 'tool' in config and 'pytest' in config['tool'] and 'ini_options' in config['tool']['pytest']:
-              config['tool']['pytest']['ini_options']['addopts'] = []
-              print("Cleared pytest addopts for mutmut compatibility")
+          pytest_opts['addopts'] = []
+          print("Cleared pytest addopts for mutmut compatibility")
+
+          # Ensure mutants directory is excluded from test collection
+          norecursedirs = pytest_opts.get('norecursedirs', [])
+          if 'mutants' not in norecursedirs:
+              norecursedirs.append('mutants')
+              pytest_opts['norecursedirs'] = norecursedirs
+              print(f"Added 'mutants' to norecursedirs: {norecursedirs}")
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
@@ -283,16 +291,19 @@ jobs:
       - name: Run mutation testing on changed files
         if: steps.changed-files.outputs.files != ''
         run: |
-          # Clear pytest addopts to avoid conflicts with mutmut's internal pytest args
+          # Clear pytest addopts and ensure mutants dir is excluded
           python3 << 'EOF'
           import toml
 
           with open('pyproject.toml', 'r') as f:
               config = toml.load(f)
 
-          if 'tool' in config and 'pytest' in config['tool'] and 'ini_options' in config['tool']['pytest']:
-              config['tool']['pytest']['ini_options']['addopts'] = []
-              print("Cleared pytest addopts for mutmut compatibility")
+          pytest_opts = config.setdefault('tool', {}).setdefault('pytest', {}).setdefault('ini_options', {})
+          pytest_opts['addopts'] = []
+          norecursedirs = pytest_opts.get('norecursedirs', [])
+          if 'mutants' not in norecursedirs:
+              norecursedirs.append('mutants')
+              pytest_opts['norecursedirs'] = norecursedirs
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
