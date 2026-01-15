@@ -103,10 +103,14 @@ jobs:
 
           pytest_opts = config.setdefault('tool', {}).setdefault('pytest', {}).setdefault('ini_options', {})
 
-          # Replace pytest addopts with only the --ignore=mutants flag
-          # mutmut adds --tb=native, -x, -q which conflict with our addopts
-          pytest_opts['addopts'] = ['--ignore=mutants']
-          print("Set pytest addopts to ['--ignore=mutants'] for mutmut compatibility")
+          # Clear addopts to avoid conflicts with mutmut's internal pytest args
+          pytest_opts['addopts'] = []
+
+          # Set absolute testpaths to prevent mutmut's mutants/tests from being collected
+          import os
+          project_root = os.getcwd()
+          pytest_opts['testpaths'] = [os.path.join(project_root, 'tests')]
+          print(f"Set pytest testpaths to absolute path: {pytest_opts['testpaths']}")
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
@@ -293,7 +297,9 @@ jobs:
               config = toml.load(f)
 
           pytest_opts = config.setdefault('tool', {}).setdefault('pytest', {}).setdefault('ini_options', {})
-          pytest_opts['addopts'] = ['--ignore=mutants']
+          pytest_opts['addopts'] = []
+          import os
+          pytest_opts['testpaths'] = [os.path.join(os.getcwd(), 'tests')]
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
