@@ -51,12 +51,17 @@ jobs:
 
       - name: Create virtual environment and install dependencies
         run: |
-          uv venv .venv
-          source .venv/bin/activate
-          uv pip install -e ".[dev]"
-          # Use mutmut 2.x - simpler execution model, runs all tests for each mutant
+          # Use uv sync to properly set up the environment from pyproject.toml
+          uv sync --dev
+
+          # Install mutmut 2.x additionally (not in pyproject.toml)
           # mutmut 3.x has coverage-based test selection that doesn't work with our setup
           uv pip install "mutmut>=2.4,<3"
+
+          # Debug: verify packages are installed
+          echo "Checking installed packages..."
+          uv pip list | grep -E "(pytest|mutmut)"
+
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Run mutation testing
@@ -228,11 +233,12 @@ jobs:
       - name: Create virtual environment and install dependencies
         if: steps.changed-files.outputs.files != ''
         run: |
-          uv venv .venv
-          source .venv/bin/activate
-          uv pip install -e ".[dev]"
-          # Use mutmut 2.x - simpler execution model
+          # Use uv sync to properly set up the environment from pyproject.toml
+          uv sync --dev
+
+          # Install mutmut 2.x additionally (not in pyproject.toml)
           uv pip install "mutmut>=2.4,<3"
+
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Run mutation testing on changed files
