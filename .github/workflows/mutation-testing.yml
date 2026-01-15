@@ -73,11 +73,14 @@ jobs:
 
           echo "Mutating: $PATHS"
 
+          # Activate virtual environment for mutmut to find pytest
+          source .venv/bin/activate
+
           # mutmut 2.x uses CLI flags and runs all tests for each mutant
           # Use focused test directory for faster mutation testing
           mutmut run \
             --paths-to-mutate="$PATHS" \
-            --runner="pytest tests/test_utils/ -x -q --tb=no" \
+            --runner="python -m pytest tests/test_utils/ -x -q --tb=no" \
             --tests-dir="tests/test_utils/" \
             || true
 
@@ -234,10 +237,13 @@ jobs:
           CHANGED_FILES="${{ steps.changed-files.outputs.files }}"
           echo "Mutating changed files: $CHANGED_FILES"
 
+          # Activate virtual environment for mutmut to find pytest
+          source .venv/bin/activate
+
           # mutmut 2.x uses CLI flags
           mutmut run \
             --paths-to-mutate="$CHANGED_FILES" \
-            --runner="pytest tests/ -x -q --tb=no" \
+            --runner="python -m pytest tests/ -x -q --tb=no" \
             --tests-dir="tests/" \
             || true
 
