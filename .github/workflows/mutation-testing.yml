@@ -91,30 +91,29 @@ jobs:
           grep -A 10 "\[tool.mutmut\]" pyproject.toml || true
 
       - name: Run mutation testing
-        env:
-          PYTHONPATH: ${{ github.workspace }}
         run: |
           # mutmut 3.4+ uses paths from pyproject.toml
-          # Clear pytest addopts to avoid conflicts with mutmut's internal pytest args
-          # (mutmut adds --tb=native which conflicts with --tb=short in addopts)
+          # Configure pytest for mutmut's working directory
           python3 << 'EOF'
           import toml
+          import os
+
+          project_root = os.getcwd()
 
           with open('pyproject.toml', 'r') as f:
               config = toml.load(f)
 
           pytest_opts = config.setdefault('tool', {}).setdefault('pytest', {}).setdefault('ini_options', {})
 
-          # Configure pytest to only run tests for the mutated modules
-          # This avoids import issues with tests that rely on installed package paths
-          import os
-          project_root = os.getcwd()
-
-          # Only run tests relevant to the mutated code (utils modules)
-          # This also avoids import issues with test_adapters, test_analytics, etc.
+          # Only run test_utils tests (relevant to mutated utils modules)
           pytest_opts['testpaths'] = [os.path.join(project_root, 'tests/test_utils')]
           pytest_opts['addopts'] = []
+
+          # Add pythonpath for imports to work from mutants directory
+          pytest_opts['pythonpath'] = [project_root]
+
           print(f"Set pytest testpaths to: {pytest_opts['testpaths']}")
+          print(f"Set pytest pythonpath to: {pytest_opts['pythonpath']}")
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
@@ -302,12 +301,12 @@ jobs:
           with open('pyproject.toml', 'r') as f:
               config = toml.load(f)
 
-          pytest_opts = config.setdefault('tool', {}).setdefault('pytest', {}).setdefault('ini_options', {})
           import os
           project_root = os.getcwd()
-          # Only run tests relevant to the mutated code
+          pytest_opts = config.setdefault('tool', {}).setdefault('pytest', {}).setdefault('ini_options', {})
           pytest_opts['testpaths'] = [os.path.join(project_root, 'tests/test_utils')]
           pytest_opts['addopts'] = []
+          pytest_opts['pythonpath'] = [project_root]
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
