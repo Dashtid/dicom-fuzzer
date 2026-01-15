@@ -400,3 +400,7 @@ paths_to_mutate = [
     "dicom_fuzzer/utils/helpers.py",
     "dicom_fuzzer/utils/identifiers.py",
 ]
+# Specify tests to run for mutation testing
+tests = "tests/test_utils/"
+# Enable debug output for troubleshooting
+debug = true
