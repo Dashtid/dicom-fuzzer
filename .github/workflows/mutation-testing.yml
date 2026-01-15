@@ -73,21 +73,25 @@ jobs:
 
           echo "Mutating: $PATHS"
 
-          # With uv, use 'uv run' to execute commands in the venv
-          uv run pytest --version
+          # Activate venv and verify tools are available
+          source .venv/bin/activate
+          echo "Python: $(which python)"
+          python -m pytest --version
+          python -c "import mutmut; print('mutmut version:', mutmut.__version__ if hasattr(mutmut, '__version__') else 'unknown')"
 
           # mutmut 2.x uses CLI flags and runs all tests for each mutant
-          # Use 'uv run pytest' as the test runner since uv manages the venv
-          uv run mutmut run \
+          # Use python -m to invoke tools from the venv
+          python -m mutmut run \
             --paths-to-mutate="$PATHS" \
-            --runner="uv run pytest tests/test_utils/ -x -q --tb=no" \
+            --runner="python -m pytest tests/test_utils/ -x -q --tb=no" \
             --tests-dir="tests/test_utils/" \
             || true
 
       - name: Generate mutation report
         run: |
           # Get mutation results (mutmut 2.x format)
-          uv run mutmut results > mutation-results.txt 2>&1 || true
+          source .venv/bin/activate
+          python -m mutmut results > mutation-results.txt 2>&1 || true
 
           # Show results in logs
           echo "=== Mutation Testing Results ==="
@@ -237,14 +241,16 @@ jobs:
           CHANGED_FILES="${{ steps.changed-files.outputs.files }}"
           echo "Mutating changed files: $CHANGED_FILES"
 
-          # Use uv run for commands since uv manages the venv
-          uv run mutmut run \
+          # Activate venv and run mutation testing
+          source .venv/bin/activate
+
+          python -m mutmut run \
             --paths-to-mutate="$CHANGED_FILES" \
-            --runner="uv run pytest tests/ -x -q --tb=no" \
+            --runner="python -m pytest tests/ -x -q --tb=no" \
             --tests-dir="tests/" \
             || true
 
-          uv run mutmut results > pr-mutation-results.txt 2>&1 || true
+          python -m mutmut results > pr-mutation-results.txt 2>&1 || true
           cat pr-mutation-results.txt
 
       - name: Comment PR with results
