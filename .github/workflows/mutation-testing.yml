@@ -54,76 +54,36 @@ jobs:
           uv venv .venv
           source .venv/bin/activate
           uv pip install -e ".[dev]"
-          uv pip install mutmut toml
+          # Use mutmut 2.x - simpler execution model, runs all tests for each mutant
+          # mutmut 3.x has coverage-based test selection that doesn't work with our setup
+          uv pip install "mutmut>=2.4,<3"
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
-      - name: Configure mutation paths
+      - name: Run mutation testing
         env:
           INPUT_MODULES: ${{ github.event.inputs.modules }}
         run: |
-          # mutmut 3.4+ reads paths from pyproject.toml
-          # If custom modules provided, update pyproject.toml dynamically
+          # Determine paths to mutate
           if [ -n "$INPUT_MODULES" ]; then
-            # Convert comma-separated to TOML array format
-            PATHS=$(echo "$INPUT_MODULES" | sed 's/,/","/g')
-
-            # Update pyproject.toml with custom paths
-            python3 << EOF
-          import toml
-
-          with open('pyproject.toml', 'r') as f:
-              config = toml.load(f)
-
-          paths = ["$INPUT_MODULES".replace(" ", "").split(",")]
-          paths = [p for p in "$INPUT_MODULES".replace(" ", "").split(",") if p]
-          config.setdefault('tool', {}).setdefault('mutmut', {})['paths_to_mutate'] = paths
-
-          with open('pyproject.toml', 'w') as f:
-              toml.dump(config, f)
-
-          print(f"Configured mutation paths: {paths}")
-          EOF
+            PATHS="$INPUT_MODULES"
           else
-            echo "Using default paths from pyproject.toml"
+            # Default: mutate utility modules (smaller, focused)
+            PATHS="dicom_fuzzer/utils/hashing.py,dicom_fuzzer/utils/helpers.py,dicom_fuzzer/utils/identifiers.py"
           fi
 
-          # Show current mutmut config
-          grep -A 10 "\[tool.mutmut\]" pyproject.toml || true
+          echo "Mutating: $PATHS"
 
-      - name: Run mutation testing
-        run: |
-          # mutmut 3.4+ uses paths from pyproject.toml
-          # Configure pytest for mutmut's working directory
-          python3 << 'EOF'
-          import toml
-          import os
-
-          project_root = os.getcwd()
-
-          with open('pyproject.toml', 'r') as f:
-              config = toml.load(f)
-
-          pytest_opts = config.setdefault('tool', {}).setdefault('pytest', {}).setdefault('ini_options', {})
-
-          # Only run test_utils tests (relevant to mutated utils modules)
-          pytest_opts['testpaths'] = [os.path.join(project_root, 'tests/test_utils')]
-          pytest_opts['addopts'] = []
-
-          # Add pythonpath for imports to work from mutants directory
-          pytest_opts['pythonpath'] = [project_root]
-
-          print(f"Set pytest testpaths to: {pytest_opts['testpaths']}")
-          print(f"Set pytest pythonpath to: {pytest_opts['pythonpath']}")
-
-          with open('pyproject.toml', 'w') as f:
-              toml.dump(config, f)
-          EOF
-
-          mutmut run || true
+          # mutmut 2.x uses CLI flags and runs all tests for each mutant
+          # Use focused test directory for faster mutation testing
+          mutmut run \
+            --paths-to-mutate="$PATHS" \
+            --runner="pytest tests/test_utils/ -x -q --tb=no" \
+            --tests-dir="tests/test_utils/" \
+            || true
 
       - name: Generate mutation report
         run: |
-          # Get mutation results
+          # Get mutation results (mutmut 2.x format)
           mutmut results > mutation-results.txt 2>&1 || true
 
           # Show results in logs
@@ -136,29 +96,28 @@ jobs:
           echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
 
-          # Parse results - handle both emoji and text formats
-          # Use grep -c with explicit 0 fallback
-          KILLED=$(grep -c "🎉" mutation-results.txt 2>/dev/null) || KILLED=0
-          if [ "$KILLED" -eq 0 ]; then
-            KILLED=$(grep -c "killed" mutation-results.txt 2>/dev/null) || KILLED=0
+          # Parse mutmut 2.x results (uses KILLED/SURVIVED text format)
+          # mutmut results output format: "Killed 42 out of 50 mutants"
+          if grep -q "Killed.*out of.*mutants" mutation-results.txt; then
+            # Extract from summary line
+            KILLED=$(grep "Killed.*out of" mutation-results.txt | grep -oE "Killed [0-9]+" | grep -oE "[0-9]+" | head -1) || KILLED=0
+            TOTAL=$(grep "Killed.*out of" mutation-results.txt | grep -oE "of [0-9]+ mutants" | grep -oE "[0-9]+" | head -1) || TOTAL=0
+            SURVIVED=$((TOTAL - KILLED))
+          else
+            # Count individual result lines
+            KILLED=$(grep -c "KILLED" mutation-results.txt 2>/dev/null) || KILLED=0
+            SURVIVED=$(grep -c "SURVIVED" mutation-results.txt 2>/dev/null) || SURVIVED=0
+            TOTAL=$((KILLED + SURVIVED))
           fi
 
-          SURVIVED=$(grep -c "🙁" mutation-results.txt 2>/dev/null) || SURVIVED=0
-          if [ "$SURVIVED" -eq 0 ]; then
-            SURVIVED=$(grep -c "survived" mutation-results.txt 2>/dev/null) || SURVIVED=0
-          fi
-
-          TIMEOUT=$(grep -c "⏰" mutation-results.txt 2>/dev/null) || TIMEOUT=0
-          if [ "$TIMEOUT" -eq 0 ]; then
-            TIMEOUT=$(grep -c "timeout" mutation-results.txt 2>/dev/null) || TIMEOUT=0
-          fi
+          TIMEOUT=$(grep -c "TIMEOUT" mutation-results.txt 2>/dev/null) || TIMEOUT=0
 
           echo "| Killed | $KILLED |" >> $GITHUB_STEP_SUMMARY
           echo "| Survived | $SURVIVED |" >> $GITHUB_STEP_SUMMARY
           echo "| Timeout | $TIMEOUT |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Total** | **$TOTAL** |" >> $GITHUB_STEP_SUMMARY
 
           # Calculate mutation score
-          TOTAL=$((KILLED + SURVIVED))
           if [ "$TOTAL" -gt 0 ]; then
             SCORE=$(echo "scale=2; $KILLED * 100 / $TOTAL" | bc)
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -189,18 +148,16 @@ jobs:
 
       - name: Check mutation score threshold
         run: |
-          # Parse mutation score - handle both emoji and text formats
-          KILLED=$(grep -c "🎉" mutation-results.txt 2>/dev/null) || KILLED=0
-          if [ "$KILLED" -eq 0 ]; then
-            KILLED=$(grep -c "killed" mutation-results.txt 2>/dev/null) || KILLED=0
+          # Parse mutmut 2.x results
+          if grep -q "Killed.*out of.*mutants" mutation-results.txt; then
+            KILLED=$(grep "Killed.*out of" mutation-results.txt | grep -oE "Killed [0-9]+" | grep -oE "[0-9]+" | head -1) || KILLED=0
+            TOTAL=$(grep "Killed.*out of" mutation-results.txt | grep -oE "of [0-9]+ mutants" | grep -oE "[0-9]+" | head -1) || TOTAL=0
+            SURVIVED=$((TOTAL - KILLED))
+          else
+            KILLED=$(grep -c "KILLED" mutation-results.txt 2>/dev/null) || KILLED=0
+            SURVIVED=$(grep -c "SURVIVED" mutation-results.txt 2>/dev/null) || SURVIVED=0
+            TOTAL=$((KILLED + SURVIVED))
           fi
-
-          SURVIVED=$(grep -c "🙁" mutation-results.txt 2>/dev/null) || SURVIVED=0
-          if [ "$SURVIVED" -eq 0 ]; then
-            SURVIVED=$(grep -c "survived" mutation-results.txt 2>/dev/null) || SURVIVED=0
-          fi
-
-          TOTAL=$((KILLED + SURVIVED))
 
           if [ "$TOTAL" -gt 0 ]; then
             SCORE=$(echo "scale=0; $KILLED * 100 / $TOTAL" | bc)
@@ -209,6 +166,7 @@ jobs:
             echo "Mutation Testing Summary:"
             echo "  Killed: $KILLED"
             echo "  Survived: $SURVIVED"
+            echo "  Total: $TOTAL"
             echo "  Score: $SCORE%"
 
             if [ "$SCORE" -lt "$THRESHOLD" ]; then
@@ -266,53 +224,23 @@ jobs:
           uv venv .venv
           source .venv/bin/activate
           uv pip install -e ".[dev]"
-          uv pip install mutmut toml
+          # Use mutmut 2.x - simpler execution model
+          uv pip install "mutmut>=2.4,<3"
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
-
-      - name: Configure mutation paths for changed files
-        if: steps.changed-files.outputs.files != ''
-        run: |
-          # Update pyproject.toml with changed file paths
-          CHANGED_FILES="${{ steps.changed-files.outputs.files }}"
-          python3 << EOF
-          import toml
-
-          with open('pyproject.toml', 'r') as f:
-              config = toml.load(f)
-
-          paths = [p.strip() for p in "$CHANGED_FILES".split(",") if p.strip()]
-          config.setdefault('tool', {}).setdefault('mutmut', {})['paths_to_mutate'] = paths
-
-          with open('pyproject.toml', 'w') as f:
-              toml.dump(config, f)
-
-          print(f"Configured mutation paths: {paths}")
-          EOF
 
       - name: Run mutation testing on changed files
         if: steps.changed-files.outputs.files != ''
-        env:
-          PYTHONPATH: ${{ github.workspace }}
         run: |
-          # Clear pytest addopts and ensure mutants dir is excluded
-          python3 << 'EOF'
-          import toml
+          CHANGED_FILES="${{ steps.changed-files.outputs.files }}"
+          echo "Mutating changed files: $CHANGED_FILES"
 
-          with open('pyproject.toml', 'r') as f:
-              config = toml.load(f)
+          # mutmut 2.x uses CLI flags
+          mutmut run \
+            --paths-to-mutate="$CHANGED_FILES" \
+            --runner="pytest tests/ -x -q --tb=no" \
+            --tests-dir="tests/" \
+            || true
 
-          import os
-          project_root = os.getcwd()
-          pytest_opts = config.setdefault('tool', {}).setdefault('pytest', {}).setdefault('ini_options', {})
-          pytest_opts['testpaths'] = [os.path.join(project_root, 'tests/test_utils')]
-          pytest_opts['addopts'] = []
-          pytest_opts['pythonpath'] = [project_root]
-
-          with open('pyproject.toml', 'w') as f:
-              toml.dump(config, f)
-          EOF
-
-          mutmut run || true
           mutmut results > pr-mutation-results.txt 2>&1 || true
           cat pr-mutation-results.txt
 
@@ -330,15 +258,21 @@ jobs:
               results = 'No mutation results available';
             }
 
-            // mutmut 3.x uses emojis: 🎉 killed, 🙁 survived, ⏰ timeout
-            const killedEmoji = (results.match(/🎉/g) || []).length;
-            const survivedEmoji = (results.match(/🙁/g) || []).length;
-            const killedText = (results.match(/killed/gi) || []).length;
-            const survivedText = (results.match(/survived/gi) || []).length;
+            // Parse mutmut 2.x results - look for "Killed X out of Y mutants" summary
+            let killed = 0, survived = 0, total = 0;
 
-            const killed = killedEmoji || killedText;
-            const survived = survivedEmoji || survivedText;
-            const total = killed + survived;
+            const summaryMatch = results.match(/Killed\s+(\d+)\s+out\s+of\s+(\d+)\s+mutants/i);
+            if (summaryMatch) {
+              killed = parseInt(summaryMatch[1], 10);
+              total = parseInt(summaryMatch[2], 10);
+              survived = total - killed;
+            } else {
+              // Fallback: count individual lines
+              killed = (results.match(/KILLED/g) || []).length;
+              survived = (results.match(/SURVIVED/g) || []).length;
+              total = killed + survived;
+            }
+
             const score = total > 0 ? ((killed / total) * 100).toFixed(1) : 'N/A';
 
             const body = `## Mutation Testing Results (Changed Files)
@@ -347,6 +281,7 @@ jobs:
             |--------|-------|
             | Killed | ${killed} |
             | Survived | ${survived} |
+            | Total | ${total} |
             | **Score** | **${score}%** |
 
             <details>
