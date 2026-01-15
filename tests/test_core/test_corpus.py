@@ -59,6 +59,15 @@ def mock_coverage():
     return coverage
 
 
+def add_with_fitness(manager, entry_id, dataset, fitness, **kwargs):
+    """Add entry with controlled fitness score for testing.
+
+    Helper to reduce repetitive mocking of _calculate_fitness.
+    """
+    with patch.object(manager, "_calculate_fitness", return_value=fitness):
+        return manager.add_entry(entry_id, dataset, **kwargs)
+
+
 class TestCorpusEntry:
     """Test the CorpusEntry dataclass."""
 
@@ -220,8 +229,7 @@ class TestCorpusManagerAddEntry:
         """Test rejecting entry with fitness below threshold."""
         manager = CorpusManager(temp_corpus_dir, min_fitness_threshold=0.5)
 
-        with patch.object(manager, "_calculate_fitness", return_value=0.3):
-            result = manager.add_entry("low_fit", sample_dataset)
+        result = add_with_fitness(manager, "low_fit", sample_dataset, 0.3)
 
         assert result is False
         assert len(manager.corpus) == 0
@@ -251,12 +259,12 @@ class TestCorpusManagerAddEntry:
         manager = CorpusManager(temp_corpus_dir)
 
         # Add first entry with low fitness
-        with patch.object(manager, "_calculate_fitness", return_value=0.3):
-            manager.add_entry("low", sample_dataset, coverage=mock_coverage)
+        add_with_fitness(manager, "low", sample_dataset, 0.3, coverage=mock_coverage)
 
         # Add second entry with higher fitness (same coverage)
-        with patch.object(manager, "_calculate_fitness", return_value=0.8):
-            result = manager.add_entry("high", sample_dataset, coverage=mock_coverage)
+        result = add_with_fitness(
+            manager, "high", sample_dataset, 0.8, coverage=mock_coverage
+        )
 
         # Higher fitness should be accepted
         assert result is True
@@ -288,12 +296,9 @@ class TestCorpusManagerRetrieval:
         manager = CorpusManager(temp_corpus_dir, min_fitness_threshold=0.0)
 
         # Add entries with different fitness scores
-        with patch.object(manager, "_calculate_fitness", return_value=0.9):
-            manager.add_entry("high", sample_dataset)
-        with patch.object(manager, "_calculate_fitness", return_value=0.5):
-            manager.add_entry("medium", sample_dataset)
-        with patch.object(manager, "_calculate_fitness", return_value=0.2):
-            manager.add_entry("low", sample_dataset)
+        add_with_fitness(manager, "high", sample_dataset, 0.9)
+        add_with_fitness(manager, "medium", sample_dataset, 0.5)
+        add_with_fitness(manager, "low", sample_dataset, 0.2)
 
         best = manager.get_best_entries(count=2)
 
@@ -409,14 +414,11 @@ class TestCorpusManagerEviction:
         )
 
         # Add entries with different fitness
-        with patch.object(manager, "_calculate_fitness", return_value=0.9):
-            manager.add_entry("high", sample_dataset)
-        with patch.object(manager, "_calculate_fitness", return_value=0.5):
-            manager.add_entry("medium", sample_dataset)
+        add_with_fitness(manager, "high", sample_dataset, 0.9)
+        add_with_fitness(manager, "medium", sample_dataset, 0.5)
 
         # Corpus is now full, add another with higher fitness
-        with patch.object(manager, "_calculate_fitness", return_value=0.7):
-            manager.add_entry("new_high", sample_dataset)
+        add_with_fitness(manager, "new_high", sample_dataset, 0.7)
 
         # Lowest fitness entry should be evicted
         assert len(manager.corpus) == 2
@@ -506,14 +508,12 @@ class TestCorpusManagerIntegration:
         manager = CorpusManager(temp_corpus_dir, min_fitness_threshold=0.5)
 
         # Add good entries
-        with patch.object(manager, "_calculate_fitness", return_value=0.8):
-            manager.add_entry("good1", sample_dataset)
-            manager.add_entry("good2", sample_dataset)
+        add_with_fitness(manager, "good1", sample_dataset, 0.8)
+        add_with_fitness(manager, "good2", sample_dataset, 0.8)
 
         # Try to add bad entries
-        with patch.object(manager, "_calculate_fitness", return_value=0.3):
-            manager.add_entry("bad1", sample_dataset)
-            manager.add_entry("bad2", sample_dataset)
+        add_with_fitness(manager, "bad1", sample_dataset, 0.3)
+        add_with_fitness(manager, "bad2", sample_dataset, 0.3)
 
         stats = manager.get_statistics()
         assert stats["total_added"] == 2  # only good entries added
@@ -553,8 +553,7 @@ class TestCorpusManagerErrorHandling:
         )
 
         # Add entries with coverage and different fitness
-        with patch.object(manager, "_calculate_fitness", return_value=0.3):
-            manager.add_entry("low", sample_dataset, coverage=mock_coverage)
+        add_with_fitness(manager, "low", sample_dataset, 0.3, coverage=mock_coverage)
 
         # Create different mock coverage for second entry
         mock_coverage2 = Mock()
@@ -562,8 +561,7 @@ class TestCorpusManagerErrorHandling:
         mock_coverage2.branches_covered = {(10, 20)}
         mock_coverage2.coverage_hash = Mock(return_value="hash456")
 
-        with patch.object(manager, "_calculate_fitness", return_value=0.9):
-            manager.add_entry("high", sample_dataset, coverage=mock_coverage2)
+        add_with_fitness(manager, "high", sample_dataset, 0.9, coverage=mock_coverage2)
 
         # Add third entry to trigger eviction
         mock_coverage3 = Mock()
@@ -571,8 +569,9 @@ class TestCorpusManagerErrorHandling:
         mock_coverage3.branches_covered = {(100, 200)}
         mock_coverage3.coverage_hash = Mock(return_value="hash789")
 
-        with patch.object(manager, "_calculate_fitness", return_value=0.7):
-            manager.add_entry("medium", sample_dataset, coverage=mock_coverage3)
+        add_with_fitness(
+            manager, "medium", sample_dataset, 0.7, coverage=mock_coverage3
+        )
 
         # Low fitness entry should be evicted
         assert "low" not in manager.corpus
@@ -686,8 +685,7 @@ class TestCorpusManagerErrorHandling:
         )
 
         # Add entry with coverage
-        with patch.object(manager, "_calculate_fitness", return_value=0.3):
-            manager.add_entry("first", sample_dataset, coverage=mock_coverage)
+        add_with_fitness(manager, "first", sample_dataset, 0.3, coverage=mock_coverage)
 
         # Verify coverage map has entry
         cov_hash = mock_coverage.coverage_hash()
@@ -700,8 +698,9 @@ class TestCorpusManagerErrorHandling:
         mock_coverage2.branches_covered = {(100, 200)}
         mock_coverage2.coverage_hash = Mock(return_value="different_hash")
 
-        with patch.object(manager, "_calculate_fitness", return_value=0.9):
-            manager.add_entry("second", sample_dataset, coverage=mock_coverage2)
+        add_with_fitness(
+            manager, "second", sample_dataset, 0.9, coverage=mock_coverage2
+        )
 
         # First entry should be evicted
         assert "first" not in manager.corpus
@@ -721,24 +720,18 @@ class TestCorpusManagerErrorHandling:
 
         # Add entries to fill corpus
         for i in range(3):
-            with patch.object(
-                manager, "_calculate_fitness", return_value=0.3 + i * 0.1
-            ):
-                ds = sample_dataset.copy()
-                ds.PatientID = f"INIT{i:03d}"
-                manager.add_entry(f"init{i}", ds)
+            ds = sample_dataset.copy()
+            ds.PatientID = f"INIT{i:03d}"
+            add_with_fitness(manager, f"init{i}", ds, 0.3 + i * 0.1)
 
         assert len(manager.corpus) == 3
         initial_evictions = manager.total_evicted
 
         # Add more entries to trigger multiple evictions
         for i in range(5):
-            with patch.object(
-                manager, "_calculate_fitness", return_value=0.7 + i * 0.01
-            ):
-                ds = sample_dataset.copy()
-                ds.PatientID = f"NEW{i:03d}"
-                manager.add_entry(f"new{i}", ds)
+            ds = sample_dataset.copy()
+            ds.PatientID = f"NEW{i:03d}"
+            add_with_fitness(manager, f"new{i}", ds, 0.7 + i * 0.01)
 
         # Corpus should still be at max size
         assert len(manager.corpus) == 3
