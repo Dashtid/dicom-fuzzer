@@ -76,11 +76,18 @@ jobs:
           # Activate virtual environment for mutmut to find pytest
           source .venv/bin/activate
 
+          # Get full path to venv's pytest
+          PYTEST_PATH="$PWD/.venv/bin/pytest"
+          echo "Using pytest at: $PYTEST_PATH"
+
+          # Verify pytest is available
+          $PYTEST_PATH --version
+
           # mutmut 2.x uses CLI flags and runs all tests for each mutant
-          # Use focused test directory for faster mutation testing
+          # Use full path to pytest since mutmut spawns subprocesses
           mutmut run \
             --paths-to-mutate="$PATHS" \
-            --runner="python -m pytest tests/test_utils/ -x -q --tb=no" \
+            --runner="$PYTEST_PATH tests/test_utils/ -x -q --tb=no" \
             --tests-dir="tests/test_utils/" \
             || true
 
@@ -240,10 +247,14 @@ jobs:
           # Activate virtual environment for mutmut to find pytest
           source .venv/bin/activate
 
+          # Get full path to venv's pytest
+          PYTEST_PATH="$PWD/.venv/bin/pytest"
+
           # mutmut 2.x uses CLI flags
+          # Use full path to pytest since mutmut spawns subprocesses
           mutmut run \
             --paths-to-mutate="$CHANGED_FILES" \
-            --runner="python -m pytest tests/ -x -q --tb=no" \
+            --runner="$PYTEST_PATH tests/ -x -q --tb=no" \
             --tests-dir="tests/" \
             || true
 
