@@ -73,21 +73,17 @@ jobs:
 
           echo "Mutating: $PATHS"
 
-          # Activate virtual environment for mutmut to find pytest
+          # Activate virtual environment
           source .venv/bin/activate
 
-          # Get full path to venv's pytest
-          PYTEST_PATH="$PWD/.venv/bin/pytest"
-          echo "Using pytest at: $PYTEST_PATH"
-
-          # Verify pytest is available
-          $PYTEST_PATH --version
+          # Debug: show which pytest we're using
+          which pytest
+          pytest --version
 
           # mutmut 2.x uses CLI flags and runs all tests for each mutant
-          # Use full path to pytest since mutmut spawns subprocesses
           mutmut run \
             --paths-to-mutate="$PATHS" \
-            --runner="$PYTEST_PATH tests/test_utils/ -x -q --tb=no" \
+            --runner="$(which pytest) tests/test_utils/ -x -q --tb=no" \
             --tests-dir="tests/test_utils/" \
             || true
 
@@ -244,17 +240,13 @@ jobs:
           CHANGED_FILES="${{ steps.changed-files.outputs.files }}"
           echo "Mutating changed files: $CHANGED_FILES"
 
-          # Activate virtual environment for mutmut to find pytest
+          # Activate virtual environment
           source .venv/bin/activate
 
-          # Get full path to venv's pytest
-          PYTEST_PATH="$PWD/.venv/bin/pytest"
-
           # mutmut 2.x uses CLI flags
-          # Use full path to pytest since mutmut spawns subprocesses
           mutmut run \
             --paths-to-mutate="$CHANGED_FILES" \
-            --runner="$PYTEST_PATH tests/ -x -q --tb=no" \
+            --runner="$(which pytest) tests/ -x -q --tb=no" \
             --tests-dir="tests/" \
             || true
 
