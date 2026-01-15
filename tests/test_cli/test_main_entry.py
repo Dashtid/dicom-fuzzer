@@ -50,7 +50,7 @@ class TestApplyResourceLimits:
     def test_apply_none_limits(self):
         """Test with None limits (no-op)."""
         result = apply_resource_limits(None)
-        assert result is None
+        assert result is None, "apply_resource_limits(None) should return None"
 
     def test_apply_dict_limits(self):
         """Test with dict limits."""
@@ -67,8 +67,10 @@ class TestApplyResourceLimits:
 
             result = apply_resource_limits(limits)
 
-            assert result is None
+            assert result is None, "apply_resource_limits should return None"
             mock_manager.check_available_resources.assert_called_once()
+            # Verify manager was instantiated with correct limits
+            mock_manager_class.assert_called_once()
 
     def test_apply_resource_limits_object(self):
         """Test with ResourceLimits object."""
@@ -105,8 +107,11 @@ class TestPreCampaignHealthCheck:
                 verbose=False,
             )
 
-            assert passed is True
-            assert len([i for i in issues if "critical" in i.lower()]) == 0
+            assert passed is True, "Health check should pass with adequate resources"
+            assert isinstance(issues, list), "Issues should be a list"
+            assert len([i for i in issues if "critical" in i.lower()]) == 0, (
+                "No critical issues expected"
+            )
 
     def test_health_check_warns_missing_psutil(self, tmp_path):
         """Test health check warns when psutil is missing."""
@@ -138,8 +143,12 @@ class TestPreCampaignHealthCheck:
                 verbose=False,
             )
 
-            assert passed is False
-            assert any("disk" in i.lower() for i in issues)
+            assert passed is False, "Health check should fail with low disk space"
+            assert isinstance(issues, list), "Issues should be a list"
+            assert len(issues) > 0, "Should have at least one issue"
+            assert any("disk" in i.lower() for i in issues), (
+                "Should mention disk space issue"
+            )
 
     def test_health_check_warns_low_memory_limit(self, tmp_path):
         """Test health check warns with very low memory limit."""

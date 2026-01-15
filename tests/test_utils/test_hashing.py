@@ -32,8 +32,9 @@ class TestHashBytes:
     def test_full_hash_length(self):
         """Verify full SHA256 hash is 64 characters."""
         result = hash_bytes(b"test")
-        assert len(result) == 64
-        assert isinstance(result, str)
+        assert isinstance(result, str), f"Expected str, got {type(result)}"
+        assert len(result) == 64, f"Expected 64 chars, got {len(result)}"
+        assert all(c in "0123456789abcdef" for c in result), "Hash should be hex"
 
     def test_truncated_hash_length(self):
         """Verify truncated hash has correct length."""
@@ -107,8 +108,9 @@ class TestHashString:
     def test_unicode_input(self):
         """Verify handles unicode strings."""
         result = hash_string("日本語テスト")
-        assert len(result) == 64
-        assert isinstance(result, str)
+        assert isinstance(result, str), f"Expected str, got {type(result)}"
+        assert len(result) == 64, f"Expected 64 chars, got {len(result)}"
+        assert all(c in "0123456789abcdef" for c in result), "Hash should be hex"
 
     def test_empty_string(self):
         """Verify handles empty string."""

@@ -385,8 +385,11 @@ class TestBitFlip:
         random.seed(42)
         result = mutator._bit_flip(data)
 
+        # Verify result type and structure
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) == len(original), "Bit flip should preserve length"
         # Data should be modified
-        assert result != original
+        assert result != original, "Bit flip should modify data"
 
 
 class TestByteFlip:
@@ -417,14 +420,22 @@ class TestByteFlip:
 
         # Multiple attempts to handle edge case where same byte is flipped twice
         modified = False
+        successful_result = None
         for _ in range(5):
             test_data = bytearray(original)
             result = mutator._byte_flip(test_data)
+            # Verify type on each attempt
+            assert isinstance(result, bytearray), (
+                f"Expected bytearray, got {type(result)}"
+            )
+            assert len(result) == len(original), "Byte flip should preserve length"
             if result != original:
                 modified = True
+                successful_result = result
                 break
 
         assert modified, "byte_flip should modify data in at least one of 5 attempts"
+        assert successful_result is not None, "Should have a successful mutation result"
 
 
 class TestRandomByte:
@@ -442,11 +453,16 @@ class TestRandomByte:
         """Test random byte modifies data (lines 358-362)."""
         mutator = CoverageGuidedMutator()
         data = bytearray(b"\xaa" * 10)
+        original = bytes(data)
 
         result = mutator._random_byte(data)
 
-        # Very likely to be modified
-        assert result is not None
+        # Verify type and structure
+        assert result is not None, "Random byte should return a result"
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) == len(original), "Random byte should preserve length"
+        # All bytes should be valid (0-255)
+        assert all(0 <= b < 256 for b in result), "All bytes should be in valid range"
 
 
 class TestByteInsert:
@@ -471,8 +487,13 @@ class TestByteInsert:
 
         result = mutator._byte_insert(data)
 
-        # Data should grow
-        assert len(result) > original_len
+        # Verify type and growth
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) > original_len, "Byte insert should grow data"
+        # Growth should be reasonable (1-10 bytes typically)
+        assert len(result) <= original_len + 20, "Growth should be bounded"
+        # All bytes should be valid
+        assert all(0 <= b < 256 for b in result), "All bytes should be in valid range"
 
 
 class TestByteDelete:
@@ -497,8 +518,13 @@ class TestByteDelete:
 
         result = mutator._byte_delete(data)
 
-        # Data should shrink
-        assert len(result) < original_len
+        # Verify type and shrinkage
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) < original_len, "Byte delete should shrink data"
+        # Shrinkage should be reasonable (1-10 bytes typically)
+        assert len(result) >= original_len - 20, "Shrinkage should be bounded"
+        # All bytes should be valid
+        assert all(0 <= b < 256 for b in result), "All bytes should be in valid range"
 
 
 class TestArithmeticMutation:
@@ -516,21 +542,33 @@ class TestArithmeticMutation:
         """Test arithmetic increment (lines 392-397)."""
         mutator = CoverageGuidedMutator()
         data = bytearray([0, 0, 0])
+        original_len = len(data)
 
         result = mutator._arithmetic_mutation(data, 1)
 
+        # Verify type and structure
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) == original_len, "Arithmetic mutation should preserve length"
         # Some bytes should be incremented
-        assert any(b > 0 for b in result)
+        assert any(b > 0 for b in result), "At least one byte should be incremented"
+        # All bytes should be valid
+        assert all(0 <= b < 256 for b in result), "All bytes should be in valid range"
 
     def test_arithmetic_decrement(self):
         """Test arithmetic decrement."""
         mutator = CoverageGuidedMutator()
         data = bytearray([255, 255, 255])
+        original_len = len(data)
 
         result = mutator._arithmetic_mutation(data, -1)
 
+        # Verify type and structure
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) == original_len, "Arithmetic mutation should preserve length"
         # Some bytes should be decremented
-        assert any(b < 255 for b in result)
+        assert any(b < 255 for b in result), "At least one byte should be decremented"
+        # All bytes should be valid
+        assert all(0 <= b < 256 for b in result), "All bytes should be in valid range"
 
 
 class TestBlockRemove:
@@ -555,7 +593,13 @@ class TestBlockRemove:
 
         result = mutator._block_remove(data)
 
-        assert len(result) < original_len
+        # Verify type and shrinkage
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) < original_len, "Block remove should shrink data"
+        # Block remove typically removes 1-20% of data
+        assert len(result) >= original_len // 2, (
+            "Block remove should not remove too much"
+        )
 
 
 class TestBlockDuplicate:
@@ -588,7 +632,13 @@ class TestBlockDuplicate:
 
         result = mutator._block_duplicate(data)
 
-        assert len(result) > original_len
+        # Verify type and growth
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) > original_len, "Block duplicate should grow data"
+        # Growth should be bounded (duplicate adds at most original size)
+        assert len(result) <= original_len * 2, (
+            "Block duplicate should not more than double size"
+        )
 
 
 class TestBlockShuffle:
@@ -656,10 +706,17 @@ class TestBlockShuffle:
         mutator = CoverageGuidedMutator()
         # Create distinguishable blocks
         data = bytearray(b"\x01" * 100 + b"\x02" * 100 + b"\x03" * 100)
+        original_len = len(data)
 
         result = mutator._block_shuffle(data)
 
-        assert len(result) > 0
+        # Verify type and length preservation
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) == original_len, "Block shuffle should preserve length"
+        # Should still contain same bytes (just reordered)
+        assert sorted(result) == sorted(data), (
+            "Block shuffle should only reorder, not change bytes"
+        )
 
 
 class TestInterestingBytes:
@@ -677,12 +734,18 @@ class TestInterestingBytes:
         """Test interesting bytes inserts values (lines 460-464)."""
         mutator = CoverageGuidedMutator()
         data = bytearray(b"\x55" * 20)
+        original_len = len(data)
 
         result = mutator._interesting_bytes(data)
 
+        # Verify type and length preservation
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) == original_len, "Interesting bytes should preserve length"
         # Some bytes should now be interesting values
         interesting = set(mutator.interesting_bytes)
-        assert any(b in interesting for b in result)
+        assert any(b in interesting for b in result), (
+            "Should contain at least one interesting byte"
+        )
 
 
 class TestInterestingInts:
@@ -702,10 +765,15 @@ class TestInterestingInts:
         """Test interesting ints inserts values (lines 471-483)."""
         mutator = CoverageGuidedMutator()
         data = bytearray(b"\x00" * 100)
+        original_len = len(data)
 
         result = mutator._interesting_ints(data)
 
-        assert len(result) == 100
+        # Verify type and length preservation
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) == original_len, "Interesting ints should preserve length"
+        # All bytes should be valid
+        assert all(0 <= b < 256 for b in result), "All bytes should be in valid range"
 
 
 class TestBoundaryValues:
@@ -725,11 +793,15 @@ class TestBoundaryValues:
         """Test boundary values inserts values (lines 487-503)."""
         mutator = CoverageGuidedMutator()
         data = bytearray(b"\x55" * 100)
+        original_len = len(data)
 
         result = mutator._boundary_values(data)
 
-        # Should contain boundary values
-        assert len(result) == 100
+        # Verify type and length preservation
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) == original_len, "Boundary values should preserve length"
+        # All bytes should be valid
+        assert all(0 <= b < 256 for b in result), "All bytes should be in valid range"
 
 
 class TestDicomTagCorrupt:
@@ -750,10 +822,13 @@ class TestDicomTagCorrupt:
         mutator = CoverageGuidedMutator()
         # DICOM-like data
         data = bytearray(b"\x00" * 200)
+        original_len = len(data)
 
         result = mutator._dicom_tag_corrupt(data)
 
-        assert len(result) == 200
+        # Verify type and length preservation
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) == original_len, "DICOM tag corrupt should preserve length"
 
 
 class TestDicomVrMismatch:
@@ -773,10 +848,13 @@ class TestDicomVrMismatch:
         """Test DICOM VR mismatch modifies VRs (lines 523-563)."""
         mutator = CoverageGuidedMutator()
         data = bytearray(b"\x00" * 200)
+        original_len = len(data)
 
         result = mutator._dicom_vr_mismatch(data)
 
-        assert len(result) == 200
+        # Verify type and length preservation
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) == original_len, "DICOM VR mismatch should preserve length"
 
 
 class TestDicomLengthOverflow:
@@ -796,10 +874,15 @@ class TestDicomLengthOverflow:
         """Test DICOM length overflow modifies lengths (lines 571-584)."""
         mutator = CoverageGuidedMutator()
         data = bytearray(b"\x00" * 200)
+        original_len = len(data)
 
         result = mutator._dicom_length_overflow(data)
 
-        assert len(result) == 200
+        # Verify type and length preservation
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        assert len(result) == original_len, (
+            "DICOM length overflow should preserve length"
+        )
 
 
 class TestDicomSequenceNest:
@@ -819,11 +902,16 @@ class TestDicomSequenceNest:
         """Test DICOM sequence nest adds sequences (lines 592-608)."""
         mutator = CoverageGuidedMutator()
         data = bytearray(b"\x00" * 500)
+        original_len = len(data)
 
         result = mutator._dicom_sequence_nest(data)
 
+        # Verify type and growth
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
         # Should have grown due to sequence insertion
-        assert len(result) > 500
+        assert len(result) > original_len, "DICOM sequence nest should grow data"
+        # Growth should be bounded
+        assert len(result) <= original_len * 2, "Growth should be bounded"
 
 
 class TestDicomTransferSyntax:
@@ -845,11 +933,18 @@ class TestDicomTransferSyntax:
         # Include a transfer syntax UID
         syntax = b"1.2.840.10008.1.2"
         data = bytearray(b"\x00" * 50 + syntax + b"\x00" * 50)
+        original_len = len(data)
 
         result = mutator._dicom_transfer_syntax(data)
 
-        # Syntax may have been replaced
-        assert len(result) > 0
+        # Verify type
+        assert isinstance(result, bytearray), f"Expected bytearray, got {type(result)}"
+        # Syntax may have been replaced - length may change slightly due to different syntax
+        assert len(result) > 0, "Result should not be empty"
+        # Length should be approximately the same
+        assert abs(len(result) - original_len) < 30, (
+            "Length should be approximately preserved"
+        )
 
 
 class TestUpdateStrategyFeedback:
@@ -935,8 +1030,14 @@ class TestGetMutationStats:
 
         stats = mutator.get_mutation_stats()
 
-        # Should return empty dict since no mutations performed
-        assert isinstance(stats, dict)
+        # Should return dict with all mutation types but no counts
+        assert isinstance(stats, dict), "Stats should be a dict"
+        # All values should be dicts with expected keys
+        for mutation_name, mutation_stats in stats.items():
+            assert isinstance(mutation_stats, dict), f"{mutation_name} should be a dict"
+            assert "total_count" in mutation_stats, (
+                f"{mutation_name} should have total_count"
+            )
 
     def test_get_mutation_stats_with_data(self):
         """Test stats with mutations performed (lines 675-689)."""
@@ -1003,8 +1104,14 @@ class TestIntegration:
 
         for _ in range(10):
             mutations = mutator.mutate(data)
+            # Verify mutations structure
+            assert isinstance(mutations, list), "Mutations should be a list"
 
             for mutated_data, mutation_type in mutations:
+                # Verify each mutation result
+                assert isinstance(mutated_data, bytes), "Mutated data should be bytes"
+                assert isinstance(mutation_type, MutationType), "Should be MutationType"
+
                 # Use mutated data as new input occasionally
                 if random.random() > 0.7:
                     data = mutated_data
@@ -1014,7 +1121,11 @@ class TestIntegration:
                 )
 
         # Should have history
-        assert len(mutator.mutation_history) > 0
+        assert len(mutator.mutation_history) > 0, "Should have mutation history"
+        # History should contain tuples
+        assert all(isinstance(h, tuple) for h in mutator.mutation_history), (
+            "History should be tuples"
+        )
 
 
 if __name__ == "__main__":
