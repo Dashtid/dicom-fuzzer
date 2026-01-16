@@ -121,6 +121,24 @@ class TestValidateFilePath:
         with pytest.raises(ValueError, match="exceeds maximum"):
             validate_file_path(test_file, must_exist=True, max_size=50)
 
+    def test_validate_file_exactly_at_max_size(self, tmp_path):
+        """Test validating file exactly at max size boundary (should pass)."""
+        test_file = tmp_path / "exact.txt"
+        test_file.write_bytes(b"x" * 50)  # Exactly 50 bytes
+
+        result = validate_file_path(test_file, must_exist=True, max_size=50)
+
+        assert result is not None, "File at exact max_size should be valid"
+        assert result == test_file.resolve()
+
+    def test_validate_file_one_byte_over_max_size(self, tmp_path):
+        """Test validating file one byte over max size (should fail)."""
+        test_file = tmp_path / "over.txt"
+        test_file.write_bytes(b"x" * 51)  # 51 bytes, one over
+
+        with pytest.raises(ValueError, match="exceeds maximum"):
+            validate_file_path(test_file, must_exist=True, max_size=50)
+
     def test_validate_string_path(self, tmp_path):
         """Test validating string path."""
         test_file = tmp_path / "test.txt"
@@ -283,10 +301,22 @@ class TestHexToTag:
         assert result.group == 0x0008
         assert result.element == 0x0016
 
-    def test_hex_to_tag_invalid_length(self):
-        """Test invalid hex length raises error."""
+    def test_hex_to_tag_invalid_length_too_short(self):
+        """Test hex string too short (7 chars) raises error."""
         with pytest.raises(ValueError, match="Invalid hex string length"):
-            hex_to_tag("0008001")
+            hex_to_tag("0008001")  # 7 chars
+
+    def test_hex_to_tag_invalid_length_too_long(self):
+        """Test hex string too long (9 chars) raises error."""
+        with pytest.raises(ValueError, match="Invalid hex string length"):
+            hex_to_tag("000800160")  # 9 chars
+
+    def test_hex_to_tag_exactly_8_chars_valid(self):
+        """Test exactly 8 chars is valid boundary."""
+        result = hex_to_tag("00080016")  # Exactly 8 chars
+        assert result is not None
+        assert result.group == 0x0008
+        assert result.element == 0x0016
 
     def test_hex_to_tag_invalid_hex(self):
         """Test invalid hex characters raise error."""
@@ -599,6 +629,41 @@ class TestFormatBytes:
         assert isinstance(result, str)
         assert "2.00 GB" in result
 
+    def test_format_bytes_boundary_just_under_kb(self):
+        """Test boundary just under 1KB stays in bytes."""
+        result = format_bytes(KB - 1)  # 1023 bytes
+        assert result == "1023 B", f"Expected '1023 B', got '{result}'"
+        assert "KB" not in result
+
+    def test_format_bytes_boundary_exactly_kb(self):
+        """Test boundary exactly at 1KB switches to KB."""
+        result = format_bytes(KB)  # 1024 bytes
+        assert "KB" in result, f"Expected KB format, got '{result}'"
+        assert "1.00 KB" in result
+
+    def test_format_bytes_boundary_just_under_mb(self):
+        """Test boundary just under 1MB stays in KB."""
+        result = format_bytes(MB - 1)  # 1048575 bytes
+        assert "KB" in result, f"Expected KB format, got '{result}'"
+        assert "MB" not in result
+
+    def test_format_bytes_boundary_exactly_mb(self):
+        """Test boundary exactly at 1MB switches to MB."""
+        result = format_bytes(MB)  # 1048576 bytes
+        assert "MB" in result, f"Expected MB format, got '{result}'"
+        assert "1.00 MB" in result
+
+    def test_format_bytes_boundary_exactly_gb(self):
+        """Test boundary exactly at 1GB switches to GB."""
+        result = format_bytes(GB)  # 1073741824 bytes
+        assert "GB" in result, f"Expected GB format, got '{result}'"
+        assert "1.00 GB" in result
+
+    def test_format_bytes_zero(self):
+        """Test zero bytes."""
+        result = format_bytes(0)
+        assert result == "0 B", f"Expected '0 B', got '{result}'"
+
 
 class TestFormatDuration:
     """Test format_duration function."""
@@ -624,6 +689,35 @@ class TestFormatDuration:
         assert isinstance(result, str)
         assert "1h" in result
         assert "1m" in result
+
+    def test_format_duration_boundary_just_under_60(self):
+        """Test boundary just under 60 seconds stays in seconds."""
+        result = format_duration(59.99)
+        assert "s" in result
+        assert "m" not in result, f"Expected seconds format, got '{result}'"
+
+    def test_format_duration_boundary_exactly_60(self):
+        """Test boundary exactly at 60 seconds switches to minutes."""
+        result = format_duration(60)
+        assert "m" in result, f"Expected minutes format, got '{result}'"
+        assert "1m" in result
+
+    def test_format_duration_boundary_just_under_3600(self):
+        """Test boundary just under 3600 seconds stays in minutes."""
+        result = format_duration(3599)
+        assert "m" in result
+        assert "h" not in result, f"Expected minutes format, got '{result}'"
+
+    def test_format_duration_boundary_exactly_3600(self):
+        """Test boundary exactly at 3600 seconds switches to hours."""
+        result = format_duration(3600)
+        assert "h" in result, f"Expected hours format, got '{result}'"
+        assert "1h" in result
+
+    def test_format_duration_zero(self):
+        """Test zero seconds."""
+        result = format_duration(0)
+        assert result == "0.00s", f"Expected '0.00s', got '{result}'"
 
 
 class TestTruncateString:
@@ -657,6 +751,49 @@ class TestTruncateString:
         assert result is not None
         assert isinstance(result, str)
         assert result == "he"
+
+    def test_truncate_string_exactly_at_max(self):
+        """Test string exactly at max length returns unchanged."""
+        result = truncate_string("hello", 5)
+        assert result == "hello", "String exactly at max should be unchanged"
+        assert "..." not in result
+
+    def test_truncate_string_one_over_max(self):
+        """Test string one char over max gets truncated."""
+        result = truncate_string("hello!", 5)
+        assert len(result) == 5
+        assert result.endswith("...")
+
+    def test_truncate_max_equals_suffix_length(self):
+        """Test max length equals suffix length (suffix takes all space)."""
+        result = truncate_string("hello world", 3, suffix="...")
+        # When max_length == len(suffix), truncate_at = 0, so result is just suffix
+        assert result == "...", f"Expected '...', got '{result}'"
+        assert len(result) == 3
+
+    def test_truncate_max_less_than_suffix_length(self):
+        """Test max length less than suffix length (no room for suffix)."""
+        result = truncate_string("hello world", 2, suffix="...")
+        # When max_length < len(suffix), truncate without suffix
+        assert result == "he", f"Expected 'he', got '{result}'"
+        assert len(result) == 2
+
+    def test_truncate_max_one_more_than_suffix(self):
+        """Test max length is one more than suffix length."""
+        result = truncate_string("hello world", 4, suffix="...")
+        assert len(result) == 4
+        assert result == "h..."  # 1 char + 3 char suffix
+
+    def test_truncate_empty_string(self):
+        """Test truncating empty string."""
+        result = truncate_string("", 5)
+        assert result == "", "Empty string should remain empty"
+
+    def test_truncate_empty_suffix(self):
+        """Test truncating with empty suffix."""
+        result = truncate_string("hello world", 5, suffix="")
+        assert result == "hello"
+        assert len(result) == 5
 
 
 # ============================================================================
