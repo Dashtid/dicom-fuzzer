@@ -20,8 +20,9 @@ class TestConsoleInit:
 
         console = output_module._get_console()
 
-        assert console is not None
-        assert output_module._console is not None
+        assert console is not None, "Console should be created"
+        assert output_module._console is not None, "Module should cache console"
+        assert output_module._console is console, "Cached console should match returned"
 
     def test_get_console_caches_instance(self):
         """Test that _get_console returns cached instance."""
@@ -62,8 +63,10 @@ class TestStatusFunctions:
 
             mock_console.print.assert_called_once()
             call_args = mock_console.print.call_args[0][0]
-            assert "[+]" in call_args
+            assert isinstance(call_args, str), f"Expected string, got {type(call_args)}"
+            assert "[+]" in call_args, "Success message should contain [+] prefix"
             assert "Operation completed" in call_args
+            assert len(call_args) > len("Operation completed"), "Should include prefix"
 
     def test_error_message(self):
         """Test error message formatting."""
@@ -77,8 +80,10 @@ class TestStatusFunctions:
 
             mock_console.print.assert_called_once()
             call_args = mock_console.print.call_args[0][0]
-            assert "[-]" in call_args
+            assert isinstance(call_args, str), f"Expected string, got {type(call_args)}"
+            assert "[-]" in call_args, "Error message should contain [-] prefix"
             assert "Something failed" in call_args
+            assert len(call_args) > len("Something failed"), "Should include prefix"
 
     def test_warning_message(self):
         """Test warning message formatting."""
@@ -92,8 +97,10 @@ class TestStatusFunctions:
 
             mock_console.print.assert_called_once()
             call_args = mock_console.print.call_args[0][0]
-            assert "[!]" in call_args
+            assert isinstance(call_args, str), f"Expected string, got {type(call_args)}"
+            assert "[!]" in call_args, "Warning message should contain [!] prefix"
             assert "Potential issue" in call_args
+            assert len(call_args) > len("Potential issue"), "Should include prefix"
 
     def test_info_message(self):
         """Test info message formatting."""
@@ -107,8 +114,10 @@ class TestStatusFunctions:
 
             mock_console.print.assert_called_once()
             call_args = mock_console.print.call_args[0][0]
-            assert "[i]" in call_args
+            assert isinstance(call_args, str), f"Expected string, got {type(call_args)}"
+            assert "[i]" in call_args, "Info message should contain [i] prefix"
             assert "Information message" in call_args
+            assert len(call_args) > len("Information message"), "Should include prefix"
 
     def test_status_message(self):
         """Test plain status message."""
@@ -121,6 +130,10 @@ class TestStatusFunctions:
             status("Plain message")
 
             mock_console.print.assert_called_once_with("Plain message")
+            # Verify it's a plain message without prefix markers
+            call_args = mock_console.print.call_args[0][0]
+            assert "[+]" not in call_args, "Plain status should not have success prefix"
+            assert "[-]" not in call_args, "Plain status should not have error prefix"
 
 
 class TestFormatting:
@@ -137,7 +150,11 @@ class TestFormatting:
             header("Main Title", "Subtitle text")
 
             # Should print multiple times (blank, title, subtitle, blank)
-            assert mock_console.print.call_count >= 3
+            assert mock_console.print.call_count >= 3, "Header with subtitle needs multiple prints"
+            # Verify title and subtitle appear in calls
+            all_calls = [str(c) for c in mock_console.print.call_args_list]
+            assert any("Main Title" in c for c in all_calls), "Title should be printed"
+            assert any("Subtitle text" in c for c in all_calls), "Subtitle should be printed"
 
     def test_header_without_subtitle(self):
         """Test header without subtitle."""
@@ -150,7 +167,9 @@ class TestFormatting:
             header("Title Only")
 
             # Should print fewer times without subtitle
-            assert mock_console.print.call_count >= 2
+            assert mock_console.print.call_count >= 2, "Header needs at least 2 prints"
+            all_calls = [str(c) for c in mock_console.print.call_args_list]
+            assert any("Title Only" in c for c in all_calls), "Title should be printed"
 
     def test_section(self):
         """Test section header."""
@@ -306,6 +325,10 @@ class TestPrintSummary:
             print_summary("Test Results", stats)
 
             mock_console.print.assert_called()
+            assert mock_console.print.call_count == 1, "Summary should print panel once"
+            # print_summary uses Rich Panel - verify panel object passed
+            call_args = mock_console.print.call_args
+            assert call_args is not None, "print should be called with arguments"
 
     def test_print_summary_with_success_count(self):
         """Test summary with success coloring."""
@@ -319,6 +342,9 @@ class TestPrintSummary:
             print_summary("Results", stats, success_count=50)
 
             mock_console.print.assert_called()
+            assert mock_console.print.call_count == 1, "Summary should print panel once"
+            call_args = mock_console.print.call_args
+            assert call_args is not None, "print should be called with arguments"
 
     def test_print_summary_with_error_count(self):
         """Test summary with error coloring."""
@@ -332,6 +358,9 @@ class TestPrintSummary:
             print_summary("Results", stats, error_count=10)
 
             mock_console.print.assert_called()
+            assert mock_console.print.call_count == 1, "Summary should print panel once"
+            call_args = mock_console.print.call_args
+            assert call_args is not None, "print should be called with arguments"
 
 
 class TestFormatCrashInfo:
