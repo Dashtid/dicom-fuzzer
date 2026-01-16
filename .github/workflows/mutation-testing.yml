@@ -86,9 +86,10 @@ jobs:
 
           # mutmut 2.x uses CLI flags and runs all tests for each mutant
           # Use python -m to invoke tools from the venv
+          # Use pytest-xdist parallel execution (-n auto) to speed up test runs
           python -m mutmut run \
             --paths-to-mutate="$PATHS" \
-            --runner="python -m pytest tests/test_utils/ -x -q --tb=no" \
+            --runner="python -m pytest tests/test_utils/ -q --tb=no -n auto" \
             --tests-dir="tests/test_utils/" \
             || true
 
@@ -250,9 +251,10 @@ jobs:
           # Activate venv and run mutation testing
           source .venv/bin/activate
 
+          # Use pytest-xdist parallel execution (-n auto) to speed up test runs
           python -m mutmut run \
             --paths-to-mutate="$CHANGED_FILES" \
-            --runner="python -m pytest tests/ -x -q --tb=no" \
+            --runner="python -m pytest tests/ -q --tb=no -n auto" \
             --tests-dir="tests/" \
             || true
 
