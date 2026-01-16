@@ -72,8 +72,10 @@ jobs:
           if [ -n "$INPUT_MODULES" ]; then
             PATHS="$INPUT_MODULES"
           else
-            # Default: mutate utility modules (smaller, focused)
-            PATHS="dicom_fuzzer/utils/hashing.py,dicom_fuzzer/utils/helpers.py,dicom_fuzzer/utils/identifiers.py"
+            # Default: mutate focused utility modules
+            # hashing.py (~50 mutants) + identifiers.py (~40 mutants) = ~90 mutants
+            # helpers.py is large (~180 mutants), run separately via workflow_dispatch
+            PATHS="dicom_fuzzer/utils/hashing.py,dicom_fuzzer/utils/identifiers.py"
           fi
 
           echo "Mutating: $PATHS"
@@ -86,10 +88,11 @@ jobs:
 
           # mutmut 2.x uses CLI flags and runs all tests for each mutant
           # Use python -m to invoke tools from the venv
-          # Use pytest-xdist parallel execution (-n auto) to speed up test runs
+          # Use serial test execution (parallel adds overhead that hurts more than helps)
+          # Use -x for fail-fast (stop at first failure for each mutant)
           python -m mutmut run \
             --paths-to-mutate="$PATHS" \
-            --runner="python -m pytest tests/test_utils/ -q --tb=no -n auto" \
+            --runner="python -m pytest tests/test_utils/ -x -q --tb=no" \
             --tests-dir="tests/test_utils/" \
             || true
 
@@ -251,10 +254,10 @@ jobs:
           # Activate venv and run mutation testing
           source .venv/bin/activate
 
-          # Use pytest-xdist parallel execution (-n auto) to speed up test runs
+          # Use serial test execution with fail-fast for efficiency
           python -m mutmut run \
             --paths-to-mutate="$CHANGED_FILES" \
-            --runner="python -m pytest tests/ -q --tb=no -n auto" \
+            --runner="python -m pytest tests/ -x -q --tb=no" \
             --tests-dir="tests/" \
             || true
 

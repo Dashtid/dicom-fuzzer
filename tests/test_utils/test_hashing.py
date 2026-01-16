@@ -159,7 +159,25 @@ class TestHashFile:
         try:
             result = hash_file(temp_path)
             expected = hashlib.sha256(large_content).hexdigest()
-            assert result == expected
+            assert result == expected, "Hash mismatch for large file"
+            assert len(result) == 64, f"Expected 64 chars, got {len(result)}"
+            assert isinstance(result, str), f"Expected str, got {type(result)}"
+        finally:
+            temp_path.unlink()
+
+    def test_multi_chunk_file_matches_single_read(self):
+        """Verify chunked reading produces same hash as single read."""
+        # Create file that spans exactly 3 chunks (4KB each) plus partial
+        content = b"A" * 4096 + b"B" * 4096 + b"C" * 4096 + b"D" * 1000
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".bin") as f:
+            f.write(content)
+            temp_path = Path(f.name)
+
+        try:
+            chunked_result = hash_file(temp_path)
+            direct_result = hash_bytes(content)
+            assert chunked_result == direct_result, "Chunked vs direct hash mismatch"
+            assert len(chunked_result) == 64
         finally:
             temp_path.unlink()
 
