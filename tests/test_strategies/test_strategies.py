@@ -57,7 +57,9 @@ class TestMetadataFuzzer:
 
         # Should return a Dataset
         assert mutated is not None, "mutate_patient_info should return result"
-        assert hasattr(mutated, "PatientName"), "Mutated dataset should have PatientName"
+        assert hasattr(mutated, "PatientName"), (
+            "Mutated dataset should have PatientName"
+        )
         # DICOM names use ^ separator (Family^Given format)
         name_str = str(mutated.PatientName)
         assert "^" in name_str, f"PatientName should contain ^, got: {name_str}"
@@ -90,7 +92,9 @@ class TestMetadataFuzzer:
         for _ in range(10):
             date_str = fuzzer._random_date()
             assert isinstance(date_str, str), "Date should be string"
-            assert len(date_str) == 8, f"Date should be 8 chars (YYYYMMDD), got {len(date_str)}"
+            assert len(date_str) == 8, (
+                f"Date should be 8 chars (YYYYMMDD), got {len(date_str)}"
+            )
             assert date_str.isdigit(), f"Date should be all digits, got {date_str}"
             year = int(date_str[:4])
             month = int(date_str[4:6])
