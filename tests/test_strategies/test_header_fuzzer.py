@@ -465,7 +465,9 @@ class TestHeaderFuzzerIntegration:
         assert isinstance(result1, Dataset), "First result should be Dataset"
         assert isinstance(result2, Dataset), "Second result should be Dataset"
         # Results should be the same with same seed
-        assert str(result1) == str(result2), "Same seed should produce identical results"
+        assert str(result1) == str(result2), (
+            "Same seed should produce identical results"
+        )
         # Same number of tags
         assert len(list(result1.keys())) == len(list(result2.keys())), (
             "Same seed should produce same tag count"
