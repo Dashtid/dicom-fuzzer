@@ -163,6 +163,15 @@ class TestGenerateTimestampId:
         assert date_part == expected_date
         assert len(result) == 15  # YYYYMMDD_HHMMSS
 
+    def test_empty_prefix_treated_as_no_prefix(self):
+        """Verify empty string prefix behaves like no prefix (kills mutant)."""
+        result = generate_timestamp_id(prefix="")
+        # Empty prefix should NOT add leading underscore
+        assert not result.startswith("_"), "Empty prefix should not add leading underscore"
+        # Should be plain timestamp format
+        assert re.match(r"^\d{8}_\d{6}$", result), f"Expected plain timestamp, got {result}"
+        assert len(result) == 15  # YYYYMMDD_HHMMSS (no prefix)
+
 
 class TestGenerateCrashId:
     """Tests for generate_crash_id function."""
@@ -246,10 +255,14 @@ class TestGenerateSessionId:
         assert len(result) == 31  # fuzzing_session_ + YYYYMMDD_HHMMSS
 
     def test_empty_string_name_uses_default(self):
-        """Verify empty string uses default prefix."""
+        """Verify empty string uses default prefix (kills mutant)."""
         result = generate_session_id(session_name="")
-        assert result.startswith("fuzzing_session_")
+        # Must use default prefix, not empty string
+        assert result.startswith("fuzzing_session_"), f"Expected default prefix, got {result}"
+        assert not result.startswith("_"), "Empty name should not cause leading underscore"
         assert len(result) == 31
+        # Verify full format
+        assert re.match(r"^fuzzing_session_\d{8}_\d{6}$", result)
 
 
 class TestGenerateMutationId:
