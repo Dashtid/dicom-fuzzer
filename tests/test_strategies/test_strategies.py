@@ -55,8 +55,13 @@ class TestMetadataFuzzer:
 
         mutated = fuzzer.mutate_patient_info(sample_dicom_dataset)
 
-        # DICOM names use ^ separator
-        assert "^" in mutated.PatientName
+        # Should return a Dataset
+        assert mutated is not None, "mutate_patient_info should return result"
+        assert hasattr(mutated, "PatientName"), "Mutated dataset should have PatientName"
+        # DICOM names use ^ separator (Family^Given format)
+        name_str = str(mutated.PatientName)
+        assert "^" in name_str, f"PatientName should contain ^, got: {name_str}"
+        assert len(name_str) > 1, "PatientName should not be empty"
 
     def test_birth_date_format(self, sample_dicom_dataset):
         """Test that birth dates follow DICOM date format (YYYYMMDD)."""
@@ -81,10 +86,22 @@ class TestMetadataFuzzer:
         """Test that _random_date generates dates in expected range."""
         fuzzer = MetadataFuzzer()
 
+        dates_generated = []
         for _ in range(10):
             date_str = fuzzer._random_date()
+            assert isinstance(date_str, str), "Date should be string"
+            assert len(date_str) == 8, f"Date should be 8 chars (YYYYMMDD), got {len(date_str)}"
+            assert date_str.isdigit(), f"Date should be all digits, got {date_str}"
             year = int(date_str[:4])
-            assert 1950 <= year <= 2010
+            month = int(date_str[4:6])
+            day = int(date_str[6:8])
+            assert 1950 <= year <= 2010, f"Year {year} out of range"
+            assert 1 <= month <= 12, f"Month {month} out of range"
+            assert 1 <= day <= 31, f"Day {day} out of range"
+            dates_generated.append(date_str)
+
+        # Should generate some variety
+        assert len(set(dates_generated)) >= 2, "Should generate varied dates"
 
     def test_mutations_are_random(self, sample_dicom_dataset):
         """Test that multiple mutations produce different results."""
@@ -93,10 +110,16 @@ class TestMetadataFuzzer:
         results = set()
         for _ in range(5):
             mutated = fuzzer.mutate_patient_info(sample_dicom_dataset.copy())
+            assert mutated is not None, "Mutation should return result"
+            assert hasattr(mutated, "PatientID"), "Should have PatientID"
+            assert isinstance(mutated.PatientID, str), "PatientID should be string"
             results.add(mutated.PatientID)
 
         # Should have some variation (not all the same)
-        assert len(results) > 1
+        assert len(results) > 1, f"Expected variation in PatientIDs, got {results}"
+        # All results should follow the expected format
+        for pid in results:
+            assert pid.startswith("PAT"), f"PatientID should start with PAT, got {pid}"
 
 
 class TestHeaderFuzzer:
@@ -145,11 +168,18 @@ class TestHeaderFuzzer:
         sample_dicom_dataset.InstitutionName = "Test"
         mutated = fuzzer._overlong_strings(sample_dicom_dataset)
 
-        # Should be all 'A's
-        assert all(c == "A" for c in mutated.InstitutionName)
+        # Should return Dataset
+        assert mutated is not None, "Should return mutated dataset"
+        assert hasattr(mutated, "InstitutionName"), "Should have InstitutionName"
+        # Should be all 'A's (repeated char for overlong string)
+        name = mutated.InstitutionName
+        assert len(name) > 0, "InstitutionName should not be empty"
+        assert all(c == "A" for c in name), f"Expected all 'A's, got: {name[:20]}..."
 
     def test_mutate_without_institution_name(self, sample_dicom_dataset):
         """Test mutation works even without InstitutionName."""
+        from pydicom.dataset import Dataset
+
         fuzzer = HeaderFuzzer()
 
         # Remove InstitutionName if it exists
@@ -158,7 +188,12 @@ class TestHeaderFuzzer:
 
         # Should not raise exception
         mutated = fuzzer._overlong_strings(sample_dicom_dataset)
-        assert mutated is not None
+        assert mutated is not None, "Should return result even without InstitutionName"
+        assert isinstance(mutated, Dataset), "Should return Dataset"
+        # Original dataset's other tags should be preserved
+        assert hasattr(mutated, "PatientName") or hasattr(mutated, "PatientID"), (
+            "Should preserve other tags"
+        )
 
     def test_multiple_mutations_applied(self, sample_dicom_dataset):
         """Test that mutate_tags applies 1-3 mutations."""
@@ -224,8 +259,8 @@ class TestPixelFuzzer:
         differences = np.sum(original_pixels != mutated_pixels)
 
         # Should have some differences - 1% of pixels is the target
-        # Allow for some randomness but expect at least some corruption
-        assert differences >= 0, "Difference count should be non-negative"
+        # Corruption must actually modify at least some pixels
+        assert differences > 0, "Corruption should modify at least one pixel"
         # Corruption should not affect more than 10% of pixels
         assert differences <= total_pixels * 0.1, (
             f"Too many pixels corrupted: {differences}/{total_pixels}"
@@ -251,9 +286,14 @@ class TestPixelFuzzer:
 
         original_shape = parser.dataset.pixel_array.shape
         mutated = fuzzer.mutate_pixels(parser.dataset)
-        mutated_shape = mutated.pixel_array.shape
 
-        assert original_shape == mutated_shape
+        assert mutated is not None, "mutate_pixels should return result"
+        assert hasattr(mutated, "pixel_array"), "Result should have pixel_array"
+        mutated_shape = mutated.pixel_array.shape
+        assert original_shape == mutated_shape, (
+            f"Shape changed: {original_shape} -> {mutated_shape}"
+        )
+        assert len(mutated_shape) >= 2, "Pixel array should be at least 2D"
 
     def test_pixel_dtype_preserved(self, dicom_with_pixels):
         """Test that pixel array dtype is preserved."""
@@ -265,7 +305,11 @@ class TestPixelFuzzer:
         mutated = fuzzer.mutate_pixels(parser.dataset)
 
         # After mutation, pixel data is stored as bytes
-        assert mutated.PixelData is not None
+        assert mutated is not None, "mutate_pixels should return result"
+        assert hasattr(mutated, "PixelData"), "Result should have PixelData"
+        assert mutated.PixelData is not None, "PixelData should not be None"
+        assert isinstance(mutated.PixelData, bytes), "PixelData should be bytes"
+        assert len(mutated.PixelData) > 0, "PixelData should not be empty"
 
 
 class TestStructureFuzzer:
@@ -571,9 +615,9 @@ class TestStructureFuzzerFileCorruption:
                 )
                 assert output_file.exists(), f"Output file should exist: {output_file}"
 
-        # At least some corruptions should succeed
-        assert successful_corruptions >= 0, (
-            "Corruption function should complete without errors"
+        # At least one corruption must succeed
+        assert successful_corruptions >= 1, (
+            f"At least one corruption should succeed, got {successful_corruptions}"
         )
 
     def test_corrupt_file_header_truncate(self, tmp_path, dicom_with_pixels):

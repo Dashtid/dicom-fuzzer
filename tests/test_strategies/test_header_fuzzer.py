@@ -366,10 +366,18 @@ class TestBoundaryValues:
             ds = Dataset()
             ds.PatientName = "Original"
             result = fuzzer._boundary_values(ds)
-            results.append(len(result.PatientName))
+            assert isinstance(result, Dataset), "Should return Dataset"
+            assert hasattr(result, "PatientName"), "Should have PatientName"
+            # PatientName can be PersonName or str, but should be string-like
+            name_value = str(result.PatientName)
+            assert len(name_value) > 0, "PatientName should not be empty"
+            results.append(len(name_value))
 
-        # Should have either 64 or 65 character names
-        assert 64 in results or 65 in results
+        # Should have either 64 or 65 character names (VR boundary)
+        assert len(results) == 20, f"Expected 20 results, got {len(results)}"
+        assert 64 in results or 65 in results, (
+            f"Expected 64 or 65 in results, got lengths: {set(results)}"
+        )
 
     def test_empty_string_mutations(
         self, fuzzer: HeaderFuzzer, sample_dataset: Dataset
@@ -377,6 +385,7 @@ class TestBoundaryValues:
         """Test some tags may be set to empty strings."""
         # Run multiple times to hit empty string case
         empty_found = False
+        iterations = 0
         for i in range(50):
             random.seed(i)
             ds = Dataset()
@@ -384,16 +393,22 @@ class TestBoundaryValues:
             ds.ModelName = "Model"
             ds.SoftwareVersions = "1.0"
             result = fuzzer._boundary_values(ds)
+            iterations += 1
+            assert isinstance(result, Dataset), "Should return Dataset"
             for tag in ["Manufacturer", "ModelName", "SoftwareVersions"]:
-                if hasattr(result, tag) and getattr(result, tag) == "":
-                    empty_found = True
-                    break
+                if hasattr(result, tag):
+                    value = getattr(result, tag)
+                    assert isinstance(value, str), f"{tag} should be string"
+                    if value == "":
+                        empty_found = True
+                        break
             if empty_found:
                 break
 
         # Empty strings should occur with probability > 0.7 in random
         # This is probabilistic but should hit in 50 tries
-        assert empty_found
+        assert iterations >= 1, "Should run at least one iteration"
+        assert empty_found, "Empty string mutation should occur within 50 attempts"
 
     def test_handles_missing_numeric_tags(self, fuzzer: HeaderFuzzer) -> None:
         """Test handles dataset without Rows/Columns."""
@@ -416,13 +431,19 @@ class TestHeaderFuzzerIntegration:
     ) -> None:
         """Test a full mutation cycle produces valid output."""
         random.seed(42)
+        original_tags = set(sample_dataset.keys())
         result = fuzzer.mutate_tags(sample_dataset)
 
         # Result should be a valid Dataset
-        assert result is not None
-        assert isinstance(result, Dataset)
+        assert result is not None, "mutate_tags should return a result"
+        assert isinstance(result, Dataset), f"Expected Dataset, got {type(result)}"
         # Should still have some structure
-        assert hasattr(result, "SOPClassUID") or hasattr(result, "PatientName")
+        assert hasattr(result, "SOPClassUID") or hasattr(result, "PatientName"), (
+            "Result should retain some DICOM structure"
+        )
+        # Result should have some tags (may be subset due to removals)
+        result_tags = set(result.keys())
+        assert len(result_tags) >= 0, "Result should be valid Dataset with tags"
 
     def test_multiple_mutations_deterministic(
         self, fuzzer: HeaderFuzzer, sample_dataset: Dataset
@@ -440,8 +461,15 @@ class TestHeaderFuzzerIntegration:
         ds2.InstitutionName = "Hospital"
         result2 = fuzzer.mutate_tags(ds2)
 
+        # Both should be valid Datasets
+        assert isinstance(result1, Dataset), "First result should be Dataset"
+        assert isinstance(result2, Dataset), "Second result should be Dataset"
         # Results should be the same with same seed
-        assert str(result1) == str(result2)
+        assert str(result1) == str(result2), "Same seed should produce identical results"
+        # Same number of tags
+        assert len(list(result1.keys())) == len(list(result2.keys())), (
+            "Same seed should produce same tag count"
+        )
 
     def test_empty_dataset(self, fuzzer: HeaderFuzzer) -> None:
         """Test handling of empty dataset."""
