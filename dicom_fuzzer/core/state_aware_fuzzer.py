@@ -746,6 +746,8 @@ class StateAwareFuzzer:
             Number of sequences saved.
 
         """
+        import json  # Local import to avoid circular dependency
+
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -767,8 +769,6 @@ class StateAwareFuzzer:
                 "fitness_score": seq.fitness_score,
             }
             meta_path = seq_dir / "metadata.json"
-            import json
-
             meta_path.write_text(json.dumps(meta, indent=2))
 
             count += 1

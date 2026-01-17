@@ -248,13 +248,11 @@ class ResponseParser:
         """Parse P-DATA-TF and extract DIMSE info."""
         # Basic parsing to extract command field if present
         if len(data) > 12:
-            try:
-                # Skip PDU header (6), PDV header (6)
-                # Look for command field (0000,0100) in data
-                # This is simplified; real parsing would be more complex
-                pass
-            except (struct.error, IndexError):
-                pass
+            # TODO: Implement full DIMSE command parsing
+            # Skip PDU header (6), PDV header (6)
+            # Look for command field (0000,0100) in data
+            # This is a stub - real parsing would be more complex
+            pass
 
 
 class ResponseAnalyzer:

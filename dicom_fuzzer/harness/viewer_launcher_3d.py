@@ -377,8 +377,8 @@ class ViewerLauncher3D:
                 # Parent already terminated - expected in race conditions
                 logger.debug("Parent process already terminated")
 
-            # Wait for termination
-            gone, alive = psutil.wait_procs(
+            # Wait for termination (results unused - we just need to wait)
+            _gone, _alive = psutil.wait_procs(
                 [parent] + children, timeout=3, callback=None
             )
 

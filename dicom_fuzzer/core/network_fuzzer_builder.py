@@ -159,8 +159,6 @@ class DICOMProtocolBuilder:
 
         """
         # Build Command Dataset
-        # Group Length (0000,0000)
-        group_length = struct.pack("<HH", 0x0000, 0x0000) + struct.pack("<I", 4)
         # Affected SOP Class UID (0000,0002)
         sop_class = b"1.2.840.10008.1.1"
         sop_class_elem = (

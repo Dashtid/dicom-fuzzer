@@ -450,7 +450,7 @@ class SecurityPatternFuzzer:
                     random.choice(jpeg_transfer_syntaxes)
                 )
             except Exception:
-                pass
+                pass  # Transfer syntax setting is optional; continue with attack patterns
 
         # Create malformed JPEG marker sequences
         jpeg_attack_patterns = [

@@ -201,7 +201,7 @@ class ViewerAdapter(ABC):
             Human-readable adapter name.
 
         """
-        ...
+        pass
 
     @property
     @abstractmethod
@@ -212,7 +212,7 @@ class ViewerAdapter(ABC):
             List of process names (e.g., ["Hermes.exe", "Affinity.exe"]).
 
         """
-        ...
+        pass
 
     @abstractmethod
     def connect(self, pid: int | None = None, process_name: str | None = None) -> bool:
@@ -229,7 +229,7 @@ class ViewerAdapter(ABC):
             True if connection successful, False otherwise.
 
         """
-        ...
+        pass
 
     @abstractmethod
     def disconnect(self) -> None:
@@ -237,7 +237,7 @@ class ViewerAdapter(ABC):
 
         Releases automation resources. Safe to call even if not connected.
         """
-        ...
+        pass
 
     @abstractmethod
     def is_connected(self) -> bool:
@@ -247,7 +247,7 @@ class ViewerAdapter(ABC):
             True if connected, False otherwise.
 
         """
-        ...
+        pass
 
     @abstractmethod
     def load_study_into_viewport(
@@ -273,7 +273,7 @@ class ViewerAdapter(ABC):
             RenderResult indicating success/failure and details.
 
         """
-        ...
+        pass
 
     @abstractmethod
     def get_displayed_patient_info(self) -> PatientInfo:
@@ -286,7 +286,7 @@ class ViewerAdapter(ABC):
             PatientInfo with extracted values.
 
         """
-        ...
+        pass
 
     @abstractmethod
     def close_study(self) -> bool:
@@ -298,7 +298,7 @@ class ViewerAdapter(ABC):
             True if study closed successfully.
 
         """
-        ...
+        pass
 
     def capture_screenshot(self, output_path: Path) -> bool:
         """Capture a screenshot of the viewer window.

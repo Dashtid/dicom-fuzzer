@@ -20,8 +20,7 @@ from typing import Any
 
 # Import rich at module level for test compatibility
 try:
-    from rich.console import Console  # noqa: F401
-    from rich.live import Live  # noqa: F401
+    from rich.console import Console  # noqa: F401 - imported for HAS_RICH check
 
     HAS_RICH = True
 except ImportError:

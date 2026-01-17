@@ -61,14 +61,27 @@ jobs:
           upload: false
           output: sarif-results
 
-      # Filter out false positives from security testing files
-      # These files intentionally test deprecated TLS/SSL protocols
+      # Filter out false positives and intentional patterns:
+      # - py/insecure-protocol: Security testing code intentionally uses deprecated TLS/SSL
+      # - py/cyclic-import: GUI modules have intentional backward-compatibility imports
+      # - py/unsafe-cyclic-import: Series mixins use TYPE_CHECKING pattern correctly
+      # - py/unused-import: TYPE_CHECKING imports and indirect module imports
       - name: Filter SARIF Results
         uses: advanced-security/filter-sarif@f3b8118a9349d88f7b1c0c488476411145b6270d  # v1
         with:
           patterns: |
             -dicom_fuzzer/core/tls_security_tester.py:py/insecure-protocol
             -dicom_fuzzer/core/dicom_auth_tester.py:py/insecure-protocol
+            -dicom_fuzzer/core/network_fuzzer_tls.py:py/insecure-protocol
+            -dicom_fuzzer/core/network_fuzzer.py:py/insecure-protocol
+            -dicom_fuzzer/core/gui_fuzzer.py:py/cyclic-import
+            -dicom_fuzzer/core/gui_monitor.py:py/cyclic-import
+            -dicom_fuzzer/strategies/series_mutator.py:py/unsafe-cyclic-import
+            -dicom_fuzzer/strategies/series_temporal_attacks.py:py/unsafe-cyclic-import
+            -dicom_fuzzer/strategies/series_core_mutations.py:py/unsafe-cyclic-import
+            -dicom_fuzzer/strategies/series_3d_attacks.py:py/unsafe-cyclic-import
+            -dicom_fuzzer/cli/generate_report.py:py/unused-import
+            -dicom_fuzzer/core/target_runner.py:py/unused-import
           input: sarif-results/${{ matrix.language }}.sarif
           output: sarif-results/${{ matrix.language }}.sarif
 

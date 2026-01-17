@@ -461,7 +461,7 @@ class TLSFuzzingMixin:
                     session = tls_sock.session
                     renegotiate_supported = session is not None
                 except AttributeError:
-                    pass
+                    pass  # Session attribute not available; renegotiate_supported stays False
 
                 duration = time.time() - start_time
                 results.append(
