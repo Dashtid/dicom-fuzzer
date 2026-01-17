@@ -6,15 +6,32 @@ on:
       - main
       - develop
       - 'feature/**'
+    paths:
+      - 'dicom_fuzzer/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches:
       - main
       - develop
+    paths:
+      - 'dicom_fuzzer/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/ci.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
   pull-requests: write
+
+# Cancel duplicate runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint-and-format:
@@ -87,16 +104,13 @@ jobs:
         run: uv run mypy --config-file=pyproject.toml --ignore-missing-imports dicom_fuzzer/
 
   test:
-    name: Test (Py${{ matrix.python-version }}-g${{ matrix.group }})
-    runs-on: ${{ matrix.os }}
+    name: Test (Py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        # Test on 3.12 and 3.13 only (3.11 covered by local dev)
+        # Test on 3.12 and 3.13 (2 jobs total instead of 20)
         python-version: ['3.12', '3.13']
-        # Split tests into 10 groups - fewer tests per group = less memory usage
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
@@ -113,19 +127,18 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
-      - name: Run tests (group ${{ matrix.group }}/10)
-        # Split tests across 10 jobs to reduce memory usage and prevent OOM kills
-        # Coverage only on group 1 to avoid merging complexity
+      - name: Run tests with parallel execution
+        # Use pytest-xdist for parallelization within a single job
+        # This is more efficient than splitting across 20 separate jobs
         run: |
-          if [ "${{ matrix.group }}" == "1" ]; then
-            uv run pytest tests/ -m "not slow" -o "addopts=" --splits 10 --group ${{ matrix.group }} --cov=dicom_fuzzer --cov-report=xml --cov-report=term-missing --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
-          else
-            uv run pytest tests/ -m "not slow" -o "addopts=" --splits 10 --group ${{ matrix.group }} --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
-          fi
-        timeout-minutes: 20
+          uv run pytest tests/ -m "not slow" -o "addopts=" \
+            -n auto --dist worksteal \
+            --cov=dicom_fuzzer --cov-report=xml --cov-report=term-missing \
+            --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
+        timeout-minutes: 15
 
       - name: Archive coverage report
-        if: matrix.group == 1 && matrix.python-version == '3.13'
+        if: matrix.python-version == '3.13'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         with:
           name: coverage-xml-report
@@ -137,7 +150,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         with:
-          name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}-group${{ matrix.group }}
+          name: test-results-py${{ matrix.python-version }}
           path: |
             junit.xml
             .pytest_cache/
@@ -161,7 +174,7 @@ jobs:
       - name: Download test results
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4
         with:
-          name: test-results-ubuntu-latest-py3.13-group1
+          name: test-results-py3.13
           path: .
         continue-on-error: true
 

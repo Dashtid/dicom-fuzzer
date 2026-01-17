@@ -16,66 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  benchmark:
-    name: Performance Benchmarks
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
-        with:
-          version: "latest"
-          enable-cache: true
-
-      - name: Set up Python
-        run: uv python install 3.13
-
-      - name: Install dependencies
-        run: |
-          uv sync --all-extras
-          uv pip install pytest-benchmark memory-profiler
-
-      - name: Run benchmarks
-        id: run-benchmarks
-        run: |
-          # Run benchmarks and capture exit code
-          uv run pytest tests/ -v -p no:xdist -o "addopts=" --benchmark-only --benchmark-autosave --benchmark-json=benchmark.json || true
-          # Check if benchmark.json has actual benchmark data
-          if [ -f benchmark.json ] && [ -s benchmark.json ]; then
-            # Verify it's valid JSON with benchmarks
-            if python -c "import json; data=json.load(open('benchmark.json')); exit(0 if data.get('benchmarks') else 1)" 2>/dev/null; then
-              echo "has_benchmarks=true" >> $GITHUB_OUTPUT
-            else
-              echo "has_benchmarks=false" >> $GITHUB_OUTPUT
-              echo "No benchmark tests found in test suite"
-            fi
-          else
-            echo "has_benchmarks=false" >> $GITHUB_OUTPUT
-            echo "No benchmark tests found in test suite"
-          fi
-
-      - name: Download previous benchmark data
-        if: steps.run-benchmarks.outputs.has_benchmarks == 'true'
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb  # v4
-        with:
-          path: ./cache
-          key: ${{ runner.os }}-benchmark
-
-      - name: Store benchmark result
-        if: steps.run-benchmarks.outputs.has_benchmarks == 'true'
-        uses: benchmark-action/github-action-benchmark@4bdcce38c94cec68da58d012ac24b7b1155efe8b  # v1.20.7
-        with:
-          name: Python Benchmark
-          tool: 'pytest'
-          output-file-path: benchmark.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
-          alert-threshold: '200%'
-          comment-on-alert: true
-          fail-on-alert: true
-          alert-comment-cc-users: '@Dashtid'
+  # NOTE: benchmark job removed - no benchmark tests exist in test suite
+  # Add pytest-benchmark tests before re-enabling this job
 
   memory-profiling:
     name: Memory Profiling
@@ -176,94 +118,8 @@ jobs:
           name: memory-profile
           path: memory-profile.txt
 
-  load-testing:
-    name: Load Testing
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
-        with:
-          version: "latest"
-
-      - name: Set up Python
-        run: uv python install 3.13
-
-      - name: Install dependencies
-        run: |
-          uv sync --all-extras
-          uv pip install locust
-
-      - name: Create load test script
-        run: |
-          cat > locustfile.py << 'EOF'
-          from locust import User, task, between
-          from pydicom.dataset import Dataset, FileMetaDataset
-          from pydicom.uid import generate_uid
-          from dicom_fuzzer.core.mutator import DicomMutator
-          from dicom_fuzzer.core.validator import DicomValidator
-
-          def create_test_dataset():
-              """Create a minimal DICOM dataset for testing."""
-              ds = Dataset()
-              ds.file_meta = FileMetaDataset()
-              ds.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-              ds.file_meta.MediaStorageSOPInstanceUID = generate_uid()
-              ds.file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
-              ds.SOPClassUID = ds.file_meta.MediaStorageSOPClassUID
-              ds.SOPInstanceUID = ds.file_meta.MediaStorageSOPInstanceUID
-              ds.PatientName = "TEST^PATIENT"
-              ds.PatientID = "12345"
-              ds.Modality = "CT"
-              ds.Rows = 64
-              ds.Columns = 64
-              ds.BitsAllocated = 16
-              ds.BitsStored = 16
-              ds.HighBit = 15
-              ds.PixelRepresentation = 0
-              ds.SamplesPerPixel = 1
-              ds.PhotometricInterpretation = "MONOCHROME2"
-              ds.PixelData = b"\x00" * (64 * 64 * 2)
-              return ds
-
-          class DicomFuzzerUser(User):
-              wait_time = between(0.1, 0.5)
-
-              def on_start(self):
-                  """Initialize fuzzer components."""
-                  self.mutator = DicomMutator()
-                  self.validator = DicomValidator()
-
-              @task(3)
-              def generate_dicom(self):
-                  """Generate DICOM dataset."""
-                  dataset = create_test_dataset()
-
-              @task(5)
-              def mutate_dicom(self):
-                  """Mutate DICOM dataset."""
-                  dataset = create_test_dataset()
-                  self.mutator.start_session(dataset)
-                  mutated = self.mutator.apply_mutations(dataset, num_mutations=5)
-
-              @task(2)
-              def validate_dicom(self):
-                  """Validate DICOM dataset."""
-                  dataset = create_test_dataset()
-                  result = self.validator.validate(dataset)
-          EOF
-
-      - name: Run load test
-        run: |
-          uv run locust -f locustfile.py --headless --users 10 --spawn-rate 2 --run-time 60s --html load-test-report.html
-
-      - name: Upload load test report
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
-        with:
-          name: load-test-report
-          path: load-test-report.html
+  # NOTE: load-testing job removed - Locust is for HTTP API load testing,
+  # not useful for CLI tools. Re-enable if adding a REST API.
 
   cpu-profiling:
     name: CPU Profiling
@@ -348,20 +204,14 @@ jobs:
   performance-summary:
     name: Performance Summary
     runs-on: ubuntu-latest
-    needs: [benchmark, memory-profiling, load-testing, cpu-profiling]
+    needs: [memory-profiling, cpu-profiling]
     if: always()
     steps:
       - name: Check performance status
         run: |
           echo "Performance Monitoring Summary"
           echo "=============================="
-          echo "Benchmarks: ${{ needs.benchmark.result }}"
           echo "Memory Profiling: ${{ needs.memory-profiling.result }}"
-          echo "Load Testing: ${{ needs.load-testing.result }}"
           echo "CPU Profiling: ${{ needs.cpu-profiling.result }}"
-
-          if [ "${{ needs.benchmark.result }}" != "success" ]; then
-            echo "Warning: Performance benchmarks did not complete successfully"
-          fi
 
           echo "Performance monitoring completed!"

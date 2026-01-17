@@ -441,3 +441,13 @@ TESTING_SESSION*.md
 /screenshots/
 /data/
 /scripts/
+
+# ============================================================================
+# Mutation Testing Outputs (2026-01-17)
+# ============================================================================
+# Local mutmut run outputs - should use /artifacts/ instead
+/mutation-report/
+/temp-cache/
+/temp-mutation/
+mutation-results.txt
+.mutmut-cache

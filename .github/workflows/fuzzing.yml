@@ -35,10 +35,15 @@ permissions:
   pull-requests: write
   actions: read
 
+# Cancel duplicate runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
-  # PR fuzzing: 10 minutes (per ClusterFuzzLite/FDA best practices)
-  PR_FUZZ_DURATION: 600
-  PR_FUZZ_ITERATIONS: 10000
+  # PR fuzzing: 15 minutes (research recommends 15-30 min minimum for useful results)
+  PR_FUZZ_DURATION: 900
+  PR_FUZZ_ITERATIONS: 15000
   # Nightly fuzzing: 8 hours (FDA recommendation)
   NIGHTLY_FUZZ_DURATION: 28800
   NIGHTLY_FUZZ_ITERATIONS: 1000000
@@ -102,10 +107,10 @@ jobs:
 
   # PR fuzzing - quick validation
   pr-fuzzing:
-    name: PR Fuzzing (10 min)
+    name: PR Fuzzing (15 min)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
 
@@ -155,7 +160,7 @@ jobs:
             2>&1 | tee fuzz_output.log || true
 
           echo "[+] Fuzzing completed"
-        timeout-minutes: 15
+        timeout-minutes: 20
 
       - name: Check for crashes
         run: |

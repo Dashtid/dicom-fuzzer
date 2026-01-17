@@ -150,11 +150,15 @@ class TestFormatting:
             header("Main Title", "Subtitle text")
 
             # Should print multiple times (blank, title, subtitle, blank)
-            assert mock_console.print.call_count >= 3, "Header with subtitle needs multiple prints"
+            assert mock_console.print.call_count >= 3, (
+                "Header with subtitle needs multiple prints"
+            )
             # Verify title and subtitle appear in calls
             all_calls = [str(c) for c in mock_console.print.call_args_list]
             assert any("Main Title" in c for c in all_calls), "Title should be printed"
-            assert any("Subtitle text" in c for c in all_calls), "Subtitle should be printed"
+            assert any("Subtitle text" in c for c in all_calls), (
+                "Subtitle should be printed"
+            )
 
     def test_header_without_subtitle(self):
         """Test header without subtitle."""
