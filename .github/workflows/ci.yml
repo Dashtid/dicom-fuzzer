@@ -135,7 +135,7 @@ jobs:
             -n auto --dist worksteal \
             --cov=dicom_fuzzer --cov-report=xml --cov-report=term-missing \
             --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
-        timeout-minutes: 15
+        timeout-minutes: 20
 
       - name: Archive coverage report
         if: matrix.python-version == '3.13'
