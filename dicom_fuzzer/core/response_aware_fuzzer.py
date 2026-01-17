@@ -245,14 +245,14 @@ class ResponseParser:
 
     @classmethod
     def _parse_data_tf(cls, response: ParsedResponse, data: bytes) -> None:
-        """Parse P-DATA-TF and extract DIMSE info."""
-        # Basic parsing to extract command field if present
-        if len(data) > 12:
-            # TODO: Implement full DIMSE command parsing
-            # Skip PDU header (6), PDV header (6)
-            # Look for command field (0000,0100) in data
-            # This is a stub - real parsing would be more complex
-            pass
+        """Parse P-DATA-TF and extract DIMSE info.
+
+        Note: This is a stub for future implementation. Full DIMSE parsing
+        would extract command fields from PDV data (skip 6-byte PDU header,
+        6-byte PDV header, then parse command field 0000,0100).
+        """
+        # Stub: no parsing implemented yet
+        _ = response, data  # Acknowledge unused parameters
 
 
 class ResponseAnalyzer:

@@ -81,6 +81,7 @@ jobs:
             -dicom_fuzzer/strategies/series_core_mutations.py:py/unsafe-cyclic-import
             -dicom_fuzzer/strategies/series_3d_attacks.py:py/unsafe-cyclic-import
             -dicom_fuzzer/cli/generate_report.py:py/unused-import
+            -dicom_fuzzer/cli/realtime_monitor.py:py/unused-import
             -dicom_fuzzer/core/target_runner.py:py/unused-import
           input: sarif-results/${{ matrix.language }}.sarif
           output: sarif-results/${{ matrix.language }}.sarif

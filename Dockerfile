@@ -16,16 +16,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for fast dependency resolution
-RUN pip install --no-cache-dir uv
+# Install uv for fast dependency resolution (pinned for reproducibility)
+RUN pip install --no-cache-dir uv==0.9.26
 
 # Copy project files
 COPY pyproject.toml ./
 COPY dicom_fuzzer/ ./dicom_fuzzer/
 COPY samples/ ./samples/
 
-# Build wheel
-RUN pip install --no-cache-dir build && \
+# Build wheel (pinned for reproducibility)
+RUN pip install --no-cache-dir build==1.4.0 && \
     python -m build --wheel
 
 # =============================================================================

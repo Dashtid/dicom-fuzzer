@@ -377,10 +377,8 @@ class ViewerLauncher3D:
                 # Parent already terminated - expected in race conditions
                 logger.debug("Parent process already terminated")
 
-            # Wait for termination (results unused - we just need to wait)
-            _gone, _alive = psutil.wait_procs(
-                [parent] + children, timeout=3, callback=None
-            )
+            # Wait for termination (discard results - we just need to wait)
+            psutil.wait_procs([parent] + children, timeout=3, callback=None)
 
             logger.debug(f"Killed process tree (parent PID={process.pid})")
 

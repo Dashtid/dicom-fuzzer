@@ -21,6 +21,7 @@ Research References:
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import random
 import time
@@ -746,8 +747,6 @@ class StateAwareFuzzer:
             Number of sequences saved.
 
         """
-        import json  # Local import to avoid circular dependency
-
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -850,8 +849,6 @@ if __name__ == "__main__":
     stats = fuzzer.run(iterations=100)
 
     print("\n[+] Fuzzing Statistics:")
-    import json
-
     print(json.dumps(stats, indent=2))
 
     print("\n[+] State Machine:")
