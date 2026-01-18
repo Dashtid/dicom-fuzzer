@@ -743,3 +743,273 @@ class TestChunkList:
         assert result is not None
         assert isinstance(result, list)
         assert result == []
+
+
+# ============================================================================
+# Mutation-Killing Tests
+# These tests use controlled inputs and exact assertions to catch mutations
+# ============================================================================
+
+
+class TestFormatBytesMutationKilling:
+    """Exact value tests to catch arithmetic mutations in format_bytes."""
+
+    def test_bytes_exact(self):
+        """Test exact byte formatting."""
+        assert format_bytes(0) == "0 B"
+        assert format_bytes(1) == "1 B"
+        assert format_bytes(512) == "512 B"
+        assert format_bytes(1023) == "1023 B"
+
+    def test_kb_boundary(self):
+        """Test KB boundary - catches size < KB mutation."""
+        # Just under KB threshold
+        assert format_bytes(1023) == "1023 B"
+        # Exactly at KB threshold
+        assert format_bytes(1024) == "1.00 KB"
+        # Just over KB threshold
+        assert format_bytes(1025) == "1.00 KB"
+
+    def test_kb_exact_values(self):
+        """Test exact KB calculations."""
+        assert format_bytes(2048) == "2.00 KB"
+        assert format_bytes(2560) == "2.50 KB"
+        assert format_bytes(3072) == "3.00 KB"
+
+    def test_mb_boundary(self):
+        """Test MB boundary - catches size < MB mutation."""
+        # Just under MB threshold
+        assert format_bytes(1048575) == "1024.00 KB"
+        # Exactly at MB threshold
+        assert format_bytes(1048576) == "1.00 MB"
+
+    def test_mb_exact_values(self):
+        """Test exact MB calculations."""
+        assert format_bytes(5 * MB) == "5.00 MB"
+        assert format_bytes(int(2.5 * MB)) == "2.50 MB"
+
+    def test_gb_boundary(self):
+        """Test GB boundary - catches size < GB mutation."""
+        # Just under GB threshold
+        assert format_bytes(GB - 1) == "1024.00 MB"
+        # Exactly at GB threshold
+        assert format_bytes(GB) == "1.00 GB"
+
+    def test_gb_exact_values(self):
+        """Test exact GB calculations."""
+        assert format_bytes(2 * GB) == "2.00 GB"
+        assert format_bytes(int(1.5 * GB)) == "1.50 GB"
+
+
+class TestFormatDurationMutationKilling:
+    """Exact value tests to catch arithmetic mutations in format_duration."""
+
+    def test_seconds_exact(self):
+        """Test exact second formatting."""
+        assert format_duration(0) == "0.00s"
+        assert format_duration(30.5) == "30.50s"
+        assert format_duration(59.99) == "59.99s"
+
+    def test_minute_boundary(self):
+        """Test minute boundary - catches seconds < 60 mutation."""
+        assert format_duration(59.99) == "59.99s"
+        assert format_duration(60) == "1m 0.0s"
+        assert format_duration(60.5) == "1m 0.5s"
+
+    def test_minutes_exact(self):
+        """Test exact minute calculations."""
+        assert format_duration(90) == "1m 30.0s"
+        assert format_duration(120) == "2m 0.0s"
+        assert format_duration(150.5) == "2m 30.5s"
+
+    def test_hour_boundary(self):
+        """Test hour boundary - catches seconds < 3600 mutation."""
+        assert format_duration(3599) == "59m 59.0s"
+        assert format_duration(3600) == "1h 0m 0s"
+        assert format_duration(3601) == "1h 0m 1s"
+
+    def test_hours_exact(self):
+        """Test exact hour calculations."""
+        assert format_duration(3661) == "1h 1m 1s"
+        assert format_duration(7200) == "2h 0m 0s"
+        assert format_duration(7325) == "2h 2m 5s"
+
+    def test_modulo_arithmetic(self):
+        """Test modulo operations in hour calculation."""
+        # 3723 = 1h 2m 3s = 3600 + 120 + 3
+        assert format_duration(3723) == "1h 2m 3s"
+        # 7384 = 2h 3m 4s = 7200 + 180 + 4
+        assert format_duration(7384) == "2h 3m 4s"
+
+
+class TestRandomPersonNameMutationKilling:
+    """Deterministic tests for random_person_name using controlled random."""
+
+    def test_name_structure_deterministic(self):
+        """Test name structure with controlled randomness.
+
+        Function order: first=choice(first_names), last=choice(last_names)
+        Returns: "{last}^{first}^{middle}"
+        """
+        from unittest.mock import patch
+        import dicom_fuzzer.utils.helpers as helpers_module
+
+        # Control calls: first_name, last_name, middle_initial
+        call_count = [0]
+        choices = ["John", "Smith", "X"]  # first, last, middle
+
+        def mock_choice(seq):
+            result = choices[call_count[0] % len(choices)]
+            call_count[0] += 1
+            return result
+
+        # Force middle initial path (random() < 0.3)
+        with patch.object(helpers_module.random, "choice", side_effect=mock_choice):
+            with patch.object(helpers_module.random, "random", return_value=0.1):
+                result = random_person_name()
+
+        # Function returns f"{last}^{first}^{middle}" = "Smith^John^X"
+        assert result == "Smith^John^X", f"Expected 'Smith^John^X', got '{result}'"
+
+    def test_name_no_middle(self):
+        """Test name without middle initial."""
+        from unittest.mock import patch
+        import dicom_fuzzer.utils.helpers as helpers_module
+
+        choices = ["Jane", "Johnson"]  # first_name, last_name
+
+        def mock_choice(seq):
+            return choices.pop(0) if choices else "X"
+
+        # Force no middle initial (random() >= 0.3)
+        with patch.object(helpers_module.random, "choice", side_effect=mock_choice):
+            with patch.object(helpers_module.random, "random", return_value=0.5):
+                result = random_person_name()
+
+        # Function returns f"{last}^{first}" = "Johnson^Jane"
+        assert result == "Johnson^Jane", f"Expected 'Johnson^Jane', got '{result}'"
+
+    def test_name_parts_come_from_lists(self):
+        """Verify names come from predefined lists."""
+        first_names = {
+            "John", "Jane", "Michael", "Sarah", "David",
+            "Emma", "James", "Mary", "Robert", "Patricia"
+        }
+        last_names = {
+            "Smith", "Johnson", "Williams", "Brown", "Jones",
+            "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"
+        }
+
+        for _ in range(50):
+            result = random_person_name()
+            parts = result.split("^")
+            assert parts[0] in last_names, f"Last name '{parts[0]}' not in list"
+            assert parts[1] in first_names, f"First name '{parts[1]}' not in list"
+
+
+class TestRandomDicomDateMutationKilling:
+    """Deterministic tests for random_dicom_date."""
+
+    def test_date_arithmetic(self):
+        """Test date generation with controlled random values.
+
+        The function works by:
+        1. Calculating days_between = (end_date - start_date).days
+        2. Calling randint(0, days_between) to get a random day offset
+        3. Adding that offset to start_date
+
+        For 2020 (leap year): Jan 1 + 166 days = June 15
+        (31 Jan + 29 Feb + 31 Mar + 30 Apr + 31 May + 14 = 166)
+        """
+        from unittest.mock import patch
+        import dicom_fuzzer.utils.helpers as helpers_module
+
+        # Day 166 from Jan 1, 2020 = June 15, 2020
+        with patch.object(helpers_module.random, "randint", return_value=166):
+            result = random_dicom_date(2020, 2020)
+
+        assert result == "20200615", f"Expected '20200615', got '{result}'"
+
+    def test_date_year_range(self):
+        """Test year is within specified range."""
+        from unittest.mock import patch
+        import dicom_fuzzer.utils.helpers as helpers_module
+
+        # Always return first valid value for year, last for others
+        def mock_randint(a, b):
+            return a
+
+        with patch.object(helpers_module.random, "randint", side_effect=mock_randint):
+            result = random_dicom_date(1990, 2020)
+
+        assert result.startswith("1990"), f"Expected year 1990, got {result[:4]}"
+
+    def test_date_month_day_bounds(self):
+        """Test month and day are within valid bounds."""
+        for _ in range(50):
+            result = random_dicom_date(2020, 2020)
+            month = int(result[4:6])
+            day = int(result[6:8])
+            assert 1 <= month <= 12, f"Month {month} out of range"
+            assert 1 <= day <= 31, f"Day {day} out of range"
+
+
+class TestRandomDicomTimeMutationKilling:
+    """Deterministic tests for random_dicom_time."""
+
+    def test_time_arithmetic(self):
+        """Test time generation with controlled random values."""
+        from unittest.mock import patch
+        import dicom_fuzzer.utils.helpers as helpers_module
+
+        randint_values = iter([14, 30, 45])  # hour, minute, second
+
+        with patch.object(helpers_module.random, "randint", side_effect=lambda a, b: next(randint_values)):
+            result = random_dicom_time()
+
+        assert result == "143045", f"Expected '143045', got '{result}'"
+
+    def test_time_bounds(self):
+        """Test time components are within valid bounds."""
+        for _ in range(50):
+            result = random_dicom_time()
+            hour = int(result[:2])
+            minute = int(result[2:4])
+            second = int(result[4:6])
+            assert 0 <= hour <= 23, f"Hour {hour} out of range"
+            assert 0 <= minute <= 59, f"Minute {minute} out of range"
+            assert 0 <= second <= 59, f"Second {second} out of range"
+
+
+class TestRandomBytesMutationKilling:
+    """Tests for random_bytes to catch range mutations."""
+
+    def test_bytes_are_in_valid_range(self):
+        """Test all bytes are in 0-255 range."""
+        result = random_bytes(1000)
+        for b in result:
+            assert 0 <= b <= 255, f"Byte {b} out of range"
+
+    def test_bytes_distribution(self):
+        """Test bytes have reasonable distribution (not all same value)."""
+        result = random_bytes(100)
+        unique_values = set(result)
+        # With 100 random bytes, should have multiple unique values
+        assert len(unique_values) > 10, "Random bytes lack diversity"
+
+
+class TestRandomStringMutationKilling:
+    """Tests for random_string to catch length and charset mutations."""
+
+    def test_exact_length(self):
+        """Test string has exact requested length."""
+        for length in [0, 1, 5, 10, 100]:
+            result = random_string(length)
+            assert len(result) == length, f"Expected length {length}, got {len(result)}"
+
+    def test_charset_enforcement(self):
+        """Test all characters come from charset."""
+        charset = "ABC123"
+        result = random_string(100, charset=charset)
+        for char in result:
+            assert char in charset, f"Char '{char}' not in charset"
