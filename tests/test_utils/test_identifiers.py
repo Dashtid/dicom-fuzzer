@@ -273,3 +273,250 @@ class TestGenerateMutationId:
         ids = {generate_mutation_id() for _ in range(100)}
         # Allow some collisions since microsecond precision may not be perfect
         assert len(ids) >= 95
+
+
+# ============================================================================
+# Mutation-Killing Tests
+# These tests use controlled mocking to verify exact behavior
+# ============================================================================
+
+
+class TestGenerateShortIdMutationKilling:
+    """Deterministic tests for generate_short_id."""
+
+    def test_exact_value_with_mocked_uuid(self):
+        """Test exact output with controlled UUID."""
+        from unittest.mock import patch
+        import uuid as uuid_module
+
+        fixed_uuid = uuid_module.UUID("12345678-1234-5678-1234-567812345678")
+
+        with patch("dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid):
+            result = generate_short_id(8)
+
+        # UUID hex is "12345678123456781234567812345678"
+        assert result == "12345678", f"Expected '12345678', got '{result}'"
+
+    def test_slice_length_exact(self):
+        """Test that slice length is exactly as specified."""
+        from unittest.mock import patch
+        import uuid as uuid_module
+
+        fixed_uuid = uuid_module.UUID("abcdef12-3456-7890-abcd-ef1234567890")
+
+        with patch("dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid):
+            # Test different lengths
+            assert generate_short_id(1) == "a"
+            assert generate_short_id(4) == "abcd"
+            assert generate_short_id(8) == "abcdef12"
+            assert generate_short_id(16) == "abcdef1234567890"
+
+    def test_zero_length_returns_empty(self):
+        """Test that length=0 returns empty string (slice behavior)."""
+        from unittest.mock import patch
+        import uuid as uuid_module
+
+        fixed_uuid = uuid_module.UUID("abcdef12-3456-7890-abcd-ef1234567890")
+
+        with patch("dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid):
+            result = generate_short_id(0)
+
+        assert result == "", f"Expected '', got '{result}'"
+
+
+class TestGenerateTimestampIdMutationKilling:
+    """Deterministic tests for generate_timestamp_id."""
+
+    def test_exact_timestamp_with_mocked_datetime(self):
+        """Test exact output with controlled datetime."""
+        from unittest.mock import patch
+        from datetime import datetime as dt
+
+        fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
+
+        with patch("dicom_fuzzer.utils.identifiers.datetime") as mock_dt:
+            mock_dt.now.return_value = fixed_time
+
+            result = generate_timestamp_id()
+
+        assert result == "20240615_103045", f"Expected '20240615_103045', got '{result}'"
+
+    def test_with_microseconds_exact(self):
+        """Test exact output with microseconds."""
+        from unittest.mock import patch
+        from datetime import datetime as dt
+
+        fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
+
+        with patch("dicom_fuzzer.utils.identifiers.datetime") as mock_dt:
+            mock_dt.now.return_value = fixed_time
+
+            result = generate_timestamp_id(include_microseconds=True)
+
+        assert result == "20240615_103045_123456", f"Expected '20240615_103045_123456', got '{result}'"
+
+    def test_with_prefix_exact(self):
+        """Test exact output with prefix."""
+        from unittest.mock import patch
+        from datetime import datetime as dt
+
+        fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
+
+        with patch("dicom_fuzzer.utils.identifiers.datetime") as mock_dt:
+            mock_dt.now.return_value = fixed_time
+
+            result = generate_timestamp_id(prefix="test")
+
+        assert result == "test_20240615_103045", f"Expected 'test_20240615_103045', got '{result}'"
+
+    def test_prefix_conditional_empty_vs_none(self):
+        """Test that empty prefix is treated as falsy (no prefix added)."""
+        from unittest.mock import patch
+        from datetime import datetime as dt
+
+        fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
+
+        with patch("dicom_fuzzer.utils.identifiers.datetime") as mock_dt:
+            mock_dt.now.return_value = fixed_time
+
+            # Empty string should NOT add prefix
+            result = generate_timestamp_id(prefix="")
+            assert result == "20240615_103045", f"Empty prefix should not add underscore: {result}"
+
+            # Non-empty prefix SHOULD add prefix
+            result = generate_timestamp_id(prefix="x")
+            assert result == "x_20240615_103045", f"Prefix should be added: {result}"
+
+
+class TestGenerateCrashIdMutationKilling:
+    """Deterministic tests for generate_crash_id."""
+
+    def test_exact_output_with_hash(self):
+        """Test exact crash ID with hash."""
+        from unittest.mock import patch
+        from datetime import datetime as dt
+
+        fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
+
+        with patch("dicom_fuzzer.utils.identifiers.datetime") as mock_dt:
+            mock_dt.now.return_value = fixed_time
+
+            result = generate_crash_id(crash_hash="abcdef1234567890")
+
+        assert result == "crash_20240615_103045_abcdef12", f"Got: {result}"
+
+    def test_hash_truncation_exact(self):
+        """Test hash is truncated to exactly 8 characters."""
+        from unittest.mock import patch
+        from datetime import datetime as dt
+
+        fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
+
+        with patch("dicom_fuzzer.utils.identifiers.datetime") as mock_dt:
+            mock_dt.now.return_value = fixed_time
+
+            # Long hash - should be truncated
+            result = generate_crash_id(crash_hash="x" * 64)
+            assert result.endswith("_xxxxxxxx"), f"Hash should be truncated: {result}"
+
+            # Exactly 8 chars - should use as-is
+            result = generate_crash_id(crash_hash="12345678")
+            assert result.endswith("_12345678"), f"8-char hash should work: {result}"
+
+    def test_empty_hash_not_appended(self):
+        """Test empty hash string is not appended.
+
+        The condition 'if crash_hash' should be falsy for empty string.
+        """
+        from unittest.mock import patch
+        from datetime import datetime as dt
+
+        fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
+
+        with patch("dicom_fuzzer.utils.identifiers.datetime") as mock_dt:
+            mock_dt.now.return_value = fixed_time
+
+            # Empty string should not add hash suffix
+            result = generate_crash_id(crash_hash="")
+            assert result == "crash_20240615_103045", f"Empty hash should not add suffix: {result}"
+            assert not result.endswith("_"), "Should not end with underscore"
+
+    def test_none_hash_not_appended(self):
+        """Test None hash is not appended."""
+        from unittest.mock import patch
+        from datetime import datetime as dt
+
+        fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
+
+        with patch("dicom_fuzzer.utils.identifiers.datetime") as mock_dt:
+            mock_dt.now.return_value = fixed_time
+
+            result = generate_crash_id(crash_hash=None)
+            assert result == "crash_20240615_103045", f"None hash should not add suffix: {result}"
+
+
+class TestGenerateSessionIdMutationKilling:
+    """Deterministic tests for generate_session_id."""
+
+    def test_empty_name_uses_default(self):
+        """Test empty session_name uses default prefix.
+
+        The condition 'session_name if session_name else "fuzzing_session"'
+        should use default for empty string.
+        """
+        from unittest.mock import patch
+        from datetime import datetime as dt
+
+        fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
+
+        with patch("dicom_fuzzer.utils.identifiers.datetime") as mock_dt:
+            mock_dt.now.return_value = fixed_time
+
+            # Empty string should use default
+            result = generate_session_id(session_name="")
+            assert result.startswith("fuzzing_session_"), f"Empty name should use default: {result}"
+
+            # None should use default
+            result = generate_session_id(session_name=None)
+            assert result.startswith("fuzzing_session_"), f"None should use default: {result}"
+
+    def test_custom_name_exact(self):
+        """Test custom session name produces exact output."""
+        from unittest.mock import patch
+        from datetime import datetime as dt
+
+        fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
+
+        with patch("dicom_fuzzer.utils.identifiers.datetime") as mock_dt:
+            mock_dt.now.return_value = fixed_time
+
+            result = generate_session_id(session_name="my_test")
+
+        assert result == "my_test_20240615_103045", f"Got: {result}"
+
+
+class TestGenerateCorpusEntryIdMutationKilling:
+    """Deterministic tests for generate_corpus_entry_id."""
+
+    def test_exact_format_with_mocked_uuid(self):
+        """Test exact corpus entry ID format."""
+        from unittest.mock import patch
+        import uuid as uuid_module
+
+        fixed_uuid = uuid_module.UUID("abcdef12-3456-7890-abcd-ef1234567890")
+
+        with patch("dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid):
+            result = generate_corpus_entry_id(generation=3)
+
+        assert result == "gen3_abcdef12", f"Got: {result}"
+
+    def test_generation_number_in_prefix(self):
+        """Test generation number appears correctly."""
+        from unittest.mock import patch
+        import uuid as uuid_module
+
+        fixed_uuid = uuid_module.UUID("12345678-0000-0000-0000-000000000000")
+
+        with patch("dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid):
+            assert generate_corpus_entry_id(generation=0).startswith("gen0_")
+            assert generate_corpus_entry_id(generation=99).startswith("gen99_")
