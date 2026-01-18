@@ -33,7 +33,7 @@ from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
 from dicom_fuzzer.utils.logger import get_logger
 
 if TYPE_CHECKING:
-    from dicom_fuzzer.core.windows_crash_handler import (  # noqa: F401 - type hints only
+    from dicom_fuzzer.core.windows_crash_handler import (
         WindowsCrashHandler,
         WindowsCrashInfo,
     )
