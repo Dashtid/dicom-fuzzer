@@ -12,6 +12,7 @@ These patterns target known vulnerabilities in DICOM parsers and viewers,
 helping identify similar issues in other implementations.
 """
 
+import contextlib
 import random
 import struct
 
@@ -445,12 +446,11 @@ class SecurityPatternFuzzer:
 
         # Set JPEG transfer syntax if possible
         if hasattr(dataset, "file_meta"):
-            try:
+            with contextlib.suppress(Exception):
+                # Transfer syntax setting is optional; continue with attack patterns
                 dataset.file_meta.TransferSyntaxUID = UID(
                     random.choice(jpeg_transfer_syntaxes)
                 )
-            except Exception:
-                pass
 
         # Create malformed JPEG marker sequences
         jpeg_attack_patterns = [

@@ -33,9 +33,10 @@ from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
 _matplotlib: ModuleType | None
 try:
     import matplotlib as _mpl
-    import matplotlib.pyplot
+    import matplotlib.pyplot as _plt  # noqa: F401 - imported for backend initialization
 
     _matplotlib = _mpl
+    del _plt  # Clean up namespace, only needed for side effect
 except ImportError:
     _matplotlib = None
 
