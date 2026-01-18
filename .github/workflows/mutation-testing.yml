@@ -51,13 +51,9 @@ jobs:
 
       - name: Create virtual environment and install dependencies
         run: |
-          uv venv .venv
-          source .venv/bin/activate
-          # Non-editable install so package is in site-packages
-          # This is required for mutmut which runs tests from mutants/ directory
-          uv pip install ".[dev]"
+          # Use uv sync to install all dependencies including hypothesis (needed for some tests)
+          uv sync --all-extras
           uv pip install mutmut toml
-          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Configure mutation paths
         env:
@@ -104,30 +100,25 @@ jobs:
           cp pyproject.toml pyproject.toml.bak
 
           # Create minimal pytest config for mutation testing
-          # Only run tests for the specific modules being mutated
+          # Remove conflicting pytest args but let mutmut discover tests naturally
           python3 << 'EOF'
           import toml
 
           with open('pyproject.toml', 'r') as f:
               config = toml.load(f)
 
-          # Minimal pytest options for mutmut - specify exact test files
+          # Minimal pytest options for mutmut - avoid args that conflict with mutmut's internal args
           config['tool']['pytest']['ini_options']['addopts'] = [
               "--import-mode=importlib"
           ]
-          # Run only test_utils tests (test_core tests use hypothesis which is not installed)
-          config['tool']['pytest']['ini_options']['testpaths'] = [
-              "tests/test_utils/test_hashing.py",
-              "tests/test_utils/test_helpers.py",
-              "tests/test_utils/test_identifiers.py",
-          ]
+          # Keep default testpaths so mutmut can map tests to mutated code
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
 
           print("[i] Configured pytest for mutation testing:")
-          print("    - Simplified addopts")
-          print("    - Running only tests/test_utils/{hashing,helpers,identifiers}.py")
+          print("    - Simplified addopts (removed -q, --tb, etc.)")
+          print("    - Using default testpaths for test discovery")
           EOF
 
           mutmut run || true
@@ -277,12 +268,8 @@ jobs:
       - name: Create virtual environment and install dependencies
         if: steps.changed-files.outputs.files != ''
         run: |
-          uv venv .venv
-          source .venv/bin/activate
-          # Non-editable install for mutmut compatibility
-          uv pip install ".[dev]"
+          uv sync --all-extras
           uv pip install mutmut toml
-          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Configure mutation paths for changed files
         if: steps.changed-files.outputs.files != ''
@@ -323,12 +310,7 @@ jobs:
           config['tool']['pytest']['ini_options']['addopts'] = [
               "--import-mode=importlib"
           ]
-          # Only test_utils tests (test_core uses hypothesis)
-          config['tool']['pytest']['ini_options']['testpaths'] = [
-              "tests/test_utils/test_hashing.py",
-              "tests/test_utils/test_helpers.py",
-              "tests/test_utils/test_identifiers.py",
-          ]
+          # Keep default testpaths for test discovery
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
