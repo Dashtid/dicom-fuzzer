@@ -108,12 +108,22 @@ jobs:
               config = toml.load(f)
 
           # Minimal pytest options for mutmut - avoid args that conflict with mutmut's internal args
-          # Also ignore test_adapters which has import issues in mutmut's environment
+          # Ignore all test directories except test_utils (which covers the mutated modules)
+          # Other directories have import issues when running from mutmut's mutants/ directory
           config['tool']['pytest']['ini_options']['addopts'] = [
               "--import-mode=importlib",
-              "--ignore=tests/test_adapters"
+              "--ignore=tests/test_adapters",
+              "--ignore=tests/test_analytics",
+              "--ignore=tests/test_cli",
+              "--ignore=tests/test_core",
+              "--ignore=tests/test_distributed",
+              "--ignore=tests/test_generators",
+              "--ignore=tests/test_harness",
+              "--ignore=tests/test_integration",
+              "--ignore=tests/test_performance",
+              "--ignore=tests/test_strategies",
           ]
-          # Keep default testpaths so mutmut can map tests to mutated code
+          # Only test_utils remains - covers hashing.py, helpers.py, identifiers.py
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
@@ -309,9 +319,19 @@ jobs:
           with open('pyproject.toml', 'r') as f:
               config = toml.load(f)
 
+          # Ignore all test directories except test_utils (same as main job)
           config['tool']['pytest']['ini_options']['addopts'] = [
               "--import-mode=importlib",
-              "--ignore=tests/test_adapters"
+              "--ignore=tests/test_adapters",
+              "--ignore=tests/test_analytics",
+              "--ignore=tests/test_cli",
+              "--ignore=tests/test_core",
+              "--ignore=tests/test_distributed",
+              "--ignore=tests/test_generators",
+              "--ignore=tests/test_harness",
+              "--ignore=tests/test_integration",
+              "--ignore=tests/test_performance",
+              "--ignore=tests/test_strategies",
           ]
 
           with open('pyproject.toml', 'w') as f:
