@@ -115,9 +115,13 @@ jobs:
           ]
           # Restrict to only the test files that test the mutated modules
           config['tool']['pytest']['ini_options']['testpaths'] = [
-              "tests/test_utils/test_hashing.py",
-              "tests/test_utils/test_helpers.py",
-              "tests/test_utils/test_identifiers.py",
+              "tests/test_core/test_parser.py",
+              "tests/test_core/test_parser_additional.py",
+              "tests/test_core/test_parser_real.py",
+              "tests/test_core/test_byte_mutator.py",
+              "tests/test_strategies/test_mutator.py",
+              "tests/test_strategies/test_mutator_additional.py",
+              "tests/test_strategies/test_mutator_real.py",
           ]
 
           with open('pyproject.toml', 'w') as f:
@@ -319,9 +323,13 @@ jobs:
               "--import-mode=importlib",
           ]
           config['tool']['pytest']['ini_options']['testpaths'] = [
-              "tests/test_utils/test_hashing.py",
-              "tests/test_utils/test_helpers.py",
-              "tests/test_utils/test_identifiers.py",
+              "tests/test_core/test_parser.py",
+              "tests/test_core/test_parser_additional.py",
+              "tests/test_core/test_parser_real.py",
+              "tests/test_core/test_byte_mutator.py",
+              "tests/test_strategies/test_mutator.py",
+              "tests/test_strategies/test_mutator_additional.py",
+              "tests/test_strategies/test_mutator_real.py",
           ]
 
           with open('pyproject.toml', 'w') as f:
