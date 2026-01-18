@@ -95,9 +95,17 @@ jobs:
           # Override pytest addopts to avoid conflicts with mutmut's internal runner
           PYTEST_ADDOPTS: ""
         run: |
-          # mutmut 3.4+ uses paths from pyproject.toml
-          # Clear pytest addopts to avoid conflicts
+          # mutmut 3.4+ reads pytest config from pyproject.toml and appends its own args
+          # This causes conflicts. Remove all addopts temporarily for mutmut.
+          # Save original and create minimal addopts for mutation testing
+          cp pyproject.toml pyproject.toml.bak
+          sed -i '/^addopts = \[/,/^\]/c\addopts = ["--import-mode=importlib"]' pyproject.toml
+          echo "[i] Simplified pytest addopts for mutmut compatibility"
+
           mutmut run || true
+
+          # Restore original pyproject.toml
+          mv pyproject.toml.bak pyproject.toml
 
       - name: Generate mutation report
         run: |
@@ -272,9 +280,16 @@ jobs:
         env:
           PYTEST_ADDOPTS: ""
         run: |
+          # Simplify pytest addopts to avoid conflicts with mutmut
+          cp pyproject.toml pyproject.toml.bak
+          sed -i '/^addopts = \[/,/^\]/c\addopts = ["--import-mode=importlib"]' pyproject.toml
+
           mutmut run || true
           mutmut results > pr-mutation-results.txt 2>&1 || true
           cat pr-mutation-results.txt
+
+          # Restore original
+          mv pyproject.toml.bak pyproject.toml
 
       - name: Comment PR with results
         if: steps.changed-files.outputs.files != '' && github.event_name == 'pull_request'
