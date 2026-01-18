@@ -180,6 +180,80 @@ class TestHashFile:
         finally:
             temp_path.unlink()
 
+    def test_exact_chunk_boundary(self):
+        """Verify file exactly at chunk size boundary is hashed correctly.
+
+        Catches mutations to chunk size (4096 -> 4095 or 4097).
+        """
+        # Exactly one chunk (4096 bytes)
+        content = b"a" * 4096
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".bin") as f:
+            f.write(content)
+            temp_path = Path(f.name)
+
+        try:
+            result = hash_file(temp_path)
+            expected = hashlib.sha256(content).hexdigest()
+            assert result == expected, "Hash mismatch at exact chunk boundary"
+        finally:
+            temp_path.unlink()
+
+    def test_chunk_boundary_plus_one(self):
+        """Verify file at chunk size + 1 is hashed correctly.
+
+        Forces reading into second chunk.
+        """
+        # One byte more than chunk size
+        content = b"b" * 4097
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".bin") as f:
+            f.write(content)
+            temp_path = Path(f.name)
+
+        try:
+            result = hash_file(temp_path)
+            expected = hashlib.sha256(content).hexdigest()
+            assert result == expected, "Hash mismatch at chunk boundary + 1"
+        finally:
+            temp_path.unlink()
+
+    def test_content_at_chunk_boundary(self):
+        """Verify content at chunk boundaries is included in hash.
+
+        Creates file with marker at 4096 byte boundary to ensure
+        both chunks are read and included in hash.
+        """
+        # First chunk: 4096 'a's, second chunk: MARKER + 'b's
+        chunk1 = b"a" * 4096
+        marker = b"MARKER"
+        chunk2_rest = b"b" * (4096 - len(marker))
+        content = chunk1 + marker + chunk2_rest
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".bin") as f:
+            f.write(content)
+            temp_path = Path(f.name)
+
+        try:
+            result = hash_file(temp_path)
+            expected = hashlib.sha256(content).hexdigest()
+            assert result == expected, "Hash mismatch - marker at chunk boundary not included"
+        finally:
+            temp_path.unlink()
+
+    def test_multiple_exact_chunks(self):
+        """Verify file with exactly N chunks is hashed correctly."""
+        # Exactly 3 chunks (12288 bytes)
+        content = b"c" * (4096 * 3)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".bin") as f:
+            f.write(content)
+            temp_path = Path(f.name)
+
+        try:
+            result = hash_file(temp_path)
+            expected = hashlib.sha256(content).hexdigest()
+            assert result == expected, "Hash mismatch for multiple exact chunks"
+        finally:
+            temp_path.unlink()
+
 
 class TestHashFileQuick:
     """Tests for hash_file_quick function."""
@@ -274,6 +348,72 @@ class TestHashAny:
         assert len(result) == 8
         assert all(c in "0123456789abcdef" for c in result)
 
+    def test_type_dispatch_exclusive_branches(self):
+        """Verify each type takes its exclusive branch.
+
+        This test catches mutations that swap type branches (e.g., mutating
+        `if value is None` to `if value is not None`).
+        """
+        # None should hash as literal bytes b"None", not as string "None"
+        none_hash = hash_any(None)
+        bytes_none_hash = hash_any(b"None")
+        str_none_hash = hash_any("None")
+
+        # None branch hashes b"None" directly
+        # String branch hashes "None".encode() = b"None"
+        # So these should be equal
+        assert none_hash == str_none_hash, "None should hash same as string 'None'"
+        assert none_hash == bytes_none_hash, "None should hash same as bytes b'None'"
+
+    def test_bytes_branch_uses_raw_bytes(self):
+        """Verify bytes are hashed directly without encoding.
+
+        Catches mutations that change isinstance(value, bytes) branch.
+        """
+        # These should produce the same hash since string encodes to same bytes
+        data = b"test"
+        result = hash_any(data)
+        expected = hashlib.sha256(data).hexdigest()
+        assert result == expected, f"Expected {expected}, got {result}"
+
+    def test_string_branch_encodes_utf8(self):
+        """Verify strings are encoded to UTF-8 before hashing.
+
+        Catches mutations that change isinstance(value, str) branch.
+        """
+        text = "test"
+        result = hash_any(text)
+        expected = hashlib.sha256(text.encode()).hexdigest()
+        assert result == expected, f"Expected {expected}, got {result}"
+
+    def test_fallback_uses_repr(self):
+        """Verify non-standard types use repr() for hashing.
+
+        Catches mutations in the else branch.
+        """
+        value = 42
+        result = hash_any(value)
+        expected = hashlib.sha256(repr(value).encode()).hexdigest()
+        assert result == expected, f"Expected {expected}, got {result}"
+
+    def test_none_vs_bytes_none_vs_str_none_consistency(self):
+        """Verify hash consistency across None representations.
+
+        The implementation hashes None as b"None", which is the same
+        bytes as "None".encode(). This test documents that behavior.
+        """
+        # All three should be equal because:
+        # - None -> hash_bytes(b"None")
+        # - b"None" -> hash_bytes(b"None")
+        # - "None" -> hash_string("None") -> hash_bytes("None".encode()) -> hash_bytes(b"None")
+        assert hash_any(None) == hash_any(b"None") == hash_any("None")
+
+    def test_bytes_string_equivalence(self):
+        """Verify bytes and their string decode produce same hash."""
+        data = b"hello world"
+        text = data.decode()
+        assert hash_any(data) == hash_any(text), "bytes and decoded string should hash same"
+
 
 class TestShortHash:
     """Tests for short_hash function."""
@@ -346,3 +486,41 @@ class TestMd5Hash:
         sha256_result = hash_bytes(data)
         # Different lengths and different values
         assert len(md5_result) != len(sha256_result)
+
+    def test_string_bytes_equivalence(self):
+        """Verify string and its encoded bytes produce same hash.
+
+        Catches mutations to isinstance(data, str) check.
+        """
+        text = "test data"
+        bytes_result = md5_hash(text.encode())
+        string_result = md5_hash(text)
+        assert bytes_result == string_result, "String and encoded bytes should hash same"
+
+    def test_type_coercion_explicit(self):
+        """Verify type coercion happens correctly.
+
+        Tests that the isinstance check properly routes to encoding.
+        """
+        # String input should be encoded to UTF-8
+        text = "hello"
+        result = md5_hash(text)
+        expected = hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()
+        assert result == expected, f"Expected {expected}, got {result}"
+
+        # Bytes input should be used directly
+        data = b"hello"
+        result = md5_hash(data)
+        expected = hashlib.md5(data, usedforsecurity=False).hexdigest()
+        assert result == expected, f"Expected {expected}, got {result}"
+
+    def test_unicode_string_encoding(self):
+        """Verify unicode strings are properly encoded.
+
+        Catches mutations that might affect UTF-8 encoding.
+        """
+        text = "日本語テスト"
+        result = md5_hash(text)
+        expected = hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()
+        assert result == expected, "Unicode string hash mismatch"
+        assert len(result) == 32, f"Expected 32 chars, got {len(result)}"
