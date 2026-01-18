@@ -20,12 +20,14 @@ from typing import Any
 
 # Import rich at module level for test compatibility
 try:
-    from rich.console import Console  # noqa: F401
-    from rich.live import Live  # noqa: F401
+    from rich.console import Console
+    from rich.live import Live  # noqa: F401 - may be used by callers
 
     HAS_RICH = True
+    _RichConsole = Console  # Reference to suppress unused import warning
 except ImportError:
     HAS_RICH = False
+    _RichConsole = None  # type: ignore[assignment, misc]
 
 
 # Import canonical FuzzingSession for module users

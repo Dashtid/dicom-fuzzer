@@ -16,16 +16,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for fast dependency resolution
-RUN pip install --no-cache-dir uv
+# Install uv for fast dependency resolution (pinned with hash for supply chain security)
+RUN pip install --no-cache-dir uv==0.9.26 \
+    --hash=sha256:b7e89798bd3df7dcc4b2b4ac4e2fc11d6b3ff4fe7d764aa3012d664c635e2922 \
+    --hash=sha256:ea296b700d7c4c27acdfd23ffaef2b0ecdd0aa1b58d942c62ee87df3b30f06ac
 
 # Copy project files
 COPY pyproject.toml ./
 COPY dicom_fuzzer/ ./dicom_fuzzer/
 COPY samples/ ./samples/
 
-# Build wheel
-RUN pip install --no-cache-dir build && \
+# Build wheel (pinned with hash for supply chain security)
+RUN pip install --no-cache-dir build==1.4.0 \
+    --hash=sha256:f1b91b925aa322be454f8330c6fb48b465da993d1e7e7e6fa35027ec49f3c936 && \
     python -m build --wheel
 
 # =============================================================================
