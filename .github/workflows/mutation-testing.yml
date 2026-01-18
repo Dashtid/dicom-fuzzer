@@ -108,22 +108,17 @@ jobs:
               config = toml.load(f)
 
           # Minimal pytest options for mutmut - avoid args that conflict with mutmut's internal args
-          # Ignore all test directories except test_utils (which covers the mutated modules)
-          # Other directories have import issues when running from mutmut's mutants/ directory
+          # Only run the specific test files that test the mutated modules
+          # Other files have import issues when running from mutmut's mutants/ directory
           config['tool']['pytest']['ini_options']['addopts'] = [
               "--import-mode=importlib",
-              "--ignore=tests/test_adapters",
-              "--ignore=tests/test_analytics",
-              "--ignore=tests/test_cli",
-              "--ignore=tests/test_core",
-              "--ignore=tests/test_distributed",
-              "--ignore=tests/test_generators",
-              "--ignore=tests/test_harness",
-              "--ignore=tests/test_integration",
-              "--ignore=tests/test_performance",
-              "--ignore=tests/test_strategies",
           ]
-          # Only test_utils remains - covers hashing.py, helpers.py, identifiers.py
+          # Restrict to only the test files that test the mutated modules
+          config['tool']['pytest']['ini_options']['testpaths'] = [
+              "tests/test_utils/test_hashing.py",
+              "tests/test_utils/test_helpers.py",
+              "tests/test_utils/test_identifiers.py",
+          ]
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
@@ -319,19 +314,14 @@ jobs:
           with open('pyproject.toml', 'r') as f:
               config = toml.load(f)
 
-          # Ignore all test directories except test_utils (same as main job)
+          # Only run the specific test files that test the mutated modules (same as main job)
           config['tool']['pytest']['ini_options']['addopts'] = [
               "--import-mode=importlib",
-              "--ignore=tests/test_adapters",
-              "--ignore=tests/test_analytics",
-              "--ignore=tests/test_cli",
-              "--ignore=tests/test_core",
-              "--ignore=tests/test_distributed",
-              "--ignore=tests/test_generators",
-              "--ignore=tests/test_harness",
-              "--ignore=tests/test_integration",
-              "--ignore=tests/test_performance",
-              "--ignore=tests/test_strategies",
+          ]
+          config['tool']['pytest']['ini_options']['testpaths'] = [
+              "tests/test_utils/test_hashing.py",
+              "tests/test_utils/test_helpers.py",
+              "tests/test_utils/test_identifiers.py",
           ]
 
           with open('pyproject.toml', 'w') as f:
