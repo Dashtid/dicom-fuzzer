@@ -115,14 +115,11 @@ jobs:
           config['tool']['pytest']['ini_options']['addopts'] = [
               "--import-mode=importlib"
           ]
-          # Run only tests for hashing, helpers, and identifiers modules
+          # Run only test_utils tests (test_core tests use hypothesis which is not installed)
           config['tool']['pytest']['ini_options']['testpaths'] = [
               "tests/test_utils/test_hashing.py",
               "tests/test_utils/test_helpers.py",
               "tests/test_utils/test_identifiers.py",
-              "tests/test_core/test_hashing.py",
-              "tests/test_core/test_helpers.py",
-              "tests/test_core/test_identifiers.py",
           ]
 
           with open('pyproject.toml', 'w') as f:
@@ -130,7 +127,7 @@ jobs:
 
           print("[i] Configured pytest for mutation testing:")
           print("    - Simplified addopts")
-          print("    - Running only tests for: hashing, helpers, identifiers")
+          print("    - Running only tests/test_utils/{hashing,helpers,identifiers}.py")
           EOF
 
           mutmut run || true
@@ -326,14 +323,11 @@ jobs:
           config['tool']['pytest']['ini_options']['addopts'] = [
               "--import-mode=importlib"
           ]
-          # Specific test files for utility modules
+          # Only test_utils tests (test_core uses hypothesis)
           config['tool']['pytest']['ini_options']['testpaths'] = [
               "tests/test_utils/test_hashing.py",
               "tests/test_utils/test_helpers.py",
               "tests/test_utils/test_identifiers.py",
-              "tests/test_core/test_hashing.py",
-              "tests/test_core/test_helpers.py",
-              "tests/test_core/test_identifiers.py",
           ]
 
           with open('pyproject.toml', 'w') as f:
