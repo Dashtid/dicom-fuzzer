@@ -1,0 +1,25 @@
+name: Auto-merge Owner & Dependabot PRs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Enable Auto-merge
+    runs-on: ubuntu-latest
+    # Only run for repo owner OR Dependabot
+    # External contributors cannot trigger this (no write access)
+    if: >
+      github.event.pull_request.user.login == github.repository_owner ||
+      github.actor == 'dependabot[bot]'
+    steps:
+      - name: Enable auto-merge
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
