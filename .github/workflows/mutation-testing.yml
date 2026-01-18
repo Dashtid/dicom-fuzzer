@@ -94,14 +94,38 @@ jobs:
         env:
           # Override pytest addopts to avoid conflicts with mutmut's internal runner
           PYTEST_ADDOPTS: ""
+          # Ensure package is discoverable from mutmut's mutants directory
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           # mutmut 3.4+ reads pytest config from pyproject.toml and appends its own args
-          # This causes conflicts. Remove all addopts temporarily for mutmut.
-          # Save original and create minimal addopts for mutation testing
+          # This causes conflicts. Simplify addopts and limit tests to utils modules.
           cp pyproject.toml pyproject.toml.bak
-          sed -i '/^addopts = \[/,/^\]/c\addopts = ["--import-mode=importlib", "--ignore=tests/test_adapters"]' pyproject.toml
-          echo "[i] Simplified pytest addopts for mutmut compatibility"
-          echo "[i] Excluded tests/test_adapters (import issues in mutmut environment)"
+
+          # Create minimal pytest config for mutation testing
+          # Only test modules related to the code being mutated (utils/)
+          python3 << 'EOF'
+          import toml
+
+          with open('pyproject.toml', 'r') as f:
+              config = toml.load(f)
+
+          # Minimal pytest options for mutmut
+          config['tool']['pytest']['ini_options']['addopts'] = [
+              "--import-mode=importlib"
+          ]
+          # Only run tests for the modules being mutated
+          config['tool']['pytest']['ini_options']['testpaths'] = [
+              "tests/test_utils",
+              "tests/test_core"
+          ]
+
+          with open('pyproject.toml', 'w') as f:
+              toml.dump(config, f)
+
+          print("[i] Configured pytest for mutation testing:")
+          print("    - Simplified addopts")
+          print("    - Limited to tests/test_utils and tests/test_core")
+          EOF
 
           mutmut run || true
 
@@ -280,10 +304,29 @@ jobs:
         if: steps.changed-files.outputs.files != ''
         env:
           PYTEST_ADDOPTS: ""
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           # Simplify pytest addopts to avoid conflicts with mutmut
           cp pyproject.toml pyproject.toml.bak
-          sed -i '/^addopts = \[/,/^\]/c\addopts = ["--import-mode=importlib", "--ignore=tests/test_adapters"]' pyproject.toml
+
+          # Create minimal pytest config for mutation testing
+          python3 << 'EOF'
+          import toml
+
+          with open('pyproject.toml', 'r') as f:
+              config = toml.load(f)
+
+          config['tool']['pytest']['ini_options']['addopts'] = [
+              "--import-mode=importlib"
+          ]
+          config['tool']['pytest']['ini_options']['testpaths'] = [
+              "tests/test_utils",
+              "tests/test_core"
+          ]
+
+          with open('pyproject.toml', 'w') as f:
+              toml.dump(config, f)
+          EOF
 
           mutmut run || true
           mutmut results > pr-mutation-results.txt 2>&1 || true
