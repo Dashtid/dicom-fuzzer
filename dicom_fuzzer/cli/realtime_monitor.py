@@ -21,17 +21,19 @@ from typing import Any
 # Import rich at module level for test compatibility
 try:
     from rich.console import Console
-    from rich.live import Live  # noqa: F401 - may be used by callers
+    from rich.live import Live
 
     HAS_RICH = True
-    _RichConsole = Console  # Reference to suppress unused import warning
 except ImportError:
     HAS_RICH = False
-    _RichConsole = None  # type: ignore[assignment, misc]
-
+    Console = None  # type: ignore[assignment, misc]
+    Live = None  # type: ignore[assignment, misc]
 
 # Import canonical FuzzingSession for module users
-from dicom_fuzzer.core.fuzzing_session import FuzzingSession  # noqa: F401
+from dicom_fuzzer.core.fuzzing_session import FuzzingSession
+
+# Explicit re-exports for module consumers
+__all__ = ["RealtimeMonitor", "FuzzingSession", "Console", "Live", "HAS_RICH"]
 
 
 class RealtimeMonitor:
