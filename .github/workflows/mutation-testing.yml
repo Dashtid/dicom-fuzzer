@@ -104,21 +104,25 @@ jobs:
           cp pyproject.toml pyproject.toml.bak
 
           # Create minimal pytest config for mutation testing
-          # Only test modules related to the code being mutated (utils/)
+          # Only run tests for the specific modules being mutated
           python3 << 'EOF'
           import toml
 
           with open('pyproject.toml', 'r') as f:
               config = toml.load(f)
 
-          # Minimal pytest options for mutmut
+          # Minimal pytest options for mutmut - specify exact test files
           config['tool']['pytest']['ini_options']['addopts'] = [
               "--import-mode=importlib"
           ]
-          # Only run tests for the modules being mutated
+          # Run only tests for hashing, helpers, and identifiers modules
           config['tool']['pytest']['ini_options']['testpaths'] = [
-              "tests/test_utils",
-              "tests/test_core"
+              "tests/test_utils/test_hashing.py",
+              "tests/test_utils/test_helpers.py",
+              "tests/test_utils/test_identifiers.py",
+              "tests/test_core/test_hashing.py",
+              "tests/test_core/test_helpers.py",
+              "tests/test_core/test_identifiers.py",
           ]
 
           with open('pyproject.toml', 'w') as f:
@@ -126,7 +130,7 @@ jobs:
 
           print("[i] Configured pytest for mutation testing:")
           print("    - Simplified addopts")
-          print("    - Limited to tests/test_utils and tests/test_core")
+          print("    - Running only tests for: hashing, helpers, identifiers")
           EOF
 
           mutmut run || true
@@ -322,9 +326,14 @@ jobs:
           config['tool']['pytest']['ini_options']['addopts'] = [
               "--import-mode=importlib"
           ]
+          # Specific test files for utility modules
           config['tool']['pytest']['ini_options']['testpaths'] = [
-              "tests/test_utils",
-              "tests/test_core"
+              "tests/test_utils/test_hashing.py",
+              "tests/test_utils/test_helpers.py",
+              "tests/test_utils/test_identifiers.py",
+              "tests/test_core/test_hashing.py",
+              "tests/test_core/test_helpers.py",
+              "tests/test_core/test_identifiers.py",
           ]
 
           with open('pyproject.toml', 'w') as f:
