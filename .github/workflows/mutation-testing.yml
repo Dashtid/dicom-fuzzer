@@ -101,7 +101,7 @@ jobs:
 
           # Create minimal pytest config for mutation testing
           # Remove conflicting pytest args but let mutmut discover tests naturally
-          python3 << 'EOF'
+          uv run python << 'EOF'
           import toml
 
           with open('pyproject.toml', 'r') as f:
@@ -121,7 +121,7 @@ jobs:
           print("    - Using default testpaths for test discovery")
           EOF
 
-          mutmut run || true
+          uv run mutmut run || true
 
           # Restore original pyproject.toml
           mv pyproject.toml.bak pyproject.toml
@@ -129,7 +129,7 @@ jobs:
       - name: Generate mutation report
         run: |
           # Get mutation results
-          mutmut results > mutation-results.txt 2>&1 || true
+          uv run mutmut results > mutation-results.txt 2>&1 || true
 
           # Show results in logs
           echo "=== Mutation Testing Results ==="
@@ -301,7 +301,7 @@ jobs:
           cp pyproject.toml pyproject.toml.bak
 
           # Create minimal pytest config for mutation testing
-          python3 << 'EOF'
+          uv run python << 'EOF'
           import toml
 
           with open('pyproject.toml', 'r') as f:
@@ -310,14 +310,13 @@ jobs:
           config['tool']['pytest']['ini_options']['addopts'] = [
               "--import-mode=importlib"
           ]
-          # Keep default testpaths for test discovery
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
           EOF
 
-          mutmut run || true
-          mutmut results > pr-mutation-results.txt 2>&1 || true
+          uv run mutmut run || true
+          uv run mutmut results > pr-mutation-results.txt 2>&1 || true
           cat pr-mutation-results.txt
 
           # Restore original
