@@ -140,19 +140,31 @@ jobs:
 
           # Parse the final line from mutmut run which has format:
           # ⠼ 416/416  🎉 372 🫥 0  ⏰ 2  🤔 0  🙁 42  🔇 0
-          # Use flexible pattern to match any line with progress and emojis
-          FINAL_LINE=$(grep -E "[0-9]+/[0-9]+.*🎉" mutmut-run.log | tail -1) || FINAL_LINE=""
+          # Strip ANSI codes and extract numbers after emojis
+          # Use sed to clean control characters first
+          CLEAN_LOG=$(cat mutmut-run.log | sed 's/\x1b\[[0-9;]*m//g' | tr -d '\r')
+          FINAL_LINE=$(echo "$CLEAN_LOG" | grep -E "[0-9]+/[0-9]+.*🎉" | tail -1) || FINAL_LINE=""
 
-          echo "DEBUG: FINAL_LINE='$FINAL_LINE'"
+          echo "DEBUG: Looking for progress line in mutmut-run.log"
 
           if [ -n "$FINAL_LINE" ]; then
-            # Parse emoji counts from final progress line using perl regex
-            KILLED=$(echo "$FINAL_LINE" | grep -oP '🎉\s*\K\d+' || echo "0")
-            SURVIVED=$(echo "$FINAL_LINE" | grep -oP '🙁\s*\K\d+' || echo "0")
-            TIMEOUT=$(echo "$FINAL_LINE" | grep -oP '⏰\s*\K\d+' || echo "0")
-            NO_COVERAGE=$(echo "$FINAL_LINE" | grep -oP '🫥\s*\K\d+' || echo "0")
-            SUSPICIOUS=$(echo "$FINAL_LINE" | grep -oP '🤔\s*\K\d+' || echo "0")
+            # Parse emoji counts - use sed as fallback if grep -P not available
+            KILLED=$(echo "$FINAL_LINE" | sed -n 's/.*🎉[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            SURVIVED=$(echo "$FINAL_LINE" | sed -n 's/.*🙁[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            TIMEOUT=$(echo "$FINAL_LINE" | sed -n 's/.*⏰[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            NO_COVERAGE=$(echo "$FINAL_LINE" | sed -n 's/.*🫥[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            SUSPICIOUS=$(echo "$FINAL_LINE" | sed -n 's/.*🤔[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+
+            # Ensure defaults if sed fails
+            KILLED=${KILLED:-0}
+            SURVIVED=${SURVIVED:-0}
+            TIMEOUT=${TIMEOUT:-0}
+            NO_COVERAGE=${NO_COVERAGE:-0}
+            SUSPICIOUS=${SUSPICIOUS:-0}
+
+            echo "DEBUG: Parsed KILLED=$KILLED SURVIVED=$SURVIVED from: $FINAL_LINE"
           else
+            echo "DEBUG: No progress line found, using fallback"
             # Fallback to counting from results file
             KILLED=$(grep -c "killed" mutation-results.txt 2>/dev/null) || KILLED=0
             SURVIVED=$(grep -c "survived" mutation-results.txt 2>/dev/null) || SURVIVED=0
@@ -340,11 +352,15 @@ jobs:
           uv run mutmut results > pr-mutation-results.txt 2>&1 || true
 
           # Parse the final line from mutmut run for accurate counts
-          FINAL_LINE=$(grep -E "[0-9]+/[0-9]+.*🎉" pr-mutmut-run.log | tail -1) || FINAL_LINE=""
+          CLEAN_LOG=$(cat pr-mutmut-run.log | sed 's/\x1b\[[0-9;]*m//g' | tr -d '\r')
+          FINAL_LINE=$(echo "$CLEAN_LOG" | grep -E "[0-9]+/[0-9]+.*🎉" | tail -1) || FINAL_LINE=""
           if [ -n "$FINAL_LINE" ]; then
-            KILLED=$(echo "$FINAL_LINE" | grep -oP '🎉\s*\K\d+' || echo "0")
-            SURVIVED=$(echo "$FINAL_LINE" | grep -oP '🙁\s*\K\d+' || echo "0")
-            TIMEOUT=$(echo "$FINAL_LINE" | grep -oP '⏰\s*\K\d+' || echo "0")
+            KILLED=$(echo "$FINAL_LINE" | sed -n 's/.*🎉[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            SURVIVED=$(echo "$FINAL_LINE" | sed -n 's/.*🙁[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            TIMEOUT=$(echo "$FINAL_LINE" | sed -n 's/.*⏰[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            KILLED=${KILLED:-0}
+            SURVIVED=${SURVIVED:-0}
+            TIMEOUT=${TIMEOUT:-0}
           else
             KILLED=$(grep -c "killed" pr-mutation-results.txt 2>/dev/null) || KILLED=0
             SURVIVED=$(grep -c "survived" pr-mutation-results.txt 2>/dev/null) || SURVIVED=0
