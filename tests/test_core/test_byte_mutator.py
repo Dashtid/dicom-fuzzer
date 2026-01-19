@@ -1303,7 +1303,6 @@ class TestFormatStringMutationKilling:
 
         Catches: '>H' -> '<H' or '>h' mutations
         """
-        import struct
         from unittest.mock import patch
 
         mutator = ByteMutator()
@@ -1325,7 +1324,6 @@ class TestFormatStringMutationKilling:
 
         Catches: '<H' -> '>H' or '<h' mutations
         """
-        import struct
         from unittest.mock import patch
 
         mutator = ByteMutator()
@@ -1344,7 +1342,6 @@ class TestFormatStringMutationKilling:
 
         Catches: '>h' -> '>H' or vice versa mutations
         """
-        import struct
         from unittest.mock import patch
 
         mutator = ByteMutator()
@@ -1364,7 +1361,6 @@ class TestFormatStringMutationKilling:
 
         Catches: '>i' -> '>I' or vice versa mutations
         """
-        import struct
         from unittest.mock import patch
 
         mutator = ByteMutator()

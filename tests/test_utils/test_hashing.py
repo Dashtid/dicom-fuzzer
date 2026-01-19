@@ -709,7 +709,7 @@ class TestHashAnyMutationKilling:
         assert bytes_result == bytes_expected
 
         str_result = hash_any("data", length=16)
-        str_expected = hashlib.sha256("data".encode()).hexdigest()[:16]
+        str_expected = hashlib.sha256(b"data").hexdigest()[:16]
         assert str_result == str_expected
 
 

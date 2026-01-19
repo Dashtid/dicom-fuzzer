@@ -852,6 +852,7 @@ class TestRandomPersonNameMutationKilling:
         Returns: "{last}^{first}^{middle}"
         """
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         # Control calls: first_name, last_name, middle_initial
@@ -874,6 +875,7 @@ class TestRandomPersonNameMutationKilling:
     def test_name_no_middle(self):
         """Test name without middle initial."""
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         choices = ["Jane", "Johnson"]  # first_name, last_name
@@ -922,6 +924,7 @@ class TestRandomDicomDateMutationKilling:
         (31 Jan + 29 Feb + 31 Mar + 30 Apr + 31 May + 14 = 166)
         """
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         # Day 166 from Jan 1, 2020 = June 15, 2020
@@ -933,6 +936,7 @@ class TestRandomDicomDateMutationKilling:
     def test_date_year_range(self):
         """Test year is within specified range."""
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         # Always return first valid value for year, last for others
@@ -960,6 +964,7 @@ class TestRandomDicomTimeMutationKilling:
     def test_time_arithmetic(self):
         """Test time generation with controlled random values."""
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         randint_values = iter([14, 30, 45])  # hour, minute, second
@@ -1196,6 +1201,7 @@ class TestRandomDicomDateMutationKillingExtended:
         Catches: `randint(0, days_between)` -> `randint(1, days_between)`
         """
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         # Force day 0 (first day of range)
@@ -1212,6 +1218,7 @@ class TestRandomDicomDateMutationKillingExtended:
         Catches: `end_date = datetime(end_year, 12, 31)` mutations
         """
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         # For 2020 (leap year): 366 days, so days_between = 365
@@ -1234,6 +1241,7 @@ class TestRandomDicomTimeMutationKillingExtended:
         Catches: `randint(0, 23)` -> `randint(1, 23)`
         """
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         with patch.object(helpers_module.random, "randint", side_effect=[0, 30, 30]):
@@ -1247,6 +1255,7 @@ class TestRandomDicomTimeMutationKillingExtended:
         Catches: `randint(0, 23)` -> `randint(0, 22)`
         """
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         with patch.object(helpers_module.random, "randint", side_effect=[23, 30, 30]):
@@ -1260,6 +1269,7 @@ class TestRandomDicomTimeMutationKillingExtended:
         Catches: `randint(0, 59)` -> `randint(0, 58)` for minute
         """
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         with patch.object(helpers_module.random, "randint", side_effect=[12, 59, 30]):
@@ -1273,6 +1283,7 @@ class TestRandomDicomTimeMutationKillingExtended:
         Catches: `randint(0, 59)` -> `randint(0, 58)` for second
         """
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         with patch.object(helpers_module.random, "randint", side_effect=[12, 30, 59]):
@@ -1328,6 +1339,7 @@ class TestRandomPatientIdMutationKilling:
         Catches: `randint(100000, 999999)` -> `randint(100001, 999999)`
         """
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         with patch.object(helpers_module.random, "randint", return_value=100000):
@@ -1341,6 +1353,7 @@ class TestRandomPatientIdMutationKilling:
         Catches: `randint(100000, 999999)` -> `randint(100000, 999998)`
         """
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         with patch.object(helpers_module.random, "randint", return_value=999999):
@@ -1361,6 +1374,7 @@ class TestRandomAccessionNumberMutationKilling:
         Catches: `randint(1000000, 9999999)` -> `randint(1000001, 9999999)`
         """
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         with patch.object(helpers_module.random, "randint", return_value=1000000):
@@ -1374,6 +1388,7 @@ class TestRandomAccessionNumberMutationKilling:
         Catches: `randint(1000000, 9999999)` -> `randint(1000000, 9999998)`
         """
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         with patch.object(helpers_module.random, "randint", return_value=9999999):
@@ -1509,6 +1524,7 @@ class TestRandomPersonNameMutationKillingExtended:
         Catches: `random() < 0.3` -> `random() <= 0.3` or other threshold changes
         """
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         # Just under threshold - should have middle
@@ -1526,6 +1542,7 @@ class TestRandomPersonNameMutationKillingExtended:
     def test_no_middle_above_threshold(self):
         """Verify no middle initial when random() >= 0.3."""
         from unittest.mock import patch
+
         import dicom_fuzzer.utils.helpers as helpers_module
 
         choices = ["Jane", "Johnson"]

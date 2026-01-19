@@ -286,8 +286,8 @@ class TestGenerateShortIdMutationKilling:
 
     def test_exact_value_with_mocked_uuid(self):
         """Test exact output with controlled UUID."""
-        from unittest.mock import patch
         import uuid as uuid_module
+        from unittest.mock import patch
 
         fixed_uuid = uuid_module.UUID("12345678-1234-5678-1234-567812345678")
 
@@ -299,8 +299,8 @@ class TestGenerateShortIdMutationKilling:
 
     def test_slice_length_exact(self):
         """Test that slice length is exactly as specified."""
-        from unittest.mock import patch
         import uuid as uuid_module
+        from unittest.mock import patch
 
         fixed_uuid = uuid_module.UUID("abcdef12-3456-7890-abcd-ef1234567890")
 
@@ -313,8 +313,8 @@ class TestGenerateShortIdMutationKilling:
 
     def test_zero_length_returns_empty(self):
         """Test that length=0 returns empty string (slice behavior)."""
-        from unittest.mock import patch
         import uuid as uuid_module
+        from unittest.mock import patch
 
         fixed_uuid = uuid_module.UUID("abcdef12-3456-7890-abcd-ef1234567890")
 
@@ -329,8 +329,8 @@ class TestGenerateTimestampIdMutationKilling:
 
     def test_exact_timestamp_with_mocked_datetime(self):
         """Test exact output with controlled datetime."""
-        from unittest.mock import patch
         from datetime import datetime as dt
+        from unittest.mock import patch
 
         fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
 
@@ -343,8 +343,8 @@ class TestGenerateTimestampIdMutationKilling:
 
     def test_with_microseconds_exact(self):
         """Test exact output with microseconds."""
-        from unittest.mock import patch
         from datetime import datetime as dt
+        from unittest.mock import patch
 
         fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
 
@@ -357,8 +357,8 @@ class TestGenerateTimestampIdMutationKilling:
 
     def test_with_prefix_exact(self):
         """Test exact output with prefix."""
-        from unittest.mock import patch
         from datetime import datetime as dt
+        from unittest.mock import patch
 
         fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
 
@@ -371,8 +371,8 @@ class TestGenerateTimestampIdMutationKilling:
 
     def test_prefix_conditional_empty_vs_none(self):
         """Test that empty prefix is treated as falsy (no prefix added)."""
-        from unittest.mock import patch
         from datetime import datetime as dt
+        from unittest.mock import patch
 
         fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
 
@@ -393,8 +393,8 @@ class TestGenerateCrashIdMutationKilling:
 
     def test_exact_output_with_hash(self):
         """Test exact crash ID with hash."""
-        from unittest.mock import patch
         from datetime import datetime as dt
+        from unittest.mock import patch
 
         fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
 
@@ -407,8 +407,8 @@ class TestGenerateCrashIdMutationKilling:
 
     def test_hash_truncation_exact(self):
         """Test hash is truncated to exactly 8 characters."""
-        from unittest.mock import patch
         from datetime import datetime as dt
+        from unittest.mock import patch
 
         fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
 
@@ -428,8 +428,8 @@ class TestGenerateCrashIdMutationKilling:
 
         The condition 'if crash_hash' should be falsy for empty string.
         """
-        from unittest.mock import patch
         from datetime import datetime as dt
+        from unittest.mock import patch
 
         fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
 
@@ -443,8 +443,8 @@ class TestGenerateCrashIdMutationKilling:
 
     def test_none_hash_not_appended(self):
         """Test None hash is not appended."""
-        from unittest.mock import patch
         from datetime import datetime as dt
+        from unittest.mock import patch
 
         fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
 
@@ -464,8 +464,8 @@ class TestGenerateSessionIdMutationKilling:
         The condition 'session_name if session_name else "fuzzing_session"'
         should use default for empty string.
         """
-        from unittest.mock import patch
         from datetime import datetime as dt
+        from unittest.mock import patch
 
         fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
 
@@ -482,8 +482,8 @@ class TestGenerateSessionIdMutationKilling:
 
     def test_custom_name_exact(self):
         """Test custom session name produces exact output."""
-        from unittest.mock import patch
         from datetime import datetime as dt
+        from unittest.mock import patch
 
         fixed_time = dt(2024, 6, 15, 10, 30, 45, 123456)
 
@@ -500,8 +500,8 @@ class TestGenerateCorpusEntryIdMutationKilling:
 
     def test_exact_format_with_mocked_uuid(self):
         """Test exact corpus entry ID format."""
-        from unittest.mock import patch
         import uuid as uuid_module
+        from unittest.mock import patch
 
         fixed_uuid = uuid_module.UUID("abcdef12-3456-7890-abcd-ef1234567890")
 
@@ -512,8 +512,8 @@ class TestGenerateCorpusEntryIdMutationKilling:
 
     def test_generation_number_in_prefix(self):
         """Test generation number appears correctly."""
-        from unittest.mock import patch
         import uuid as uuid_module
+        from unittest.mock import patch
 
         fixed_uuid = uuid_module.UUID("12345678-0000-0000-0000-000000000000")
 

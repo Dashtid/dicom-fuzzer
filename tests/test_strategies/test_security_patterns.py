@@ -1332,7 +1332,7 @@ class TestOversizedVRLengthsMutationKilling:
         lengths = security_fuzzer.oversized_vr_lengths
         assert len(lengths) == 6, f"Expected 6 values, got {len(lengths)}"
 
-    def test_0xFFFF_exact(self, security_fuzzer):
+    def test_hex_ffff_exact(self, security_fuzzer):
         """Verify 0xFFFF exactly (catches 0xFFFF -> 0xFFFE mutation)."""
         lengths = security_fuzzer.oversized_vr_lengths
         # Both must be present - catches if one replaces the other
@@ -1340,7 +1340,7 @@ class TestOversizedVRLengthsMutationKilling:
         has_fffe = 0xFFFE in lengths
         assert has_ffff and has_fffe, "Must have both 0xFFFF and 0xFFFE"
 
-    def test_0x8000_and_0x7FFF_distinct(self, security_fuzzer):
+    def test_hex_8000_and_7fff_distinct(self, security_fuzzer):
         """Verify 0x8000 and 0x7FFF are both present and distinct."""
         lengths = security_fuzzer.oversized_vr_lengths
         assert 0x8000 in lengths, "Missing 0x8000"
