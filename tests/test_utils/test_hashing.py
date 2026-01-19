@@ -524,3 +524,257 @@ class TestMd5Hash:
         expected = hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()
         assert result == expected, "Unicode string hash mismatch"
         assert len(result) == 32, f"Expected 32 chars, got {len(result)}"
+
+
+# =============================================================================
+# Mutation-Killing Tests for Surviving Mutations
+# These tests specifically target mutations that survived previous testing
+# =============================================================================
+
+
+class TestHashFileMutationKilling:
+    """Tests targeting hash_file mutations (mutmut_13, mutmut_14).
+
+    The function has: `return digest[:length] if length else digest`
+    Mutations likely change:
+    - `if length` to `if not length`
+    - `digest[:length]` slicing
+    """
+
+    def test_length_none_returns_full_64_chars(self):
+        """Verify length=None returns full 64-char hash.
+
+        Catches mutation: `if length` -> `if not length`
+        """
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
+            f.write(b"test")
+            temp_path = Path(f.name)
+
+        try:
+            result = hash_file(temp_path, length=None)
+            assert len(result) == 64, f"None should give 64 chars, got {len(result)}"
+        finally:
+            temp_path.unlink()
+
+    def test_length_positive_returns_truncated(self):
+        """Verify positive length returns truncated hash.
+
+        Catches mutation: `digest[:length]` -> `digest[:None]` or similar
+        """
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
+            f.write(b"test")
+            temp_path = Path(f.name)
+
+        try:
+            result = hash_file(temp_path, length=8)
+            assert len(result) == 8, f"length=8 should give 8 chars, got {len(result)}"
+
+            # Verify it's actually the prefix
+            full = hash_file(temp_path, length=None)
+            assert result == full[:8], "Truncated should be prefix of full"
+        finally:
+            temp_path.unlink()
+
+    def test_length_1_returns_single_char(self):
+        """Verify length=1 returns single character.
+
+        Catches off-by-one mutations in slicing.
+        """
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
+            f.write(b"test")
+            temp_path = Path(f.name)
+
+        try:
+            result = hash_file(temp_path, length=1)
+            assert len(result) == 1, f"length=1 should give 1 char, got {len(result)}"
+        finally:
+            temp_path.unlink()
+
+    def test_length_64_returns_full_hash(self):
+        """Verify length=64 returns full hash (same as None but through truncation)."""
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
+            f.write(b"test")
+            temp_path = Path(f.name)
+
+        try:
+            result_64 = hash_file(temp_path, length=64)
+            result_none = hash_file(temp_path, length=None)
+            assert result_64 == result_none, "length=64 should equal length=None"
+            assert len(result_64) == 64
+        finally:
+            temp_path.unlink()
+
+
+class TestHashAnyMutationKilling:
+    """Tests targeting hash_any mutations (mutmut_3,5,10,12,18,20).
+
+    The function has type dispatch:
+    - if value is None: return hash_bytes(b"None", length)
+    - elif isinstance(value, bytes): return hash_bytes(value, length)
+    - elif isinstance(value, str): return hash_string(value, length)
+    - else: return hash_string(repr(value), length)
+
+    Mutations likely swap conditions or change returns.
+    """
+
+    def test_none_branch_returns_correct_value(self):
+        """Verify None takes its specific branch.
+
+        Catches: `if value is None` -> `if value is not None`
+        """
+        result = hash_any(None)
+        # None should hash as literal bytes b"None"
+        expected = hashlib.sha256(b"None").hexdigest()
+        assert result == expected, f"None hash mismatch: {result} vs {expected}"
+
+    def test_bytes_branch_vs_repr_branch(self):
+        """Verify bytes branch differs from repr branch for same bytes content.
+
+        Catches mutation that routes bytes to repr() branch.
+        The repr of b"test" is "b'test'" which would hash differently.
+        """
+        data = b"test"
+        bytes_hash = hash_any(data)
+
+        # If bytes went to repr branch, it would hash repr(b"test") = "b'test'"
+        repr_hash = hashlib.sha256(repr(data).encode()).hexdigest()
+
+        # The actual bytes hash
+        expected = hashlib.sha256(data).hexdigest()
+
+        assert bytes_hash == expected, "bytes should hash directly"
+        assert bytes_hash != repr_hash, "bytes branch should differ from repr branch"
+
+    def test_string_branch_vs_repr_branch(self):
+        """Verify string branch differs from repr branch for strings.
+
+        Catches mutation that routes str to repr() branch.
+        repr("test") is "'test'" (with quotes) which hashes differently.
+        """
+        text = "test"
+        str_hash = hash_any(text)
+
+        # If string went to repr branch, it would hash repr("test") = "'test'"
+        repr_hash = hashlib.sha256(repr(text).encode()).hexdigest()
+
+        # The actual string hash (via encode)
+        expected = hashlib.sha256(text.encode()).hexdigest()
+
+        assert str_hash == expected, "string should hash via encode"
+        assert str_hash != repr_hash, "string branch should differ from repr branch"
+
+    def test_integer_uses_repr_branch(self):
+        """Verify integers use repr() for hashing.
+
+        Catches mutation in else branch.
+        """
+        value = 42
+        result = hash_any(value)
+        expected = hashlib.sha256(repr(value).encode()).hexdigest()
+        assert result == expected, f"int should use repr: {result} vs {expected}"
+
+    def test_length_passed_through_all_branches(self):
+        """Verify length parameter works for all type branches.
+
+        Catches mutations that drop length argument in branches.
+        """
+        # None branch
+        result = hash_any(None, length=8)
+        assert len(result) == 8, f"None with length=8: got {len(result)}"
+
+        # Bytes branch
+        result = hash_any(b"test", length=8)
+        assert len(result) == 8, f"bytes with length=8: got {len(result)}"
+
+        # String branch
+        result = hash_any("test", length=8)
+        assert len(result) == 8, f"str with length=8: got {len(result)}"
+
+        # Else branch (int)
+        result = hash_any(42, length=8)
+        assert len(result) == 8, f"int with length=8: got {len(result)}"
+
+    def test_branch_exclusivity_with_truncation(self):
+        """Verify branches are exclusive with truncation.
+
+        Tests that each branch returns correct truncated values.
+        """
+        # Each should give 16 chars and match expected
+        none_result = hash_any(None, length=16)
+        none_expected = hashlib.sha256(b"None").hexdigest()[:16]
+        assert none_result == none_expected
+
+        bytes_result = hash_any(b"data", length=16)
+        bytes_expected = hashlib.sha256(b"data").hexdigest()[:16]
+        assert bytes_result == bytes_expected
+
+        str_result = hash_any("data", length=16)
+        str_expected = hashlib.sha256("data".encode()).hexdigest()[:16]
+        assert str_result == str_expected
+
+
+class TestMd5HashMutationKilling:
+    """Tests targeting md5_hash mutations (mutmut_4,6,7).
+
+    The function has:
+    - if isinstance(data, str): data = data.encode()
+    - return digest[:length] if length else digest
+    """
+
+    def test_length_none_returns_full_32_chars(self):
+        """Verify length=None returns full 32-char MD5 hash.
+
+        Catches: `if length` -> `if not length`
+        """
+        result = md5_hash(b"test", length=None)
+        assert len(result) == 32, f"None should give 32 chars, got {len(result)}"
+
+    def test_length_positive_truncates(self):
+        """Verify positive length truncates hash.
+
+        Catches mutation in slicing logic.
+        """
+        result = md5_hash(b"test", length=8)
+        assert len(result) == 8, f"length=8 should give 8 chars, got {len(result)}"
+
+        full = md5_hash(b"test", length=None)
+        assert result == full[:8], "Truncated should be prefix"
+
+    def test_length_1_single_char(self):
+        """Verify length=1 returns single character."""
+        result = md5_hash(b"test", length=1)
+        assert len(result) == 1, f"length=1 should give 1 char, got {len(result)}"
+
+    def test_string_encoding_occurs(self):
+        """Verify string is encoded before hashing.
+
+        Catches: `if isinstance(data, str)` mutation
+        """
+        text = "test"
+        str_result = md5_hash(text)
+
+        # If string wasn't encoded, hashlib.md5(str) would raise TypeError
+        # So we verify by comparing with explicit encode
+        expected = hashlib.md5(text.encode(), usedforsecurity=False).hexdigest()
+        assert str_result == expected
+
+    def test_bytes_not_encoded(self):
+        """Verify bytes are not double-encoded.
+
+        If bytes went through encode(), we'd get different result.
+        """
+        data = b"test"
+        result = md5_hash(data)
+        expected = hashlib.md5(data, usedforsecurity=False).hexdigest()
+        assert result == expected
+
+        # If it were encoded, it would hash b"test".encode() which is nonsense
+        # but let's verify the hash is what we expect
+        assert result == "098f6bcd4621d373cade4e832627b4f6"
+
+    def test_length_32_equals_length_none(self):
+        """Verify length=32 gives same result as length=None."""
+        result_32 = md5_hash(b"test", length=32)
+        result_none = md5_hash(b"test", length=None)
+        assert result_32 == result_none
+        assert len(result_32) == 32
