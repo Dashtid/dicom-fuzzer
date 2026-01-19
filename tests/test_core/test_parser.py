@@ -266,7 +266,12 @@ class TestEdgeCases:
 class TestPropertyBasedTesting:
     """Property-based tests for robustness."""
 
-    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+    @settings(
+        suppress_health_check=[
+            HealthCheck.function_scoped_fixture,
+            HealthCheck.differing_executors,  # Required for mutation testing with mutmut
+        ]
+    )
     @given(max_size=st.integers(min_value=1, max_value=1000000))
     def test_max_file_size_validation(self, sample_dicom_file, max_size):
         """Property test: max_file_size parameter works correctly."""
