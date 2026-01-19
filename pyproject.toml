@@ -396,7 +396,7 @@ skips = ["B101", "B110", "B112", "B311", "B403", "B404", "B603"]
 # The workflow dynamically removes -q and --tb=short from pytest addopts to avoid conflicts
 # with mutmut's internal args (--tb=native, -x, -q)
 paths_to_mutate = [
-    "dicom_fuzzer/core/parser.py",
-    "dicom_fuzzer/core/byte_mutator.py",
-    "dicom_fuzzer/core/mutator.py",
+    "dicom_fuzzer/utils/hashing.py",
+    "dicom_fuzzer/utils/helpers.py",
+    "dicom_fuzzer/utils/identifiers.py",
 ]
