@@ -982,5 +982,150 @@ class TestCoverageMissingLines:
         parser.dataset.__getitem__ = original_getitem
 
 
+# =============================================================================
+# Mutation-Killing Tests for Surviving Mutations
+# These tests specifically target mutations that survived previous testing
+# =============================================================================
+
+
+class TestExtractMetadataMutationKilling:
+    """Tests targeting extract_metadata mutations.
+
+    The function uses dictionary keys like "patient_id" that mutmut changes to
+    "XXpatient_idXX". These tests verify exact key names are used.
+    """
+
+    EXPECTED_METADATA_KEYS = {
+        "patient_id",
+        "patient_name",
+        "patient_birth_date",
+        "patient_sex",
+        "study_date",
+        "study_time",
+        "study_description",
+        "modality",
+        "institution_name",
+        "manufacturer",
+        "manufacturer_model",
+        "software_version",
+        "sop_class_uid",
+        "sop_instance_uid",
+        "study_instance_uid",
+        "series_instance_uid",
+    }
+
+    def test_metadata_has_exact_keys(self, sample_dicom_file):
+        """Verify metadata contains exact expected key names.
+
+        Catches: "patient_id" -> "XXpatient_idXX" and similar mutations
+        """
+        parser = DicomParser(sample_dicom_file)
+        metadata = parser.extract_metadata()
+
+        for key in self.EXPECTED_METADATA_KEYS:
+            assert key in metadata, f"Missing expected key: {key}"
+
+    def test_metadata_keys_not_mutated(self, sample_dicom_file):
+        """Verify no mutated key names like XXpatient_idXX exist."""
+        parser = DicomParser(sample_dicom_file)
+        metadata = parser.extract_metadata()
+
+        for key in metadata.keys():
+            assert not key.startswith("XX"), f"Mutated key found: {key}"
+            assert not key.endswith("XX"), f"Mutated key found: {key}"
+
+    def test_patient_id_key_exact(self, sample_dicom_file):
+        """Verify exact 'patient_id' key exists (not 'XXpatient_idXX')."""
+        parser = DicomParser(sample_dicom_file)
+        metadata = parser.extract_metadata()
+        assert "patient_id" in metadata
+        assert "XXpatient_idXX" not in metadata
+
+    def test_modality_key_exact(self, sample_dicom_file):
+        """Verify exact 'modality' key exists."""
+        parser = DicomParser(sample_dicom_file)
+        metadata = parser.extract_metadata()
+        assert "modality" in metadata
+        assert "XXmodalityXX" not in metadata
+
+    def test_sop_class_uid_key_exact(self, sample_dicom_file):
+        """Verify exact 'sop_class_uid' key exists."""
+        parser = DicomParser(sample_dicom_file)
+        metadata = parser.extract_metadata()
+        assert "sop_class_uid" in metadata
+        assert "XXsop_class_uidXX" not in metadata
+
+    def test_has_pixel_data_key(self, dicom_with_pixels):
+        """Verify 'has_pixel_data' key exists with correct name."""
+        parser = DicomParser(dicom_with_pixels)
+        metadata = parser.extract_metadata()
+        assert "has_pixel_data" in metadata
+        assert "XXhas_pixel_dataXX" not in metadata
+        assert metadata["has_pixel_data"] is True
+
+    def test_image_shape_key(self, dicom_with_pixels):
+        """Verify 'image_shape' key exists when pixel data present."""
+        parser = DicomParser(dicom_with_pixels)
+        metadata = parser.extract_metadata()
+        assert "image_shape" in metadata
+        assert "XXimage_shapeXX" not in metadata
+
+    def test_rows_columns_keys(self, dicom_with_pixels):
+        """Verify 'rows' and 'columns' keys exist."""
+        parser = DicomParser(dicom_with_pixels)
+        metadata = parser.extract_metadata()
+        assert "rows" in metadata
+        assert "columns" in metadata
+        assert "XXrowsXX" not in metadata
+        assert "XXcolumnsXX" not in metadata
+
+    def test_bits_keys(self, dicom_with_pixels):
+        """Verify 'bits_allocated' and 'bits_stored' keys exist."""
+        parser = DicomParser(dicom_with_pixels)
+        metadata = parser.extract_metadata()
+        assert "bits_allocated" in metadata
+        assert "bits_stored" in metadata
+        assert "XXbits_allocatedXX" not in metadata
+        assert "XXbits_storedXX" not in metadata
+
+    def test_private_tags_key(self, sample_dicom_file):
+        """Verify 'private_tags' key when include_private=True."""
+        parser = DicomParser(sample_dicom_file)
+        metadata = parser.extract_metadata(include_private=True)
+        assert "private_tags" in metadata
+        assert "XXprivate_tagsXX" not in metadata
+
+
+class TestGetCriticalTagsMutationKilling:
+    """Tests targeting get_critical_tags mutations.
+
+    Keys are in format '(XXXX,YYYY)' from str(tag).
+    """
+
+    def test_critical_tags_returns_dict(self, sample_dicom_file):
+        """Verify get_critical_tags returns a dict."""
+        parser = DicomParser(sample_dicom_file)
+        tags = parser.get_critical_tags()
+        assert isinstance(tags, dict)
+
+    def test_critical_tags_keys_are_tag_format(self, sample_dicom_file):
+        """Verify keys are in DICOM tag format (XXXX,YYYY)."""
+        parser = DicomParser(sample_dicom_file)
+        tags = parser.get_critical_tags()
+
+        for key in tags.keys():
+            # Keys should be like '(0008,0016)'
+            assert key.startswith("("), f"Key should start with '(': {key}"
+            assert key.endswith(")"), f"Key should end with ')': {key}"
+            assert "," in key, f"Key should contain ',': {key}"
+
+    def test_sop_class_uid_tag_present(self, sample_dicom_file):
+        """Verify SOPClassUID tag (0008,0016) is in critical tags."""
+        parser = DicomParser(sample_dicom_file)
+        tags = parser.get_critical_tags()
+        # SOPClassUID = (0008,0016)
+        assert "(0008, 0016)" in tags or "(0008,0016)" in tags
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

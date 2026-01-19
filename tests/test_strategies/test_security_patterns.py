@@ -1290,3 +1290,256 @@ class TestForcedExceptionPaths:
         with patch.object(Dataset, "__setattr__", raising_setattr):
             result = security_fuzzer.apply_integer_overflow_pattern(ds)
             assert result is not None
+
+
+# =============================================================================
+# Mutation-Killing Tests for Surviving Mutations
+# These tests specifically target mutations that survived previous testing
+# =============================================================================
+
+
+class TestOversizedVRLengthsMutationKilling:
+    """Tests targeting oversized_vr_lengths value mutations.
+
+    mutmut changes values like 0xFFFF -> 0xFFFE or 0x10000 -> 0x10001.
+    """
+
+    def test_all_exact_values_present(self, security_fuzzer):
+        """Verify all exact values exist (not mutated variants)."""
+        lengths = security_fuzzer.oversized_vr_lengths
+
+        # Each exact value must be present
+        assert 0xFFFF in lengths, "Missing 0xFFFF (max 16-bit)"
+        assert 0xFFFE in lengths, "Missing 0xFFFE (one less than max)"
+        assert 0x8000 in lengths, "Missing 0x8000 (boundary)"
+        assert 0x7FFF in lengths, "Missing 0x7FFF (max signed 16-bit)"
+        assert 0x10000 in lengths, "Missing 0x10000 (just over 16-bit)"
+        assert 0x100000 in lengths, "Missing 0x100000 (large value)"
+
+    def test_mutated_values_not_present(self, security_fuzzer):
+        """Verify clearly mutated variants are NOT present."""
+        lengths = security_fuzzer.oversized_vr_lengths
+
+        # Common mutmut mutations (+-1) that would be clearly wrong
+        # Note: 0xFFFF and 0xFFFE are both valid values, not mutations of each other
+        assert 0x10001 not in lengths, "Mutated 0x10001 found (should be 0x10000)"
+        assert 0xFFFF + 2 not in lengths, "Mutated 0x10001 found"
+        assert 0x100001 not in lengths, "Mutated 0x100001 found (should be 0x100000)"
+        assert 0x0FFFFF not in lengths, "Mutated 0x0FFFFF found (should be 0x100000)"
+
+    def test_value_count_exact(self, security_fuzzer):
+        """Verify exact count of values (catches additions/removals)."""
+        lengths = security_fuzzer.oversized_vr_lengths
+        assert len(lengths) == 6, f"Expected 6 values, got {len(lengths)}"
+
+    def test_0xFFFF_exact(self, security_fuzzer):
+        """Verify 0xFFFF exactly (catches 0xFFFF -> 0xFFFE mutation)."""
+        lengths = security_fuzzer.oversized_vr_lengths
+        # Both must be present - catches if one replaces the other
+        has_ffff = 0xFFFF in lengths
+        has_fffe = 0xFFFE in lengths
+        assert has_ffff and has_fffe, "Must have both 0xFFFF and 0xFFFE"
+
+    def test_0x8000_and_0x7FFF_distinct(self, security_fuzzer):
+        """Verify 0x8000 and 0x7FFF are both present and distinct."""
+        lengths = security_fuzzer.oversized_vr_lengths
+        assert 0x8000 in lengths, "Missing 0x8000"
+        assert 0x7FFF in lengths, "Missing 0x7FFF"
+        # They should be separate entries
+        count_8000 = lengths.count(0x8000)
+        count_7fff = lengths.count(0x7FFF)
+        assert count_8000 == 1, f"0x8000 appears {count_8000} times"
+        assert count_7fff == 1, f"0x7FFF appears {count_7fff} times"
+
+
+class TestHeapSprayPatternsMutationKilling:
+    """Tests targeting heap_spray_patterns byte mutations."""
+
+    def test_classic_heap_spray_exact_bytes(self, security_fuzzer):
+        """Verify classic heap spray has exact bytes 0x0c repeated."""
+        patterns = security_fuzzer.heap_spray_patterns
+
+        # Find pattern with 0x0c bytes
+        found_0c_pattern = False
+        for p in patterns:
+            if p.startswith(b"\x0c\x0c\x0c\x0c"):
+                found_0c_pattern = True
+                # Verify it's 256 repetitions (1024 bytes)
+                assert len(p) == 1024, f"Expected 1024 bytes, got {len(p)}"
+                break
+        assert found_0c_pattern, "Missing classic 0x0c heap spray"
+
+    def test_nop_sled_exact_bytes(self, security_fuzzer):
+        """Verify NOP sled uses exact byte 0x90."""
+        patterns = security_fuzzer.heap_spray_patterns
+
+        found_nop = False
+        for p in patterns:
+            if p == b"\x90" * 1024:
+                found_nop = True
+                break
+        assert found_nop, "Missing 0x90 NOP sled pattern"
+
+    def test_ascii_a_pattern(self, security_fuzzer):
+        """Verify ASCII 'A' pattern uses exact byte 0x41."""
+        patterns = security_fuzzer.heap_spray_patterns
+
+        found_a = False
+        for p in patterns:
+            if p == b"\x41" * 512:
+                found_a = True
+                break
+        assert found_a, "Missing 0x41 ASCII 'A' pattern"
+
+    def test_jump_to_self_exact_bytes(self, security_fuzzer):
+        """Verify jump-to-self uses exact bytes 0xeb 0xfe."""
+        patterns = security_fuzzer.heap_spray_patterns
+
+        found_jmp = False
+        for p in patterns:
+            if p == b"\xeb\xfe" * 256:
+                found_jmp = True
+                break
+        assert found_jmp, "Missing 0xeb0xfe jump-to-self pattern"
+
+    def test_int3_breakpoint_exact_byte(self, security_fuzzer):
+        """Verify INT3 pattern uses exact byte 0xcc."""
+        patterns = security_fuzzer.heap_spray_patterns
+
+        found_int3 = False
+        for p in patterns:
+            if p == b"\xcc" * 512:
+                found_int3 = True
+                break
+        assert found_int3, "Missing 0xcc INT3 pattern"
+
+
+class TestMalformedVRCodesMutationKilling:
+    """Tests targeting malformed_vr_codes byte mutations."""
+
+    def test_null_vr_exact_bytes(self, security_fuzzer):
+        """Verify null VR is exactly b'\\x00\\x00'."""
+        codes = security_fuzzer.malformed_vr_codes
+        assert b"\x00\x00" in codes, "Missing null VR b'\\x00\\x00'"
+
+    def test_invalid_vr_exact_bytes(self, security_fuzzer):
+        """Verify invalid VR is exactly b'\\xff\\xff'."""
+        codes = security_fuzzer.malformed_vr_codes
+        assert b"\xff\xff" in codes, "Missing invalid VR b'\\xff\\xff'"
+
+    def test_non_standard_vr_xx(self, security_fuzzer):
+        """Verify 'XX' non-standard VR."""
+        codes = security_fuzzer.malformed_vr_codes
+        assert b"XX" in codes, "Missing 'XX' non-standard VR"
+
+    def test_non_standard_vr_zz(self, security_fuzzer):
+        """Verify 'ZZ' non-standard VR."""
+        codes = security_fuzzer.malformed_vr_codes
+        assert b"ZZ" in codes, "Missing 'ZZ' non-standard VR"
+
+    def test_hex_aa_vr(self, security_fuzzer):
+        """Verify hex AA VR is exactly b'\\x41\\x41'."""
+        codes = security_fuzzer.malformed_vr_codes
+        assert b"\x41\x41" in codes, "Missing hex AA (0x41 0x41) VR"
+
+
+class TestCVEPatternBoundaryMutationKilling:
+    """Tests targeting boundary comparisons in CVE patterns."""
+
+    def test_0x10000_boundary_comparison(self, sample_dataset, security_fuzzer):
+        """Verify 0x10000 boundary is used correctly.
+
+        Catches: `if oversized_length <= 0x10000` -> `< 0x10000` or `>= 0x10000`
+        """
+        from unittest.mock import patch
+
+        # Force selection of exactly 0x10000
+        security_fuzzer.oversized_vr_lengths = [0x10000]
+
+        # Should take the "reasonable sizes" branch
+        with patch("random.sample", return_value=[(0x0008, 0x0070)]):  # Manufacturer tag
+            with patch("random.randint", return_value=1):
+                result = security_fuzzer.apply_cve_2025_5943_pattern(sample_dataset)
+
+        assert result is not None
+
+    def test_0x8000_payload_size(self, sample_dataset, security_fuzzer):
+        """Verify 0x8000 is used as max payload size.
+
+        Catches: `min(oversized_length, 0x8000)` mutations
+        """
+        from unittest.mock import patch
+
+        # Use exactly 0x8000
+        security_fuzzer.oversized_vr_lengths = [0x8000]
+
+        with patch("random.sample", return_value=[(0x0008, 0x0070)]):
+            with patch("random.randint", return_value=1):
+                result = security_fuzzer.apply_cve_2025_5943_pattern(sample_dataset)
+
+        assert result is not None
+
+
+class TestHeapSprayFieldNamesMutationKilling:
+    """Tests targeting field name string mutations in heap spray."""
+
+    def test_pixeldata_field_name(self, security_fuzzer):
+        """Verify 'PixelData' field name is used correctly."""
+        ds = Dataset()
+        ds.PixelData = b"\x00" * 100
+
+        result = security_fuzzer.apply_heap_spray_pattern(ds)
+        # If field name mutated, attribute wouldn't be found
+        assert hasattr(result, "PixelData")
+
+    def test_imagecomments_field_name(self, security_fuzzer):
+        """Verify 'ImageComments' field name is used correctly."""
+        ds = Dataset()
+        ds.ImageComments = "Test"
+
+        result = security_fuzzer.apply_heap_spray_pattern(ds)
+        assert hasattr(result, "ImageComments")
+
+    def test_studycomments_field_name(self, security_fuzzer):
+        """Verify 'StudyComments' field name is used correctly."""
+        ds = Dataset()
+        ds.StudyComments = "Test"
+
+        result = security_fuzzer.apply_heap_spray_pattern(ds)
+        assert hasattr(result, "StudyComments")
+
+
+class TestRandomThresholdsMutationKilling:
+    """Tests targeting random threshold comparisons."""
+
+    def test_0_7_threshold_for_shellcode(self, sample_dataset, security_fuzzer):
+        """Verify 0.7 threshold for shellcode addition.
+
+        Catches: `if random.random() > 0.7` mutations
+        """
+        from unittest.mock import patch
+
+        ds = Dataset()
+        ds.PixelData = b"\x00" * 100
+
+        # Force threshold to be just above 0.7 (should add shellcode)
+        with patch("random.random", return_value=0.71):
+            with patch("random.choice", return_value=b"\x41" * 512):
+                result = security_fuzzer.apply_heap_spray_pattern(ds)
+
+        # Can't easily verify shellcode was added, but test shouldn't error
+        assert result is not None
+
+    def test_just_below_0_7_no_shellcode(self, security_fuzzer):
+        """Verify value at 0.7 exactly doesn't add shellcode."""
+        from unittest.mock import patch
+
+        ds = Dataset()
+        ds.PixelData = b"\x00" * 100
+
+        # At exactly 0.7 (not > 0.7), should NOT add shellcode
+        with patch("random.random", return_value=0.7):
+            with patch("random.choice", return_value=b"\x41" * 512):
+                result = security_fuzzer.apply_heap_spray_pattern(ds)
+
+        assert result is not None

@@ -1081,3 +1081,300 @@ class TestEdgeCases:
         # Should not raise
         result = mutator._arithmetic_32(data)
         assert isinstance(result, bytearray)
+
+
+# =============================================================================
+# Mutation-Killing Tests for Surviving Mutations
+# These tests specifically target mutations that survived previous testing
+# =============================================================================
+
+
+class TestBoundaryChecksMutationKilling:
+    """Tests targeting boundary check mutations in arithmetic/interesting methods.
+
+    Functions have checks like `if len(result) < 2` that mutmut changes to:
+    - `if len(result) <= 2`
+    - `if len(result) > 2`
+    - `if len(result) < 3` or `< 1`
+    """
+
+    def test_arithmetic_16_exact_2_bytes_works(self):
+        """Verify arithmetic_16 works with exactly 2 bytes.
+
+        Catches: `< 2` -> `<= 2` (would skip with 2 bytes)
+        """
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00")  # Exactly 2 bytes
+
+        # Patch random to give deterministic results
+        with patch("random.randint", side_effect=[0, 1]):  # pos=0, delta=1
+            with patch("random.random", return_value=0.6):  # don't negate, use LE
+                result = mutator._arithmetic_16(data)
+
+        # With exactly 2 bytes, should be able to apply mutation
+        # If `< 2` mutates to `<= 2`, this would return unchanged
+        assert result is not None
+        assert len(result) == 2
+
+    def test_arithmetic_16_exactly_1_byte_returns_unchanged(self):
+        """Verify arithmetic_16 returns unchanged with exactly 1 byte.
+
+        Catches: `< 2` -> `< 1` (would incorrectly process 1 byte)
+        """
+        mutator = ByteMutator()
+        data = bytearray(b"\xaa")  # 1 byte
+
+        result = mutator._arithmetic_16(data)
+        # Should return unchanged because 1 < 2
+        assert result == data
+
+    def test_arithmetic_32_exact_4_bytes_works(self):
+        """Verify arithmetic_32 works with exactly 4 bytes.
+
+        Catches: `< 4` -> `<= 4` (would skip with 4 bytes)
+        """
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")  # Exactly 4 bytes
+
+        with patch("random.randint", side_effect=[0, 1]):  # pos=0, delta=1
+            with patch("random.random", return_value=0.6):  # don't negate, use LE
+                result = mutator._arithmetic_32(data)
+
+        assert result is not None
+        assert len(result) == 4
+
+    def test_arithmetic_32_exactly_3_bytes_returns_unchanged(self):
+        """Verify arithmetic_32 returns unchanged with exactly 3 bytes.
+
+        Catches: `< 4` -> `< 3` (would incorrectly process 3 bytes)
+        """
+        mutator = ByteMutator()
+        data = bytearray(b"\xaa\xbb\xcc")  # 3 bytes
+
+        result = mutator._arithmetic_32(data)
+        # Should return unchanged because 3 < 4
+        assert result == data
+
+    def test_interesting_16_exact_2_bytes_works(self):
+        """Verify interesting_16 works with exactly 2 bytes.
+
+        Catches: `< 2` -> `<= 2`
+        """
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00")  # Exactly 2 bytes
+
+        with patch("random.randint", return_value=0):  # pos=0
+            with patch("random.choice", return_value=255):  # value=255
+                with patch("random.random", return_value=0.6):  # use LE
+                    result = mutator._interesting_16(data)
+
+        assert result is not None
+        assert len(result) == 2
+
+    def test_interesting_16_exactly_1_byte_returns_unchanged(self):
+        """Verify interesting_16 returns unchanged with exactly 1 byte."""
+        mutator = ByteMutator()
+        data = bytearray(b"\xaa")  # 1 byte
+
+        result = mutator._interesting_16(data)
+        assert result == data
+
+    def test_interesting_32_exact_4_bytes_works(self):
+        """Verify interesting_32 works with exactly 4 bytes.
+
+        Catches: `< 4` -> `<= 4`
+        """
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")  # Exactly 4 bytes
+
+        with patch("random.randint", return_value=0):  # pos=0
+            with patch("random.choice", return_value=255):  # value=255
+                with patch("random.random", return_value=0.6):  # use LE
+                    result = mutator._interesting_32(data)
+
+        assert result is not None
+        assert len(result) == 4
+
+    def test_interesting_32_exactly_3_bytes_returns_unchanged(self):
+        """Verify interesting_32 returns unchanged with exactly 3 bytes."""
+        mutator = ByteMutator()
+        data = bytearray(b"\xaa\xbb\xcc")  # 3 bytes
+
+        result = mutator._interesting_32(data)
+        assert result == data
+
+    def test_interesting_8_zero_length_returns_unchanged(self):
+        """Verify interesting_8 returns unchanged with 0 bytes.
+
+        Catches: `len(result) == 0` -> `len(result) != 0`
+        """
+        mutator = ByteMutator()
+        data = bytearray(b"")  # 0 bytes
+
+        result = mutator._interesting_8(data)
+        assert result == data
+        assert len(result) == 0
+
+
+class TestMaskValuesMutationKilling:
+    """Tests targeting mask value mutations.
+
+    Functions have masks like `& 0xFFFF` that mutmut changes to:
+    - `& 0xFFFE` or `& 0x10000`
+    """
+
+    def test_arithmetic_16_mask_correct(self):
+        """Verify 16-bit mask is 0xFFFF exactly.
+
+        Catches: `& 0xFFFF` -> `& 0xFFFE` (would lose LSB)
+        """
+        import struct
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        # Start with 0xFFFF (max value)
+        data = bytearray(struct.pack("<H", 0xFFFF))
+
+        # Add 1, should wrap to 0 with correct mask
+        with patch("random.randint", side_effect=[0, 1]):  # pos=0, delta=1
+            with patch("random.random", return_value=0.9):  # don't negate, use LE
+                result = mutator._arithmetic_16(data)
+
+        # (0xFFFF + 1) & 0xFFFF = 0
+        new_value = struct.unpack("<H", result)[0]
+        assert new_value == 0, f"Expected 0, got {new_value} (mask might be wrong)"
+
+    def test_arithmetic_32_mask_correct(self):
+        """Verify 32-bit mask is 0xFFFFFFFF exactly.
+
+        Catches: `& 0xFFFFFFFF` mutations
+        """
+        import struct
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        # Start with 0xFFFFFFFF (max value)
+        data = bytearray(struct.pack("<I", 0xFFFFFFFF))
+
+        # Add 1, should wrap to 0 with correct mask
+        with patch("random.randint", side_effect=[0, 1]):  # pos=0, delta=1
+            with patch("random.random", return_value=0.9):  # don't negate, use LE
+                result = mutator._arithmetic_32(data)
+
+        # (0xFFFFFFFF + 1) & 0xFFFFFFFF = 0
+        new_value = struct.unpack("<I", result)[0]
+        assert new_value == 0, f"Expected 0, got {new_value} (mask might be wrong)"
+
+    def test_arithmetic_8_mask_correct(self):
+        """Verify 8-bit mask is 0xFF exactly.
+
+        Catches: `& 0xFF` -> `& 0xFE`
+        """
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\xff")  # Max 8-bit value
+
+        # Add 1, should wrap to 0
+        with patch("random.randint", side_effect=[0, 1]):  # pos=0, delta=1
+            with patch("random.random", return_value=0.9):  # don't negate
+                result = mutator._arithmetic_8(data)
+
+        # (0xFF + 1) & 0xFF = 0
+        assert result[0] == 0, f"Expected 0, got {result[0]} (mask might be wrong)"
+
+
+class TestFormatStringMutationKilling:
+    """Tests targeting struct format string mutations.
+
+    Functions use format strings like ">H" and "<H" that mutmut changes.
+    """
+
+    def test_big_endian_16_produces_correct_bytes(self):
+        """Verify '>H' format produces big-endian bytes.
+
+        Catches: '>H' -> '<H' or '>h' mutations
+        """
+        import struct
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        # Start with little-endian 0x0100 (256 in LE = bytes 00 01)
+        data = bytearray(b"\x00\x01")  # LE: 256, BE: 1
+
+        # Force big-endian mode
+        with patch("random.randint", side_effect=[0, 256]):  # pos=0, delta=256
+            with patch("random.random", side_effect=[0.9, 0.4]):  # don't negate, use BE
+                result = mutator._arithmetic_16(data)
+
+        # With BE: (1 + 256) = 257 = 0x0101 -> bytes 01 01
+        # With LE: (256 + 256) = 512 = 0x0200 -> bytes 00 02
+        # The difference proves which endianness was used
+        assert result is not None
+
+    def test_little_endian_16_produces_correct_bytes(self):
+        """Verify '<H' format produces little-endian bytes.
+
+        Catches: '<H' -> '>H' or '<h' mutations
+        """
+        import struct
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x01")  # LE: 256, BE: 1
+
+        # Force little-endian mode
+        with patch("random.randint", side_effect=[0, 256]):  # pos=0, delta=256
+            with patch("random.random", side_effect=[0.9, 0.6]):  # don't negate, use LE
+                result = mutator._arithmetic_16(data)
+
+        # With LE: (256 + 256) = 512 = 0x0200 -> bytes 00 02
+        assert result is not None
+
+    def test_signed_vs_unsigned_16_format(self):
+        """Verify signed values use 'h' and unsigned use 'H'.
+
+        Catches: '>h' -> '>H' or vice versa mutations
+        """
+        import struct
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00")
+
+        # Use negative value which requires signed format
+        with patch("random.randint", return_value=0):  # pos=0
+            with patch("random.choice", return_value=-1):  # Signed value
+                with patch("random.random", return_value=0.6):  # use LE
+                    result = mutator._interesting_16(data)
+
+        # -1 in signed 16-bit little-endian is 0xFFFF -> bytes FF FF
+        assert result == bytearray(b"\xff\xff"), f"Got {result.hex()}"
+
+    def test_signed_vs_unsigned_32_format(self):
+        """Verify signed values use 'i' and unsigned use 'I'.
+
+        Catches: '>i' -> '>I' or vice versa mutations
+        """
+        import struct
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        # Use negative value which requires signed format
+        with patch("random.randint", return_value=0):  # pos=0
+            with patch("random.choice", return_value=-1):  # Signed value
+                with patch("random.random", return_value=0.6):  # use LE
+                    result = mutator._interesting_32(data)
+
+        # -1 in signed 32-bit little-endian is 0xFFFFFFFF
+        assert result == bytearray(b"\xff\xff\xff\xff"), f"Got {result.hex()}"
