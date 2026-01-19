@@ -128,61 +128,73 @@ jobs:
           print("    - Using default testpaths for test discovery")
           EOF
 
-          uv run mutmut run || true
+          uv run mutmut run 2>&1 | tee mutmut-run.log || true
 
           # Restore original pyproject.toml
           mv pyproject.toml.bak pyproject.toml
 
       - name: Generate mutation report
         run: |
-          # Get mutation results
+          # Get detailed mutation results (surviving mutants only)
           uv run mutmut results > mutation-results.txt 2>&1 || true
+
+          # Parse the final line from mutmut run which has format:
+          # ⠼ 416/416  🎉 372 🫥 0  ⏰ 2  🤔 0  🙁 42  🔇 0
+          FINAL_LINE=$(grep -E "^⠼.*🎉" mutmut-run.log | tail -1) || FINAL_LINE=""
+
+          if [ -n "$FINAL_LINE" ]; then
+            # Parse emoji counts from final progress line
+            KILLED=$(echo "$FINAL_LINE" | grep -oP '🎉 \K\d+' || echo "0")
+            SURVIVED=$(echo "$FINAL_LINE" | grep -oP '🙁 \K\d+' || echo "0")
+            TIMEOUT=$(echo "$FINAL_LINE" | grep -oP '⏰ \K\d+' || echo "0")
+            NO_COVERAGE=$(echo "$FINAL_LINE" | grep -oP '🫥 \K\d+' || echo "0")
+            SUSPICIOUS=$(echo "$FINAL_LINE" | grep -oP '🤔 \K\d+' || echo "0")
+          else
+            # Fallback to counting from results file
+            KILLED=$(grep -c "killed" mutation-results.txt 2>/dev/null) || KILLED=0
+            SURVIVED=$(grep -c "survived" mutation-results.txt 2>/dev/null) || SURVIVED=0
+            TIMEOUT=$(grep -c "timeout" mutation-results.txt 2>/dev/null) || TIMEOUT=0
+            NO_COVERAGE=0
+            SUSPICIOUS=0
+          fi
 
           # Show results in logs
           echo "=== Mutation Testing Results ==="
-          cat mutation-results.txt || echo "No results file"
+          echo "Killed: $KILLED"
+          echo "Survived: $SURVIVED"
+          echo "Timeout: $TIMEOUT"
+          echo "No Coverage: $NO_COVERAGE"
+          echo "Suspicious: $SUSPICIOUS"
 
           # Generate summary for GitHub
           echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🎉 Killed | $KILLED |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🙁 Survived | $SURVIVED |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏰ Timeout | $TIMEOUT |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🫥 No Coverage | $NO_COVERAGE |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🤔 Suspicious | $SUSPICIOUS |" >> $GITHUB_STEP_SUMMARY
 
-          # Parse results - handle both emoji and text formats
-          # Use grep -c with explicit 0 fallback
-          KILLED=$(grep -c "🎉" mutation-results.txt 2>/dev/null) || KILLED=0
-          if [ "$KILLED" -eq 0 ]; then
-            KILLED=$(grep -c "killed" mutation-results.txt 2>/dev/null) || KILLED=0
-          fi
-
-          SURVIVED=$(grep -c "🙁" mutation-results.txt 2>/dev/null) || SURVIVED=0
-          if [ "$SURVIVED" -eq 0 ]; then
-            SURVIVED=$(grep -c "survived" mutation-results.txt 2>/dev/null) || SURVIVED=0
-          fi
-
-          TIMEOUT=$(grep -c "⏰" mutation-results.txt 2>/dev/null) || TIMEOUT=0
-          if [ "$TIMEOUT" -eq 0 ]; then
-            TIMEOUT=$(grep -c "timeout" mutation-results.txt 2>/dev/null) || TIMEOUT=0
-          fi
-
-          echo "| Killed | $KILLED |" >> $GITHUB_STEP_SUMMARY
-          echo "| Survived | $SURVIVED |" >> $GITHUB_STEP_SUMMARY
-          echo "| Timeout | $TIMEOUT |" >> $GITHUB_STEP_SUMMARY
-
-          # Calculate mutation score
+          # Calculate mutation score (killed / (killed + survived))
           TOTAL=$((KILLED + SURVIVED))
           if [ "$TOTAL" -gt 0 ]; then
-            SCORE=$(echo "scale=2; $KILLED * 100 / $TOTAL" | bc)
+            SCORE=$(echo "scale=1; $KILLED * 100 / $TOTAL" | bc)
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Mutation Score: ${SCORE}%**" >> $GITHUB_STEP_SUMMARY
+            echo "**Mutation Score: ${SCORE}%** ($KILLED/$TOTAL)" >> $GITHUB_STEP_SUMMARY
           else
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**No mutations generated or results unavailable**" >> $GITHUB_STEP_SUMMARY
           fi
 
-          # Copy full results to summary
+          # Export for threshold check
+          echo "MUTATION_KILLED=$KILLED" >> $GITHUB_ENV
+          echo "MUTATION_SURVIVED=$SURVIVED" >> $GITHUB_ENV
+
+          # Copy surviving mutants to summary
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "<details><summary>Full Results</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "<details><summary>Surviving Mutants ($SURVIVED)</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           head -100 mutation-results.txt >> $GITHUB_STEP_SUMMARY || echo "No results" >> $GITHUB_STEP_SUMMARY
@@ -195,23 +207,16 @@ jobs:
           name: mutation-report
           path: |
             mutation-results.txt
+            mutmut-run.log
             .mutmut-cache
           retention-days: 30
           if-no-files-found: warn
 
       - name: Check mutation score threshold
         run: |
-          # Parse mutation score - handle both emoji and text formats
-          KILLED=$(grep -c "🎉" mutation-results.txt 2>/dev/null) || KILLED=0
-          if [ "$KILLED" -eq 0 ]; then
-            KILLED=$(grep -c "killed" mutation-results.txt 2>/dev/null) || KILLED=0
-          fi
-
-          SURVIVED=$(grep -c "🙁" mutation-results.txt 2>/dev/null) || SURVIVED=0
-          if [ "$SURVIVED" -eq 0 ]; then
-            SURVIVED=$(grep -c "survived" mutation-results.txt 2>/dev/null) || SURVIVED=0
-          fi
-
+          # Use values from environment (set in previous step)
+          KILLED="${MUTATION_KILLED:-0}"
+          SURVIVED="${MUTATION_SURVIVED:-0}"
           TOTAL=$((KILLED + SURVIVED))
 
           if [ "$TOTAL" -gt 0 ]; then
@@ -328,9 +333,28 @@ jobs:
               toml.dump(config, f)
           EOF
 
-          uv run mutmut run || true
+          uv run mutmut run 2>&1 | tee pr-mutmut-run.log || true
           uv run mutmut results > pr-mutation-results.txt 2>&1 || true
-          cat pr-mutation-results.txt
+
+          # Parse the final line from mutmut run for accurate counts
+          FINAL_LINE=$(grep -E "^⠼.*🎉" pr-mutmut-run.log | tail -1) || FINAL_LINE=""
+          if [ -n "$FINAL_LINE" ]; then
+            KILLED=$(echo "$FINAL_LINE" | grep -oP '🎉 \K\d+' || echo "0")
+            SURVIVED=$(echo "$FINAL_LINE" | grep -oP '🙁 \K\d+' || echo "0")
+            TIMEOUT=$(echo "$FINAL_LINE" | grep -oP '⏰ \K\d+' || echo "0")
+          else
+            KILLED=$(grep -c "killed" pr-mutation-results.txt 2>/dev/null) || KILLED=0
+            SURVIVED=$(grep -c "survived" pr-mutation-results.txt 2>/dev/null) || SURVIVED=0
+            TIMEOUT=$(grep -c "timeout" pr-mutation-results.txt 2>/dev/null) || TIMEOUT=0
+          fi
+
+          # Save counts for the comment step
+          echo "PR_MUTATION_KILLED=$KILLED" >> $GITHUB_ENV
+          echo "PR_MUTATION_SURVIVED=$SURVIVED" >> $GITHUB_ENV
+          echo "PR_MUTATION_TIMEOUT=$TIMEOUT" >> $GITHUB_ENV
+
+          echo "=== PR Mutation Testing Results ==="
+          echo "Killed: $KILLED, Survived: $SURVIVED, Timeout: $TIMEOUT"
 
           # Restore original
           mv pyproject.toml.bak pyproject.toml
@@ -342,21 +366,17 @@ jobs:
           script: |
             const fs = require('fs');
 
-            let results = '';
+            let survivingMutants = '';
             try {
-              results = fs.readFileSync('pr-mutation-results.txt', 'utf8');
+              survivingMutants = fs.readFileSync('pr-mutation-results.txt', 'utf8');
             } catch (e) {
-              results = 'No mutation results available';
+              survivingMutants = 'No mutation results available';
             }
 
-            // mutmut 3.x uses emojis: 🎉 killed, 🙁 survived, ⏰ timeout
-            const killedEmoji = (results.match(/🎉/g) || []).length;
-            const survivedEmoji = (results.match(/🙁/g) || []).length;
-            const killedText = (results.match(/killed/gi) || []).length;
-            const survivedText = (results.match(/survived/gi) || []).length;
-
-            const killed = killedEmoji || killedText;
-            const survived = survivedEmoji || survivedText;
+            // Get counts from environment (parsed from mutmut run output)
+            const killed = parseInt(process.env.PR_MUTATION_KILLED || '0', 10);
+            const survived = parseInt(process.env.PR_MUTATION_SURVIVED || '0', 10);
+            const timeout = parseInt(process.env.PR_MUTATION_TIMEOUT || '0', 10);
             const total = killed + survived;
             const score = total > 0 ? ((killed / total) * 100).toFixed(1) : 'N/A';
 
@@ -364,15 +384,16 @@ jobs:
 
             | Metric | Count |
             |--------|-------|
-            | Killed | ${killed} |
-            | Survived | ${survived} |
-            | **Score** | **${score}%** |
+            | 🎉 Killed | ${killed} |
+            | 🙁 Survived | ${survived} |
+            | ⏰ Timeout | ${timeout} |
+            | **Score** | **${score}%** (${killed}/${total}) |
 
             <details>
-            <summary>Details</summary>
+            <summary>Surviving Mutants (${survived})</summary>
 
             \`\`\`
-            ${results.slice(0, 3000)}
+            ${survivingMutants.slice(0, 3000)}
             \`\`\`
 
             </details>`;
