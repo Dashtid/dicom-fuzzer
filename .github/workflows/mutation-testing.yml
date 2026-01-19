@@ -92,8 +92,6 @@ jobs:
         env:
           # Override pytest addopts to avoid conflicts with mutmut's internal runner
           PYTEST_ADDOPTS: ""
-          # Ensure package is discoverable from mutmut's mutants directory
-          PYTHONPATH: ${{ github.workspace }}
         run: |
           # mutmut 3.4+ reads pytest config from pyproject.toml and appends its own args
           # This causes conflicts. Simplify addopts and limit tests to utils modules.
@@ -102,18 +100,13 @@ jobs:
           # Create minimal pytest config for mutation testing
           # Remove conflicting pytest args but let mutmut discover tests naturally
           uv run python << 'EOF'
-          import os
           import toml
 
           with open('pyproject.toml', 'r') as f:
               config = toml.load(f)
 
-          # Get the workspace root (current directory)
-          workspace_root = os.getcwd()
-
           # Minimal pytest options for mutmut - avoid args that conflict with mutmut's internal args
           # Only run the specific test files that test the mutated modules
-          # Other files have import issues when running from mutmut's mutants/ directory
           config['tool']['pytest']['ini_options']['addopts'] = [
               "--import-mode=importlib",
           ]
@@ -127,18 +120,23 @@ jobs:
               "tests/test_strategies/test_byte_mutator.py",
               "tests/test_strategies/test_security_patterns.py",
           ]
-          # Add workspace root to pythonpath so tests can import non-mutated modules
-          # This is critical because mutmut runs from a mutants/ subdirectory
-          config['tool']['pytest']['ini_options']['pythonpath'] = [workspace_root]
+          # NOTE: Do NOT set pythonpath here - it causes imports to resolve to
+          # the original modules instead of the mutated ones in mutants/
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
 
-          print("[i] Configured pytest for mutation testing:")
-          print(f"    - pythonpath: {workspace_root}")
-          print("    - Simplified addopts (removed -q, --tb, etc.)")
+          print("[i] Configured pytest for mutation testing")
           EOF
 
+          # Pre-populate mutants directory with non-mutated modules
+          # mutmut only copies files it mutates, but tests need other modules too
+          # (e.g., exceptions.py, __init__.py, etc.)
+          mkdir -p mutants/dicom_fuzzer
+          cp -r dicom_fuzzer/* mutants/dicom_fuzzer/
+          cp -r tests mutants/
+
+          # Run mutmut - it will overwrite the files it mutates
           uv run mutmut run 2>&1 | tee mutmut-run.log || true
 
           # Restore original pyproject.toml
@@ -333,21 +331,16 @@ jobs:
         if: steps.changed-files.outputs.files != ''
         env:
           PYTEST_ADDOPTS: ""
-          PYTHONPATH: ${{ github.workspace }}
         run: |
           # Simplify pytest addopts to avoid conflicts with mutmut
           cp pyproject.toml pyproject.toml.bak
 
           # Create minimal pytest config for mutation testing
           uv run python << 'EOF'
-          import os
           import toml
 
           with open('pyproject.toml', 'r') as f:
               config = toml.load(f)
-
-          # Get the workspace root (current directory)
-          workspace_root = os.getcwd()
 
           # Only run the specific test files that test the mutated modules (same as main job)
           config['tool']['pytest']['ini_options']['addopts'] = [
@@ -362,12 +355,17 @@ jobs:
               "tests/test_strategies/test_byte_mutator.py",
               "tests/test_strategies/test_security_patterns.py",
           ]
-          # Add workspace root to pythonpath so tests can import non-mutated modules
-          config['tool']['pytest']['ini_options']['pythonpath'] = [workspace_root]
+          # NOTE: Do NOT set pythonpath - it causes imports to resolve to
+          # the original modules instead of the mutated ones in mutants/
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
           EOF
+
+          # Pre-populate mutants directory with non-mutated modules
+          mkdir -p mutants/dicom_fuzzer
+          cp -r dicom_fuzzer/* mutants/dicom_fuzzer/
+          cp -r tests mutants/
 
           uv run mutmut run 2>&1 | tee pr-mutmut-run.log || true
           uv run mutmut results > pr-mutation-results.txt 2>&1 || true
