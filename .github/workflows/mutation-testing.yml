@@ -102,10 +102,14 @@ jobs:
           # Create minimal pytest config for mutation testing
           # Remove conflicting pytest args but let mutmut discover tests naturally
           uv run python << 'EOF'
+          import os
           import toml
 
           with open('pyproject.toml', 'r') as f:
               config = toml.load(f)
+
+          # Get the workspace root (current directory)
+          workspace_root = os.getcwd()
 
           # Minimal pytest options for mutmut - avoid args that conflict with mutmut's internal args
           # Only run the specific test files that test the mutated modules
@@ -123,13 +127,16 @@ jobs:
               "tests/test_strategies/test_byte_mutator.py",
               "tests/test_strategies/test_security_patterns.py",
           ]
+          # Add workspace root to pythonpath so tests can import non-mutated modules
+          # This is critical because mutmut runs from a mutants/ subdirectory
+          config['tool']['pytest']['ini_options']['pythonpath'] = [workspace_root]
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
 
           print("[i] Configured pytest for mutation testing:")
+          print(f"    - pythonpath: {workspace_root}")
           print("    - Simplified addopts (removed -q, --tb, etc.)")
-          print("    - Using default testpaths for test discovery")
           EOF
 
           uv run mutmut run 2>&1 | tee mutmut-run.log || true
@@ -333,10 +340,14 @@ jobs:
 
           # Create minimal pytest config for mutation testing
           uv run python << 'EOF'
+          import os
           import toml
 
           with open('pyproject.toml', 'r') as f:
               config = toml.load(f)
+
+          # Get the workspace root (current directory)
+          workspace_root = os.getcwd()
 
           # Only run the specific test files that test the mutated modules (same as main job)
           config['tool']['pytest']['ini_options']['addopts'] = [
@@ -351,6 +362,8 @@ jobs:
               "tests/test_strategies/test_byte_mutator.py",
               "tests/test_strategies/test_security_patterns.py",
           ]
+          # Add workspace root to pythonpath so tests can import non-mutated modules
+          config['tool']['pytest']['ini_options']['pythonpath'] = [workspace_root]
 
           with open('pyproject.toml', 'w') as f:
               toml.dump(config, f)
