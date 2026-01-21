@@ -1127,5 +1127,750 @@ class TestGetCriticalTagsMutationKilling:
         assert "(0008, 0016)" in tags or "(0008,0016)" in tags
 
 
+class TestExtractMetadataTagMappingMutationKilling:
+    """Tests verifying exact DICOM tag-to-metadata-field mapping.
+
+    These tests create DICOM files with known values at specific tags
+    and verify the correct values appear in the extracted metadata.
+    This kills mutations to Tag hex values (e.g., 0x0010 -> 0x0011).
+    """
+
+    def test_patient_id_tag_mapping(self, tmp_path):
+        """Verify PatientID tag (0x0010, 0x0020) maps to 'patient_id' field."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "UNIQUE_PATIENT_ID_12345"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = unique_value  # Tag (0x0010, 0x0020)
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        test_file = tmp_path / "test_patient_id.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert metadata["patient_id"] == unique_value, (
+            "PatientID tag (0x0010, 0x0020) not correctly mapped to 'patient_id'"
+        )
+
+    def test_patient_name_tag_mapping(self, tmp_path):
+        """Verify PatientName tag (0x0010, 0x0010) maps to 'patient_name' field."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "TEST^PATIENT^NAME"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.PatientName = unique_value  # Tag (0x0010, 0x0010)
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        test_file = tmp_path / "test_patient_name.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["patient_name"], (
+            "PatientName tag (0x0010, 0x0010) not correctly mapped to 'patient_name'"
+        )
+
+    def test_patient_birth_date_tag_mapping(self, tmp_path):
+        """Verify PatientBirthDate tag (0x0010, 0x0030) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "19850101"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.PatientBirthDate = unique_value  # Tag (0x0010, 0x0030)
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        test_file = tmp_path / "test_birth_date.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["patient_birth_date"], (
+            "PatientBirthDate tag (0x0010, 0x0030) not correctly mapped"
+        )
+
+    def test_patient_sex_tag_mapping(self, tmp_path):
+        """Verify PatientSex tag (0x0010, 0x0040) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.PatientSex = "M"  # Tag (0x0010, 0x0040)
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        test_file = tmp_path / "test_sex.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert "M" in metadata["patient_sex"], (
+            "PatientSex tag (0x0010, 0x0040) not correctly mapped"
+        )
+
+    def test_study_date_tag_mapping(self, tmp_path):
+        """Verify StudyDate tag (0x0008, 0x0020) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "20251231"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.StudyDate = unique_value  # Tag (0x0008, 0x0020)
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        test_file = tmp_path / "test_study_date.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["study_date"], (
+            "StudyDate tag (0x0008, 0x0020) not correctly mapped"
+        )
+
+    def test_study_time_tag_mapping(self, tmp_path):
+        """Verify StudyTime tag (0x0008, 0x0030) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "143025"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.StudyTime = unique_value  # Tag (0x0008, 0x0030)
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        test_file = tmp_path / "test_study_time.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["study_time"], (
+            "StudyTime tag (0x0008, 0x0030) not correctly mapped"
+        )
+
+    def test_study_description_tag_mapping(self, tmp_path):
+        """Verify StudyDescription tag (0x0008, 0x1030) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "UNIQUE_STUDY_DESCRIPTION_XYZ"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.StudyDescription = unique_value  # Tag (0x0008, 0x1030)
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        test_file = tmp_path / "test_study_desc.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["study_description"], (
+            "StudyDescription tag (0x0008, 0x1030) not correctly mapped"
+        )
+
+    def test_modality_tag_mapping(self, tmp_path):
+        """Verify Modality tag (0x0008, 0x0060) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "CT"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.Modality = unique_value  # Tag (0x0008, 0x0060)
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        test_file = tmp_path / "test_modality.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["modality"], (
+            "Modality tag (0x0008, 0x0060) not correctly mapped"
+        )
+
+    def test_institution_name_tag_mapping(self, tmp_path):
+        """Verify InstitutionName tag (0x0008, 0x0080) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "UNIQUE_INSTITUTION_ABC"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.InstitutionName = unique_value  # Tag (0x0008, 0x0080)
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        test_file = tmp_path / "test_institution.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["institution_name"], (
+            "InstitutionName tag (0x0008, 0x0080) not correctly mapped"
+        )
+
+    def test_manufacturer_tag_mapping(self, tmp_path):
+        """Verify Manufacturer tag (0x0008, 0x0070) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "UNIQUE_MANUFACTURER_XYZ"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.Manufacturer = unique_value  # Tag (0x0008, 0x0070)
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        test_file = tmp_path / "test_manufacturer.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["manufacturer"], (
+            "Manufacturer tag (0x0008, 0x0070) not correctly mapped"
+        )
+
+    def test_manufacturer_model_tag_mapping(self, tmp_path):
+        """Verify ManufacturerModelName tag (0x0008, 0x1090) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "MODEL_ABC_123"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.ManufacturerModelName = unique_value  # Tag (0x0008, 0x1090)
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        test_file = tmp_path / "test_model.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["manufacturer_model"], (
+            "ManufacturerModelName tag (0x0008, 0x1090) not correctly mapped"
+        )
+
+    def test_software_version_tag_mapping(self, tmp_path):
+        """Verify SoftwareVersions tag (0x0018, 0x1020) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "VERSION_1.2.3"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SoftwareVersions = unique_value  # Tag (0x0018, 0x1020)
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        test_file = tmp_path / "test_software.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["software_version"], (
+            "SoftwareVersions tag (0x0018, 0x1020) not correctly mapped"
+        )
+
+    def test_sop_class_uid_tag_mapping(self, tmp_path):
+        """Verify SOPClassUID tag (0x0008, 0x0016) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "1.2.840.10008.5.1.4.1.1.2"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = unique_value
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = unique_value  # Tag (0x0008, 0x0016)
+        ds.SOPInstanceUID = "1.2.3.4.5"
+
+        test_file = tmp_path / "test_sop_class.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["sop_class_uid"], (
+            "SOPClassUID tag (0x0008, 0x0016) not correctly mapped"
+        )
+
+    def test_sop_instance_uid_tag_mapping(self, tmp_path):
+        """Verify SOPInstanceUID tag (0x0008, 0x0018) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "1.2.3.4.5.6.7.8.9"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = unique_value
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = unique_value  # Tag (0x0008, 0x0018)
+
+        test_file = tmp_path / "test_sop_instance.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["sop_instance_uid"], (
+            "SOPInstanceUID tag (0x0008, 0x0018) not correctly mapped"
+        )
+
+    def test_study_instance_uid_tag_mapping(self, tmp_path):
+        """Verify StudyInstanceUID tag (0x0020, 0x000D) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "1.2.3.4.5.6.7.8.9.10"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.StudyInstanceUID = unique_value  # Tag (0x0020, 0x000D)
+
+        test_file = tmp_path / "test_study_uid.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["study_instance_uid"], (
+            "StudyInstanceUID tag (0x0020, 0x000D) not correctly mapped"
+        )
+
+    def test_series_instance_uid_tag_mapping(self, tmp_path):
+        """Verify SeriesInstanceUID tag (0x0020, 0x000E) maps correctly."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        unique_value = "1.2.3.4.5.6.7.8.9.10.11"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.SeriesInstanceUID = unique_value  # Tag (0x0020, 0x000E)
+
+        test_file = tmp_path / "test_series_uid.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert unique_value in metadata["series_instance_uid"], (
+            "SeriesInstanceUID tag (0x0020, 0x000E) not correctly mapped"
+        )
+
+
+class TestExtractMetadataPixelDataMutationKilling:
+    """Tests targeting pixel data related metadata extraction mutations."""
+
+    def test_has_pixel_data_true_value(self, tmp_path):
+        """Verify has_pixel_data is exactly True (not 1 or truthy)."""
+        import numpy as np
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.Rows = 10
+        ds.Columns = 10
+        ds.BitsAllocated = 8
+        ds.BitsStored = 8
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.PixelRepresentation = 0
+        ds.PixelData = np.zeros((10, 10), dtype=np.uint8).tobytes()
+
+        test_file = tmp_path / "test_pixel_true.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert metadata["has_pixel_data"] is True, "has_pixel_data should be True"
+        assert metadata["has_pixel_data"] is not False
+        assert isinstance(metadata["has_pixel_data"], bool)
+
+    def test_has_pixel_data_false_value(self, tmp_path):
+        """Verify has_pixel_data is exactly False when no pixel data."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        # No PixelData
+
+        test_file = tmp_path / "test_no_pixel.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert metadata["has_pixel_data"] is False, "has_pixel_data should be False"
+        assert metadata["has_pixel_data"] is not True
+        assert isinstance(metadata["has_pixel_data"], bool)
+
+    def test_rows_exact_value(self, tmp_path):
+        """Verify rows metadata matches exact value."""
+        import numpy as np
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.Rows = 256
+        ds.Columns = 128
+        ds.BitsAllocated = 8
+        ds.BitsStored = 8
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.PixelRepresentation = 0
+        ds.PixelData = np.zeros((256, 128), dtype=np.uint8).tobytes()
+
+        test_file = tmp_path / "test_rows.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert metadata["rows"] == 256, f"Expected rows=256, got {metadata['rows']}"
+        assert metadata["columns"] == 128, (
+            f"Expected columns=128, got {metadata['columns']}"
+        )
+
+    def test_bits_allocated_exact_value(self, tmp_path):
+        """Verify bits_allocated metadata matches exact value."""
+        import numpy as np
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.Rows = 10
+        ds.Columns = 10
+        ds.BitsAllocated = 16
+        ds.BitsStored = 12
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.PixelRepresentation = 0
+        ds.PixelData = np.zeros((10, 10), dtype=np.uint16).tobytes()
+
+        test_file = tmp_path / "test_bits.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert metadata["bits_allocated"] == 16, (
+            f"Expected bits_allocated=16, got {metadata['bits_allocated']}"
+        )
+        assert metadata["bits_stored"] == 12, (
+            f"Expected bits_stored=12, got {metadata['bits_stored']}"
+        )
+
+    def test_samples_per_pixel_exact_value(self, tmp_path):
+        """Verify samples_per_pixel metadata matches exact value."""
+        import numpy as np
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.Rows = 10
+        ds.Columns = 10
+        ds.BitsAllocated = 8
+        ds.BitsStored = 8
+        ds.SamplesPerPixel = 3  # RGB
+        ds.PhotometricInterpretation = "RGB"
+        ds.PixelRepresentation = 0
+        ds.PlanarConfiguration = 0
+        ds.PixelData = np.zeros((10, 10, 3), dtype=np.uint8).tobytes()
+
+        test_file = tmp_path / "test_spp.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert metadata["samples_per_pixel"] == 3, (
+            f"Expected samples_per_pixel=3, got {metadata['samples_per_pixel']}"
+        )
+
+    def test_image_shape_tuple(self, tmp_path):
+        """Verify image_shape is a tuple with correct dimensions."""
+        import numpy as np
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.Rows = 100
+        ds.Columns = 200
+        ds.BitsAllocated = 8
+        ds.BitsStored = 8
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.PixelRepresentation = 0
+        ds.PixelData = np.zeros((100, 200), dtype=np.uint8).tobytes()
+
+        test_file = tmp_path / "test_shape.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert "image_shape" in metadata
+        assert metadata["image_shape"] == (100, 200), (
+            f"Expected shape (100, 200), got {metadata['image_shape']}"
+        )
+
+    def test_image_dtype_string(self, tmp_path):
+        """Verify image_dtype is a string representation."""
+        import numpy as np
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.Rows = 10
+        ds.Columns = 10
+        ds.BitsAllocated = 8
+        ds.BitsStored = 8
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.PixelRepresentation = 0
+        ds.PixelData = np.zeros((10, 10), dtype=np.uint8).tobytes()
+
+        test_file = tmp_path / "test_dtype.dcm"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file)
+        metadata = parser.extract_metadata()
+
+        assert "image_dtype" in metadata
+        assert isinstance(metadata["image_dtype"], str)
+        assert "uint8" in metadata["image_dtype"]
+
+
+class TestMetadataCachingMutationKilling:
+    """Tests targeting metadata caching behavior mutations."""
+
+    def test_cache_returns_same_object(self, sample_dicom_file):
+        """Verify metadata cache returns exact same object."""
+        parser = DicomParser(sample_dicom_file)
+
+        metadata1 = parser.extract_metadata()
+        metadata2 = parser.extract_metadata()
+
+        # Should be exact same object due to caching
+        assert metadata1 is metadata2, "Cached metadata should be same object"
+
+    def test_cache_not_none_check(self, sample_dicom_file):
+        """Verify cache is only used when not None."""
+        parser = DicomParser(sample_dicom_file)
+
+        # First call should set cache
+        metadata1 = parser.extract_metadata()
+        assert parser._metadata_cache is not None
+
+        # Clear cache
+        parser._metadata_cache = None
+
+        # Should regenerate metadata
+        metadata2 = parser.extract_metadata()
+        assert metadata2 is not None
+        assert metadata1 is not metadata2  # Different objects
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
