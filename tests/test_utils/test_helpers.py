@@ -894,12 +894,28 @@ class TestRandomPersonNameMutationKilling:
     def test_name_parts_come_from_lists(self):
         """Verify names come from predefined lists."""
         first_names = {
-            "John", "Jane", "Michael", "Sarah", "David",
-            "Emma", "James", "Mary", "Robert", "Patricia"
+            "John",
+            "Jane",
+            "Michael",
+            "Sarah",
+            "David",
+            "Emma",
+            "James",
+            "Mary",
+            "Robert",
+            "Patricia",
         }
         last_names = {
-            "Smith", "Johnson", "Williams", "Brown", "Jones",
-            "Garcia", "Miller", "Davis", "Rodriguez", "Martinez"
+            "Smith",
+            "Johnson",
+            "Williams",
+            "Brown",
+            "Jones",
+            "Garcia",
+            "Miller",
+            "Davis",
+            "Rodriguez",
+            "Martinez",
         }
 
         for _ in range(50):
@@ -969,7 +985,11 @@ class TestRandomDicomTimeMutationKilling:
 
         randint_values = iter([14, 30, 45])  # hour, minute, second
 
-        with patch.object(helpers_module.random, "randint", side_effect=lambda a, b: next(randint_values)):
+        with patch.object(
+            helpers_module.random,
+            "randint",
+            side_effect=lambda a, b: next(randint_values),
+        ):
             result = random_dicom_time()
 
         assert result == "143045", f"Expected '143045', got '{result}'"
@@ -1135,8 +1155,12 @@ class TestHexToTagMutationKilling:
         Catches: `hex_string[:4]` -> `hex_string[:3]` or similar
         """
         result = hex_to_tag("00080016")
-        assert result.group == 0x0008, f"Group should be 0x0008, got {result.group:#06x}"
-        assert result.element == 0x0016, f"Element should be 0x0016, got {result.element:#06x}"
+        assert result.group == 0x0008, (
+            f"Group should be 0x0008, got {result.group:#06x}"
+        )
+        assert result.element == 0x0016, (
+            f"Element should be 0x0016, got {result.element:#06x}"
+        )
 
     def test_asymmetric_values(self):
         """Test with asymmetric values to catch index mutations.
@@ -1144,8 +1168,12 @@ class TestHexToTagMutationKilling:
         If slicing is wrong, values will be swapped or truncated.
         """
         result = hex_to_tag("12345678")
-        assert result.group == 0x1234, f"Group should be 0x1234, got {result.group:#06x}"
-        assert result.element == 0x5678, f"Element should be 0x5678, got {result.element:#06x}"
+        assert result.group == 0x1234, (
+            f"Group should be 0x1234, got {result.group:#06x}"
+        )
+        assert result.element == 0x5678, (
+            f"Element should be 0x5678, got {result.element:#06x}"
+        )
 
     def test_length_validation(self):
         """Verify length check rejects wrong sizes.
@@ -1305,8 +1333,12 @@ class TestRandomDicomDatetimeMutationKilling:
         """
         from unittest.mock import patch
 
-        with patch("dicom_fuzzer.utils.helpers.random_dicom_date", return_value="20200115"):
-            with patch("dicom_fuzzer.utils.helpers.random_dicom_time", return_value="143045"):
+        with patch(
+            "dicom_fuzzer.utils.helpers.random_dicom_date", return_value="20200115"
+        ):
+            with patch(
+                "dicom_fuzzer.utils.helpers.random_dicom_time", return_value="143045"
+            ):
                 result = random_dicom_datetime()
 
         assert result == "20200115143045", f"Expected '20200115143045', got '{result}'"
@@ -1321,7 +1353,9 @@ class TestRandomDicomDatetimeMutationKilling:
 
         with patch("dicom_fuzzer.utils.helpers.random_dicom_date") as mock_date:
             mock_date.return_value = "19800101"
-            with patch("dicom_fuzzer.utils.helpers.random_dicom_time", return_value="000000"):
+            with patch(
+                "dicom_fuzzer.utils.helpers.random_dicom_time", return_value="000000"
+            ):
                 random_dicom_datetime(1980, 1980)
 
         mock_date.assert_called_once_with(1980, 1980)
@@ -1537,7 +1571,9 @@ class TestRandomPersonNameMutationKillingExtended:
             with patch.object(helpers_module.random, "choice", side_effect=mock_choice):
                 result = random_person_name()
 
-        assert len(result.split("^")) == 3, f"Should have middle initial, got '{result}'"
+        assert len(result.split("^")) == 3, (
+            f"Should have middle initial, got '{result}'"
+        )
 
     def test_no_middle_above_threshold(self):
         """Verify no middle initial when random() >= 0.3."""
@@ -1554,4 +1590,6 @@ class TestRandomPersonNameMutationKillingExtended:
             with patch.object(helpers_module.random, "choice", side_effect=mock_choice):
                 result = random_person_name()
 
-        assert len(result.split("^")) == 2, f"Should not have middle initial, got '{result}'"
+        assert len(result.split("^")) == 2, (
+            f"Should not have middle initial, got '{result}'"
+        )

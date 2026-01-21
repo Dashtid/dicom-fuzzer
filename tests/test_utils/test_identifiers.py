@@ -291,7 +291,9 @@ class TestGenerateShortIdMutationKilling:
 
         fixed_uuid = uuid_module.UUID("12345678-1234-5678-1234-567812345678")
 
-        with patch("dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid):
+        with patch(
+            "dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid
+        ):
             result = generate_short_id(8)
 
         # UUID hex is "12345678123456781234567812345678"
@@ -304,7 +306,9 @@ class TestGenerateShortIdMutationKilling:
 
         fixed_uuid = uuid_module.UUID("abcdef12-3456-7890-abcd-ef1234567890")
 
-        with patch("dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid):
+        with patch(
+            "dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid
+        ):
             # Test different lengths
             assert generate_short_id(1) == "a"
             assert generate_short_id(4) == "abcd"
@@ -318,7 +322,9 @@ class TestGenerateShortIdMutationKilling:
 
         fixed_uuid = uuid_module.UUID("abcdef12-3456-7890-abcd-ef1234567890")
 
-        with patch("dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid):
+        with patch(
+            "dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid
+        ):
             result = generate_short_id(0)
 
         assert result == "", f"Expected '', got '{result}'"
@@ -339,7 +345,9 @@ class TestGenerateTimestampIdMutationKilling:
 
             result = generate_timestamp_id()
 
-        assert result == "20240615_103045", f"Expected '20240615_103045', got '{result}'"
+        assert result == "20240615_103045", (
+            f"Expected '20240615_103045', got '{result}'"
+        )
 
     def test_with_microseconds_exact(self):
         """Test exact output with microseconds."""
@@ -353,7 +361,9 @@ class TestGenerateTimestampIdMutationKilling:
 
             result = generate_timestamp_id(include_microseconds=True)
 
-        assert result == "20240615_103045_123456", f"Expected '20240615_103045_123456', got '{result}'"
+        assert result == "20240615_103045_123456", (
+            f"Expected '20240615_103045_123456', got '{result}'"
+        )
 
     def test_with_prefix_exact(self):
         """Test exact output with prefix."""
@@ -367,7 +377,9 @@ class TestGenerateTimestampIdMutationKilling:
 
             result = generate_timestamp_id(prefix="test")
 
-        assert result == "test_20240615_103045", f"Expected 'test_20240615_103045', got '{result}'"
+        assert result == "test_20240615_103045", (
+            f"Expected 'test_20240615_103045', got '{result}'"
+        )
 
     def test_prefix_conditional_empty_vs_none(self):
         """Test that empty prefix is treated as falsy (no prefix added)."""
@@ -381,7 +393,9 @@ class TestGenerateTimestampIdMutationKilling:
 
             # Empty string should NOT add prefix
             result = generate_timestamp_id(prefix="")
-            assert result == "20240615_103045", f"Empty prefix should not add underscore: {result}"
+            assert result == "20240615_103045", (
+                f"Empty prefix should not add underscore: {result}"
+            )
 
             # Non-empty prefix SHOULD add prefix
             result = generate_timestamp_id(prefix="x")
@@ -438,7 +452,9 @@ class TestGenerateCrashIdMutationKilling:
 
             # Empty string should not add hash suffix
             result = generate_crash_id(crash_hash="")
-            assert result == "crash_20240615_103045", f"Empty hash should not add suffix: {result}"
+            assert result == "crash_20240615_103045", (
+                f"Empty hash should not add suffix: {result}"
+            )
             assert not result.endswith("_"), "Should not end with underscore"
 
     def test_none_hash_not_appended(self):
@@ -452,7 +468,9 @@ class TestGenerateCrashIdMutationKilling:
             mock_dt.now.return_value = fixed_time
 
             result = generate_crash_id(crash_hash=None)
-            assert result == "crash_20240615_103045", f"None hash should not add suffix: {result}"
+            assert result == "crash_20240615_103045", (
+                f"None hash should not add suffix: {result}"
+            )
 
 
 class TestGenerateSessionIdMutationKilling:
@@ -474,11 +492,15 @@ class TestGenerateSessionIdMutationKilling:
 
             # Empty string should use default
             result = generate_session_id(session_name="")
-            assert result.startswith("fuzzing_session_"), f"Empty name should use default: {result}"
+            assert result.startswith("fuzzing_session_"), (
+                f"Empty name should use default: {result}"
+            )
 
             # None should use default
             result = generate_session_id(session_name=None)
-            assert result.startswith("fuzzing_session_"), f"None should use default: {result}"
+            assert result.startswith("fuzzing_session_"), (
+                f"None should use default: {result}"
+            )
 
     def test_custom_name_exact(self):
         """Test custom session name produces exact output."""
@@ -505,7 +527,9 @@ class TestGenerateCorpusEntryIdMutationKilling:
 
         fixed_uuid = uuid_module.UUID("abcdef12-3456-7890-abcd-ef1234567890")
 
-        with patch("dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid):
+        with patch(
+            "dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid
+        ):
             result = generate_corpus_entry_id(generation=3)
 
         assert result == "gen3_abcdef12", f"Got: {result}"
@@ -517,6 +541,8 @@ class TestGenerateCorpusEntryIdMutationKilling:
 
         fixed_uuid = uuid_module.UUID("12345678-0000-0000-0000-000000000000")
 
-        with patch("dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid):
+        with patch(
+            "dicom_fuzzer.utils.identifiers.uuid.uuid4", return_value=fixed_uuid
+        ):
             assert generate_corpus_entry_id(generation=0).startswith("gen0_")
             assert generate_corpus_entry_id(generation=99).startswith("gen99_")

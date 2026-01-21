@@ -1457,7 +1457,9 @@ class TestCVEPatternBoundaryMutationKilling:
         security_fuzzer.oversized_vr_lengths = [0x10000]
 
         # Should take the "reasonable sizes" branch
-        with patch("random.sample", return_value=[(0x0008, 0x0070)]):  # Manufacturer tag
+        with patch(
+            "random.sample", return_value=[(0x0008, 0x0070)]
+        ):  # Manufacturer tag
             with patch("random.randint", return_value=1):
                 result = security_fuzzer.apply_cve_2025_5943_pattern(sample_dataset)
 

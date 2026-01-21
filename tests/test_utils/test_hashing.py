@@ -235,7 +235,9 @@ class TestHashFile:
         try:
             result = hash_file(temp_path)
             expected = hashlib.sha256(content).hexdigest()
-            assert result == expected, "Hash mismatch - marker at chunk boundary not included"
+            assert result == expected, (
+                "Hash mismatch - marker at chunk boundary not included"
+            )
         finally:
             temp_path.unlink()
 
@@ -412,7 +414,9 @@ class TestHashAny:
         """Verify bytes and their string decode produce same hash."""
         data = b"hello world"
         text = data.decode()
-        assert hash_any(data) == hash_any(text), "bytes and decoded string should hash same"
+        assert hash_any(data) == hash_any(text), (
+            "bytes and decoded string should hash same"
+        )
 
 
 class TestShortHash:
@@ -495,7 +499,9 @@ class TestMd5Hash:
         text = "test data"
         bytes_result = md5_hash(text.encode())
         string_result = md5_hash(text)
-        assert bytes_result == string_result, "String and encoded bytes should hash same"
+        assert bytes_result == string_result, (
+            "String and encoded bytes should hash same"
+        )
 
     def test_type_coercion_explicit(self):
         """Verify type coercion happens correctly.
