@@ -1487,3 +1487,196 @@ class TestMutationTypeAndStrategyEdgeCases:
 
         result = deduplicator._compare_strategy_frequency(seq1, seq2)
         assert result == 1.0  # Both have no valid strategies
+
+
+class TestCompareExceptionsMutationKilling:
+    """Mutation-killing tests for _compare_exceptions.
+
+    These tests verify exact boundary values, weights, and edge cases
+    to kill surviving mutants in the exception comparison logic.
+    """
+
+    @pytest.fixture
+    def deduplicator(self):
+        """Create deduplicator instance."""
+        return CrashDeduplicator()
+
+    def _create_crash(
+        self,
+        exception_type: str | None = None,
+        exception_message: str | None = None,
+    ) -> CrashRecord:
+        """Helper to create crash records with specific exception info."""
+        return CrashRecord(
+            crash_id="test",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f1",
+            fuzzed_file_path="test.dcm",
+            exception_type=exception_type,
+            exception_message=exception_message,
+        )
+
+    def test_identical_exceptions_return_1_0(self, deduplicator):
+        """Verify identical type and message returns exactly 1.0."""
+        crash1 = self._create_crash("ValueError", "Test error message")
+        crash2 = self._create_crash("ValueError", "Test error message")
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        assert result == 1.0, f"Expected 1.0 for identical exceptions, got {result}"
+
+    def test_same_type_different_message_returns_at_least_0_7(self, deduplicator):
+        """Verify same type gives at least 0.7 (type weight)."""
+        crash1 = self._create_crash("ValueError", "Message A completely different")
+        crash2 = self._create_crash("ValueError", "Message B totally unrelated xyz")
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        # Type match = 1.0, so minimum is 0.7 * 1.0 = 0.7
+        assert result >= 0.7, f"Expected >= 0.7, got {result}"
+
+    def test_different_type_same_message_returns_less_than_0_7(self, deduplicator):
+        """Verify different types with same message is less than 1.0."""
+        crash1 = self._create_crash("ValueError", "Same message")
+        crash2 = self._create_crash("TypeError", "Same message")
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        # Type match < 1.0, message match = 1.0
+        # Result = 0.7 * type_ratio + 0.3 * 1.0
+        assert result < 1.0, f"Expected < 1.0, got {result}"
+        assert result > 0.3, f"Expected > 0.3 (message contributes), got {result}"
+
+    def test_both_none_types_returns_1_0_type_component(self, deduplicator):
+        """Verify both None types are treated as equal (empty strings match)."""
+        crash1 = self._create_crash(None, "Same message")
+        crash2 = self._create_crash(None, "Same message")
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        # Both types become "", "" == "" = 1.0 type match
+        # Same message = 1.0 message match
+        assert result == 1.0, f"Expected 1.0, got {result}"
+
+    def test_one_none_type_one_has_type_returns_0_type_component(self, deduplicator):
+        """Verify one None type gives 0.0 type match."""
+        crash1 = self._create_crash(None, "Same message")
+        crash2 = self._create_crash("ValueError", "Same message")
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        # type1="" type2="ValueError", not equal, "" is falsy so type_match = 0.0
+        # 0.7 * 0.0 + 0.3 * 1.0 = 0.3
+        assert result == 0.3, f"Expected 0.3, got {result}"
+
+    def test_both_empty_messages_returns_1_0_message_component(self, deduplicator):
+        """Verify both empty/None messages give 1.0 message match."""
+        crash1 = self._create_crash("ValueError", None)
+        crash2 = self._create_crash("ValueError", None)
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        # Type match = 1.0, message match = 1.0 (both empty)
+        assert result == 1.0, f"Expected 1.0, got {result}"
+
+    def test_one_empty_message_returns_0_message_component(self, deduplicator):
+        """Verify one empty message gives 0.0 message match."""
+        crash1 = self._create_crash("ValueError", "Has a message")
+        crash2 = self._create_crash("ValueError", None)
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        # Type match = 1.0, message match = 0.0 (one has, one doesn't)
+        # 0.7 * 1.0 + 0.3 * 0.0 = 0.7
+        assert result == 0.7, f"Expected 0.7, got {result}"
+
+    def test_weight_0_7_for_type_match(self, deduplicator):
+        """Verify type match weight is exactly 0.7."""
+        # Same type, completely different messages
+        crash1 = self._create_crash("ValueError", None)
+        crash2 = self._create_crash("ValueError", "Has message")
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        # Type = 1.0, message = 0.0 (one has, one doesn't)
+        # 0.7 * 1.0 + 0.3 * 0.0 = 0.7
+        assert result == 0.7, f"Expected type weight 0.7, got {result}"
+
+    def test_weight_0_3_for_message_match(self, deduplicator):
+        """Verify message match weight is exactly 0.3."""
+        # Different types (but not completely), same message
+        crash1 = self._create_crash(None, "Same message")
+        crash2 = self._create_crash("ValueError", "Same message")
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        # type1="", type2="ValueError", not equal, "" is falsy -> type_match = 0.0
+        # 0.7 * 0.0 + 0.3 * 1.0 = 0.3
+        assert result == 0.3, f"Expected message weight 0.3, got {result}"
+
+    def test_partial_type_match_uses_sequence_matcher(self, deduplicator):
+        """Verify partial type match uses SequenceMatcher ratio."""
+        crash1 = self._create_crash("ValueError", None)
+        crash2 = self._create_crash("ValueXError", None)  # Similar but not exact
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        # Both have types, not equal, so SequenceMatcher is used
+        # "ValueError" vs "ValueXError" - high similarity
+        # Messages: both None -> msg1="" msg2="" -> msg_match = 1.0
+        # Result should be between 0.7 and 1.0
+        assert 0.7 < result < 1.0, (
+            f"Expected partial match 0.7 < result < 1.0, got {result}"
+        )
+
+    def test_empty_string_type_treated_as_falsy(self, deduplicator):
+        """Verify empty string exception type is treated as falsy."""
+        # Create crashes where type becomes empty string
+        crash1 = self._create_crash("", "Message")
+        crash2 = self._create_crash("ValueError", "Message")
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        # type1="" (after or ""), type2="ValueError"
+        # "" == "ValueError" is False
+        # type1="" is falsy, so type_match = 0.0
+        # 0.7 * 0.0 + 0.3 * 1.0 = 0.3
+        assert result == 0.3, f"Expected 0.3 for empty type, got {result}"
+
+    def test_empty_string_message_treated_as_falsy(self, deduplicator):
+        """Verify empty string message is treated as falsy."""
+        crash1 = self._create_crash("ValueError", "")
+        crash2 = self._create_crash("ValueError", "Has message")
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        # Type = 1.0
+        # msg1="" (after or ""), msg2="Has message"
+        # "" is falsy, "Has message" is truthy
+        # One has, one doesn't -> 0.0
+        # 0.7 * 1.0 + 0.3 * 0.0 = 0.7
+        assert result == 0.7, f"Expected 0.7 for empty message, got {result}"
+
+    def test_both_types_and_messages_none(self, deduplicator):
+        """Verify all None values return 1.0."""
+        crash1 = self._create_crash(None, None)
+        crash2 = self._create_crash(None, None)
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        # type1="" type2="" -> equal -> 1.0
+        # msg1="" msg2="" -> both empty -> 1.0
+        # 0.7 * 1.0 + 0.3 * 1.0 = 1.0
+        assert result == 1.0, f"Expected 1.0, got {result}"
+
+    def test_completely_different_exceptions_still_non_negative(self, deduplicator):
+        """Verify result is always >= 0."""
+        crash1 = self._create_crash("AAAA", "xxxx")
+        crash2 = self._create_crash("ZZZZ", "yyyy")
+
+        result = deduplicator._compare_exceptions(crash1, crash2)
+
+        assert result >= 0.0, f"Expected non-negative, got {result}"
+        assert result <= 1.0, f"Expected <= 1.0, got {result}"

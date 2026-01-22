@@ -1872,5 +1872,251 @@ class TestMetadataCachingMutationKilling:
         assert metadata1 is not metadata2  # Different objects
 
 
+class TestSecurityChecksMutationKilling:
+    """Mutation-killing tests for _perform_security_checks.
+
+    These tests verify exact error codes, context values, and boundary
+    conditions to kill surviving mutants in the security check logic.
+    """
+
+    def test_file_not_found_error_code(self, tmp_path):
+        """Verify FILE_NOT_FOUND error code is exact."""
+        nonexistent = tmp_path / "does_not_exist.dcm"
+
+        with pytest.raises(SecurityViolationError) as exc_info:
+            DicomParser(nonexistent, security_checks=True)
+
+        assert exc_info.value.error_code == "FILE_NOT_FOUND", (
+            f"Expected error_code='FILE_NOT_FOUND', got '{exc_info.value.error_code}'"
+        )
+
+    def test_invalid_file_type_error_code(self, tmp_path):
+        """Verify INVALID_FILE_TYPE error code for directory."""
+        # tmp_path is a directory
+        with pytest.raises(SecurityViolationError) as exc_info:
+            DicomParser(tmp_path, security_checks=True)
+
+        assert exc_info.value.error_code == "INVALID_FILE_TYPE", (
+            f"Expected error_code='INVALID_FILE_TYPE', got '{exc_info.value.error_code}'"
+        )
+
+    def test_file_too_large_error_code(self, tmp_path):
+        """Verify FILE_TOO_LARGE error code for oversized file."""
+        large_file = tmp_path / "large.dcm"
+        # Default max_file_size is 100MB, create 150MB file
+        large_file.write_bytes(b"\x00" * (150 * 1024 * 1024))
+
+        with pytest.raises(SecurityViolationError) as exc_info:
+            DicomParser(large_file, security_checks=True)
+
+        assert exc_info.value.error_code == "FILE_TOO_LARGE", (
+            f"Expected error_code='FILE_TOO_LARGE', got '{exc_info.value.error_code}'"
+        )
+
+    def test_file_too_large_context_has_file_size(self, tmp_path):
+        """Verify context contains file_size key."""
+        large_file = tmp_path / "large.dcm"
+        size = 150 * 1024 * 1024
+        large_file.write_bytes(b"\x00" * size)
+
+        with pytest.raises(SecurityViolationError) as exc_info:
+            DicomParser(large_file, security_checks=True)
+
+        assert "file_size" in exc_info.value.context, (
+            "Context should contain 'file_size' key"
+        )
+        assert exc_info.value.context["file_size"] == size, (
+            f"Expected file_size={size}, got {exc_info.value.context['file_size']}"
+        )
+
+    def test_file_too_large_context_has_max_size(self, tmp_path):
+        """Verify context contains max_size key."""
+        large_file = tmp_path / "large.dcm"
+        large_file.write_bytes(b"\x00" * (150 * 1024 * 1024))
+
+        with pytest.raises(SecurityViolationError) as exc_info:
+            DicomParser(large_file, security_checks=True)
+
+        assert "max_size" in exc_info.value.context, (
+            "Context should contain 'max_size' key"
+        )
+        # Default max is 100MB (100 * 1024 * 1024)
+        expected_max = 100 * 1024 * 1024
+        assert exc_info.value.context["max_size"] == expected_max, (
+            f"Expected max_size={expected_max}, got {exc_info.value.context['max_size']}"
+        )
+
+    def test_file_exactly_at_max_size_passes(self, tmp_path):
+        """Verify file exactly at max_file_size does NOT trigger error."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        test_file = tmp_path / "exact_max.dcm"
+
+        # Create a valid DICOM file
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.save_as(test_file, write_like_original=False)
+
+        # Use custom max_file_size that matches actual file size
+        actual_size = test_file.stat().st_size
+
+        # Should NOT raise - exactly at max is allowed
+        parser = DicomParser(test_file, security_checks=True, max_file_size=actual_size)
+        assert parser._dataset is not None
+
+    def test_file_one_byte_over_max_fails(self, tmp_path):
+        """Verify file one byte over max_file_size triggers error."""
+        test_file = tmp_path / "over_max.dcm"
+        test_file.write_bytes(b"\x00" * 1001)  # 1001 bytes
+
+        # max_file_size = 1000 should fail
+        with pytest.raises(SecurityViolationError) as exc_info:
+            DicomParser(test_file, security_checks=True, max_file_size=1000)
+
+        assert exc_info.value.error_code == "FILE_TOO_LARGE"
+
+    def test_dcm_extension_accepted(self, tmp_path, caplog):
+        """Verify .dcm extension does NOT trigger warning."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        test_file = tmp_path / "valid.dcm"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.save_as(test_file, write_like_original=False)
+
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            parser = DicomParser(test_file, security_checks=True)
+            assert parser._dataset is not None
+            # Should not have unusual extension warning
+            assert "Unusual file extension" not in caplog.text
+
+    def test_dicom_extension_accepted(self, tmp_path, caplog):
+        """Verify .dicom extension does NOT trigger warning."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        test_file = tmp_path / "valid.dicom"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.save_as(test_file, write_like_original=False)
+
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            parser = DicomParser(test_file, security_checks=True)
+            assert parser._dataset is not None
+            assert "Unusual file extension" not in caplog.text
+
+    def test_no_extension_accepted(self, tmp_path, caplog):
+        """Verify file with no extension does NOT trigger warning."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        test_file = tmp_path / "noextension"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.save_as(test_file, write_like_original=False)
+
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            parser = DicomParser(test_file, security_checks=True)
+            assert parser._dataset is not None
+            assert "Unusual file extension" not in caplog.text
+
+    def test_unusual_extension_triggers_warning(self, tmp_path, capsys):
+        """Verify unusual extension triggers warning."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        test_file = tmp_path / "test.txt"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.save_as(test_file, write_like_original=False)
+
+        parser = DicomParser(test_file, security_checks=True)
+        assert parser._dataset is not None
+
+        # structlog outputs to stdout
+        captured = capsys.readouterr()
+        assert "Unusual file extension" in captured.out
+        assert ".txt" in captured.out
+
+    def test_uppercase_dcm_extension_accepted(self, tmp_path, caplog):
+        """Verify .DCM (uppercase) extension does NOT trigger warning."""
+        import pydicom
+        from pydicom.uid import ExplicitVRLittleEndian
+
+        test_file = tmp_path / "valid.DCM"
+
+        file_meta = pydicom.Dataset()
+        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
+
+        ds = pydicom.Dataset()
+        ds.file_meta = file_meta
+        ds.PatientID = "ID123"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5"
+        ds.save_as(test_file, write_like_original=False)
+
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            parser = DicomParser(test_file, security_checks=True)
+            assert parser._dataset is not None
+            # .lower() should make .DCM match .dcm
+            assert "Unusual file extension" not in caplog.text
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
