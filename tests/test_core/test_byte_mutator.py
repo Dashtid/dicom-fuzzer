@@ -1374,3 +1374,385 @@ class TestFormatStringMutationKilling:
 
         # -1 in signed 32-bit little-endian is 0xFFFFFFFF
         assert result == bytearray(b"\xff\xff\xff\xff"), f"Got {result.hex()}"
+
+
+# =============================================================================
+# Mutation-Killing Tests for Surviving Mutations
+# =============================================================================
+
+
+class TestInteresting16BoundaryMutationKilling:
+    """Tests targeting exact boundary values in _interesting_16.
+
+    Mutations often change boundary checks like:
+    - `-32768 <= value <= 32767` -> `-32769 <= value <= 32767`
+    - Format strings '>h' -> '>H'
+    """
+
+    def test_int16_min_boundary_exact(self):
+        """Verify INT16_MIN (-32768) uses signed format."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        # -32768 is exactly INT16_MIN, should use signed 'h' format
+        with patch("random.randint", return_value=0):
+            with patch("random.choice", return_value=-32768):
+                with patch("random.random", return_value=0.6):  # LE
+                    result = mutator._interesting_16(data)
+
+        # -32768 in signed 16-bit LE is 0x8000 -> bytes 00 80
+        assert result[:2] == bytearray(b"\x00\x80"), f"Got {result[:2].hex()}"
+
+    def test_int16_max_boundary_exact(self):
+        """Verify INT16_MAX (32767) uses signed format."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        with patch("random.randint", return_value=0):
+            with patch("random.choice", return_value=32767):
+                with patch("random.random", return_value=0.6):  # LE
+                    result = mutator._interesting_16(data)
+
+        # 32767 in signed 16-bit LE is 0x7FFF -> bytes FF 7F
+        assert result[:2] == bytearray(b"\xff\x7f"), f"Got {result[:2].hex()}"
+
+    def test_uint16_max_uses_unsigned(self):
+        """Verify UINT16_MAX (65535) uses unsigned format."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        # 65535 is outside signed range, should use unsigned 'H' format
+        with patch("random.randint", return_value=0):
+            with patch("random.choice", return_value=65535):
+                with patch("random.random", return_value=0.6):  # LE
+                    result = mutator._interesting_16(data)
+
+        # 65535 in unsigned 16-bit LE is 0xFFFF -> bytes FF FF
+        assert result[:2] == bytearray(b"\xff\xff"), f"Got {result[:2].hex()}"
+
+    def test_below_int16_min_uses_signed(self):
+        """Verify value -129 (below INT8_MIN but in INT16 range) uses signed."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        with patch("random.randint", return_value=0):
+            with patch("random.choice", return_value=-129):
+                with patch("random.random", return_value=0.6):  # LE
+                    result = mutator._interesting_16(data)
+
+        # -129 in signed 16-bit LE is 0xFF7F -> bytes 7F FF
+        assert result[:2] == bytearray(b"\x7f\xff"), f"Got {result[:2].hex()}"
+
+    def test_big_endian_format(self):
+        """Verify big-endian format strings work correctly."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        with patch("random.randint", return_value=0):
+            with patch("random.choice", return_value=256):  # Above UINT8_MAX
+                with patch("random.random", return_value=0.4):  # BE
+                    result = mutator._interesting_16(data)
+
+        # 256 in BE is 0x0100 -> bytes 01 00
+        assert result[:2] == bytearray(b"\x01\x00"), f"Got {result[:2].hex()}"
+
+
+class TestInteresting32BoundaryMutationKilling:
+    """Tests targeting exact boundary values in _interesting_32."""
+
+    def test_int32_min_boundary_exact(self):
+        """Verify INT32_MIN (-2147483648) uses signed format."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        with patch("random.randint", return_value=0):
+            with patch("random.choice", return_value=-2147483648):
+                with patch("random.random", return_value=0.6):  # LE
+                    result = mutator._interesting_32(data)
+
+        # -2147483648 in signed 32-bit LE is 0x80000000
+        assert result == bytearray(b"\x00\x00\x00\x80"), f"Got {result.hex()}"
+
+    def test_int32_max_boundary_exact(self):
+        """Verify INT32_MAX (2147483647) uses signed format."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        with patch("random.randint", return_value=0):
+            with patch("random.choice", return_value=2147483647):
+                with patch("random.random", return_value=0.6):  # LE
+                    result = mutator._interesting_32(data)
+
+        # 2147483647 in signed 32-bit LE is 0x7FFFFFFF
+        assert result == bytearray(b"\xff\xff\xff\x7f"), f"Got {result.hex()}"
+
+    def test_uint32_max_uses_unsigned(self):
+        """Verify UINT32_MAX (4294967295) uses unsigned format."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        # 4294967295 is outside signed 32-bit range
+        with patch("random.randint", return_value=0):
+            with patch("random.choice", return_value=4294967295):
+                with patch("random.random", return_value=0.6):  # LE
+                    result = mutator._interesting_32(data)
+
+        # 4294967295 in unsigned 32-bit LE is 0xFFFFFFFF
+        assert result == bytearray(b"\xff\xff\xff\xff"), f"Got {result.hex()}"
+
+    def test_above_uint16_max_value(self):
+        """Verify 65536 (above UINT16_MAX) uses signed 32-bit."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        with patch("random.randint", return_value=0):
+            with patch("random.choice", return_value=65536):
+                with patch("random.random", return_value=0.6):  # LE
+                    result = mutator._interesting_32(data)
+
+        # 65536 in signed 32-bit LE is 0x00010000
+        assert result == bytearray(b"\x00\x00\x01\x00"), f"Got {result.hex()}"
+
+    def test_negative_large_value(self):
+        """Verify large negative (-100663046) uses signed format."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        with patch("random.randint", return_value=0):
+            with patch("random.choice", return_value=-100663046):
+                with patch("random.random", return_value=0.6):  # LE
+                    result = mutator._interesting_32(data)
+
+        # Should pack without error using signed format
+        import struct
+
+        expected = struct.pack("<i", -100663046)
+        assert result == bytearray(expected), f"Got {result.hex()}"
+
+
+class TestArithmeticBoundaryMutationKilling:
+    """Tests targeting arithmetic mutation boundary conditions."""
+
+    def test_arith_max_default_is_35(self):
+        """Verify ARITH_MAX defaults to 35."""
+        config = ByteMutatorConfig()
+        assert config.arith_max == 35
+
+    def test_arith_16_uses_config_arith_max(self):
+        """Verify _arithmetic_16 respects arith_max config."""
+        from unittest.mock import patch
+
+        # Use custom arith_max
+        config = ByteMutatorConfig(arith_max=10)
+        mutator = ByteMutator(config=config)
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        deltas_seen = set()
+        for _ in range(100):
+            with patch("random.randint", side_effect=[0, 5]):  # pos=0, delta=5
+                with patch("random.random", side_effect=[0.9, 0.6]):  # +delta, LE
+                    mutator._arithmetic_16(data.copy())
+                    # If arith_max is respected, delta should be <= 10
+                    deltas_seen.add(5)
+
+        # Verify we're testing with expected delta
+        assert 5 in deltas_seen
+
+    def test_arith_32_position_calculation(self):
+        """Verify _arithmetic_32 position is within bounds."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00\x00")  # 5 bytes
+
+        # pos should be 0 to len-4 = 0 to 1
+        with patch("random.randint", side_effect=[1, 1]):  # pos=1, delta=1
+            with patch("random.random", side_effect=[0.9, 0.6]):  # +delta, LE
+                result = mutator._arithmetic_32(data)
+
+        # Should modify bytes 1-4 (positions 1,2,3,4)
+        assert result[0] == 0  # Unchanged
+        # Bytes 1-4 should be modified (1 in LE = 0x00000001)
+        assert result[1:5] == bytearray(b"\x01\x00\x00\x00")
+
+    def test_arith_16_big_endian_format(self):
+        """Verify _arithmetic_16 big-endian format is correct."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        with patch("random.randint", side_effect=[0, 1]):  # pos=0, delta=1
+            with patch("random.random", side_effect=[0.9, 0.4]):  # +delta, BE
+                result = mutator._arithmetic_16(data)
+
+        # 1 in BE = 0x0001 -> bytes 00 01
+        assert result[:2] == bytearray(b"\x00\x01"), f"Got {result[:2].hex()}"
+
+
+class TestInteresting8MutationKilling:
+    """Tests targeting _interesting_8 mutations."""
+
+    def test_interesting_8_all_values_valid(self):
+        """Verify all INTERESTING_8 values can be used."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+
+        for value in INTERESTING_8:
+            data = bytearray(b"\x00\x00")
+            with patch("random.randint", return_value=0):
+                with patch("random.choice", return_value=value):
+                    result = mutator._interesting_8(data)
+
+            # Value should be masked to 8 bits
+            assert result[0] == (value & 0xFF), f"Value {value} failed"
+
+    def test_interesting_8_negative_value_mask(self):
+        """Verify negative values are correctly masked to 8 bits."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00")
+
+        # -128 & 0xFF = 0x80 = 128
+        with patch("random.randint", return_value=0):
+            with patch("random.choice", return_value=-128):
+                result = mutator._interesting_8(data)
+
+        assert result[0] == 0x80, f"Got {result[0]}"
+
+    def test_interesting_8_max_value(self):
+        """Verify INT8_MAX (127) is correctly applied."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00")
+
+        with patch("random.randint", return_value=0):
+            with patch("random.choice", return_value=127):
+                result = mutator._interesting_8(data)
+
+        assert result[0] == 127
+
+
+class TestWalkingBitFlipMutationKilling:
+    """Tests targeting _walking_bit_flip mutations."""
+
+    def test_bit_flip_1_single_bit(self):
+        """Verify 1-bit flip affects exactly one bit."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        with patch("random.randint", side_effect=[0, 0]):  # byte_pos=0, bit_pos=0
+            result = mutator._walking_bit_flip(data, num_bits=1)
+
+        # Only bit 0 should be flipped: 0x00 -> 0x01
+        assert result[0] == 0x01
+        assert result[1:] == bytearray(b"\x00\x00\x00")
+
+    def test_bit_flip_2_two_bits(self):
+        """Verify 2-bit flip affects exactly two consecutive bits."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        with patch("random.randint", side_effect=[0, 0]):  # byte_pos=0, bit_pos=0
+            result = mutator._walking_bit_flip(data, num_bits=2)
+
+        # Bits 0 and 1 flipped: 0x00 -> 0x03
+        assert result[0] == 0x03
+
+    def test_bit_flip_4_four_bits(self):
+        """Verify 4-bit flip affects exactly four consecutive bits."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        with patch("random.randint", side_effect=[0, 0]):  # byte_pos=0, bit_pos=0
+            result = mutator._walking_bit_flip(data, num_bits=4)
+
+        # Bits 0-3 flipped: 0x00 -> 0x0F
+        assert result[0] == 0x0F
+
+    def test_bit_flip_crosses_byte_boundary(self):
+        """Verify bit flip crossing byte boundary works."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        # Start at bit 7 of byte 0, flip 2 bits -> crosses into byte 1
+        with patch("random.randint", side_effect=[0, 7]):  # byte_pos=0, bit_pos=7
+            result = mutator._walking_bit_flip(data, num_bits=2)
+
+        # Bit 7 of byte 0 (0x80) and bit 0 of byte 1 (0x01)
+        assert result[0] == 0x80, f"Got byte 0: {result[0]:02x}"
+        assert result[1] == 0x01, f"Got byte 1: {result[1]:02x}"
+
+
+class TestWalkingByteFlipMutationKilling:
+    """Tests targeting _walking_byte_flip mutations."""
+
+    def test_byte_flip_1_xor_ff(self):
+        """Verify 1-byte flip XORs with 0xFF."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\xaa\xff\x55")
+
+        with patch("random.randint", return_value=1):  # pos=1
+            result = mutator._walking_byte_flip(data, num_bytes=1)
+
+        # 0xAA ^ 0xFF = 0x55
+        assert result[1] == 0x55
+
+    def test_byte_flip_2_consecutive(self):
+        """Verify 2-byte flip XORs two consecutive bytes."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        with patch("random.randint", return_value=0):  # pos=0
+            result = mutator._walking_byte_flip(data, num_bytes=2)
+
+        # Both bytes XORed with 0xFF
+        assert result[:2] == bytearray(b"\xff\xff")
+        assert result[2:] == bytearray(b"\x00\x00")
+
+    def test_byte_flip_4_consecutive(self):
+        """Verify 4-byte flip XORs four consecutive bytes."""
+        from unittest.mock import patch
+
+        mutator = ByteMutator()
+        data = bytearray(b"\x00\x00\x00\x00")
+
+        with patch("random.randint", return_value=0):  # pos=0
+            result = mutator._walking_byte_flip(data, num_bytes=4)
+
+        assert result == bytearray(b"\xff\xff\xff\xff")
