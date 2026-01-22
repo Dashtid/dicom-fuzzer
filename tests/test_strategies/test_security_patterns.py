@@ -2874,9 +2874,7 @@ class TestSequenceDepthDeterministicMutationKilling:
             result = security_fuzzer.apply_sequence_depth_attack(ds)
 
         # Check for the exact tag
-        assert Tag(0x0008, 0x1140) in result, (
-            "Tag (0x0008, 0x1140) not found in result"
-        )
+        assert Tag(0x0008, 0x1140) in result, "Tag (0x0008, 0x1140) not found in result"
 
     def test_manufacturer_level_labels(self, security_fuzzer):
         """Verify Manufacturer field contains Level_N labels."""
