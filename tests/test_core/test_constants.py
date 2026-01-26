@@ -323,15 +323,6 @@ class TestSeverityBackwardCompatibility:
         assert SeverityTriage is Severity
         assert SeverityTriage.INFO.value == "info"
 
-    def test_import_from_differential_fuzzer(self) -> None:
-        """Test BugSeverity import from differential_fuzzer still works."""
-        from dicom_fuzzer.core.differential_fuzzer import (
-            BugSeverity as BugSeverityDiff,
-        )
-
-        assert BugSeverityDiff is Severity
-        assert BugSeverityDiff.HIGH.value == "high"
-
     def test_import_from_semantic_bucketer(self) -> None:
         """Test Severity and SEVERITY_SCORES import from semantic_bucketer."""
         from dicom_fuzzer.core.semantic_bucketer import (

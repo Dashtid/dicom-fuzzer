@@ -34,7 +34,6 @@ Examples:
 Subcommands (use --help for details):
   samples      Generate synthetic/malicious DICOM samples
   tls          DICOM TLS/authentication testing
-  differential Cross-parser differential testing
   persistent   AFL-style persistent mode fuzzing
   state        Protocol state machine fuzzing
   corpus       Corpus management and minimization

@@ -76,9 +76,6 @@ distributed = [
 metrics = [
     "prometheus-client>=0.21.0",
 ]
-differential = [
-    "python-gdcm>=3.0.0; platform_system != 'Windows'",
-]
 security = [
     "pip-audit>=2.7.0",
     "cyclonedx-bom>=4.0.0",
@@ -226,7 +223,6 @@ module = [
     "jinja2.*",   # Optional dependency for HTML reports
     "redis.*",    # Optional dependency for distributed fuzzing
     "prometheus_client.*",  # Optional dependency for metrics
-    "gdcm.*",     # Optional dependency for differential fuzzing
     "httpx.*",    # Optional dependency for async HTTP
     "requests.*", # HTTP client
     "psutil.*",   # Process utilities

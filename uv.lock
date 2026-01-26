@@ -771,9 +771,6 @@ all = [
     { name = "redis" },
     { name = "seaborn" },
 ]
-differential = [
-    { name = "python-gdcm", marker = "sys_platform != 'win32'" },
-]
 distributed = [
     { name = "redis" },
 ]
@@ -845,14 +842,13 @@ requires-dist = [
     { name = "pynetdicom", specifier = ">=2.0.0" },
     { name = "pynetdicom", extras = ["apps"], marker = "extra == 'network'", specifier = ">=2.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "python-gdcm", marker = "sys_platform != 'win32' and extra == 'differential'", specifier = ">=3.0.0" },
     { name = "redis", marker = "extra == 'distributed'", specifier = ">=5.2.0" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "seaborn", marker = "extra == 'viz'", specifier = ">=0.12.0" },
     { name = "structlog", specifier = ">=23.0.0" },
     { name = "tqdm", specifier = ">=4.66.0" },
 ]
-provides-extras = ["network", "viz", "distributed", "metrics", "differential", "security", "all"]
+provides-extras = ["network", "viz", "distributed", "metrics", "security", "all"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2855,30 +2851,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f0/26/19cadc79a718c5edbec86fd4919a6b6d3f681039a2f6d66d14be94e75fb9/python_dotenv-1.2.1.tar.gz", hash = "sha256:42667e897e16ab0d66954af0e60a9caa94f0fd4ecf3aaf6d2d260eec1aa36ad6", size = 44221, upload-time = "2025-10-26T15:12:10.434Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/14/1b/a298b06749107c305e1fe0f814c6c74aea7b2f1e10989cb30f544a1b3253/python_dotenv-1.2.1-py3-none-any.whl", hash = "sha256:b81ee9561e9ca4004139c6cbba3a238c32b03e4894671e181b671e8cb8425d61", size = 21230, upload-time = "2025-10-26T15:12:09.109Z" },
-]
-
-[[package]]
-name = "python-gdcm"
-version = "3.2.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d3/60/f7644ed11af08a19e3b9e622e144c86d2a67dbaad7056940bc073ff2f513/python_gdcm-3.2.2.tar.gz", hash = "sha256:10e587448ba7548c18ad0e049fec9fa23dffd57ed0e56e3d18b108522db614d3", size = 3379580, upload-time = "2025-10-06T12:29:28.044Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/ea/309e3146cb753c8cf20e6ac465ee1e472fe36a3387ae0057ca114bf25944/python_gdcm-3.2.2-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:8045bfd8b556e838ff4e18b094e30877371f09a7a36b150f64b31ac1958170a1", size = 11378325, upload-time = "2025-10-06T12:28:26.587Z" },
-    { url = "https://files.pythonhosted.org/packages/69/bb/93a08d36fd8a5d6a725519ed9be0dce472ce4bce1d2716116c377b1983fd/python_gdcm-3.2.2-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:d8f9d6d2dff05a4764a346d686d27080c17fac67e9038e2f7067ad9061ba3b16", size = 10642282, upload-time = "2025-10-06T12:28:29.108Z" },
-    { url = "https://files.pythonhosted.org/packages/ef/15/ceb0f1b2d1d9a7de813f65c3dbb90e841ff3903bc53d778e294189b35779/python_gdcm-3.2.2-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:3fc01874b0415d8a8f2ce799d4b5e69d24c4166ccd8c4fe35f7d1f890ebf6ab0", size = 12257444, upload-time = "2025-10-06T12:28:32.102Z" },
-    { url = "https://files.pythonhosted.org/packages/66/f1/1c3651a17395fed2e257f31917e6c20020b67cf469880887c6642754b611/python_gdcm-3.2.2-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:23213423b00194fe7769fd0e6c841ed499017adcfbdc36da7bc63be94106a38e", size = 13250775, upload-time = "2025-10-06T12:28:35.211Z" },
-    { url = "https://files.pythonhosted.org/packages/b7/ab/e84ff027d2a1488f23cdddc2716699b512fd38e0c3df31a33022042d25dd/python_gdcm-3.2.2-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:0bdc2921d387965e896f88644253797c40e9ea8cc751bc9301b7b73b9e18a922", size = 11295601, upload-time = "2025-10-06T12:28:42.877Z" },
-    { url = "https://files.pythonhosted.org/packages/fe/55/919e90a7a1eda30066f784e6cf5d54b3a79de8c012c303bd54282eff1c68/python_gdcm-3.2.2-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:096fd88c115f0d5182593bac6f75023d8e5a4722347bd54dda2dab4f31629251", size = 10643647, upload-time = "2025-10-06T12:28:45.396Z" },
-    { url = "https://files.pythonhosted.org/packages/b0/02/cd9329ac8911c313f1bfb6e49754f9964048b96a07e007340d620d42ca7b/python_gdcm-3.2.2-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ab277e8eeadc3f9e87646340b425db5808a329ee6fa245f4d45ae8fc60e49334", size = 12258087, upload-time = "2025-10-06T12:28:47.818Z" },
-    { url = "https://files.pythonhosted.org/packages/2b/06/bc76d5598186280a4b0e1518e3f1db7e4fad3642d2251571c5c29d7be6ec/python_gdcm-3.2.2-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:992f72005324dd5c4c6a9d7ea6ee85e7fead9eb4d566aa693aff26a3fbe56869", size = 13253717, upload-time = "2025-10-06T12:28:50.475Z" },
-    { url = "https://files.pythonhosted.org/packages/7c/63/713e8b42dfa5bd093b072aa21a5c69e6b432dd4b6ca0b46a54607470af65/python_gdcm-3.2.2-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:068f7bd695e296dda00fc90e2786e4ae9fcbd663536ee65335790f28dd461085", size = 11295517, upload-time = "2025-10-06T12:28:57.915Z" },
-    { url = "https://files.pythonhosted.org/packages/11/cd/991b1fb84da938671998549ce993705a6ec937a1b5ca5cfbc304f1fd09ad/python_gdcm-3.2.2-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:b87a15d0506ab33b55bfbbca48aaaa2583e29cdce36abbb95e8ed2b209afa8ea", size = 10643607, upload-time = "2025-10-06T12:29:00.389Z" },
-    { url = "https://files.pythonhosted.org/packages/94/75/5136b9bde3a21bc92c59396b910143bb1e43c9ecd3249181ab1f2d63d27b/python_gdcm-3.2.2-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:e2efe2f09af0cac72433471586e6baa7b187cd19215f05048f00abe3bde42f71", size = 12257918, upload-time = "2025-10-06T12:29:03.189Z" },
-    { url = "https://files.pythonhosted.org/packages/6e/cb/686098a8204cbb58a40b1c0fb186a7bb38507a7f3c99039e20a5309be1f9/python_gdcm-3.2.2-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:7b0c5936d0f340b2e766d23e8574160da24c92d1ea59ca268f6ae39741e5025c", size = 13253685, upload-time = "2025-10-06T12:29:05.847Z" },
-    { url = "https://files.pythonhosted.org/packages/b1/ed/84504c061f12c40cb6e05dbcef86a0a85540c4cd84cca7ba3da8e45b2f16/python_gdcm-3.2.2-cp314-cp314-macosx_10_13_x86_64.whl", hash = "sha256:66850cea3ad7b630794850689f8ff5c83b9a69904c1b51779e17a409df2f7a35", size = 11296478, upload-time = "2025-10-06T12:29:13.228Z" },
-    { url = "https://files.pythonhosted.org/packages/e0/d5/20488f6c5e87454fc7b47481f4e7073138eb6f3e6472d63eb331bb8b5795/python_gdcm-3.2.2-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:aedf88a08ef42646d2df33b63c1b0948e4e04f16b3efce3751c7c964c05d6e2a", size = 10643736, upload-time = "2025-10-06T12:29:15.788Z" },
-    { url = "https://files.pythonhosted.org/packages/76/01/53f978c32447312ddcfaee1cdd4868cfe6d6487f5c224243d8fcecb1c77a/python_gdcm-3.2.2-cp314-cp314-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:36c5d43828c7a4862776bb4a82dcf0abed8050abc477889954911854e5a18b4c", size = 12259563, upload-time = "2025-10-06T12:29:18.824Z" },
-    { url = "https://files.pythonhosted.org/packages/09/a5/a895c4b0b3ce4e7a3d86f12da480df86a0bc818ec7015005baac967f3600/python_gdcm-3.2.2-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:36dabf0b2e220460462c58309598fb07690caa1de82c305d292f1616196be1d2", size = 13254969, upload-time = "2025-10-06T12:29:21.453Z" },
 ]
 
 [[package]]

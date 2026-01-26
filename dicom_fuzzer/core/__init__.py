@@ -92,20 +92,6 @@ from .dicom_tls_fuzzer import (
     quick_scan,
 )
 
-# Advanced Fuzzing Engines (v1.5.0)
-from .differential_fuzzer import (
-    DCMTKParser,
-    DICOMParser,
-    Difference,
-    DifferenceType,
-    DifferentialAnalyzer,
-    DifferentialFuzzer,
-    DifferentialResult,
-    GDCMParser,
-    ImplementationType,
-    ParseResult,
-    PydicomParser,
-)
 
 # DIMSE Protocol Types (v1.7.0)
 from .dimse_types import (
@@ -309,18 +295,6 @@ __all__ = [
     "StateGuidedHavoc",
     "StateInferenceEngine",
     "StateMutator",
-    # Differential Fuzzing
-    "DCMTKParser",
-    "Difference",
-    "DifferenceType",
-    "DifferentialAnalyzer",
-    "DifferentialFuzzer",
-    "DifferentialResult",
-    "DICOMParser",
-    "GDCMParser",
-    "ImplementationType",
-    "ParseResult",
-    "PydicomParser",
     # Persistent Mode Fuzzing
     "MOptScheduler",
     "PersistentFuzzer",

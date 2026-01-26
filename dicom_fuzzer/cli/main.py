@@ -39,7 +39,6 @@ faulthandler.enable(file=sys.stderr, all_threads=True)
 SUBCOMMANDS: dict[str, str] = {
     "samples": "dicom_fuzzer.cli.samples",
     "tls": "dicom_fuzzer.cli.tls",
-    "differential": "dicom_fuzzer.cli.differential",
     "persistent": "dicom_fuzzer.cli.persistent",
     "state": "dicom_fuzzer.cli.state",
     "corpus": "dicom_fuzzer.cli.corpus",

@@ -263,23 +263,6 @@ class TestSubcommandDispatch:
 
             mock_study.assert_called()
 
-    def test_differential_subcommand(self):
-        """Test 'differential' subcommand dispatch."""
-        with (
-            patch("sys.argv", ["dicom-fuzzer", "differential", "--help"]),
-            patch(
-                "dicom_fuzzer.cli.differential.main", return_value=0
-            ) as mock_differential,
-        ):
-            from dicom_fuzzer.cli.main import main
-
-            try:
-                result = main()
-            except SystemExit:
-                pass
-
-            mock_differential.assert_called()
-
     def test_persistent_subcommand(self):
         """Test 'persistent' subcommand dispatch."""
         with (

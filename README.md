@@ -60,7 +60,6 @@ dicom-fuzzer fuzz --help         # Fuzzing options
 dicom-fuzzer report --help       # Report generation
 dicom-fuzzer corpus --help       # Corpus management
 dicom-fuzzer tls --help          # TLS/auth testing
-dicom-fuzzer differential --help # Cross-parser testing
 ```
 
 See [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE.md) for full command documentation.
