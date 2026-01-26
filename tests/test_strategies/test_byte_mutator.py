@@ -5,7 +5,7 @@ low-level byte mutations for fuzzing.
 """
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from dicom_fuzzer.core.byte_mutator import (
@@ -511,7 +511,10 @@ class TestByteMutatorPropertyBased:
     """Property-based tests using Hypothesis."""
 
     @given(st.binary(min_size=10, max_size=1000))
-    @settings(max_examples=50)
+    @settings(
+        max_examples=50,
+        suppress_health_check=[HealthCheck.differing_executors],
+    )
     def test_mutate_returns_bytes(self, data):
         """Property: mutate always returns bytes."""
         mutator = ByteMutator()
@@ -520,7 +523,10 @@ class TestByteMutatorPropertyBased:
         assert isinstance(result, bytes)
 
     @given(st.binary(min_size=10, max_size=1000))
-    @settings(max_examples=50)
+    @settings(
+        max_examples=50,
+        suppress_health_check=[HealthCheck.differing_executors],
+    )
     def test_mutate_never_crashes(self, data):
         """Property: mutate never crashes on valid input."""
         mutator = ByteMutator()
@@ -533,7 +539,10 @@ class TestByteMutatorPropertyBased:
         st.binary(min_size=10, max_size=100),
         st.binary(min_size=10, max_size=100),
     )
-    @settings(max_examples=30)
+    @settings(
+        max_examples=30,
+        suppress_health_check=[HealthCheck.differing_executors],
+    )
     def test_splice_combines_inputs(self, data1, data2):
         """Property: splice produces output combining both inputs."""
         mutator = ByteMutator()

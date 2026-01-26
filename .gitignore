@@ -441,3 +441,8 @@ TESTING_SESSION*.md
 /screenshots/
 /data/
 /scripts/
+
+# Mutation testing
+mutation-results.txt
+mutation-report/
+.mutmut-cache
