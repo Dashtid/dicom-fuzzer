@@ -155,7 +155,7 @@ jobs:
             2>&1 | tee fuzz_output.log || true
 
           echo "[+] Fuzzing completed"
-        timeout-minutes: 15
+        timeout-minutes: 20
 
       - name: Check for crashes
         run: |
