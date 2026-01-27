@@ -1,13 +1,6 @@
-"""Coverage Correlation Analysis
+"""Coverage Correlation Analysis.
 
-CONCEPT: Correlate crashes with coverage data to identify vulnerable
-code paths and prioritize security fixes.
-
-SECURITY INSIGHT: Shows which code paths lead to crashes, helping
-developers focus on high-risk areas.
-
-RESEARCH: "Examining which lines are executed is helpful for understanding
-the effectiveness of your fuzzer." (2025 Best Practices)
+Correlates crashes with coverage data to identify vulnerable code paths.
 """
 
 from collections import defaultdict

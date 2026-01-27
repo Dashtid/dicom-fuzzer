@@ -1,15 +1,7 @@
-"""Test Case Minimization - Delta Debugging for Crashes
+"""Test Case Minimization - Delta Debugging for Crashes.
 
-This module implements automatic test case minimization using delta debugging
-algorithm to reduce crashing inputs to their smallest form while preserving
-the crash behavior.
-
-CONCEPT: When a fuzzer finds a crashing input, it's often a large file with
-many mutations. Minimization reduces it to the smallest possible input that
-still causes the same crash, making analysis much easier.
-
-Based on Andreas Zeller's delta debugging algorithm (2002) and modern
-improvements from 2025 fuzzing frameworks.
+Implements automatic test case minimization using delta debugging to reduce
+crashing inputs to their smallest form while preserving crash behavior.
 """
 
 from collections.abc import Callable

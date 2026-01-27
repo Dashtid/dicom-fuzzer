@@ -1,20 +1,7 @@
-"""DICOM Series Data Structure
+"""DICOM Series Data Structure.
 
-This module defines the DicomSeries dataclass representing a complete 3D DICOM series.
-
-CONCEPT: A DICOM series is a collection of related images (slices) that form a 3D volume.
-All slices in a series share the same SeriesInstanceUID and typically represent a single
-acquisition (e.g., CT scan, MRI sequence).
-
-KEY ATTRIBUTES:
-- SeriesInstanceUID: Unique identifier linking all slices in the series
-- ImagePositionPatient: Used for spatial ordering of slices
-- ImageOrientationPatient: Defines the orientation of the image plane
-- Modality: Type of imaging (CT, MR, US, etc.)
-
-SECURITY NOTE: Based on 2025 CVE research (CVE-2025-35975, CVE-2025-36521, CVE-2025-5943),
-DICOM viewers are vulnerable to out-of-bounds read/write when loading malformed series.
-This makes series-level fuzzing critical for security testing.
+Defines the DicomSeries dataclass representing a complete 3D DICOM series.
+A series is a collection of related slices sharing a SeriesInstanceUID.
 """
 
 from dataclasses import dataclass, field

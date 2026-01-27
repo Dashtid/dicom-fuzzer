@@ -1,15 +1,7 @@
-"""Coverage-Guided Fuzzing - Coverage Tracking System
+"""Coverage-Guided Fuzzing - Coverage Tracking System.
 
-LEARNING OBJECTIVE: This module demonstrates how coverage-guided fuzzing works by
-tracking which code paths are executed during testing.
-
-CONCEPT: Coverage-guided fuzzing is like exploring a maze - we want to find new
-paths we haven't explored yet. Every time we find a new path, we remember the
-input that got us there and try variations of it.
-
-WHY: Traditional fuzzing is random - like throwing darts blindfolded. Coverage-guided
-fuzzing is intelligent - it learns which inputs are interesting and focuses on them.
-This dramatically increases the effectiveness of fuzzing.
+Tracks which code paths are executed during testing. Inputs that discover
+new paths are saved and mutated to explore further.
 """
 
 import sys

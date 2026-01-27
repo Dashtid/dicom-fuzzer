@@ -1,19 +1,8 @@
-"""Dictionary-Based DICOM Fuzzing Strategy
+"""Dictionary-Based DICOM Fuzzing Strategy.
 
-LEARNING OBJECTIVE: This module demonstrates dictionary-based fuzzing - using
-domain knowledge to generate intelligent mutations.
-
-CONCEPT: Instead of random bit flips, we replace DICOM values with values from
-our dictionaries. This helps us:
-1. Bypass input validation (values look valid)
-2. Reach deeper code paths
-3. Test edge cases systematically
-
-WHY: Dictionary-based fuzzing is 10-100x more effective than random fuzzing for
-complex formats like DICOM because it produces inputs that look valid but have
-subtle problems.
-
-This is called "smart fuzzing" or "grammar-aware fuzzing".
+Uses domain knowledge to generate intelligent mutations by replacing DICOM
+values with entries from curated dictionaries. This produces inputs that
+pass initial validation but may trigger edge cases in deeper code paths.
 """
 
 import copy
@@ -31,20 +20,12 @@ logger = get_logger(__name__)
 class DictionaryFuzzer:
     """Dictionary-based fuzzing strategy for DICOM files.
 
-    LEARNING: This fuzzer knows about DICOM - it understands what values
-    should go in which tags and can intelligently substitute malicious but
-    valid-looking values.
-
-    CONCEPT: We maintain a mapping of DICOM tags to appropriate dictionaries,
-    then systematically replace values with dictionary entries.
-
-    WHY: This finds bugs that random fuzzing misses because our inputs pass
-    validation but still trigger edge cases.
+    Maps DICOM tags to appropriate value dictionaries and systematically
+    replaces field values with dictionary entries. This produces inputs
+    that pass validation but trigger edge cases.
     """
 
-    # Mapping of DICOM tags to appropriate dictionaries
-    # CONCEPT: Each DICOM tag has specific valid values. We know which dictionary
-    # to use for each tag to generate realistic mutations.
+    # Mapping of DICOM tags to appropriate dictionaries for realistic mutations
     TAG_TO_DICTIONARY: dict[int, str] = {
         0x00080016: "sop_class_uids",  # SOP Class UID
         0x00080018: "sop_class_uids",  # SOP Instance UID (reuse class UIDs)
@@ -108,11 +89,11 @@ class DictionaryFuzzer:
     ) -> Dataset:
         """Apply dictionary-based mutations to a DICOM dataset.
 
-        CONCEPT: Based on severity, we apply different mutation strategies:
-        - MINIMAL: Replace with valid dictionary values
+        Severity levels control mutation strategy:
+        - MINIMAL: Valid dictionary values only
         - MODERATE: Mix valid values with edge cases
-        - AGGRESSIVE: Use edge cases and malicious values
-        - EXTREME: Purely malicious values and format violations
+        - AGGRESSIVE: Edge cases and malicious values
+        - EXTREME: Malicious values and format violations
 
         Args:
             dataset: DICOM dataset to mutate
@@ -248,9 +229,6 @@ class DictionaryFuzzer:
     def _get_valid_value(self, tag: int) -> str:
         """Get a valid value for a tag from dictionaries.
 
-        CONCEPT: We look up which dictionary is appropriate for this tag
-        and return a random value from it.
-
         Args:
             tag: DICOM tag
 
@@ -273,13 +251,7 @@ class DictionaryFuzzer:
         return DICOMDictionaries.get_random_value(dict_name)
 
     def _get_edge_case_value(self) -> str:
-        """Get an edge case value.
-
-        CONCEPT: Edge cases are values that often cause problems:
-        - Empty strings
-        - Very long strings
-        - Special characters
-        - Null bytes
+        """Get an edge case value (empty, long, special chars, null bytes).
 
         Returns:
             Edge case value
@@ -290,16 +262,10 @@ class DictionaryFuzzer:
         return random.choice(values)
 
     def _get_malicious_value(self) -> str:
-        """Get a malicious value designed to trigger vulnerabilities.
-
-        CONCEPT: These values specifically target common vulnerability types:
-        - Buffer overflows
-        - SQL injection
-        - Command injection
-        - Format string attacks
+        """Get a value targeting common vulnerability types.
 
         Returns:
-            Malicious value
+            Malicious value (buffer overflow, injection, format string)
 
         """
         category = random.choice(list(self.malicious_values.keys()))
@@ -308,8 +274,6 @@ class DictionaryFuzzer:
 
     def _get_num_mutations(self, severity: MutationSeverity, dataset_size: int) -> int:
         """Determine how many mutations to apply based on severity.
-
-        CONCEPT: More severe = more mutations
 
         Args:
             severity: Mutation severity
@@ -335,8 +299,6 @@ class DictionaryFuzzer:
     def can_mutate(self, dataset: Dataset) -> bool:
         """Check if this strategy can mutate the dataset.
 
-        CONCEPT: Dictionary fuzzing works on any DICOM dataset.
-
         Args:
             dataset: Dataset to check
 
@@ -348,9 +310,6 @@ class DictionaryFuzzer:
 
     def get_applicable_tags(self, dataset: Dataset) -> list[tuple[int, str]]:
         """Get tags that can be mutated with their dictionary names.
-
-        CONCEPT: This helps with targeted fuzzing - we can see which tags
-        we can intelligently mutate.
 
         Args:
             dataset: DICOM dataset
@@ -377,9 +336,6 @@ class DictionaryFuzzer:
         self, dataset: Dataset, tag: int, dictionary_name: str
     ) -> Dataset:
         """Mutate a specific tag using a specific dictionary.
-
-        CONCEPT: For targeted testing, we can specify exactly which
-        dictionary to use for which tag.
 
         Args:
             dataset: Dataset to mutate
@@ -415,8 +371,7 @@ class DictionaryFuzzer:
     ) -> list[Dataset]:
         """Generate multiple datasets by systematically injecting edge cases.
 
-        CONCEPT: Instead of random injection, we systematically try each
-        edge case in each tag. This ensures comprehensive coverage.
+        Tries each edge case in each tag for comprehensive coverage.
 
         Args:
             dataset: Base dataset

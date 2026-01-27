@@ -1,15 +1,7 @@
-"""Series3D Reporter - Enhanced Reporting for 3D DICOM Series Fuzzing
+"""Series3D Reporter - Enhanced Reporting for 3D DICOM Series Fuzzing.
 
-This module provides specialized reporting for 3D DICOM series fuzzing campaigns,
-tracking series-level mutations, multi-slice attacks, and spatial integrity issues.
-
-CONCEPT: 3D series fuzzing requires different metrics than single-file fuzzing:
-- Track mutations across multiple slices in a series
-- Visualize spatial relationships (slice positions, orientations)
-- Analyze series-level attacks (gradient mutations, boundary targeting)
-- Report on viewer-specific vulnerabilities
-
-Based on 2025 best practices from CASR (crash triage) and FuzzManager (coverage visualization).
+Provides specialized reporting for 3D series fuzzing campaigns, tracking
+multi-slice mutations and spatial integrity issues.
 """
 
 from dataclasses import dataclass, field

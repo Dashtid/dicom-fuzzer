@@ -1,11 +1,8 @@
-"""Structure Fuzzer - DICOM File Structure Attacks
+"""Structure Fuzzer - DICOM File Structure Mutations.
 
-LEARNING OBJECTIVE: This module demonstrates low-level file format fuzzing,
-targeting the DICOM file structure itself rather than just the data values.
-
-CONCEPT: Many vulnerabilities exist in how parsers handle malformed file structures.
-By corrupting headers, tags, and length fields, we can find parser bugs that might
-lead to crashes, buffer overflows, or other security issues.
+Targets the DICOM file structure itself (preamble, prefix, tag ordering,
+length fields) rather than just data values. Tests parser robustness against
+malformed file structures that may trigger crashes or buffer overflows.
 """
 
 import random
@@ -20,13 +17,10 @@ logger = get_logger(__name__)
 class StructureFuzzer:
     """Fuzzes the underlying DICOM file structure.
 
-    CONCEPT: DICOM files have a specific binary structure:
+    Targets the binary structure of DICOM files:
     - File preamble (128 bytes)
     - DICOM prefix "DICM" (4 bytes)
     - Data elements with tags, VRs, and lengths
-
-    WHY: Attackers often target parser logic, not just data validation.
-    Testing structure corruption helps find critical parsing vulnerabilities.
     """
 
     def __init__(self) -> None:
@@ -41,8 +35,8 @@ class StructureFuzzer:
     def mutate_structure(self, dataset: Dataset) -> Dataset:
         """Apply structure-level mutations to the dataset.
 
-        CONCEPT: We randomly select corruption strategies to apply.
-        Each strategy targets a different aspect of DICOM structure.
+        Randomly selects 1-2 corruption strategies, each targeting
+        a different aspect of DICOM structure.
 
         Args:
             dataset: The DICOM dataset to mutate
@@ -63,11 +57,8 @@ class StructureFuzzer:
     def _corrupt_tag_ordering(self, dataset: Dataset) -> Dataset:
         """Corrupt the ordering of DICOM tags.
 
-        CONCEPT: DICOM tags should be in ascending numerical order.
-        Breaking this order can expose parser assumptions and bugs.
-
-        SECURITY: Some parsers crash or behave unexpectedly when tags
-        are out of order, potentially leading to exploitable conditions.
+        DICOM tags must be in ascending numerical order per the spec.
+        Breaking this order tests parser assumptions about tag ordering.
 
         Args:
             dataset: Dataset to corrupt
@@ -98,13 +89,9 @@ class StructureFuzzer:
     def _corrupt_length_fields(self, dataset: Dataset) -> Dataset:
         """Corrupt length fields in DICOM data elements.
 
-        CONCEPT: Each DICOM element has a length field indicating data size.
-        Incorrect lengths can cause buffer overflows or out-of-bounds reads.
-
-        SECURITY IMPACT:
-        - Buffer overflow (length too large)
-        - Integer overflow/underflow
-        - Denial of service (parser loops indefinitely)
+        Each DICOM element has a length field indicating data size.
+        Incorrect lengths can cause buffer overflows, integer overflow,
+        or parser loops.
 
         Args:
             dataset: Dataset to corrupt
@@ -151,11 +138,8 @@ class StructureFuzzer:
     def _insert_unexpected_tags(self, dataset: Dataset) -> Dataset:
         """Insert unexpected or reserved DICOM tags.
 
-        CONCEPT: DICOM has reserved tag ranges and private tags.
-        Inserting unusual tags tests parser robustness.
-
-        SECURITY: Parsers may not validate private or unknown tags,
-        potentially leading to injection attacks or memory corruption.
+        Inserts tags from reserved ranges or private tag space to test
+        parser handling of unexpected elements.
 
         Args:
             dataset: Dataset to modify
@@ -188,11 +172,8 @@ class StructureFuzzer:
     def _duplicate_tags(self, dataset: Dataset) -> Dataset:
         """Create duplicate DICOM tags.
 
-        CONCEPT: DICOM specification says each tag should appear once.
-        Duplicates test parser handling of malformed files.
-
-        SECURITY: Parsers might use first occurrence, last occurrence,
-        or crash. This can lead to security bypasses or DoS.
+        DICOM specifies each tag should appear once. Parsers may use
+        first occurrence, last occurrence, or crash on duplicates.
 
         Args:
             dataset: Dataset to modify
@@ -258,11 +239,8 @@ class StructureFuzzer:
     ) -> str | None:
         """Directly corrupt the DICOM file header at binary level.
 
-        CONCEPT: This operates on the raw file bytes, not the parsed dataset.
-        It can corrupt the file preamble, DICM prefix, or transfer syntax.
-
-        SECURITY IMPACT: Critical - can bypass all high-level validation
-        and directly attack the parser's binary reading logic.
+        Operates on raw bytes to corrupt preamble, DICM prefix, or transfer
+        syntax - bypasses high-level validation.
 
         Args:
             file_path: Path to input DICOM file

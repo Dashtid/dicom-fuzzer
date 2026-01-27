@@ -1,14 +1,7 @@
-"""Coverage-Guided Fuzzing - Corpus Management
+"""Corpus Management for Coverage-Guided Fuzzing.
 
-LEARNING OBJECTIVE: This module demonstrates how to manage a corpus of interesting
-test cases for coverage-guided fuzzing.
-
-CONCEPT: The corpus is like a library of valuable test cases. Each test case in
-the corpus has discovered unique code paths. We keep mutating these cases to find
-even more interesting inputs.
-
-WHY: The corpus is the "memory" of our fuzzer. Without it, we'd forget which
-inputs were valuable. With it, we build on previous discoveries.
+Manages a collection of interesting test cases that have discovered unique
+code paths. The corpus is the fuzzer's memory, enabling incremental discovery.
 """
 
 import copy

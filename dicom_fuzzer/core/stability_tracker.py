@@ -1,15 +1,7 @@
-"""Stability Metrics Tracking - AFL++-Style
+"""Stability Metrics Tracking - AFL++-Style.
 
-This module tracks fuzzing stability metrics to detect non-deterministic
-behavior in the target application or fuzzing harness. Based on AFL++'s
-stability metric concept.
-
-CONCEPT: A stable fuzzer produces consistent results - the same input
-should always follow the same code path and produce the same coverage.
-Instability indicates problems like uninitialized memory, race conditions,
-or entropy sources that make fuzzing less effective.
-
-Ideal stability: 100% (same input -> same coverage every time)
+Tracks fuzzing stability to detect non-deterministic behavior.
+Same input should produce same coverage every time.
 """
 
 from collections import defaultdict

@@ -1,10 +1,6 @@
-"""DICOM Validator Module
+"""DICOM Validator Module.
 
-LEARNING OBJECTIVE: This module demonstrates data validation, error handling,
-and defensive programming patterns essential for security-critical applications.
-
-CONCEPT: The validator acts as a "quality control inspector" that checks DICOM
-files for correctness, compliance, and security issues.
+Validates DICOM files for correctness, compliance, and security issues.
 """
 
 from pathlib import Path

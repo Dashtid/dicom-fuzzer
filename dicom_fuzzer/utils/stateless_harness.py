@@ -1,12 +1,7 @@
-"""Stateless Harness Validation Utilities
+"""Stateless Harness Validation Utilities.
 
-CONCEPT: Ensure fuzzing harness maintains 100% stability through
-stateless design and determinism validation.
-
-RESEARCH: "Ideally, stability should be 100%, meaning the same input
-always follows the same path and yields the same result. If your harness
-has hidden state, stability can drop, indicating nondeterministic behavior."
-(2025 Best Practices)
+Ensures fuzzing harness maintains stability through stateless design
+and determinism validation.
 """
 
 import gc

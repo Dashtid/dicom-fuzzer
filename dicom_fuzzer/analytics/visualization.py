@@ -1,19 +1,7 @@
-"""Visualization Module - Charts and Graphs for Fuzzing Reports
+"""Visualization Module - Charts and Graphs for Fuzzing Reports.
 
-This module provides visualization capabilities for fuzzing campaign analytics:
-- Matplotlib charts (bar charts, line graphs, pie charts)
-- Plotly interactive charts (heatmaps, 3D scatter plots, time series)
-- Export formats (PNG, SVG, HTML embeds)
-- Responsive design for HTML reports
-
-CONCEPT: Visualizations make complex data accessible:
-- Strategy effectiveness bar charts
-- Crash discovery trend lines
-- Coverage heatmaps
-- Performance dashboards
-
-Based on 2025 best practices from data visualization (Plotly Dash, Matplotlib)
-and fuzzing tools (AFL++, LibFuzzer coverage visualization).
+Provides Matplotlib and Plotly charts for campaign analytics visualization.
+Supports PNG, SVG, and HTML export formats.
 """
 
 from pathlib import Path

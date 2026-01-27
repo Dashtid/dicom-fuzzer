@@ -1,23 +1,7 @@
 """Study Corpus Manager - Manages 3D DICOM studies as atomic corpus units.
 
-This module provides study-level corpus management for fuzzing complete
-3D DICOM studies (multi-slice volumes) rather than individual files.
-
-CONCEPT:
-- Individual DICOM files are part of larger studies
-- 3D viewers like Affinity load entire studies, not single files
-- Crashes often require specific combinations of slices
-- Track studies as atomic units for fuzzing
-
-FEATURES:
-- Add/remove studies from corpus
-- Priority-based study selection (crash-triggering studies get higher priority)
-- Track mutations and crashes per study
-- Persistence to JSON index file
-- Modality and series analysis
-
-USAGE:
-    manager = StudyCorpusManager(Path("./corpus"))
+Provides study-level corpus management for fuzzing complete 3D DICOM studies
+(multi-slice volumes) as atomic units.
     manager.add_study(Path("./my_study"))
     next_study = manager.get_next_study()
     manager.update_priority(next_study.study_id, crash_found=True)

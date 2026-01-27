@@ -1,15 +1,7 @@
-"""Statistics Collector - Mutation Effectiveness Tracking
+"""Statistics Collector - Mutation Effectiveness Tracking.
 
-LEARNING OBJECTIVE: This module demonstrates statistical analysis of
-fuzzing campaigns to understand which mutations are most effective.
-
-CONCEPT: Not all mutations are equally valuable. By tracking statistics:
-1. Identify which strategies find the most bugs
-2. Optimize mutation selection
-3. Understand coverage patterns
-4. Improve fuzzing efficiency
-
-This enables data-driven fuzzing optimization.
+Tracks mutation effectiveness to identify which strategies find the most
+bugs and optimize fuzzing efficiency.
 """
 
 from collections import defaultdict

@@ -1,22 +1,9 @@
-"""DICOM-Specific Value Dictionaries for Intelligent Fuzzing
+"""DICOM-Specific Value Dictionaries for Intelligent Fuzzing.
 
-LEARNING OBJECTIVE: This module demonstrates domain-specific fuzzing - using
-knowledge of the DICOM standard to generate realistic but potentially malicious inputs.
-
-CONCEPT: Instead of random bytes, we use real DICOM values. This helps bypass
-input validation and reach deeper code paths where bugs hide.
-
-WHY: Random fuzzing often gets rejected by early validation. Dictionary-based
-fuzzing uses valid-looking values to pass validation and test the real logic.
-
-This is like trying to break into a building:
-- Random fuzzing = throwing random objects at the door
-- Dictionary fuzzing = using a key that looks real (but might be a skeleton key)
+Uses real DICOM values to bypass input validation and reach deeper code paths.
 """
 
-# DICOM Transfer Syntax UIDs
-# CONCEPT: These define how DICOM data is encoded (compressed, encrypted, etc.)
-# WHY FUZZ: Transfer syntax handling is complex and error-prone
+# DICOM Transfer Syntax UIDs - define encoding (compression, etc.)
 TRANSFER_SYNTAXES = [
     # Uncompressed
     "1.2.840.10008.1.2",  # Implicit VR Little Endian (default)

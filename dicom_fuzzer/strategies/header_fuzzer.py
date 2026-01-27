@@ -1,10 +1,7 @@
-"""Header Fuzzer - DICOM Tag and Header Mutations
+"""Header Fuzzer - DICOM Tag and Header Mutations.
 
-LEARNING OBJECTIVE: This module demonstrates header-level fuzzing,
-targeting DICOM tags, Value Representations (VRs), and data integrity.
-
-CONCEPT: DICOM headers contain critical metadata. By fuzzing these values
-with edge cases and invalid data, we test parser robustness and error handling.
+Targets DICOM tags, Value Representations (VRs), and metadata fields
+with edge cases and invalid data to test parser robustness.
 """
 
 import random
@@ -16,9 +13,9 @@ from pydicom.tag import Tag
 class HeaderFuzzer:
     """Fuzzes DICOM headers with edge cases and invalid values.
 
-    CONCEPT: Tests how applications handle:
-    - Overlong strings (buffer overflow)
-    - Missing required fields (compliance)
+    Tests application handling of:
+    - Overlong strings (buffer overflow potential)
+    - Missing required fields (compliance violations)
     - Invalid data types (type safety)
     - Boundary values (edge cases)
     """
@@ -58,13 +55,8 @@ class HeaderFuzzer:
     def _overlong_strings(self, dataset: Dataset) -> Dataset:
         """Insert extremely long strings to test buffer handling.
 
-        SECURITY: Tests for buffer overflow vulnerabilities.
-        Many older DICOM parsers allocate fixed buffers.
-
-        CONCEPT: DICOM VRs have maximum lengths:
-        - LO (Long String): 64 chars
-        - SH (Short String): 16 chars
-        - PN (Person Name): 64 chars per component
+        DICOM VRs have maximum lengths (LO: 64, SH: 16, PN: 64 per component).
+        Tests for buffer overflow in parsers with fixed-size buffers.
         """
         if hasattr(dataset, "InstitutionName"):
             dataset.InstitutionName = "A" * 1024  # Way over 64 char limit
@@ -81,11 +73,8 @@ class HeaderFuzzer:
     def _missing_required_tags(self, dataset: Dataset) -> Dataset:
         """Remove required DICOM tags to test compliance.
 
-        CONCEPT: DICOM defines required tags (Type 1) that must be present.
-        Applications should reject files missing these tags.
-
-        SECURITY: Some parsers crash or behave unexpectedly when
-        required fields are missing, leading to undefined behavior.
+        DICOM defines Type 1 tags that must be present. Tests parser
+        behavior when required fields are missing.
         """
         # Randomly remove 1-2 required tags if they exist
         tags_to_remove = random.sample(
@@ -105,17 +94,9 @@ class HeaderFuzzer:
     def _invalid_vr_values(self, dataset: Dataset) -> Dataset:
         """Insert invalid Value Representation (VR) values.
 
-        CONCEPT: Each DICOM tag has a specific VR (data type):
-        - DA (Date): YYYYMMDD format
-        - TM (Time): HHMMSS format
-        - IS (Integer String): numeric string
-        - DS (Decimal String): floating point string
-
-        SECURITY: Type confusion vulnerabilities occur when parsers
-        don't validate VR constraints properly.
-
-        NOTE: We bypass pydicom validation by directly setting DataElement._value
-        to allow fuzzing with intentionally invalid data.
+        Each DICOM tag has a specific VR (DA: YYYYMMDD, TM: HHMMSS,
+        IS: numeric string, DS: decimal string). Tests parser handling
+        of VR constraint violations.
         """
         # Test invalid date format (should be YYYYMMDD)
         if hasattr(dataset, "StudyDate"):
@@ -174,13 +155,8 @@ class HeaderFuzzer:
     def _boundary_values(self, dataset: Dataset) -> Dataset:
         """Insert boundary and edge case values.
 
-        CONCEPT: Boundary values often expose off-by-one errors
-        and integer overflow/underflow vulnerabilities.
-
-        SECURITY: Testing min/max values can trigger:
-        - Integer overflow
-        - Division by zero
-        - Array index out of bounds
+        Tests min/max values that may trigger integer overflow,
+        division by zero, or array index issues.
         """
         # Test numeric boundary values
         if hasattr(dataset, "Rows"):

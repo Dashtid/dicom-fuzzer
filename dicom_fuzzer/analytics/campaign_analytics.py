@@ -1,20 +1,7 @@
-"""Campaign Analytics Engine - Statistical Analysis for Fuzzing Campaigns
+"""Campaign Analytics Engine - Statistical Analysis for Fuzzing Campaigns.
 
-This module provides advanced statistical analysis for DICOM fuzzing campaigns:
-- Coverage correlation (which mutations find which bugs)
-- Trend analysis (crash discovery rate over time)
-- Performance profiling (mutations/sec, memory usage)
-- Strategy effectiveness scoring
-- Multi-session campaign tracking
-
-CONCEPT: Analytics transform raw fuzzing data into actionable insights:
-- Which strategies are most effective?
-- What coverage patterns correlate with crashes?
-- How does crash discovery rate change over time?
-- Where should fuzzing resources be allocated?
-
-Based on 2025 best practices from FuzzManager (Mozilla) and modern ML-based
-fuzzing analytics (coverage-guided mutation selection).
+Provides statistical analysis including coverage correlation, trend analysis,
+performance profiling, and strategy effectiveness scoring.
 """
 
 import json

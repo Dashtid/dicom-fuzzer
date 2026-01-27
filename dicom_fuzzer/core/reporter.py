@@ -1,15 +1,7 @@
-"""Report Generator - HTML and JSON Reports
+"""Report Generator - HTML and JSON Reports.
 
-LEARNING OBJECTIVE: This module demonstrates automated report generation
-for fuzzing campaigns, creating both human-readable (HTML) and
-machine-readable (JSON) formats.
-
-CONCEPT: Good security tools need clear reporting:
-1. HTML for humans - visual, interactive, easy to understand
-2. JSON for automation - integrate with CI/CD, ticketing systems
-3. Statistics and metrics - understand campaign effectiveness
-
-This enables both manual review and automated processing.
+Generates human-readable (HTML) and machine-readable (JSON) reports
+for fuzzing campaigns. Supports CI/CD integration and manual review.
 """
 
 import json

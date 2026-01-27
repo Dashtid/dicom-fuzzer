@@ -1,22 +1,7 @@
-"""DICOM Series Validation
+"""DICOM Series Validation.
 
-This module provides SeriesValidator for comprehensive validation of DICOM series
-to detect anomalies, inconsistencies, and potential attack vectors.
-
-CONCEPT: A valid DICOM series should have consistent metadata across all slices.
-Inconsistencies can indicate corruption, malicious manipulation, or imaging errors.
-These inconsistencies are prime targets for security fuzzing.
-
-VALIDATION CATEGORIES:
-1. Completeness: Missing slices, gaps in sequence
-2. Consistency: Matching UIDs, modalities, orientations
-3. Geometry: Uniform spacing, valid positions, orientation
-4. Metadata: Required DICOM tags present and valid
-
-SECURITY RELEVANCE (2025 CVEs):
-- CVE-2025-35975: Out-of-bounds write from malformed DICOM
-- CVE-2025-36521: Out-of-bounds read from corrupted series
-- CVE-2025-5943: Memory corruption from invalid metadata
+Validates DICOM series for completeness, consistency, geometry, and metadata.
+Detects anomalies and potential attack vectors.
 
 Series with validation errors are more likely to trigger vulnerabilities.
 """

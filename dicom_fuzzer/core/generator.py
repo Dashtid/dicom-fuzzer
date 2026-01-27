@@ -41,9 +41,8 @@ class GenerationStats:
 class DICOMGenerator:
     """Generates batches of fuzzed DICOM files for security testing.
 
-    CONCEPT: Coordinates multiple fuzzing strategies to create
-    a diverse set of test cases that stress different aspects
-    of DICOM parsers.
+    Coordinates multiple fuzzing strategies to create a diverse set
+    of test cases that stress different aspects of DICOM parsers.
     """
 
     def __init__(

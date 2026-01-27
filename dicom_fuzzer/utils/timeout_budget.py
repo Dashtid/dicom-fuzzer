@@ -1,10 +1,7 @@
-"""Timeout Budget Management
+"""Timeout Budget Management.
 
-CONCEPT: Manage global timeout budget for fuzzing campaigns to prevent
-runaway campaigns that spend too much time on timeouts.
-
-STABILITY: Adaptive timeout adjustment prevents wasting resources on
-consistently slow or hanging inputs.
+Manages global timeout budget with adaptive adjustment to prevent
+resource waste on slow or hanging inputs.
 """
 
 import time

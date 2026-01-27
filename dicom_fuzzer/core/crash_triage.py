@@ -1,14 +1,7 @@
-"""Automated Crash Triaging and Prioritization
+"""Automated Crash Triaging and Prioritization.
 
-This module provides intelligent crash analysis and prioritization based on
-severity, exploitability indicators, and crash characteristics. It helps
-security researchers focus on the most critical bugs first.
-
-CONCEPT: Not all crashes are equally important. Some indicate potentially
-exploitable vulnerabilities (use-after-free, buffer overflows) while others
-may be simple assertion failures or benign crashes.
-
-Based on 2025 best practices for automated crash triaging systems.
+Provides intelligent crash analysis and prioritization based on severity,
+exploitability indicators, and crash characteristics.
 """
 
 from dataclasses import dataclass, field

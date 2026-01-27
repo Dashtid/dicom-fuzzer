@@ -1,20 +1,8 @@
-"""Crash Analysis Framework - Automatic Crash Detection and Reporting
+"""Crash Analysis Framework - Automatic Crash Detection and Reporting.
 
-LEARNING OBJECTIVE: This module demonstrates how to automatically detect,
-analyze, and report crashes during fuzzing campaigns.
-
-CONCEPT: When fuzzing finds an input that crashes a program, we need to:
-1. Detect the crash (exit codes, signals, exceptions)
-2. Capture crash information (stack trace, registers, memory)
-3. Minimize the input (find smallest crash-triggering input)
-4. Classify the crash (unique vs duplicate)
-5. Generate reproducible test cases
-
-WHY: Crash analysis automates vulnerability discovery:
-- Identifies exploitable vs non-exploitable crashes
-- Deduplicates crashes to find unique bugs
-- Creates minimal reproducible test cases for developers
-- Prioritizes crashes by severity
+Detects, analyzes, and reports crashes during fuzzing campaigns. Handles
+crash detection, stack trace capture, input minimization, deduplication,
+and reproducible test case generation.
 """
 
 import traceback

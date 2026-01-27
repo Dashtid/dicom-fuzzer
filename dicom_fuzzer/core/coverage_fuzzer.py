@@ -1,14 +1,7 @@
-"""Coverage-Guided Fuzzing - Main Orchestrator
+"""Coverage-Guided Fuzzing - Main Orchestrator.
 
-LEARNING OBJECTIVE: This module demonstrates how to build a complete coverage-guided
-fuzzer that intelligently explores code paths.
-
-CONCEPT: This is the "brain" of coverage-guided fuzzing. It coordinates the coverage
-tracker, corpus manager, and mutation strategies to systematically explore the target
-application and find bugs.
-
-WHY: This represents state-of-the-art fuzzing technology used by tools like AFL,
-libFuzzer, and Hongfuzz. It's dramatically more effective than random fuzzing.
+Coordinates coverage tracker, corpus manager, and mutation strategies
+to systematically explore target application code paths.
 """
 
 import random

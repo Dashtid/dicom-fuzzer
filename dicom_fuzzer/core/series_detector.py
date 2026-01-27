@@ -1,23 +1,8 @@
-"""DICOM Series Detection
+"""DICOM Series Detection.
 
-This module provides SeriesDetector for grouping DICOM files into complete 3D series
-based on SeriesInstanceUID.
-
-CONCEPT: Medical imaging often consists of multiple files per acquisition. A CT scan
-might have 130 separate .dcm files, each representing one 2D slice. These files are
-linked by their SeriesInstanceUID. The SeriesDetector finds and groups these related
-files into DicomSeries objects.
-
-WHY THIS MATTERS FOR FUZZING:
-- Individual file fuzzing misses series-level vulnerabilities (CVE-2025-35975, etc.)
-- Viewers load entire series at once, not individual slices
-- Series-level corruption can cause memory exhaustion, infinite loops, crashes
-- Inconsistencies across slices (mixed modalities, conflicting metadata) are attack vectors
-
-BEST PRACTICES (2025):
-- Use ImagePositionPatient[2] for slice sorting (more reliable than SliceLocation)
-- Validate SeriesInstanceUID uniqueness within series
-- Handle missing metadata gracefully
+Groups DICOM files into complete 3D series based on SeriesInstanceUID.
+Enables series-level fuzzing to find vulnerabilities that individual
+file fuzzing misses.
 - Support both multi-slice and single-slice series
 """
 

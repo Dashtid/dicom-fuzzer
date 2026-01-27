@@ -1,14 +1,7 @@
-"""Corpus Minimization Utility
+"""Corpus Minimization Utility.
 
-CONCEPT: Minimize corpus before fuzzing to remove redundant inputs.
-Keeps only inputs that contribute unique coverage to improve fuzzing efficiency.
-
-RESEARCH: "Before the fuzzing session can begin, seed corpus minimization is
-performed to ensure that the fuzzer initializes faster and easier with a
-smaller corpus." (2025 Best Practices)
-
-OPTIMIZATION: Strip PixelData and OverlayData from DICOM files to reduce
-corpus size for parser-focused fuzzing. Smaller inputs = faster mutations.
+Minimizes corpus by removing redundant inputs and stripping unnecessary data.
+Keeps only inputs that contribute unique coverage.
 """
 
 import shutil

@@ -1,15 +1,7 @@
-"""Performance Profiler - Fuzzing Campaign Metrics
+"""Performance Profiler - Fuzzing Campaign Metrics.
 
-LEARNING OBJECTIVE: This module demonstrates performance monitoring for
-fuzzing campaigns, tracking execution time, memory usage, and throughput.
-
-CONCEPT: Good fuzzing tools need observability. By tracking metrics, we can:
-1. Identify performance bottlenecks
-2. Optimize mutation strategies
-3. Estimate campaign completion time
-4. Monitor resource usage
-
-This helps with both development and production deployment.
+Tracks execution time, memory usage, and throughput for fuzzing campaigns.
+Enables performance optimization and resource monitoring.
 """
 
 import time

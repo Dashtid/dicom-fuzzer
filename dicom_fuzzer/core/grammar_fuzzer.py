@@ -1,20 +1,8 @@
-"""Grammar-Based DICOM Fuzzer - Advanced Mutation Engine
+"""Grammar-Based DICOM Fuzzer - Advanced Mutation Engine.
 
-LEARNING OBJECTIVE: This module demonstrates grammar-based fuzzing,
-where we understand the structure and rules (grammar) of DICOM files
-to create intelligent mutations that are more likely to find bugs.
-
-CONCEPT: Instead of random bit flipping, grammar-based fuzzing:
-1. Understands DICOM structure (which tags are required, valid ranges)
-2. Creates mutations that violate specific rules
-3. Tests edge cases that are syntactically close to valid but semantically wrong
-
-WHY: Grammar-based fuzzing finds different bugs than random fuzzing:
-- Logic errors in validation code
-- State machine bugs in parsers
-- Assumption violations in application logic
-
-This is more sophisticated than Phase 1's random mutations.
+Uses knowledge of DICOM structure and rules to create intelligent mutations.
+Violates specific rules to find logic errors, parser bugs, and assumption
+violations that random fuzzing misses.
 """
 
 from pydicom.dataset import Dataset

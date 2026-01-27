@@ -1,21 +1,8 @@
-"""Target Application Runner
+"""Target Application Runner.
 
-CONCEPT: This module interfaces with target applications to feed them
-fuzzed DICOM files and detect crashes, hangs, and other anomalies.
-
-SECURITY TESTING WORKFLOW:
-1. Generate fuzzed DICOM files
-2. Feed files to target application (viewer, PACS, etc.)
-3. Monitor application behavior (crashes, hangs, errors)
-4. Collect crash reports and analyze vulnerabilities
-
-This implements file-based fuzzing testing (Option 1).
-
-STABILITY ENHANCEMENTS:
-- Resource limit enforcement (memory/CPU)
-- Retry logic for transient failures
-- Better error classification (OOM, resource exhaustion)
-- Circuit breaker pattern for failing targets
+Interfaces with target applications to feed fuzzed DICOM files and detect
+crashes, hangs, and anomalies. Includes resource limits, retry logic, and
+circuit breaker patterns.
 """
 
 from __future__ import annotations

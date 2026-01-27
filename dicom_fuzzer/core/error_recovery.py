@@ -1,14 +1,7 @@
-"""Error Recovery and Campaign Resumption
+"""Error Recovery and Campaign Resumption.
 
-CONCEPT: Provides robust error recovery, checkpoint/resume functionality,
-and graceful shutdown handling for long-running fuzzing campaigns.
-
-STABILITY FEATURES:
-- Checkpoint state periodically during campaigns
-- Resume interrupted campaigns from last checkpoint
-- Handle signals (SIGINT/SIGTERM) gracefully
-- Automatic cleanup on failure
-- Progress persistence across restarts
+Provides checkpoint/resume functionality and graceful shutdown handling
+for long-running fuzzing campaigns.
 """
 
 import json

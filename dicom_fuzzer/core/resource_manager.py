@@ -1,11 +1,7 @@
-"""Resource Management for DICOM Fuzzer
+"""Resource Management for DICOM Fuzzer.
 
-CONCEPT: Manages system resources (memory, CPU, disk) to prevent resource
-exhaustion during fuzzing campaigns. Provides safe execution contexts with
-configurable limits.
-
-SECURITY: Prevents denial-of-service through resource exhaustion by enforcing
-hard limits on memory, CPU time, and disk usage.
+Manages system resources (memory, CPU, disk) with configurable limits
+to prevent resource exhaustion during fuzzing campaigns.
 """
 
 import os

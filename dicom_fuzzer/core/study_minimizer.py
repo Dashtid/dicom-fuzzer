@@ -1,17 +1,7 @@
 """Study Minimizer - Delta debugging for 3D DICOM studies.
 
-This module implements study-level test case minimization:
-- Find minimal set of slices that trigger a crash
-- Binary reduction followed by individual slice testing
-- Identify the "trigger slice" that causes the crash
-- Support for study-aware minimization (not just file-by-file)
-
-CONCEPT: When a 3D study crashes a target application, we want to find:
-1. The minimal subset of slices that reproduce the crash
-2. The specific "trigger slice" if one exists
-3. Whether the crash requires slice interactions (multi-slice bug)
-
-This helps developers debug and fix vulnerabilities more efficiently.
+Finds minimal set of slices that trigger a crash using binary reduction
+and individual slice testing.
 """
 
 from __future__ import annotations

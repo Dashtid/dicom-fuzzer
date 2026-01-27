@@ -1,14 +1,7 @@
-"""Configuration Validation and Pre-flight Checks
+"""Configuration Validation and Pre-flight Checks.
 
-CONCEPT: Validates configuration and system state before starting fuzzing
-campaigns to catch issues early and provide clear error messages.
-
-STABILITY: Prevents wasted time by validating everything upfront:
-- File system access and permissions
-- Available disk space
-- Target executable accessibility
-- Configuration parameter validity
-- Python dependencies
+Validates configuration and system state before starting fuzzing campaigns.
+Checks file system access, disk space, target accessibility, and dependencies.
 """
 
 import os
