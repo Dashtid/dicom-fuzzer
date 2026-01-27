@@ -1,7 +1,7 @@
 """Tests for cli/samples.py - Samples Subcommand.
 
 Tests cover argument parsing, sample generation, listing sources,
-scanning, sanitizing, and all action handlers.
+and all action handlers.
 """
 
 from unittest.mock import MagicMock
@@ -14,8 +14,6 @@ from dicom_fuzzer.cli.samples import (
     create_parser,
     main,
     run_list_sources,
-    run_sanitize,
-    run_scan,
     run_strip_pixel_data,
 )
 
@@ -99,18 +97,6 @@ class TestCreateParser:
         args = parser.parse_args(["--compliance", "-o", "./output"])
         assert args.compliance is True
 
-    def test_scan_action(self):
-        """Test --scan action."""
-        parser = create_parser()
-        args = parser.parse_args(["--scan", "./path"])
-        assert args.scan == "./path"
-
-    def test_sanitize_action(self):
-        """Test --sanitize action."""
-        parser = create_parser()
-        args = parser.parse_args(["--sanitize", "./file.dcm"])
-        assert args.sanitize == "./file.dcm"
-
     def test_strip_pixel_data_action(self):
         """Test --strip-pixel-data action."""
         parser = create_parser()
@@ -163,20 +149,6 @@ class TestCreateParser:
         )
         assert args.depth == 200
         assert args.base_dicom == "./base.dcm"
-
-    def test_scanning_options(self):
-        """Test scanning options."""
-        parser = create_parser()
-        args = parser.parse_args(
-            [
-                "--scan",
-                "./path",
-                "--json",
-                "--recursive",
-            ]
-        )
-        assert args.json is True
-        assert args.recursive is True
 
     def test_mutually_exclusive_actions(self):
         """Test that actions are mutually exclusive."""
@@ -234,47 +206,6 @@ class TestRunListSources:
         captured = capsys.readouterr()
         assert "URL:" in captured.out
         assert "http" in captured.out
-
-
-class TestRunScan:
-    """Test run_scan function."""
-
-    def test_scan_path_not_found(self, tmp_path, capsys):
-        """Test scanning nonexistent path."""
-        args = MagicMock()
-        args.scan = str(tmp_path / "nonexistent")
-
-        result = run_scan(args)
-
-        assert result == 1
-        captured = capsys.readouterr()
-        assert "not found" in captured.out
-
-
-class TestRunSanitize:
-    """Test run_sanitize function."""
-
-    def test_sanitize_file_not_found(self, tmp_path, capsys):
-        """Test sanitizing nonexistent file."""
-        args = MagicMock()
-        args.sanitize = str(tmp_path / "nonexistent.dcm")
-
-        result = run_sanitize(args)
-
-        assert result == 1
-        captured = capsys.readouterr()
-        assert "not found" in captured.out
-
-    def test_sanitize_directory_error(self, tmp_path, capsys):
-        """Test error when trying to sanitize directory."""
-        args = MagicMock()
-        args.sanitize = str(tmp_path)
-
-        result = run_sanitize(args)
-
-        assert result == 1
-        captured = capsys.readouterr()
-        assert "single file" in captured.out
 
 
 class TestRunStripPixelData:

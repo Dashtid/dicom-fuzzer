@@ -72,12 +72,6 @@ Examples:
 
   # Generate parser stress tests with deep nesting
   dicom-fuzzer samples --parser-stress --depth 200 -o ./stress_tests
-
-  # Scan DICOM files for security threats
-  dicom-fuzzer samples --scan ./dicom_folder --recursive
-
-  # Sanitize a potentially malicious file
-  dicom-fuzzer samples --sanitize suspicious.dcm
         """,
     )
 
@@ -117,18 +111,6 @@ Examples:
         "--compliance",
         action="store_true",
         help="Generate DICOM compliance violation samples",
-    )
-    action_group.add_argument(
-        "--scan",
-        type=str,
-        metavar="PATH",
-        help="Scan DICOM file(s) for security issues",
-    )
-    action_group.add_argument(
-        "--sanitize",
-        type=str,
-        metavar="PATH",
-        help="Sanitize DICOM file preamble (neutralize polyglot attacks)",
     )
     action_group.add_argument(
         "--strip-pixel-data",
@@ -210,19 +192,6 @@ Examples:
         type=str,
         metavar="FILE",
         help="Base DICOM file to use for sample generation (uses synthetic if not provided)",
-    )
-
-    # Scanning options
-    scan_group = parser.add_argument_group("scanning options")
-    scan_group.add_argument(
-        "--json",
-        action="store_true",
-        help="Output scan results in JSON format",
-    )
-    scan_group.add_argument(
-        "--recursive",
-        action="store_true",
-        help="Recursively scan directories",
     )
 
     return parser
@@ -605,131 +574,6 @@ def run_compliance(args: argparse.Namespace) -> int:
         return 1
 
 
-def run_scan(args: argparse.Namespace) -> int:
-    """Scan DICOM files for security issues."""
-    import json as json_module
-
-    scan_path = Path(args.scan)
-
-    if not scan_path.exists():
-        print(f"[-] Path not found: {scan_path}")
-        return 1
-
-    print("\n" + "=" * 70)
-    print("  DICOM Security Scanner")
-    print("=" * 70 + "\n")
-
-    try:
-        from dicom_fuzzer.generators.detection.scanner import (
-            DicomSecurityScanner,
-            ScanResult,
-        )
-
-        scanner = DicomSecurityScanner()
-        results: list[ScanResult] = []
-
-        if scan_path.is_file():
-            result = scanner.scan_file(scan_path)
-            results.append(result)
-        else:
-            # Scan directory
-            pattern = "**/*.dcm" if args.recursive else "*.dcm"
-            for dicom_file in scan_path.glob(pattern):
-                if dicom_file.is_file():
-                    result = scanner.scan_file(dicom_file)
-                    results.append(result)
-
-        # Output results
-        if args.json:
-            output = [
-                {
-                    "file": str(r.path),
-                    "findings": [
-                        {
-                            "category": f.category,
-                            "severity": f.severity.value,
-                            "description": f.description,
-                        }
-                        for f in r.findings
-                    ],
-                    "is_clean": r.is_clean,
-                }
-                for r in results
-            ]
-            print(json_module.dumps(output, indent=2))
-        else:
-            for result in results:
-                if result.is_clean:
-                    print(f"  [+] {result.path.name}: Clean")
-                else:
-                    print(
-                        f"  [!] {result.path.name}: {len(result.findings)} finding(s)"
-                    )
-                    for finding in result.findings:
-                        print(
-                            f"      - [{finding.severity.value}] {finding.category}: {finding.description}"
-                        )
-
-            # Summary
-            clean_count = sum(1 for r in results if r.is_clean)
-            print(
-                f"\n[i] Scanned {len(results)} files: {clean_count} clean, {len(results) - clean_count} with findings"
-            )
-
-        return 0
-
-    except Exception as e:
-        print(f"[-] Scan failed: {e}")
-        return 1
-
-
-def run_sanitize(args: argparse.Namespace) -> int:
-    """Sanitize DICOM file preamble."""
-    sanitize_path = Path(args.sanitize)
-
-    if not sanitize_path.exists():
-        print(f"[-] File not found: {sanitize_path}")
-        return 1
-
-    if not sanitize_path.is_file():
-        print("[-] Sanitize requires a single file path")
-        return 1
-
-    print("\n" + "=" * 70)
-    print("  DICOM Preamble Sanitizer")
-    print("=" * 70 + "\n")
-
-    try:
-        from dicom_fuzzer.generators.detection.sanitizer import (
-            DicomSanitizer,
-            SanitizeAction,
-        )
-
-        sanitizer = DicomSanitizer()
-        output_path = (
-            sanitize_path.parent
-            / f"{sanitize_path.stem}_sanitized{sanitize_path.suffix}"
-        )
-
-        result = sanitizer.sanitize_file(sanitize_path, output_path)
-
-        if result.action == SanitizeAction.CLEARED:
-            print(f"  [+] Sanitized: {sanitize_path.name}")
-            print(f"  [i] Original preamble type: {result.original_preamble_type}")
-            print(f"  [i] Output: {output_path}")
-        elif result.action == SanitizeAction.SKIPPED:
-            print(f"  [i] No sanitization needed: {sanitize_path.name}")
-            print(f"  [i] Preamble was already safe: {result.original_preamble_type}")
-        else:
-            print(f"  [-] {result.message}")
-
-        return 0
-
-    except Exception as e:
-        print(f"[-] Sanitization failed: {e}")
-        return 1
-
-
 def run_strip_pixel_data(args: argparse.Namespace) -> int:
     """Strip PixelData from DICOM files for corpus optimization."""
     input_path = Path(args.strip_pixel_data)
@@ -817,8 +661,6 @@ _ACTION_DISPATCH: list[tuple[str, Callable[[argparse.Namespace], int]]] = [
     ("cve_samples", run_cve_samples),
     ("parser_stress", run_parser_stress),
     ("compliance", run_compliance),
-    ("scan", run_scan),
-    ("sanitize", run_sanitize),
     ("strip_pixel_data", run_strip_pixel_data),
 ]
 

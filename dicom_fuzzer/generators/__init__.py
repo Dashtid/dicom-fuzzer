@@ -16,8 +16,6 @@ __all__ = [
     "PreambleAttackGenerator",
     "ParserStressGenerator",
     "ComplianceViolationGenerator",
-    "DicomSecurityScanner",
-    "DicomSanitizer",
 ]
 
 
@@ -51,12 +49,4 @@ def __getattr__(name: str) -> Any:
         )
 
         return ComplianceViolationGenerator
-    if name == "DicomSecurityScanner":
-        from dicom_fuzzer.generators.detection.scanner import DicomSecurityScanner
-
-        return DicomSecurityScanner
-    if name == "DicomSanitizer":
-        from dicom_fuzzer.generators.detection.sanitizer import DicomSanitizer
-
-        return DicomSanitizer
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
