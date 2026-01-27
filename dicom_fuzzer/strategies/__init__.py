@@ -1,6 +1,7 @@
 """Mutation strategies for DICOM fuzzing."""
 
-from .cve_fuzzer import CVEFuzzer
+from .exploit_patterns import CVEFuzzer  # Backward compat alias
+from .exploit_patterns import ExploitPatternApplicator
 from .cve_mutations import (
     CVE_MUTATIONS,
     CVECategory,
@@ -34,6 +35,7 @@ __all__ = [
     "apply_cve_mutation",
     "get_available_cves",
     "get_mutations_by_category",
-    # CVE Fuzzer for default pipeline (v1.7.2)
-    "CVEFuzzer",
+    # Exploit pattern applicator (renamed from CVEFuzzer)
+    "ExploitPatternApplicator",
+    "CVEFuzzer",  # Backward compat alias
 ]

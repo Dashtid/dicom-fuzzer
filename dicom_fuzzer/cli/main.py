@@ -299,7 +299,7 @@ def parse_strategies(strategies_str: str | None) -> list[str]:
         List of strategy names
 
     """
-    valid_strategies = {"metadata", "header", "pixel", "structure"}
+    valid_strategies = {"metadata", "header", "pixel", "structure", "exploit-patterns"}
 
     # Handle None input - return empty list
     if strategies_str is None:
