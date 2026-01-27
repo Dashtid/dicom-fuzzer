@@ -175,13 +175,12 @@ class DICOMGenerator:
         }
 
         if strategies is None:
-            # Use all fuzzers (except structure by default for compatibility)
-            # CVE mutations are enabled by default for security testing
+            # Default: robustness testing only (format errors, invalid values)
+            # Use --strategies cve for security testing (CVE patterns, exploits)
             return {
                 "metadata": all_fuzzers["metadata"],
                 "header": all_fuzzers["header"],
                 "pixel": all_fuzzers["pixel"],
-                "cve": all_fuzzers["cve"],
             }
 
         # Use only specified strategies
