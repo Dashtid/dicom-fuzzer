@@ -762,12 +762,13 @@ class StudyMutator:
     ) -> None:
         """Apply extreme study ID attack."""
         series_idx = random.randint(0, len(all_datasets) - 1)
+        # Robustness testing patterns only (no exploit payloads)
         extreme_ids = [
-            "A" * 1000,
-            "",
-            "\x00\x00",
-            "../../../etc/passwd",
-            "<script>alert(1)</script>",
+            "A" * 1000,  # Long string - buffer handling
+            "",  # Empty string - null handling
+            "\x00\x00",  # Null bytes - binary handling
+            "X" * 10000,  # Very long string - memory allocation
+            " " * 100,  # Whitespace only - trimming behavior
         ]
         new_id = random.choice(extreme_ids)
         original = (

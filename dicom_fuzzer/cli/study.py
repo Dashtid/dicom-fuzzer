@@ -24,6 +24,9 @@ Examples:
   # Mutate study with cross-series reference attacks
   dicom-fuzzer study --study ./study_dir --strategy cross-series -o ./output
 
+  # Output each series to its own folder (for individual testing)
+  dicom-fuzzer study --study ./study_dir --per-series -o ./fuzzed_series
+
   # List available strategies
   dicom-fuzzer study --list-strategies
 
@@ -78,6 +81,11 @@ For advanced usage, use the Python API:
         metavar="N",
         help="Number of mutations to apply (default: 5)",
     )
+    mutation_group.add_argument(
+        "--per-series",
+        action="store_true",
+        help="Output each mutated series to its own folder (for individual testing)",
+    )
 
     output_group = parser.add_argument_group("output options")
     output_group.add_argument(
@@ -131,7 +139,7 @@ def _resolve_study_strategies(
 
 
 def _save_mutated_study(output_path: Path, fuzzed_study: list[Any]) -> None:
-    """Save mutated study datasets to output directory."""
+    """Save mutated study datasets to output directory (all series together)."""
     for idx, datasets in enumerate(fuzzed_study):
         series_dir = output_path / f"series_{idx:03d}"
         series_dir.mkdir(parents=True, exist_ok=True)
@@ -139,8 +147,43 @@ def _save_mutated_study(output_path: Path, fuzzed_study: list[Any]) -> None:
             ds.save_as(str(series_dir / f"slice_{ds_idx:04d}.dcm"))
 
 
+def _save_per_series(
+    output_path: Path, fuzzed_study: list[Any], series_names: list[str]
+) -> list[Path]:
+    """Save each mutated series to its own folder for individual testing.
+
+    Args:
+        output_path: Base output directory
+        fuzzed_study: List of series datasets
+        series_names: Original series folder names for naming output folders
+
+    Returns:
+        List of paths to created series folders
+
+    """
+    created_folders = []
+    for idx, datasets in enumerate(fuzzed_study):
+        # Use original series name if available, otherwise use index
+        if idx < len(series_names) and series_names[idx]:
+            folder_name = f"{idx:03d}_{series_names[idx]}"
+        else:
+            folder_name = f"series_{idx:03d}"
+
+        series_dir = output_path / folder_name
+        series_dir.mkdir(parents=True, exist_ok=True)
+
+        for ds_idx, ds in enumerate(datasets):
+            ds.save_as(str(series_dir / f"slice_{ds_idx:04d}.dcm"))
+
+        created_folders.append(series_dir)
+
+    return created_folders
+
+
 def run_study_mutation(args: argparse.Namespace) -> int:
     """Execute study mutation."""
+    per_series = getattr(args, "per_series", False)
+
     print("\n" + "=" * 70)
     print("  DICOM Fuzzer - Study-Level Mutation")
     print("=" * 70)
@@ -149,6 +192,8 @@ def run_study_mutation(args: argparse.Namespace) -> int:
     print(f"  Severity: {args.severity}")
     print(f"  Count:    {args.count}")
     print(f"  Output:   {args.output}")
+    if per_series:
+        print("  Mode:     per-series (one folder per series)")
     print("=" * 70 + "\n")
 
     try:
@@ -197,9 +242,26 @@ def run_study_mutation(args: argparse.Namespace) -> int:
         print(f"\n[+] Applied {len(total_records)} mutations")
         print("[i] Saving mutated study...")
         assert fuzzed_study is not None, "No strategies applied"
-        _save_mutated_study(output_path, fuzzed_study)
 
-        print(f"\n[+] Mutated study saved to: {output_path}")
+        if per_series:
+            # Extract series folder names from original paths
+            series_names = []
+            for series in study.series_list:
+                if series.slices:
+                    # Get parent folder name of first slice
+                    parent_name = Path(series.slices[0]).parent.name
+                    series_names.append(parent_name)
+                else:
+                    series_names.append("")
+
+            created_folders = _save_per_series(output_path, fuzzed_study, series_names)
+            print(f"\n[+] Created {len(created_folders)} series folders:")
+            for folder in created_folders:
+                print(f"    - {folder}")
+        else:
+            _save_mutated_study(output_path, fuzzed_study)
+            print(f"\n[+] Mutated study saved to: {output_path}")
+
         return 0
 
     except ImportError as e:
