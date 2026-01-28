@@ -19,7 +19,7 @@ class TestStructureFuzzerInit:
     def test_init_corruption_strategies(self):
         """Test that fuzzer initializes with corruption strategies."""
         fuzzer = StructureFuzzer()
-        assert len(fuzzer.corruption_strategies) == 4
+        assert len(fuzzer.corruption_strategies) == 6
         assert callable(fuzzer.corruption_strategies[0])
 
     def test_init_strategies_are_methods(self):

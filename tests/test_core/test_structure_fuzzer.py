@@ -23,7 +23,7 @@ class TestStructureFuzzerInitialization:
         assert fuzzer is not None
         assert hasattr(fuzzer, "corruption_strategies")
         assert isinstance(fuzzer.corruption_strategies, list)
-        assert len(fuzzer.corruption_strategies) == 4
+        assert len(fuzzer.corruption_strategies) == 6
 
 
 class TestMutateStructure:
