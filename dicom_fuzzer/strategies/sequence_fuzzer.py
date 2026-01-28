@@ -1,13 +1,10 @@
 """Sequence Fuzzer - DICOM Sequence (SQ) Mutations.
 
-Targets nested DICOM sequences with edge cases that commonly trigger
-parser vulnerabilities: stack overflow from deep nesting, use-after-free
-from circular references, and buffer issues from delimiter corruption.
-
-Based on CVE patterns:
-- CVE-2024-24793 (libdicom): Use-after-free in element parsing
-- Stack exhaustion from recursive sequence processing
-- Memory corruption from malformed delimiters
+Targets nested DICOM sequences with edge cases to test parser robustness:
+- Deep nesting (stack exhaustion)
+- Empty sequences and items
+- Large item counts
+- Circular/self-referencing structures
 """
 
 import random
@@ -313,59 +310,3 @@ class SequenceFuzzer:
         ds = Dataset()
         ds.add_new(Tag(0x0008, 0x1115), "SQ", Sequence([inner]))
         return ds
-
-
-def create_binary_sequence_attacks() -> list[tuple[str, bytes]]:
-    """Create binary-level sequence attacks for file corruption.
-
-    Returns list of (name, bytes) tuples for binary injection.
-    These bypass pydicom and directly test binary parsing.
-    """
-    attacks = []
-
-    # Missing sequence delimiter
-    # Item tag + undefined length + data + NO seq delimiter
-    missing_delim = (
-        b"\xFE\xFF\x00\xE0"
-        + b"\xFF\xFF\xFF\xFF"
-        + b"\x00" * 100
-    )
-    attacks.append(("missing_seq_delimiter", missing_delim))
-
-    # Missing item delimiter
-    missing_item_delim = (
-        b"\xFE\xFF\x00\xE0"
-        + b"\xFF\xFF\xFF\xFF"
-        + b"\x00" * 100
-        + b"\xFE\xFF\xDD\xE0"
-        + b"\x00\x00\x00\x00"
-    )
-    attacks.append(("missing_item_delimiter", missing_item_delim))
-
-    # Corrupted item tag
-    corrupted_item_tag = (
-        b"\xFE\xFF\x01\xE0"
-        + b"\x00\x00\x00\x10"
-        + b"\x00" * 16
-    )
-    attacks.append(("corrupted_item_tag", corrupted_item_tag))
-
-    # Very large sequence length
-    large_length = (
-        b"\x08\x00\x15\x11"
-        + b"SQ"
-        + b"\x00\x00"
-        + b"\xFF\xFF\xFF\x7F"
-    )
-    attacks.append(("large_sequence_length", large_length))
-
-    # Negative length (interpreted as unsigned = very large)
-    negative_length = (
-        b"\x08\x00\x15\x11"
-        + b"SQ"
-        + b"\x00\x00"
-        + b"\xFF\xFF\xFF\xFF"
-    )
-    attacks.append(("negative_length", negative_length))
-
-    return attacks

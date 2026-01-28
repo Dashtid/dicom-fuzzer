@@ -3,8 +3,9 @@
 Targets DICOM tags, Value Representations (VRs), and metadata fields
 with edge cases and invalid data to test parser robustness.
 
-Covers all 27 DICOM VRs with appropriate invalid values based on
-known CVE patterns (buffer overflows, integer underflows, null derefs).
+Covers all 27 DICOM VRs with appropriate invalid values including:
+- Overlong strings, boundary values, format violations
+- Invalid encoding, null bytes, empty values
 """
 
 import random
@@ -14,7 +15,7 @@ from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
 # VR-specific invalid values for comprehensive testing
-# Based on DICOM PS3.5 VR definitions and known CVE patterns
+# Based on DICOM PS3.5 VR definitions
 VR_MUTATIONS = {
     # AE - Application Entity (max 16 chars, no leading/trailing spaces)
     "AE": [
@@ -387,8 +388,8 @@ class HeaderFuzzer:
     def _comprehensive_vr_mutations(self, dataset: Dataset) -> Dataset:
         """Apply mutations to elements based on their VR type.
 
-        Targets all VRs found in the dataset with appropriate invalid values.
-        Based on CVE patterns: buffer overflows, format violations, encoding issues.
+        Targets all VRs found in the dataset with appropriate invalid values
+        including buffer overflows, format violations, and encoding issues.
         """
         # Collect elements by VR
         vr_elements: dict[str, list] = {}
