@@ -1,7 +1,7 @@
 """Tests for security_controller.py.
 
 Coverage target: 26% -> 70%+
-Tests medical device security vulnerability testing controller.
+Tests CVE-based security fuzzing controller using ExploitPatternApplicator.
 """
 
 from __future__ import annotations
@@ -14,9 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from dicom_fuzzer.cli.security_controller import (
-    CVE_MAP,
     HAS_SECURITY_FUZZER,
-    VULN_MAP,
     SecurityFuzzingController,
 )
 
@@ -29,121 +27,29 @@ class TestSecurityFuzzingControllerAvailability:
         result = SecurityFuzzingController.is_available()
         assert result == HAS_SECURITY_FUZZER
 
-    def test_cve_map_populated_if_available(self) -> None:
-        """Test CVE_MAP is populated when security fuzzer available."""
-        if HAS_SECURITY_FUZZER:
-            assert len(CVE_MAP) > 0
-            assert "CVE-2025-1001" in CVE_MAP
+    @pytest.mark.skipif(not HAS_SECURITY_FUZZER, reason="Security fuzzer not available")
+    def test_get_available_cves_populated(self) -> None:
+        """Test get_available_cves returns CVE list when available."""
+        from dicom_fuzzer.strategies.exploit import get_available_cves
 
-    def test_vuln_map_populated_if_available(self) -> None:
-        """Test VULN_MAP is populated when security fuzzer available."""
-        if HAS_SECURITY_FUZZER:
-            assert len(VULN_MAP) > 0
-            assert "oob_write" in VULN_MAP
-            assert "stack_overflow" in VULN_MAP
-
-
-class TestSecurityFuzzingControllerParseCVEs:
-    """Tests for _parse_cves method."""
-
-    def test_parse_cves_none_input(self) -> None:
-        """Test parsing None CVE string."""
-        result = SecurityFuzzingController._parse_cves(None)
-        assert result is None
-
-    def test_parse_cves_empty_string(self) -> None:
-        """Test parsing empty CVE string."""
-        result = SecurityFuzzingController._parse_cves("")
-        assert result is None
+        cves = get_available_cves()
+        assert len(cves) > 0
+        # Check for known CVEs
+        assert any("CVE-2025" in cve for cve in cves)
 
     @pytest.mark.skipif(not HAS_SECURITY_FUZZER, reason="Security fuzzer not available")
-    def test_parse_cves_valid_single(self) -> None:
-        """Test parsing single valid CVE."""
-        result = SecurityFuzzingController._parse_cves("CVE-2025-1001")
-        assert result is not None
-        assert len(result) == 1
+    def test_get_mutations_by_category_populated(self) -> None:
+        """Test get_mutations_by_category returns mutations for valid categories."""
+        from dicom_fuzzer.strategies.exploit import CVECategory, get_mutations_by_category
 
-    @pytest.mark.skipif(not HAS_SECURITY_FUZZER, reason="Security fuzzer not available")
-    def test_parse_cves_valid_multiple(self) -> None:
-        """Test parsing multiple valid CVEs."""
-        result = SecurityFuzzingController._parse_cves("CVE-2025-1001,CVE-2022-2119")
-        assert result is not None
-        assert len(result) == 2
+        # Test that at least some categories have mutations
+        total_mutations = 0
+        for category in CVECategory:
+            mutations = get_mutations_by_category(category)
+            total_mutations += len(mutations)
 
-    @pytest.mark.skipif(not HAS_SECURITY_FUZZER, reason="Security fuzzer not available")
-    def test_parse_cves_case_insensitive(self) -> None:
-        """Test CVE parsing is case insensitive."""
-        result = SecurityFuzzingController._parse_cves("cve-2025-1001")
-        assert result is not None
-        assert len(result) == 1
-
-    def test_parse_cves_unknown_cve(self, capsys) -> None:
-        """Test parsing unknown CVE prints warning."""
-        result = SecurityFuzzingController._parse_cves("CVE-9999-9999")
-
-        # Should return None (no valid CVEs)
-        assert result is None
-
-        # Should print warning
-        captured = capsys.readouterr()
-        assert "Unknown CVE" in captured.out
-
-    @pytest.mark.skipif(not HAS_SECURITY_FUZZER, reason="Security fuzzer not available")
-    def test_parse_cves_mixed_valid_invalid(self, capsys) -> None:
-        """Test parsing mix of valid and invalid CVEs."""
-        result = SecurityFuzzingController._parse_cves("CVE-2025-1001,CVE-INVALID")
-
-        assert result is not None
-        assert len(result) == 1  # Only valid one
-
-        captured = capsys.readouterr()
-        assert "Unknown CVE" in captured.out
-
-
-class TestSecurityFuzzingControllerParseVulnClasses:
-    """Tests for _parse_vuln_classes method."""
-
-    def test_parse_vuln_none_input(self) -> None:
-        """Test parsing None vulnerability string."""
-        result = SecurityFuzzingController._parse_vuln_classes(None)
-        assert result is None
-
-    def test_parse_vuln_empty_string(self) -> None:
-        """Test parsing empty vulnerability string."""
-        result = SecurityFuzzingController._parse_vuln_classes("")
-        assert result is None
-
-    @pytest.mark.skipif(not HAS_SECURITY_FUZZER, reason="Security fuzzer not available")
-    def test_parse_vuln_valid_single(self) -> None:
-        """Test parsing single valid vulnerability class."""
-        result = SecurityFuzzingController._parse_vuln_classes("oob_write")
-        assert result is not None
-        assert len(result) == 1
-
-    @pytest.mark.skipif(not HAS_SECURITY_FUZZER, reason="Security fuzzer not available")
-    def test_parse_vuln_valid_multiple(self) -> None:
-        """Test parsing multiple valid vulnerability classes."""
-        result = SecurityFuzzingController._parse_vuln_classes(
-            "oob_write,stack_overflow"
-        )
-        assert result is not None
-        assert len(result) == 2
-
-    @pytest.mark.skipif(not HAS_SECURITY_FUZZER, reason="Security fuzzer not available")
-    def test_parse_vuln_case_insensitive(self) -> None:
-        """Test vulnerability parsing is case insensitive."""
-        result = SecurityFuzzingController._parse_vuln_classes("OOB_WRITE")
-        assert result is not None
-        assert len(result) == 1
-
-    def test_parse_vuln_unknown(self, capsys) -> None:
-        """Test parsing unknown vulnerability class."""
-        result = SecurityFuzzingController._parse_vuln_classes("unknown_vuln")
-
-        assert result is None
-
-        captured = capsys.readouterr()
-        assert "Unknown vulnerability class" in captured.out
+        # Should have mutations across categories
+        assert total_mutations > 0
 
 
 class TestSecurityFuzzingControllerRun:
@@ -171,8 +77,6 @@ class TestSecurityFuzzingControllerRun:
         """Create basic args namespace."""
         args = Namespace()
         args.verbose = False
-        args.target_cves = None
-        args.vuln_classes = None
         args.security_report = None
         args.target = None
         return args
@@ -200,45 +104,61 @@ class TestSecurityFuzzingControllerRun:
             mock_read.return_value = mock_ds
 
             with patch(
-                "dicom_fuzzer.cli.security_controller.MedicalDeviceSecurityFuzzer"
-            ) as mock_fuzzer_class:
-                mock_fuzzer = MagicMock()
-                mock_fuzzer_class.return_value = mock_fuzzer
-                mock_fuzzer.generate_mutations.return_value = []
+                "dicom_fuzzer.cli.security_controller.ExploitPatternApplicator"
+            ) as mock_applicator_class:
+                mock_applicator = MagicMock()
+                mock_applicator_class.return_value = mock_applicator
+                mock_applicator.apply_exploit_patterns.return_value = mock_ds
+                mock_applicator.get_patterns_applied.return_value = ["CVE-2025-1001"]
 
-                result = SecurityFuzzingController.run(
-                    args=basic_args,
-                    input_file=sample_dicom,
-                    output_dir=output_dir,
-                )
+                with patch(
+                    "dicom_fuzzer.cli.security_controller.get_available_cves"
+                ) as mock_get_cves:
+                    mock_get_cves.return_value = ["CVE-2025-1001", "CVE-2022-2119"]
 
-                assert result == 0
+                    result = SecurityFuzzingController.run(
+                        args=basic_args,
+                        input_file=sample_dicom,
+                        output_dir=output_dir,
+                    )
+
+                    assert result == 0
 
     @pytest.mark.skipif(not HAS_SECURITY_FUZZER, reason="Security fuzzer not available")
-    def test_run_with_cve_filter(
+    def test_run_with_target(
         self, sample_dicom: Path, output_dir: Path, basic_args: Namespace
     ) -> None:
-        """Test run with CVE filter."""
-        basic_args.target_cves = "CVE-2025-1001"
+        """Test run with target specified triggers file generation."""
+        basic_args.target = str(sample_dicom)
 
         with patch("pydicom.dcmread") as mock_read:
             mock_ds = MagicMock()
             mock_read.return_value = mock_ds
 
             with patch(
-                "dicom_fuzzer.cli.security_controller.MedicalDeviceSecurityFuzzer"
-            ) as mock_fuzzer_class:
-                mock_fuzzer = MagicMock()
-                mock_fuzzer_class.return_value = mock_fuzzer
-                mock_fuzzer.generate_mutations.return_value = []
+                "dicom_fuzzer.cli.security_controller.ExploitPatternApplicator"
+            ) as mock_applicator_class:
+                mock_applicator = MagicMock()
+                mock_applicator_class.return_value = mock_applicator
+                mock_applicator.apply_exploit_patterns.return_value = mock_ds
+                mock_applicator.get_patterns_applied.return_value = []
 
-                result = SecurityFuzzingController.run(
-                    args=basic_args,
-                    input_file=sample_dicom,
-                    output_dir=output_dir,
-                )
+                with patch(
+                    "dicom_fuzzer.cli.security_controller.get_available_cves"
+                ) as mock_get_cves:
+                    mock_get_cves.return_value = []
 
-                assert result == 0
+                    with patch.object(
+                        SecurityFuzzingController, "_save_fuzzed_files"
+                    ) as mock_save:
+                        result = SecurityFuzzingController.run(
+                            args=basic_args,
+                            input_file=sample_dicom,
+                            output_dir=output_dir,
+                        )
+
+                        assert result == 0
+                        mock_save.assert_called_once()
 
     @pytest.mark.skipif(not HAS_SECURITY_FUZZER, reason="Security fuzzer not available")
     def test_run_exception_handling(
@@ -290,36 +210,29 @@ class TestSecurityFuzzingControllerSaveReport:
         self, basic_args: Namespace, tmp_path: Path
     ) -> None:
         """Test report is saved to file."""
-        mock_fuzzer = MagicMock()
-        mock_fuzzer.get_summary.return_value = {
-            "total_mutations": 10,
-            "cves_tested": ["CVE-2025-1001"],
-        }
+        patterns_applied = ["CVE-2025-1001", "CVE-2022-2119"]
 
-        SecurityFuzzingController._save_report(basic_args, mock_fuzzer)
+        SecurityFuzzingController._save_report(basic_args, patterns_applied)
 
         report_path = Path(basic_args.security_report)
         assert report_path.exists()
 
         with open(report_path) as f:
             data = json.load(f)
-        assert data["total_mutations"] == 10
+        assert data["total_patterns"] == 2
+        assert "CVE-2025-1001" in data["patterns_applied"]
 
     def test_save_report_no_path(self) -> None:
         """Test save_report does nothing when no path specified."""
         args = Namespace()
         args.security_report = None
 
-        mock_fuzzer = MagicMock()
-
         # Should not raise
-        SecurityFuzzingController._save_report(args, mock_fuzzer)
-
-        mock_fuzzer.get_summary.assert_not_called()
+        SecurityFuzzingController._save_report(args, [])
 
 
-class TestSecurityFuzzingControllerApplyMutations:
-    """Tests for _apply_mutations method."""
+class TestSecurityFuzzingControllerSaveFuzzedFiles:
+    """Tests for _save_fuzzed_files method."""
 
     @pytest.fixture
     def sample_dicom(self, tmp_path: Path) -> Path:
@@ -336,55 +249,88 @@ class TestSecurityFuzzingControllerApplyMutations:
         return out
 
     @pytest.mark.skipif(not HAS_SECURITY_FUZZER, reason="Security fuzzer not available")
-    def test_apply_mutations_creates_files(
+    def test_save_fuzzed_files_creates_directory(
         self, sample_dicom: Path, output_dir: Path
     ) -> None:
-        """Test mutations are applied and files created."""
-        mock_mutation = MagicMock()
-        mock_mutation.name = "test_mutation"
-
-        mock_fuzzer = MagicMock()
-
+        """Test fuzzed files directory is created."""
         with patch("pydicom.dcmread") as mock_read:
             mock_ds = MagicMock()
             mock_read.return_value = mock_ds
-            mock_fuzzer.apply_mutation.return_value = mock_ds
 
-            SecurityFuzzingController._apply_mutations(
-                input_file=sample_dicom,
-                output_dir=output_dir,
-                mutations=[mock_mutation],
-                security_fuzzer=mock_fuzzer,
-            )
+            with patch(
+                "dicom_fuzzer.cli.security_controller.apply_cve_mutation"
+            ) as mock_apply:
+                mock_apply.return_value = mock_ds
 
-            # Output directory should be created
-            security_output = output_dir / "security_fuzzed"
-            assert security_output.exists()
+                with patch(
+                    "dicom_fuzzer.cli.security_controller.get_available_cves"
+                ) as mock_get_cves:
+                    mock_get_cves.return_value = ["CVE-2025-1001"]
+
+                    SecurityFuzzingController._save_fuzzed_files(
+                        input_file=sample_dicom,
+                        output_dir=output_dir,
+                        num_files=1,
+                    )
+
+                    # Output directory should be created
+                    security_output = output_dir / "security_fuzzed"
+                    assert security_output.exists()
 
     @pytest.mark.skipif(not HAS_SECURITY_FUZZER, reason="Security fuzzer not available")
-    def test_apply_mutations_handles_exception(
+    def test_save_fuzzed_files_handles_exception(
         self, sample_dicom: Path, output_dir: Path
     ) -> None:
-        """Test mutation application handles exceptions gracefully."""
-        mock_mutation = MagicMock()
-        mock_mutation.name = "failing_mutation"
-
-        mock_fuzzer = MagicMock()
-        mock_fuzzer.apply_mutation.side_effect = Exception("Mutation failed")
-
+        """Test file generation handles exceptions gracefully."""
         with patch("pydicom.dcmread") as mock_read:
             mock_ds = MagicMock()
             mock_read.return_value = mock_ds
 
-            # Should not raise - call returns None on exception
-            result = SecurityFuzzingController._apply_mutations(
-                input_file=sample_dicom,
-                output_dir=output_dir,
-                mutations=[mock_mutation],
-                security_fuzzer=mock_fuzzer,
-            )
+            with patch(
+                "dicom_fuzzer.cli.security_controller.apply_cve_mutation"
+            ) as mock_apply:
+                mock_apply.side_effect = Exception("Mutation failed")
 
-            # Verify exception was handled gracefully (function completed)
-            assert result is None
-            # Verify apply_mutation was called before the exception
-            mock_fuzzer.apply_mutation.assert_called_once()
+                with patch(
+                    "dicom_fuzzer.cli.security_controller.get_available_cves"
+                ) as mock_get_cves:
+                    mock_get_cves.return_value = ["CVE-2025-1001"]
+
+                    # Should not raise
+                    SecurityFuzzingController._save_fuzzed_files(
+                        input_file=sample_dicom,
+                        output_dir=output_dir,
+                        num_files=1,
+                    )
+
+    @pytest.mark.skipif(not HAS_SECURITY_FUZZER, reason="Security fuzzer not available")
+    def test_save_fuzzed_files_respects_num_files(
+        self, sample_dicom: Path, output_dir: Path
+    ) -> None:
+        """Test num_files parameter limits generated files."""
+        with patch("pydicom.dcmread") as mock_read:
+            mock_ds = MagicMock()
+            mock_read.return_value = mock_ds
+
+            with patch(
+                "dicom_fuzzer.cli.security_controller.apply_cve_mutation"
+            ) as mock_apply:
+                mock_apply.return_value = mock_ds
+
+                with patch(
+                    "dicom_fuzzer.cli.security_controller.get_available_cves"
+                ) as mock_get_cves:
+                    mock_get_cves.return_value = [
+                        "CVE-2025-1001",
+                        "CVE-2022-2119",
+                        "CVE-2022-2120",
+                    ]
+
+                    SecurityFuzzingController._save_fuzzed_files(
+                        input_file=sample_dicom,
+                        output_dir=output_dir,
+                        num_files=2,  # Only generate 2 files
+                    )
+
+                    # Should only call apply for 2 CVEs
+                    assert mock_apply.call_count == 2

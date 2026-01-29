@@ -726,36 +726,34 @@ class TestNetworkFuzzerIntegration:
 class TestSecurityFuzzerIntegration:
     """Security fuzzer integration tests."""
 
-    def test_security_fuzzer_import(self) -> None:
-        """Test security fuzzer can be imported."""
-        from dicom_fuzzer.strategies.medical_device_security import (
-            MedicalDeviceSecurityConfig,
-            MedicalDeviceSecurityFuzzer,
+    def test_exploit_pattern_applicator_import(self) -> None:
+        """Test exploit pattern applicator can be imported."""
+        from dicom_fuzzer.strategies.exploit import (
+            ExploitPatternApplicator,
+            CVE_MUTATIONS,
+            get_available_cves,
         )
 
-        config = MedicalDeviceSecurityConfig()
-        fuzzer = MedicalDeviceSecurityFuzzer(config)
+        applicator = ExploitPatternApplicator()
+        assert applicator is not None
 
-        assert len(config.target_cves) > 0
-        assert len(config.target_vulns) > 0
+        # Should have CVE mutations available
+        assert len(CVE_MUTATIONS) > 0
+        assert len(get_available_cves()) > 0
 
-    def test_security_mutation_generation(self, sample_dataset: Dataset) -> None:
-        """Test security mutation generation."""
-        from dicom_fuzzer.strategies.medical_device_security import (
-            MedicalDeviceSecurityConfig,
-            MedicalDeviceSecurityFuzzer,
-        )
+    def test_exploit_pattern_application(self, sample_dataset: Dataset) -> None:
+        """Test exploit pattern application."""
+        from dicom_fuzzer.strategies.exploit import ExploitPatternApplicator
 
-        config = MedicalDeviceSecurityConfig()
-        fuzzer = MedicalDeviceSecurityFuzzer(config)
+        applicator = ExploitPatternApplicator()
 
-        mutations = fuzzer.generate_mutations(sample_dataset)
-        assert len(mutations) > 0
+        # Apply exploit patterns
+        mutated = applicator.apply_exploit_patterns(sample_dataset)
+        assert mutated is not None
 
-        # Check mutation properties
-        for mutation in mutations[:5]:
-            assert mutation.name is not None
-            assert mutation.vulnerability_class is not None
+        # Check patterns were applied
+        patterns = applicator.get_patterns_applied()
+        assert len(patterns) > 0
 
 
 class TestGUIMonitorIntegration:
