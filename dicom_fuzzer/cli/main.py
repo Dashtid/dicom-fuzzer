@@ -47,6 +47,7 @@ SUBCOMMANDS: dict[str, str] = {
     "calibrate": "dicom_fuzzer.cli.calibrate",
     "stress": "dicom_fuzzer.cli.stress",
     "target": "dicom_fuzzer.cli.target",
+    "cve": "dicom_fuzzer.cli.cve_cli",  # CVE replication (deterministic, not fuzzing)
 }
 
 
@@ -298,8 +299,11 @@ def parse_strategies(strategies_str: str | None) -> list[str]:
     Returns:
         List of strategy names
 
+    Note:
+        CVE replication is NOT part of fuzzing. Use the 'cve' subcommand
+        or dicom_fuzzer.cve module for deterministic CVE file generation.
     """
-    valid_strategies = {"metadata", "header", "pixel", "structure", "exploit-patterns"}
+    valid_strategies = {"metadata", "header", "pixel", "structure"}
 
     # Handle None input - return empty list
     if strategies_str is None:
@@ -310,6 +314,12 @@ def parse_strategies(strategies_str: str | None) -> list[str]:
         return []
 
     strategies = [s.strip().lower() for s in strategies_str.split(",")]
+
+    # Check for removed exploit-patterns
+    if "exploit-patterns" in strategies:
+        print("Note: 'exploit-patterns' has been moved to the 'cve' subcommand")
+        print("Use: dicom-fuzzer cve --help for CVE file generation")
+        strategies = [s for s in strategies if s != "exploit-patterns"]
 
     invalid = set(strategies) - valid_strategies
     if invalid:

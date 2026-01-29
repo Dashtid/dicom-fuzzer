@@ -7,7 +7,6 @@ from pydicom.dataset import Dataset
 from pydicom.uid import UID, generate_uid
 
 from dicom_fuzzer.core.parser import DicomParser
-from dicom_fuzzer.strategies.exploit.patterns import ExploitPatternApplicator
 from dicom_fuzzer.strategies.robustness.header_fuzzer import HeaderFuzzer
 from dicom_fuzzer.strategies.robustness.metadata_fuzzer import MetadataFuzzer
 from dicom_fuzzer.strategies.robustness.pixel_fuzzer import PixelFuzzer
@@ -164,18 +163,20 @@ class DICOMGenerator:
         return generated_files
 
     def _select_fuzzers(self, strategies: list[str] | None) -> dict[str, Any]:
-        """Select fuzzers based on strategy names."""
+        """Select fuzzers based on strategy names.
+
+        Note: CVE replication is NOT part of fuzzing. Use the dicom_fuzzer.cve
+        module for deterministic CVE file generation instead.
+        """
         all_fuzzers = {
             "metadata": MetadataFuzzer(),
             "header": HeaderFuzzer(),
             "pixel": PixelFuzzer(),
             "structure": StructureFuzzer(),
-            "exploit-patterns": ExploitPatternApplicator(),
         }
 
         if strategies is None:
-            # Default: robustness testing (fuzzing) only
-            # Use --strategies exploit-patterns for CVE-based vulnerability testing
+            # Default: use metadata, header, and pixel fuzzers
             return {
                 "metadata": all_fuzzers["metadata"],
                 "header": all_fuzzers["header"],
@@ -241,7 +242,6 @@ class DICOMGenerator:
             "header": lambda: fuzzer.mutate_tags(dataset),
             "pixel": lambda: fuzzer.mutate_pixels(dataset),
             "structure": lambda: fuzzer.mutate_structure(dataset),
-            "exploit-patterns": lambda: fuzzer.apply_exploit_patterns(dataset),
         }
         result: Dataset = fuzzer_methods.get(fuzzer_type, lambda: dataset)()
         return result
