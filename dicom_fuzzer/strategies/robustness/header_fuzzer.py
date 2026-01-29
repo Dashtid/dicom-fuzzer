@@ -190,6 +190,66 @@ VR_MUTATIONS = {
         "A" * 10000000,  # 10MB string
         "\x00" * 100000,  # Null bytes
     ],
+    # OD - Other Double (64-bit floats, must be even multiple of 8)
+    "OD": [
+        struct.pack("<d", float("nan")),  # NaN
+        struct.pack("<d", float("inf")),  # Infinity
+        struct.pack("<d", float("-inf")),  # Negative infinity
+        b"\x00" * 7,  # 7 bytes (not multiple of 8)
+        b"\x00" * 9,  # 9 bytes (not multiple of 8)
+        b"",  # Empty
+    ],
+    # OF - Other Float (32-bit floats, must be even multiple of 4)
+    "OF": [
+        struct.pack("<f", float("nan")),  # NaN
+        struct.pack("<f", float("inf")),  # Infinity
+        b"\x00" * 3,  # 3 bytes (not multiple of 4)
+        b"\x00" * 5,  # 5 bytes (not multiple of 4)
+        b"",  # Empty
+    ],
+    # OL - Other Long (32-bit unsigned integers, must be multiple of 4)
+    "OL": [
+        struct.pack("<I", 0),  # Zero
+        struct.pack("<I", 4294967295),  # MAX_UINT
+        b"\x00" * 3,  # 3 bytes (not multiple of 4)
+        b"\x00" * 5,  # 5 bytes (not multiple of 4)
+        b"",  # Empty
+    ],
+    # DA - Date (YYYYMMDD format, 8 chars)
+    "DA": [
+        "INVALID",  # Non-date
+        "99999999",  # Invalid date
+        "20251332",  # Month > 12
+        "20250145",  # Day > 31
+        "2025-01-01",  # Wrong format
+        "",  # Empty
+        "1",  # Too short
+    ],
+    # TM - Time (HHMMSS.FFFFFF format)
+    "TM": [
+        "999999",  # Hours > 23
+        "126000",  # Minutes > 59
+        "120075",  # Seconds > 59
+        "ABCDEF",  # Non-numeric
+        "12:30:45",  # Wrong format
+        "",  # Empty
+    ],
+    # IS - Integer String (max 12 chars)
+    "IS": [
+        "NOT_A_NUMBER",  # Non-numeric
+        "3.14159",  # Decimal
+        "9" * 13,  # Over 12 char limit
+        "",  # Empty
+        "-" * 10,  # Just hyphens
+    ],
+    # DS - Decimal String (max 16 chars)
+    "DS": [
+        "INVALID",  # Non-numeric
+        "1.2.3",  # Multiple decimals
+        "NaN",  # Not a number string
+        "9" * 17,  # Over 16 char limit
+        "",  # Empty
+    ],
 }
 
 

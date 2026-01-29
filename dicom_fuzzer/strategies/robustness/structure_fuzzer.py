@@ -220,6 +220,7 @@ class StructureFuzzer:
         - Length > actual data (buffer overread)
         - Length = 0 for elements that require data
         - Very large lengths (2GB+) for signed/unsigned issues
+        - Odd length for word-aligned VRs (OW, OF, OD, etc.)
 
         These patterns commonly trigger CVEs in DICOM parsers.
         """
@@ -227,6 +228,8 @@ class StructureFuzzer:
             "extreme_length_value",
             "zero_length_required",
             "negative_interpreted_as_large",
+            "odd_length_word_aligned",
+            "boundary_length_values",
         ])
 
         # Find elements to attack
@@ -265,6 +268,39 @@ class StructureFuzzer:
                         element.value = 4294967295  # 0xFFFFFFFF
                     else:
                         element.value = 65535  # 0xFFFF
+
+            elif attack == "odd_length_word_aligned":
+                # Set odd-length data for VRs that require even length
+                # OW (Other Word) requires 2-byte alignment
+                # OF (Other Float) requires 4-byte alignment
+                # OD (Other Double) requires 8-byte alignment
+                word_aligned_vrs = ["OW", "OF", "OD", "OL", "FL", "FD", "SL", "SS", "UL", "US"]
+                for t, elem in dataset.items():
+                    if hasattr(elem, "VR") and elem.VR in word_aligned_vrs:
+                        # Set odd-length bytes that violate alignment
+                        if elem.VR in ["OW", "US", "SS"]:
+                            elem._value = b"\x00\x00\x00"  # 3 bytes, should be 2
+                        elif elem.VR in ["OF", "FL", "UL", "SL", "OL"]:
+                            elem._value = b"\x00\x00\x00\x00\x00"  # 5 bytes, should be 4
+                        elif elem.VR in ["OD", "FD"]:
+                            elem._value = b"\x00" * 7  # 7 bytes, should be 8
+                        break
+
+            elif attack == "boundary_length_values":
+                # Test specific boundary values that cause issues
+                boundary_sizes = [
+                    0xFFFF,  # 16-bit max
+                    0x10000,  # 16-bit overflow
+                    0x7FFFFFFF,  # 32-bit signed max
+                    0x80000000,  # 32-bit signed overflow
+                ]
+                if hasattr(element, "value") and isinstance(element.value, (str, bytes)):
+                    size = random.choice(boundary_sizes)
+                    if size <= 100000:  # Only create reasonable sized data
+                        if isinstance(element.value, str):
+                            element.value = "X" * size
+                        else:
+                            element._value = b"\x00" * size
 
         except Exception:
             pass

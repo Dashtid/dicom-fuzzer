@@ -55,6 +55,8 @@ class PixelFuzzer:
             self._dimension_mismatch,
             self._bit_depth_attack,
             self._photometric_confusion,
+            self._samples_per_pixel_attack,
+            self._planar_configuration_attack,
         ]
 
         # Apply 1-2 mutations
@@ -63,6 +65,75 @@ class PixelFuzzer:
                 dataset = mutation(dataset)
             except Exception:
                 pass
+
+        return dataset
+
+    def _samples_per_pixel_attack(self, dataset: Dataset) -> Dataset:
+        """Attack SamplesPerPixel field.
+
+        SamplesPerPixel defines number of color channels (1=grayscale, 3=RGB).
+        Mismatches with actual pixel data can cause crashes.
+        """
+        attack = random.choice([
+            "mismatch_grayscale_rgb",
+            "invalid_value",
+            "zero_samples",
+            "extreme_samples",
+        ])
+
+        try:
+            if attack == "mismatch_grayscale_rgb":
+                # If grayscale, claim RGB; if RGB, claim grayscale
+                current = getattr(dataset, "SamplesPerPixel", 1)
+                dataset.SamplesPerPixel = 3 if current == 1 else 1
+
+            elif attack == "invalid_value":
+                # Values other than 1, 3, or 4 are unusual
+                dataset.SamplesPerPixel = random.choice([2, 5, 7, 255])
+
+            elif attack == "zero_samples":
+                dataset.SamplesPerPixel = 0
+
+            elif attack == "extreme_samples":
+                dataset.SamplesPerPixel = random.choice([65535, 256, 128])
+
+        except Exception:
+            pass
+
+        return dataset
+
+    def _planar_configuration_attack(self, dataset: Dataset) -> Dataset:
+        """Attack PlanarConfiguration field.
+
+        PlanarConfiguration defines pixel data organization for color images:
+        0 = color-by-pixel (R1G1B1, R2G2B2, ...)
+        1 = color-by-plane (R1R2..., G1G2..., B1B2...)
+
+        Only valid when SamplesPerPixel > 1.
+        """
+        attack = random.choice([
+            "wrong_configuration",
+            "invalid_value",
+            "planar_without_color",
+        ])
+
+        try:
+            if attack == "wrong_configuration":
+                # Swap between 0 and 1
+                current = getattr(dataset, "PlanarConfiguration", 0)
+                dataset.PlanarConfiguration = 1 if current == 0 else 0
+
+            elif attack == "invalid_value":
+                # Values other than 0 or 1 are invalid
+                dataset.PlanarConfiguration = random.choice([2, 255, -1])
+
+            elif attack == "planar_without_color":
+                # Set PlanarConfiguration when SamplesPerPixel = 1
+                dataset.SamplesPerPixel = 1
+                dataset.PlanarConfiguration = 1
+
+        except Exception:
+            pass
 
         return dataset
 
