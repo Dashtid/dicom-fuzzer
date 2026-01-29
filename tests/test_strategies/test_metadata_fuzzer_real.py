@@ -7,7 +7,7 @@ from datetime import datetime
 
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
+from dicom_fuzzer.strategies.robustness.metadata_fuzzer import MetadataFuzzer
 
 
 class TestMetadataFuzzerInitialization:

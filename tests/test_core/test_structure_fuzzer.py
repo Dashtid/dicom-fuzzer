@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.strategies.structure_fuzzer import StructureFuzzer
+from dicom_fuzzer.strategies.robustness.structure_fuzzer import StructureFuzzer
 
 
 class TestStructureFuzzerInitialization:

@@ -7,7 +7,7 @@ import struct
 
 import pytest
 
-from dicom_fuzzer.strategies.cve_mutations import (
+from dicom_fuzzer.strategies.exploit.cve_mutations import (
     CVE_MUTATIONS,
     CVECategory,
     CVEMutation,

@@ -10,10 +10,10 @@ Tests cover:
 import numpy as np
 import pytest
 
-from dicom_fuzzer.strategies.header_fuzzer import HeaderFuzzer
-from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
-from dicom_fuzzer.strategies.pixel_fuzzer import PixelFuzzer
-from dicom_fuzzer.strategies.structure_fuzzer import StructureFuzzer
+from dicom_fuzzer.strategies.robustness.header_fuzzer import HeaderFuzzer
+from dicom_fuzzer.strategies.robustness.metadata_fuzzer import MetadataFuzzer
+from dicom_fuzzer.strategies.robustness.pixel_fuzzer import PixelFuzzer
+from dicom_fuzzer.strategies.robustness.structure_fuzzer import StructureFuzzer
 
 
 class TestMetadataFuzzer:

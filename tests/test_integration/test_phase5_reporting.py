@@ -30,7 +30,7 @@ from dicom_fuzzer.core.series_reporter import (
     SeriesMutationSummary,
 )
 from dicom_fuzzer.core.statistics import MutationStatistics
-from dicom_fuzzer.strategies.series_mutator import (
+from dicom_fuzzer.strategies.series.series_mutator import (
     SeriesMutationRecord,
     SeriesMutationStrategy,
 )

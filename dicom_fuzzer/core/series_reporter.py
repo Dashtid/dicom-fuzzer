@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from dicom_fuzzer.strategies.series_mutator import (
+from dicom_fuzzer.strategies.series.series_mutator import (
     SeriesMutationRecord,
 )
 from dicom_fuzzer.utils.identifiers import generate_timestamp_id

@@ -1,41 +1,63 @@
-"""Mutation strategies for DICOM fuzzing."""
+"""Mutation strategies for DICOM fuzzing.
 
-from .exploit_patterns import CVEFuzzer  # Backward compat alias
-from .exploit_patterns import ExploitPatternApplicator
-from .cve_mutations import (
+Organized into subpackages:
+- robustness/: Edge case testing for parser robustness
+- exploit/: CVE-based security validation patterns
+- series/: Multi-slice 3D volume mutations
+"""
+
+# Exploit patterns (CVE-based security validation)
+from .exploit import (
     CVE_MUTATIONS,
     CVECategory,
+    CVEFuzzer,
     CVEMutation,
+    ExploitPatternApplicator,
+    SecurityPatternFuzzer,
     apply_cve_mutation,
     get_available_cves,
     get_mutations_by_category,
 )
-from .parallel_mutator import ParallelSeriesMutator, get_optimal_workers
-from .security_patterns import SecurityPatternFuzzer
-from .series_mutator import (
+
+# Robustness fuzzers (edge case testing)
+from .robustness import (
+    HeaderFuzzer,
+    MetadataFuzzer,
+    PixelFuzzer,
+    StructureFuzzer,
+)
+
+# Series-level mutations
+from .series import (
     Series3DMutator,
     SeriesMutationRecord,
     SeriesMutationStrategy,
 )
 
+# Parallel processing
+from .parallel_mutator import ParallelSeriesMutator, get_optimal_workers
+
 __all__ = [
-    # 3D Series mutation (v2.0.0-alpha)
-    "Series3DMutator",
-    "SeriesMutationRecord",
-    "SeriesMutationStrategy",
-    # Parallel processing (v2.0.0-alpha Phase 4)
-    "ParallelSeriesMutator",
-    "get_optimal_workers",
-    # Security patterns (v1.3.0)
+    # Robustness fuzzers
+    "HeaderFuzzer",
+    "MetadataFuzzer",
+    "PixelFuzzer",
+    "StructureFuzzer",
+    # Exploit patterns
+    "ExploitPatternApplicator",
+    "CVEFuzzer",
     "SecurityPatternFuzzer",
-    # CVE-inspired mutations (v1.6.0)
     "CVE_MUTATIONS",
     "CVECategory",
     "CVEMutation",
     "apply_cve_mutation",
     "get_available_cves",
     "get_mutations_by_category",
-    # Exploit pattern applicator (renamed from CVEFuzzer)
-    "ExploitPatternApplicator",
-    "CVEFuzzer",  # Backward compat alias
+    # Series mutations
+    "Series3DMutator",
+    "SeriesMutationRecord",
+    "SeriesMutationStrategy",
+    # Parallel processing
+    "ParallelSeriesMutator",
+    "get_optimal_workers",
 ]

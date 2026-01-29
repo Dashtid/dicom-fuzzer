@@ -11,7 +11,7 @@ import pytest
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.dicom_series import DicomSeries
-from dicom_fuzzer.strategies.series_mutator import (
+from dicom_fuzzer.strategies.series.series_mutator import (
     Series3DMutator,
     SeriesMutationRecord,
     SeriesMutationStrategy,

@@ -22,7 +22,7 @@ from pydicom.uid import generate_uid
 
 if TYPE_CHECKING:
     from dicom_fuzzer.core.dicom_series import DicomSeries
-    from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+    from .series_mutator import SeriesMutationRecord
 
 
 class CoreMutationsMixin:
@@ -38,7 +38,7 @@ class CoreMutationsMixin:
         self, ds: Dataset, slice_idx: int
     ) -> SeriesMutationRecord:
         """Corrupt with invalid series UID."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         original = ds.SeriesInstanceUID if hasattr(ds, "SeriesInstanceUID") else None
         ds.SeriesInstanceUID = generate_uid() + ".999.FUZZED"
@@ -56,7 +56,7 @@ class CoreMutationsMixin:
         self, ds: Dataset, slice_idx: int
     ) -> SeriesMutationRecord:
         """Corrupt with invalid study UID."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         original = ds.StudyInstanceUID if hasattr(ds, "StudyInstanceUID") else None
         ds.StudyInstanceUID = "!@#$%INVALID_UID^&*()"
@@ -74,7 +74,7 @@ class CoreMutationsMixin:
         self, ds: Dataset, slice_idx: int
     ) -> SeriesMutationRecord:
         """Delete modality tag."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         original = ds.Modality if hasattr(ds, "Modality") else None
         if hasattr(ds, "Modality"):
@@ -93,7 +93,7 @@ class CoreMutationsMixin:
         self, ds: Dataset, slice_idx: int
     ) -> SeriesMutationRecord:
         """Set empty series UID."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         original = ds.SeriesInstanceUID if hasattr(ds, "SeriesInstanceUID") else None
         ds.SeriesInstanceUID = ""
@@ -111,7 +111,7 @@ class CoreMutationsMixin:
         self, ds: Dataset, slice_idx: int
     ) -> SeriesMutationRecord:
         """Set extremely long UID."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         original = ds.SeriesInstanceUID if hasattr(ds, "SeriesInstanceUID") else None
         ds.SeriesInstanceUID = "1.2." + ".".join(["999"] * 30)
@@ -132,7 +132,7 @@ class CoreMutationsMixin:
         self, ds: Dataset, slice_idx: int
     ) -> SeriesMutationRecord:
         """Set UID with invalid characters."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         original = ds.SeriesInstanceUID if hasattr(ds, "SeriesInstanceUID") else None
         ds.SeriesInstanceUID = "1.2.840.ABC.INVALID"
@@ -150,7 +150,7 @@ class CoreMutationsMixin:
         self, ds: Dataset, slice_idx: int
     ) -> SeriesMutationRecord:
         """Set invalid modality type."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         original = ds.Modality if hasattr(ds, "Modality") else None
         invalid_modalities = [
@@ -222,7 +222,7 @@ class CoreMutationsMixin:
         records: list[SeriesMutationRecord],
     ) -> None:
         """Randomize z-coordinate attack."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         ds.ImagePositionPatient[2] = random.uniform(-1000, 1000)
         records.append(
@@ -246,7 +246,7 @@ class CoreMutationsMixin:
         records: list[SeriesMutationRecord],
     ) -> None:
         """Duplicate position from another slice."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         if len(datasets) <= 1:
             return
@@ -279,7 +279,7 @@ class CoreMutationsMixin:
         value_type: str,
     ) -> None:
         """Apply extreme value attack (nan, inf, or large)."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         if value_type == "nan":
             ds.ImagePositionPatient[2] = float("nan")
@@ -314,7 +314,7 @@ class CoreMutationsMixin:
         records: list[SeriesMutationRecord],
     ) -> None:
         """Make all position components negative."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         ds.ImagePositionPatient = [-abs(x) for x in ds.ImagePositionPatient]
         records.append(
@@ -338,7 +338,7 @@ class CoreMutationsMixin:
         records: list[SeriesMutationRecord],
     ) -> None:
         """Set position to origin."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         ds.ImagePositionPatient = [0.0, 0.0, 0.0]
         records.append(
@@ -409,7 +409,7 @@ class CoreMutationsMixin:
 
         Targets: Edge cases in series loading algorithms
         """
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         records: list[SeriesMutationRecord] = []
         slice_count = len(datasets)
@@ -478,7 +478,7 @@ class CoreMutationsMixin:
 
         Targets: Algorithms that assume consistent corruption levels
         """
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         records: list[SeriesMutationRecord] = []
         slice_count = len(datasets)
@@ -541,7 +541,7 @@ class CoreMutationsMixin:
 
         Targets: Parsers that assume series consistency
         """
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         records: list[SeriesMutationRecord] = []
         available_slices = list(range(len(datasets)))

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, PropertyMock
 
 import numpy as np
 
-from dicom_fuzzer.strategies.pixel_fuzzer import PixelFuzzer
+from dicom_fuzzer.strategies.robustness.pixel_fuzzer import PixelFuzzer
 
 
 class TestPixelFuzzerInit:

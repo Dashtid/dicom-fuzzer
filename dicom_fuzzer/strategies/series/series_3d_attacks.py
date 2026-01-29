@@ -21,7 +21,7 @@ from pydicom.uid import generate_uid
 
 if TYPE_CHECKING:
     from dicom_fuzzer.core.dicom_series import DicomSeries
-    from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+    from .series_mutator import SeriesMutationRecord
 
 
 class Reconstruction3DAttacksMixin:
@@ -46,7 +46,7 @@ class Reconstruction3DAttacksMixin:
 
         Targets: 3D reconstruction algorithms, MPR viewers, oblique reformatting
         """
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         records = []
 
@@ -166,7 +166,7 @@ class Reconstruction3DAttacksMixin:
 
         Note: This modifies the datasets list itself (removes elements).
         """
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         records: list[SeriesMutationRecord] = []
         original_count = len(datasets)
@@ -242,7 +242,7 @@ class Reconstruction3DAttacksMixin:
         details: dict[str, Any] | None = None,
     ) -> SeriesMutationRecord:
         """Create a SeriesMutationRecord for slice overlap attacks."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         return SeriesMutationRecord(
             strategy="slice_overlap_injection",
@@ -395,7 +395,7 @@ class Reconstruction3DAttacksMixin:
         self, ds: Dataset, slice_idx: int, records: list[SeriesMutationRecord]
     ) -> None:
         """Apply 100:1 aspect ratio attack."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         if not hasattr(ds, "PixelSpacing"):
             return
@@ -417,7 +417,7 @@ class Reconstruction3DAttacksMixin:
         self, ds: Dataset, slice_idx: int, records: list[SeriesMutationRecord]
     ) -> None:
         """Apply non-square pixels attack (4:1 ratio)."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         if not hasattr(ds, "PixelSpacing"):
             return
@@ -439,7 +439,7 @@ class Reconstruction3DAttacksMixin:
         self, ds: Dataset, slice_idx: int, records: list[SeriesMutationRecord]
     ) -> None:
         """Apply pancake voxels attack (100mm thickness)."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         if not hasattr(ds, "SliceThickness"):
             return
@@ -461,7 +461,7 @@ class Reconstruction3DAttacksMixin:
         self, ds: Dataset, slice_idx: int, records: list[SeriesMutationRecord]
     ) -> None:
         """Apply needle voxels attack (0.001mm thickness)."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         if not hasattr(ds, "SliceThickness"):
             return
@@ -483,7 +483,7 @@ class Reconstruction3DAttacksMixin:
         self, ds: Dataset, slice_idx: int, records: list[SeriesMutationRecord]
     ) -> None:
         """Apply zero dimension attack."""
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         target = random.choice(["PixelSpacing", "SliceThickness"])
         if target == "PixelSpacing" and hasattr(ds, "PixelSpacing"):
@@ -557,7 +557,7 @@ class Reconstruction3DAttacksMixin:
 
         Targets: Registration, slice grouping, coordinate systems
         """
-        from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+        from .series_mutator import SeriesMutationRecord
 
         records = []
 

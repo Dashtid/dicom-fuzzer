@@ -15,7 +15,7 @@ from typing import Any
 import numpy as np
 
 from dicom_fuzzer.core.constants import MutationType
-from dicom_fuzzer.strategies.cve_mutations import (
+from dicom_fuzzer.strategies.exploit.cve_mutations import (
     apply_cve_mutation,
     get_mutation_func,
 )

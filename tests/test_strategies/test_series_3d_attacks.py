@@ -12,7 +12,7 @@ import pytest
 from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
 
-from dicom_fuzzer.strategies.series_3d_attacks import Reconstruction3DAttacksMixin
+from dicom_fuzzer.strategies.series.series_3d_attacks import Reconstruction3DAttacksMixin
 
 
 class MockSeriesMutator(Reconstruction3DAttacksMixin):

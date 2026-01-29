@@ -13,7 +13,7 @@ from dicom_fuzzer.core.series_reporter import (
     Series3DReportGenerator,
     SeriesMutationSummary,
 )
-from dicom_fuzzer.strategies.series_mutator import SeriesMutationRecord
+from dicom_fuzzer.strategies.series.series_mutator import SeriesMutationRecord
 
 
 class TestSeriesMutationSummary:

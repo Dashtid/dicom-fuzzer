@@ -35,7 +35,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from dicom_fuzzer.core.byte_mutator import ByteMutator, DICOMByteMutator  # noqa: E402
-from dicom_fuzzer.strategies.cve_mutations import (  # noqa: E402
+from dicom_fuzzer.strategies.exploit.cve_mutations import (  # noqa: E402
     mutate_deep_nesting,
     mutate_heap_overflow_pixel_data,
     mutate_integer_overflow_dimensions,

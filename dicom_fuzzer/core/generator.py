@@ -7,11 +7,11 @@ from pydicom.dataset import Dataset
 from pydicom.uid import UID, generate_uid
 
 from dicom_fuzzer.core.parser import DicomParser
-from dicom_fuzzer.strategies.exploit_patterns import ExploitPatternApplicator
-from dicom_fuzzer.strategies.header_fuzzer import HeaderFuzzer
-from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
-from dicom_fuzzer.strategies.pixel_fuzzer import PixelFuzzer
-from dicom_fuzzer.strategies.structure_fuzzer import StructureFuzzer
+from dicom_fuzzer.strategies.exploit.patterns import ExploitPatternApplicator
+from dicom_fuzzer.strategies.robustness.header_fuzzer import HeaderFuzzer
+from dicom_fuzzer.strategies.robustness.metadata_fuzzer import MetadataFuzzer
+from dicom_fuzzer.strategies.robustness.pixel_fuzzer import PixelFuzzer
+from dicom_fuzzer.strategies.robustness.structure_fuzzer import StructureFuzzer
 from dicom_fuzzer.utils.identifiers import generate_short_id
 
 

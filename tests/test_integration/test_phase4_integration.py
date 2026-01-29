@@ -15,7 +15,7 @@ from dicom_fuzzer.core.series_cache import SeriesCache
 from dicom_fuzzer.core.series_detector import SeriesDetector
 from dicom_fuzzer.core.series_writer import SeriesWriter
 from dicom_fuzzer.strategies.parallel_mutator import ParallelSeriesMutator
-from dicom_fuzzer.strategies.series_mutator import (
+from dicom_fuzzer.strategies.series.series_mutator import (
     Series3DMutator,
     SeriesMutationStrategy,
 )

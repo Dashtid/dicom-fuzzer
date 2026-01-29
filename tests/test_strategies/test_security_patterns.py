@@ -10,7 +10,7 @@ from pydicom.sequence import Sequence
 from pydicom.tag import Tag
 from pydicom.uid import generate_uid
 
-from dicom_fuzzer.strategies.security_patterns import SecurityPatternFuzzer
+from dicom_fuzzer.strategies.exploit.patterns import SecurityPatternFuzzer
 
 
 @pytest.fixture
