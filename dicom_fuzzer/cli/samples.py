@@ -1,13 +1,13 @@
 """Samples Subcommand for DICOM Fuzzer.
 
-Provides functionality to generate sample DICOM files for testing,
-including synthetic samples and intentionally malicious samples
-for security testing.
+Provides functionality to generate synthetic DICOM files for testing.
+
+For CVE replication, use the dedicated 'cve' subcommand:
+    dicom-fuzzer cve --help
 """
 
 import argparse
 import sys
-from collections.abc import Callable
 from pathlib import Path
 
 from dicom_fuzzer.core.synthetic import SyntheticDicomGenerator
@@ -48,7 +48,7 @@ SUPPORTED_MODALITIES = ["CT", "MR", "US", "CR", "DX", "PT", "NM", "XA", "RF", "S
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for samples subcommand."""
     parser = argparse.ArgumentParser(
-        description="Generate or list sample DICOM files for fuzzing",
+        description="Generate synthetic DICOM files for fuzzing",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -61,17 +61,11 @@ Examples:
   # List download sources
   dicom-fuzzer samples --list-sources
 
-  # Generate all malicious samples for security testing
-  dicom-fuzzer samples --malicious -o ./malicious_samples
+  # Strip pixel data for corpus optimization
+  dicom-fuzzer samples --strip-pixel-data ./corpus -o ./optimized
 
-  # Generate only preamble attack samples (polyglots)
-  dicom-fuzzer samples --preamble-attacks -o ./polyglots
-
-  # Generate CVE reproduction samples
-  dicom-fuzzer samples --cve-samples -o ./cve_samples
-
-  # Generate parser stress tests with deep nesting
-  dicom-fuzzer samples --parser-stress --depth 200 -o ./stress_tests
+For CVE replication files, use the dedicated 'cve' subcommand:
+  dicom-fuzzer cve --help
         """,
     )
 
@@ -86,31 +80,6 @@ Examples:
         "--list-sources",
         action="store_true",
         help="List public sources for downloading real DICOM samples",
-    )
-    action_group.add_argument(
-        "--malicious",
-        action="store_true",
-        help="Generate malicious DICOM samples for security testing (all categories)",
-    )
-    action_group.add_argument(
-        "--preamble-attacks",
-        action="store_true",
-        help="Generate PE/DICOM and ELF/DICOM polyglot files (CVE-2019-11687)",
-    )
-    action_group.add_argument(
-        "--cve-samples",
-        action="store_true",
-        help="Generate CVE reproduction samples for known vulnerabilities",
-    )
-    action_group.add_argument(
-        "--parser-stress",
-        action="store_true",
-        help="Generate parser stress test samples (deep nesting, truncation, etc.)",
-    )
-    action_group.add_argument(
-        "--compliance",
-        action="store_true",
-        help="Generate DICOM compliance violation samples",
     )
     action_group.add_argument(
         "--strip-pixel-data",
@@ -176,22 +145,6 @@ Examples:
         "--verbose",
         action="store_true",
         help="Verbose output",
-    )
-
-    # Malicious sample options
-    mal_group = parser.add_argument_group("malicious sample options")
-    mal_group.add_argument(
-        "--depth",
-        type=int,
-        default=100,
-        metavar="N",
-        help="Nesting depth for parser stress tests (default: 100)",
-    )
-    mal_group.add_argument(
-        "--base-dicom",
-        type=str,
-        metavar="FILE",
-        help="Base DICOM file to use for sample generation (uses synthetic if not provided)",
     )
 
     return parser
@@ -274,306 +227,6 @@ def run_list_sources(args: argparse.Namespace) -> int:
     return 0
 
 
-def _generate_preamble_attacks(
-    output_dir: Path, verbose: bool
-) -> tuple[int, str | None]:
-    """Generate preamble attack samples."""
-    try:
-        from dicom_fuzzer.generators.preamble_attacks.generator import (
-            PreambleAttackGenerator,
-        )
-
-        preamble_dir = output_dir / "preamble_attacks"
-        preamble_dir.mkdir(parents=True, exist_ok=True)
-
-        gen = PreambleAttackGenerator()
-        count = 0
-
-        pe_path = gen.create_pe_dicom(preamble_dir / "pe_dicom_polyglot.dcm")
-        if pe_path:
-            count += 1
-            if verbose:
-                print(f"    [+] {pe_path.name}")
-
-        elf_path = gen.create_elf_dicom(preamble_dir / "elf_dicom_polyglot.dcm")
-        if elf_path:
-            count += 1
-            if verbose:
-                print(f"    [+] {elf_path.name}")
-
-        print(f"    [+] Preamble attacks: {count} samples")
-        return count, None
-    except Exception as e:
-        print(f"    [-] Failed: {e}")
-        return 0, f"Preamble attacks: {e}"
-
-
-def _generate_cve_samples(output_dir: Path, verbose: bool) -> tuple[int, str | None]:
-    """Generate CVE reproduction samples."""
-    try:
-        from dicom_fuzzer.generators.cve_reproductions.generator import (
-            CVESampleGenerator,
-        )
-
-        cve_dir = output_dir / "cve_reproductions"
-        cve_gen = CVESampleGenerator(cve_dir)
-        cve_results = cve_gen.generate_all()
-        count = sum(1 for p in cve_results.values() if p is not None)
-
-        if verbose:
-            for cve_id, cve_path in cve_results.items():
-                if cve_path:
-                    print(f"    [+] {cve_id}: {cve_path.name}")
-
-        print(f"    [+] CVE reproductions: {count} samples")
-        return count, None
-    except Exception as e:
-        print(f"    [-] Failed: {e}")
-        return 0, f"CVE samples: {e}"
-
-
-def _generate_parser_stress(output_dir: Path, verbose: bool) -> tuple[int, str | None]:
-    """Generate parser stress samples."""
-    try:
-        from dicom_fuzzer.generators.parser_stress.generator import (
-            ParserStressGenerator,
-        )
-
-        stress_dir = output_dir / "parser_stress"
-        stress_gen = ParserStressGenerator(stress_dir)
-        stress_results = stress_gen.generate_all()
-        count = sum(1 for p in stress_results.values() if p is not None)
-
-        if verbose:
-            for name, stress_path in stress_results.items():
-                if stress_path:
-                    print(f"    [+] {name}: {stress_path.name}")
-
-        print(f"    [+] Parser stress: {count} samples")
-        return count, None
-    except Exception as e:
-        print(f"    [-] Failed: {e}")
-        return 0, f"Parser stress: {e}"
-
-
-def _generate_compliance_violations(
-    output_dir: Path, verbose: bool
-) -> tuple[int, str | None]:
-    """Generate compliance violation samples."""
-    try:
-        from dicom_fuzzer.generators.compliance_violations.generator import (
-            ComplianceViolationGenerator,
-        )
-
-        compliance_dir = output_dir / "compliance_violations"
-        compliance_gen = ComplianceViolationGenerator(compliance_dir)
-        compliance_results = compliance_gen.generate_all()
-        count = sum(len(samples) for samples in compliance_results.values())
-
-        if verbose:
-            for category, samples in compliance_results.items():
-                for sample_name, sample_path in samples.items():
-                    print(f"    [+] {category}/{sample_name}: {sample_path.name}")
-
-        print(f"    [+] Compliance violations: {count} samples")
-        return count, None
-    except Exception as e:
-        print(f"    [-] Failed: {e}")
-        return 0, f"Compliance violations: {e}"
-
-
-def run_malicious(args: argparse.Namespace) -> int:
-    """Generate all categories of malicious samples."""
-    output_dir = Path(args.output)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    print("\n" + "=" * 70)
-    print("  DICOM Fuzzer - Malicious Sample Generation")
-    print("=" * 70)
-    print(f"  Output: {output_dir}")
-    print("  [!] WARNING: These samples are intentionally malicious!")
-    print("  [!] Use only in controlled security testing environments.")
-    print("=" * 70 + "\n")
-
-    total_generated = 0
-    errors: list[str] = []
-
-    # Generate each category
-    generators = [
-        ("preamble attack", _generate_preamble_attacks),
-        ("CVE reproduction", _generate_cve_samples),
-        ("parser stress", _generate_parser_stress),
-        ("compliance violation", _generate_compliance_violations),
-    ]
-
-    for name, generator_func in generators:
-        print(f"[i] Generating {name} samples...")
-        count, error = generator_func(output_dir, args.verbose)
-        total_generated += count
-        if error:
-            errors.append(error)
-
-    # Summary
-    print("\n" + "=" * 70)
-    print("  Generation Complete")
-    print("=" * 70)
-    print(f"  [+] Total samples generated: {total_generated}")
-    if errors:
-        print(f"  [-] Errors: {len(errors)}")
-        for err in errors:
-            print(f"      - {err}")
-    print(f"  Output: {output_dir}")
-    print("=" * 70 + "\n")
-
-    return 0 if not errors else 1
-
-
-def run_preamble_attacks(args: argparse.Namespace) -> int:
-    """Generate preamble attack samples (polyglots)."""
-    output_dir = Path(args.output)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    print("\n" + "=" * 70)
-    print("  Preamble Attack Sample Generation")
-    print("=" * 70)
-    print(f"  Output: {output_dir}")
-    print("  [!] WARNING: These are executable polyglot files!")
-    print("=" * 70 + "\n")
-
-    try:
-        from dicom_fuzzer.generators.preamble_attacks.generator import (
-            PreambleAttackGenerator,
-        )
-
-        gen = PreambleAttackGenerator()
-        generated = []
-
-        pe_path = gen.create_pe_dicom(output_dir / "pe_dicom_polyglot.dcm")
-        if pe_path:
-            generated.append(pe_path)
-            print(f"  [+] PE/DICOM polyglot: {pe_path.name}")
-
-        elf_path = gen.create_elf_dicom(output_dir / "elf_dicom_polyglot.dcm")
-        if elf_path:
-            generated.append(elf_path)
-            print(f"  [+] ELF/DICOM polyglot: {elf_path.name}")
-
-        print(f"\n[+] Generated {len(generated)} polyglot samples")
-        print(f"Output: {output_dir}")
-        return 0
-
-    except Exception as e:
-        print(f"[-] Failed: {e}")
-        return 1
-
-
-def run_cve_samples(args: argparse.Namespace) -> int:
-    """Generate CVE reproduction samples."""
-    output_dir = Path(args.output)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    print("\n" + "=" * 70)
-    print("  CVE Reproduction Sample Generation")
-    print("=" * 70)
-    print(f"  Output: {output_dir}")
-    print("=" * 70 + "\n")
-
-    try:
-        from dicom_fuzzer.generators.cve_reproductions.generator import (
-            CVESampleGenerator,
-        )
-
-        gen = CVESampleGenerator(output_dir)
-        results = gen.generate_all()
-
-        for cve_id, path in results.items():
-            if path:
-                print(f"  [+] {cve_id}: {path.name}")
-            else:
-                print(f"  [-] {cve_id}: Failed to generate")
-
-        success_count = sum(1 for p in results.values() if p is not None)
-        print(f"\n[+] Generated {success_count}/{len(results)} CVE samples")
-        print(f"Output: {output_dir}")
-        return 0
-
-    except Exception as e:
-        print(f"[-] Failed: {e}")
-        return 1
-
-
-def run_parser_stress(args: argparse.Namespace) -> int:
-    """Generate parser stress test samples."""
-    output_dir = Path(args.output)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    print("\n" + "=" * 70)
-    print("  Parser Stress Sample Generation")
-    print("=" * 70)
-    print(f"  Output: {output_dir}")
-    print("=" * 70 + "\n")
-
-    try:
-        from dicom_fuzzer.generators.parser_stress.generator import (
-            ParserStressGenerator,
-        )
-
-        gen = ParserStressGenerator(output_dir)
-        results = gen.generate_all()
-
-        for name, path in results.items():
-            if path:
-                print(f"  [+] {name}: {path.name}")
-            else:
-                print(f"  [-] {name}: Failed to generate")
-
-        success_count = sum(1 for p in results.values() if p is not None)
-        print(f"\n[+] Generated {success_count}/{len(results)} stress samples")
-        print(f"Output: {output_dir}")
-        return 0
-
-    except Exception as e:
-        print(f"[-] Failed: {e}")
-        return 1
-
-
-def run_compliance(args: argparse.Namespace) -> int:
-    """Generate compliance violation samples."""
-    output_dir = Path(args.output)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    print("\n" + "=" * 70)
-    print("  Compliance Violation Sample Generation")
-    print("=" * 70)
-    print(f"  Output: {output_dir}")
-    print("=" * 70 + "\n")
-
-    try:
-        from dicom_fuzzer.generators.compliance_violations.generator import (
-            ComplianceViolationGenerator,
-        )
-
-        compliance_gen = ComplianceViolationGenerator(output_dir)
-        compliance_results = compliance_gen.generate_all()
-        # compliance_results is dict[str, dict[str, Path]] - nested structure
-        total_samples = 0
-        for category, samples in compliance_results.items():
-            print(f"  [{category}]")
-            for sample_name, sample_path in samples.items():
-                print(f"    [+] {sample_name}: {sample_path.name}")
-                total_samples += 1
-
-        print(
-            f"\n[+] Generated {total_samples} compliance samples in {len(compliance_results)} categories"
-        )
-        print(f"Output: {output_dir}")
-        return 0
-
-    except Exception as e:
-        print(f"[-] Failed: {e}")
-        return 1
-
-
 def run_strip_pixel_data(args: argparse.Namespace) -> int:
     """Strip PixelData from DICOM files for corpus optimization."""
     input_path = Path(args.strip_pixel_data)
@@ -652,27 +305,17 @@ def run_strip_pixel_data(args: argparse.Namespace) -> int:
         return 1
 
 
-# Action dispatch table: (arg_name, handler_function)
-_ACTION_DISPATCH: list[tuple[str, Callable[[argparse.Namespace], int]]] = [
-    ("generate", run_generate),
-    ("list_sources", run_list_sources),
-    ("malicious", run_malicious),
-    ("preamble_attacks", run_preamble_attacks),
-    ("cve_samples", run_cve_samples),
-    ("parser_stress", run_parser_stress),
-    ("compliance", run_compliance),
-    ("strip_pixel_data", run_strip_pixel_data),
-]
-
-
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for samples subcommand."""
     parser = create_parser()
     args = parser.parse_args(argv)
 
-    for arg_name, handler in _ACTION_DISPATCH:
-        if getattr(args, arg_name, False):
-            return handler(args)
+    if args.generate:
+        return run_generate(args)
+    elif args.list_sources:
+        return run_list_sources(args)
+    elif args.strip_pixel_data:
+        return run_strip_pixel_data(args)
 
     parser.print_help()
     return 1

@@ -723,39 +723,6 @@ class TestNetworkFuzzerIntegration:
         assert FuzzingStrategy.MALFORMED_PDU in strategies
 
 
-class TestSecurityFuzzerIntegration:
-    """Security fuzzer integration tests."""
-
-    def test_exploit_pattern_applicator_import(self) -> None:
-        """Test exploit pattern applicator can be imported."""
-        from dicom_fuzzer.strategies.exploit import (
-            ExploitPatternApplicator,
-            CVE_MUTATIONS,
-            get_available_cves,
-        )
-
-        applicator = ExploitPatternApplicator()
-        assert applicator is not None
-
-        # Should have CVE mutations available
-        assert len(CVE_MUTATIONS) > 0
-        assert len(get_available_cves()) > 0
-
-    def test_exploit_pattern_application(self, sample_dataset: Dataset) -> None:
-        """Test exploit pattern application."""
-        from dicom_fuzzer.strategies.exploit import ExploitPatternApplicator
-
-        applicator = ExploitPatternApplicator()
-
-        # Apply exploit patterns
-        mutated = applicator.apply_exploit_patterns(sample_dataset)
-        assert mutated is not None
-
-        # Check patterns were applied
-        patterns = applicator.get_patterns_applied()
-        assert len(patterns) > 0
-
-
 class TestGUIMonitorIntegration:
     """GUI monitor integration tests."""
 

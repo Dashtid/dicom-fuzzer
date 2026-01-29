@@ -3,7 +3,9 @@
 Implements intelligent mutation strategies that adapt based on coverage feedback.
 Learns which mutations are most effective for discovering new code paths.
 
-Includes CVE-based security mutations by default for vulnerability discovery.
+Note: CVE-based mutations have been removed from the fuzzer.
+For CVE replication, use the dedicated 'cve' subcommand:
+    dicom-fuzzer cve --help
 """
 
 import random
@@ -15,16 +17,29 @@ from typing import Any
 import numpy as np
 
 from dicom_fuzzer.core.constants import MutationType
-from dicom_fuzzer.strategies.exploit.cve_mutations import (
-    apply_cve_mutation,
-    get_mutation_func,
-)
 from dicom_fuzzer.utils.logger import get_logger
 
 from .corpus_manager import Seed
 from .coverage_instrumentation import CoverageInfo
 
 logger = get_logger(__name__)
+
+
+# Stub functions for removed CVE mutations
+# CVE replication is now in dicom_fuzzer.cve module (deterministic, not fuzzing)
+def get_mutation_func(name: str) -> None:
+    """Stub: CVE mutations removed from fuzzer. Use dicom-fuzzer cve command."""
+    return None
+
+
+def apply_cve_mutation(data: bytes) -> tuple[bytes, Any]:
+    """Stub: CVE mutations removed from fuzzer. Use dicom-fuzzer cve command."""
+
+    class StubMutation:
+        cve_id = "DISABLED"
+        category = type("Category", (), {"value": "disabled"})()
+
+    return data, StubMutation()
 
 
 @dataclass

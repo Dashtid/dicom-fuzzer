@@ -35,14 +35,9 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from dicom_fuzzer.core.byte_mutator import ByteMutator, DICOMByteMutator  # noqa: E402
-from dicom_fuzzer.strategies.exploit.cve_mutations import (  # noqa: E402
-    mutate_deep_nesting,
-    mutate_heap_overflow_pixel_data,
-    mutate_integer_overflow_dimensions,
-    mutate_malformed_length_field,
-    mutate_oversized_length,
-    mutate_path_traversal_filename,
-)
+
+# Note: CVE-specific mutations have been removed from fuzzing.
+# For CVE replication, use: dicom-fuzzer cve --help
 
 
 class GUIExecutionStatus(Enum):
@@ -269,14 +264,8 @@ class OvernightCampaign:
         # Mutators
         self.byte_mutator = ByteMutator()
         self.dicom_mutator = DICOMByteMutator()
-        self.cve_funcs = [
-            mutate_heap_overflow_pixel_data,
-            mutate_integer_overflow_dimensions,
-            mutate_malformed_length_field,
-            mutate_deep_nesting,
-            mutate_oversized_length,
-            mutate_path_traversal_filename,
-        ]
+        # CVE mutations removed - use dicom-fuzzer cve command for CVE replication
+        self.cve_funcs: list = []
 
         # Seeds
         self.seeds: list[Path] = []
