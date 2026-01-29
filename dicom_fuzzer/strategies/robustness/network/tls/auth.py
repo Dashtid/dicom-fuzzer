@@ -12,7 +12,7 @@ import ssl
 import struct
 import time
 
-from dicom_fuzzer.core.tls_types import (
+from .types import (
     COMMON_AE_TITLES,
     DICOMTLSFuzzerConfig,
     TLSFuzzResult,

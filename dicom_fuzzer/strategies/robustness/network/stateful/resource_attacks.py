@@ -3,8 +3,8 @@
 Generates resource exhaustion attack sequences for protocol fuzzing.
 """
 
-from dicom_fuzzer.core.stateful.enums import ProtocolEvent
-from dicom_fuzzer.core.stateful.types import FuzzSequence
+from .enums import ProtocolEvent
+from .types import FuzzSequence
 
 
 class ResourceExhaustionGenerator:

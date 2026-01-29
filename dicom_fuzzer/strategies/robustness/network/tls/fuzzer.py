@@ -28,21 +28,21 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from dicom_fuzzer.core.dicom_auth_tester import DICOMAuthTester
-from dicom_fuzzer.core.pacs_query_fuzzer import (
+from .auth import DICOMAuthTester
+from .query import (
     INJECTION_PAYLOADS,
     PACSQueryInjector,
 )
 
 # Import component testers
-from dicom_fuzzer.core.tls_security_tester import (
+from .security import (
     SSL_VERSIONS,
     WEAK_CIPHERS,
     TLSSecurityTester,
 )
 
 # Import and re-export from tls_types for backward compatibility
-from dicom_fuzzer.core.tls_types import (
+from .types import (
     COMMON_AE_TITLES,
     SOP_CLASS_UIDS,
     AuthBypassType,

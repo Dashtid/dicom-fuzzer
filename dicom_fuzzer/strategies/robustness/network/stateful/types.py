@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from dicom_fuzzer.core.stateful.enums import (
+from .enums import (
     AssociationState,
     ProtocolEvent,
     TransitionType,

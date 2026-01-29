@@ -8,18 +8,18 @@ import time
 from collections.abc import Callable, Generator
 from typing import Any
 
-from dicom_fuzzer.core.stateful.config import StateMachineConfig
-from dicom_fuzzer.core.stateful.enums import (
+from .config import StateMachineConfig
+from .enums import (
     AssociationState,
     ProtocolEvent,
     TransitionType,
 )
-from dicom_fuzzer.core.stateful.sequence_generator import (
+from .sequence_generator import (
     CoverageStats,
     SequenceGenerator,
 )
-from dicom_fuzzer.core.stateful.state_machine import DICOMStateMachine
-from dicom_fuzzer.core.stateful.types import FuzzSequence, TransitionResult
+from .state_machine import DICOMStateMachine
+from .types import FuzzSequence, TransitionResult
 
 
 class StatefulFuzzer:

@@ -11,15 +11,15 @@ import struct
 import time
 from typing import TYPE_CHECKING
 
-from dicom_fuzzer.core.network_fuzzer_base import (
+from .base import (
     FuzzingStrategy,
     NetworkFuzzResult,
     PDUType,
 )
-from dicom_fuzzer.core.network_fuzzer_builder import DICOMProtocolBuilder
+from .builder import DICOMProtocolBuilder
 
 if TYPE_CHECKING:
-    from dicom_fuzzer.core.network_fuzzer_base import DICOMNetworkConfig
+    from .base import DICOMNetworkConfig
 
 
 class PDUFuzzingMixin:

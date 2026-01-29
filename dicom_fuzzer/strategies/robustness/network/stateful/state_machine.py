@@ -4,12 +4,12 @@ Models the DICOM Upper Layer state machine as defined in PS3.8,
 including valid and invalid transitions for fuzzing.
 """
 
-from dicom_fuzzer.core.stateful.enums import (
+from .enums import (
     AssociationState,
     ProtocolEvent,
     TransitionType,
 )
-from dicom_fuzzer.core.stateful.types import StateTransition
+from .types import StateTransition
 
 
 class DICOMStateMachine:

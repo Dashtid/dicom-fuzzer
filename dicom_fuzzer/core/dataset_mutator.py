@@ -8,11 +8,13 @@ to enable better modularity.
 from __future__ import annotations
 
 import random
+from typing import TYPE_CHECKING
 
-from dicom_fuzzer.core.dimse_types import (
-    DICOMElement,
-    DIMSEFuzzingConfig,
-)
+if TYPE_CHECKING:
+    from dicom_fuzzer.strategies.robustness.network.dimse.types import (
+        DICOMElement,
+        DIMSEFuzzingConfig,
+    )
 
 
 class DatasetMutator:
@@ -94,7 +96,17 @@ class DatasetMutator:
             config: Fuzzing configuration.
 
         """
-        self.config = config or DIMSEFuzzingConfig()
+        if config is None:
+            from dicom_fuzzer.strategies.robustness.network.dimse.types import (
+                DIMSEFuzzingConfig,
+            )
+
+            config = DIMSEFuzzingConfig()
+        self.config = config
+        # Lazy import to avoid circular dependency
+        from dicom_fuzzer.strategies.robustness.network.dimse.types import DICOMElement
+
+        self._DICOMElement = DICOMElement
 
     def mutate_element(self, element: DICOMElement) -> DICOMElement:
         """Mutate a single DICOM element.
@@ -142,7 +154,7 @@ class DatasetMutator:
             else:
                 new_value = element.value  # type: ignore[assignment]
 
-        return DICOMElement(
+        return self._DICOMElement(
             tag=element.tag,
             vr=element.vr,
             value=new_value,
@@ -154,7 +166,7 @@ class DatasetMutator:
         # Pick a different VR
         new_vr = random.choice([v for v in all_vrs if v != element.vr])
 
-        return DICOMElement(
+        return self._DICOMElement(
             tag=element.tag,
             vr=new_vr,
             value=element.value,
@@ -191,7 +203,7 @@ class DatasetMutator:
             group = random.choice([0x0001, 0x0003, 0x0005, 0x0007])  # Odd groups
             elem = 0x0000
 
-        return DICOMElement(
+        return self._DICOMElement(
             tag=(group, elem),
             vr=element.vr,
             value=element.value,
@@ -200,7 +212,7 @@ class DatasetMutator:
     def _mutate_length(self, element: DICOMElement) -> DICOMElement:
         """Create element with incorrect length encoding."""
         # This requires custom encoding, return element with special marker
-        return DICOMElement(
+        return self._DICOMElement(
             tag=element.tag,
             vr=element.vr,
             value=element.value,
@@ -263,7 +275,7 @@ class DatasetMutator:
 
         # Private creator
         private_group = random.choice([0x0009, 0x0011, 0x0013, 0x0015])
-        creator = DICOMElement(
+        creator = self._DICOMElement(
             tag=(private_group, 0x0010),
             vr="LO",
             value="FUZZ PRIVATE",
@@ -272,7 +284,7 @@ class DatasetMutator:
 
         # Private elements
         for i in range(random.randint(1, 5)):
-            elem = DICOMElement(
+            elem = self._DICOMElement(
                 tag=(private_group, 0x1000 + i),
                 vr=random.choice(list(self.STRING_VRS)),
                 value=random.choice(self.INTERESTING_STRINGS),

@@ -4,21 +4,21 @@ This package provides state machine-based fuzzing for DICOM protocol testing,
 including attack sequence generation and coverage tracking.
 """
 
-from dicom_fuzzer.core.stateful.config import StateMachineConfig
-from dicom_fuzzer.core.stateful.enums import (
+from .config import StateMachineConfig
+from .enums import (
     AssociationState,
     ProtocolEvent,
     TransitionType,
 )
-from dicom_fuzzer.core.stateful.fuzzer import StatefulFuzzer
-from dicom_fuzzer.core.stateful.resource_attacks import ResourceExhaustionGenerator
-from dicom_fuzzer.core.stateful.sequence_generator import (
+from .fuzzer import StatefulFuzzer
+from .resource_attacks import ResourceExhaustionGenerator
+from .sequence_generator import (
     CoverageStats,
     SequenceGenerator,
 )
-from dicom_fuzzer.core.stateful.state_machine import DICOMStateMachine
-from dicom_fuzzer.core.stateful.timing_attacks import TimingAttackGenerator
-from dicom_fuzzer.core.stateful.types import (
+from .state_machine import DICOMStateMachine
+from .timing_attacks import TimingAttackGenerator
+from .types import (
     FuzzSequence,
     StateTransition,
     TransitionResult,

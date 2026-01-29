@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 
-from dicom_fuzzer.core.tls_types import (
+from .types import (
     DICOMTLSFuzzerConfig,
     TLSFuzzResult,
 )

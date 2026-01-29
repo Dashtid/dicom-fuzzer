@@ -29,6 +29,9 @@ from .reference_fuzzer import ReferenceFuzzer
 from .sequence_fuzzer import SequenceFuzzer
 from .structure_fuzzer import StructureFuzzer
 
+# Note: network subpackage is available but not auto-imported to avoid circular deps
+# Use: from dicom_fuzzer.strategies.robustness.network import DICOMNetworkFuzzer
+
 __all__ = [
     "CompressedPixelFuzzer",
     "ConformanceFuzzer",

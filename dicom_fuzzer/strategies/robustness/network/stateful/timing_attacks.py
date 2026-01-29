@@ -3,9 +3,9 @@
 Generates timing-based attack sequences for protocol fuzzing.
 """
 
-from dicom_fuzzer.core.stateful.config import StateMachineConfig
-from dicom_fuzzer.core.stateful.enums import ProtocolEvent
-from dicom_fuzzer.core.stateful.types import FuzzSequence
+from .config import StateMachineConfig
+from .enums import ProtocolEvent
+from .types import FuzzSequence
 
 
 class TimingAttackGenerator:

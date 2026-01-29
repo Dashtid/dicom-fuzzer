@@ -14,13 +14,13 @@ from dicom_fuzzer.cli import output as cli
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from dicom_fuzzer.core.network_fuzzer_base import NetworkFuzzResult
+    from dicom_fuzzer.strategies.robustness.network import NetworkFuzzResult
 
 logger = logging.getLogger(__name__)
 
 # Check for network fuzzer availability
 try:
-    from dicom_fuzzer.core.network_fuzzer import (
+    from dicom_fuzzer.strategies.robustness.network import (
         DICOMNetworkConfig,
         DICOMNetworkFuzzer,
         FuzzingStrategy,

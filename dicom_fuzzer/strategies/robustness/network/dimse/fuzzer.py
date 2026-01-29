@@ -25,7 +25,7 @@ import logging
 from collections.abc import Generator
 
 from dicom_fuzzer.core.dataset_mutator import DatasetMutator
-from dicom_fuzzer.core.dimse_types import (
+from .types import (
     DICOMElement,
     DIMSEFuzzingConfig,
     DIMSEMessage,

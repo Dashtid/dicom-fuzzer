@@ -32,16 +32,16 @@ from pathlib import Path
 from typing import Any
 
 # Re-export base types for backward compatibility
-from dicom_fuzzer.core.network_fuzzer_base import (
+from .base import (
     DICOMCommand,
     DICOMNetworkConfig,
     FuzzingStrategy,
     NetworkFuzzResult,
     PDUType,
 )
-from dicom_fuzzer.core.network_fuzzer_builder import DICOMProtocolBuilder
-from dicom_fuzzer.core.network_fuzzer_pdu import PDUFuzzingMixin
-from dicom_fuzzer.core.network_fuzzer_tls import TLSFuzzingMixin
+from .builder import DICOMProtocolBuilder
+from .pdu_mixin import PDUFuzzingMixin
+from .tls_mixin import TLSFuzzingMixin
 
 __all__ = [
     "DICOMCommand",

@@ -72,8 +72,19 @@ from .crash_triage import (
 from .dataset_mutator import DatasetMutator
 from .dicom_series import DicomSeries
 
-# DICOM TLS Security Fuzzer (v1.5.0, modularized v1.7.0)
-from .dicom_tls_fuzzer import (
+# Network Protocol Fuzzer (v1.5.0) - moved to strategies/robustness/network/
+from dicom_fuzzer.strategies.robustness.network import (
+    DICOMNetworkConfig,
+    DICOMNetworkFuzzer,
+    DICOMProtocolBuilder,
+    FuzzingStrategy,
+    NetworkFuzzResult,
+    PDUFuzzingMixin,
+    TLSFuzzingMixin,
+)
+
+# DICOM TLS Security Fuzzer (v1.5.0, modularized v1.7.0) - moved to strategies/robustness/network/tls/
+from dicom_fuzzer.strategies.robustness.network.tls import (
     COMMON_AE_TITLES,
     INJECTION_PAYLOADS,
     SOP_CLASS_UIDS,
@@ -88,21 +99,24 @@ from .dicom_tls_fuzzer import (
     TLSFuzzResult,
     TLSSecurityTester,
     TLSVulnerability,
+)
+from dicom_fuzzer.strategies.robustness.network.tls.fuzzer import (
     create_dicom_tls_fuzzer,
     quick_scan,
 )
 
 
-# DIMSE Protocol Types (v1.7.0)
-from .dimse_types import (
+# DIMSE Protocol Types (v1.7.0) - moved to strategies/robustness/network/dimse/
+from dicom_fuzzer.strategies.robustness.network.dimse import (
     DICOMElement,
     DIMSEFuzzingConfig,
     DIMSEMessage,
-    FuzzingConfig,
     QueryRetrieveLevel,
     SOPClass,
     UIDGenerator,
 )
+# Backward compatibility alias
+FuzzingConfig = DIMSEFuzzingConfig
 from .error_recovery import CampaignRecovery, CampaignStatus, SignalHandler
 from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
 from .generator import DICOMGenerator
@@ -152,7 +166,8 @@ from .series_validator import (
 )
 from .series_writer import SeriesMetadata, SeriesWriter
 from .stability_tracker import StabilityMetrics, StabilityTracker
-from .state_aware_fuzzer import (
+# State-Aware Fuzzer (v1.5.0) - moved to strategies/robustness/network/stateful/
+from dicom_fuzzer.strategies.robustness.network.stateful.state_aware_fuzzer import (
     MessageSequence,
     ProtocolMessage,
     StateAwareFuzzer,
@@ -222,6 +237,14 @@ __all__ = [
     "DICOMCommand",
     "DIMSECommand",
     "PDUType",
+    # Network Protocol Fuzzer (moved to strategies/robustness/network/)
+    "DICOMNetworkConfig",
+    "DICOMNetworkFuzzer",
+    "DICOMProtocolBuilder",
+    "FuzzingStrategy",
+    "NetworkFuzzResult",
+    "PDUFuzzingMixin",
+    "TLSFuzzingMixin",
     # DIMSE Protocol Types (v1.7.0)
     "DICOMElement",
     "DIMSEFuzzingConfig",

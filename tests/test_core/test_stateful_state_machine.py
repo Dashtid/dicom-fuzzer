@@ -6,12 +6,12 @@ dicom_fuzzer.core.stateful.state_machine module.
 
 import pytest
 
-from dicom_fuzzer.core.stateful.enums import (
+from dicom_fuzzer.strategies.robustness.network.stateful.enums import (
     AssociationState,
     ProtocolEvent,
     TransitionType,
 )
-from dicom_fuzzer.core.stateful.state_machine import DICOMStateMachine
+from dicom_fuzzer.strategies.robustness.network.stateful.state_machine import DICOMStateMachine
 
 
 class TestDICOMStateMachineInit:

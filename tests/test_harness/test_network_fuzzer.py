@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.core.network_fuzzer import (
+from dicom_fuzzer.strategies.robustness.network import (
     DICOMCommand,
     DICOMNetworkConfig,
     DICOMNetworkFuzzer,

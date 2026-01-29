@@ -11,7 +11,7 @@ import socket
 import ssl
 import time
 
-from dicom_fuzzer.core.tls_types import (
+from .types import (
     DICOMTLSFuzzerConfig,
     TLSFuzzResult,
 )

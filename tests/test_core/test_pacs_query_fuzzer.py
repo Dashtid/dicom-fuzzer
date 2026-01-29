@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from dicom_fuzzer.core.pacs_query_fuzzer import (
+from dicom_fuzzer.strategies.robustness.network.tls.query import (
     INJECTION_PAYLOADS,
     PACSQueryInjector,
 )
-from dicom_fuzzer.core.tls_types import DICOMTLSFuzzerConfig
+from dicom_fuzzer.strategies.robustness.network.tls.types import DICOMTLSFuzzerConfig
 
 
 class TestConstants:
@@ -138,10 +138,10 @@ class TestBackwardCompatibility:
 
     def test_imports_from_dicom_tls_fuzzer(self) -> None:
         """Verify types can be imported from dicom_tls_fuzzer."""
-        from dicom_fuzzer.core.dicom_tls_fuzzer import (
+        from dicom_fuzzer.strategies.robustness.network.tls.fuzzer import (
             INJECTION_PAYLOADS as PAYLOADS,
         )
-        from dicom_fuzzer.core.dicom_tls_fuzzer import (
+        from dicom_fuzzer.strategies.robustness.network.tls.fuzzer import (
             PACSQueryInjector as Injector,
         )
 

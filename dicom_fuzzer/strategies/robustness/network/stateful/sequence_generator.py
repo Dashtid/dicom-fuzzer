@@ -6,10 +6,10 @@ Generates various attack sequences for protocol state machine fuzzing.
 import random
 from dataclasses import dataclass, field
 
-from dicom_fuzzer.core.stateful.config import StateMachineConfig
-from dicom_fuzzer.core.stateful.enums import AssociationState, ProtocolEvent
-from dicom_fuzzer.core.stateful.state_machine import DICOMStateMachine
-from dicom_fuzzer.core.stateful.types import FuzzSequence
+from .config import StateMachineConfig
+from .enums import AssociationState, ProtocolEvent
+from .state_machine import DICOMStateMachine
+from .types import FuzzSequence
 
 
 @dataclass

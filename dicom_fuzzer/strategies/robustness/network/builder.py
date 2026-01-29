@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import struct
 
-from dicom_fuzzer.core.network_fuzzer_base import DICOMCommand, PDUType
+from .base import DICOMCommand, PDUType
 
 
 class DICOMProtocolBuilder:

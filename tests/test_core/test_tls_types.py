@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dicom_fuzzer.core.tls_types import (
+from dicom_fuzzer.strategies.robustness.network.tls.types import (
     COMMON_AE_TITLES,
     SOP_CLASS_UIDS,
     AuthBypassType,
@@ -218,25 +218,25 @@ class TestBackwardCompatibility:
 
     def test_imports_from_dicom_tls_fuzzer(self) -> None:
         """Verify types can be imported from dicom_tls_fuzzer."""
-        from dicom_fuzzer.core.dicom_tls_fuzzer import (
+        from dicom_fuzzer.strategies.robustness.network.tls.fuzzer import (
             COMMON_AE_TITLES as AE_TITLES,
         )
-        from dicom_fuzzer.core.dicom_tls_fuzzer import (
+        from dicom_fuzzer.strategies.robustness.network.tls.fuzzer import (
             SOP_CLASS_UIDS as SOP_UIDS,
         )
-        from dicom_fuzzer.core.dicom_tls_fuzzer import (
+        from dicom_fuzzer.strategies.robustness.network.tls.fuzzer import (
             AuthBypassType as AuthType,
         )
-        from dicom_fuzzer.core.dicom_tls_fuzzer import (
+        from dicom_fuzzer.strategies.robustness.network.tls.fuzzer import (
             DICOMTLSFuzzerConfig as Config,
         )
-        from dicom_fuzzer.core.dicom_tls_fuzzer import (
+        from dicom_fuzzer.strategies.robustness.network.tls.fuzzer import (
             QueryInjectionType as InjType,
         )
-        from dicom_fuzzer.core.dicom_tls_fuzzer import (
+        from dicom_fuzzer.strategies.robustness.network.tls.fuzzer import (
             TLSFuzzResult as Result,
         )
-        from dicom_fuzzer.core.dicom_tls_fuzzer import (
+        from dicom_fuzzer.strategies.robustness.network.tls.fuzzer import (
             TLSVulnerability as Vuln,
         )
 
