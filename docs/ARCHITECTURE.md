@@ -1,60 +1,66 @@
-# DICOM Fuzzer Architecture
+# Architecture
 
-## Overview
+Modular security testing framework for DICOM implementations.
 
-Modular security testing framework for DICOM implementations using mutation-based, coverage-guided, and protocol-aware fuzzing.
+## Stack
 
-**Design Goals:** Modularity, Extensibility, Performance, Safety, Observability
+- Python 3.11+
+- pydicom (DICOM parsing)
+- structlog (logging)
+- pytest/Hypothesis (testing)
 
-**Stack:** Python 3.11+, pydicom, structlog, pytest/Hypothesis
-
-## Module Organization
+## Project Structure
 
 ```text
 dicom-fuzzer/
-├── dicom_fuzzer/           # Main package
-│   ├── cli/                # Command-line interfaces
-│   ├── core/               # Core fuzzing logic (57 modules)
-│   ├── strategies/         # Mutation strategy implementations
-│   ├── analytics/          # Campaign analytics
-│   └── utils/              # Utility functions
-├── tests/                  # Test suite (2,500+ tests, 89% coverage)
-├── tools/                  # Scripts, examples, generators
-├── configs/                # Docker, targets, seeds
-└── docs/                   # Documentation
+├── dicom_fuzzer/
+│   ├── cli/           # Command-line interfaces
+│   ├── core/          # Core fuzzing logic (~70 modules)
+│   ├── cve/           # CVE replication (deterministic)
+│   ├── strategies/    # Mutation strategies
+│   ├── analytics/     # Campaign analytics
+│   ├── adapters/      # Viewer-specific automation
+│   ├── harness/       # Target execution harness
+│   └── utils/         # Utilities
+├── tests/             # Test suite
+├── tools/             # Scripts and examples
+├── configs/           # Docker, targets, seeds
+└── docs/              # Documentation
 ```
 
 ## Core Components
 
-| Component      | File                            | Purpose                                     |
-| -------------- | ------------------------------- | ------------------------------------------- |
-| Parser         | `core/parser.py`                | DICOM parsing, metadata extraction          |
-| Mutator        | `core/mutator.py`               | Strategy registration, mutation application |
-| Generator      | `core/generator.py`             | Batch fuzzed file generation                |
-| Validator      | `core/validator.py`             | DICOM compliance, security validation       |
-| Crash Analyzer | `core/crash_analyzer.py`        | Crash detection, stack analysis, triage     |
-| Crash Dedup    | `core/crash_deduplication.py`   | Hash-based crash deduplication              |
-| Minimizer      | `core/mutation_minimization.py` | Delta debugging for test cases              |
-| Coverage       | `core/coverage_tracker.py`      | Coverage-guided mutation selection          |
-| Session        | `core/fuzzing_session.py`       | Campaign lifecycle, statistics              |
-| Reporter       | `core/enhanced_reporter.py`     | HTML/JSON report generation                 |
-| Network        | `core/network_fuzzer.py`        | DICOM protocol fuzzing (C-STORE, C-ECHO)    |
-| Security       | `core/security_fuzzer.py`       | CVE patterns, exploit payloads              |
-| GUI Monitor    | `core/gui_monitor.py`           | Process monitoring, crash screenshots       |
+| Component    | Module                      | Purpose                        |
+| ------------ | --------------------------- | ------------------------------ |
+| Parser       | `core/parser.py`            | DICOM parsing, metadata        |
+| Mutator      | `core/mutator.py`           | Strategy registration          |
+| Generator    | `core/generator.py`         | Batch fuzzed file generation   |
+| Validator    | `core/validator.py`         | DICOM compliance checking      |
+| Crash Triage | `core/crash_triage.py`      | Crash analysis and severity    |
+| Coverage     | `core/coverage_tracker.py`  | Coverage-guided selection      |
+| Session      | `core/fuzzing_session.py`   | Campaign lifecycle             |
+| Reporter     | `core/enhanced_reporter.py` | HTML/JSON reports              |
+| Network      | `core/network_fuzzer.py`    | DICOM protocol fuzzing         |
+| GUI Monitor  | `core/gui_monitor.py`       | Process monitoring             |
 
 ## Data Flow
 
 ```text
-Input (DICOM + Config)
-    ↓
+Input DICOM
+    │
+    ▼
 Parsing (DicomParser)
-    ↓
+    │
+    ▼
 Mutation (Strategy Selection → Apply)
-    ↓
+    │
+    ▼
 Generation (Batch Write)
-    ↓
+    │
+    ▼
 Validation (Security + Compliance)
-    ↓
+    │
+    ▼
 Reporting (HTML/JSON)
 ```
 
@@ -62,40 +68,52 @@ Reporting (HTML/JSON)
 
 ```text
 Corpus → Mutate → Execute Target → Track Coverage → Detect Crashes
-                        ↓
+                        │
               New path? → Add to corpus
-                        ↓
+                        │
               Crash? → Deduplicate → Minimize → Triage
 ```
 
 ## Strategy Architecture
 
-Strategies implement the `MutationStrategy` abstract base class:
-
-```python
-class MutationStrategy(ABC):
-    @abstractmethod
-    def mutate(self, dataset: Dataset) -> Dataset:
-        pass
+```text
+strategies/
+├── robustness/           # Slice-level edge case testing (11 fuzzers)
+│   ├── HeaderFuzzer          # VR and tag mutations
+│   ├── PixelFuzzer           # Image dimensions, pixel data
+│   ├── MetadataFuzzer        # Patient/study metadata
+│   ├── StructureFuzzer       # File structure, length fields
+│   ├── SequenceFuzzer        # Nested sequences, items
+│   ├── MultiFrameFuzzer      # Multi-frame specific
+│   ├── CompressedPixelFuzzer # JPEG/RLE encapsulation
+│   ├── EncodingFuzzer        # Character sets, text encoding
+│   ├── ConformanceFuzzer     # SOP Class, Transfer Syntax
+│   ├── ReferenceFuzzer       # Reference chains, links
+│   └── PrivateTagFuzzer      # Vendor-specific tags
+├── series/               # Multi-slice 3D volume mutations
+│   ├── Series3DMutator       # Main class with mixins
+│   ├── CoreMutationsMixin    # Metadata, slice operations
+│   ├── Reconstruction3DAttacksMixin  # 3D reconstruction
+│   └── TemporalAttacksMixin  # Cross-slice temporal
+├── study_mutator.py      # Cross-series study-level
+├── calibration_fuzzer.py # Measurement/calibration
+└── parallel_mutator.py   # Multi-process wrapper
 ```
 
-**Built-in strategies:** metadata, pixel, header, structure, transfer_syntax, sequence, series, study, calibration, cve_patterns
+CLI strategy flags (`-s metadata,pixel`) map to robustness fuzzers internally.
 
-Register custom strategies:
+## CVE Module
 
-```python
-mutator = Mutator()
-mutator.register_strategy(CustomMutator())
-```
-
-## Security Layers
+CVE replication is deterministic (not fuzzing). Located in `dicom_fuzzer/cve/`:
 
 ```text
-Layer 1: Input Validation (size limits, path sanitization)
-Layer 2: Attack Detection (null bytes, buffer overflow, DoS)
-Layer 3: Data Protection (PHI redaction, secure logging)
-Layer 4: Sandboxing (containers/VMs recommended)
+cve/
+├── registry.py      # CVE metadata and lookup
+├── generator.py     # File generation from templates
+└── mutations/       # Per-CVE mutation functions
 ```
+
+Usage: `dicom-fuzzer cve --list`
 
 ## Extending
 

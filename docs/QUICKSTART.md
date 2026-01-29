@@ -1,106 +1,79 @@
-# Quick Start Guide
-
-Get fuzzing in under 5 minutes.
+# Quick Start
 
 ## Prerequisites
 
 - Python 3.11+
 - Git
-- DICOM files for testing
 
 ## Installation
 
-### Using uv (Recommended)
-
 ```bash
-# Install uv
-# Windows: powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-# Linux/macOS: curl -LsSf https://astral.sh/uv/install.sh | sh
-
+# Using uv (recommended)
 git clone https://github.com/Dashtid/DICOM-Fuzzer.git
 cd DICOM-Fuzzer
 uv sync --all-extras
-```
 
-### Using pip
-
-```bash
-git clone https://github.com/Dashtid/DICOM-Fuzzer.git
-cd DICOM-Fuzzer
+# Using pip
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -e ".[dev,docs,network]"
+pip install -e ".[dev]"
 ```
 
-## First Fuzzing Campaign
+## Basic Usage
 
 ```bash
-# Prepare directories
-mkdir -p artifacts/input artifacts/output
+# Fuzz a single file (100 variants)
+dicom-fuzzer input.dcm -o ./output
 
-# Copy your DICOM files
-cp /path/to/your/*.dcm artifacts/input/
+# Fuzz with specific count
+dicom-fuzzer input.dcm -c 50 -o ./output
 
-# Run fuzzing (10 variants)
-uv run dicom-fuzzer artifacts/input/sample.dcm -c 10 -o artifacts/output
-
-# View results
-ls artifacts/output/
-cat artifacts/output/session_report.json
+# Fuzz a directory
+dicom-fuzzer ./dicom_folder/ -r -o ./output
 ```
 
-## Fuzzing Strategies
-
-| Strategy        | Purpose                     |
-| --------------- | --------------------------- |
-| metadata        | Patient info, study details |
-| pixel           | Image data corruption       |
-| header          | DICOM tag mutations         |
-| structure       | File format validation      |
-| transfer_syntax | Encoding/compression        |
-| sequence        | Nested element handling     |
-
-Combine strategies: `--strategies metadata,pixel,header`
-
-## Getting Test Data
-
-Use DICOM files matching your target application's expected input.
-
-**Public sources:**
-
-- [TCIA](https://www.cancerimagingarchive.net/) - Cancer imaging archives
-- [OsiriX Library](https://www.osirix-viewer.com/resources/dicom-image-library/) - Multi-modality samples
-- [pydicom test files](https://github.com/pydicom/pydicom/tree/main/tests/test_files) - Parser edge cases
-
-**Generate synthetic:**
+## Test Against a Target
 
 ```bash
-uv run python -m dicom_fuzzer.utils.dicom_generator -o artifacts/synthetic/ -c 10
+# CLI application
+dicom-fuzzer input.dcm -t /path/to/viewer --timeout 5
+
+# GUI application (DICOM viewer)
+dicom-fuzzer input.dcm -t ./viewer.exe --gui-mode --timeout 10
 ```
 
-## Troubleshooting
-
-**Module not found:**
+## Generate CVE Replication Files
 
 ```bash
-source .venv/bin/activate  # Activate venv
-uv run dicom-fuzzer --help  # Or use uv run prefix
+# List available CVEs
+dicom-fuzzer cve --list
+
+# Generate all CVE files
+dicom-fuzzer cve --all -t template.dcm -o ./cve_output
+
+# Generate specific CVE
+dicom-fuzzer cve --cve CVE-2025-5943 -t template.dcm -o ./output
 ```
 
-**No DICOM files found:**
+## Generate Synthetic Data
 
 ```bash
-file artifacts/input/*.dcm  # Verify files are valid DICOM
+dicom-fuzzer samples --generate -c 10 -m CT -o ./samples
 ```
 
-**Out of memory:**
+## Strategies
 
-```bash
---count 10  # Reduce batch size
-```
+| CLI Flag    | Fuzzers Applied                         |
+| ----------- | --------------------------------------- |
+| `metadata`  | MetadataFuzzer, EncodingFuzzer          |
+| `pixel`     | PixelFuzzer, CompressedPixelFuzzer      |
+| `header`    | HeaderFuzzer, PrivateTagFuzzer          |
+| `structure` | StructureFuzzer, SequenceFuzzer         |
+
+Combine: `-s metadata,pixel,header` (default: all)
 
 ## Next Steps
 
 - [CLI_REFERENCE.md](CLI_REFERENCE.md) - Full command reference
+- [CVE_REFERENCE.md](CVE_REFERENCE.md) - CVE details
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System internals
-- [../CONTRIBUTING.md](../CONTRIBUTING.md) - Contribute
