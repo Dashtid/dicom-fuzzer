@@ -73,7 +73,7 @@ from .dataset_mutator import DatasetMutator
 from .dicom_series import DicomSeries
 
 # Network Protocol Fuzzer (v1.5.0) - moved to strategies/robustness/network/
-from dicom_fuzzer.strategies.robustness.network import (
+from dicom_fuzzer.strategies.network import (
     DICOMNetworkConfig,
     DICOMNetworkFuzzer,
     DICOMProtocolBuilder,
@@ -84,7 +84,7 @@ from dicom_fuzzer.strategies.robustness.network import (
 )
 
 # DICOM TLS Security Fuzzer (v1.5.0, modularized v1.7.0) - moved to strategies/robustness/network/tls/
-from dicom_fuzzer.strategies.robustness.network.tls import (
+from dicom_fuzzer.strategies.network.tls import (
     COMMON_AE_TITLES,
     INJECTION_PAYLOADS,
     SOP_CLASS_UIDS,
@@ -100,14 +100,14 @@ from dicom_fuzzer.strategies.robustness.network.tls import (
     TLSSecurityTester,
     TLSVulnerability,
 )
-from dicom_fuzzer.strategies.robustness.network.tls.fuzzer import (
+from dicom_fuzzer.strategies.network.tls.fuzzer import (
     create_dicom_tls_fuzzer,
     quick_scan,
 )
 
 
 # DIMSE Protocol Types (v1.7.0) - moved to strategies/robustness/network/dimse/
-from dicom_fuzzer.strategies.robustness.network.dimse import (
+from dicom_fuzzer.strategies.network.dimse import (
     DICOMElement,
     DIMSEFuzzingConfig,
     DIMSEMessage,
@@ -167,7 +167,7 @@ from .series_validator import (
 from .series_writer import SeriesMetadata, SeriesWriter
 from .stability_tracker import StabilityMetrics, StabilityTracker
 # State-Aware Fuzzer (v1.5.0) - moved to strategies/robustness/network/stateful/
-from dicom_fuzzer.strategies.robustness.network.stateful.state_aware_fuzzer import (
+from dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer import (
     MessageSequence,
     ProtocolMessage,
     StateAwareFuzzer,

@@ -12,7 +12,7 @@ Tests DatasetMutator class including:
 """
 
 from dicom_fuzzer.core.dataset_mutator import DatasetMutator
-from dicom_fuzzer.strategies.robustness.network.dimse.types import DICOMElement, DIMSEFuzzingConfig
+from dicom_fuzzer.strategies.network.dimse.types import DICOMElement, DIMSEFuzzingConfig
 
 
 class TestDatasetMutatorInit:

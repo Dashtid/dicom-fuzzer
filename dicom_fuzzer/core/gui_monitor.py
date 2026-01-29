@@ -36,7 +36,7 @@ from dicom_fuzzer.core.gui_monitor_types import (
 )
 
 # Import state coverage types
-from dicom_fuzzer.strategies.robustness.network.stateful.coverage import (
+from dicom_fuzzer.strategies.network.stateful.coverage import (
     StateCoverageTracker,
     StateTransition,
 )

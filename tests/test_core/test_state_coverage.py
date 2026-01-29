@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from dicom_fuzzer.strategies.robustness.network.stateful.coverage import (
+from dicom_fuzzer.strategies.network.stateful.coverage import (
     StateCoverageTracker,
     StateTransition,
 )
