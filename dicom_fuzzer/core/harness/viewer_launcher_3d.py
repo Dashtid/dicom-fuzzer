@@ -27,14 +27,17 @@ USAGE:
 """
 
 import os
+import re
 import subprocess
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-import psutil
-
+from dicom_fuzzer.core.harness.process_monitor import (
+    ProcessMonitor,
+    terminate_process_tree,
+)
 from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -198,9 +201,16 @@ class ViewerLauncher3D:
 
             # Monitor process
             if self.monitor_memory:
-                peak_memory = self._monitor_process(
-                    process, self.config.timeout_seconds
+                monitor = ProcessMonitor(
+                    timeout=float(self.config.timeout_seconds),
+                    memory_limit_mb=float(self.config.memory_limit_mb)
+                    if self.config.memory_limit_mb
+                    else None,
                 )
+                monitor_result = monitor.monitor_process(process)
+                peak_memory = monitor_result.metrics.peak_memory_mb
+                if monitor_result.hang_detected:
+                    timed_out = True
             else:
                 # Just wait for timeout
                 try:
@@ -212,7 +222,7 @@ class ViewerLauncher3D:
                 except subprocess.TimeoutExpired:
                     timed_out = True
                     if self.kill_on_timeout:
-                        self._kill_process_tree(process)
+                        terminate_process_tree(process)
 
             exit_code = process.returncode
 
@@ -229,7 +239,7 @@ class ViewerLauncher3D:
 
             # Ensure process is terminated
             if process and process.poll() is None:
-                self._kill_process_tree(process)
+                terminate_process_tree(process)
 
         # Determine status
         if timed_out:
@@ -299,95 +309,6 @@ class ViewerLauncher3D:
 
         return count
 
-    def _monitor_process(self, process: subprocess.Popen[bytes], timeout: int) -> float:
-        """Monitor process for memory usage and timeout.
-
-        Args:
-            process: Process to monitor
-            timeout: Timeout in seconds
-
-        Returns:
-            Peak memory usage in MB
-
-        """
-        peak_memory = 0.0
-        start_time = time.time()
-        poll_interval = 0.1  # 100ms
-
-        try:
-            ps_process = psutil.Process(process.pid)
-
-            while process.poll() is None:
-                # Check timeout
-                elapsed = time.time() - start_time
-                if elapsed > timeout:
-                    logger.warning(f"Process exceeded timeout ({timeout}s)")
-                    break
-
-                # Monitor memory
-                try:
-                    mem_info = ps_process.memory_info()
-                    mem_mb = mem_info.rss / (1024 * 1024)  # RSS in MB
-                    peak_memory = max(peak_memory, mem_mb)
-
-                    # Check memory limit
-                    if (
-                        self.config.memory_limit_mb
-                        and mem_mb > self.config.memory_limit_mb
-                    ):
-                        logger.warning(
-                            f"Process exceeded memory limit ({self.config.memory_limit_mb}MB)"
-                        )
-                        break
-                except psutil.NoSuchProcess:
-                    # Process terminated
-                    break
-
-                time.sleep(poll_interval)
-
-        except psutil.NoSuchProcess:
-            # Process exited during monitoring - expected race condition
-            logger.debug("Process exited during memory monitoring")
-
-        return peak_memory
-
-    def _kill_process_tree(self, process: subprocess.Popen[bytes]) -> None:
-        """Kill process and all its children.
-
-        Args:
-            process: Process to kill
-
-        """
-        try:
-            parent = psutil.Process(process.pid)
-            children = parent.children(recursive=True)
-
-            # Kill children first
-            for child in children:
-                try:
-                    child.kill()
-                except psutil.NoSuchProcess:
-                    # Child already terminated - continue with others
-                    continue
-
-            # Kill parent
-            try:
-                parent.kill()
-            except psutil.NoSuchProcess:
-                # Parent already terminated - expected in race conditions
-                logger.debug("Parent process already terminated")
-
-            # Wait for termination (result discarded - we just need to wait)
-            psutil.wait_procs([parent] + children, timeout=3)
-
-            logger.debug(f"Killed process tree (parent PID={process.pid})")
-
-        except psutil.NoSuchProcess:
-            # Process already terminated before we could kill it
-            logger.debug("Process tree already terminated")
-        except Exception as e:
-            logger.warning(f"Failed to kill process tree: {e}")
-
     def _correlate_crash_to_slice(
         self, series_folder: Path, stderr: str, stdout: str
     ) -> int | None:
@@ -406,8 +327,6 @@ class ViewerLauncher3D:
 
         """
         # Look for patterns like "slice_001.dcm", "001.dcm", "slice 5", etc.
-        import re
-
         combined_output = stderr + "\n" + stdout
 
         # Pattern 1: "slice_NNN.dcm" or "NNN.dcm"

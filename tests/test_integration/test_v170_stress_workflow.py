@@ -22,7 +22,7 @@ class TestStressTesterConfig:
 
     def test_default_config(self):
         """Test default configuration values."""
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig
+        from dicom_fuzzer.core.harness.stress_tester import StressTestConfig
 
         config = StressTestConfig()
 
@@ -33,7 +33,7 @@ class TestStressTesterConfig:
 
     def test_custom_config(self):
         """Test custom configuration."""
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig
+        from dicom_fuzzer.core.harness.stress_tester import StressTestConfig
 
         config = StressTestConfig(
             max_slices=500,
@@ -51,7 +51,10 @@ class TestStressTesterIntegration:
 
     def test_stress_tester_initialization(self):
         """Test StressTester initialization with config."""
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig(max_slices=100)
         tester = StressTester(config)
@@ -61,7 +64,10 @@ class TestStressTesterIntegration:
 
     def test_generate_small_series(self, temp_dir):
         """Test generating a small series (5 slices)."""
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig(max_slices=100)
         tester = StressTester(config)
@@ -79,7 +85,10 @@ class TestStressTesterIntegration:
 
     def test_generate_series_with_different_patterns(self, temp_dir):
         """Test series generation with different pixel patterns."""
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig()
         tester = StressTester(config)
@@ -101,7 +110,10 @@ class TestStressTesterIntegration:
 
     def test_generate_series_with_modalities(self, temp_dir):
         """Test series generation with different modalities."""
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig()
         tester = StressTester(config)
@@ -132,7 +144,10 @@ class TestMemoryEstimation:
 
     def test_memory_estimation_basic(self):
         """Test basic memory estimation."""
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig()
         tester = StressTester(config)
@@ -147,7 +162,10 @@ class TestMemoryEstimation:
 
     def test_memory_estimation_large_series(self):
         """Test memory estimation for large series."""
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig()
         tester = StressTester(config)
@@ -168,7 +186,10 @@ class TestMemoryEstimation:
 
     def test_memory_estimation_high_resolution(self):
         """Test memory estimation for high resolution slices."""
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig()
         tester = StressTester(config)
@@ -185,7 +206,7 @@ class TestStressTestResults:
 
     def test_result_summary(self):
         """Test result summary generation."""
-        from dicom_fuzzer.harness.stress_tester import StressTestResult
+        from dicom_fuzzer.core.harness.stress_tester import StressTestResult
 
         result = StressTestResult(
             start_time=0.0,
@@ -209,7 +230,10 @@ class TestMemoryStressTestCampaign:
 
     def test_run_memory_stress_test_small(self, temp_dir):
         """Test running a small memory stress test campaign."""
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig(
             max_slices=50,
@@ -233,7 +257,10 @@ class TestMemoryStressTestCampaign:
 
     def test_stress_test_escalation_pattern(self, temp_dir):
         """Test that escalation steps increase slice counts."""
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig(max_slices=100, max_dimensions=(32, 32))
         tester = StressTester(config)
@@ -256,7 +283,10 @@ class TestGeneratedDicomValidity:
         """Test that generated files can be read by pydicom."""
         import pydicom
 
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig()
         tester = StressTester(config)
@@ -279,7 +309,10 @@ class TestGeneratedDicomValidity:
         """Test that all slices share the same SeriesInstanceUID."""
         import pydicom
 
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig()
         tester = StressTester(config)
@@ -307,7 +340,10 @@ class TestGeneratedDicomValidity:
         """Test that slice positions are correctly ordered."""
         import pydicom
 
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig()
         tester = StressTester(config)
@@ -336,7 +372,10 @@ class TestStressTesterEdgeCases:
 
     def test_zero_slices_handling(self, temp_dir):
         """Test handling of zero slice count - generates empty directory."""
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig()
         tester = StressTester(config)
@@ -355,7 +394,10 @@ class TestStressTesterEdgeCases:
 
     def test_output_dir_creation(self, temp_dir):
         """Test that output directories are created if they don't exist."""
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         config = StressTestConfig()
         tester = StressTester(config)

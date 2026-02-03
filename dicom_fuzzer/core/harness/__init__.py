@@ -22,6 +22,16 @@ from dicom_fuzzer.core.harness.monitoring import (
     monitor_process,
     run_observation_phase,
 )
+from dicom_fuzzer.core.harness.process_monitor import (
+    ProcessMonitor,
+    terminate_process_tree,
+)
+from dicom_fuzzer.core.harness.stress_tester import (
+    MemorySnapshot,
+    StressTestConfig,
+    StressTester,
+    StressTestResult,
+)
 from dicom_fuzzer.core.harness.target_runner import ExecutionStatus, TargetRunner
 from dicom_fuzzer.core.harness.types import (
     DEFAULT_OBSERVATION_PHASES,
@@ -33,6 +43,13 @@ from dicom_fuzzer.core.harness.types import (
     TestResult,
     TestStatus,
     ValidationResult,
+)
+from dicom_fuzzer.core.harness.viewer_launcher_3d import (
+    SeriesTestResult,
+    ViewerConfig,
+    ViewerLauncher3D,
+    ViewerType,
+    create_generic_config,
 )
 
 __all__ = [
@@ -56,4 +73,18 @@ __all__ = [
     "monitor_process",
     "run_observation_phase",
     "kill_target_processes",
+    # Process monitor
+    "ProcessMonitor",
+    "terminate_process_tree",
+    # Stress testing
+    "StressTester",
+    "StressTestConfig",
+    "StressTestResult",
+    "MemorySnapshot",
+    # 3D viewer launcher
+    "ViewerLauncher3D",
+    "ViewerConfig",
+    "ViewerType",
+    "SeriesTestResult",
+    "create_generic_config",
 ]

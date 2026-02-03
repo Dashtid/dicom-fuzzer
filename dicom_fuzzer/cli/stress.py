@@ -3,7 +3,7 @@
 Memory and performance stress testing for DICOM viewers and applications.
 
 NOTE: This CLI module provides a simplified interface to the core stress tester.
-For advanced usage, import dicom_fuzzer.harness.stress_tester directly.
+For advanced usage, import dicom_fuzzer.core.harness.stress_tester directly.
 """
 
 import argparse
@@ -30,7 +30,7 @@ Examples:
   dicom-fuzzer stress --list-scenarios
 
 For advanced usage, use the Python API:
-  from dicom_fuzzer.harness.stress_tester import StressTester, StressTestConfig
+  from dicom_fuzzer.core.harness.stress_tester import StressTester, StressTestConfig
         """,
     )
 
@@ -196,7 +196,10 @@ def run_generate_series(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         output_path = Path(args.output)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -241,7 +244,7 @@ def run_generate_series(args: argparse.Namespace) -> int:
 
     except ImportError as e:
         print(f"[-] Module not available: {e}")
-        print("[i] Ensure dicom_fuzzer.harness.stress_tester is installed")
+        print("[i] Ensure dicom_fuzzer.core.harness.stress_tester is installed")
         return 1
     except Exception as e:
         print(f"[-] Failed: {e}")
@@ -262,7 +265,10 @@ def run_stress_test(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        from dicom_fuzzer.harness.stress_tester import StressTestConfig, StressTester
+        from dicom_fuzzer.core.harness.stress_tester import (
+            StressTestConfig,
+            StressTester,
+        )
 
         output_path = Path(args.output)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -309,7 +315,7 @@ def run_stress_test(args: argparse.Namespace) -> int:
 
     except ImportError as e:
         print(f"[-] Module not available: {e}")
-        print("[i] Ensure dicom_fuzzer.harness.stress_tester is installed")
+        print("[i] Ensure dicom_fuzzer.core.harness.stress_tester is installed")
         return 1
     except Exception as e:
         print(f"[-] Failed: {e}")

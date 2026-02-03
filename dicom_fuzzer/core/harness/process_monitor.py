@@ -15,16 +15,13 @@ This module adds smarter detection:
 
 from __future__ import annotations
 
+import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING
 
 from dicom_fuzzer.utils.logger import get_logger
-
-if TYPE_CHECKING:
-    import subprocess
 
 logger = get_logger(__name__)
 
@@ -385,6 +382,54 @@ class ProcessMonitor:
 
         except Exception as e:
             logger.warning(f"Error terminating process tree: {e}")
+
+
+def terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
+    """Terminate a process and all its children (graceful, then force).
+
+    Standalone utility that can be used without a ProcessMonitor instance.
+    Attempts graceful termination first, then force-kills survivors.
+
+    Args:
+        process: subprocess.Popen to terminate with its children
+
+    """
+    if not PSUTIL_AVAILABLE:
+        try:
+            process.kill()
+        except Exception as e:
+            logger.warning(f"Error killing process: {e}")
+        return
+
+    try:
+        ps_process = psutil.Process(process.pid)
+        children = ps_process.children(recursive=True)
+
+        for child in children:
+            try:
+                child.terminate()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+
+        try:
+            ps_process.terminate()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
+        _, alive = psutil.wait_procs([ps_process] + children, timeout=2.0)
+
+        for proc in alive:
+            try:
+                proc.kill()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+
+        logger.debug(f"Terminated process tree: 1 parent + {len(children)} children")
+
+    except psutil.NoSuchProcess:
+        logger.debug("Process already terminated")
+    except Exception as e:
+        logger.warning(f"Error terminating process tree: {e}")
 
 
 def get_process_monitor(

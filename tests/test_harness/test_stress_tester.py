@@ -6,7 +6,7 @@ from pathlib import Path
 import pydicom
 import pytest
 
-from dicom_fuzzer.harness.stress_tester import (
+from dicom_fuzzer.core.harness.stress_tester import (
     MemorySnapshot,
     StressTestConfig,
     StressTester,
@@ -622,7 +622,7 @@ class TestStressTesterBranchCoverage:
         # Mock the import to raise ImportError
         with patch.dict("sys.modules", {"psutil": None}):
             with patch(
-                "dicom_fuzzer.harness.stress_tester.StressTester.get_current_memory"
+                "dicom_fuzzer.core.harness.stress_tester.StressTester.get_current_memory"
             ) as mock_mem:
                 # Simulate ImportError behavior
                 mock_mem.return_value = MemorySnapshot(

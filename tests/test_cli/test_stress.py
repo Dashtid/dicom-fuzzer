@@ -194,7 +194,7 @@ class TestRunGenerateSeries:
         mock_module.StressTester = MagicMock(return_value=mock_tester)
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.harness.stress_tester": mock_module}
+            "sys.modules", {"dicom_fuzzer.core.harness.stress_tester": mock_module}
         ):
             result = run_generate_series(args)
 
@@ -214,7 +214,9 @@ class TestRunGenerateSeries:
             verbose=False,
         )
 
-        with patch.dict("sys.modules", {"dicom_fuzzer.harness.stress_tester": None}):
+        with patch.dict(
+            "sys.modules", {"dicom_fuzzer.core.harness.stress_tester": None}
+        ):
             # Force ImportError by making the import fail
             import builtins
 
@@ -249,7 +251,7 @@ class TestRunGenerateSeries:
         mock_module.StressTester = MagicMock()
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.harness.stress_tester": mock_module}
+            "sys.modules", {"dicom_fuzzer.core.harness.stress_tester": mock_module}
         ):
             result = run_generate_series(args)
 
@@ -286,7 +288,7 @@ class TestRunStressTest:
         mock_module.StressTester = MagicMock(return_value=mock_tester)
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.harness.stress_tester": mock_module}
+            "sys.modules", {"dicom_fuzzer.core.harness.stress_tester": mock_module}
         ):
             result = run_stress_test(args)
 
@@ -327,7 +329,7 @@ class TestRunStressTest:
         mock_module.StressTester = MagicMock(return_value=mock_tester)
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.harness.stress_tester": mock_module}
+            "sys.modules", {"dicom_fuzzer.core.harness.stress_tester": mock_module}
         ):
             result = run_stress_test(args)
 
