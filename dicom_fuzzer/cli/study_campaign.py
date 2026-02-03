@@ -211,7 +211,7 @@ def run_list_adapters() -> int:
     print("=" * 70 + "\n")
 
     try:
-        from dicom_fuzzer.adapters import get_adapter, list_adapters
+        from dicom_fuzzer.core.adapters import get_adapter, list_adapters
 
         adapters = list_adapters()
         if adapters:
@@ -484,7 +484,7 @@ def _setup_viewer_adapter(
         return None, None
 
     try:
-        from dicom_fuzzer.adapters import get_adapter
+        from dicom_fuzzer.core.adapters import get_adapter
 
         adapter = get_adapter(adapter_name)
         log(f"[+] Using adapter: {adapter.name}", log_file)

@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 import seaborn as sns
 from plotly.subplots import make_subplots
 
-from dicom_fuzzer.analytics.campaign_analytics import (
+from dicom_fuzzer.core.analytics.campaign_analytics import (
     CoverageCorrelation,
     PerformanceMetrics,
     TrendAnalysis,

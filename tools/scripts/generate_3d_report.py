@@ -38,11 +38,11 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dicom_fuzzer.analytics.campaign_analytics import (
+from dicom_fuzzer.core.analytics.campaign_analytics import (
     CampaignAnalyzer,
     PerformanceMetrics,
 )
-from dicom_fuzzer.analytics.visualization import FuzzingVisualizer
+from dicom_fuzzer.core.analytics.visualization import FuzzingVisualizer
 from dicom_fuzzer.core.reporting.series_reporter import (
     Series3DReport,
     Series3DReportGenerator,

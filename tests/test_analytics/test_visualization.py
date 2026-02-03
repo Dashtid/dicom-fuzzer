@@ -7,7 +7,7 @@ and HTML summary report generation.
 from datetime import datetime
 from pathlib import Path
 
-from dicom_fuzzer.analytics.visualization import FuzzingVisualizer
+from dicom_fuzzer.core.analytics.visualization import FuzzingVisualizer
 
 
 class MockCoverageCorrelation:

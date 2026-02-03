@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from dicom_fuzzer.adapters.base import PatientInfo, RenderResult, ViewerAdapter
+from dicom_fuzzer.core.adapters.base import PatientInfo, RenderResult, ViewerAdapter
 
 
 class TestRenderResult:
@@ -200,7 +200,7 @@ class TestAdapterRegistry:
 
     def test_list_adapters(self):
         """Test listing available adapters."""
-        from dicom_fuzzer.adapters import list_adapters
+        from dicom_fuzzer.core.adapters import list_adapters
 
         adapters = list_adapters()
         # May include 'affinity' if pywinauto is available
@@ -208,14 +208,18 @@ class TestAdapterRegistry:
 
     def test_get_unknown_adapter(self):
         """Test getting unknown adapter raises ValueError."""
-        from dicom_fuzzer.adapters import get_adapter
+        from dicom_fuzzer.core.adapters import get_adapter
 
         with pytest.raises(ValueError, match="Unknown adapter"):
             get_adapter("nonexistent_adapter")
 
     def test_register_adapter(self):
         """Test registering a custom adapter."""
-        from dicom_fuzzer.adapters import get_adapter, list_adapters, register_adapter
+        from dicom_fuzzer.core.adapters import (
+            get_adapter,
+            list_adapters,
+            register_adapter,
+        )
 
         # Register test adapter
         register_adapter("test", ConcreteAdapter)
@@ -230,7 +234,7 @@ class TestAdapterRegistry:
 
     def test_get_affinity_adapter_if_available(self):
         """Test getting affinity adapter (may or may not be available)."""
-        from dicom_fuzzer.adapters import get_adapter, list_adapters
+        from dicom_fuzzer.core.adapters import get_adapter, list_adapters
 
         adapters = list_adapters()
         if "affinity" in adapters:

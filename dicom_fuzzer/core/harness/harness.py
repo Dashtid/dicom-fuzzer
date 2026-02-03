@@ -32,7 +32,7 @@ from dicom_fuzzer.core.harness.types import (
 )
 
 if TYPE_CHECKING:
-    from dicom_fuzzer.adapters.base import ViewerAdapter
+    from dicom_fuzzer.core.adapters.base import ViewerAdapter
 
 logger = structlog.get_logger(__name__)
 

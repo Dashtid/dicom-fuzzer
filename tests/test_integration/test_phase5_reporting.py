@@ -17,13 +17,13 @@ import pytest
 pytest.importorskip("matplotlib", reason="matplotlib not installed")
 pytest.importorskip("plotly", reason="plotly not installed")
 
-from dicom_fuzzer.analytics.campaign_analytics import (
+from dicom_fuzzer.core.analytics.campaign_analytics import (
     CampaignAnalyzer,
     CoverageCorrelation,
     PerformanceMetrics,
     TrendAnalysis,
 )
-from dicom_fuzzer.analytics.visualization import FuzzingVisualizer
+from dicom_fuzzer.core.analytics.visualization import FuzzingVisualizer
 from dicom_fuzzer.core.reporting.series_reporter import (
     Series3DReport,
     Series3DReportGenerator,

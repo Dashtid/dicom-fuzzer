@@ -8,7 +8,7 @@ Available adapters:
     - affinity: Hermes Affinity viewer (pywinauto-based)
 
 Usage:
-    from dicom_fuzzer.adapters import get_adapter, list_adapters
+    from dicom_fuzzer.core.adapters import get_adapter, list_adapters
 
     # List available adapters
     for name in list_adapters():

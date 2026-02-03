@@ -16,12 +16,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.analytics.campaign_analytics import (
+from dicom_fuzzer.core.analytics.campaign_analytics import (
     CoverageCorrelation,
     PerformanceMetrics,
     TrendAnalysis,
 )
-from dicom_fuzzer.analytics.visualization import FuzzingVisualizer
+from dicom_fuzzer.core.analytics.visualization import FuzzingVisualizer
 
 
 class TestFuzzingVisualizerE2E:

@@ -42,7 +42,7 @@ class ComplianceFormatter:
 
         """
         # Import here to avoid circular imports
-        from dicom_fuzzer.core.reporting.analytics import ReportAnalytics
+        from dicom_fuzzer.core.reporting.report_analytics import ReportAnalytics
 
         analytics = ReportAnalytics(enable_triage=self.enable_triage)
 

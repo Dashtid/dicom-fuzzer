@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Any
 
 from dicom_fuzzer.core.crash.crash_triage import CrashTriageEngine
-from dicom_fuzzer.core.reporting.analytics import ReportAnalytics
 from dicom_fuzzer.core.reporting.compliance import ComplianceFormatter
 from dicom_fuzzer.core.reporting.enrichers import CrashTriageEnricher
 from dicom_fuzzer.core.reporting.formatters import HTMLSectionFormatter
@@ -25,6 +24,7 @@ from dicom_fuzzer.core.reporting.html_templates import (
     html_document_end,
     html_document_start,
 )
+from dicom_fuzzer.core.reporting.report_analytics import ReportAnalytics
 
 
 class EnhancedReportGenerator:

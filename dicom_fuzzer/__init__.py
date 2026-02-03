@@ -11,13 +11,13 @@ __license__ = "MIT"
 # Core components
 # Phase 5 imports (optional dependencies)
 try:
-    from dicom_fuzzer.analytics.campaign_analytics import (
+    from dicom_fuzzer.core.analytics.campaign_analytics import (
         CampaignAnalyzer,
         CoverageCorrelation,
         PerformanceMetrics,
         TrendAnalysis,
     )
-    from dicom_fuzzer.analytics.visualization import FuzzingVisualizer
+    from dicom_fuzzer.core.analytics.visualization import FuzzingVisualizer
 except ImportError as _import_err:
     # Phase 5 dependencies not installed (matplotlib, plotly, seaborn)
     CampaignAnalyzer = None  # type: ignore[misc,assignment]
