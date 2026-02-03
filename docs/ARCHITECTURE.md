@@ -22,9 +22,8 @@ dicom-fuzzer/
 │   ├── adapters/      # Viewer-specific automation
 │   ├── harness/       # Target execution harness
 │   └── utils/         # Utilities
+│   └── tools/         # Scripts, examples, benchmarks
 ├── tests/             # Test suite
-├── tools/             # Scripts and examples
-├── configs/           # Docker, targets, seeds
 └── docs/              # Documentation
 ```
 

@@ -87,9 +87,8 @@ session.save_report()
 ```text
 dicom-fuzzer/
 ├── dicom_fuzzer/    # Main package
+│   └── tools/       # Scripts, examples, benchmarks
 ├── tests/           # Test suite (2000+ tests)
-├── tools/           # Scripts, examples, generators
-├── configs/         # Docker, targets, seeds
 ├── docs/            # Documentation
 └── artifacts/       # Runtime output (gitignored)
 ```

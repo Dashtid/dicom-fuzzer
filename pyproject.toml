@@ -197,7 +197,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["D", "S101", "S607", "B", "F841", "PT011"]  # Relax docstring, assert, subprocess path, and pytest in tests
-"tools/examples/**/*.py" = ["D", "S"]  # Relax docstring and security rules in examples
+"dicom_fuzzer/tools/examples/**/*.py" = ["D", "S"]  # Relax docstring and security rules in examples
 
 [tool.mypy]
 python_version = "3.11"
@@ -294,7 +294,7 @@ addopts = [
     # Use one of these methods for coverage:
     #   1. pytest --cov (uses [tool.coverage.run] config)
     #   2. coverage run -m pytest (direct coverage.py, more reliable)
-    #   3. ./scripts/coverage.ps1 or ./scripts/coverage.sh (recommended)
+    #   3. uv run python dicom_fuzzer/tools/scripts/run_coverage.py (recommended)
     # CI/CD enforces 55% minimum coverage threshold via GitHub Actions
 ]
 testpaths = ["tests"]

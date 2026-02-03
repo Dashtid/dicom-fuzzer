@@ -270,12 +270,12 @@ Enhanced fuzzing for 3D medical imaging applications that process patient studie
 
 ### Added - Network Protocol Fuzzing
 
-- **DICOM Network Harness** (`tools/harness/network/dicom_network_harness.py`): AFLNet-style stateful protocol fuzzer
+- **DICOM Network Harness** (`strategies/network/`): AFLNet-style stateful protocol fuzzer
   - Full DICOM Upper Layer Protocol state machine (IDLE, AWAITING_AC, ASSOCIATED, etc.)
   - Support for C-STORE, C-FIND, C-GET, C-MOVE, C-ECHO operations
   - Configurable fuzzing campaigns with iteration control
   - Crash and hang detection with configurable timeouts
-- **Network Seed Generator** (`tools/harness/network/seed_generator.py`): Protocol-aware seed corpus
+- **Network Seed Generator** (`strategies/network/`): Protocol-aware seed corpus
   - Valid PDU generation for all DICOM network operations
   - Malformed seed variants for vulnerability testing
   - Orthanc server fuzzing documentation

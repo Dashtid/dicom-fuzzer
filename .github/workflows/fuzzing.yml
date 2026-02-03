@@ -6,14 +6,12 @@ on:
     paths:
       - 'dicom_fuzzer/**'
       - 'tests/**'
-      - 'tools/generators/**'
       - 'pyproject.toml'
       - 'uv.lock'
   push:
     branches: [main]
     paths:
       - 'dicom_fuzzer/**'
-      - 'tools/generators/**'
   schedule:
     # Nightly fuzzing at 2 AM UTC
     - cron: '0 2 * * *'
