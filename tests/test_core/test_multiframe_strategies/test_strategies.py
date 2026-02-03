@@ -6,7 +6,8 @@ import pytest
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 
-from dicom_fuzzer.core.multiframe_strategies import (
+from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
+from dicom_fuzzer.strategies.multiframe import (
     DimensionOverflowStrategy,
     FrameCountMismatchStrategy,
     FrameIncrementStrategy,
@@ -17,7 +18,6 @@ from dicom_fuzzer.core.multiframe_strategies import (
     PixelDataTruncationStrategy,
     SharedGroupStrategy,
 )
-from dicom_fuzzer.core.multiframe_types import MultiFrameMutationRecord
 
 
 class TestMutationStrategyBase:
@@ -281,7 +281,7 @@ class TestStrategyImports:
 
     def test_import_from_strategies_package(self) -> None:
         """Verify imports from multiframe_strategies package."""
-        from dicom_fuzzer.core.multiframe_strategies import (
+        from dicom_fuzzer.strategies.multiframe import (
             DimensionOverflowStrategy,
             FrameCountMismatchStrategy,
             FrameIncrementStrategy,

@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch
 import pytest
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.corpus import CorpusEntry, CorpusManager
+from dicom_fuzzer.core.coverage.corpus import CorpusEntry, CorpusManager
 
 
 @pytest.fixture
@@ -611,7 +611,7 @@ class TestCorpusManagerErrorHandling:
 
         # Mock json.dump to raise exception
         with patch(
-            "dicom_fuzzer.core.corpus.json.dump",
+            "dicom_fuzzer.core.coverage.corpus.json.dump",
             side_effect=Exception("JSON write failed"),
         ):
             # Should not crash, just log error

@@ -15,6 +15,7 @@ Mixins (used internally by Series3DMutator):
 - TemporalAttacksMixin: Cross-slice and temporal attacks
 """
 
+from .parallel_mutator import ParallelSeriesMutator, get_optimal_workers
 from .series_3d_attacks import Reconstruction3DAttacksMixin
 from .series_core_mutations import CoreMutationsMixin
 from .series_mutator import (
@@ -23,6 +24,7 @@ from .series_mutator import (
     SeriesMutationStrategy,
 )
 from .series_temporal_attacks import TemporalAttacksMixin
+from .study_mutator import StudyMutationStrategy, StudyMutator
 
 __all__ = [
     "Series3DMutator",
@@ -31,4 +33,8 @@ __all__ = [
     "CoreMutationsMixin",
     "Reconstruction3DAttacksMixin",
     "TemporalAttacksMixin",
+    "ParallelSeriesMutator",
+    "get_optimal_workers",
+    "StudyMutator",
+    "StudyMutationStrategy",
 ]

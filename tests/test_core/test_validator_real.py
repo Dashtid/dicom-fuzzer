@@ -14,7 +14,7 @@ from pydicom.dataset import FileDataset
 from pydicom.tag import Tag
 from pydicom.uid import ImplicitVRLittleEndian, generate_uid
 
-from dicom_fuzzer.core.validator import DicomValidator, ValidationResult
+from dicom_fuzzer.core.dicom.validator import DicomValidator, ValidationResult
 
 
 class TestValidationResult:

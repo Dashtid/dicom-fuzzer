@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.core.target_runner import ExecutionStatus
+from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
 
 
 class TestGUIExecutionResult:

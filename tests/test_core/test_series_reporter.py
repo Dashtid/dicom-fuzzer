@@ -8,7 +8,7 @@ Targets 80%+ coverage.
 import json
 from datetime import datetime
 
-from dicom_fuzzer.core.series_reporter import (
+from dicom_fuzzer.core.reporting.series_reporter import (
     Series3DReport,
     Series3DReportGenerator,
     SeriesMutationSummary,

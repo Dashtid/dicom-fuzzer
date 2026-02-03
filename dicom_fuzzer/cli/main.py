@@ -21,7 +21,7 @@ from dicom_fuzzer.cli.campaign_runner import CampaignRunner
 from dicom_fuzzer.cli.network_controller import NetworkFuzzingController
 from dicom_fuzzer.cli.security_controller import SecurityFuzzingController
 from dicom_fuzzer.cli.target_controller import TargetTestingController
-from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
+from dicom_fuzzer.core.session.resource_manager import ResourceLimits, ResourceManager
 
 # Module-level logger
 logger = logging.getLogger(__name__)
@@ -302,6 +302,7 @@ def parse_strategies(strategies_str: str | None) -> list[str]:
     Note:
         CVE replication is NOT part of fuzzing. Use the 'cve' subcommand
         or dicom_fuzzer.cve module for deterministic CVE file generation.
+
     """
     valid_strategies = {"metadata", "header", "pixel", "structure"}
 

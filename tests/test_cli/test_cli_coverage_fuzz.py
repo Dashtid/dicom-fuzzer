@@ -513,7 +513,7 @@ class TestRunFuzzingCampaignIntegration:
     async def test_campaign_starts(self, mocker):
         """Test that fuzzing campaign can be started with mocked fuzzer."""
         from dicom_fuzzer.cli.coverage_fuzz import run_fuzzing_campaign
-        from dicom_fuzzer.core.coverage_guided_fuzzer import FuzzingConfig
+        from dicom_fuzzer.core.engine.coverage_guided_fuzzer import FuzzingConfig
 
         # Create mock stats
         mock_stats = MagicMock()

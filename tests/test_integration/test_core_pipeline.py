@@ -604,7 +604,7 @@ class TestProfilerIntegration:
 
     def test_profiler_metrics_calculations(self):
         """Test all FuzzingMetrics calculation methods."""
-        from dicom_fuzzer.core.profiler import FuzzingMetrics
+        from dicom_fuzzer.core.session.profiler import FuzzingMetrics
 
         metrics = FuzzingMetrics()
         metrics.files_generated = 100
@@ -621,7 +621,7 @@ class TestProfilerIntegration:
 
     def test_profiler_metrics_edge_cases(self):
         """Test FuzzingMetrics with edge cases."""
-        from dicom_fuzzer.core.profiler import FuzzingMetrics
+        from dicom_fuzzer.core.session.profiler import FuzzingMetrics
 
         metrics = FuzzingMetrics()
 
@@ -638,7 +638,7 @@ class TestProfilerIntegration:
 
     def test_performance_profiler_with_operations(self):
         """Test PerformanceProfiler recording various operations."""
-        from dicom_fuzzer.core.profiler import PerformanceProfiler
+        from dicom_fuzzer.core.session.profiler import PerformanceProfiler
 
         profiler = PerformanceProfiler()
 
@@ -655,7 +655,7 @@ class TestProfilerIntegration:
 
     def test_validator_parser_profiler_chain(self, temp_dir):
         """Test validator, parser, and profiler working together."""
-        from dicom_fuzzer.core.profiler import PerformanceProfiler
+        from dicom_fuzzer.core.session.profiler import PerformanceProfiler
 
         profiler = PerformanceProfiler()
 

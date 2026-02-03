@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
+from dicom_fuzzer.core.reporting.enhanced_reporter import EnhancedReportGenerator
 
 
 class TestEnhancedReportGenerator:

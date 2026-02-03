@@ -3,7 +3,7 @@
 AFL-style persistent mode fuzzing for high-performance DICOM parser testing.
 
 NOTE: This CLI module provides a simplified interface to the core persistent fuzzer.
-For advanced usage, import dicom_fuzzer.core.persistent_fuzzer directly.
+For advanced usage, import dicom_fuzzer.core.engine.persistent_fuzzer directly.
 """
 
 import argparse
@@ -28,7 +28,7 @@ Examples:
   dicom-fuzzer persistent --list-schedules
 
 For advanced testing, use the Python API:
-  from dicom_fuzzer.core.persistent_fuzzer import PersistentFuzzer
+  from dicom_fuzzer.core.engine.persistent_fuzzer import PersistentFuzzer
         """,
     )
 
@@ -133,7 +133,7 @@ def run_fuzz(args: argparse.Namespace) -> int:
 
         import pydicom
 
-        from dicom_fuzzer.core.persistent_fuzzer import (
+        from dicom_fuzzer.core.engine.persistent_fuzzer import (
             PersistentFuzzer,
             PersistentFuzzerConfig,
         )

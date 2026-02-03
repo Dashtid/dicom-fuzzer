@@ -476,7 +476,7 @@ class TestRunFuzzingCampaign:
     async def test_run_fuzzing_campaign_basic(self, tmp_path):
         """Test running a fuzzing campaign."""
         from dicom_fuzzer.cli.coverage_fuzz import run_fuzzing_campaign
-        from dicom_fuzzer.core.coverage_guided_fuzzer import FuzzingConfig
+        from dicom_fuzzer.core.engine.coverage_guided_fuzzer import FuzzingConfig
 
         config = FuzzingConfig()
         config.max_iterations = 10

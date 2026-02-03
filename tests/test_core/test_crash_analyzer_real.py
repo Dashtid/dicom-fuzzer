@@ -6,7 +6,7 @@ Targets uncovered code paths to increase coverage.
 from datetime import datetime
 from pathlib import Path
 
-from dicom_fuzzer.core.crash_analyzer import (
+from dicom_fuzzer.core.crash.crash_analyzer import (
     CrashAnalyzer,
     CrashReport,
     CrashSeverity,

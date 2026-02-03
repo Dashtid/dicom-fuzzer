@@ -38,10 +38,10 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
-from dicom_fuzzer.core.fuzzing_session import FuzzingSession
-from dicom_fuzzer.core.mutator import DicomMutator, MutationSeverity
-from dicom_fuzzer.core.target_runner import TargetConfig, TargetRunner
+from dicom_fuzzer.core.harness.target_runner import TargetConfig, TargetRunner
+from dicom_fuzzer.core.mutation.mutator import DicomMutator, MutationSeverity
+from dicom_fuzzer.core.reporting.enhanced_reporter import EnhancedReportGenerator
+from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
 from dicom_fuzzer.utils.identifiers import generate_timestamp_id
 
 try:

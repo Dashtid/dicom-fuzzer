@@ -24,7 +24,7 @@ from dicom_fuzzer.cli.main import (
     validate_input_file,
     validate_strategy,
 )
-from dicom_fuzzer.core.resource_manager import ResourceLimits
+from dicom_fuzzer.core.session.resource_manager import ResourceLimits
 
 
 # =============================================================================

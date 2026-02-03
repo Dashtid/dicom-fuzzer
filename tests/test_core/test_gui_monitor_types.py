@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from dicom_fuzzer.core.gui_monitor_types import (
+from dicom_fuzzer.core.engine.gui_monitor_types import (
     GUIResponse,
     MonitorConfig,
     ResponseType,
@@ -181,16 +181,16 @@ class TestBackwardCompatibility:
 
     def test_imports_from_gui_monitor(self) -> None:
         """Verify types can be imported from gui_monitor."""
-        from dicom_fuzzer.core.gui_monitor import (
+        from dicom_fuzzer.core.engine.gui_monitor import (
             GUIResponse as Response,
         )
-        from dicom_fuzzer.core.gui_monitor import (
+        from dicom_fuzzer.core.engine.gui_monitor import (
             MonitorConfig as Config,
         )
-        from dicom_fuzzer.core.gui_monitor import (
+        from dicom_fuzzer.core.engine.gui_monitor import (
             ResponseType as RType,
         )
-        from dicom_fuzzer.core.gui_monitor import (
+        from dicom_fuzzer.core.engine.gui_monitor import (
             SeverityLevel as SLevel,
         )
 

@@ -10,8 +10,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from dicom_fuzzer.core.series_reporter import Series3DReport
-from dicom_fuzzer.core.statistics import MutationStatistics
+from dicom_fuzzer.core.reporting.series_reporter import Series3DReport
+from dicom_fuzzer.core.reporting.statistics import MutationStatistics
 
 
 @dataclass

@@ -34,7 +34,10 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from dicom_fuzzer.core.byte_mutator import ByteMutator, DICOMByteMutator  # noqa: E402
+from dicom_fuzzer.core.mutation.byte_mutator import (  # noqa: E402
+    ByteMutator,
+    DICOMByteMutator,
+)
 
 # Note: CVE-specific mutations have been removed from fuzzing.
 # For CVE replication, use: dicom-fuzzer cve --help
@@ -536,7 +539,7 @@ class OvernightCampaign:
             CalibrationResult or None if calibration fails.
 
         """
-        from dicom_fuzzer.core.target_calibrator import (
+        from dicom_fuzzer.core.harness.target_calibrator import (
             CalibrationResult,
             TargetCalibrator,
         )

@@ -19,7 +19,7 @@ from dicom_fuzzer.core.constants import (
     INTERESTING_16_UNSIGNED,
     INTERESTING_32_UNSIGNED,
 )
-from dicom_fuzzer.core.persistent_fuzzer import (
+from dicom_fuzzer.core.engine.persistent_fuzzer import (
     MAP_SIZE,
     ArithMutator,
     BitFlipMutator,
@@ -966,7 +966,7 @@ class TestCreateSampleFuzzer:
 
     def test_creates_fuzzer(self):
         """Test function creates a fuzzer."""
-        from dicom_fuzzer.core.persistent_fuzzer import create_sample_fuzzer
+        from dicom_fuzzer.core.engine.persistent_fuzzer import create_sample_fuzzer
 
         fuzzer = create_sample_fuzzer()
 

@@ -624,12 +624,16 @@ class TestRunMinimizeStudy:
         mock_minimizer.minimize.return_value = mock_result
 
         with (
-            patch("dicom_fuzzer.core.target_runner.TargetRunner") as mock_runner_cls,
             patch(
-                "dicom_fuzzer.core.study_minimizer.StudyMinimizer",
+                "dicom_fuzzer.core.harness.target_runner.TargetRunner"
+            ) as mock_runner_cls,
+            patch(
+                "dicom_fuzzer.core.series.study_minimizer.StudyMinimizer",
                 return_value=mock_minimizer,
             ),
-            patch("dicom_fuzzer.core.study_minimizer.create_crash_test_from_runner"),
+            patch(
+                "dicom_fuzzer.core.series.study_minimizer.create_crash_test_from_runner"
+            ),
         ):
             result = corpus.run_minimize_study(args)
 
@@ -671,12 +675,14 @@ class TestRunMinimizeStudy:
         mock_minimizer.minimize.return_value = mock_result
 
         with (
-            patch("dicom_fuzzer.core.target_runner.TargetRunner"),
+            patch("dicom_fuzzer.core.harness.target_runner.TargetRunner"),
             patch(
-                "dicom_fuzzer.core.study_minimizer.StudyMinimizer",
+                "dicom_fuzzer.core.series.study_minimizer.StudyMinimizer",
                 return_value=mock_minimizer,
             ),
-            patch("dicom_fuzzer.core.study_minimizer.create_crash_test_from_runner"),
+            patch(
+                "dicom_fuzzer.core.series.study_minimizer.create_crash_test_from_runner"
+            ),
         ):
             result = corpus.run_minimize_study(args)
 
@@ -703,7 +709,7 @@ class TestRunMinimizeStudy:
         )
 
         with patch(
-            "dicom_fuzzer.core.target_runner.TargetRunner",
+            "dicom_fuzzer.core.harness.target_runner.TargetRunner",
             side_effect=FileNotFoundError("Missing file"),
         ):
             result = corpus.run_minimize_study(args)
@@ -731,7 +737,7 @@ class TestRunMinimizeStudy:
         )
 
         with patch(
-            "dicom_fuzzer.core.target_runner.TargetRunner",
+            "dicom_fuzzer.core.harness.target_runner.TargetRunner",
             side_effect=RuntimeError("Runner error"),
         ):
             result = corpus.run_minimize_study(args)
@@ -822,11 +828,11 @@ class TestRunGenerateStudy:
 
         with (
             patch(
-                "dicom_fuzzer.strategies.study_mutator.StudyMutator",
+                "dicom_fuzzer.strategies.series.study_mutator.StudyMutator",
                 return_value=mock_mutator,
             ),
             patch(
-                "dicom_fuzzer.core.study_corpus.StudyCorpusManager",
+                "dicom_fuzzer.core.series.study_corpus.StudyCorpusManager",
                 return_value=mock_corpus,
             ),
         ):
@@ -873,11 +879,11 @@ class TestRunGenerateStudy:
 
         with (
             patch(
-                "dicom_fuzzer.strategies.study_mutator.StudyMutator",
+                "dicom_fuzzer.strategies.series.study_mutator.StudyMutator",
                 return_value=mock_mutator,
             ),
             patch(
-                "dicom_fuzzer.core.study_corpus.StudyCorpusManager",
+                "dicom_fuzzer.core.series.study_corpus.StudyCorpusManager",
                 return_value=mock_corpus,
             ),
         ):
@@ -925,11 +931,11 @@ class TestRunGenerateStudy:
 
         with (
             patch(
-                "dicom_fuzzer.strategies.study_mutator.StudyMutator",
+                "dicom_fuzzer.strategies.series.study_mutator.StudyMutator",
                 return_value=mock_mutator,
             ),
             patch(
-                "dicom_fuzzer.core.study_corpus.StudyCorpusManager",
+                "dicom_fuzzer.core.series.study_corpus.StudyCorpusManager",
                 return_value=mock_corpus,
             ),
         ):
@@ -959,7 +965,7 @@ class TestRunGenerateStudy:
         )
 
         with patch(
-            "dicom_fuzzer.strategies.study_mutator.StudyMutator",
+            "dicom_fuzzer.strategies.series.study_mutator.StudyMutator",
             side_effect=RuntimeError("Import failed"),
         ):
             result = corpus.run_generate_study(args)

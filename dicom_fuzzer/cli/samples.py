@@ -10,7 +10,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from dicom_fuzzer.core.synthetic import SyntheticDicomGenerator
+from dicom_fuzzer.core.engine.synthetic import SyntheticDicomGenerator
 
 # Public DICOM sample sources
 SAMPLE_SOURCES = {

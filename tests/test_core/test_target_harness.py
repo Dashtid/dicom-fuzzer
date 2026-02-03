@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.core.target_harness import (
+from dicom_fuzzer.core.harness.target_harness import (
     CrashArtifact,
     TargetConfig,
     TargetHarness,
@@ -380,7 +380,7 @@ class TestTargetHarness:
         with (
             patch("subprocess.Popen", return_value=mock_process),
             patch(
-                "dicom_fuzzer.core.harness.harness.monitor_process",
+                "dicom_fuzzer.core.harness.monitor_process",
                 return_value=expected_result,
             ),
             patch.object(harness, "kill_target_processes"),
@@ -422,7 +422,7 @@ class TestTargetHarness:
         with (
             patch("subprocess.Popen", return_value=mock_process),
             patch(
-                "dicom_fuzzer.core.harness.harness.monitor_process",
+                "dicom_fuzzer.core.harness.monitor_process",
                 return_value=expected_result,
             ),
             patch.object(harness, "kill_target_processes"),
@@ -464,7 +464,7 @@ class TestTargetHarness:
         with (
             patch("subprocess.Popen", return_value=mock_process),
             patch(
-                "dicom_fuzzer.core.harness.harness.monitor_process",
+                "dicom_fuzzer.core.harness.monitor_process",
                 return_value=expected_result,
             ),
             patch.object(harness, "kill_target_processes"),
@@ -577,7 +577,8 @@ class TestPsutilAvailability:
 
         # Mock psutil as unavailable
         with patch(
-            "dicom_fuzzer.core.target_harness._is_psutil_available", return_value=False
+            "dicom_fuzzer.core.harness.target_harness._is_psutil_available",
+            return_value=False,
         ):
             harness = TargetHarness(config, crash_dir=crash_dir)
 
@@ -594,7 +595,7 @@ class TestObservationPhase:
 
     def test_observation_phase_creation(self) -> None:
         """Test ObservationPhase can be created with required fields."""
-        from dicom_fuzzer.core.target_harness import ObservationPhase
+        from dicom_fuzzer.core.harness.target_harness import ObservationPhase
 
         phase = ObservationPhase(name="load", duration_seconds=5.0)
 
@@ -605,7 +606,7 @@ class TestObservationPhase:
 
     def test_observation_phase_with_memory_limit(self) -> None:
         """Test ObservationPhase with memory limit."""
-        from dicom_fuzzer.core.target_harness import ObservationPhase
+        from dicom_fuzzer.core.harness.target_harness import ObservationPhase
 
         phase = ObservationPhase(
             name="render",
@@ -617,7 +618,10 @@ class TestObservationPhase:
 
     def test_observation_phase_with_callback(self) -> None:
         """Test ObservationPhase with validation callback."""
-        from dicom_fuzzer.core.target_harness import ObservationPhase, ValidationResult
+        from dicom_fuzzer.core.harness.target_harness import (
+            ObservationPhase,
+            ValidationResult,
+        )
 
         def my_validator(pid: int) -> ValidationResult:
             return ValidationResult(passed=True, message="OK")
@@ -634,7 +638,7 @@ class TestObservationPhase:
 
     def test_observation_phase_invalid_duration(self) -> None:
         """Test ObservationPhase rejects non-positive duration."""
-        from dicom_fuzzer.core.target_harness import ObservationPhase
+        from dicom_fuzzer.core.harness.target_harness import ObservationPhase
 
         with pytest.raises(ValueError, match="duration must be positive"):
             ObservationPhase(name="bad", duration_seconds=0)
@@ -644,7 +648,7 @@ class TestObservationPhase:
 
     def test_observation_phase_invalid_memory_limit(self) -> None:
         """Test ObservationPhase rejects non-positive memory limit."""
-        from dicom_fuzzer.core.target_harness import ObservationPhase
+        from dicom_fuzzer.core.harness.target_harness import ObservationPhase
 
         with pytest.raises(ValueError, match="memory limit must be positive"):
             ObservationPhase(name="bad", duration_seconds=5.0, memory_limit_mb=0)
@@ -655,7 +659,7 @@ class TestPhaseResult:
 
     def test_phase_result_creation(self) -> None:
         """Test PhaseResult can be created."""
-        from dicom_fuzzer.core.target_harness import PhaseResult
+        from dicom_fuzzer.core.harness.target_harness import PhaseResult
 
         result = PhaseResult(
             phase_name="load",
@@ -671,7 +675,10 @@ class TestPhaseResult:
 
     def test_phase_result_with_validation(self) -> None:
         """Test PhaseResult with validation result."""
-        from dicom_fuzzer.core.target_harness import PhaseResult, ValidationResult
+        from dicom_fuzzer.core.harness.target_harness import (
+            PhaseResult,
+            ValidationResult,
+        )
 
         validation = ValidationResult(
             passed=False,
@@ -694,7 +701,10 @@ class TestPhasedTestResult:
 
     def test_phased_test_result_creation(self, tmp_path: Path) -> None:
         """Test PhasedTestResult can be created."""
-        from dicom_fuzzer.core.target_harness import PhasedTestResult, PhaseResult
+        from dicom_fuzzer.core.harness.target_harness import (
+            PhasedTestResult,
+            PhaseResult,
+        )
 
         phase_results = [
             PhaseResult(phase_name="load", status="success", duration_seconds=5.0),
@@ -715,7 +725,10 @@ class TestPhasedTestResult:
 
     def test_phased_test_result_with_failure(self, tmp_path: Path) -> None:
         """Test PhasedTestResult with failed phase."""
-        from dicom_fuzzer.core.target_harness import PhasedTestResult, PhaseResult
+        from dicom_fuzzer.core.harness.target_harness import (
+            PhasedTestResult,
+            PhaseResult,
+        )
 
         phase_results = [
             PhaseResult(phase_name="load", status="success", duration_seconds=5.0),
@@ -740,7 +753,7 @@ class TestPhasedTestResult:
 
     def test_phased_test_result_to_dict(self, tmp_path: Path) -> None:
         """Test PhasedTestResult serialization to dict."""
-        from dicom_fuzzer.core.target_harness import (
+        from dicom_fuzzer.core.harness.target_harness import (
             PhasedTestResult,
             PhaseResult,
             ValidationResult,
@@ -777,7 +790,7 @@ class TestDefaultObservationPhases:
 
     def test_default_phases_exist(self) -> None:
         """Test DEFAULT_OBSERVATION_PHASES is defined."""
-        from dicom_fuzzer.core.target_harness import DEFAULT_OBSERVATION_PHASES
+        from dicom_fuzzer.core.harness.target_harness import DEFAULT_OBSERVATION_PHASES
 
         assert len(DEFAULT_OBSERVATION_PHASES) == 3
         assert DEFAULT_OBSERVATION_PHASES[0].name == "load"
@@ -786,7 +799,7 @@ class TestDefaultObservationPhases:
 
     def test_default_phases_configuration(self) -> None:
         """Test default phases have expected configuration."""
-        from dicom_fuzzer.core.target_harness import DEFAULT_OBSERVATION_PHASES
+        from dicom_fuzzer.core.harness.target_harness import DEFAULT_OBSERVATION_PHASES
 
         load_phase = DEFAULT_OBSERVATION_PHASES[0]
         assert load_phase.duration_seconds == 5.0
@@ -815,7 +828,7 @@ class TestPhasedObservation:
     @pytest.fixture
     def quick_phases(self):
         """Create quick phases for testing."""
-        from dicom_fuzzer.core.target_harness import ObservationPhase
+        from dicom_fuzzer.core.harness.target_harness import ObservationPhase
 
         return [
             ObservationPhase(name="quick_load", duration_seconds=0.5),
@@ -852,7 +865,7 @@ class TestPhasedObservation:
         self, tmp_path: Path, sample_study: Path, quick_phases
     ) -> None:
         """Test error when executable doesn't exist."""
-        from dicom_fuzzer.core.target_harness import TargetConfig, TargetHarness
+        from dicom_fuzzer.core.harness.target_harness import TargetConfig, TargetHarness
 
         nonexistent = tmp_path / "nonexistent.exe"
         config = TargetConfig(executable=nonexistent)
@@ -867,7 +880,7 @@ class TestPhasedObservation:
         self, tmp_path: Path, sample_study: Path
     ) -> None:
         """Test successful phased observation."""
-        from dicom_fuzzer.core.target_harness import (
+        from dicom_fuzzer.core.harness.target_harness import (
             ObservationPhase,
             PhaseResult,
             TargetConfig,
@@ -903,7 +916,7 @@ class TestPhasedObservation:
         with (
             patch("subprocess.Popen", return_value=mock_process),
             patch(
-                "dicom_fuzzer.core.harness.harness.run_observation_phase",
+                "dicom_fuzzer.core.harness.run_observation_phase",
                 side_effect=phase_results,
             ),
             patch.object(harness, "kill_target_processes"),
@@ -919,7 +932,7 @@ class TestPhasedObservation:
         self, tmp_path: Path, sample_study: Path
     ) -> None:
         """Test crash detection during phased observation."""
-        from dicom_fuzzer.core.target_harness import (
+        from dicom_fuzzer.core.harness.target_harness import (
             ObservationPhase,
             PhaseResult,
             TargetConfig,
@@ -955,7 +968,7 @@ class TestPhasedObservation:
         with (
             patch("subprocess.Popen", return_value=mock_process),
             patch(
-                "dicom_fuzzer.core.harness.harness.run_observation_phase",
+                "dicom_fuzzer.core.harness.run_observation_phase",
                 return_value=crash_phase_result,
             ),
             patch.object(harness, "kill_target_processes"),
@@ -970,7 +983,7 @@ class TestPhasedObservation:
         self, tmp_path: Path, sample_study: Path
     ) -> None:
         """Test validation callback is invoked."""
-        from dicom_fuzzer.core.target_harness import (
+        from dicom_fuzzer.core.harness.target_harness import (
             ObservationPhase,
             TargetConfig,
             TargetHarness,
@@ -1005,7 +1018,7 @@ class TestPhasedObservation:
         self, tmp_path: Path, sample_study: Path
     ) -> None:
         """Test that default phases are used when none provided."""
-        from dicom_fuzzer.core.target_harness import (
+        from dicom_fuzzer.core.harness.target_harness import (
             TargetConfig,
             TargetHarness,
         )

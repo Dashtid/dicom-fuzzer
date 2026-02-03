@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from dicom_fuzzer.core.target_runner import ExecutionStatus
+from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
 from dicom_fuzzer.harness import (
     SeriesTestResult,
     ViewerConfig,

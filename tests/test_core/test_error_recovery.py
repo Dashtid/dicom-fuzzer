@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from dicom_fuzzer.core.error_recovery import (
+from dicom_fuzzer.core.session.error_recovery import (
     CampaignCheckpoint,
     CampaignRecovery,
     CampaignStatus,

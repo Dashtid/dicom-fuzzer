@@ -193,7 +193,7 @@ class TestRunCalibrationMutation:
                 },
             ),
             patch(
-                "dicom_fuzzer.strategies.calibration_fuzzer.CalibrationFuzzer",
+                "dicom_fuzzer.strategies.robustness.calibration_fuzzer.CalibrationFuzzer",
                 return_value=mock_fuzzer,
             ),
         ):
@@ -233,7 +233,7 @@ class TestRunCalibrationMutation:
                 },
             ),
             patch(
-                "dicom_fuzzer.strategies.calibration_fuzzer.CalibrationFuzzer",
+                "dicom_fuzzer.strategies.robustness.calibration_fuzzer.CalibrationFuzzer",
                 return_value=mock_fuzzer,
             ),
         ):
@@ -280,7 +280,7 @@ class TestRunCalibrationMutation:
                 },
             ),
             patch(
-                "dicom_fuzzer.strategies.calibration_fuzzer.CalibrationFuzzer",
+                "dicom_fuzzer.strategies.robustness.calibration_fuzzer.CalibrationFuzzer",
                 return_value=mock_fuzzer,
             ),
         ):
@@ -322,7 +322,7 @@ class TestRunCalibrationMutation:
                 },
             ),
             patch(
-                "dicom_fuzzer.strategies.calibration_fuzzer.CalibrationFuzzer",
+                "dicom_fuzzer.strategies.robustness.calibration_fuzzer.CalibrationFuzzer",
                 return_value=mock_fuzzer,
             ),
         ):
@@ -390,7 +390,7 @@ class TestMain:
                 },
             ),
             patch(
-                "dicom_fuzzer.strategies.calibration_fuzzer.CalibrationFuzzer",
+                "dicom_fuzzer.strategies.robustness.calibration_fuzzer.CalibrationFuzzer",
                 return_value=mock_fuzzer,
             ),
         ):
@@ -434,7 +434,7 @@ class TestEdgeCases:
                 },
             ),
             patch(
-                "dicom_fuzzer.strategies.calibration_fuzzer.CalibrationFuzzer",
+                "dicom_fuzzer.strategies.robustness.calibration_fuzzer.CalibrationFuzzer",
                 return_value=mock_fuzzer,
             ),
         ):

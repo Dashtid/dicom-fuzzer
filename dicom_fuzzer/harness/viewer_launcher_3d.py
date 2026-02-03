@@ -35,7 +35,7 @@ from pathlib import Path
 
 import psutil
 
-from dicom_fuzzer.core.target_runner import ExecutionStatus
+from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)

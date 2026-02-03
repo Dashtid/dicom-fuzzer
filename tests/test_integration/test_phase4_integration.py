@@ -9,12 +9,12 @@ import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import generate_uid
 
-from dicom_fuzzer.core.dicom_series import DicomSeries
-from dicom_fuzzer.core.lazy_loader import create_metadata_loader
-from dicom_fuzzer.core.series_cache import SeriesCache
-from dicom_fuzzer.core.series_detector import SeriesDetector
-from dicom_fuzzer.core.series_writer import SeriesWriter
-from dicom_fuzzer.strategies.parallel_mutator import ParallelSeriesMutator
+from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.core.dicom.lazy_loader import create_metadata_loader
+from dicom_fuzzer.core.series.series_cache import SeriesCache
+from dicom_fuzzer.core.series.series_detector import SeriesDetector
+from dicom_fuzzer.core.series.series_writer import SeriesWriter
+from dicom_fuzzer.strategies.series.parallel_mutator import ParallelSeriesMutator
 from dicom_fuzzer.strategies.series.series_mutator import (
     Series3DMutator,
     SeriesMutationStrategy,

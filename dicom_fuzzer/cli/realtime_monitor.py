@@ -30,7 +30,7 @@ except ImportError:
     Live = None  # type: ignore[assignment, misc]
 
 # Import canonical FuzzingSession for module users
-from dicom_fuzzer.core.fuzzing_session import FuzzingSession
+from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
 
 # Explicit re-exports for module consumers
 __all__ = ["RealtimeMonitor", "FuzzingSession", "Console", "Live", "HAS_RICH"]

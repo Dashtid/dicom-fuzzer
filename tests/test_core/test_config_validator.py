@@ -1,4 +1,4 @@
-"""Comprehensive tests for dicom_fuzzer.core.config_validator module.
+"""Comprehensive tests for dicom_fuzzer.core.session.config_validator module.
 
 This test suite provides thorough coverage of configuration validation,
 pre-flight checks, and system resource validation.
@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from dicom_fuzzer.core.config_validator import ConfigValidator, ValidationResult
+from dicom_fuzzer.core.session.config_validator import ConfigValidator, ValidationResult
 
 
 class TestValidationResult:

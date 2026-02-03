@@ -15,8 +15,8 @@ import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import generate_uid
 
-from dicom_fuzzer.core.dicom_series import DicomSeries
-from dicom_fuzzer.strategies.parallel_mutator import (
+from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.strategies.series.parallel_mutator import (
     ParallelSeriesMutator,
     get_optimal_workers,
 )

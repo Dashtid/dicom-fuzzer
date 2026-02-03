@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dicom_fuzzer.core.multiframe_types import (
+from dicom_fuzzer.core.mutation.multiframe_types import (
     FrameInfo,
     MultiFrameMutationRecord,
     MultiFrameMutationStrategy,
@@ -182,7 +182,7 @@ class TestBackwardCompatibilityImports:
 
     def test_import_from_multiframe_types(self) -> None:
         """Verify imports from multiframe_types work."""
-        from dicom_fuzzer.core.multiframe_types import (
+        from dicom_fuzzer.core.mutation.multiframe_types import (
             FrameInfo,
             MultiFrameMutationRecord,
             MultiFrameMutationStrategy,
@@ -194,7 +194,7 @@ class TestBackwardCompatibilityImports:
 
     def test_import_from_multiframe_handler(self) -> None:
         """Verify imports from multiframe_handler still work."""
-        from dicom_fuzzer.core.multiframe_handler import (
+        from dicom_fuzzer.core.mutation.multiframe_handler import (
             FrameInfo,
             MultiFrameMutationRecord,
             MultiFrameMutationStrategy,

@@ -1,4 +1,4 @@
-"""Comprehensive tests for dicom_fuzzer.core.resource_manager module.
+"""Comprehensive tests for dicom_fuzzer.core.session.resource_manager module.
 
 This test suite provides thorough coverage of resource management functionality,
 including resource limits, usage tracking, disk space checks, and execution contexts.
@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from dicom_fuzzer.core.resource_manager import (
+from dicom_fuzzer.core.session.resource_manager import (
     ResourceExhaustedError,
     ResourceLimits,
     ResourceManager,
@@ -459,8 +459,8 @@ class TestUnixSpecificResourceLimits:
     """Test Unix-specific resource limit setting and restoration."""
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
-    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.sys_resource")
     def test_memory_limit_setting_success(self, mock_resource, mock_platform):
         """Test successful memory limit setting (lines 233-237)."""
         # Setup mock
@@ -481,8 +481,8 @@ class TestUnixSpecificResourceLimits:
         assert mock_resource.setrlimit.called
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
-    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.sys_resource")
     def test_memory_limit_setting_exception(self, mock_resource, mock_platform):
         """Test memory limit setting with exception (lines 238-239)."""
         # Setup mock to raise exception
@@ -507,8 +507,8 @@ class TestUnixSpecificResourceLimits:
         assert mock_resource.setrlimit.called
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
-    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.sys_resource")
     def test_cpu_limit_setting_success(self, mock_resource, mock_platform):
         """Test successful CPU limit setting (lines 243-248)."""
         # Setup mock
@@ -526,8 +526,8 @@ class TestUnixSpecificResourceLimits:
             assert len(cpu_call) > 0
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
-    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.sys_resource")
     def test_cpu_limit_setting_exception(self, mock_resource, mock_platform):
         """Test CPU limit setting with exception (lines 249-250)."""
         # Setup mock
@@ -552,8 +552,8 @@ class TestUnixSpecificResourceLimits:
         assert mock_resource.setrlimit.called
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
-    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.sys_resource")
     def test_file_descriptor_limit_setting(self, mock_resource, mock_platform):
         """Test file descriptor limit setting (lines 254-263)."""
         # Setup mock
@@ -572,8 +572,8 @@ class TestUnixSpecificResourceLimits:
             assert len(nofile_call) > 0
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
-    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.sys_resource")
     def test_file_descriptor_limit_exception(self, mock_resource, mock_platform):
         """Test file descriptor limit setting with exception (lines 262-263)."""
         # Setup mock
@@ -599,8 +599,8 @@ class TestUnixSpecificResourceLimits:
         assert mock_resource.setrlimit.called
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
-    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.sys_resource")
     def test_limit_restoration_on_exit(self, mock_resource, mock_platform):
         """Test that limits are restored on context exit (lines 270-278)."""
         # Setup mock
@@ -631,8 +631,8 @@ class TestUnixSpecificResourceLimits:
         assert len(restore_calls) >= 3  # At least 3 limit restorations
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
-    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.sys_resource")
     def test_limit_restoration_with_exception(self, mock_resource, mock_platform):
         """Test limit restoration handles exceptions (lines 277-278)."""
         # Setup mock
@@ -666,7 +666,7 @@ class TestUnixSpecificUsageTracking:
     """Test Unix-specific resource usage tracking paths."""
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
     def test_get_current_usage_with_psutil_memory(self, mock_platform):
         """Test memory usage with psutil on Unix (lines 154-158)."""
         import sys
@@ -687,7 +687,7 @@ class TestUnixSpecificUsageTracking:
             assert usage.memory_mb == 512.0
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
     def test_get_current_usage_psutil_import_error(self, mock_platform):
         """Test memory usage fallback when psutil not available (lines 161-162)."""
         import sys
@@ -704,8 +704,8 @@ class TestUnixSpecificUsageTracking:
             assert usage.memory_mb == 0.0
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
-    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.sys_resource")
     def test_get_current_usage_with_cpu_time(self, mock_resource, mock_platform):
         """Test CPU time tracking on Unix (line 168)."""
         # Setup mock
@@ -722,7 +722,7 @@ class TestUnixSpecificUsageTracking:
         assert usage.cpu_seconds == 15.8
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
     def test_get_current_usage_with_open_files(self, mock_platform):
         """Test open files count on Unix (lines 179-183)."""
         import sys
@@ -742,7 +742,7 @@ class TestUnixSpecificUsageTracking:
             assert usage.open_files == 25
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
     def test_get_current_usage_open_files_import_error(self, mock_platform):
         """Test open files fallback when psutil not available (lines 186-187)."""
         import sys
@@ -773,7 +773,7 @@ class TestHasResourceModuleFlag:
 
     def test_has_resource_module_flag_is_boolean(self):
         """Test that HAS_RESOURCE_MODULE is a boolean value."""
-        from dicom_fuzzer.core import resource_manager
+        from dicom_fuzzer.core.session import resource_manager
 
         # On Windows, HAS_RESOURCE_MODULE should be False
         # On Unix, it should be True
@@ -782,7 +782,7 @@ class TestHasResourceModuleFlag:
 
     def test_has_resource_module_consistency_with_sys_resource(self):
         """Test HAS_RESOURCE_MODULE is consistent with sys_resource availability."""
-        from dicom_fuzzer.core import resource_manager
+        from dicom_fuzzer.core.session import resource_manager
 
         # If HAS_RESOURCE_MODULE is True, sys_resource should not be None
         # If HAS_RESOURCE_MODULE is False, sys_resource should be None
@@ -800,8 +800,8 @@ class TestResourceUsageCPUExceptionHandling:
     """
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
-    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.sys_resource")
     def test_getrusage_exception_returns_zero_cpu(self, mock_resource, mock_platform):
         """Test that getrusage exception is handled gracefully (lines 179-180).
 
@@ -820,8 +820,8 @@ class TestResourceUsageCPUExceptionHandling:
         assert usage.cpu_seconds == 0.0
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
-    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.sys_resource")
     def test_getrusage_runtime_error_returns_zero_cpu(
         self, mock_resource, mock_platform
     ):
@@ -835,8 +835,8 @@ class TestResourceUsageCPUExceptionHandling:
         assert usage.cpu_seconds == 0.0
 
     @patch("platform.system", return_value="Linux")
-    @patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", True)
-    @patch("dicom_fuzzer.core.resource_manager.sys_resource")
+    @patch("dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", True)
+    @patch("dicom_fuzzer.core.session.resource_manager.sys_resource")
     def test_getrusage_value_error_returns_zero_cpu(self, mock_resource, mock_platform):
         """Test that ValueError in getrusage is handled (lines 179-180)."""
         mock_resource.RUSAGE_SELF = 0
@@ -887,7 +887,7 @@ class TestUnixResourceModuleImport:
         """
         import sys
 
-        from dicom_fuzzer.core import resource_manager
+        from dicom_fuzzer.core.session import resource_manager
 
         if sys.platform == "win32":
             # On Windows, the import block is skipped

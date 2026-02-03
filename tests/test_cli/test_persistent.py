@@ -164,7 +164,7 @@ class TestRunFuzz:
         )
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.persistent_fuzzer": mock_module}
+            "sys.modules", {"dicom_fuzzer.core.engine.persistent_fuzzer": mock_module}
         ):
             result = run_fuzz(args)
 
@@ -197,7 +197,7 @@ class TestRunFuzz:
         )
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.persistent_fuzzer": mock_module}
+            "sys.modules", {"dicom_fuzzer.core.engine.persistent_fuzzer": mock_module}
         ):
             result = run_fuzz(args)
 
@@ -258,7 +258,7 @@ class TestRunFuzz:
         )
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.persistent_fuzzer": mock_module}
+            "sys.modules", {"dicom_fuzzer.core.engine.persistent_fuzzer": mock_module}
         ):
             result = run_fuzz(args)
 

@@ -229,7 +229,7 @@ class TestMutationTypeBackwardCompatibility:
     def test_import_from_persistent_fuzzer(self) -> None:
         """Test MutationType import from persistent_fuzzer still works."""
         # persistent_fuzzer now imports from constants
-        from dicom_fuzzer.core.persistent_fuzzer import MOptScheduler
+        from dicom_fuzzer.core.engine.persistent_fuzzer import MOptScheduler
 
         # MOptScheduler uses MutationType internally
         scheduler = MOptScheduler()
@@ -237,7 +237,7 @@ class TestMutationTypeBackwardCompatibility:
 
     def test_import_from_byte_mutator(self) -> None:
         """Test ByteMutationType import from byte_mutator still works."""
-        from dicom_fuzzer.core.byte_mutator import (
+        from dicom_fuzzer.core.mutation.byte_mutator import (
             ByteMutationType as ByteMutationTypeMutator,
         )
 
@@ -246,7 +246,7 @@ class TestMutationTypeBackwardCompatibility:
 
     def test_import_from_coverage_guided_mutator(self) -> None:
         """Test MutationType import from coverage_guided_mutator works."""
-        from dicom_fuzzer.core.coverage_guided_mutator import (
+        from dicom_fuzzer.core.engine.coverage_guided_mutator import (
             MutationType as MutationTypeCoverage,
         )
 
@@ -309,7 +309,7 @@ class TestSeverityBackwardCompatibility:
 
     def test_import_from_crash_analyzer(self) -> None:
         """Test CrashSeverity import from crash_analyzer still works."""
-        from dicom_fuzzer.core.crash_analyzer import (
+        from dicom_fuzzer.core.crash.crash_analyzer import (
             CrashSeverity as CrashSeverityAnalyzer,
         )
 
@@ -318,7 +318,7 @@ class TestSeverityBackwardCompatibility:
 
     def test_import_from_crash_triage(self) -> None:
         """Test Severity import from crash_triage still works."""
-        from dicom_fuzzer.core.crash_triage import Severity as SeverityTriage
+        from dicom_fuzzer.core.crash.crash_triage import Severity as SeverityTriage
 
         assert SeverityTriage is Severity
         assert SeverityTriage.INFO.value == "info"
@@ -384,7 +384,7 @@ class TestResponseTypeBackwardCompatibility:
 
     def test_import_from_gui_monitor_types(self) -> None:
         """Test ResponseType import from gui_monitor_types."""
-        from dicom_fuzzer.core.gui_monitor_types import (
+        from dicom_fuzzer.core.engine.gui_monitor_types import (
             ResponseType as ResponseTypeGUI,
         )
 
@@ -494,13 +494,14 @@ class TestProtocolEnumsBackwardCompatibility:
 
     def test_import_from_state_aware_fuzzer(self) -> None:
         """Test enums can still be imported from state_aware_fuzzer."""
-        from dicom_fuzzer.core.constants import DICOMState, StateTransitionType
         from dicom_fuzzer.core.state_aware_fuzzer import (
             DICOMState as DICOMStateAware,
         )
         from dicom_fuzzer.core.state_aware_fuzzer import (
             StateTransitionType as StateTransitionTypeAware,
         )
+
+        from dicom_fuzzer.core.constants import DICOMState, StateTransitionType
 
         assert DICOMStateAware is DICOMState
         assert StateTransitionTypeAware is StateTransitionType

@@ -130,11 +130,11 @@ class TestRunFuzz:
         mock_fuzzer.get_statistics.return_value = {"iterations": 10}
 
         with patch(
-            "dicom_fuzzer.core.persistent_fuzzer.PersistentFuzzer",
+            "dicom_fuzzer.core.engine.persistent_fuzzer.PersistentFuzzer",
             return_value=mock_fuzzer,
         ):
             with patch(
-                "dicom_fuzzer.core.persistent_fuzzer.PersistentFuzzerConfig"
+                "dicom_fuzzer.core.engine.persistent_fuzzer.PersistentFuzzerConfig"
             ) as mock_config:
                 result = persistent.run_fuzz(args)
 
@@ -166,10 +166,12 @@ class TestRunFuzz:
         mock_fuzzer.get_statistics.return_value = {}
 
         with patch(
-            "dicom_fuzzer.core.persistent_fuzzer.PersistentFuzzer",
+            "dicom_fuzzer.core.engine.persistent_fuzzer.PersistentFuzzer",
             return_value=mock_fuzzer,
         ):
-            with patch("dicom_fuzzer.core.persistent_fuzzer.PersistentFuzzerConfig"):
+            with patch(
+                "dicom_fuzzer.core.engine.persistent_fuzzer.PersistentFuzzerConfig"
+            ):
                 result = persistent.run_fuzz(args)
 
         assert result == 0
@@ -194,7 +196,7 @@ class TestRunFuzz:
         )
 
         with patch(
-            "dicom_fuzzer.core.persistent_fuzzer.PersistentFuzzer",
+            "dicom_fuzzer.core.engine.persistent_fuzzer.PersistentFuzzer",
             side_effect=ImportError("Module not found"),
         ):
             result = persistent.run_fuzz(args)
@@ -221,7 +223,7 @@ class TestRunFuzz:
         )
 
         with patch(
-            "dicom_fuzzer.core.persistent_fuzzer.PersistentFuzzer",
+            "dicom_fuzzer.core.engine.persistent_fuzzer.PersistentFuzzer",
             side_effect=RuntimeError("Test error"),
         ):
             result = persistent.run_fuzz(args)

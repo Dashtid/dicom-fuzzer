@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from dicom_fuzzer.core.crash_analyzer import CrashAnalyzer
-from dicom_fuzzer.core.reporter import ReportGenerator
+from dicom_fuzzer.core.crash.crash_analyzer import CrashAnalyzer
+from dicom_fuzzer.core.reporting.reporter import ReportGenerator
 
 
 class TestReportGenerator:

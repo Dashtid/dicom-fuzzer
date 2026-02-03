@@ -1,4 +1,4 @@
-"""Comprehensive tests for dicom_fuzzer.core.profiler module.
+"""Comprehensive tests for dicom_fuzzer.core.session.profiler module.
 
 Tests performance profiling functionality including FuzzingMetrics,
 PerformanceProfiler, StrategyTimer, and profile_function decorator.
@@ -9,7 +9,7 @@ from datetime import datetime
 
 import pytest
 
-from dicom_fuzzer.core.profiler import (
+from dicom_fuzzer.core.session.profiler import (
     FuzzingMetrics,
     PerformanceProfiler,
     StrategyTimer,

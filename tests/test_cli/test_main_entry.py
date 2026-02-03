@@ -74,7 +74,7 @@ class TestApplyResourceLimits:
 
     def test_apply_resource_limits_object(self):
         """Test with ResourceLimits object."""
-        from dicom_fuzzer.core.resource_manager import ResourceLimits
+        from dicom_fuzzer.core.session.resource_manager import ResourceLimits
 
         limits = ResourceLimits(
             max_memory_mb=512,
@@ -152,7 +152,7 @@ class TestPreCampaignHealthCheck:
 
     def test_health_check_warns_low_memory_limit(self, tmp_path):
         """Test health check warns with very low memory limit."""
-        from dicom_fuzzer.core.resource_manager import ResourceLimits
+        from dicom_fuzzer.core.session.resource_manager import ResourceLimits
 
         output_dir = tmp_path / "output"
         limits = ResourceLimits(max_memory_mb=64)  # Very low

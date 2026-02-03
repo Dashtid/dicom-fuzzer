@@ -3,10 +3,69 @@
 This module contains the fundamental components for DICOM parsing, mutation,
 generation, validation, and advanced stability features including crash
 intelligence and stability tracking.
+
+Subpackages:
+- coverage/: Coverage tracking, corpus management, stability metrics
+- crash/: Crash detection, triage, and analysis
+- dicom/: DICOM file I/O -- parsing, validation, lazy loading
+- engine/: Fuzzing engines and orchestrators
+- harness/: Target execution and monitoring
+- mutation/: Mutation primitives -- byte, dataset, multiframe
+- reporting/: Reports, analytics, templates
+- series/: 3D series management
+- session/: Runtime and session management
 """
 
 # Shared fuzzing constants (v1.7.0)
-from .config_validator import ConfigValidator, ValidationResult
+# Network re-exports (backward compatibility -- canonical location is strategies.network)
+from dicom_fuzzer.strategies.network import (
+    DICOMNetworkConfig,
+    DICOMNetworkFuzzer,
+    DICOMProtocolBuilder,
+    FuzzingStrategy,
+    NetworkFuzzResult,
+    PDUFuzzingMixin,
+    TLSFuzzingMixin,
+)
+from dicom_fuzzer.strategies.network.dimse import (
+    DICOMElement,
+    DIMSEFuzzingConfig,
+    DIMSEMessage,
+    QueryRetrieveLevel,
+    SOPClass,
+    UIDGenerator,
+)
+
+# State-Aware Fuzzer (moved to strategies/network/stateful/)
+from dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer import (
+    MessageSequence,
+    ProtocolMessage,
+    StateAwareFuzzer,
+    StateGuidedHavoc,
+    StateInferenceEngine,
+    StateMutator,
+)
+from dicom_fuzzer.strategies.network.tls import (
+    COMMON_AE_TITLES,
+    INJECTION_PAYLOADS,
+    SOP_CLASS_UIDS,
+    SSL_VERSIONS,
+    WEAK_CIPHERS,
+    AuthBypassType,
+    DICOMAuthTester,
+    DICOMTLSFuzzer,
+    DICOMTLSFuzzerConfig,
+    PACSQueryInjector,
+    QueryInjectionType,
+    TLSFuzzResult,
+    TLSSecurityTester,
+    TLSVulnerability,
+)
+from dicom_fuzzer.strategies.network.tls.fuzzer import (
+    create_dicom_tls_fuzzer,
+    quick_scan,
+)
+
 from .constants import (
     ARITH_MAX,
     INTERESTING_8,
@@ -32,8 +91,8 @@ from .constants import (
     StateTransitionType,
 )
 
-# Corpus Minimization & Multi-Fuzzer Sync (v1.5.0)
-from .corpus_minimizer import (
+# Coverage tracking & corpus management
+from .coverage.corpus_minimizer import (
     CorpusMinimizer,
     CorpusStats,
     CorpusSynchronizer,
@@ -47,9 +106,7 @@ from .corpus_minimizer import (
     create_sync_node,
     minimize_corpus,
 )
-
-# Unified Coverage Types (v1.8.0)
-from .coverage_types import (
+from .coverage.coverage_types import (
     CoverageInfo,
     CoverageInsight,
     CoverageMap,
@@ -62,65 +119,28 @@ from .coverage_types import (
     StateFingerprint,
     StateTransition,
 )
-from .crash_triage import (
+from .coverage.stability_tracker import StabilityMetrics, StabilityTracker
+
+# Crash intelligence
+from .crash.crash_triage import (
     CrashTriage,
     CrashTriageEngine,
     ExploitabilityRating,
 )
 
-# Dataset Mutation (v1.7.0)
-from .dataset_mutator import DatasetMutator
-from .dicom_series import DicomSeries
-
-# Network Protocol Fuzzer (v1.5.0) - moved to strategies/robustness/network/
-from dicom_fuzzer.strategies.network import (
-    DICOMNetworkConfig,
-    DICOMNetworkFuzzer,
-    DICOMProtocolBuilder,
-    FuzzingStrategy,
-    NetworkFuzzResult,
-    PDUFuzzingMixin,
-    TLSFuzzingMixin,
+# DICOM I/O
+from .dicom.dicom_series import DicomSeries
+from .dicom.lazy_loader import (
+    LazyDicomLoader,
+    create_deferred_loader,
+    create_metadata_loader,
 )
+from .dicom.parser import DicomParser
+from .dicom.validator import DicomValidator
 
-# DICOM TLS Security Fuzzer (v1.5.0, modularized v1.7.0) - moved to strategies/robustness/network/tls/
-from dicom_fuzzer.strategies.network.tls import (
-    COMMON_AE_TITLES,
-    INJECTION_PAYLOADS,
-    SOP_CLASS_UIDS,
-    SSL_VERSIONS,
-    WEAK_CIPHERS,
-    AuthBypassType,
-    DICOMAuthTester,
-    DICOMTLSFuzzer,
-    DICOMTLSFuzzerConfig,
-    PACSQueryInjector,
-    QueryInjectionType,
-    TLSFuzzResult,
-    TLSSecurityTester,
-    TLSVulnerability,
-)
-from dicom_fuzzer.strategies.network.tls.fuzzer import (
-    create_dicom_tls_fuzzer,
-    quick_scan,
-)
-
-
-# DIMSE Protocol Types (v1.7.0) - moved to strategies/robustness/network/dimse/
-from dicom_fuzzer.strategies.network.dimse import (
-    DICOMElement,
-    DIMSEFuzzingConfig,
-    DIMSEMessage,
-    QueryRetrieveLevel,
-    SOPClass,
-    UIDGenerator,
-)
-# Backward compatibility alias
-FuzzingConfig = DIMSEFuzzingConfig
-from .error_recovery import CampaignRecovery, CampaignStatus, SignalHandler
-from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
-from .generator import DICOMGenerator
-from .gui_monitor import (
+# Fuzzing engines
+from .engine.generator import DICOMGenerator
+from .engine.gui_monitor import (
     GUIFuzzer,
     GUIMonitor,
     GUIResponse,
@@ -128,54 +148,13 @@ from .gui_monitor import (
     ResponseAwareFuzzer,
     StateCoverageTracker,
 )
-from .lazy_loader import (
-    LazyDicomLoader,
-    create_deferred_loader,
-    create_metadata_loader,
-)
-
-# Multi-Frame Handler (v1.5.0, modularized v1.8.0)
-from .multiframe_handler import (
-    FrameInfo,
-    MultiFrameHandler,
-    MultiFrameMutationRecord,
-    MultiFrameMutationStrategy,
-    create_multiframe_mutator,
-)
-from .mutator import DicomMutator
-from .parser import DicomParser
-from .persistent_fuzzer import (
+from .engine.persistent_fuzzer import (
     MOptScheduler,
     PersistentFuzzer,
     PowerSchedule,
     SeedEntry,
 )
-from .resource_manager import ResourceLimits, ResourceManager
-from .series_cache import CacheEntry, SeriesCache
-from .series_detector import SeriesDetector
-from .series_reporter import (
-    Series3DReport,
-    Series3DReportGenerator,
-    SeriesMutationSummary,
-)
-from .series_validator import (
-    SeriesValidator,
-    ValidationIssue,
-    ValidationReport,
-    ValidationSeverity,
-)
-from .series_writer import SeriesMetadata, SeriesWriter
-from .stability_tracker import StabilityMetrics, StabilityTracker
-# State-Aware Fuzzer (v1.5.0) - moved to strategies/robustness/network/stateful/
-from dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer import (
-    MessageSequence,
-    ProtocolMessage,
-    StateAwareFuzzer,
-    StateGuidedHavoc,
-    StateInferenceEngine,
-    StateMutator,
-)
-from .synthetic import (
+from .engine.synthetic import (
     SyntheticDataGenerator,
     SyntheticDicomGenerator,
     SyntheticPatient,
@@ -183,10 +162,53 @@ from .synthetic import (
     SyntheticStudy,
     generate_sample_files,
 )
-from .target_runner import ExecutionStatus, TargetRunner
-from .test_minimizer import MinimizationStrategy, TestMinimizer
+
+# Exceptions
+from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
+
+# Target harness
+from .harness.target_runner import ExecutionStatus, TargetRunner
+
+# Mutation primitives
+from .mutation.dataset_mutator import DatasetMutator
+from .mutation.multiframe_handler import (
+    FrameInfo,
+    MultiFrameHandler,
+    MultiFrameMutationRecord,
+    MultiFrameMutationStrategy,
+    create_multiframe_mutator,
+)
+from .mutation.mutator import DicomMutator
+from .mutation.test_minimizer import MinimizationStrategy, TestMinimizer
+
+# Reporting
+from .reporting.series_reporter import (
+    Series3DReport,
+    Series3DReportGenerator,
+    SeriesMutationSummary,
+)
+
+# Series management
+from .series.series_cache import CacheEntry, SeriesCache
+from .series.series_detector import SeriesDetector
+from .series.series_validator import (
+    SeriesValidator,
+    ValidationIssue,
+    ValidationReport,
+    ValidationSeverity,
+)
+from .series.series_writer import SeriesMetadata, SeriesWriter
+
+# Session management
+from .session.config_validator import ConfigValidator, ValidationResult
+from .session.error_recovery import CampaignRecovery, CampaignStatus, SignalHandler
+from .session.resource_manager import ResourceLimits, ResourceManager
+
+# Protocol types
 from .types import DICOMCommand, DIMSECommand, MutationSeverity, PDUType
-from .validator import DicomValidator
+
+# Backward compatibility alias
+FuzzingConfig = DIMSEFuzzingConfig
 
 __all__ = [
     # Shared fuzzing constants (v1.7.0)
@@ -237,7 +259,7 @@ __all__ = [
     "DICOMCommand",
     "DIMSECommand",
     "PDUType",
-    # Network Protocol Fuzzer (moved to strategies/robustness/network/)
+    # Network Protocol Fuzzer (canonical: strategies.network)
     "DICOMNetworkConfig",
     "DICOMNetworkFuzzer",
     "DICOMProtocolBuilder",
@@ -258,7 +280,7 @@ __all__ = [
     # Target testing
     "TargetRunner",
     "ExecutionStatus",
-    # Stability features (v1.1.0)
+    # Session management
     "ResourceManager",
     "ResourceLimits",
     "CampaignRecovery",
@@ -266,16 +288,16 @@ __all__ = [
     "SignalHandler",
     "ConfigValidator",
     "ValidationResult",
-    # Crash intelligence (v1.2.0)
+    # Crash intelligence
     "CrashTriageEngine",
     "CrashTriage",
     "ExploitabilityRating",
     "TestMinimizer",
     "MinimizationStrategy",
-    # Stability tracking (v1.2.0)
+    # Stability tracking
     "StabilityTracker",
     "StabilityMetrics",
-    # 3D Series support (v2.0.0-alpha)
+    # 3D Series support
     "DicomSeries",
     "SeriesDetector",
     "SeriesValidator",
@@ -284,13 +306,13 @@ __all__ = [
     "ValidationSeverity",
     "SeriesWriter",
     "SeriesMetadata",
-    # Performance optimization (v2.0.0-alpha Phase 4)
+    # Performance optimization
     "LazyDicomLoader",
     "create_metadata_loader",
     "create_deferred_loader",
     "SeriesCache",
     "CacheEntry",
-    # Enhanced Reporting & Analytics (v2.0.0-alpha Phase 5)
+    # Enhanced Reporting & Analytics
     "Series3DReport",
     "Series3DReportGenerator",
     "SeriesMutationSummary",
@@ -301,14 +323,13 @@ __all__ = [
     "SyntheticStudy",
     "SyntheticSeries",
     "generate_sample_files",
-    # Response-Aware Fuzzing with State Coverage (v1.5.0, modularized v1.8.0)
+    # Response-Aware Fuzzing with State Coverage
     "GUIFuzzer",
     "GUIMonitor",
     "GUIResponse",
     "MonitorConfig",
-    "ResponseAwareFuzzer",  # Backward compatibility alias for GUIFuzzer
+    "ResponseAwareFuzzer",
     "StateCoverageTracker",
-    # Advanced Fuzzing Engines (v1.5.0)
     # State-Aware Protocol Fuzzing
     "DICOMState",
     "StateTransitionType",
@@ -323,7 +344,7 @@ __all__ = [
     "PersistentFuzzer",
     "PowerSchedule",
     "SeedEntry",
-    # DICOM TLS Security Fuzzer (v1.5.0, modularized v1.7.0)
+    # DICOM TLS Security Fuzzer
     "COMMON_AE_TITLES",
     "INJECTION_PAYLOADS",
     "SOP_CLASS_UIDS",
@@ -341,7 +362,7 @@ __all__ = [
     "TLSVulnerability",
     "create_dicom_tls_fuzzer",
     "quick_scan",
-    # Corpus Minimization & Multi-Fuzzer Sync (v1.5.0)
+    # Corpus Minimization & Multi-Fuzzer Sync
     "CorpusMinimizer",
     "CorpusStats",
     "CorpusSynchronizer",
@@ -354,7 +375,7 @@ __all__ = [
     "TargetCoverageCollector",
     "create_sync_node",
     "minimize_corpus",
-    # Multi-Frame Handler (v1.5.0, modularized v1.8.0)
+    # Multi-Frame Handler
     "FrameInfo",
     "MultiFrameHandler",
     "MultiFrameMutationRecord",

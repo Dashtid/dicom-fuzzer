@@ -130,7 +130,7 @@ class TestStudyMutatorIntegration:
 
     def test_load_study_detects_multiple_series(self, multi_series_study):
         """Test that StudyMutator correctly loads a multi-series study."""
-        from dicom_fuzzer.strategies.study_mutator import StudyMutator
+        from dicom_fuzzer.strategies.series.study_mutator import StudyMutator
 
         mutator = StudyMutator(severity="moderate")
         study = mutator.load_study(multi_series_study["study_dir"])
@@ -141,7 +141,7 @@ class TestStudyMutatorIntegration:
 
     def test_cross_series_reference_mutation(self, multi_series_study, temp_dir):
         """Test cross-series reference attack workflow."""
-        from dicom_fuzzer.strategies.study_mutator import (
+        from dicom_fuzzer.strategies.series.study_mutator import (
             StudyMutationStrategy,
             StudyMutator,
         )
@@ -165,7 +165,7 @@ class TestStudyMutatorIntegration:
 
     def test_patient_consistency_mutation(self, multi_series_study):
         """Test patient consistency attack across series."""
-        from dicom_fuzzer.strategies.study_mutator import (
+        from dicom_fuzzer.strategies.series.study_mutator import (
             StudyMutationStrategy,
             StudyMutator,
         )
@@ -186,7 +186,7 @@ class TestStudyMutatorIntegration:
 
     def test_frame_of_reference_mutation(self, multi_series_study):
         """Test frame of reference attacks for registration corruption."""
-        from dicom_fuzzer.strategies.study_mutator import (
+        from dicom_fuzzer.strategies.series.study_mutator import (
             StudyMutationStrategy,
             StudyMutator,
         )
@@ -205,7 +205,7 @@ class TestStudyMutatorIntegration:
         """Test that mutated study datasets can be saved and reloaded."""
         import pydicom
 
-        from dicom_fuzzer.strategies.study_mutator import (
+        from dicom_fuzzer.strategies.series.study_mutator import (
             StudyMutationStrategy,
             StudyMutator,
         )
@@ -240,7 +240,7 @@ class TestStudyMutatorIntegration:
 
     def test_mixed_modality_study_mutation(self, multi_series_study):
         """Test mixed modality study mutation strategy."""
-        from dicom_fuzzer.strategies.study_mutator import (
+        from dicom_fuzzer.strategies.series.study_mutator import (
             StudyMutationStrategy,
             StudyMutator,
         )
@@ -261,7 +261,7 @@ class TestStudyMutationRecordSerialization:
 
     def test_mutation_record_to_dict(self, multi_series_study):
         """Test that mutation records can be serialized to dict."""
-        from dicom_fuzzer.strategies.study_mutator import (
+        from dicom_fuzzer.strategies.series.study_mutator import (
             StudyMutationStrategy,
             StudyMutator,
         )
@@ -286,7 +286,7 @@ class TestStudyMutationRecordSerialization:
         """Test that mutation records can be serialized to JSON."""
         import json
 
-        from dicom_fuzzer.strategies.study_mutator import (
+        from dicom_fuzzer.strategies.series.study_mutator import (
             StudyMutationStrategy,
             StudyMutator,
         )
@@ -314,7 +314,7 @@ class TestStudyMutatorSeverityLevels:
     )
     def test_severity_levels_accepted(self, multi_series_study, severity):
         """Test that all severity levels are accepted."""
-        from dicom_fuzzer.strategies.study_mutator import StudyMutator
+        from dicom_fuzzer.strategies.series.study_mutator import StudyMutator
 
         mutator = StudyMutator(severity=severity)
         study = mutator.load_study(multi_series_study["study_dir"])
@@ -324,7 +324,7 @@ class TestStudyMutatorSeverityLevels:
 
     def test_invalid_severity_rejected(self):
         """Test that invalid severity levels are rejected."""
-        from dicom_fuzzer.strategies.study_mutator import StudyMutator
+        from dicom_fuzzer.strategies.series.study_mutator import StudyMutator
 
         with pytest.raises(ValueError):
             StudyMutator(severity="invalid")

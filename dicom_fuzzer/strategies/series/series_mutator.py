@@ -34,12 +34,13 @@ import numpy as np
 import pydicom
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.dicom_series import DicomSeries
+from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
 from dicom_fuzzer.core.serialization import SerializableMixin
+from dicom_fuzzer.utils.logger import get_logger
+
 from .series_3d_attacks import Reconstruction3DAttacksMixin
 from .series_core_mutations import CoreMutationsMixin
 from .series_temporal_attacks import TemporalAttacksMixin
-from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

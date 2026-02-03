@@ -20,7 +20,10 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 
-from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
+from dicom_fuzzer.core.engine.coverage_guided_fuzzer import (
+    CoverageGuidedFuzzer,
+    FuzzingConfig,
+)
 
 console = Console()
 
@@ -416,7 +419,7 @@ def run_coverage_fuzzing(config: dict[str, Any]) -> dict[str, Any]:
         dict: Results with coverage and crashes information
 
     """
-    from dicom_fuzzer.core.coverage_guided_fuzzer import (
+    from dicom_fuzzer.core.engine.coverage_guided_fuzzer import (
         CoverageGuidedFuzzer,
         FuzzingConfig,
     )

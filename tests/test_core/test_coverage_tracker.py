@@ -18,7 +18,10 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from dicom_fuzzer.core.coverage_tracker import CoverageSnapshot, CoverageTracker
+from dicom_fuzzer.core.coverage.coverage_tracker import (
+    CoverageSnapshot,
+    CoverageTracker,
+)
 
 
 class TestCoverageSnapshot:

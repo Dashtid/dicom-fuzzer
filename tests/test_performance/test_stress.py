@@ -22,12 +22,12 @@ import psutil
 import pytest
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.generator import DICOMGenerator
-from dicom_fuzzer.core.mutator import DicomMutator
-from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
-from dicom_fuzzer.core.statistics import StatisticsCollector
-from dicom_fuzzer.core.target_runner import ExecutionStatus, TargetRunner
-from dicom_fuzzer.core.validator import DicomValidator
+from dicom_fuzzer.core.dicom.validator import DicomValidator
+from dicom_fuzzer.core.engine.generator import DICOMGenerator
+from dicom_fuzzer.core.harness.target_runner import ExecutionStatus, TargetRunner
+from dicom_fuzzer.core.mutation.mutator import DicomMutator
+from dicom_fuzzer.core.reporting.statistics import StatisticsCollector
+from dicom_fuzzer.core.session.resource_manager import ResourceLimits, ResourceManager
 
 # Mark all tests as slow
 pytestmark = pytest.mark.slow
@@ -90,7 +90,7 @@ class TestLargeBatchProcessing:
 
     def test_mutate_continuously(self, sample_dicom_file):
         """Test continuous mutation without memory leaks."""
-        from dicom_fuzzer.core.parser import DicomParser
+        from dicom_fuzzer.core.dicom.parser import DicomParser
 
         parser = DicomParser(sample_dicom_file)
         mutator = DicomMutator()
@@ -176,7 +176,7 @@ class TestResourcePressure:
 
     def test_cpu_intensive_operations(self, sample_dicom_file):
         """Test CPU intensive mutation operations."""
-        from dicom_fuzzer.core.parser import DicomParser
+        from dicom_fuzzer.core.dicom.parser import DicomParser
 
         parser = DicomParser(sample_dicom_file)
         mutator = DicomMutator()
@@ -262,7 +262,7 @@ class TestLongRunningCampaigns:
     @pytest.mark.timeout(20)  # Explicit timeout for this longer test
     def test_extended_campaign_stability(self, sample_dicom_file, temp_dir):
         """Test campaign running for extended period."""
-        from dicom_fuzzer.core.statistics import StatisticsCollector
+        from dicom_fuzzer.core.reporting.statistics import StatisticsCollector
 
         output_dir = temp_dir / "extended_campaign"
         generator = DICOMGenerator(output_dir=str(output_dir))
@@ -361,7 +361,7 @@ class TestMemoryLeakDetection:
 
     def test_repeated_parse_no_leak(self, sample_dicom_file):
         """Test repeated parsing doesn't leak memory."""
-        from dicom_fuzzer.core.parser import DicomParser
+        from dicom_fuzzer.core.dicom.parser import DicomParser
 
         gc.collect()
         initial_memory = psutil.Process().memory_info().rss / (1024 * 1024)
@@ -380,7 +380,7 @@ class TestMemoryLeakDetection:
 
     def test_repeated_validation_no_leak(self, sample_dicom_file):
         """Test repeated validation doesn't leak memory."""
-        from dicom_fuzzer.core.parser import DicomParser
+        from dicom_fuzzer.core.dicom.parser import DicomParser
 
         parser = DicomParser(sample_dicom_file)
         validator = DicomValidator()

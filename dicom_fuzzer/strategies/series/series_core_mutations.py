@@ -21,7 +21,8 @@ from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
 
 if TYPE_CHECKING:
-    from dicom_fuzzer.core.dicom_series import DicomSeries
+    from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+
     from .series_mutator import SeriesMutationRecord
 
 

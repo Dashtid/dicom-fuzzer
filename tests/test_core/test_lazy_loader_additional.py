@@ -12,7 +12,7 @@ import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import generate_uid
 
-from dicom_fuzzer.core.lazy_loader import (
+from dicom_fuzzer.core.dicom.lazy_loader import (
     LazyDicomLoader,
     create_deferred_loader,
     create_metadata_loader,

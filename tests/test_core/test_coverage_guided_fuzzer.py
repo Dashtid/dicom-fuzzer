@@ -13,13 +13,19 @@ import pytest
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dicom_fuzzer.core.corpus_manager import CorpusManager, Seed, SeedPriority
-from dicom_fuzzer.core.coverage_guided_fuzzer import CoverageGuidedFuzzer, FuzzingConfig
-from dicom_fuzzer.core.coverage_guided_mutator import (
+from dicom_fuzzer.core.coverage.corpus_manager import CorpusManager, Seed, SeedPriority
+from dicom_fuzzer.core.coverage.coverage_instrumentation import (
+    CoverageInfo,
+    CoverageTracker,
+)
+from dicom_fuzzer.core.engine.coverage_guided_fuzzer import (
+    CoverageGuidedFuzzer,
+    FuzzingConfig,
+)
+from dicom_fuzzer.core.engine.coverage_guided_mutator import (
     CoverageGuidedMutator,
     MutationType,
 )
-from dicom_fuzzer.core.coverage_instrumentation import CoverageInfo, CoverageTracker
 
 
 class TestCoverageInstrumentation:
@@ -430,7 +436,7 @@ class TestIntegration:
             )
 
             # Configure coverage tracking
-            from dicom_fuzzer.core.coverage_instrumentation import (
+            from dicom_fuzzer.core.coverage.coverage_instrumentation import (
                 configure_global_tracker,
             )
 
@@ -819,7 +825,9 @@ class TestHistoricalCorpusManager:
             fuzzer = CoverageGuidedFuzzer(config)
 
             # Verify HistoricalCorpusManager was initialized
-            from dicom_fuzzer.core.corpus_manager import HistoricalCorpusManager
+            from dicom_fuzzer.core.coverage.corpus_manager import (
+                HistoricalCorpusManager,
+            )
 
             assert isinstance(fuzzer.corpus_manager, HistoricalCorpusManager)
 
@@ -857,7 +865,9 @@ class TestConfigFileLoading:
         """Test loading fuzzer from config file (lines 569-573)."""
         import json
 
-        from dicom_fuzzer.core.coverage_guided_fuzzer import create_fuzzer_from_config
+        from dicom_fuzzer.core.engine.coverage_guided_fuzzer import (
+            create_fuzzer_from_config,
+        )
 
         with tempfile.TemporaryDirectory() as tmpdir:
             config_file = Path(tmpdir) / "config.json"

@@ -104,7 +104,9 @@ class TestCalibrationFuzzerIntegration:
         """Test pixel spacing fuzzing workflow."""
         import pydicom
 
-        from dicom_fuzzer.strategies.calibration_fuzzer import CalibrationFuzzer
+        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+            CalibrationFuzzer,
+        )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
         original_spacing = list(ds.PixelSpacing)
@@ -124,7 +126,9 @@ class TestCalibrationFuzzerIntegration:
         """Test Hounsfield unit rescale fuzzing workflow."""
         import pydicom
 
-        from dicom_fuzzer.strategies.calibration_fuzzer import CalibrationFuzzer
+        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+            CalibrationFuzzer,
+        )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
 
@@ -142,7 +146,9 @@ class TestCalibrationFuzzerIntegration:
         """Test window/level parameter fuzzing workflow."""
         import pydicom
 
-        from dicom_fuzzer.strategies.calibration_fuzzer import CalibrationFuzzer
+        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+            CalibrationFuzzer,
+        )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
 
@@ -160,7 +166,9 @@ class TestCalibrationFuzzerIntegration:
         """Test slice thickness fuzzing workflow."""
         import pydicom
 
-        from dicom_fuzzer.strategies.calibration_fuzzer import CalibrationFuzzer
+        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+            CalibrationFuzzer,
+        )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
 
@@ -177,7 +185,9 @@ class TestCalibrationFuzzerIntegration:
         """Test applying multiple calibration attacks to same file."""
         import pydicom
 
-        from dicom_fuzzer.strategies.calibration_fuzzer import CalibrationFuzzer
+        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+            CalibrationFuzzer,
+        )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
 
@@ -217,7 +227,9 @@ class TestCalibrationAttackTypes:
         """Test various pixel spacing attack types."""
         import pydicom
 
-        from dicom_fuzzer.strategies.calibration_fuzzer import CalibrationFuzzer
+        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+            CalibrationFuzzer,
+        )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
         fuzzer = CalibrationFuzzer(severity="aggressive")
@@ -237,7 +249,9 @@ class TestCalibrationAttackTypes:
         """Test various Hounsfield rescale attack types."""
         import pydicom
 
-        from dicom_fuzzer.strategies.calibration_fuzzer import CalibrationFuzzer
+        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+            CalibrationFuzzer,
+        )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
         fuzzer = CalibrationFuzzer(severity="extreme")
@@ -255,7 +269,9 @@ class TestCalibrationMutationRecords:
         """Test mutation record serialization to dict."""
         import pydicom
 
-        from dicom_fuzzer.strategies.calibration_fuzzer import CalibrationFuzzer
+        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+            CalibrationFuzzer,
+        )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
         fuzzer = CalibrationFuzzer(severity="moderate")
@@ -276,7 +292,9 @@ class TestCalibrationMutationRecords:
 
         import pydicom
 
-        from dicom_fuzzer.strategies.calibration_fuzzer import CalibrationFuzzer
+        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+            CalibrationFuzzer,
+        )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
         fuzzer = CalibrationFuzzer(severity="moderate")
@@ -299,7 +317,9 @@ class TestCalibrationSeverityLevels:
         """Test all severity levels are accepted."""
         import pydicom
 
-        from dicom_fuzzer.strategies.calibration_fuzzer import CalibrationFuzzer
+        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+            CalibrationFuzzer,
+        )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
         fuzzer = CalibrationFuzzer(severity=severity)
@@ -309,7 +329,9 @@ class TestCalibrationSeverityLevels:
 
     def test_invalid_severity_rejected(self):
         """Test invalid severity raises error."""
-        from dicom_fuzzer.strategies.calibration_fuzzer import CalibrationFuzzer
+        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+            CalibrationFuzzer,
+        )
 
         with pytest.raises(ValueError):
             CalibrationFuzzer(severity="invalid")
@@ -318,7 +340,9 @@ class TestCalibrationSeverityLevels:
         """Test that seed parameter enables reproducible mutations."""
         import pydicom
 
-        from dicom_fuzzer.strategies.calibration_fuzzer import CalibrationFuzzer
+        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+            CalibrationFuzzer,
+        )
 
         ds1 = pydicom.dcmread(str(ct_dicom_file))
         ds2 = pydicom.dcmread(str(ct_dicom_file))

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from dicom_fuzzer.core.fuzzing_session import FuzzingSession
+from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
 
 
 class TestFuzzingSessionEdgeCases:

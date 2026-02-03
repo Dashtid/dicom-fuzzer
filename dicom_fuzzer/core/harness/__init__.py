@@ -22,6 +22,7 @@ from dicom_fuzzer.core.harness.monitoring import (
     monitor_process,
     run_observation_phase,
 )
+from dicom_fuzzer.core.harness.target_runner import ExecutionStatus, TargetRunner
 from dicom_fuzzer.core.harness.types import (
     DEFAULT_OBSERVATION_PHASES,
     CrashArtifact,
@@ -37,6 +38,9 @@ from dicom_fuzzer.core.harness.types import (
 __all__ = [
     # Main class
     "TargetHarness",
+    # Target runner
+    "ExecutionStatus",
+    "TargetRunner",
     # Types
     "TestStatus",
     "TargetConfig",

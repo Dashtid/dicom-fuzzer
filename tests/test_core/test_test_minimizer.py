@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from dicom_fuzzer.core.test_minimizer import (
+from dicom_fuzzer.core.mutation.test_minimizer import (
     MinimizationStrategy,
     TestMinimizer,
 )
@@ -257,7 +257,7 @@ class TestMinimizationResult:
 
     def test_result_string_representation(self, tmp_path):
         """Test string representation of successful result."""
-        from dicom_fuzzer.core.test_minimizer import MinimizationResult
+        from dicom_fuzzer.core.mutation.test_minimizer import MinimizationResult
 
         result = MinimizationResult(
             original_size=1000,
@@ -278,7 +278,7 @@ class TestMinimizationResult:
 
     def test_result_string_failure(self):
         """Test string representation of failed result."""
-        from dicom_fuzzer.core.test_minimizer import MinimizationResult
+        from dicom_fuzzer.core.mutation.test_minimizer import MinimizationResult
 
         result = MinimizationResult(
             original_size=1000,

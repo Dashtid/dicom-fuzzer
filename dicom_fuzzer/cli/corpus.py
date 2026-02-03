@@ -7,7 +7,7 @@ Corpus management utilities including:
 - Study-level crash minimization
 
 NOTE: This CLI module provides basic corpus utilities.
-For advanced minimization, import dicom_fuzzer.core.corpus_minimizer directly.
+For advanced minimization, import dicom_fuzzer.core.coverage.corpus_minimizer directly.
 """
 
 from __future__ import annotations
@@ -48,8 +48,8 @@ Examples:
       --count 50 --strategy all --severity aggressive
 
 For advanced minimization, use the Python API:
-  from dicom_fuzzer.core.corpus_minimizer import CorpusMinimizer
-  from dicom_fuzzer.core.study_minimizer import StudyMinimizer
+  from dicom_fuzzer.core.coverage.corpus_minimizer import CorpusMinimizer
+  from dicom_fuzzer.core.series.study_minimizer import StudyMinimizer
         """,
     )
 
@@ -390,12 +390,12 @@ def _validate_minimize_study_args(
 
 def run_minimize_study(args: argparse.Namespace) -> int:
     """Minimize a crashing 3D study to find trigger slice(s)."""
-    from dicom_fuzzer.core.study_minimizer import (
+    from dicom_fuzzer.core.harness.target_runner import TargetRunner
+    from dicom_fuzzer.core.series.study_minimizer import (
         MinimizationConfig,
         StudyMinimizer,
         create_crash_test_from_runner,
     )
-    from dicom_fuzzer.core.target_runner import TargetRunner
 
     paths = _validate_minimize_study_args(args)
     if paths is None:
@@ -522,8 +522,8 @@ def _generate_single_study(
 
 def run_generate_study(args: argparse.Namespace) -> int:
     """Generate mutated study corpus from a source study."""
-    from dicom_fuzzer.core.study_corpus import StudyCorpusManager
-    from dicom_fuzzer.strategies.study_mutator import (
+    from dicom_fuzzer.core.series.study_corpus import StudyCorpusManager
+    from dicom_fuzzer.strategies.series.study_mutator import (
         StudyMutationStrategy,
         StudyMutator,
     )

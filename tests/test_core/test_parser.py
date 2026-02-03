@@ -16,8 +16,8 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from pydicom.dataset import Dataset
 
+from dicom_fuzzer.core.dicom.parser import DicomParser
 from dicom_fuzzer.core.exceptions import ParsingError, SecurityViolationError
-from dicom_fuzzer.core.parser import DicomParser
 
 
 class TestDicomParserInit:
@@ -865,7 +865,8 @@ class TestCoverageMissingLines:
         # Mock getattr within the parser module scope instead of builtins
         # This is safer and doesn't leave global state pollution
         with patch(
-            "dicom_fuzzer.core.parser.getattr", side_effect=RuntimeError("Mock error")
+            "dicom_fuzzer.core.dicom.parser.getattr",
+            side_effect=RuntimeError("Mock error"),
         ):
             result = parser.get_transfer_syntax()
             assert result is None  # Line 374 (exception caught, returns None)

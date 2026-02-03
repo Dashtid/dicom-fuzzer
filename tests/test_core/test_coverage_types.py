@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from dicom_fuzzer.core.constants import MAP_SIZE, CoverageType
-from dicom_fuzzer.core.coverage_types import (
+from dicom_fuzzer.core.coverage.coverage_types import (
     CoverageInfo,
     CoverageInsight,
     CoverageMap,
@@ -853,7 +853,7 @@ class TestCoverageTypesBackwardCompatibility:
 
     def test_import_from_coverage_instrumentation(self) -> None:
         """Test CoverageInfo import from coverage_instrumentation."""
-        from dicom_fuzzer.core.coverage_instrumentation import (
+        from dicom_fuzzer.core.coverage.coverage_instrumentation import (
             CoverageInfo as CoverageInfoInstr,
         )
 
@@ -861,7 +861,7 @@ class TestCoverageTypesBackwardCompatibility:
 
     def test_import_from_coverage_tracker(self) -> None:
         """Test CoverageSnapshot import from coverage_tracker."""
-        from dicom_fuzzer.core.coverage_tracker import (
+        from dicom_fuzzer.core.coverage.coverage_tracker import (
             CoverageSnapshot as CoverageSnapshotTracker,
         )
 
@@ -869,7 +869,7 @@ class TestCoverageTypesBackwardCompatibility:
 
     def test_import_from_corpus_minimizer(self) -> None:
         """Test imports from corpus_minimizer."""
-        from dicom_fuzzer.core.corpus_minimizer import (
+        from dicom_fuzzer.core.coverage.corpus_minimizer import (
             CoverageInfo as CoverageInfoMinimizer,
         )
 
@@ -878,7 +878,7 @@ class TestCoverageTypesBackwardCompatibility:
 
     def test_import_from_persistent_fuzzer(self) -> None:
         """Test CoverageMap import from persistent_fuzzer."""
-        from dicom_fuzzer.core.persistent_fuzzer import (
+        from dicom_fuzzer.core.engine.persistent_fuzzer import (
             CoverageMap as CoverageMapPersistent,
         )
 

@@ -12,8 +12,8 @@ Tests the SeriesValidator class including:
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from dicom_fuzzer.core.dicom_series import DicomSeries
-from dicom_fuzzer.core.series_validator import (
+from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.core.series.series_validator import (
     SeriesValidator,
     ValidationIssue,
     ValidationReport,
@@ -174,7 +174,7 @@ class TestValidateCompleteness:
         assert len(critical_issues) > 0
         assert any("no slices" in issue.message.lower() for issue in critical_issues)
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_missing_instance_numbers(self, mock_dcmread):
         """Test detection of missing InstanceNumber."""
         # Mock datasets without InstanceNumber
@@ -194,7 +194,7 @@ class TestValidateCompleteness:
         warnings = report.get_issues_by_severity(ValidationSeverity.WARNING)
         assert any("missing InstanceNumber" in issue.message for issue in warnings)
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_gaps_in_instance_sequence(self, mock_dcmread):
         """Test detection of gaps in InstanceNumber sequence."""
         # Mock datasets with gaps (1, 2, 5)
@@ -225,7 +225,7 @@ class TestValidateCompleteness:
             for issue in errors
         )
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_large_series_warning(self, mock_dcmread):
         """Test warning for unusually large series."""
         # Mock dataset
@@ -254,7 +254,7 @@ class TestValidateCompleteness:
 class TestValidateConsistency:
     """Test consistency validation."""
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_consistent_series_no_errors(self, mock_dcmread):
         """Test validation of consistent series."""
         # Mock consistent datasets
@@ -292,7 +292,7 @@ class TestValidateConsistency:
 class TestValidateGeometry:
     """Test geometry validation."""
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_uniform_spacing_no_warning(self, mock_dcmread):
         """Test uniform spacing doesn't trigger warnings."""
         # Mock uniform 5mm spacing
@@ -324,7 +324,7 @@ class TestValidateGeometry:
         # Should not have non-uniform spacing warning
         assert not any("Non-uniform" in issue.message for issue in geometry_issues)
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_overlapping_slices_error(self, mock_dcmread):
         """Test detection of overlapping slices."""
         # Mock overlapping positions
@@ -356,7 +356,7 @@ class TestValidateGeometry:
             for issue in errors
         )
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_extreme_spacing_warning(self, mock_dcmread):
         """Test warning for extreme slice spacing."""
         # Mock extreme 60mm spacing
@@ -395,7 +395,7 @@ class TestValidateGeometry:
 class TestValidateMetadata:
     """Test metadata validation."""
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_missing_required_tags(self, mock_dcmread):
         """Test detection of missing required tags."""
         # Mock dataset without required tags
@@ -420,7 +420,7 @@ class TestValidateMetadata:
 class TestValidateSecurityConcerns:
     """Test security concern detection."""
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_extreme_dimensions_warning(self, mock_dcmread):
         """Test warning for extreme image dimensions."""
         # Mock dataset with extreme dimensions
@@ -446,7 +446,7 @@ class TestValidateSecurityConcerns:
         security_warnings = [w for w in warnings if w.category == "security"]
         assert any("large" in issue.message.lower() for issue in security_warnings)
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_memory_exhaustion_warning(self, mock_dcmread):
         """Test warning for potential memory exhaustion."""
         # Mock very large volume
@@ -479,7 +479,7 @@ class TestValidateSecurityConcerns:
 class TestValidateSeriesIntegration:
     """Integration tests for full series validation."""
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_perfect_series_validation(self, mock_dcmread):
         """Test validation of a perfect series."""
         from unittest.mock import MagicMock
@@ -535,7 +535,7 @@ class TestValidateSeriesIntegration:
 class TestValidateGeometryEdgeCases:
     """Test edge cases in geometry validation for 100% coverage."""
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_insufficient_position_data_warning(self, mock_dcmread):
         """Test warning when series has slices but get_slice_positions returns <2 positions.
 
@@ -580,7 +580,7 @@ class TestValidateGeometryEdgeCases:
                 f"Expected 'Insufficient position data' warning, got: {[i.message for i in geometry_warnings]}"
             )
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_non_uniform_spacing_warning(self, mock_dcmread):
         """Test warning for non-uniform slice spacing (coefficient of variation > 0.01).
 
@@ -622,7 +622,7 @@ class TestValidateGeometryEdgeCases:
             f"Expected 'Non-uniform' spacing warning, got: {[i.message for i in geometry_warnings]}"
         )
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_large_spacing_warning_over_50mm(self, mock_dcmread):
         """Test warning for unusually large spacing (>50mm).
 
@@ -665,7 +665,7 @@ class TestValidateGeometryEdgeCases:
             f"Expected 'large spacing' warning, got: {[i.message for i in geometry_warnings]}"
         )
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_empty_positions_list(self, mock_dcmread):
         """Test when get_slice_positions returns empty list.
 
@@ -701,7 +701,7 @@ class TestValidateGeometryEdgeCases:
                 f"Expected exactly 1 'Insufficient position data' warning, got {len(geometry_warnings)}"
             )
 
-    @patch("dicom_fuzzer.core.series_validator.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_validator.pydicom.dcmread")
     def test_single_position_insufficient_data(self, mock_dcmread):
         """Test when series has multiple slices but only one valid position.
 

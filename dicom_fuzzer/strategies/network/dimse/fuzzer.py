@@ -24,7 +24,9 @@ from __future__ import annotations
 import logging
 from collections.abc import Generator
 
-from dicom_fuzzer.core.dataset_mutator import DatasetMutator
+from dicom_fuzzer.core.mutation.dataset_mutator import DatasetMutator
+from dicom_fuzzer.core.types import DIMSECommand
+
 from .types import (
     DICOMElement,
     DIMSEFuzzingConfig,
@@ -33,7 +35,6 @@ from .types import (
     SOPClass,
     UIDGenerator,
 )
-from dicom_fuzzer.core.types import DIMSECommand
 
 # Backward compatibility aliases
 FuzzingConfig = DIMSEFuzzingConfig

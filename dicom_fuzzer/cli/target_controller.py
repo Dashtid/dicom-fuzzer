@@ -14,10 +14,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from dicom_fuzzer.cli.gui_runner import GUITargetRunner
-from dicom_fuzzer.core.target_runner import TargetRunner
+from dicom_fuzzer.core.harness.target_runner import TargetRunner
 
 if TYPE_CHECKING:
-    from dicom_fuzzer.core.resource_manager import ResourceLimits
+    from dicom_fuzzer.core.session.resource_manager import ResourceLimits
 
 logger = logging.getLogger(__name__)
 

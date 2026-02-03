@@ -15,8 +15,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from dicom_fuzzer.core.dicom_series import DicomSeries
-from dicom_fuzzer.core.series_detector import SeriesDetector
+from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.core.series.series_detector import SeriesDetector
 
 
 class TestSeriesDetectorInitialization:
@@ -31,7 +31,7 @@ class TestSeriesDetectorInitialization:
 class TestDetectSeries:
     """Test detect_series method."""
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_detect_single_series(self, mock_dcmread):
         """Test detecting a single series."""
         # Mock DICOM files with same SeriesInstanceUID
@@ -58,7 +58,7 @@ class TestDetectSeries:
         assert series_list[0].modality == "CT"
         assert series_list[0].slice_count == 3
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_detect_multiple_series(self, mock_dcmread):
         """Test detecting multiple series in file list."""
 
@@ -107,7 +107,7 @@ class TestDetectSeries:
         series_list = detector.detect_series([], validate=False)
         assert series_list == []
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_detect_series_with_validation(self, mock_dcmread):
         """Test detection with validation enabled."""
         # Mock consistent series
@@ -129,7 +129,7 @@ class TestDetectSeries:
         series_list = detector.detect_series(files, validate=True)
         assert len(series_list) == 1
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_detect_series_missing_series_uid(self, mock_dcmread):
         """Test handling files without SeriesInstanceUID."""
         # Mock file without SeriesInstanceUID
@@ -152,8 +152,8 @@ class TestDetectSeriesInDirectory:
         with pytest.raises(FileNotFoundError, match="Directory not found"):
             detector.detect_series_in_directory(Path("/nonexistent/path"))
 
-    @patch("dicom_fuzzer.core.series_detector.SeriesDetector._find_dicom_files")
-    @patch("dicom_fuzzer.core.series_detector.SeriesDetector.detect_series")
+    @patch("dicom_fuzzer.core.series.series_detector.SeriesDetector._find_dicom_files")
+    @patch("dicom_fuzzer.core.series.series_detector.SeriesDetector.detect_series")
     def test_directory_scan_success(self, mock_detect, mock_find):
         """Test successful directory scanning."""
         # Mock finding files
@@ -175,7 +175,7 @@ class TestDetectSeriesInDirectory:
         mock_find.assert_called_once_with(Path("/tmp"), recursive=True)
         mock_detect.assert_called_once()
 
-    @patch("dicom_fuzzer.core.series_detector.SeriesDetector._find_dicom_files")
+    @patch("dicom_fuzzer.core.series.series_detector.SeriesDetector._find_dicom_files")
     def test_directory_scan_no_files_found(self, mock_find):
         """Test directory scan when no DICOM files found."""
         mock_find.return_value = []
@@ -232,7 +232,7 @@ class TestFindDicomFiles:
 class TestIsDicomFile:
     """Test _is_dicom_file method."""
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_valid_dicom_file(self, mock_dcmread):
         """Test detection of valid DICOM file."""
         mock_dcmread.return_value = Mock()
@@ -242,7 +242,7 @@ class TestIsDicomFile:
 
         assert result is True
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_invalid_dicom_file(self, mock_dcmread):
         """Test detection of invalid file."""
         mock_dcmread.side_effect = Exception("Not a DICOM file")
@@ -256,7 +256,7 @@ class TestIsDicomFile:
 class TestGroupBySeriesUid:
     """Test _group_by_series_uid method."""
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_grouping_single_series(self, mock_dcmread):
         """Test grouping files from single series."""
         # Mock files with same SeriesInstanceUID
@@ -281,7 +281,7 @@ class TestGroupBySeriesUid:
         assert groups["1.2.3.4.5"]["study_uid"] == "1.2.3.4"
         assert groups["1.2.3.4.5"]["modality"] == "CT"
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_grouping_multiple_series(self, mock_dcmread):
         """Test grouping files from multiple series."""
 
@@ -321,7 +321,7 @@ class TestGroupBySeriesUid:
 class TestSortSlicesByPosition:
     """Test _sort_slices_by_position method."""
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_sort_by_image_position(self, mock_dcmread):
         """Test sorting slices by ImagePositionPatient."""
         # Mock slices with different z-positions (out of order)
@@ -349,7 +349,7 @@ class TestSortSlicesByPosition:
         # File with z=10.0 should be first (most superior)
         assert sorted_files[0] == Path("/tmp/slice1.dcm")
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_sort_fallback_to_instance_number(self, mock_dcmread):
         """Test sorting falls back to InstanceNumber when positions are same."""
         # Mock slices with same z-position but different instance numbers
@@ -447,7 +447,7 @@ class TestEdgeCasesAndExceptionPaths:
     """Tests for edge cases and exception handling paths."""
 
     @patch(
-        "dicom_fuzzer.core.series_detector.SeriesDetector.detect_series_in_directory"
+        "dicom_fuzzer.core.series.series_detector.SeriesDetector.detect_series_in_directory"
     )
     def test_detect_series_with_path_object(self, mock_detect_dir):
         """Test detect_series when called with Path object (directory)."""
@@ -462,7 +462,7 @@ class TestEdgeCasesAndExceptionPaths:
         )
         assert len(series_list) == 1
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_detect_series_create_series_exception(self, mock_dcmread):
         """Test handling exception when creating series."""
         # Mock successful file reading but series creation fails
@@ -486,7 +486,7 @@ class TestEdgeCasesAndExceptionPaths:
             # Should return empty list since series creation failed
             assert series_list == []
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_group_by_series_uid_file_read_exception(self, mock_dcmread):
         """Test _group_by_series_uid handles file read exceptions."""
         # Mock one file succeeds, one fails
@@ -510,7 +510,7 @@ class TestEdgeCasesAndExceptionPaths:
         assert "1.2.3.4.5" in groups
         assert len(groups["1.2.3.4.5"]["files"]) == 1
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_group_by_series_uid_missing_optional_fields(self, mock_dcmread):
         """Test _group_by_series_uid handles missing StudyInstanceUID and Modality."""
         # Mock file with SeriesInstanceUID but no optional fields
@@ -535,7 +535,7 @@ class TestEdgeCasesAndExceptionPaths:
         assert groups["1.2.3.4.5"]["study_uid"] == "UNKNOWN"
         assert groups["1.2.3.4.5"]["modality"] == "UNKNOWN"
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_sort_slices_missing_image_position(self, mock_dcmread):
         """Test sorting when ImagePositionPatient is missing."""
         # Mock files without ImagePositionPatient
@@ -555,7 +555,7 @@ class TestEdgeCasesAndExceptionPaths:
         # Should still return files, sorted by instance number
         assert len(sorted_files) == 3
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_sort_slices_read_exception(self, mock_dcmread):
         """Test sorting handles exceptions when reading position."""
         # Mock: first file succeeds, others fail
@@ -579,7 +579,7 @@ class TestEdgeCasesAndExceptionPaths:
 
     @patch.object(Path, "rglob")
     @patch.object(Path, "is_file")
-    @patch("dicom_fuzzer.core.series_detector.SeriesDetector._is_dicom_file")
+    @patch("dicom_fuzzer.core.series.series_detector.SeriesDetector._is_dicom_file")
     def test_find_dicom_files_no_extension_recursive(
         self, mock_is_dicom, mock_is_file, mock_rglob
     ):
@@ -643,7 +643,7 @@ class TestEdgeCasesAndExceptionPaths:
 
         assert isinstance(found, list)
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_create_series_orientation_extraction_exception(self, mock_dcmread):
         """Test _create_series handles exception when extracting orientation."""
         # First call for sorting - normal
@@ -668,7 +668,7 @@ class TestEdgeCasesAndExceptionPaths:
         assert series is not None
         assert series.series_uid == "1.2.3.4.5"
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_create_series_missing_orientation(self, mock_dcmread):
         """Test _create_series when ImageOrientationPatient is missing."""
         ds = Mock()
@@ -698,7 +698,7 @@ class TestEdgeCasesAndExceptionPaths:
         # Should create series without orientation
         assert series is not None
 
-    @patch("dicom_fuzzer.core.series_detector.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.series.series_detector.pydicom.dcmread")
     def test_sort_slices_missing_instance_number(self, mock_dcmread):
         """Test sorting when InstanceNumber is missing."""
         ds = Mock(spec=["ImagePositionPatient"])

@@ -6,7 +6,7 @@ Tests generation of synthetic DICOM files with fabricated patient data.
 
 import pytest
 
-from dicom_fuzzer.core.synthetic import (
+from dicom_fuzzer.core.engine.synthetic import (
     FIRST_NAMES,
     LAST_NAMES,
     PHOTOMETRIC_INTERPRETATION,
@@ -571,7 +571,7 @@ class TestGenerateSampleFiles:
 
     def test_generate_sample_files_basic(self, tmp_path):
         """Test generate_sample_files function."""
-        from dicom_fuzzer.core.synthetic import generate_sample_files
+        from dicom_fuzzer.core.engine.synthetic import generate_sample_files
 
         files = generate_sample_files(output_dir=tmp_path, count=3)
 
@@ -583,7 +583,7 @@ class TestGenerateSampleFiles:
         """Test generate_sample_files with specific modalities."""
         import pydicom
 
-        from dicom_fuzzer.core.synthetic import generate_sample_files
+        from dicom_fuzzer.core.engine.synthetic import generate_sample_files
 
         files = generate_sample_files(
             output_dir=tmp_path, count=4, modalities=["US", "CR"]

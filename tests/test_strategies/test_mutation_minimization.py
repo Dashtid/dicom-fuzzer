@@ -8,11 +8,11 @@ from datetime import datetime
 
 import pytest
 
-from dicom_fuzzer.core.fuzzing_session import MutationRecord
-from dicom_fuzzer.core.mutation_minimization import (
+from dicom_fuzzer.core.mutation.mutation_minimization import (
     MinimizationResult,
     MutationMinimizer,
 )
+from dicom_fuzzer.core.session.fuzzing_session import MutationRecord
 
 
 class TestMutationMinimizer:

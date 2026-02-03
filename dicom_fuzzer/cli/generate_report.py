@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Using types.ModuleType | None for type safety
 from types import ModuleType
 
-from dicom_fuzzer.core.enhanced_reporter import EnhancedReportGenerator
+from dicom_fuzzer.core.reporting.enhanced_reporter import EnhancedReportGenerator
 
 _matplotlib: ModuleType | None
 try:

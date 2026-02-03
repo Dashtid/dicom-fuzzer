@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any
 
 from dicom_fuzzer.core.constants import DICOMState, StateTransitionType
-from dicom_fuzzer.core.coverage_types import (
+from dicom_fuzzer.core.coverage.coverage_types import (
     ProtocolStateTransition,
     StateCoverage,
     StateFingerprint,

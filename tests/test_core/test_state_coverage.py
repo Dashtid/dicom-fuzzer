@@ -331,10 +331,10 @@ class TestBackwardCompatibility:
 
     def test_imports_from_gui_monitor(self) -> None:
         """Verify types can be imported from gui_monitor."""
-        from dicom_fuzzer.core.gui_monitor import (
+        from dicom_fuzzer.core.engine.gui_monitor import (
             StateCoverageTracker as SCTracker,
         )
-        from dicom_fuzzer.core.gui_monitor import (
+        from dicom_fuzzer.core.engine.gui_monitor import (
             StateTransition as STrans,
         )
 

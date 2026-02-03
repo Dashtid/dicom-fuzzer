@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from dicom_fuzzer.core.process_monitor import (
+from dicom_fuzzer.core.harness.process_monitor import (
     HangReason,
     MonitorResult,
     ProcessMetrics,
@@ -193,7 +193,7 @@ class TestProcessMonitorBasic:
         mock_process = Mock(spec=subprocess.Popen)
         mock_process.wait.return_value = 0  # Exit code 0
 
-        with patch("dicom_fuzzer.core.process_monitor.PSUTIL_AVAILABLE", False):
+        with patch("dicom_fuzzer.core.harness.process_monitor.PSUTIL_AVAILABLE", False):
             result = monitor.monitor_process(mock_process)
 
         assert result.completed is True
@@ -211,7 +211,7 @@ class TestProcessMonitorBasic:
         )
         mock_process.terminate.return_value = None
 
-        with patch("dicom_fuzzer.core.process_monitor.PSUTIL_AVAILABLE", False):
+        with patch("dicom_fuzzer.core.harness.process_monitor.PSUTIL_AVAILABLE", False):
             result = monitor.monitor_process(mock_process)
 
         assert result.completed is False
@@ -245,8 +245,10 @@ class TestProcessMonitorEnhanced:
         mock_process.poll.side_effect = [None, 0]
 
         with (
-            patch("dicom_fuzzer.core.process_monitor.PSUTIL_AVAILABLE", True),
-            patch("dicom_fuzzer.core.process_monitor.psutil") as mock_psutil_module,
+            patch("dicom_fuzzer.core.harness.process_monitor.PSUTIL_AVAILABLE", True),
+            patch(
+                "dicom_fuzzer.core.harness.process_monitor.psutil"
+            ) as mock_psutil_module,
             patch("time.sleep"),
         ):
             mock_psutil_module.Process.return_value = mock_psutil_process
@@ -269,8 +271,10 @@ class TestProcessMonitorEnhanced:
         mock_process.poll.return_value = None  # Always running
 
         with (
-            patch("dicom_fuzzer.core.process_monitor.PSUTIL_AVAILABLE", True),
-            patch("dicom_fuzzer.core.process_monitor.psutil") as mock_psutil_module,
+            patch("dicom_fuzzer.core.harness.process_monitor.PSUTIL_AVAILABLE", True),
+            patch(
+                "dicom_fuzzer.core.harness.process_monitor.psutil"
+            ) as mock_psutil_module,
             patch("time.sleep"),
         ):
             mock_psutil_module.Process.return_value = mock_psutil_process
@@ -301,8 +305,10 @@ class TestProcessMonitorEnhanced:
         mock_psutil_process.cpu_percent.return_value = 0.0
 
         with (
-            patch("dicom_fuzzer.core.process_monitor.PSUTIL_AVAILABLE", True),
-            patch("dicom_fuzzer.core.process_monitor.psutil") as mock_psutil_module,
+            patch("dicom_fuzzer.core.harness.process_monitor.PSUTIL_AVAILABLE", True),
+            patch(
+                "dicom_fuzzer.core.harness.process_monitor.psutil"
+            ) as mock_psutil_module,
             patch("time.sleep"),
         ):
             mock_psutil_module.Process.return_value = mock_psutil_process
@@ -335,8 +341,10 @@ class TestProcessMonitorEnhanced:
         mock_psutil_process.memory_info.return_value = mock_memory_info
 
         with (
-            patch("dicom_fuzzer.core.process_monitor.PSUTIL_AVAILABLE", True),
-            patch("dicom_fuzzer.core.process_monitor.psutil") as mock_psutil_module,
+            patch("dicom_fuzzer.core.harness.process_monitor.PSUTIL_AVAILABLE", True),
+            patch(
+                "dicom_fuzzer.core.harness.process_monitor.psutil"
+            ) as mock_psutil_module,
             patch("time.sleep"),
         ):
             mock_psutil_module.Process.return_value = mock_psutil_process
@@ -359,8 +367,10 @@ class TestProcessMonitorEnhanced:
         mock_process.wait.return_value = 0
 
         with (
-            patch("dicom_fuzzer.core.process_monitor.PSUTIL_AVAILABLE", True),
-            patch("dicom_fuzzer.core.process_monitor.psutil") as mock_psutil_module,
+            patch("dicom_fuzzer.core.harness.process_monitor.PSUTIL_AVAILABLE", True),
+            patch(
+                "dicom_fuzzer.core.harness.process_monitor.psutil"
+            ) as mock_psutil_module,
         ):
             # Simulate process not found
             mock_psutil_module.NoSuchProcess = type("NoSuchProcess", (Exception,), {})
@@ -385,8 +395,10 @@ class TestProcessMonitorEnhanced:
         mock_process.wait.return_value = 0
 
         with (
-            patch("dicom_fuzzer.core.process_monitor.PSUTIL_AVAILABLE", True),
-            patch("dicom_fuzzer.core.process_monitor.psutil") as mock_psutil_module,
+            patch("dicom_fuzzer.core.harness.process_monitor.PSUTIL_AVAILABLE", True),
+            patch(
+                "dicom_fuzzer.core.harness.process_monitor.psutil"
+            ) as mock_psutil_module,
             patch("time.sleep"),
         ):
             mock_psutil_module.Process.return_value = mock_psutil_process
@@ -459,8 +471,10 @@ class TestProcessTermination:
         mock_ps_process.children.return_value = [mock_child1, mock_child2]
 
         with (
-            patch("dicom_fuzzer.core.process_monitor.PSUTIL_AVAILABLE", True),
-            patch("dicom_fuzzer.core.process_monitor.psutil") as mock_psutil_module,
+            patch("dicom_fuzzer.core.harness.process_monitor.PSUTIL_AVAILABLE", True),
+            patch(
+                "dicom_fuzzer.core.harness.process_monitor.psutil"
+            ) as mock_psutil_module,
         ):
             mock_psutil_module.NoSuchProcess = Exception
             mock_psutil_module.AccessDenied = Exception
@@ -481,8 +495,10 @@ class TestProcessTermination:
         mock_ps_process.children.return_value = [mock_child]
 
         with (
-            patch("dicom_fuzzer.core.process_monitor.PSUTIL_AVAILABLE", True),
-            patch("dicom_fuzzer.core.process_monitor.psutil") as mock_psutil_module,
+            patch("dicom_fuzzer.core.harness.process_monitor.PSUTIL_AVAILABLE", True),
+            patch(
+                "dicom_fuzzer.core.harness.process_monitor.psutil"
+            ) as mock_psutil_module,
         ):
             mock_psutil_module.NoSuchProcess = Exception
             mock_psutil_module.AccessDenied = Exception
@@ -499,7 +515,7 @@ class TestProcessTermination:
 
         mock_ps_process = MagicMock()
 
-        with patch("dicom_fuzzer.core.process_monitor.PSUTIL_AVAILABLE", False):
+        with patch("dicom_fuzzer.core.harness.process_monitor.PSUTIL_AVAILABLE", False):
             # Should return without error
             monitor._terminate_process_tree(mock_ps_process)
 
@@ -549,7 +565,7 @@ class TestIntegration:
         mock_process.pid = 1234
         mock_process.wait.return_value = 42  # Exit code 42
 
-        with patch("dicom_fuzzer.core.process_monitor.PSUTIL_AVAILABLE", False):
+        with patch("dicom_fuzzer.core.harness.process_monitor.PSUTIL_AVAILABLE", False):
             result = monitor.monitor_process(mock_process)
 
         assert result.completed is True

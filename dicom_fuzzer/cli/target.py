@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
         print("=" * 70 + "\n")
 
     try:
-        from dicom_fuzzer.core.target_calibrator import calibrate_target
+        from dicom_fuzzer.core.harness.target_calibrator import calibrate_target
 
         result = calibrate_target(
             target=target_path,

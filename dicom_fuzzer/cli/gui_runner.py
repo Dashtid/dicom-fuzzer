@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from dicom_fuzzer.core.target_runner import ExecutionStatus
+from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
 
 try:
     import psutil

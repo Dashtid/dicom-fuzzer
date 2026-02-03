@@ -10,7 +10,7 @@ Tests cover:
 
 import pytest
 
-from dicom_fuzzer.core.stability_tracker import (
+from dicom_fuzzer.core.coverage.stability_tracker import (
     InstabilityCause,
     StabilityMetrics,
     StabilityTracker,

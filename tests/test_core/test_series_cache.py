@@ -16,7 +16,7 @@ import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import generate_uid
 
-from dicom_fuzzer.core.series_cache import CacheEntry, SeriesCache
+from dicom_fuzzer.core.series.series_cache import CacheEntry, SeriesCache
 
 
 @pytest.fixture
@@ -475,7 +475,7 @@ class TestDiskCaching:
         """Test successful series loading from cache."""
         import pickle
 
-        from dicom_fuzzer.core.dicom_series import DicomSeries
+        from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
 
         cache_dir = tmp_path / "series_cache"
         cache_dir.mkdir()

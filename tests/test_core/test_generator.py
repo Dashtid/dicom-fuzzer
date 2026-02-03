@@ -18,7 +18,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from dicom_fuzzer.core.generator import DICOMGenerator
+from dicom_fuzzer.core.engine.generator import DICOMGenerator
 
 
 class TestDICOMGeneratorInit:
@@ -184,9 +184,9 @@ class TestFilenameGeneration:
 class TestFuzzerIntegration:
     """Test integration with fuzzing strategies."""
 
-    @patch("dicom_fuzzer.core.generator.MetadataFuzzer")
-    @patch("dicom_fuzzer.core.generator.HeaderFuzzer")
-    @patch("dicom_fuzzer.core.generator.PixelFuzzer")
+    @patch("dicom_fuzzer.core.engine.generator.MetadataFuzzer")
+    @patch("dicom_fuzzer.core.engine.generator.HeaderFuzzer")
+    @patch("dicom_fuzzer.core.engine.generator.PixelFuzzer")
     def test_fuzzers_instantiated(
         self,
         mock_pixel_fuzzer,
@@ -255,7 +255,7 @@ class TestFileSaving:
 
     def test_files_are_valid_dicom(self, sample_dicom_file, temp_dir):
         """Test that generated files are valid DICOM files."""
-        from dicom_fuzzer.core.parser import DicomParser
+        from dicom_fuzzer.core.dicom.parser import DicomParser
 
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
@@ -357,7 +357,7 @@ class TestGenerateFromScratch:
 
     def test_generate_creates_valid_dicom(self, temp_dir):
         """Test generate() creates a valid DICOM file (lines 76-130)."""
-        from dicom_fuzzer.core.parser import DicomParser
+        from dicom_fuzzer.core.dicom.parser import DicomParser
 
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
@@ -556,7 +556,7 @@ class TestIntegration:
         assert len({f.name for f in all_files}) == 8  # All unique
 
         # Verify all files are valid DICOM
-        from dicom_fuzzer.core.parser import DicomParser
+        from dicom_fuzzer.core.dicom.parser import DicomParser
 
         for file_path in all_files:
             parser = DicomParser(file_path)
@@ -609,7 +609,7 @@ class TestGeneratorErrorHandling:
 
     def test_generation_stats_record_failure(self):
         """Test GenerationStats.record_failure method (lines 33-34)."""
-        from dicom_fuzzer.core.generator import GenerationStats
+        from dicom_fuzzer.core.engine.generator import GenerationStats
 
         stats = GenerationStats()
 
@@ -700,7 +700,9 @@ class TestGeneratorErrorHandling:
         generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=False)
 
         # Mock a fuzzer that raises ValueError
-        with patch("dicom_fuzzer.core.generator.HeaderFuzzer") as mock_fuzzer_class:
+        with patch(
+            "dicom_fuzzer.core.engine.generator.HeaderFuzzer"
+        ) as mock_fuzzer_class:
             mock_fuzzer = Mock()
             mock_fuzzer.mutate_tags.side_effect = ValueError("Test error")
             mock_fuzzer_class.return_value = mock_fuzzer
@@ -760,7 +762,9 @@ class TestGeneratorErrorHandling:
         generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
 
         # Mock a fuzzer that always raises ValueError
-        with patch("dicom_fuzzer.core.generator.HeaderFuzzer") as mock_fuzzer_class:
+        with patch(
+            "dicom_fuzzer.core.engine.generator.HeaderFuzzer"
+        ) as mock_fuzzer_class:
             mock_fuzzer = Mock()
             mock_fuzzer.mutate_tags.side_effect = ValueError("Test error")
             mock_fuzzer_class.return_value = mock_fuzzer

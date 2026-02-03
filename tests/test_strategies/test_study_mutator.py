@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 import pydicom
 import pytest
 
-from dicom_fuzzer.core.dicom_series import DicomSeries
-from dicom_fuzzer.strategies.study_mutator import (
+from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.strategies.series.study_mutator import (
     DicomStudy,
     StudyMutationRecord,
     StudyMutationStrategy,

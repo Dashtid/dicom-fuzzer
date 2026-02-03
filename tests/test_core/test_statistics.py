@@ -2,7 +2,10 @@
 
 import pytest
 
-from dicom_fuzzer.core.statistics import MutationStatistics, StatisticsCollector
+from dicom_fuzzer.core.reporting.statistics import (
+    MutationStatistics,
+    StatisticsCollector,
+)
 
 
 class TestMutationStatistics:

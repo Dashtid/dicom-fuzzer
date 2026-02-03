@@ -6,7 +6,7 @@ arithmetic operations, interesting values, havoc mutations, and splicing.
 
 import random
 
-from dicom_fuzzer.core.byte_mutator import (
+from dicom_fuzzer.core.mutation.byte_mutator import (
     INTERESTING_8,
     INTERESTING_16,
     INTERESTING_32,

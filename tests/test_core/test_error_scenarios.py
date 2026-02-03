@@ -21,12 +21,12 @@ from unittest.mock import Mock, patch
 import pytest
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.config_validator import ConfigValidator
-from dicom_fuzzer.core.generator import DICOMGenerator
-from dicom_fuzzer.core.parser import DicomParser
-from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
-from dicom_fuzzer.core.target_runner import ExecutionStatus, TargetRunner
-from dicom_fuzzer.core.validator import DicomValidator
+from dicom_fuzzer.core.dicom.parser import DicomParser
+from dicom_fuzzer.core.dicom.validator import DicomValidator
+from dicom_fuzzer.core.engine.generator import DICOMGenerator
+from dicom_fuzzer.core.harness.target_runner import ExecutionStatus, TargetRunner
+from dicom_fuzzer.core.session.config_validator import ConfigValidator
+from dicom_fuzzer.core.session.resource_manager import ResourceLimits, ResourceManager
 
 
 class TestCorruptedFileHandling:
@@ -517,7 +517,9 @@ class TestGracefulDegradation:
 
     def test_missing_psutil(self):
         """Test operation when psutil unavailable."""
-        with patch("dicom_fuzzer.core.resource_manager.HAS_RESOURCE_MODULE", False):
+        with patch(
+            "dicom_fuzzer.core.session.resource_manager.HAS_RESOURCE_MODULE", False
+        ):
             manager = ResourceManager()
 
             # Should still work, just without resource monitoring
@@ -527,7 +529,7 @@ class TestGracefulDegradation:
     def test_missing_tqdm(self):
         """Test operation when tqdm unavailable."""
         # Generator should work without progress bar
-        from dicom_fuzzer.core.generator import DICOMGenerator
+        from dicom_fuzzer.core.engine.generator import DICOMGenerator
 
         # Even if tqdm missing, should not crash
         assert DICOMGenerator is not None
@@ -538,7 +540,7 @@ class TestInterruptionHandling:
 
     def test_keyboard_interrupt_during_generation(self, sample_dicom_file, temp_dir):
         """Test handling Ctrl+C during generation."""
-        from dicom_fuzzer.core.error_recovery import SignalHandler
+        from dicom_fuzzer.core.session.error_recovery import SignalHandler
 
         output_dir = temp_dir / "interrupted"
         DICOMGenerator(output_dir=str(output_dir))
@@ -549,7 +551,7 @@ class TestInterruptionHandling:
         try:
             # Simulate interrupt after a few files
             with patch(
-                "dicom_fuzzer.core.generator.DICOMGenerator.generate_batch"
+                "dicom_fuzzer.core.engine.generator.DICOMGenerator.generate_batch"
             ) as mock_gen:
 
                 def side_effect(*args, **kwargs):

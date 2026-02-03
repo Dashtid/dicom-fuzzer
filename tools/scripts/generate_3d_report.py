@@ -43,12 +43,12 @@ from dicom_fuzzer.analytics.campaign_analytics import (
     PerformanceMetrics,
 )
 from dicom_fuzzer.analytics.visualization import FuzzingVisualizer
-from dicom_fuzzer.core.series_reporter import (
+from dicom_fuzzer.core.reporting.series_reporter import (
     Series3DReport,
     Series3DReportGenerator,
     SeriesMutationSummary,
 )
-from dicom_fuzzer.core.statistics import MutationStatistics
+from dicom_fuzzer.core.reporting.statistics import MutationStatistics
 from dicom_fuzzer.strategies.series.series_mutator import SeriesMutationStrategy
 from dicom_fuzzer.utils.identifiers import generate_timestamp_id
 from dicom_fuzzer.utils.logger import get_logger

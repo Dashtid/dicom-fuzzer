@@ -3,7 +3,7 @@
 Study-level fuzzing targeting cross-series relationships and study-wide consistency.
 
 NOTE: This CLI module provides a simplified interface to the core study mutator.
-For advanced usage, import dicom_fuzzer.strategies.study_mutator directly.
+For advanced usage, import dicom_fuzzer.strategies.series.study_mutator directly.
 """
 
 import argparse
@@ -34,7 +34,7 @@ Examples:
   dicom-fuzzer study --study ./study --strategy patient-consistency --severity aggressive
 
 For advanced usage, use the Python API:
-  from dicom_fuzzer.strategies.study_mutator import StudyMutator, StudyMutationStrategy
+  from dicom_fuzzer.strategies.series.study_mutator import StudyMutator, StudyMutationStrategy
         """,
     )
 
@@ -197,7 +197,7 @@ def run_study_mutation(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        from dicom_fuzzer.strategies.study_mutator import (
+        from dicom_fuzzer.strategies.series.study_mutator import (
             StudyMutationStrategy,
             StudyMutator,
         )
@@ -266,7 +266,7 @@ def run_study_mutation(args: argparse.Namespace) -> int:
 
     except ImportError as e:
         print(f"[-] Module not available: {e}")
-        print("[i] Ensure dicom_fuzzer.strategies.study_mutator is installed")
+        print("[i] Ensure dicom_fuzzer.strategies.series.study_mutator is installed")
         return 1
     except Exception as e:
         print(f"[-] Failed: {e}")

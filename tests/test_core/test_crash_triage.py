@@ -4,13 +4,13 @@ Tests for automated crash triaging and prioritization.
 
 import pytest
 
-from dicom_fuzzer.core.crash_triage import (
+from dicom_fuzzer.core.crash.crash_triage import (
     CrashTriageEngine,
     ExploitabilityRating,
     Severity,
     triage_session_crashes,
 )
-from dicom_fuzzer.core.fuzzing_session import CrashRecord
+from dicom_fuzzer.core.session.fuzzing_session import CrashRecord
 
 
 @pytest.fixture

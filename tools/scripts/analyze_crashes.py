@@ -25,8 +25,8 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dicom_fuzzer.core.crash_triage import CrashTriageEngine
-from dicom_fuzzer.core.fuzzing_session import CrashRecord
+from dicom_fuzzer.core.crash.crash_triage import CrashTriageEngine
+from dicom_fuzzer.core.session.fuzzing_session import CrashRecord
 
 # Configure logging
 logging.basicConfig(

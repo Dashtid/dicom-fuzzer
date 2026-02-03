@@ -18,8 +18,10 @@ Fuzzers:
 - PrivateTagFuzzer: Vendor-specific tag violations
 """
 
+from .calibration_fuzzer import CalibrationFuzzer
 from .compressed_pixel_fuzzer import CompressedPixelFuzzer
 from .conformance_fuzzer import ConformanceFuzzer
+from .dictionary_fuzzer import DictionaryFuzzer
 from .encoding_fuzzer import EncodingFuzzer
 from .header_fuzzer import HeaderFuzzer
 from .metadata_fuzzer import MetadataFuzzer
@@ -29,12 +31,11 @@ from .reference_fuzzer import ReferenceFuzzer
 from .sequence_fuzzer import SequenceFuzzer
 from .structure_fuzzer import StructureFuzzer
 
-# Note: network subpackage is available but not auto-imported to avoid circular deps
-# Use: from dicom_fuzzer.strategies.network import DICOMNetworkFuzzer
-
 __all__ = [
+    "CalibrationFuzzer",
     "CompressedPixelFuzzer",
     "ConformanceFuzzer",
+    "DictionaryFuzzer",
     "EncodingFuzzer",
     "HeaderFuzzer",
     "MetadataFuzzer",

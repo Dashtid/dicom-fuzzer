@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.core.mutation_minimization import (
+from dicom_fuzzer.core.mutation.mutation_minimization import (
     CrashMinimizationOrchestrator,
     MinimizationResult,
     MutationMinimizer,

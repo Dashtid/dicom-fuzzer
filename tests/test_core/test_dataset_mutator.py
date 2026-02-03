@@ -11,7 +11,7 @@ Tests DatasetMutator class including:
 - Private element generation
 """
 
-from dicom_fuzzer.core.dataset_mutator import DatasetMutator
+from dicom_fuzzer.core.mutation.dataset_mutator import DatasetMutator
 from dicom_fuzzer.strategies.network.dimse.types import DICOMElement, DIMSEFuzzingConfig
 
 

@@ -14,7 +14,7 @@ from pydicom.dataelem import DataElement
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.types import MutationSeverity
-from dicom_fuzzer.strategies.dictionary_fuzzer import DictionaryFuzzer
+from dicom_fuzzer.strategies.robustness.dictionary_fuzzer import DictionaryFuzzer
 
 
 class TestConvertToIntVR:

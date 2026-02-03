@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from dicom_fuzzer.core.html_templates import escape_html
+from dicom_fuzzer.core.reporting.html_templates import escape_html
 
 
 class HTMLSectionFormatter:
