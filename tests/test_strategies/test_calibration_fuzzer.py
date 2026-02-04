@@ -5,7 +5,7 @@ import math
 import pydicom
 import pytest
 
-from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+from dicom_fuzzer.attacks.format.calibration_fuzzer import (
     CalibrationFuzzer,
     CalibrationMutationRecord,
 )

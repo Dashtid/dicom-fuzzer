@@ -11,7 +11,7 @@ import pytest
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
-from dicom_fuzzer.strategies.series.series_mutator import (
+from dicom_fuzzer.attacks.series.series_mutator import (
     Series3DMutator,
     SeriesMutationRecord,
     SeriesMutationStrategy,
@@ -85,7 +85,7 @@ class TestSeries3DMutatorInitialization:
 class TestMutateSeries:
     """Test mutate_series method."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_mutate_series_basic(self, mock_dcmread, sample_series, mock_datasets):
         """Test basic series mutation."""
         mock_dcmread.side_effect = mock_datasets
@@ -99,7 +99,7 @@ class TestMutateSeries:
         assert len(records) >= 1  # At least some mutations applied
         assert all(isinstance(r, SeriesMutationRecord) for r in records)
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_mutate_series_random_strategy(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -124,7 +124,7 @@ class TestMutateSeries:
         with pytest.raises(ValueError, match="Cannot mutate empty series"):
             mutator.mutate_series(empty_series)
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_mutate_invalid_strategy_raises_error(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -135,7 +135,7 @@ class TestMutateSeries:
         with pytest.raises(ValueError, match="Invalid strategy"):
             mutator.mutate_series(sample_series, strategy="invalid_strategy")
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_mutate_with_enum_strategy(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -157,7 +157,7 @@ class TestMutateSeries:
 class TestMetadataCorruption:
     """Test metadata_corruption mutation strategy."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_metadata_corruption_invalid_series_uid(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -172,7 +172,7 @@ class TestMetadataCorruption:
         # Check that some records are metadata corruption
         assert any(r.strategy == "metadata_corruption" for r in records)
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_metadata_corruption_missing_modality(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -196,7 +196,7 @@ class TestMetadataCorruption:
 class TestSlicePositionAttack:
     """Test slice_position_attack mutation strategy."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_slice_position_attack_randomize_z(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -212,7 +212,7 @@ class TestSlicePositionAttack:
         position_records = [r for r in records if r.tag == "ImagePositionPatient"]
         assert len(position_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_slice_position_attack_extreme_values(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -242,7 +242,7 @@ class TestSlicePositionAttack:
 class TestBoundarySliceTargeting:
     """Test boundary_slice_targeting mutation strategy."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_boundary_slice_targeting_first_slice(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -260,7 +260,7 @@ class TestBoundarySliceTargeting:
         ]
         assert len(boundary_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_boundary_slice_targeting_alternating_pattern(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -286,7 +286,7 @@ class TestBoundarySliceTargeting:
 class TestGradientMutation:
     """Test gradient_mutation mutation strategy."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_gradient_mutation_linear(self, mock_dcmread, sample_series, mock_datasets):
         """Test linear gradient mutation."""
         mock_dcmread.side_effect = mock_datasets
@@ -308,7 +308,7 @@ class TestGradientMutation:
         ]
         assert len(intensities) > 0
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_gradient_mutation_exponential(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -331,7 +331,7 @@ class TestGradientMutation:
 class TestInconsistencyInjection:
     """Test inconsistency_injection mutation strategy."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_inconsistency_injection_mixed_modality(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -349,7 +349,7 @@ class TestInconsistencyInjection:
         ]
         assert len(inconsistency_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_inconsistency_injection_conflicting_orientation(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -463,7 +463,7 @@ class TestSeriesMutationStrategy:
 class TestSeverityLevels:
     """Test mutation behavior at different severity levels."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_minimal_severity(self, mock_dcmread, sample_series, mock_datasets):
         """Test minimal severity mutations."""
         mock_dcmread.side_effect = mock_datasets
@@ -475,7 +475,7 @@ class TestSeverityLevels:
         assert len(records) >= 1
         assert len(records) <= 3
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_extreme_severity(self, mock_dcmread, sample_series, mock_datasets):
         """Test extreme severity mutations."""
         mock_dcmread.side_effect = mock_datasets
@@ -490,7 +490,7 @@ class TestSeverityLevels:
 class TestRandomSeedReproducibility:
     """Test that random seed ensures reproducibility."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_same_seed_produces_same_mutations(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -516,7 +516,7 @@ class TestRandomSeedReproducibility:
 class TestLoadDatasets:
     """Test _load_datasets method."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_load_datasets_basic(self, mock_dcmread, sample_series, mock_datasets):
         """Test basic dataset loading."""
         mock_dcmread.side_effect = mock_datasets
@@ -527,7 +527,7 @@ class TestLoadDatasets:
         assert len(datasets) == 5
         assert all(isinstance(ds, Dataset) for ds in datasets)
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_load_datasets_error_handling(self, mock_dcmread, sample_series):
         """Test dataset loading error handling."""
         mock_dcmread.side_effect = Exception("Failed to read DICOM")
@@ -545,7 +545,7 @@ class TestLoadDatasets:
 class TestNonOrthogonalOrientation:
     """Test non_orthogonal_orientation mutation strategy (v1.7.0)."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_non_orthogonal_orientation_basic(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -563,7 +563,7 @@ class TestNonOrthogonalOrientation:
         ]
         assert len(orientation_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_non_orthogonal_orientation_vector_modification(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -579,7 +579,7 @@ class TestNonOrthogonalOrientation:
         iop_records = [r for r in records if r.tag == "ImageOrientationPatient"]
         assert len(iop_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_non_orthogonal_attack_types(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -599,7 +599,7 @@ class TestNonOrthogonalOrientation:
 class TestSystematicSliceGap:
     """Test systematic_slice_gap mutation strategy (v1.7.0)."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_systematic_slice_gap_basic(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -615,7 +615,7 @@ class TestSystematicSliceGap:
         gap_records = [r for r in records if r.strategy == "systematic_slice_gap"]
         assert len(gap_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_systematic_slice_gap_every_nth(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -638,7 +638,7 @@ class TestSystematicSliceGap:
 class TestSliceOverlapInjection:
     """Test slice_overlap_injection mutation strategy (v1.7.0)."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_slice_overlap_injection_basic(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -655,7 +655,7 @@ class TestSliceOverlapInjection:
         ]
         assert len(overlap_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_slice_overlap_z_position_duplication(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -678,7 +678,7 @@ class TestSliceOverlapInjection:
 class TestVoxelAspectRatio:
     """Test voxel_aspect_ratio mutation strategy (v1.7.0)."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_voxel_aspect_ratio_basic(self, mock_dcmread, sample_series, mock_datasets):
         """Test basic voxel aspect ratio mutation."""
         mock_dcmread.side_effect = mock_datasets
@@ -691,7 +691,7 @@ class TestVoxelAspectRatio:
         voxel_records = [r for r in records if r.strategy == "voxel_aspect_ratio"]
         assert len(voxel_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_voxel_aspect_ratio_pixel_spacing(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -709,7 +709,7 @@ class TestVoxelAspectRatio:
         ]
         assert len(spacing_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_voxel_aspect_ratio_extreme_values(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -735,7 +735,7 @@ class TestVoxelAspectRatio:
 class TestFrameOfReference:
     """Test frame_of_reference mutation strategy (v1.7.0)."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_frame_of_reference_basic(self, mock_dcmread, sample_series, mock_datasets):
         """Test basic frame of reference mutation."""
         # Add FrameOfReferenceUID to mock datasets
@@ -752,7 +752,7 @@ class TestFrameOfReference:
         for_records = [r for r in records if r.strategy == "frame_of_reference"]
         assert len(for_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_frame_of_reference_uid_corruption(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -771,7 +771,7 @@ class TestFrameOfReference:
         uid_records = [r for r in records if r.tag == "FrameOfReferenceUID"]
         assert len(uid_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_frame_of_reference_inconsistency(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -805,7 +805,7 @@ class TestFrameOfReference:
 class TestCrossSliceReference:
     """Test cross_slice_reference mutation strategy (v1.8.0)."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_cross_slice_reference_basic(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -827,7 +827,7 @@ class TestCrossSliceReference:
         ]
         assert len(cross_ref_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_cross_slice_reference_nonexistent(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -851,7 +851,7 @@ class TestCrossSliceReference:
         assert fuzzed_datasets is not None
         assert isinstance(records, list)
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_cross_slice_reference_circular(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -873,7 +873,7 @@ class TestCrossSliceReference:
         assert fuzzed_datasets is not None
         assert isinstance(records, list)
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_cross_slice_reference_invalid_uid_format(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -895,7 +895,7 @@ class TestCrossSliceReference:
 class TestTemporalInconsistency:
     """Test temporal_inconsistency mutation strategy (v1.8.0)."""
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_temporal_inconsistency_basic(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -918,7 +918,7 @@ class TestTemporalInconsistency:
         ]
         assert len(temporal_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_temporal_inconsistency_randomize_time(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -938,7 +938,7 @@ class TestTemporalInconsistency:
         time_records = [r for r in records if "Time" in r.tag or "Date" in r.tag]
         assert len(time_records) >= 1
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_temporal_inconsistency_duplicate_timestamps(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -963,7 +963,7 @@ class TestTemporalInconsistency:
         assert fuzzed_datasets is not None
         assert isinstance(records, list)
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_temporal_inconsistency_extreme_dates(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -991,7 +991,7 @@ class TestTemporalInconsistency:
         assert fuzzed_datasets is not None
         assert isinstance(records, list)
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_temporal_inconsistency_invalid_format(
         self, mock_dcmread, sample_series, mock_datasets
     ):
@@ -1017,7 +1017,7 @@ class TestTemporalInconsistency:
         assert fuzzed_datasets is not None
         assert isinstance(records, list)
 
-    @patch("dicom_fuzzer.strategies.series_mutator.pydicom.dcmread")
+    @patch("dicom_fuzzer.attacks.series_mutator.pydicom.dcmread")
     def test_temporal_inconsistency_order_reversal(
         self, mock_dcmread, sample_series, mock_datasets
     ):

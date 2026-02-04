@@ -38,7 +38,7 @@ Examples:
   dicom-fuzzer tls --list-vulns
 
 For advanced testing, use the Python API:
-  from dicom_fuzzer.strategies.network.tls import DICOMTLSFuzzer
+  from dicom_fuzzer.attacks.network.tls import DICOMTLSFuzzer
         """,
     )
 
@@ -133,7 +133,7 @@ def run_scan(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        from dicom_fuzzer.strategies.network.tls.fuzzer import create_dicom_tls_fuzzer
+        from dicom_fuzzer.attacks.network.tls.fuzzer import create_dicom_tls_fuzzer
 
         print("[i] Creating TLS fuzzer...")
         fuzzer = create_dicom_tls_fuzzer(

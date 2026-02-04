@@ -7,7 +7,7 @@ import pytest
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
-from dicom_fuzzer.strategies.robustness.private_tag_fuzzer import (
+from dicom_fuzzer.attacks.format.private_tag_fuzzer import (
     PrivateTagFuzzer,
     KNOWN_CREATORS,
     MALICIOUS_CREATORS,

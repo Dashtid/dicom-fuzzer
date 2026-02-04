@@ -46,7 +46,7 @@ from dicom_fuzzer.core.mutation.multiframe_types import (
 )
 
 # Import strategies from multiframe_strategies
-from dicom_fuzzer.strategies.multiframe import (
+from dicom_fuzzer.attacks.multiframe import (
     DimensionOverflowStrategy,
     FrameCountMismatchStrategy,
     FrameIncrementStrategy,

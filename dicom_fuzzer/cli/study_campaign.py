@@ -279,7 +279,7 @@ def _run_single_test(
         dict with keys: status, is_failure, error_message, records
 
     """
-    from dicom_fuzzer.strategies.series.study_mutator import StudyMutator
+    from dicom_fuzzer.attacks.series.study_mutator import StudyMutator
 
     result_info = {
         "status": "error",
@@ -621,7 +621,7 @@ def _run_campaign_loop(
         True if campaign was stopped early (e.g., --stop-on-crash).
 
     """
-    from dicom_fuzzer.strategies.series.study_mutator import StudyMutator
+    from dicom_fuzzer.attacks.series.study_mutator import StudyMutator
 
     test_id = 0
     try:
@@ -752,7 +752,7 @@ def run_campaign(args: argparse.Namespace) -> int:
 
     try:
         from dicom_fuzzer.core.harness.target_harness import TargetConfig, TargetHarness
-        from dicom_fuzzer.strategies.series.study_mutator import (
+        from dicom_fuzzer.attacks.series.study_mutator import (
             StudyMutationStrategy,
             StudyMutator,
         )

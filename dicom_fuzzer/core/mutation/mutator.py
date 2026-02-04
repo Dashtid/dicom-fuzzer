@@ -139,7 +139,7 @@ class DicomMutator:
         """
         try:
             # Lazy import to avoid circular dependency
-            from dicom_fuzzer.strategies.robustness.dictionary_fuzzer import (
+            from dicom_fuzzer.attacks.format.dictionary_fuzzer import (
                 DictionaryFuzzer,
             )
 

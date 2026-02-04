@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.strategies.network.tls.auth import DICOMAuthTester
-from dicom_fuzzer.strategies.network.tls.types import (
+from dicom_fuzzer.attacks.network.tls.auth import DICOMAuthTester
+from dicom_fuzzer.attacks.network.tls.types import (
     COMMON_AE_TITLES,
     DICOMTLSFuzzerConfig,
 )
@@ -69,7 +69,7 @@ class TestDICOMAuthTester:
         # Verify abstract syntax is included (encoded as ASCII)
         assert b"1.2.840.10008.5.1.4.1.1.2" in pdu
 
-    @patch("dicom_fuzzer.strategies.network.tls.auth.socket.socket")
+    @patch("dicom_fuzzer.attacks.network.tls.auth.socket.socket")
     def test_ae_title_enumeration_connection_error(
         self, mock_socket: MagicMock, tester: DICOMAuthTester
     ) -> None:
@@ -86,7 +86,7 @@ class TestDICOMAuthTester:
             assert result.success is False
             assert "Error" in result.details
 
-    @patch("dicom_fuzzer.strategies.network.tls.auth.socket.socket")
+    @patch("dicom_fuzzer.attacks.network.tls.auth.socket.socket")
     def test_anonymous_association_connection_error(
         self, mock_socket: MagicMock, tester: DICOMAuthTester
     ) -> None:
@@ -101,7 +101,7 @@ class TestDICOMAuthTester:
         assert result.success is False
         assert "Error" in result.details
 
-    @patch("dicom_fuzzer.strategies.network.tls.auth.socket.socket")
+    @patch("dicom_fuzzer.attacks.network.tls.auth.socket.socket")
     def test_ae_title_accepted_response(
         self, mock_socket: MagicMock, tester: DICOMAuthTester
     ) -> None:
@@ -119,7 +119,7 @@ class TestDICOMAuthTester:
         assert result.vulnerability_type == "ae_title_accepted"
         assert "PACS" in result.details
 
-    @patch("dicom_fuzzer.strategies.network.tls.auth.socket.socket")
+    @patch("dicom_fuzzer.attacks.network.tls.auth.socket.socket")
     def test_ae_title_rejected_response(
         self, mock_socket: MagicMock, tester: DICOMAuthTester
     ) -> None:
@@ -136,7 +136,7 @@ class TestDICOMAuthTester:
         assert result.vulnerability_found is False
         assert "rejected" in result.details
 
-    @patch("dicom_fuzzer.strategies.network.tls.auth.socket.socket")
+    @patch("dicom_fuzzer.attacks.network.tls.auth.socket.socket")
     def test_anonymous_association_accepted(
         self, mock_socket: MagicMock, tester: DICOMAuthTester
     ) -> None:
@@ -160,7 +160,7 @@ class TestBackwardCompatibility:
 
     def test_imports_from_dicom_tls_fuzzer(self) -> None:
         """Verify DICOMAuthTester can be imported from dicom_tls_fuzzer."""
-        from dicom_fuzzer.strategies.network.tls.fuzzer import DICOMAuthTester as Tester
+        from dicom_fuzzer.attacks.network.tls.fuzzer import DICOMAuthTester as Tester
 
         assert Tester is DICOMAuthTester
 

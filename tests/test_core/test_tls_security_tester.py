@@ -6,12 +6,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.strategies.network.tls.security import (
+from dicom_fuzzer.attacks.network.tls.security import (
     SSL_VERSIONS,
     WEAK_CIPHERS,
     TLSSecurityTester,
 )
-from dicom_fuzzer.strategies.network.tls.types import DICOMTLSFuzzerConfig
+from dicom_fuzzer.attacks.network.tls.types import DICOMTLSFuzzerConfig
 
 
 class TestConstants:
@@ -65,7 +65,7 @@ class TestTLSSecurityTester:
         assert tester.WEAK_CIPHERS == WEAK_CIPHERS
         assert tester.SSL_VERSIONS == SSL_VERSIONS
 
-    @patch("dicom_fuzzer.strategies.network.tls.security.socket.socket")
+    @patch("dicom_fuzzer.attacks.network.tls.security.socket.socket")
     def test_ssl_version_connection_error(
         self, mock_socket: MagicMock, tester: TLSSecurityTester
     ) -> None:
@@ -82,7 +82,7 @@ class TestTLSSecurityTester:
             assert result.success is False
             assert "error" in result.severity.lower() or "Connection" in result.details
 
-    @patch("dicom_fuzzer.strategies.network.tls.security.socket.socket")
+    @patch("dicom_fuzzer.attacks.network.tls.security.socket.socket")
     def test_weak_cipher_connection_error(
         self, mock_socket: MagicMock, tester: TLSSecurityTester
     ) -> None:
@@ -96,7 +96,7 @@ class TestTLSSecurityTester:
         # Should return results for all weak ciphers
         assert len(results) == len(WEAK_CIPHERS)
 
-    @patch("dicom_fuzzer.strategies.network.tls.security.socket.socket")
+    @patch("dicom_fuzzer.attacks.network.tls.security.socket.socket")
     def test_certificate_validation_tests(
         self, mock_socket: MagicMock, tester: TLSSecurityTester
     ) -> None:
@@ -120,13 +120,13 @@ class TestBackwardCompatibility:
 
     def test_imports_from_dicom_tls_fuzzer(self) -> None:
         """Verify types can be imported from dicom_tls_fuzzer."""
-        from dicom_fuzzer.strategies.network.tls.fuzzer import (
+        from dicom_fuzzer.attacks.network.tls.fuzzer import (
             SSL_VERSIONS as VERSIONS,
         )
-        from dicom_fuzzer.strategies.network.tls.fuzzer import (
+        from dicom_fuzzer.attacks.network.tls.fuzzer import (
             WEAK_CIPHERS as CIPHERS,
         )
-        from dicom_fuzzer.strategies.network.tls.fuzzer import (
+        from dicom_fuzzer.attacks.network.tls.fuzzer import (
             TLSSecurityTester as Tester,
         )
 

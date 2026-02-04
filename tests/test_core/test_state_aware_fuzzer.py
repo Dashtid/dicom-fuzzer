@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer import (
+from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import (
     DICOMState,
     FuzzerConfig,
     MessageSequence,
@@ -1081,7 +1081,7 @@ class TestCreateSampleFuzzer:
 
     def test_creates_fuzzer(self) -> None:
         """Test function creates a configured fuzzer."""
-        from dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer import create_sample_fuzzer
+        from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import create_sample_fuzzer
 
         fuzzer = create_sample_fuzzer()
 
@@ -1093,7 +1093,7 @@ class TestCreateSampleFuzzer:
 
     def test_mock_target_associate_rq(self) -> None:
         """Test mock target responds to A-ASSOCIATE-RQ."""
-        from dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer import create_sample_fuzzer
+        from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import create_sample_fuzzer
 
         fuzzer = create_sample_fuzzer()
         response = fuzzer.target_callback(b"\x01" + b"\x00" * 10)
@@ -1102,7 +1102,7 @@ class TestCreateSampleFuzzer:
 
     def test_mock_target_p_data(self) -> None:
         """Test mock target responds to P-DATA-TF."""
-        from dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer import create_sample_fuzzer
+        from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import create_sample_fuzzer
 
         fuzzer = create_sample_fuzzer()
         response = fuzzer.target_callback(b"\x04" + b"\x00" * 10)
@@ -1111,7 +1111,7 @@ class TestCreateSampleFuzzer:
 
     def test_mock_target_release_rq(self) -> None:
         """Test mock target responds to A-RELEASE-RQ."""
-        from dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer import create_sample_fuzzer
+        from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import create_sample_fuzzer
 
         fuzzer = create_sample_fuzzer()
         response = fuzzer.target_callback(b"\x05" + b"\x00" * 10)
@@ -1120,7 +1120,7 @@ class TestCreateSampleFuzzer:
 
     def test_mock_target_unknown_pdu(self) -> None:
         """Test mock target returns empty for unknown PDU."""
-        from dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer import create_sample_fuzzer
+        from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import create_sample_fuzzer
 
         fuzzer = create_sample_fuzzer()
         response = fuzzer.target_callback(b"\xff" + b"\x00" * 10)
@@ -1129,7 +1129,7 @@ class TestCreateSampleFuzzer:
 
     def test_mock_target_empty_data(self) -> None:
         """Test mock target handles empty data."""
-        from dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer import create_sample_fuzzer
+        from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import create_sample_fuzzer
 
         fuzzer = create_sample_fuzzer()
         response = fuzzer.target_callback(b"")
@@ -1138,7 +1138,7 @@ class TestCreateSampleFuzzer:
 
     def test_sample_fuzzer_can_run(self) -> None:
         """Test sample fuzzer can execute a run."""
-        from dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer import create_sample_fuzzer
+        from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import create_sample_fuzzer
 
         fuzzer = create_sample_fuzzer()
         stats = fuzzer.run(iterations=5)

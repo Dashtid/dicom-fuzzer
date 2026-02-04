@@ -14,8 +14,8 @@ from dicom_fuzzer.core.dicom.lazy_loader import create_metadata_loader
 from dicom_fuzzer.core.series.series_cache import SeriesCache
 from dicom_fuzzer.core.series.series_detector import SeriesDetector
 from dicom_fuzzer.core.series.series_writer import SeriesWriter
-from dicom_fuzzer.strategies.series.parallel_mutator import ParallelSeriesMutator
-from dicom_fuzzer.strategies.series.series_mutator import (
+from dicom_fuzzer.attacks.series.parallel_mutator import ParallelSeriesMutator
+from dicom_fuzzer.attacks.series.series_mutator import (
     Series3DMutator,
     SeriesMutationStrategy,
 )

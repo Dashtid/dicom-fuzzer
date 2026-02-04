@@ -1,6 +1,6 @@
-"""CVE Mutation Functions - Deterministic DICOM mutations for CVE replication.
+"""CVE Payloads - Deterministic exploit payloads for CVE replication.
 
-Each CVE has one or more mutation functions that produce deterministic output.
+Each CVE has one or more payload functions that produce deterministic output.
 Functions return a list of (variant_name, mutated_bytes) tuples when there are
 multiple attack vectors for a single CVE.
 """

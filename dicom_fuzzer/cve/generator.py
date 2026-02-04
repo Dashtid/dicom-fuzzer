@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .mutations import CVE_MUTATIONS
+from .payloads import CVE_MUTATIONS
 from .registry import CVE_REGISTRY, CVEInfo, get_cve_info
 
 if TYPE_CHECKING:

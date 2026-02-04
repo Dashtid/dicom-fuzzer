@@ -13,8 +13,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.strategies.network.base import FuzzingStrategy, NetworkFuzzResult
-from dicom_fuzzer.strategies.network.tls_mixin import TLSFuzzingMixin
+from dicom_fuzzer.attacks.network.base import FuzzingStrategy, NetworkFuzzResult
+from dicom_fuzzer.attacks.network.tls_mixin import TLSFuzzingMixin
 
 
 @dataclass

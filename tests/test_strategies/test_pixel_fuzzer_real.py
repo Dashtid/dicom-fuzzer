@@ -9,7 +9,7 @@ from pydicom import FileDataset
 from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
 
-from dicom_fuzzer.strategies.robustness.pixel_fuzzer import PixelFuzzer
+from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
 
 
 @pytest.fixture

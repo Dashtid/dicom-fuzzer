@@ -92,7 +92,7 @@ class TestRunFuzz:
         mock_fuzzer.get_statistics.return_value = {"iterations": 10}
 
         with patch(
-            "dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
+            "dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
             return_value=mock_fuzzer,
         ):
             result = state.run_fuzz(args)
@@ -123,7 +123,7 @@ class TestRunFuzz:
         mock_fuzzer.get_statistics.return_value = {}
 
         with patch(
-            "dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
+            "dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
             return_value=mock_fuzzer,
         ):
             result = state.run_fuzz(args)
@@ -148,7 +148,7 @@ class TestRunFuzz:
         mock_fuzzer.get_statistics.return_value = {}
 
         with patch(
-            "dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
+            "dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
             return_value=mock_fuzzer,
         ):
             result = state.run_fuzz(args)
@@ -169,7 +169,7 @@ class TestRunFuzz:
         )
 
         with patch(
-            "dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
+            "dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
             side_effect=ImportError("Module not found"),
         ):
             result = state.run_fuzz(args)
@@ -188,7 +188,7 @@ class TestRunFuzz:
         )
 
         with patch(
-            "dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
+            "dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
             side_effect=RuntimeError("Test error"),
         ):
             result = state.run_fuzz(args)
@@ -213,7 +213,7 @@ class TestRunFuzz:
         mock_fuzzer.get_statistics.return_value = {}
 
         with patch(
-            "dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
+            "dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
             return_value=mock_fuzzer,
         ):
             result = state.run_fuzz(args)
@@ -245,7 +245,7 @@ class TestRunExportSm:
         }
 
         with patch(
-            "dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
+            "dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
             return_value=mock_fuzzer,
         ):
             result = state.run_export_sm(args)
@@ -267,7 +267,7 @@ class TestRunExportSm:
         args = argparse.Namespace(export_sm=str(output_file))
 
         with patch(
-            "dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
+            "dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer.StateAwareFuzzer",
             side_effect=RuntimeError("Export failed"),
         ):
             result = state.run_export_sm(args)

@@ -1,8 +1,8 @@
-"""Robustness fuzzing strategies for DICOM parser edge case testing.
+"""DICOM file format fuzzing attacks.
 
-This subpackage contains fuzzers that test parser robustness by generating
-edge cases and malformed data. Unlike exploit patterns, these are for
-discovering unknown bugs through random mutations.
+This subpackage contains fuzzers targeting the DICOM file format: tags, VRs,
+encoding, pixel data, sequences, structure, compression, and conformance.
+These generate edge cases and malformed data for discovering parser bugs.
 
 Fuzzers:
 - HeaderFuzzer: VR and tag mutations (all 27 DICOM VRs)

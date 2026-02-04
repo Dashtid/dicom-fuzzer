@@ -8,7 +8,7 @@ from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.tag import Tag
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
-from dicom_fuzzer.strategies.robustness.conformance_fuzzer import (
+from dicom_fuzzer.attacks.format.conformance_fuzzer import (
     ConformanceFuzzer,
     SOP_CLASSES,
     TRANSFER_SYNTAXES,

@@ -8,7 +8,7 @@ from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 from pydicom.tag import Tag
 
-from dicom_fuzzer.strategies.robustness.sequence_fuzzer import SequenceFuzzer
+from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
 
 
 # =============================================================================

@@ -17,7 +17,7 @@ dicom-fuzzer/
 │   ├── cli/           # Command-line interfaces
 │   ├── core/          # Core fuzzing logic (~70 modules)
 │   ├── cve/           # CVE replication (deterministic)
-│   ├── strategies/    # Mutation strategies
+│   ├── attacks/       # Attack modules (format, series, network, multiframe)
 │   ├── analytics/     # Campaign analytics
 │   ├── adapters/      # Viewer-specific automation
 │   ├── harness/       # Target execution harness
@@ -73,11 +73,11 @@ Corpus → Mutate → Execute Target → Track Coverage → Detect Crashes
               Crash? → Deduplicate → Minimize → Triage
 ```
 
-## Strategy Architecture
+## Attack Architecture
 
 ```text
-strategies/
-├── robustness/           # Slice-level edge case testing (11 fuzzers)
+attacks/
+├── format/               # DICOM file format attacks (13 fuzzers)
 │   ├── HeaderFuzzer          # VR and tag mutations
 │   ├── PixelFuzzer           # Image dimensions, pixel data
 │   ├── MetadataFuzzer        # Patient/study metadata
@@ -88,18 +88,28 @@ strategies/
 │   ├── EncodingFuzzer        # Character sets, text encoding
 │   ├── ConformanceFuzzer     # SOP Class, Transfer Syntax
 │   ├── ReferenceFuzzer       # Reference chains, links
-│   └── PrivateTagFuzzer      # Vendor-specific tags
+│   ├── PrivateTagFuzzer      # Vendor-specific tags
+│   ├── CalibrationFuzzer     # Measurement/calibration
+│   └── DictionaryFuzzer      # Domain-based dictionary mutations
 ├── series/               # Multi-slice 3D volume mutations
 │   ├── Series3DMutator       # Main class with mixins
 │   ├── CoreMutationsMixin    # Metadata, slice operations
 │   ├── Reconstruction3DAttacksMixin  # 3D reconstruction
-│   └── TemporalAttacksMixin  # Cross-slice temporal
-├── study_mutator.py      # Cross-series study-level
-├── calibration_fuzzer.py # Measurement/calibration
-└── parallel_mutator.py   # Multi-process wrapper
+│   ├── TemporalAttacksMixin  # Cross-slice temporal
+│   ├── StudyMutator          # Cross-series study-level
+│   └── ParallelSeriesMutator # Multi-process wrapper
+├── multiframe/           # Multi-frame mutation strategies
+│   ├── FrameCountMismatchStrategy   # NumberOfFrames attacks
+│   ├── FrameTimeCorruptionStrategy  # Temporal info corruption
+│   ├── DimensionOverflowStrategy    # Integer overflow via dimensions
+│   └── ...                          # 5 more frame-level strategies
+└── network/              # Network protocol fuzzing
+    ├── dimse/                # DIMSE protocol layer
+    ├── tls/                  # TLS security testing
+    └── stateful/             # Stateful protocol fuzzing
 ```
 
-CLI strategy flags (`-s metadata,pixel`) map to robustness fuzzers internally.
+CLI strategy flags (`-s metadata,pixel`) map to format fuzzers internally.
 
 ## CVE Module
 
@@ -109,7 +119,7 @@ CVE replication is deterministic (not fuzzing). Located in `dicom_fuzzer/cve/`:
 cve/
 ├── registry.py      # CVE metadata and lookup
 ├── generator.py     # File generation from templates
-└── mutations/       # Per-CVE mutation functions
+└── payloads/        # Per-CVE exploit payloads
 ```
 
 Usage: `dicom-fuzzer cve --list`
@@ -120,4 +130,4 @@ Usage: `dicom-fuzzer cve --list`
 2. Implement `mutate()` method
 3. Register with mutator
 
-See [strategies/](../dicom_fuzzer/strategies/) for examples.
+See [attacks/](../dicom_fuzzer/attacks/) for examples.

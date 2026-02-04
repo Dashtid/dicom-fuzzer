@@ -253,7 +253,7 @@ class TestCVECoverage:
 
     def test_all_registry_cves_have_mutations(self) -> None:
         """Test all CVEs in registry have corresponding mutations."""
-        from dicom_fuzzer.cve.mutations import CVE_MUTATIONS
+        from dicom_fuzzer.cve.payloads import CVE_MUTATIONS
 
         for cve_id in CVE_REGISTRY:
             assert cve_id in CVE_MUTATIONS, f"Missing mutation for {cve_id}"

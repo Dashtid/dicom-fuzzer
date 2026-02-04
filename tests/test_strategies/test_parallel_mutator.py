@@ -16,11 +16,11 @@ from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import generate_uid
 
 from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
-from dicom_fuzzer.strategies.series.parallel_mutator import (
+from dicom_fuzzer.attacks.series.parallel_mutator import (
     ParallelSeriesMutator,
     get_optimal_workers,
 )
-from dicom_fuzzer.strategies.series.series_mutator import SeriesMutationStrategy
+from dicom_fuzzer.attacks.series.series_mutator import SeriesMutationStrategy
 
 
 @pytest.fixture

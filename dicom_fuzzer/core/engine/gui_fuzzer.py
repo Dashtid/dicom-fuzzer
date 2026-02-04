@@ -27,7 +27,7 @@ from dicom_fuzzer.core.engine.gui_monitor_types import (
     ResponseType,
     SeverityLevel,
 )
-from dicom_fuzzer.strategies.network.stateful.coverage import StateCoverageTracker
+from dicom_fuzzer.attacks.network.stateful.coverage import StateCoverageTracker
 
 # Note: GUIMonitor is imported at runtime in __init__ to avoid circular import
 # TYPE_CHECKING import not needed with 'from __future__ import annotations'

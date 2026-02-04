@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
 from dicom_fuzzer.core.series.series_detector import SeriesDetector
 from dicom_fuzzer.core.series.series_writer import SeriesWriter
-from dicom_fuzzer.strategies.series.series_mutator import (
+from dicom_fuzzer.attacks.series.series_mutator import (
     Series3DMutator,
     SeriesMutationStrategy,
 )

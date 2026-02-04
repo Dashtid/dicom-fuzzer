@@ -10,7 +10,7 @@ Tests DIMSE-specific types including:
 - UIDGenerator class
 """
 
-from dicom_fuzzer.strategies.network.dimse.types import (
+from dicom_fuzzer.attacks.network.dimse.types import (
     DICOMElement,
     DIMSEFuzzingConfig,
     DIMSEMessage,

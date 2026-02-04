@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.strategies.multiframe.frame_increment import (
+from dicom_fuzzer.attacks.multiframe.frame_increment import (
     FrameIncrementStrategy,
 )
 

@@ -8,7 +8,7 @@ import pytest
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
-from dicom_fuzzer.strategies.robustness.header_fuzzer import HeaderFuzzer
+from dicom_fuzzer.attacks.format.header_fuzzer import HeaderFuzzer
 
 
 # =============================================================================

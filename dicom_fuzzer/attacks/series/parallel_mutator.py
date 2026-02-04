@@ -32,7 +32,7 @@ from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
 
 from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
-from dicom_fuzzer.strategies.series.series_mutator import (
+from dicom_fuzzer.attacks.series.series_mutator import (
     Series3DMutator,
     SeriesMutationRecord,
     SeriesMutationStrategy,

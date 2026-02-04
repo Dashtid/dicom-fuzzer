@@ -28,9 +28,9 @@ from dicom_fuzzer.core import (
     SeriesDetector,
     SeriesValidator,
 )
-from dicom_fuzzer.strategies.robustness.header_fuzzer import HeaderFuzzer
-from dicom_fuzzer.strategies.robustness.metadata_fuzzer import MetadataFuzzer
-from dicom_fuzzer.strategies.robustness.pixel_fuzzer import PixelFuzzer
+from dicom_fuzzer.attacks.format.header_fuzzer import HeaderFuzzer
+from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
+from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
 
 
 @pytest.fixture

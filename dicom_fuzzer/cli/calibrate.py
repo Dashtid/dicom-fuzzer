@@ -3,7 +3,7 @@
 Measurement and calibration fuzzing targeting viewer calculations and measurements.
 
 NOTE: This CLI module provides a simplified interface to the core calibration fuzzer.
-For advanced usage, import dicom_fuzzer.strategies.robustness.calibration_fuzzer directly.
+For advanced usage, import dicom_fuzzer.attacks.format.calibration_fuzzer directly.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ Examples:
   dicom-fuzzer calibrate --input ct.dcm --category hounsfield --severity extreme
 
 For advanced usage, use the Python API:
-  from dicom_fuzzer.strategies.robustness.calibration_fuzzer import CalibrationFuzzer
+  from dicom_fuzzer.attacks.format.calibration_fuzzer import CalibrationFuzzer
         """,
     )
 
@@ -205,7 +205,7 @@ def run_calibration_mutation(args: argparse.Namespace) -> int:
     try:
         import pydicom
 
-        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
             CalibrationFuzzer,
         )
 
@@ -252,7 +252,7 @@ def run_calibration_mutation(args: argparse.Namespace) -> int:
     except ImportError as e:
         print(f"[-] Module not available: {e}")
         print(
-            "[i] Ensure dicom_fuzzer.strategies.robustness.calibration_fuzzer is installed"
+            "[i] Ensure dicom_fuzzer.attacks.format.calibration_fuzzer is installed"
         )
         return 1
     except Exception as e:

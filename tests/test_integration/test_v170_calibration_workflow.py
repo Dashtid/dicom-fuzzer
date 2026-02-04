@@ -104,7 +104,7 @@ class TestCalibrationFuzzerIntegration:
         """Test pixel spacing fuzzing workflow."""
         import pydicom
 
-        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
             CalibrationFuzzer,
         )
 
@@ -126,7 +126,7 @@ class TestCalibrationFuzzerIntegration:
         """Test Hounsfield unit rescale fuzzing workflow."""
         import pydicom
 
-        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
             CalibrationFuzzer,
         )
 
@@ -146,7 +146,7 @@ class TestCalibrationFuzzerIntegration:
         """Test window/level parameter fuzzing workflow."""
         import pydicom
 
-        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
             CalibrationFuzzer,
         )
 
@@ -166,7 +166,7 @@ class TestCalibrationFuzzerIntegration:
         """Test slice thickness fuzzing workflow."""
         import pydicom
 
-        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
             CalibrationFuzzer,
         )
 
@@ -185,7 +185,7 @@ class TestCalibrationFuzzerIntegration:
         """Test applying multiple calibration attacks to same file."""
         import pydicom
 
-        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
             CalibrationFuzzer,
         )
 
@@ -227,7 +227,7 @@ class TestCalibrationAttackTypes:
         """Test various pixel spacing attack types."""
         import pydicom
 
-        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
             CalibrationFuzzer,
         )
 
@@ -249,7 +249,7 @@ class TestCalibrationAttackTypes:
         """Test various Hounsfield rescale attack types."""
         import pydicom
 
-        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
             CalibrationFuzzer,
         )
 
@@ -269,7 +269,7 @@ class TestCalibrationMutationRecords:
         """Test mutation record serialization to dict."""
         import pydicom
 
-        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
             CalibrationFuzzer,
         )
 
@@ -292,7 +292,7 @@ class TestCalibrationMutationRecords:
 
         import pydicom
 
-        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
             CalibrationFuzzer,
         )
 
@@ -317,7 +317,7 @@ class TestCalibrationSeverityLevels:
         """Test all severity levels are accepted."""
         import pydicom
 
-        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
             CalibrationFuzzer,
         )
 
@@ -329,7 +329,7 @@ class TestCalibrationSeverityLevels:
 
     def test_invalid_severity_rejected(self):
         """Test invalid severity raises error."""
-        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
             CalibrationFuzzer,
         )
 
@@ -340,7 +340,7 @@ class TestCalibrationSeverityLevels:
         """Test that seed parameter enables reproducible mutations."""
         import pydicom
 
-        from dicom_fuzzer.strategies.robustness.calibration_fuzzer import (
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
             CalibrationFuzzer,
         )
 

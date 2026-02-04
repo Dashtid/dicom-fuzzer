@@ -523,7 +523,7 @@ def _generate_single_study(
 def run_generate_study(args: argparse.Namespace) -> int:
     """Generate mutated study corpus from a source study."""
     from dicom_fuzzer.core.series.study_corpus import StudyCorpusManager
-    from dicom_fuzzer.strategies.series.study_mutator import (
+    from dicom_fuzzer.attacks.series.study_mutator import (
         StudyMutationStrategy,
         StudyMutator,
     )

@@ -53,11 +53,11 @@ class CoverageTracker:
         """Initialize the coverage tracker.
 
         Args:
-            target_modules: List of module prefixes to track (e.g., ['core', 'strategies'])
+            target_modules: List of module prefixes to track (e.g., ['core', 'attacks'])
             ignore_patterns: List of patterns to ignore (e.g., ['test_', '__pycache__'])
 
         """
-        self.target_modules = target_modules or ["core", "strategies", "utils"]
+        self.target_modules = target_modules or ["core", "attacks", "utils"]
         self.ignore_patterns = ignore_patterns or [
             "test_",
             "__pycache__",

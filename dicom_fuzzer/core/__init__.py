@@ -17,8 +17,8 @@ Subpackages:
 """
 
 # Shared fuzzing constants (v1.7.0)
-# Network re-exports (backward compatibility -- canonical location is strategies.network)
-from dicom_fuzzer.strategies.network import (
+# Network re-exports (backward compatibility -- canonical location is attacks.network)
+from dicom_fuzzer.attacks.network import (
     DICOMNetworkConfig,
     DICOMNetworkFuzzer,
     DICOMProtocolBuilder,
@@ -27,7 +27,7 @@ from dicom_fuzzer.strategies.network import (
     PDUFuzzingMixin,
     TLSFuzzingMixin,
 )
-from dicom_fuzzer.strategies.network.dimse import (
+from dicom_fuzzer.attacks.network.dimse import (
     DICOMElement,
     DIMSEFuzzingConfig,
     DIMSEMessage,
@@ -36,8 +36,8 @@ from dicom_fuzzer.strategies.network.dimse import (
     UIDGenerator,
 )
 
-# State-Aware Fuzzer (moved to strategies/network/stateful/)
-from dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer import (
+# State-Aware Fuzzer (moved to attacks/network/stateful/)
+from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import (
     MessageSequence,
     ProtocolMessage,
     StateAwareFuzzer,
@@ -45,7 +45,7 @@ from dicom_fuzzer.strategies.network.stateful.state_aware_fuzzer import (
     StateInferenceEngine,
     StateMutator,
 )
-from dicom_fuzzer.strategies.network.tls import (
+from dicom_fuzzer.attacks.network.tls import (
     COMMON_AE_TITLES,
     INJECTION_PAYLOADS,
     SOP_CLASS_UIDS,
@@ -61,7 +61,7 @@ from dicom_fuzzer.strategies.network.tls import (
     TLSSecurityTester,
     TLSVulnerability,
 )
-from dicom_fuzzer.strategies.network.tls.fuzzer import (
+from dicom_fuzzer.attacks.network.tls.fuzzer import (
     create_dicom_tls_fuzzer,
     quick_scan,
 )
@@ -259,7 +259,7 @@ __all__ = [
     "DICOMCommand",
     "DIMSECommand",
     "PDUType",
-    # Network Protocol Fuzzer (canonical: strategies.network)
+    # Network Protocol Fuzzer (canonical: attacks.network)
     "DICOMNetworkConfig",
     "DICOMNetworkFuzzer",
     "DICOMProtocolBuilder",

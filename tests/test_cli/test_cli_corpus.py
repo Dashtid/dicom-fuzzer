@@ -828,7 +828,7 @@ class TestRunGenerateStudy:
 
         with (
             patch(
-                "dicom_fuzzer.strategies.series.study_mutator.StudyMutator",
+                "dicom_fuzzer.attacks.series.study_mutator.StudyMutator",
                 return_value=mock_mutator,
             ),
             patch(
@@ -879,7 +879,7 @@ class TestRunGenerateStudy:
 
         with (
             patch(
-                "dicom_fuzzer.strategies.series.study_mutator.StudyMutator",
+                "dicom_fuzzer.attacks.series.study_mutator.StudyMutator",
                 return_value=mock_mutator,
             ),
             patch(
@@ -931,7 +931,7 @@ class TestRunGenerateStudy:
 
         with (
             patch(
-                "dicom_fuzzer.strategies.series.study_mutator.StudyMutator",
+                "dicom_fuzzer.attacks.series.study_mutator.StudyMutator",
                 return_value=mock_mutator,
             ),
             patch(
@@ -965,7 +965,7 @@ class TestRunGenerateStudy:
         )
 
         with patch(
-            "dicom_fuzzer.strategies.series.study_mutator.StudyMutator",
+            "dicom_fuzzer.attacks.series.study_mutator.StudyMutator",
             side_effect=RuntimeError("Import failed"),
         ):
             result = corpus.run_generate_study(args)

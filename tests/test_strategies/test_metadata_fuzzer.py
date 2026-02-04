@@ -6,7 +6,7 @@ Tests cover patient info mutation and random date generation.
 import random
 from unittest.mock import MagicMock, patch
 
-from dicom_fuzzer.strategies.robustness.metadata_fuzzer import MetadataFuzzer
+from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
 
 
 class TestMetadataFuzzerInit:

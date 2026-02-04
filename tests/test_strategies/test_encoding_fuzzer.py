@@ -7,7 +7,7 @@ import pytest
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
-from dicom_fuzzer.strategies.robustness.encoding_fuzzer import EncodingFuzzer
+from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
 
 
 # =============================================================================

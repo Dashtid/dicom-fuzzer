@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
-from dicom_fuzzer.strategies.multiframe.frame_time import (
+from dicom_fuzzer.attacks.multiframe.frame_time import (
     FrameTimeCorruptionStrategy,
 )
 

@@ -10,7 +10,7 @@ from unittest.mock import patch
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
-from dicom_fuzzer.strategies.robustness.structure_fuzzer import StructureFuzzer
+from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
 
 
 class TestStructureFuzzerInit:

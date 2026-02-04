@@ -9,7 +9,7 @@ from pydicom.sequence import Sequence
 from pydicom.tag import Tag
 from pydicom.uid import generate_uid
 
-from dicom_fuzzer.strategies.robustness.reference_fuzzer import ReferenceFuzzer
+from dicom_fuzzer.attacks.format.reference_fuzzer import ReferenceFuzzer
 
 
 # =============================================================================
