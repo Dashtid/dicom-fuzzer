@@ -80,6 +80,19 @@ class PixelDataTruncationStrategy(MutationStrategyBase):
                             details={"attack_type": attack_type},
                         )
                     )
+                else:
+                    # Fall back to single_byte when mid-frame cut isn't possible
+                    dataset.PixelData = b"\x00"
+                    records.append(
+                        MultiFrameMutationRecord(
+                            strategy=self.strategy_name,
+                            tag="PixelData",
+                            original_value=f"{original_size} bytes",
+                            mutated_value="1 byte (mid-frame fallback)",
+                            severity=self.severity,
+                            details={"attack_type": "truncate_mid_frame_fallback"},
+                        )
+                    )
 
             elif attack_type == "truncate_partial":
                 # Leave only partial first frame
@@ -144,24 +157,6 @@ class PixelDataTruncationStrategy(MutationStrategyBase):
                 )
 
         return dataset, records
-
-    def _calculate_frame_size(self, dataset: Dataset) -> int:
-        """Calculate expected size of one frame in bytes.
-
-        Args:
-            dataset: pydicom Dataset
-
-        Returns:
-            Size of one frame in bytes
-
-        """
-        rows = getattr(dataset, "Rows", 0)
-        cols = getattr(dataset, "Columns", 0)
-        bits_allocated = getattr(dataset, "BitsAllocated", 8)
-        samples_per_pixel = getattr(dataset, "SamplesPerPixel", 1)
-
-        bytes_per_pixel = bits_allocated // 8
-        return rows * cols * bytes_per_pixel * samples_per_pixel
 
 
 __all__ = ["PixelDataTruncationStrategy"]

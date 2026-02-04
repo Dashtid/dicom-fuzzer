@@ -60,5 +60,40 @@ class MutationStrategyBase(ABC):
         """Return the strategy name for record-keeping."""
         pass  # Abstract property - implemented by subclasses
 
+    def _get_frame_count(self, dataset: Dataset) -> int:
+        """Get number of frames in dataset.
+
+        Args:
+            dataset: pydicom Dataset
+
+        Returns:
+            Number of frames (1 if not multi-frame)
+
+        """
+        if not hasattr(dataset, "NumberOfFrames"):
+            return 1
+        try:
+            return int(dataset.NumberOfFrames)
+        except (ValueError, TypeError):
+            return 1
+
+    def _calculate_frame_size(self, dataset: Dataset) -> int:
+        """Calculate expected size of one frame in bytes.
+
+        Args:
+            dataset: pydicom Dataset
+
+        Returns:
+            Size of one frame in bytes
+
+        """
+        rows = getattr(dataset, "Rows", 0)
+        cols = getattr(dataset, "Columns", 0)
+        bits_allocated = getattr(dataset, "BitsAllocated", 8)
+        samples_per_pixel = getattr(dataset, "SamplesPerPixel", 1)
+
+        bytes_per_pixel = bits_allocated // 8
+        return rows * cols * bytes_per_pixel * samples_per_pixel
+
 
 __all__ = ["MutationStrategyBase"]

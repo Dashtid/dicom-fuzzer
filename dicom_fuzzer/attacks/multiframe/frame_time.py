@@ -127,25 +127,15 @@ class FrameTimeCorruptionStrategy(MutationStrategyBase):
                 record = self._attack_temporal_index(dataset)
                 if record:
                     records.append(record)
+                else:
+                    # Fall back to negative_frame_time when per-frame groups missing
+                    records.append(
+                        self._set_frame_time(
+                            dataset, -33.33, "-33.33", "negative_frame_time"
+                        )
+                    )
 
         return dataset, records
-
-    def _get_frame_count(self, dataset: Dataset) -> int:
-        """Get number of frames in dataset.
-
-        Args:
-            dataset: pydicom Dataset
-
-        Returns:
-            Number of frames (1 if not multi-frame)
-
-        """
-        if not hasattr(dataset, "NumberOfFrames"):
-            return 1
-        try:
-            return int(dataset.NumberOfFrames)
-        except (ValueError, TypeError):
-            return 1
 
 
 __all__ = ["FrameTimeCorruptionStrategy"]

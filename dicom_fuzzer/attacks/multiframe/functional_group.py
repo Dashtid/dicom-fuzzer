@@ -13,7 +13,6 @@ Targets: Enhanced multi-frame parsing, per-frame indexing
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING
 
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
@@ -21,9 +20,6 @@ from pydicom.sequence import Sequence
 from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
 
 from .base import MutationStrategyBase
-
-if TYPE_CHECKING:
-    pass
 
 
 class FunctionalGroupStrategy(MutationStrategyBase):
@@ -136,23 +132,6 @@ class FunctionalGroupStrategy(MutationStrategyBase):
             records.append(handler(dataset))
 
         return dataset, records
-
-    def _get_frame_count(self, dataset: Dataset) -> int:
-        """Get number of frames in dataset.
-
-        Args:
-            dataset: pydicom Dataset
-
-        Returns:
-            Number of frames (1 if not multi-frame)
-
-        """
-        if not hasattr(dataset, "NumberOfFrames"):
-            return 1
-        try:
-            return int(dataset.NumberOfFrames)
-        except (ValueError, TypeError):
-            return 1
 
 
 __all__ = ["FunctionalGroupStrategy"]

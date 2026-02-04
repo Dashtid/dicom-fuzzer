@@ -120,23 +120,5 @@ class FrameCountMismatchStrategy(MutationStrategyBase):
 
         return len(dataset.PixelData) // frame_size
 
-    def _calculate_frame_size(self, dataset: Dataset) -> int:
-        """Calculate expected size of one frame in bytes.
-
-        Args:
-            dataset: pydicom Dataset
-
-        Returns:
-            Size of one frame in bytes
-
-        """
-        rows = getattr(dataset, "Rows", 0)
-        cols = getattr(dataset, "Columns", 0)
-        bits_allocated = getattr(dataset, "BitsAllocated", 8)
-        samples_per_pixel = getattr(dataset, "SamplesPerPixel", 1)
-
-        bytes_per_pixel = bits_allocated // 8
-        return rows * cols * bytes_per_pixel * samples_per_pixel
-
 
 __all__ = ["FrameCountMismatchStrategy"]

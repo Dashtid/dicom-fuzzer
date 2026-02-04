@@ -13,7 +13,6 @@ Targets: Enhanced multi-frame parsers, DICOM conformance
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any
 
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
@@ -21,9 +20,6 @@ from pydicom.sequence import Sequence
 from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
 
 from .base import MutationStrategyBase
-
-if TYPE_CHECKING:
-    pass
 
 
 class SharedGroupStrategy(MutationStrategyBase):
@@ -42,11 +38,11 @@ class SharedGroupStrategy(MutationStrategyBase):
         """Return the strategy name."""
         return "shared_group_corruption"
 
-    def _ensure_sfg(self, dataset: Dataset) -> Any:
+    def _ensure_sfg(self, dataset: Dataset) -> Dataset:
         """Ensure SharedFunctionalGroupsSequence exists and return first item."""
         if not hasattr(dataset, "SharedFunctionalGroupsSequence"):
             dataset.SharedFunctionalGroupsSequence = Sequence([Dataset()])
-        return dataset.SharedFunctionalGroupsSequence[0]
+        return dataset.SharedFunctionalGroupsSequence[0]  # type: ignore[no-any-return]
 
     def _make_record(
         self, tag: str, original: str, mutated: str, attack_type: str
