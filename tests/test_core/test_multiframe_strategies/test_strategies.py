@@ -7,7 +7,9 @@ from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 
 from dicom_fuzzer.attacks.multiframe import (
+    DimensionIndexStrategy,
     DimensionOverflowStrategy,
+    EncapsulatedPixelStrategy,
     FrameCountMismatchStrategy,
     FrameIncrementStrategy,
     FrameTimeCorruptionStrategy,
@@ -282,7 +284,9 @@ class TestStrategyImports:
     def test_import_from_strategies_package(self) -> None:
         """Verify imports from multiframe_strategies package."""
         from dicom_fuzzer.attacks.multiframe import (
+            DimensionIndexStrategy,
             DimensionOverflowStrategy,
+            EncapsulatedPixelStrategy,
             FrameCountMismatchStrategy,
             FrameIncrementStrategy,
             FrameTimeCorruptionStrategy,
@@ -302,6 +306,8 @@ class TestStrategyImports:
         assert DimensionOverflowStrategy is not None
         assert FunctionalGroupStrategy is not None
         assert PixelDataTruncationStrategy is not None
+        assert EncapsulatedPixelStrategy is not None
+        assert DimensionIndexStrategy is not None
 
 
 # --- Base class helper tests ---
@@ -847,3 +853,264 @@ class TestFrameCountMismatchAttackTypes:
 
         assert records[0].details["attack_type"] == "overflow_32bit"
         assert ds_with_frames.NumberOfFrames == 2147483647
+
+
+# --- Encapsulated Pixel Data strategy tests ---
+
+
+class TestEncapsulatedPixelStrategy:
+    """Tests for EncapsulatedPixelStrategy."""
+
+    @pytest.fixture
+    def multiframe_ds(self) -> Dataset:
+        ds = Dataset()
+        ds.NumberOfFrames = 3
+        ds.Rows = 16
+        ds.Columns = 16
+        ds.BitsAllocated = 8
+        ds.SamplesPerPixel = 1
+        ds.PixelData = b"\x00" * (16 * 16 * 3)
+        return ds
+
+    def test_strategy_name(self) -> None:
+        """Test strategy_name property."""
+        assert EncapsulatedPixelStrategy().strategy_name == "encapsulated_pixel_data"
+
+    def test_mutate_produces_records(self, multiframe_ds: Dataset) -> None:
+        """Test mutate produces correct number of records."""
+        strategy = EncapsulatedPixelStrategy()
+        _, records = strategy.mutate(multiframe_ds, mutation_count=5)
+        assert len(records) == 5
+        for r in records:
+            assert r.strategy == "encapsulated_pixel_data"
+
+    def test_invalid_bot_offsets(self, multiframe_ds: Dataset) -> None:
+        """Test invalid_bot_offsets sets offsets past data end."""
+        from unittest.mock import patch
+
+        strategy = EncapsulatedPixelStrategy()
+        with patch("random.choice", return_value="invalid_bot_offsets"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "invalid_bot_offsets"
+
+    def test_bot_length_not_multiple_of_4(self, multiframe_ds: Dataset) -> None:
+        """Test BOT with non-aligned length."""
+        from unittest.mock import patch
+
+        strategy = EncapsulatedPixelStrategy()
+        with patch("random.choice", return_value="bot_length_not_multiple_of_4"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "bot_length_not_multiple_of_4"
+
+    def test_empty_bot_with_eot(self, multiframe_ds: Dataset) -> None:
+        """Test empty BOT + empty EOT (prohibited by standard)."""
+        from unittest.mock import patch
+
+        strategy = EncapsulatedPixelStrategy()
+        with patch("random.choice", return_value="empty_bot_with_eot"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "empty_bot_with_eot"
+        # EOT tag should be present
+        from pydicom.tag import Tag
+
+        assert Tag(0x7FE0, 0x0001) in multiframe_ds
+
+    def test_bot_and_eot_coexist(self, multiframe_ds: Dataset) -> None:
+        """Test both BOT and EOT populated (violates standard)."""
+        from unittest.mock import patch
+
+        strategy = EncapsulatedPixelStrategy()
+        with patch("random.choice", return_value="bot_and_eot_coexist"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "bot_and_eot_coexist"
+        from pydicom.tag import Tag
+
+        eot = multiframe_ds[Tag(0x7FE0, 0x0001)].value
+        assert len(eot) > 0  # EOT is populated
+
+    def test_fragment_count_mismatch(self, multiframe_ds: Dataset) -> None:
+        """Test extra fragments beyond NumberOfFrames."""
+        from unittest.mock import patch
+
+        strategy = EncapsulatedPixelStrategy()
+        with patch("random.choice", return_value="fragment_count_mismatch"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "fragment_count_mismatch"
+
+    def test_fragment_embedded_delimiter(self, multiframe_ds: Dataset) -> None:
+        """Test fragment containing sequence delimiter bytes."""
+        from unittest.mock import patch
+
+        strategy = EncapsulatedPixelStrategy()
+        with patch("random.choice", return_value="fragment_embedded_delimiter"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "fragment_embedded_delimiter"
+        # Verify delimiter bytes are embedded in pixel data
+        assert b"\xfe\xff\xdd\xe0" in multiframe_ds.PixelData
+
+    def test_fragment_undefined_length(self, multiframe_ds: Dataset) -> None:
+        """Test fragment with 0xFFFFFFFF length."""
+        from unittest.mock import patch
+
+        strategy = EncapsulatedPixelStrategy()
+        with patch("random.choice", return_value="fragment_undefined_length"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "fragment_undefined_length"
+        # Verify undefined length bytes in pixel data
+        assert b"\xff\xff\xff\xff" in multiframe_ds.PixelData
+
+    def test_truncated_fragment(self, multiframe_ds: Dataset) -> None:
+        """Test fragment claiming more data than available."""
+        from unittest.mock import patch
+
+        strategy = EncapsulatedPixelStrategy()
+        with patch("random.choice", return_value="truncated_fragment"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "truncated_fragment"
+
+    def test_missing_seq_delimiter(self, multiframe_ds: Dataset) -> None:
+        """Test removal of sequence delimiter."""
+        from unittest.mock import patch
+
+        strategy = EncapsulatedPixelStrategy()
+        with patch("random.choice", return_value="missing_seq_delimiter"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "missing_seq_delimiter"
+        # Verify no trailing delimiter
+        assert not multiframe_ds.PixelData.endswith(b"\xfe\xff\xdd\xe0\x00\x00\x00\x00")
+
+    def test_no_pixel_data_no_dims(self) -> None:
+        """Test strategy works with minimal dataset (no Rows/Cols)."""
+        strategy = EncapsulatedPixelStrategy()
+        ds = Dataset()
+        ds.NumberOfFrames = 2
+        _, records = strategy.mutate(ds, mutation_count=3)
+        assert len(records) == 3
+
+
+# --- Dimension Index strategy tests ---
+
+
+class TestDimensionIndexStrategy:
+    """Tests for DimensionIndexStrategy."""
+
+    @pytest.fixture
+    def multiframe_ds(self) -> Dataset:
+        ds = Dataset()
+        ds.NumberOfFrames = 5
+        return ds
+
+    def test_strategy_name(self) -> None:
+        """Test strategy_name property."""
+        assert DimensionIndexStrategy().strategy_name == "dimension_index_attack"
+
+    def test_mutate_produces_records(self, multiframe_ds: Dataset) -> None:
+        """Test mutate produces correct number of records."""
+        strategy = DimensionIndexStrategy()
+        _, records = strategy.mutate(multiframe_ds, mutation_count=5)
+        assert len(records) == 5
+        for r in records:
+            assert r.strategy == "dimension_index_attack"
+
+    def test_invalid_index_pointer(self, multiframe_ds: Dataset) -> None:
+        """Test invalid_index_pointer sets non-existent tag."""
+        from unittest.mock import patch
+
+        strategy = DimensionIndexStrategy()
+        with patch("random.choice", return_value="invalid_index_pointer"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "invalid_index_pointer"
+        assert hasattr(multiframe_ds, "DimensionIndexSequence")
+
+    def test_index_values_length_mismatch(self, multiframe_ds: Dataset) -> None:
+        """Test DimensionIndexValues with wrong element count."""
+        from unittest.mock import patch
+
+        strategy = DimensionIndexStrategy()
+        with patch("random.choice", return_value="index_values_length_mismatch"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "index_values_length_mismatch"
+
+    def test_missing_index_values(self, multiframe_ds: Dataset) -> None:
+        """Test removal of DimensionIndexValues from frames."""
+        from unittest.mock import patch
+
+        strategy = DimensionIndexStrategy()
+        with patch("random.choice", return_value="missing_index_values"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "missing_index_values"
+        assert records[0].details["removed_count"] >= 1
+
+    def test_out_of_range_index_values(self, multiframe_ds: Dataset) -> None:
+        """Test invalid index values (negative, zero, huge)."""
+        from unittest.mock import patch
+
+        strategy = DimensionIndexStrategy()
+        with patch("random.choice", return_value="out_of_range_index_values"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "out_of_range_index_values"
+        assert "value_type" in records[0].details
+
+    def test_organization_type_mismatch(self, multiframe_ds: Dataset) -> None:
+        """Test 3D organization type with 1 dimension."""
+        from unittest.mock import patch
+
+        strategy = DimensionIndexStrategy()
+        with patch("random.choice", return_value="organization_type_mismatch"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "organization_type_mismatch"
+        assert multiframe_ds.DimensionOrganizationType == "3D"
+        assert len(multiframe_ds.DimensionIndexSequence) == 1
+
+    def test_empty_dimension_sequence(self, multiframe_ds: Dataset) -> None:
+        """Test empty DimensionIndexSequence while frames have values."""
+        from unittest.mock import patch
+
+        strategy = DimensionIndexStrategy()
+        with patch("random.choice", return_value="empty_dimension_sequence"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "empty_dimension_sequence"
+        assert len(multiframe_ds.DimensionIndexSequence) == 0
+
+    def test_duplicate_dimension_pointers(self, multiframe_ds: Dataset) -> None:
+        """Test multiple dimensions pointing to same tag."""
+        from unittest.mock import patch
+
+        strategy = DimensionIndexStrategy()
+        with patch("random.choice", return_value="duplicate_dimension_pointers"):
+            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "duplicate_dimension_pointers"
+        # Original 1 + 3 duplicates = 4
+        assert len(multiframe_ds.DimensionIndexSequence) >= 4

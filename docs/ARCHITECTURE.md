@@ -98,10 +98,12 @@ attacks/
 │   ├── TemporalAttacksMixin  # Cross-slice temporal
 │   ├── StudyMutator          # Cross-series study-level
 │   └── ParallelSeriesMutator # Multi-process wrapper
-├── multiframe/           # Multi-frame mutation strategies
+├── multiframe/           # Multi-frame mutation strategies (10 strategies)
 │   ├── FrameCountMismatchStrategy   # NumberOfFrames attacks
 │   ├── FrameTimeCorruptionStrategy  # Temporal info corruption
 │   ├── DimensionOverflowStrategy    # Integer overflow via dimensions
+│   ├── EncapsulatedPixelStrategy    # BOT/EOT/fragment attacks
+│   ├── DimensionIndexStrategy       # Dimension index module attacks
 │   └── ...                          # 5 more frame-level strategies
 └── network/              # Network protocol fuzzing
     ├── dimse/                # DIMSE protocol layer

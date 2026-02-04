@@ -9,12 +9,20 @@ This package contains modular mutation strategies for multi-frame DICOM:
 - DimensionOverflowStrategy: Integer overflow via dimensions
 - FunctionalGroupStrategy: Per-frame functional group attacks
 - PixelDataTruncationStrategy: Pixel data size mismatch
+- EncapsulatedPixelStrategy: Encapsulated pixel data / offset table attacks
+- DimensionIndexStrategy: Dimension index module attacks
 
 """
 
 from .base import MutationStrategyBase
+from .dimension_index import (
+    DimensionIndexStrategy,
+)
 from .dimension_overflow import (
     DimensionOverflowStrategy,
+)
+from .encapsulated_pixel import (
+    EncapsulatedPixelStrategy,
 )
 from .frame_count import (
     FrameCountMismatchStrategy,
@@ -48,4 +56,6 @@ __all__ = [
     "DimensionOverflowStrategy",
     "FunctionalGroupStrategy",
     "PixelDataTruncationStrategy",
+    "EncapsulatedPixelStrategy",
+    "DimensionIndexStrategy",
 ]

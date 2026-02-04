@@ -26,6 +26,8 @@ class MultiFrameMutationStrategy(Enum):
     - DIMENSION_OVERFLOW: Frames x Rows x Columns integer overflow
     - FUNCTIONAL_GROUP_ATTACK: Missing/extra/corrupt per-frame groups
     - PIXEL_DATA_TRUNCATION: Truncate pixel data
+    - ENCAPSULATED_PIXEL_DATA: BOT/EOT/fragment encapsulation attacks
+    - DIMENSION_INDEX_ATTACK: Dimension index module corruption
 
     """
 
@@ -37,6 +39,8 @@ class MultiFrameMutationStrategy(Enum):
     DIMENSION_OVERFLOW = "dimension_overflow"
     FUNCTIONAL_GROUP_ATTACK = "functional_group_attack"
     PIXEL_DATA_TRUNCATION = "pixel_data_truncation"
+    ENCAPSULATED_PIXEL_DATA = "encapsulated_pixel_data"
+    DIMENSION_INDEX_ATTACK = "dimension_index_attack"
 
 
 @dataclass
