@@ -11,7 +11,7 @@ import random
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.types import MutationSeverity
-from dicom_fuzzer.utils.dicom_dictionaries import DICOMDictionaries
+from .dicom_dictionaries import DICOMDictionaries
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)

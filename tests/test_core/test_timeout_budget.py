@@ -6,7 +6,7 @@ Achieves 90%+ coverage of timeout_budget.py module.
 
 import time
 
-from dicom_fuzzer.utils.timeout_budget import (
+from dicom_fuzzer.core.session.timeout_budget import (
     ExecutionTimer,
     TimeoutBudgetManager,
     TimeoutStatistics,

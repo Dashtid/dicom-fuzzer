@@ -26,6 +26,11 @@ from dicom_fuzzer.core.harness.process_monitor import (
     ProcessMonitor,
     terminate_process_tree,
 )
+from dicom_fuzzer.core.harness.stateless_harness import (
+    create_stateless_test_wrapper,
+    detect_state_leaks,
+    validate_determinism,
+)
 from dicom_fuzzer.core.harness.stress_tester import (
     MemorySnapshot,
     StressTestConfig,
@@ -87,4 +92,8 @@ __all__ = [
     "ViewerType",
     "SeriesTestResult",
     "create_generic_config",
+    # Stateless harness validation
+    "create_stateless_test_wrapper",
+    "detect_state_leaks",
+    "validate_determinism",
 ]

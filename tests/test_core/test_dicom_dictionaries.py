@@ -4,7 +4,7 @@ Tests the dictionary access, value generation, and edge case handling
 functionality with actual usage patterns.
 """
 
-from dicom_fuzzer.utils.dicom_dictionaries import (
+from dicom_fuzzer.attacks.format.dicom_dictionaries import (
     CHARACTER_SETS,
     COMMON_UID_ROOTS,
     INSTITUTION_NAMES,

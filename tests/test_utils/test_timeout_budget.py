@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from dicom_fuzzer.utils.timeout_budget import (
+from dicom_fuzzer.core.session.timeout_budget import (
     ExecutionTimer,
     TimeoutBudget,
     TimeoutBudgetManager,

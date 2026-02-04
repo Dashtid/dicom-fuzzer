@@ -27,9 +27,17 @@ from .coverage_types import (
     StateFingerprint,
     StateTransition,
 )
+from .corpus_minimization import (
+    CoverageAwarePrioritizer,
+    MoonLightMinimizer,
+    optimize_corpus,
+    strip_pixel_data,
+    validate_corpus_quality,
+)
 from .stability_tracker import StabilityMetrics, StabilityTracker
 
 __all__ = [
+    "CoverageAwarePrioritizer",
     "CorpusMinimizer",
     "CorpusStats",
     "CorpusSynchronizer",
@@ -55,4 +63,8 @@ __all__ = [
     "TargetCoverageCollector",
     "create_sync_node",
     "minimize_corpus",
+    "MoonLightMinimizer",
+    "optimize_corpus",
+    "strip_pixel_data",
+    "validate_corpus_quality",
 ]

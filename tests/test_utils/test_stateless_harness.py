@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from dicom_fuzzer.utils.stateless_harness import (
+from dicom_fuzzer.core.harness.stateless_harness import (
     _hash_result,
     create_stateless_test_wrapper,
     detect_state_leaks,
