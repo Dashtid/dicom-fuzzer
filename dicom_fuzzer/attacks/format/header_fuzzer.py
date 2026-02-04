@@ -14,6 +14,8 @@ import struct
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
+from .base import FormatFuzzerBase
+
 # VR-specific invalid values for comprehensive testing
 # Based on DICOM PS3.5 VR definitions
 VR_MUTATIONS = {
@@ -37,8 +39,8 @@ VR_MUTATIONS = {
     ],
     # AT - Attribute Tag (4 bytes, group-element pair)
     "AT": [
-        b"\xFF\xFF\xFF",  # Odd length (3 bytes)
-        b"\xFF\xFF\xFF\xFF\xFF",  # 5 bytes
+        b"\xff\xff\xff",  # Odd length (3 bytes)
+        b"\xff\xff\xff\xff\xff",  # 5 bytes
         b"",  # Empty
     ],
     # CS - Code String (max 16 chars, uppercase A-Z, 0-9, space, underscore)
@@ -67,7 +69,7 @@ VR_MUTATIONS = {
         struct.pack("<f", float("inf")),  # Positive infinity
         struct.pack("<f", float("-inf")),  # Negative infinity
         b"\x00\x00\x80\x00",  # Denormalized (very small)
-        b"\xFF\xFF\xFF\x7F",  # Signaling NaN
+        b"\xff\xff\xff\x7f",  # Signaling NaN
         b"\x00",  # Too short
         b"\x00\x00\x00\x00\x00",  # Too long
     ],
@@ -102,7 +104,7 @@ VR_MUTATIONS = {
     # OW - Other Word (16-bit words, must be even length)
     "OW": [
         b"\x00\x00\x00",  # Odd length (3 bytes)
-        b"\xFF",  # Single byte
+        b"\xff",  # Single byte
         b"\x00" * 0x10001,  # Odd count
     ],
     # PN - Person Name (5 component groups, 64 chars each)
@@ -167,7 +169,7 @@ VR_MUTATIONS = {
     # UN - Unknown (any bytes)
     "UN": [
         b"\x00" * 1000000,  # 1MB of nulls
-        b"\xFF" * 10000,  # All 0xFF
+        b"\xff" * 10000,  # All 0xFF
         b"",  # Empty
     ],
     # UR - URI/URL (no max, but specific format)
@@ -253,7 +255,7 @@ VR_MUTATIONS = {
 }
 
 
-class HeaderFuzzer:
+class HeaderFuzzer(FormatFuzzerBase):
     """Fuzzes DICOM headers with edge cases and invalid values.
 
     Tests application handling of:
@@ -274,7 +276,12 @@ class HeaderFuzzer:
             "SeriesInstanceUID",  # (0020,000E)
         ]
 
-    def mutate_tags(self, dataset: Dataset) -> Dataset:
+    @property
+    def strategy_name(self) -> str:
+        """Return the strategy name for identification."""
+        return "header"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Mutate DICOM tags with edge cases.
 
         Args:
@@ -297,6 +304,8 @@ class HeaderFuzzer:
         for mutation in random.sample(mutations, k=random.randint(2, 4)):
             dataset = mutation(dataset)
         return dataset
+
+    mutate_tags = mutate
 
     def _overlong_strings(self, dataset: Dataset) -> Dataset:
         """Insert extremely long strings to test buffer handling.

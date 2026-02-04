@@ -29,18 +29,18 @@ dicom-fuzzer/
 
 ## Core Components
 
-| Component    | Module                      | Purpose                        |
-| ------------ | --------------------------- | ------------------------------ |
-| Parser       | `core/parser.py`            | DICOM parsing, metadata        |
-| Mutator      | `core/mutator.py`           | Strategy registration          |
-| Generator    | `core/generator.py`         | Batch fuzzed file generation   |
-| Validator    | `core/validator.py`         | DICOM compliance checking      |
-| Crash Triage | `core/crash_triage.py`      | Crash analysis and severity    |
-| Coverage     | `core/coverage_tracker.py`  | Coverage-guided selection      |
-| Session      | `core/fuzzing_session.py`   | Campaign lifecycle             |
-| Reporter     | `core/enhanced_reporter.py` | HTML/JSON reports              |
-| Network      | `core/network_fuzzer.py`    | DICOM protocol fuzzing         |
-| GUI Monitor  | `core/gui_monitor.py`       | Process monitoring             |
+| Component    | Module                      | Purpose                      |
+| ------------ | --------------------------- | ---------------------------- |
+| Parser       | `core/parser.py`            | DICOM parsing, metadata      |
+| Mutator      | `core/mutator.py`           | Strategy registration        |
+| Generator    | `core/generator.py`         | Batch fuzzed file generation |
+| Validator    | `core/validator.py`         | DICOM compliance checking    |
+| Crash Triage | `core/crash_triage.py`      | Crash analysis and severity  |
+| Coverage     | `core/coverage_tracker.py`  | Coverage-guided selection    |
+| Session      | `core/fuzzing_session.py`   | Campaign lifecycle           |
+| Reporter     | `core/enhanced_reporter.py` | HTML/JSON reports            |
+| Network      | `core/network_fuzzer.py`    | DICOM protocol fuzzing       |
+| GUI Monitor  | `core/gui_monitor.py`       | Process monitoring           |
 
 ## Data Flow
 
@@ -77,13 +77,13 @@ Corpus → Mutate → Execute Target → Track Coverage → Detect Crashes
 
 ```text
 attacks/
-├── format/               # DICOM file format attacks (13 fuzzers)
+├── format/               # DICOM file format attacks (12 fuzzers, all inherit FormatFuzzerBase)
+│   ├── FormatFuzzerBase      # ABC: mutate(dataset) + strategy_name
 │   ├── HeaderFuzzer          # VR and tag mutations
 │   ├── PixelFuzzer           # Image dimensions, pixel data
-│   ├── MetadataFuzzer        # Patient/study metadata
+│   ├── MetadataFuzzer        # Patient/study/series/institution metadata
 │   ├── StructureFuzzer       # File structure, length fields
 │   ├── SequenceFuzzer        # Nested sequences, items
-│   ├── MultiFrameFuzzer      # Multi-frame specific
 │   ├── CompressedPixelFuzzer # JPEG/RLE encapsulation
 │   ├── EncodingFuzzer        # Character sets, text encoding
 │   ├── ConformanceFuzzer     # SOP Class, Transfer Syntax

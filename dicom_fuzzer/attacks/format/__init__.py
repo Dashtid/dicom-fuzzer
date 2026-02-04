@@ -7,7 +7,6 @@ These generate edge cases and malformed data for discovering parser bugs.
 Fuzzers:
 - HeaderFuzzer: VR and tag mutations (all 27 DICOM VRs)
 - PixelFuzzer: Image dimension and pixel data mutations
-- MultiFrameFuzzer: Multi-frame image specific mutations
 - StructureFuzzer: File structure and length field mutations
 - MetadataFuzzer: Patient/study metadata mutations
 - SequenceFuzzer: Nested sequence and item structure attacks
@@ -18,6 +17,7 @@ Fuzzers:
 - PrivateTagFuzzer: Vendor-specific tag violations
 """
 
+from .base import FormatFuzzerBase
 from .calibration_fuzzer import CalibrationFuzzer
 from .compressed_pixel_fuzzer import CompressedPixelFuzzer
 from .conformance_fuzzer import ConformanceFuzzer
@@ -25,7 +25,7 @@ from .dictionary_fuzzer import DictionaryFuzzer
 from .encoding_fuzzer import EncodingFuzzer
 from .header_fuzzer import HeaderFuzzer
 from .metadata_fuzzer import MetadataFuzzer
-from .pixel_fuzzer import MultiFrameFuzzer, PixelFuzzer
+from .pixel_fuzzer import PixelFuzzer
 from .private_tag_fuzzer import PrivateTagFuzzer
 from .reference_fuzzer import ReferenceFuzzer
 from .sequence_fuzzer import SequenceFuzzer
@@ -38,8 +38,8 @@ __all__ = [
     "DictionaryFuzzer",
     "EncodingFuzzer",
     "HeaderFuzzer",
+    "FormatFuzzerBase",
     "MetadataFuzzer",
-    "MultiFrameFuzzer",
     "PixelFuzzer",
     "PrivateTagFuzzer",
     "ReferenceFuzzer",

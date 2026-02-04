@@ -23,10 +23,12 @@ from pydicom.uid import generate_uid
 
 from dicom_fuzzer.utils.logger import get_logger
 
+from .base import FormatFuzzerBase
+
 logger = get_logger(__name__)
 
 
-class ReferenceFuzzer:
+class ReferenceFuzzer(FormatFuzzerBase):
     """Fuzzes DICOM object references and links.
 
     Targets the relationships between DICOM objects that applications
@@ -48,7 +50,12 @@ class ReferenceFuzzer:
             self._reference_type_mismatch,
         ]
 
-    def mutate_references(self, dataset: Dataset) -> Dataset:
+    @property
+    def strategy_name(self) -> str:
+        """Return the strategy name for identification."""
+        return "reference"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply reference-related mutations.
 
         Args:
@@ -69,18 +76,22 @@ class ReferenceFuzzer:
 
         return dataset
 
+    mutate_references = mutate
+
     def _orphan_reference(self, dataset: Dataset) -> Dataset:
         """Create references to non-existent objects.
 
         Orphan references test error handling when referenced
         objects cannot be found.
         """
-        attack = random.choice([
-            "nonexistent_sop_instance",
-            "nonexistent_series",
-            "nonexistent_study",
-            "nonexistent_frame_of_reference",
-        ])
+        attack = random.choice(
+            [
+                "nonexistent_sop_instance",
+                "nonexistent_series",
+                "nonexistent_study",
+                "nonexistent_frame_of_reference",
+            ]
+        )
 
         try:
             if attack == "nonexistent_sop_instance":
@@ -88,23 +99,18 @@ class ReferenceFuzzer:
                 ref_item = Dataset()
                 ref_item.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT
                 ref_item.ReferencedSOPInstanceUID = "1.2.3.4.5.6.7.8.9.NONEXISTENT"
-                dataset.add_new(
-                    Tag(0x0008, 0x1140), "SQ",
-                    Sequence([ref_item])
-                )
+                dataset.add_new(Tag(0x0008, 0x1140), "SQ", Sequence([ref_item]))
 
             elif attack == "nonexistent_series":
                 ref_item = Dataset()
                 ref_item.SeriesInstanceUID = "1.2.3.4.5.6.7.8.9.NOSERIES"
-                dataset.add_new(
-                    Tag(0x0008, 0x1115), "SQ",
-                    Sequence([ref_item])
-                )
+                dataset.add_new(Tag(0x0008, 0x1115), "SQ", Sequence([ref_item]))
 
             elif attack == "nonexistent_study":
                 dataset.add_new(
-                    Tag(0x0008, 0x1110), "SQ",  # ReferencedStudySequence
-                    Sequence([])
+                    Tag(0x0008, 0x1110),
+                    "SQ",  # ReferencedStudySequence
+                    Sequence([]),
                 )
                 ref_item = Dataset()
                 ref_item.ReferencedSOPClassUID = "1.2.840.10008.3.1.2.3.1"  # Study
@@ -134,21 +140,20 @@ class ReferenceFuzzer:
                 self_uid = generate_uid()
                 dataset.SOPInstanceUID = self_uid
 
-            attack = random.choice([
-                "direct_self_ref",
-                "two_hop_cycle",
-                "reference_chain_to_self",
-            ])
+            attack = random.choice(
+                [
+                    "direct_self_ref",
+                    "two_hop_cycle",
+                    "reference_chain_to_self",
+                ]
+            )
 
             if attack == "direct_self_ref":
                 # Object references itself
                 ref_item = Dataset()
                 ref_item.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
                 ref_item.ReferencedSOPInstanceUID = self_uid
-                dataset.add_new(
-                    Tag(0x0008, 0x1140), "SQ",
-                    Sequence([ref_item])
-                )
+                dataset.add_new(Tag(0x0008, 0x1140), "SQ", Sequence([ref_item]))
 
             elif attack == "two_hop_cycle":
                 # Create two items that reference each other
@@ -170,13 +175,11 @@ class ReferenceFuzzer:
                 ref_b_with_back_ref.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
                 ref_b_with_back_ref.ReferencedSOPInstanceUID = uid_b
                 ref_b_with_back_ref.add_new(
-                    Tag(0x0008, 0x1140), "SQ",
-                    Sequence([ref_a])
+                    Tag(0x0008, 0x1140), "SQ", Sequence([ref_a])
                 )
 
                 dataset.add_new(
-                    Tag(0x0008, 0x1140), "SQ",
-                    Sequence([ref_b_with_back_ref])
+                    Tag(0x0008, 0x1140), "SQ", Sequence([ref_b_with_back_ref])
                 )
 
             elif attack == "reference_chain_to_self":
@@ -189,16 +192,10 @@ class ReferenceFuzzer:
                     wrapper = Dataset()
                     wrapper.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
                     wrapper.ReferencedSOPInstanceUID = generate_uid()
-                    wrapper.add_new(
-                        Tag(0x0008, 0x1140), "SQ",
-                        Sequence([current])
-                    )
+                    wrapper.add_new(Tag(0x0008, 0x1140), "SQ", Sequence([current]))
                     current = wrapper
 
-                dataset.add_new(
-                    Tag(0x0008, 0x1140), "SQ",
-                    Sequence([current])
-                )
+                dataset.add_new(Tag(0x0008, 0x1140), "SQ", Sequence([current]))
 
         except Exception as e:
             logger.debug(f"Circular reference attack failed: {e}")
@@ -220,27 +217,31 @@ class ReferenceFuzzer:
             if not hasattr(dataset, "SOPInstanceUID"):
                 dataset.SOPInstanceUID = generate_uid()
 
-            attack = random.choice([
-                "study_refs_self",
-                "series_refs_self",
-                "source_image_is_self",
-            ])
+            attack = random.choice(
+                [
+                    "study_refs_self",
+                    "series_refs_self",
+                    "source_image_is_self",
+                ]
+            )
 
             if attack == "study_refs_self":
                 ref_item = Dataset()
                 ref_item.ReferencedSOPClassUID = "1.2.840.10008.3.1.2.3.1"
                 ref_item.ReferencedSOPInstanceUID = dataset.StudyInstanceUID
                 dataset.add_new(
-                    Tag(0x0008, 0x1110), "SQ",  # ReferencedStudySequence
-                    Sequence([ref_item])
+                    Tag(0x0008, 0x1110),
+                    "SQ",  # ReferencedStudySequence
+                    Sequence([ref_item]),
                 )
 
             elif attack == "series_refs_self":
                 ref_item = Dataset()
                 ref_item.SeriesInstanceUID = dataset.SeriesInstanceUID
                 dataset.add_new(
-                    Tag(0x0008, 0x1115), "SQ",  # ReferencedSeriesSequence
-                    Sequence([ref_item])
+                    Tag(0x0008, 0x1115),
+                    "SQ",  # ReferencedSeriesSequence
+                    Sequence([ref_item]),
                 )
 
             elif attack == "source_image_is_self":
@@ -248,8 +249,9 @@ class ReferenceFuzzer:
                 ref_item.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
                 ref_item.ReferencedSOPInstanceUID = dataset.SOPInstanceUID
                 dataset.add_new(
-                    Tag(0x0008, 0x2112), "SQ",  # SourceImageSequence
-                    Sequence([ref_item])
+                    Tag(0x0008, 0x2112),
+                    "SQ",  # SourceImageSequence
+                    Sequence([ref_item]),
                 )
 
         except Exception as e:
@@ -264,12 +266,14 @@ class ReferenceFuzzer:
         can cause out-of-bounds access.
         """
         try:
-            attack = random.choice([
-                "frame_beyond_count",
-                "negative_frame",
-                "zero_frame",
-                "massive_frame_number",
-            ])
+            attack = random.choice(
+                [
+                    "frame_beyond_count",
+                    "negative_frame",
+                    "zero_frame",
+                    "massive_frame_number",
+                ]
+            )
 
             # Set a reasonable NumberOfFrames
             if not hasattr(dataset, "NumberOfFrames"):
@@ -295,10 +299,7 @@ class ReferenceFuzzer:
                 # Very large frame number
                 ref_item.ReferencedFrameNumber = 2147483647
 
-            dataset.add_new(
-                Tag(0x0008, 0x1140), "SQ",
-                Sequence([ref_item])
-            )
+            dataset.add_new(Tag(0x0008, 0x1140), "SQ", Sequence([ref_item]))
 
         except Exception as e:
             logger.debug(f"Invalid frame reference attack failed: {e}")
@@ -312,11 +313,13 @@ class ReferenceFuzzer:
         Mismatches test validation logic.
         """
         try:
-            attack = random.choice([
-                "series_different_study",
-                "instance_different_series",
-                "multiple_studies_same_series",
-            ])
+            attack = random.choice(
+                [
+                    "series_different_study",
+                    "instance_different_series",
+                    "multiple_studies_same_series",
+                ]
+            )
 
             if attack == "series_different_study":
                 # Set series that claims different study
@@ -324,10 +327,7 @@ class ReferenceFuzzer:
                 ref_item = Dataset()
                 ref_item.StudyInstanceUID = generate_uid()  # Different!
                 ref_item.SeriesInstanceUID = generate_uid()
-                dataset.add_new(
-                    Tag(0x0008, 0x1115), "SQ",
-                    Sequence([ref_item])
-                )
+                dataset.add_new(Tag(0x0008, 0x1115), "SQ", Sequence([ref_item]))
 
             elif attack == "instance_different_series":
                 # Referenced instance from different series
@@ -336,24 +336,18 @@ class ReferenceFuzzer:
                 ref_item.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
                 ref_item.ReferencedSOPInstanceUID = generate_uid()
                 ref_item.SeriesInstanceUID = generate_uid()  # Different!
-                dataset.add_new(
-                    Tag(0x0008, 0x1140), "SQ",
-                    Sequence([ref_item])
-                )
+                dataset.add_new(Tag(0x0008, 0x1140), "SQ", Sequence([ref_item]))
 
             elif attack == "multiple_studies_same_series":
                 # Same series UID in different studies (invalid)
                 shared_series_uid = generate_uid()
                 dataset.SeriesInstanceUID = shared_series_uid
 
-                for i in range(3):
+                for _i in range(3):
                     ref_item = Dataset()
                     ref_item.StudyInstanceUID = generate_uid()
                     ref_item.SeriesInstanceUID = shared_series_uid
-                    dataset.add_new(
-                        Tag(0x0008, 0x1115), "SQ",
-                        Sequence([ref_item])
-                    )
+                    dataset.add_new(Tag(0x0008, 0x1115), "SQ", Sequence([ref_item]))
 
         except Exception as e:
             logger.debug(f"Mismatched study reference attack failed: {e}")
@@ -368,21 +362,22 @@ class ReferenceFuzzer:
         try:
             # Create referenced series sequence with problems
             ref_series = []
-            for i in range(5):
+            for _i in range(5):
                 item = Dataset()
                 item.SeriesInstanceUID = generate_uid()
 
                 # Add some referenced instances
                 instances = []
-                for j in range(3):
+                for _j in range(3):
                     inst = Dataset()
                     inst.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
                     inst.ReferencedSOPInstanceUID = generate_uid()
                     instances.append(inst)
 
                 item.add_new(
-                    Tag(0x0008, 0x1199), "SQ",  # ReferencedSOPSequence
-                    Sequence(instances)
+                    Tag(0x0008, 0x1199),
+                    "SQ",  # ReferencedSOPSequence
+                    Sequence(instances),
                 )
                 ref_series.append(item)
 
@@ -395,10 +390,7 @@ class ReferenceFuzzer:
                 if len(ref_series) > 1:
                     ref_series[1].SeriesInstanceUID = ref_series[0].SeriesInstanceUID
 
-            dataset.add_new(
-                Tag(0x0008, 0x1115), "SQ",
-                Sequence(ref_series)
-            )
+            dataset.add_new(Tag(0x0008, 0x1115), "SQ", Sequence(ref_series))
 
         except Exception as e:
             logger.debug(f"Broken series reference attack failed: {e}")
@@ -412,11 +404,13 @@ class ReferenceFuzzer:
         Corrupted FoR can cause wrong image alignment.
         """
         try:
-            attack = random.choice([
-                "conflicting_for",
-                "missing_for_with_position",
-                "for_uid_mismatch",
-            ])
+            attack = random.choice(
+                [
+                    "conflicting_for",
+                    "missing_for_with_position",
+                    "for_uid_mismatch",
+                ]
+            )
 
             if attack == "conflicting_for":
                 # Set FrameOfReferenceUID but reference different one
@@ -426,8 +420,9 @@ class ReferenceFuzzer:
                 ref_item.FrameOfReferenceUID = generate_uid()  # Different!
                 ref_item.FrameOfReferenceRelationship = "DERIVED"
                 dataset.add_new(
-                    Tag(0x3006, 0x0080), "SQ",  # ReferencedFrameOfReferenceSequence
-                    Sequence([ref_item])
+                    Tag(0x3006, 0x0080),
+                    "SQ",  # ReferencedFrameOfReferenceSequence
+                    Sequence([ref_item]),
                 )
 
             elif attack == "missing_for_with_position":
@@ -447,10 +442,7 @@ class ReferenceFuzzer:
                     item.FrameOfReferenceUID = generate_uid()  # All different
                     ref_items.append(item)
 
-                dataset.add_new(
-                    Tag(0x3006, 0x0080), "SQ",
-                    Sequence(ref_items)
-                )
+                dataset.add_new(Tag(0x3006, 0x0080), "SQ", Sequence(ref_items))
 
         except Exception as e:
             logger.debug(f"Frame of reference attack failed: {e}")
@@ -474,10 +466,7 @@ class ReferenceFuzzer:
                 item.ReferencedSOPInstanceUID = uid  # Same UID!
                 ref_items.append(item)
 
-            dataset.add_new(
-                Tag(0x0008, 0x1140), "SQ",
-                Sequence(ref_items)
-            )
+            dataset.add_new(Tag(0x0008, 0x1140), "SQ", Sequence(ref_items))
 
         except Exception as e:
             logger.debug(f"Duplicate reference attack failed: {e}")
@@ -502,16 +491,10 @@ class ReferenceFuzzer:
                 wrapper = Dataset()
                 wrapper.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
                 wrapper.ReferencedSOPInstanceUID = generate_uid()
-                wrapper.add_new(
-                    Tag(0x0008, 0x1140), "SQ",
-                    Sequence([current])
-                )
+                wrapper.add_new(Tag(0x0008, 0x1140), "SQ", Sequence([current]))
                 current = wrapper
 
-            dataset.add_new(
-                Tag(0x0008, 0x1140), "SQ",
-                Sequence([current])
-            )
+            dataset.add_new(Tag(0x0008, 0x1140), "SQ", Sequence([current]))
 
         except Exception as e:
             logger.debug(f"Massive reference chain attack failed: {e}")
@@ -532,10 +515,7 @@ class ReferenceFuzzer:
             ref_item.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.4"  # MR!
             ref_item.ReferencedSOPInstanceUID = generate_uid()
 
-            dataset.add_new(
-                Tag(0x0008, 0x1140), "SQ",
-                Sequence([ref_item])
-            )
+            dataset.add_new(Tag(0x0008, 0x1140), "SQ", Sequence([ref_item]))
 
             # Also add a non-image reference where image expected
             non_image_ref = Dataset()

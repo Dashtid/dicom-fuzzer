@@ -38,6 +38,8 @@ from pydicom.dataset import Dataset
 from dicom_fuzzer.core.serialization import SerializableMixin
 from dicom_fuzzer.utils.logger import get_logger
 
+from .base import FormatFuzzerBase
+
 logger = get_logger(__name__)
 
 
@@ -62,12 +64,17 @@ class CalibrationMutationRecord(SerializableMixin):
         return data
 
 
-class CalibrationFuzzer:
+class CalibrationFuzzer(FormatFuzzerBase):
     """Fuzzer for DICOM calibration and measurement-related tags.
 
     Targets calibration parameters that affect measurements, calculations,
     and display rendering in medical imaging applications.
     """
+
+    @property
+    def strategy_name(self) -> str:
+        """Return the strategy name for identification."""
+        return "calibration"
 
     def __init__(self, severity: str = "moderate", seed: int | None = None):
         """Initialize CalibrationFuzzer.
@@ -644,3 +651,18 @@ class CalibrationFuzzer:
                 all_records.extend(records)
 
         return dataset, all_records
+
+    def mutate(self, dataset: Dataset) -> Dataset:
+        """Apply calibration mutations (FormatFuzzerBase interface).
+
+        Wraps fuzz_all() and returns just the mutated dataset.
+
+        Args:
+            dataset: DICOM dataset to mutate
+
+        Returns:
+            Mutated dataset
+
+        """
+        dataset, _records = self.fuzz_all(dataset)
+        return dataset

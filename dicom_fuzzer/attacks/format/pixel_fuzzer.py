@@ -9,20 +9,19 @@ Targets pixel data with various corruptions to test parser robustness:
 """
 
 import random
-import struct
 
 import numpy as np
 from pydicom.dataset import Dataset
-from pydicom.tag import Tag
 from pydicom.uid import (
-    ExplicitVRLittleEndian,
     JPEG2000,
     JPEGBaseline8Bit,
     RLELossless,
 )
 
+from .base import FormatFuzzerBase
 
-class PixelFuzzer:
+
+class PixelFuzzer(FormatFuzzerBase):
     """Fuzzes DICOM pixel data to test image handling robustness.
 
     Tests application handling of:
@@ -40,7 +39,12 @@ class PixelFuzzer:
             RLELossless,
         ]
 
-    def mutate_pixels(self, dataset: Dataset) -> Dataset:
+    @property
+    def strategy_name(self) -> str:
+        """Return the strategy name for identification."""
+        return "pixel"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply pixel data mutations to the dataset.
 
         Args:
@@ -68,18 +72,22 @@ class PixelFuzzer:
 
         return dataset
 
+    mutate_pixels = mutate
+
     def _samples_per_pixel_attack(self, dataset: Dataset) -> Dataset:
         """Attack SamplesPerPixel field.
 
         SamplesPerPixel defines number of color channels (1=grayscale, 3=RGB).
         Mismatches with actual pixel data can cause crashes.
         """
-        attack = random.choice([
-            "mismatch_grayscale_rgb",
-            "invalid_value",
-            "zero_samples",
-            "extreme_samples",
-        ])
+        attack = random.choice(
+            [
+                "mismatch_grayscale_rgb",
+                "invalid_value",
+                "zero_samples",
+                "extreme_samples",
+            ]
+        )
 
         try:
             if attack == "mismatch_grayscale_rgb":
@@ -111,11 +119,13 @@ class PixelFuzzer:
 
         Only valid when SamplesPerPixel > 1.
         """
-        attack = random.choice([
-            "wrong_configuration",
-            "invalid_value",
-            "planar_without_color",
-        ])
+        attack = random.choice(
+            [
+                "wrong_configuration",
+                "invalid_value",
+                "planar_without_color",
+            ]
+        )
 
         try:
             if attack == "wrong_configuration":
@@ -167,14 +177,16 @@ class PixelFuzzer:
         if "PixelData" not in dataset:
             return dataset
 
-        attack = random.choice([
-            "rows_larger",
-            "columns_larger",
-            "both_larger",
-            "rows_zero",
-            "columns_zero",
-            "extreme_dimensions",
-        ])
+        attack = random.choice(
+            [
+                "rows_larger",
+                "columns_larger",
+                "both_larger",
+                "rows_zero",
+                "columns_zero",
+                "extreme_dimensions",
+            ]
+        )
 
         try:
             if attack == "rows_larger":
@@ -213,13 +225,15 @@ class PixelFuzzer:
         - HighBit inconsistencies
         - Negative or zero bit values
         """
-        attack = random.choice([
-            "bits_stored_greater",
-            "high_bit_invalid",
-            "bits_allocated_mismatch",
-            "zero_bits",
-            "extreme_bits",
-        ])
+        attack = random.choice(
+            [
+                "bits_stored_greater",
+                "high_bit_invalid",
+                "bits_allocated_mismatch",
+                "zero_bits",
+                "extreme_bits",
+            ]
+        )
 
         try:
             if attack == "bits_stored_greater":
@@ -263,133 +277,6 @@ class PixelFuzzer:
 
         try:
             dataset.PhotometricInterpretation = random.choice(invalid_photometrics)
-        except Exception:
-            pass
-
-        return dataset
-
-
-class MultiFrameFuzzer:
-    """Fuzzes multi-frame DICOM images.
-
-    Tests handling of:
-    - Frame count mismatches
-    - Missing/extra frames
-    - Frame-specific metadata inconsistencies
-    """
-
-    def mutate_multiframe(self, dataset: Dataset) -> Dataset:
-        """Apply multi-frame specific mutations.
-
-        Args:
-            dataset: DICOM dataset to mutate.
-
-        Returns:
-            Mutated dataset.
-
-        """
-        mutations = [
-            self._frame_count_mismatch,
-            self._extreme_frame_count,
-            self._per_frame_corruption,
-        ]
-
-        for mutation in random.sample(mutations, k=random.randint(1, 2)):
-            try:
-                dataset = mutation(dataset)
-            except Exception:
-                pass
-
-        return dataset
-
-    def _frame_count_mismatch(self, dataset: Dataset) -> Dataset:
-        """Set NumberOfFrames to wrong value.
-
-        Frame count mismatch can cause:
-        - Reading past actual pixel data
-        - Index out of bounds in frame arrays
-        - Memory allocation issues
-        """
-        current_frames = getattr(dataset, "NumberOfFrames", 1)
-
-        attack = random.choice([
-            "more_frames",
-            "fewer_frames",
-            "zero_frames",
-            "one_frame_from_multi",
-        ])
-
-        try:
-            if attack == "more_frames":
-                dataset.NumberOfFrames = current_frames * 10
-            elif attack == "fewer_frames" and current_frames > 1:
-                dataset.NumberOfFrames = 1
-            elif attack == "zero_frames":
-                dataset.NumberOfFrames = 0
-            elif attack == "one_frame_from_multi" and current_frames > 1:
-                # Claim single frame but keep multi-frame data
-                dataset.NumberOfFrames = 1
-        except Exception:
-            pass
-
-        return dataset
-
-    def _extreme_frame_count(self, dataset: Dataset) -> Dataset:
-        """Set extreme NumberOfFrames values.
-
-        Tests integer overflow in frame calculations.
-        """
-        extreme_values = [
-            2147483647,  # MAX_INT
-            4294967295,  # MAX_UINT
-            65535,  # MAX_USHORT
-            -1,  # Negative (if signed handling is wrong)
-        ]
-
-        try:
-            dataset.NumberOfFrames = random.choice(extreme_values)
-        except Exception:
-            pass
-
-        return dataset
-
-    def _per_frame_corruption(self, dataset: Dataset) -> Dataset:
-        """Corrupt per-frame functional groups if present.
-
-        Multi-frame images often have PerFrameFunctionalGroupsSequence
-        with frame-specific metadata. Corrupting this tests frame lookup.
-        """
-        per_frame_tag = Tag(0x5200, 0x9230)  # PerFrameFunctionalGroupsSequence
-
-        if per_frame_tag not in dataset:
-            return dataset
-
-        try:
-            seq = dataset[per_frame_tag].value
-            if seq and len(seq) > 0:
-                corruption = random.choice([
-                    "remove_items",
-                    "duplicate_items",
-                    "empty_items",
-                ])
-
-                if corruption == "remove_items":
-                    # Remove half the items
-                    while len(seq) > 1:
-                        seq.pop()
-
-                elif corruption == "duplicate_items":
-                    # Duplicate first item many times
-                    first = seq[0]
-                    for _ in range(10):
-                        seq.append(first)
-
-                elif corruption == "empty_items":
-                    # Replace with empty items
-                    from pydicom.dataset import Dataset as DS
-                    for i in range(len(seq)):
-                        seq[i] = DS()
-
         except Exception:
             pass
 

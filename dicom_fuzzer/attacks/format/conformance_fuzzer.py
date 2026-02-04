@@ -21,15 +21,12 @@ from pydicom.tag import Tag
 from pydicom.uid import (
     ExplicitVRBigEndian,
     ExplicitVRLittleEndian,
-    ImplicitVRLittleEndian,
-    JPEG2000,
-    JPEGBaseline8Bit,
-    RLELossless,
-    UID,
     generate_uid,
 )
 
 from dicom_fuzzer.utils.logger import get_logger
+
+from .base import FormatFuzzerBase
 
 logger = get_logger(__name__)
 
@@ -84,7 +81,7 @@ INVALID_UIDS = [
     "1.2.3.4.",  # Trailing dot
     "1..2.3.4",  # Double dot
     "1.2.3.4.00005",  # Leading zeros
-    "0.0.0.0",  # All zeros
+    "0.0.0.0",  # nosec B104 - DICOM UID, not a bind address  # noqa: S104
     "999.999.999.999.999",  # Large components
     "1.2.3.4\x00",  # Null byte
     "1.2.3.4 ",  # Trailing space
@@ -92,7 +89,7 @@ INVALID_UIDS = [
 ]
 
 
-class ConformanceFuzzer:
+class ConformanceFuzzer(FormatFuzzerBase):
     """Fuzzes DICOM conformance elements.
 
     Targets the metadata that defines how DICOM data should be
@@ -114,7 +111,12 @@ class ConformanceFuzzer:
             self._retired_syntax_attack,
         ]
 
-    def mutate_conformance(self, dataset: Dataset) -> Dataset:
+    @property
+    def strategy_name(self) -> str:
+        """Return the strategy name for identification."""
+        return "conformance"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply conformance-related mutations.
 
         Args:
@@ -135,6 +137,8 @@ class ConformanceFuzzer:
 
         return dataset
 
+    mutate_conformance = mutate
+
     def _ensure_file_meta(self, dataset: Dataset) -> None:
         """Ensure dataset has file_meta."""
         if not hasattr(dataset, "file_meta") or dataset.file_meta is None:
@@ -151,12 +155,14 @@ class ConformanceFuzzer:
         """
         self._ensure_file_meta(dataset)
 
-        attack = random.choice([
-            "completely_invalid",
-            "unknown_but_valid_format",
-            "retired_sop_class",
-            "private_sop_class",
-        ])
+        attack = random.choice(
+            [
+                "completely_invalid",
+                "unknown_but_valid_format",
+                "retired_sop_class",
+                "private_sop_class",
+            ]
+        )
 
         try:
             if attack == "completely_invalid":
@@ -196,12 +202,14 @@ class ConformanceFuzzer:
         """
         self._ensure_file_meta(dataset)
 
-        attack = random.choice([
-            "completely_invalid",
-            "unknown_syntax",
-            "retired_syntax",
-            "private_syntax",
-        ])
+        attack = random.choice(
+            [
+                "completely_invalid",
+                "unknown_syntax",
+                "retired_syntax",
+                "private_syntax",
+            ]
+        )
 
         try:
             if attack == "completely_invalid":
@@ -263,12 +271,14 @@ class ConformanceFuzzer:
         File Meta is required for Part 10 files but may be
         missing or incomplete.
         """
-        attack = random.choice([
-            "remove_all",
-            "remove_sop_class",
-            "remove_transfer_syntax",
-            "remove_sop_instance",
-        ])
+        attack = random.choice(
+            [
+                "remove_all",
+                "remove_sop_class",
+                "remove_transfer_syntax",
+                "remove_sop_instance",
+            ]
+        )
 
         try:
             if attack == "remove_all":
@@ -302,26 +312,30 @@ class ConformanceFuzzer:
         """
         self._ensure_file_meta(dataset)
 
-        attack = random.choice([
-            "wrong_preamble",
-            "wrong_version",
-            "extra_meta_elements",
-            "wrong_meta_length",
-        ])
+        attack = random.choice(
+            [
+                "wrong_preamble",
+                "wrong_version",
+                "extra_meta_elements",
+                "wrong_meta_length",
+            ]
+        )
 
         try:
             if attack == "wrong_preamble":
                 # Preamble should be 128 zero bytes (or application-specific)
                 # but we set it to non-zero pattern
-                dataset.preamble = b"\xFF" * 128
+                dataset.preamble = b"\xff" * 128
 
             elif attack == "wrong_version":
                 # FileMetaInformationVersion should be [0, 1]
-                dataset.file_meta.FileMetaInformationVersion = b"\xFF\xFF"
+                dataset.file_meta.FileMetaInformationVersion = b"\xff\xff"
 
             elif attack == "extra_meta_elements":
                 # Add non-standard elements to file meta
-                dataset.file_meta.add_new(Tag(0x0002, 0x9999), "LO", "InvalidMetaElement")
+                dataset.file_meta.add_new(
+                    Tag(0x0002, 0x9999), "LO", "InvalidMetaElement"
+                )
 
             elif attack == "wrong_meta_length":
                 # FileMetaInformationGroupLength may be wrong
@@ -340,11 +354,13 @@ class ConformanceFuzzer:
         self._ensure_file_meta(dataset)
 
         try:
-            attack = random.choice([
-                "old_version",
-                "future_version",
-                "invalid_version",
-            ])
+            attack = random.choice(
+                [
+                    "old_version",
+                    "future_version",
+                    "invalid_version",
+                ]
+            )
 
             if attack == "old_version":
                 # Very old format indicators
@@ -356,7 +372,7 @@ class ConformanceFuzzer:
 
             elif attack == "invalid_version":
                 # Invalid version bytes
-                dataset.file_meta.FileMetaInformationVersion = b"\xFF\xFF\xFF\xFF"
+                dataset.file_meta.FileMetaInformationVersion = b"\xff\xff\xff\xff"
 
         except Exception as e:
             logger.debug(f"Version mismatch attack failed: {e}")
@@ -372,12 +388,14 @@ class ConformanceFuzzer:
         self._ensure_file_meta(dataset)
 
         try:
-            attack = random.choice([
-                "known_vulnerable",
-                "invalid_format",
-                "very_long",
-                "empty",
-            ])
+            attack = random.choice(
+                [
+                    "known_vulnerable",
+                    "invalid_format",
+                    "very_long",
+                    "empty",
+                ]
+            )
 
             if attack == "known_vulnerable":
                 # Impersonate a known implementation
@@ -451,12 +469,14 @@ class ConformanceFuzzer:
         ]
 
         try:
-            attack = random.choice([
-                "too_long_uid",
-                "non_numeric_component",
-                "leading_zeros",
-                "empty_component",
-            ])
+            attack = random.choice(
+                [
+                    "too_long_uid",
+                    "non_numeric_component",
+                    "leading_zeros",
+                    "empty_component",
+                ]
+            )
 
             tag, name = random.choice(uid_tags[:4])  # Only actual UID tags
 
@@ -489,11 +509,13 @@ class ConformanceFuzzer:
         self._ensure_file_meta(dataset)
 
         try:
-            attack = random.choice([
-                "retired_transfer_syntax",
-                "retired_sop_with_modern_syntax",
-                "explicit_vr_big_endian",
-            ])
+            attack = random.choice(
+                [
+                    "retired_transfer_syntax",
+                    "retired_sop_with_modern_syntax",
+                    "explicit_vr_big_endian",
+                ]
+            )
 
             if attack == "retired_transfer_syntax":
                 # Retired JPEG syntaxes
@@ -507,7 +529,9 @@ class ConformanceFuzzer:
             elif attack == "retired_sop_with_modern_syntax":
                 # Old SOP class with new transfer syntax
                 dataset.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.5"
-                dataset.file_meta.TransferSyntaxUID = TRANSFER_SYNTAXES["jpeg2000_lossless"]
+                dataset.file_meta.TransferSyntaxUID = TRANSFER_SYNTAXES[
+                    "jpeg2000_lossless"
+                ]
 
             elif attack == "explicit_vr_big_endian":
                 # Big Endian is retired but may still need support

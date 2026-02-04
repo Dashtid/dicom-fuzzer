@@ -239,6 +239,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "dicom_fuzzer.adapters.*",
+    "dicom_fuzzer.core.adapters.*",
     "dicom_fuzzer.core.ui_validator",
     "dicom_fuzzer.core.target_harness",
     "dicom_fuzzer.cli.study_campaign",
@@ -246,6 +247,12 @@ module = [
 ]
 # pywinauto uses dynamic attributes; matplotlib stubs inconsistent across platforms
 disable_error_code = ["union-attr", "attr-defined", "unreachable", "operator", "valid-type", "no-any-return", "arg-type"]
+
+[[tool.mypy.overrides]]
+module = "dicom_fuzzer.attacks.format.*"
+# Format fuzzers intentionally violate type safety: accessing internal pydicom
+# attributes (_value), assigning invalid strings to UID fields, etc.
+disable_error_code = ["union-attr", "misc", "valid-type", "var-annotated", "arg-type", "assignment", "no-any-return"]
 
 # Pyright configuration (fast, modern type checker - 3-5x faster than mypy)
 [tool.pyright]

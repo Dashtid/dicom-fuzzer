@@ -27,6 +27,8 @@ from pydicom.tag import Tag
 
 from dicom_fuzzer.utils.logger import get_logger
 
+from .base import FormatFuzzerBase
+
 logger = get_logger(__name__)
 
 # Valid DICOM character set values
@@ -81,7 +83,7 @@ TEXT_TAGS = [
 ]
 
 
-class EncodingFuzzer:
+class EncodingFuzzer(FormatFuzzerBase):
     """Fuzzes character encoding and text fields.
 
     Targets internationalization handling which is often a source
@@ -103,7 +105,12 @@ class EncodingFuzzer:
             self._surrogate_pair_attack,
         ]
 
-    def mutate_encoding(self, dataset: Dataset) -> Dataset:
+    @property
+    def strategy_name(self) -> str:
+        """Return the strategy name for identification."""
+        return "encoding"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply encoding-related mutations to the dataset.
 
         Args:
@@ -124,17 +131,21 @@ class EncodingFuzzer:
 
         return dataset
 
+    mutate_encoding = mutate
+
     def _invalid_charset_value(self, dataset: Dataset) -> Dataset:
         """Set invalid SpecificCharacterSet values.
 
         Tests how parsers handle unknown or malformed charset declarations.
         """
-        attack = random.choice([
-            "unknown_charset",
-            "malformed_charset",
-            "empty_charset_with_unicode",
-            "conflicting_charsets",
-        ])
+        attack = random.choice(
+            [
+                "unknown_charset",
+                "malformed_charset",
+                "empty_charset_with_unicode",
+                "conflicting_charsets",
+            ]
+        )
 
         try:
             if attack == "unknown_charset":
@@ -166,11 +177,13 @@ class EncodingFuzzer:
         whether parsers validate consistency.
         """
         try:
-            attack = random.choice([
-                "latin1_declared_utf8_data",
-                "utf8_declared_latin1_data",
-                "ascii_declared_multibyte",
-            ])
+            attack = random.choice(
+                [
+                    "latin1_declared_utf8_data",
+                    "utf8_declared_latin1_data",
+                    "ascii_declared_multibyte",
+                ]
+            )
 
             if attack == "latin1_declared_utf8_data":
                 dataset.SpecificCharacterSet = "ISO_IR 100"  # Latin-1
@@ -182,8 +195,9 @@ class EncodingFuzzer:
                 dataset.SpecificCharacterSet = "ISO_IR 192"  # UTF-8
                 # Set Latin-1 bytes that are invalid UTF-8
                 dataset.add_new(
-                    Tag(0x0010, 0x0010), "PN",
-                    b"M\xfcller"  # ü in Latin-1, invalid UTF-8
+                    Tag(0x0010, 0x0010),
+                    "PN",
+                    b"M\xfcller",  # ü in Latin-1, invalid UTF-8
                 )
 
             elif attack == "ascii_declared_multibyte":
@@ -207,17 +221,17 @@ class EncodingFuzzer:
 
         invalid_sequences = [
             b"\x80",  # Continuation byte without start
-            b"\xC0\xAF",  # Overlong encoding of '/'
-            b"\xE0\x80\xAF",  # Overlong encoding
-            b"\xF0\x80\x80\xAF",  # Overlong encoding
-            b"\xFE",  # Invalid start byte
-            b"\xFF",  # Invalid start byte
-            b"\xC0\xC0",  # Two start bytes
-            b"\xE0\x80",  # Truncated 3-byte sequence
-            b"\xF0\x80\x80",  # Truncated 4-byte sequence
-            b"\xED\xA0\x80",  # UTF-16 surrogate (invalid in UTF-8)
-            b"\xED\xBF\xBF",  # UTF-16 surrogate
-            b"\xF4\x90\x80\x80",  # Above U+10FFFF
+            b"\xc0\xaf",  # Overlong encoding of '/'
+            b"\xe0\x80\xaf",  # Overlong encoding
+            b"\xf0\x80\x80\xaf",  # Overlong encoding
+            b"\xfe",  # Invalid start byte
+            b"\xff",  # Invalid start byte
+            b"\xc0\xc0",  # Two start bytes
+            b"\xe0\x80",  # Truncated 3-byte sequence
+            b"\xf0\x80\x80",  # Truncated 4-byte sequence
+            b"\xed\xa0\x80",  # UTF-16 surrogate (invalid in UTF-8)
+            b"\xed\xbf\xbf",  # UTF-16 surrogate
+            b"\xf4\x90\x80\x80",  # Above U+10FFFF
         ]
 
         try:
@@ -239,19 +253,19 @@ class EncodingFuzzer:
         dataset.SpecificCharacterSet = "ISO 2022 IR 87"  # Japanese
 
         escape_sequences = [
-            b"\x1B$B",  # Switch to JIS X 0208
-            b"\x1B(B",  # Switch back to ASCII
-            b"\x1B$@",  # Old JIS
-            b"\x1B$(D",  # JIS X 0212
-            b"\x1B\x1B\x1B",  # Multiple escapes
-            b"\x1B$",  # Truncated escape
-            b"\x1B(X",  # Invalid designation
-            b"\x1B$B\x1B$B",  # Redundant switching
+            b"\x1b$B",  # Switch to JIS X 0208
+            b"\x1b(B",  # Switch back to ASCII
+            b"\x1b$@",  # Old JIS
+            b"\x1b$(D",  # JIS X 0212
+            b"\x1b\x1b\x1b",  # Multiple escapes
+            b"\x1b$",  # Truncated escape
+            b"\x1b(X",  # Invalid designation
+            b"\x1b$B\x1b$B",  # Redundant switching
         ]
 
         try:
             escape = random.choice(escape_sequences)
-            value = b"Test" + escape + b"Value" + b"\x1B(B"
+            value = b"Test" + escape + b"Value" + b"\x1b(B"
             dataset.add_new(Tag(0x0010, 0x0010), "PN", value)
         except Exception as e:
             logger.debug(f"Escape sequence injection failed: {e}")
@@ -265,20 +279,22 @@ class EncodingFuzzer:
         present in data from external sources.
         """
         boms = [
-            b"\xEF\xBB\xBF",  # UTF-8 BOM
-            b"\xFF\xFE",  # UTF-16 LE BOM
-            b"\xFE\xFF",  # UTF-16 BE BOM
-            b"\xFF\xFE\x00\x00",  # UTF-32 LE BOM
-            b"\x00\x00\xFE\xFF",  # UTF-32 BE BOM
+            b"\xef\xbb\xbf",  # UTF-8 BOM
+            b"\xff\xfe",  # UTF-16 LE BOM
+            b"\xfe\xff",  # UTF-16 BE BOM
+            b"\xff\xfe\x00\x00",  # UTF-32 LE BOM
+            b"\x00\x00\xfe\xff",  # UTF-32 BE BOM
         ]
 
         try:
             bom = random.choice(boms)
-            attack = random.choice([
-                "bom_at_start",
-                "bom_in_middle",
-                "multiple_boms",
-            ])
+            attack = random.choice(
+                [
+                    "bom_at_start",
+                    "bom_in_middle",
+                    "multiple_boms",
+                ]
+            )
 
             if attack == "bom_at_start":
                 value = bom + b"PatientName"
@@ -302,12 +318,14 @@ class EncodingFuzzer:
         - Trigger undefined behavior
         """
         try:
-            attack = random.choice([
-                "null_in_middle",
-                "null_at_end",
-                "multiple_nulls",
-                "null_padding",
-            ])
+            attack = random.choice(
+                [
+                    "null_in_middle",
+                    "null_at_end",
+                    "multiple_nulls",
+                    "null_padding",
+                ]
+            )
 
             if attack == "null_in_middle":
                 value = "Patient\x00Name"
@@ -346,20 +364,22 @@ class EncodingFuzzer:
             "\x07",  # BEL (beep)
             "\x08",  # BS (backspace)
             "\x09",  # TAB
-            "\x0A",  # LF (newline)
-            "\x0B",  # VT
-            "\x0C",  # FF (form feed)
-            "\x0D",  # CR (carriage return)
-            "\x1B",  # ESC
-            "\x7F",  # DEL
+            "\x0a",  # LF (newline)
+            "\x0b",  # VT
+            "\x0c",  # FF (form feed)
+            "\x0d",  # CR (carriage return)
+            "\x1b",  # ESC
+            "\x7f",  # DEL
         ]
 
         try:
-            attack = random.choice([
-                "single_control",
-                "multiple_controls",
-                "control_sequence",
-            ])
+            attack = random.choice(
+                [
+                    "single_control",
+                    "multiple_controls",
+                    "control_sequence",
+                ]
+            )
 
             if attack == "single_control":
                 char = random.choice(control_chars)
@@ -371,7 +391,7 @@ class EncodingFuzzer:
 
             elif attack == "control_sequence":
                 # ANSI escape sequence (terminal control)
-                value = "Patient\x1B[31mRED\x1B[0mName"
+                value = "Patient\x1b[31mRED\x1b[0mName"
 
             dataset.PatientName = value
 
@@ -391,14 +411,14 @@ class EncodingFuzzer:
 
         # Overlong encodings of common characters
         overlong_encodings = [
-            (b"\xC0\x80", "NUL via 2-byte"),  # NUL as 2-byte
-            (b"\xE0\x80\x80", "NUL via 3-byte"),  # NUL as 3-byte
-            (b"\xF0\x80\x80\x80", "NUL via 4-byte"),  # NUL as 4-byte
-            (b"\xC0\xAF", "/ via 2-byte"),  # '/' as 2-byte
-            (b"\xE0\x80\xAF", "/ via 3-byte"),  # '/' as 3-byte
-            (b"\xC1\x9C", "\\ via 2-byte"),  # '\\' as 2-byte
-            (b"\xE0\x81\x9C", "\\ via 3-byte"),  # '\\' as 3-byte
-            (b"\xC0\xAE", ". via 2-byte"),  # '.' as 2-byte
+            (b"\xc0\x80", "NUL via 2-byte"),  # NUL as 2-byte
+            (b"\xe0\x80\x80", "NUL via 3-byte"),  # NUL as 3-byte
+            (b"\xf0\x80\x80\x80", "NUL via 4-byte"),  # NUL as 4-byte
+            (b"\xc0\xaf", "/ via 2-byte"),  # '/' as 2-byte
+            (b"\xe0\x80\xaf", "/ via 3-byte"),  # '/' as 3-byte
+            (b"\xc1\x9c", "\\ via 2-byte"),  # '\\' as 2-byte
+            (b"\xe0\x81\x9c", "\\ via 3-byte"),  # '\\' as 3-byte
+            (b"\xc0\xae", ". via 2-byte"),  # '.' as 2-byte
         ]
 
         try:
@@ -448,19 +468,21 @@ class EncodingFuzzer:
 
         # UTF-8 encoding of surrogate code points (invalid)
         surrogates = [
-            b"\xED\xA0\x80",  # U+D800 (high surrogate start)
-            b"\xED\xAF\xBF",  # U+DBFF (high surrogate end)
-            b"\xED\xB0\x80",  # U+DC00 (low surrogate start)
-            b"\xED\xBF\xBF",  # U+DFFF (low surrogate end)
+            b"\xed\xa0\x80",  # U+D800 (high surrogate start)
+            b"\xed\xaf\xbf",  # U+DBFF (high surrogate end)
+            b"\xed\xb0\x80",  # U+DC00 (low surrogate start)
+            b"\xed\xbf\xbf",  # U+DFFF (low surrogate end)
         ]
 
         try:
-            attack = random.choice([
-                "lone_high_surrogate",
-                "lone_low_surrogate",
-                "reversed_pair",
-                "double_high",
-            ])
+            attack = random.choice(
+                [
+                    "lone_high_surrogate",
+                    "lone_low_surrogate",
+                    "reversed_pair",
+                    "double_high",
+                ]
+            )
 
             if attack == "lone_high_surrogate":
                 value = b"Patient" + surrogates[0] + b"Name"

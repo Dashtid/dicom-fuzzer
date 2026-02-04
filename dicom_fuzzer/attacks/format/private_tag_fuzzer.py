@@ -13,12 +13,13 @@ Private tag vulnerabilities:
 """
 
 import random
-import struct
 
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
 from dicom_fuzzer.utils.logger import get_logger
+
+from .base import FormatFuzzerBase
 
 logger = get_logger(__name__)
 
@@ -56,7 +57,7 @@ MALICIOUS_CREATORS = [
 PRIVATE_GROUPS = [0x0009, 0x0011, 0x0019, 0x0021, 0x0029, 0x0043, 0x0045, 0x7FE1]
 
 
-class PrivateTagFuzzer:
+class PrivateTagFuzzer(FormatFuzzerBase):
     """Fuzzes private/vendor-specific DICOM tags.
 
     Targets the proprietary extensions that vendors add to DICOM
@@ -78,7 +79,12 @@ class PrivateTagFuzzer:
             self._binary_blob_injection,
         ]
 
-    def mutate_private_tags(self, dataset: Dataset) -> Dataset:
+    @property
+    def strategy_name(self) -> str:
+        """Return the strategy name for identification."""
+        return "private_tag"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply private tag mutations.
 
         Args:
@@ -98,6 +104,8 @@ class PrivateTagFuzzer:
                 logger.debug(f"Private tag mutation failed: {e}")
 
         return dataset
+
+    mutate_private_tags = mutate
 
     def _missing_creator(self, dataset: Dataset) -> Dataset:
         """Add private data tags without Private Creator.
@@ -148,11 +156,13 @@ class PrivateTagFuzzer:
         try:
             group = random.choice(PRIVATE_GROUPS)
 
-            attack = random.choice([
-                "multiple_creators_same_block",
-                "creator_overwrites_data",
-                "duplicate_creator_different_data",
-            ])
+            attack = random.choice(
+                [
+                    "multiple_creators_same_block",
+                    "creator_overwrites_data",
+                    "duplicate_creator_different_data",
+                ]
+            )
 
             if attack == "multiple_creators_same_block":
                 # Two creators both claiming block 10
@@ -191,12 +201,14 @@ class PrivateTagFuzzer:
 
             dataset.add_new(Tag(group, 0x0010), "LO", creator)
 
-            attack = random.choice([
-                "numeric_as_string",
-                "string_as_binary",
-                "sequence_where_primitive",
-                "wrong_vr_class",
-            ])
+            attack = random.choice(
+                [
+                    "numeric_as_string",
+                    "string_as_binary",
+                    "sequence_where_primitive",
+                    "wrong_vr_class",
+                ]
+            )
 
             if attack == "numeric_as_string":
                 # Numeric data stored as string
@@ -211,6 +223,7 @@ class PrivateTagFuzzer:
             elif attack == "sequence_where_primitive":
                 # Use SQ where primitive expected
                 from pydicom.sequence import Sequence
+
                 item = Dataset()
                 item.add_new(Tag(0x0008, 0x0100), "SH", "CODE")
                 dataset.add_new(Tag(group, 0x1010), "SQ", Sequence([item]))
@@ -236,11 +249,13 @@ class PrivateTagFuzzer:
             group = random.choice(PRIVATE_GROUPS)
             dataset.add_new(Tag(group, 0x0010), "LO", "OVERSIZED_TEST")
 
-            attack = random.choice([
-                "large_string",
-                "large_binary",
-                "many_elements",
-            ])
+            attack = random.choice(
+                [
+                    "large_string",
+                    "large_binary",
+                    "many_elements",
+                ]
+            )
 
             if attack == "large_string":
                 # Very long string
@@ -257,10 +272,7 @@ class PrivateTagFuzzer:
                 for i in range(256):  # Fill entire block
                     element = 0x1000 + i
                     if element <= 0x10FF:
-                        dataset.add_new(
-                            Tag(group, element), "LO",
-                            f"Element_{i:04X}"
-                        )
+                        dataset.add_new(Tag(group, element), "LO", f"Element_{i:04X}")
 
         except Exception as e:
             logger.debug(f"Oversized private data attack failed: {e}")
@@ -385,11 +397,13 @@ class PrivateTagFuzzer:
             group = random.choice(PRIVATE_GROUPS)
             dataset.add_new(Tag(group, 0x0010), "LO", "SEQUENCE_TEST")
 
-            attack = random.choice([
-                "deeply_nested",
-                "mixed_creators_in_items",
-                "circular_private_ref",
-            ])
+            attack = random.choice(
+                [
+                    "deeply_nested",
+                    "mixed_creators_in_items",
+                    "circular_private_ref",
+                ]
+            )
 
             if attack == "deeply_nested":
                 # Deeply nested private sequence
@@ -398,15 +412,13 @@ class PrivateTagFuzzer:
                     item.add_new(Tag(group, 0x1001), "LO", f"Level_{depth}")
                     if depth > 0:
                         item.add_new(
-                            Tag(group, 0x1002), "SQ",
-                            Sequence([create_nested(depth - 1)])
+                            Tag(group, 0x1002),
+                            "SQ",
+                            Sequence([create_nested(depth - 1)]),
                         )
                     return item
 
-                dataset.add_new(
-                    Tag(group, 0x1010), "SQ",
-                    Sequence([create_nested(50)])
-                )
+                dataset.add_new(Tag(group, 0x1010), "SQ", Sequence([create_nested(50)]))
 
             elif attack == "mixed_creators_in_items":
                 # Items with different creators
@@ -418,10 +430,7 @@ class PrivateTagFuzzer:
                     item.add_new(Tag(other_group, 0x1010), "LO", f"Data_{i}")
                     items.append(item)
 
-                dataset.add_new(
-                    Tag(group, 0x1010), "SQ",
-                    Sequence(items)
-                )
+                dataset.add_new(Tag(group, 0x1010), "SQ", Sequence(items))
 
             elif attack == "circular_private_ref":
                 # Private sequence referencing itself (sort of)
@@ -434,10 +443,7 @@ class PrivateTagFuzzer:
                 # Item1 contains reference to where item2's data would be
                 item1.add_new(Tag(group, 0x1002), "AT", Tag(group, 0x1010))
 
-                dataset.add_new(
-                    Tag(group, 0x1010), "SQ",
-                    Sequence([item1, item2])
-                )
+                dataset.add_new(Tag(group, 0x1010), "SQ", Sequence([item1, item2]))
 
         except Exception as e:
             logger.debug(f"Private sequence attack failed: {e}")
@@ -458,7 +464,7 @@ class PrivateTagFuzzer:
                 # PE header
                 b"MZ" + b"\x00" * 100,
                 # ELF header
-                b"\x7FELF" + b"\x00" * 100,
+                b"\x7fELF" + b"\x00" * 100,
                 # ZIP/JAR header
                 b"PK\x03\x04" + b"\x00" * 100,
                 # PDF header

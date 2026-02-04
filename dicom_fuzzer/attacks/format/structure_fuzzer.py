@@ -16,10 +16,12 @@ from pydicom.tag import Tag
 
 from dicom_fuzzer.utils.logger import get_logger
 
+from .base import FormatFuzzerBase
+
 logger = get_logger(__name__)
 
 
-class StructureFuzzer:
+class StructureFuzzer(FormatFuzzerBase):
     """Fuzzes the underlying DICOM file structure.
 
     Targets the binary structure of DICOM files:
@@ -39,7 +41,12 @@ class StructureFuzzer:
             self._vm_mismatch_attacks,
         ]
 
-    def mutate_structure(self, dataset: Dataset) -> Dataset:
+    @property
+    def strategy_name(self) -> str:
+        """Return the strategy name for identification."""
+        return "structure"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply structure-level mutations to the dataset.
 
         Randomly selects 1-2 corruption strategies, each targeting
@@ -60,6 +67,8 @@ class StructureFuzzer:
             dataset = strategy(dataset)
 
         return dataset
+
+    mutate_structure = mutate
 
     def _corrupt_tag_ordering(self, dataset: Dataset) -> Dataset:
         """Corrupt the ordering of DICOM tags.
@@ -224,13 +233,15 @@ class StructureFuzzer:
 
         These patterns commonly trigger CVEs in DICOM parsers.
         """
-        attack = random.choice([
-            "extreme_length_value",
-            "zero_length_required",
-            "negative_interpreted_as_large",
-            "odd_length_word_aligned",
-            "boundary_length_values",
-        ])
+        attack = random.choice(
+            [
+                "extreme_length_value",
+                "zero_length_required",
+                "negative_interpreted_as_large",
+                "odd_length_word_aligned",
+                "boundary_length_values",
+            ]
+        )
 
         # Find elements to attack
         elements = list(dataset.items())
@@ -274,14 +285,27 @@ class StructureFuzzer:
                 # OW (Other Word) requires 2-byte alignment
                 # OF (Other Float) requires 4-byte alignment
                 # OD (Other Double) requires 8-byte alignment
-                word_aligned_vrs = ["OW", "OF", "OD", "OL", "FL", "FD", "SL", "SS", "UL", "US"]
-                for t, elem in dataset.items():
+                word_aligned_vrs = [
+                    "OW",
+                    "OF",
+                    "OD",
+                    "OL",
+                    "FL",
+                    "FD",
+                    "SL",
+                    "SS",
+                    "UL",
+                    "US",
+                ]
+                for _t, elem in dataset.items():
                     if hasattr(elem, "VR") and elem.VR in word_aligned_vrs:
                         # Set odd-length bytes that violate alignment
                         if elem.VR in ["OW", "US", "SS"]:
                             elem._value = b"\x00\x00\x00"  # 3 bytes, should be 2
                         elif elem.VR in ["OF", "FL", "UL", "SL", "OL"]:
-                            elem._value = b"\x00\x00\x00\x00\x00"  # 5 bytes, should be 4
+                            elem._value = (
+                                b"\x00\x00\x00\x00\x00"  # 5 bytes, should be 4
+                            )
                         elif elem.VR in ["OD", "FD"]:
                             elem._value = b"\x00" * 7  # 7 bytes, should be 8
                         break
@@ -294,7 +318,9 @@ class StructureFuzzer:
                     0x7FFFFFFF,  # 32-bit signed max
                     0x80000000,  # 32-bit signed overflow
                 ]
-                if hasattr(element, "value") and isinstance(element.value, (str, bytes)):
+                if hasattr(element, "value") and isinstance(
+                    element.value, (str, bytes)
+                ):
                     size = random.choice(boundary_sizes)
                     if size <= 100000:  # Only create reasonable sized data
                         if isinstance(element.value, str):
@@ -326,11 +352,13 @@ class StructureFuzzer:
             (Tag(0x0008, 0x0018), 1, "too_many"),  # SOPInstanceUID (VM=1)
         ]
 
-        attack = random.choice([
-            "too_few_values",
-            "too_many_values",
-            "empty_multivalue",
-        ])
+        attack = random.choice(
+            [
+                "too_few_values",
+                "too_many_values",
+                "empty_multivalue",
+            ]
+        )
 
         try:
             if attack == "too_few_values":

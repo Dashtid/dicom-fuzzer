@@ -17,7 +17,6 @@ Common vulnerabilities:
 """
 
 import random
-import struct
 from typing import Any
 
 from pydicom.dataset import Dataset
@@ -25,6 +24,8 @@ from pydicom.sequence import Sequence
 from pydicom.tag import Tag
 
 from dicom_fuzzer.utils.logger import get_logger
+
+from .base import FormatFuzzerBase
 
 logger = get_logger(__name__)
 
@@ -49,7 +50,7 @@ SEQUENCE_TAGS = [
 ]
 
 
-class SequenceFuzzer:
+class SequenceFuzzer(FormatFuzzerBase):
     """Fuzzes DICOM Sequence (SQ) and Item structures.
 
     Targets hierarchical data structures that are common crash vectors
@@ -69,7 +70,12 @@ class SequenceFuzzer:
             self._massive_item_count,
         ]
 
-    def mutate_sequences(self, dataset: Dataset) -> Dataset:
+    @property
+    def strategy_name(self) -> str:
+        """Return the strategy name for identification."""
+        return "sequence"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply sequence-level mutations to the dataset.
 
         Args:
@@ -89,6 +95,8 @@ class SequenceFuzzer:
                 logger.debug(f"Sequence mutation failed: {e}")
 
         return dataset
+
+    mutate_sequences = mutate
 
     def _find_sequences(self, dataset: Dataset) -> list[tuple[Tag, Any]]:
         """Find all sequence elements in the dataset."""
@@ -149,12 +157,14 @@ class SequenceFuzzer:
             if hasattr(seq_elem, "value") and len(seq_elem.value) > 0:
                 item = seq_elem.value[0]
 
-                attack = random.choice([
-                    "overflow_length",
-                    "zero_length",
-                    "negative_length",
-                    "undefined_length_non_sq",
-                ])
+                attack = random.choice(
+                    [
+                        "overflow_length",
+                        "zero_length",
+                        "negative_length",
+                        "undefined_length_non_sq",
+                    ]
+                )
 
                 if attack == "overflow_length":
                     # Add data that suggests length overflow
@@ -186,11 +196,13 @@ class SequenceFuzzer:
             Tag(0x5200, 0x9230),  # PerFrameFunctionalGroupsSequence
         ]
 
-        attack = random.choice([
-            "empty_sequence",
-            "null_first_item",
-            "empty_nested",
-        ])
+        attack = random.choice(
+            [
+                "empty_sequence",
+                "null_first_item",
+                "empty_nested",
+            ]
+        )
 
         try:
             if attack == "empty_sequence":
@@ -227,7 +239,7 @@ class SequenceFuzzer:
             # Item tag is (FFFE,E000), ItemDelimiter is (FFFE,E00D)
             # These are normally handled specially, not as data elements
             dataset.add_new(Tag(0x0009, 0x0010), "LO", "OrphanItemCreator")
-            dataset.add_new(Tag(0x0009, 0x1000), "UN", b"\xFE\xFF\x00\xE0" * 10)
+            dataset.add_new(Tag(0x0009, 0x1000), "UN", b"\xfe\xff\x00\xe0" * 10)
         except Exception as e:
             logger.debug(f"Orphan item attack failed: {e}")
 
@@ -281,9 +293,7 @@ class SequenceFuzzer:
                 # Embed delimiter bytes in text field
                 # SequenceDelimiter is (FFFE,E0DD)
                 item.add_new(
-                    Tag(0x0008, 0x1030),
-                    "LO",
-                    "Study\xFE\xFF\xDD\xE0Description"
+                    Tag(0x0008, 0x1030), "LO", "Study\xfe\xff\xdd\xe0Description"
                 )
         except Exception as e:
             logger.debug(f"Delimiter corruption failed: {e}")
@@ -307,7 +317,9 @@ class SequenceFuzzer:
 
             item3 = Dataset()
             # No character set specified but has non-ASCII
-            item3.add_new(Tag(0x0008, 0x0104), "LO", b"\xff\xfe\x00\x01".decode("latin1"))
+            item3.add_new(
+                Tag(0x0008, 0x0104), "LO", b"\xff\xfe\x00\x01".decode("latin1")
+            )
 
             dataset.add_new(Tag(0x0032, 0x1064), "SQ", Sequence([item1, item2, item3]))
 
@@ -324,11 +336,13 @@ class SequenceFuzzer:
         - Integer overflow in item counting
         - UI rendering issues
         """
-        attack = random.choice([
-            "many_items",
-            "many_nested_items",
-            "items_with_large_data",
-        ])
+        attack = random.choice(
+            [
+                "many_items",
+                "many_nested_items",
+                "items_with_large_data",
+            ]
+        )
 
         try:
             if attack == "many_items":
@@ -358,7 +372,7 @@ class SequenceFuzzer:
             elif attack == "items_with_large_data":
                 # Fewer items but each has significant data
                 items = []
-                for i in range(100):
+                for _i in range(100):
                     item = Dataset()
                     item.add_new(Tag(0x0008, 0x0104), "LO", "X" * 1000)
                     item.add_new(Tag(0x0008, 0x2111), "ST", "Y" * 10000)

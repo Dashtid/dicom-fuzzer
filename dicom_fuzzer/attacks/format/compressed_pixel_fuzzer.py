@@ -18,42 +18,40 @@ Common vulnerabilities:
 
 import random
 import struct
-from typing import Any
 
 from pydicom.dataset import Dataset
 from pydicom.encaps import encapsulate
 from pydicom.tag import Tag
 from pydicom.uid import (
-    ExplicitVRLittleEndian,
-    JPEG2000,
     JPEG2000Lossless,
     JPEGBaseline8Bit,
-    JPEGLossless,
     RLELossless,
 )
 
 from dicom_fuzzer.utils.logger import get_logger
 
+from .base import FormatFuzzerBase
+
 logger = get_logger(__name__)
 
 # JPEG markers
-JPEG_SOI = b"\xFF\xD8"  # Start of Image
-JPEG_EOI = b"\xFF\xD9"  # End of Image
-JPEG_SOF0 = b"\xFF\xC0"  # Baseline DCT
-JPEG_SOF2 = b"\xFF\xC2"  # Progressive DCT
-JPEG_DHT = b"\xFF\xC4"  # Define Huffman Table
-JPEG_DQT = b"\xFF\xDB"  # Define Quantization Table
-JPEG_SOS = b"\xFF\xDA"  # Start of Scan
-JPEG_APP0 = b"\xFF\xE0"  # JFIF marker
+JPEG_SOI = b"\xff\xd8"  # Start of Image
+JPEG_EOI = b"\xff\xd9"  # End of Image
+JPEG_SOF0 = b"\xff\xc0"  # Baseline DCT
+JPEG_SOF2 = b"\xff\xc2"  # Progressive DCT
+JPEG_DHT = b"\xff\xc4"  # Define Huffman Table
+JPEG_DQT = b"\xff\xdb"  # Define Quantization Table
+JPEG_SOS = b"\xff\xda"  # Start of Scan
+JPEG_APP0 = b"\xff\xe0"  # JFIF marker
 
 # JPEG 2000 markers
-JP2_SOC = b"\xFF\x4F"  # Start of codestream
-JP2_SIZ = b"\xFF\x51"  # Image and tile size
-JP2_COD = b"\xFF\x52"  # Coding style default
-JP2_EOC = b"\xFF\xD9"  # End of codestream
+JP2_SOC = b"\xff\x4f"  # Start of codestream
+JP2_SIZ = b"\xff\x51"  # Image and tile size
+JP2_COD = b"\xff\x52"  # Coding style default
+JP2_EOC = b"\xff\xd9"  # End of codestream
 
 
-class CompressedPixelFuzzer:
+class CompressedPixelFuzzer(FormatFuzzerBase):
     """Fuzzes compressed/encapsulated pixel data.
 
     Targets the encoding-specific aspects of compressed images
@@ -73,7 +71,12 @@ class CompressedPixelFuzzer:
             self._frame_count_mismatch,
         ]
 
-    def mutate_compressed_pixels(self, dataset: Dataset) -> Dataset:
+    @property
+    def strategy_name(self) -> str:
+        """Return the strategy name for identification."""
+        return "compressed_pixel"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply compressed pixel data mutations.
 
         Args:
@@ -93,6 +96,8 @@ class CompressedPixelFuzzer:
                 logger.debug(f"Compressed pixel mutation failed: {e}")
 
         return dataset
+
+    mutate_compressed_pixels = mutate
 
     def _has_pixel_data(self, dataset: Dataset) -> bool:
         """Check if dataset has pixel data."""
@@ -122,13 +127,15 @@ class CompressedPixelFuzzer:
         - Buffer overflows reading marker lengths
         - Crashes on unexpected marker sequences
         """
-        attack = random.choice([
-            "missing_eoi",
-            "duplicate_soi",
-            "invalid_marker",
-            "marker_length_overflow",
-            "truncated_marker",
-        ])
+        attack = random.choice(
+            [
+                "missing_eoi",
+                "duplicate_soi",
+                "invalid_marker",
+                "marker_length_overflow",
+                "truncated_marker",
+            ]
+        )
 
         try:
             if attack == "missing_eoi":
@@ -143,7 +150,7 @@ class CompressedPixelFuzzer:
 
             elif attack == "invalid_marker":
                 # Invalid marker bytes
-                fake_jpeg = JPEG_SOI + b"\xFF\x01" + b"\x00" * 50 + JPEG_EOI
+                fake_jpeg = JPEG_SOI + b"\xff\x01" + b"\x00" * 50 + JPEG_EOI
                 frames = [fake_jpeg]
 
             elif attack == "marker_length_overflow":
@@ -152,7 +159,7 @@ class CompressedPixelFuzzer:
                 fake_jpeg = (
                     JPEG_SOI
                     + JPEG_APP0
-                    + b"\xFF\xFF"  # Length = 65535
+                    + b"\xff\xff"  # Length = 65535
                     + b"X" * 100  # Not enough data
                     + JPEG_EOI
                 )
@@ -221,11 +228,13 @@ class CompressedPixelFuzzer:
         - Invalid tile dimensions
         - Corrupted COD marker
         """
-        attack = random.choice([
-            "invalid_siz_dimensions",
-            "missing_eoc",
-            "corrupted_cod",
-        ])
+        attack = random.choice(
+            [
+                "invalid_siz_dimensions",
+                "missing_eoc",
+                "corrupted_cod",
+            ]
+        )
 
         try:
             if attack == "invalid_siz_dimensions":
@@ -244,7 +253,9 @@ class CompressedPixelFuzzer:
                     1,  # Csiz (components)
                     8,  # component params
                 )
-                fake_jp2 = JP2_SOC + JP2_SIZ + struct.pack(">H", len(siz_data) + 2) + siz_data
+                fake_jp2 = (
+                    JP2_SOC + JP2_SIZ + struct.pack(">H", len(siz_data) + 2) + siz_data
+                )
                 frames = [fake_jp2]
 
             elif attack == "missing_eoc":
@@ -254,7 +265,7 @@ class CompressedPixelFuzzer:
 
             elif attack == "corrupted_cod":
                 # Invalid COD marker
-                fake_jp2 = JP2_SOC + JP2_COD + b"\x00\x05\xFF\xFF\xFF" + JP2_EOC
+                fake_jp2 = JP2_SOC + JP2_COD + b"\x00\x05\xff\xff\xff" + JP2_EOC
                 frames = [fake_jp2]
 
             else:
@@ -277,12 +288,14 @@ class CompressedPixelFuzzer:
         RLE Lossless uses segments for each component. Segment count
         and offsets are common sources of vulnerabilities.
         """
-        attack = random.choice([
-            "wrong_segment_count",
-            "invalid_segment_offset",
-            "empty_segments",
-            "overlapping_segments",
-        ])
+        attack = random.choice(
+            [
+                "wrong_segment_count",
+                "invalid_segment_offset",
+                "empty_segments",
+                "overlapping_segments",
+            ]
+        )
 
         try:
             if attack == "wrong_segment_count":
@@ -345,15 +358,19 @@ class CompressedPixelFuzzer:
             # Manually build encapsulated data with bad BOT
             # Item tag (FFFE,E000), then length, then offsets
             bot_offsets = struct.pack("<III", 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF)
-            bot_item = b"\xFE\xFF\x00\xE0" + struct.pack("<I", len(bot_offsets)) + bot_offsets
+            bot_item = (
+                b"\xfe\xff\x00\xe0" + struct.pack("<I", len(bot_offsets)) + bot_offsets
+            )
 
             # Add frame items
             frame_items = b""
             for frame in frames:
-                frame_items += b"\xFE\xFF\x00\xE0" + struct.pack("<I", len(frame)) + frame
+                frame_items += (
+                    b"\xfe\xff\x00\xe0" + struct.pack("<I", len(frame)) + frame
+                )
 
             # Sequence delimiter
-            delimiter = b"\xFE\xFF\xDD\xE0\x00\x00\x00\x00"
+            delimiter = b"\xfe\xff\xdd\xe0\x00\x00\x00\x00"
 
             encapsulated = bot_item + frame_items + delimiter
             dataset.add_new(Tag(0x7FE0, 0x0010), "OB", encapsulated)
@@ -372,44 +389,50 @@ class CompressedPixelFuzzer:
         Encapsulated data uses Item tags (FFFE,E000) and delimiters.
         Malformed structure tests parser robustness.
         """
-        attack = random.choice([
-            "missing_delimiter",
-            "wrong_item_tag",
-            "nested_encapsulation",
-            "zero_length_fragment",
-        ])
+        attack = random.choice(
+            [
+                "missing_delimiter",
+                "wrong_item_tag",
+                "nested_encapsulation",
+                "zero_length_fragment",
+            ]
+        )
 
         try:
             if attack == "missing_delimiter":
                 # Encapsulated data without SequenceDelimiter
                 frame = JPEG_SOI + b"\x00" * 50 + JPEG_EOI
-                bot_item = b"\xFE\xFF\x00\xE0\x00\x00\x00\x00"  # Empty BOT
-                frame_item = b"\xFE\xFF\x00\xE0" + struct.pack("<I", len(frame)) + frame
+                bot_item = b"\xfe\xff\x00\xe0\x00\x00\x00\x00"  # Empty BOT
+                frame_item = b"\xfe\xff\x00\xe0" + struct.pack("<I", len(frame)) + frame
                 # No delimiter!
                 encapsulated = bot_item + frame_item
 
             elif attack == "wrong_item_tag":
                 # Use wrong tag instead of Item
                 frame = JPEG_SOI + b"\x00" * 50 + JPEG_EOI
-                bot_item = b"\xFE\xFF\x00\xE0\x00\x00\x00\x00"
+                bot_item = b"\xfe\xff\x00\xe0\x00\x00\x00\x00"
                 # Wrong tag (not FFFE,E000)
                 frame_item = b"\x00\x00\x00\x00" + struct.pack("<I", len(frame)) + frame
-                delimiter = b"\xFE\xFF\xDD\xE0\x00\x00\x00\x00"
+                delimiter = b"\xfe\xff\xdd\xe0\x00\x00\x00\x00"
                 encapsulated = bot_item + frame_item + delimiter
 
             elif attack == "nested_encapsulation":
                 # Item containing another item structure
-                inner_frame = b"\xFE\xFF\x00\xE0\x00\x00\x00\x00"  # Nested item
-                bot_item = b"\xFE\xFF\x00\xE0\x00\x00\x00\x00"
-                frame_item = b"\xFE\xFF\x00\xE0" + struct.pack("<I", len(inner_frame)) + inner_frame
-                delimiter = b"\xFE\xFF\xDD\xE0\x00\x00\x00\x00"
+                inner_frame = b"\xfe\xff\x00\xe0\x00\x00\x00\x00"  # Nested item
+                bot_item = b"\xfe\xff\x00\xe0\x00\x00\x00\x00"
+                frame_item = (
+                    b"\xfe\xff\x00\xe0"
+                    + struct.pack("<I", len(inner_frame))
+                    + inner_frame
+                )
+                delimiter = b"\xfe\xff\xdd\xe0\x00\x00\x00\x00"
                 encapsulated = bot_item + frame_item + delimiter
 
             elif attack == "zero_length_fragment":
                 # Fragment with zero length
-                bot_item = b"\xFE\xFF\x00\xE0\x00\x00\x00\x00"
-                frame_item = b"\xFE\xFF\x00\xE0\x00\x00\x00\x00"  # Zero length
-                delimiter = b"\xFE\xFF\xDD\xE0\x00\x00\x00\x00"
+                bot_item = b"\xfe\xff\x00\xe0\x00\x00\x00\x00"
+                frame_item = b"\xfe\xff\x00\xe0\x00\x00\x00\x00"  # Zero length
+                delimiter = b"\xfe\xff\xdd\xe0\x00\x00\x00\x00"
                 encapsulated = bot_item + frame_item + delimiter
 
             else:
@@ -435,8 +458,8 @@ class CompressedPixelFuzzer:
             malformed_frames = [
                 b"",  # Empty
                 b"\x00" * 100,  # No JPEG structure
-                JPEG_SOI + b"\xFF\x00" * 50,  # Escape sequences only
-                b"\xFF" * 200,  # All 0xFF (ambiguous markers)
+                JPEG_SOI + b"\xff\x00" * 50,  # Escape sequences only
+                b"\xff" * 200,  # All 0xFF (ambiguous markers)
             ]
 
             frames = [
@@ -466,11 +489,13 @@ class CompressedPixelFuzzer:
         try:
             frame = JPEG_SOI + b"\x00" * 50 + JPEG_EOI
 
-            attack = random.choice([
-                "more_frames_claimed",
-                "fewer_frames_claimed",
-                "zero_frames_claimed",
-            ])
+            attack = random.choice(
+                [
+                    "more_frames_claimed",
+                    "fewer_frames_claimed",
+                    "zero_frames_claimed",
+                ]
+            )
 
             if attack == "more_frames_claimed":
                 frames = [frame] * 2

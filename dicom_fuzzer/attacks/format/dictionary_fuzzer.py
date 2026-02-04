@@ -11,19 +11,26 @@ import random
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.types import MutationSeverity
-from .dicom_dictionaries import DICOMDictionaries
 from dicom_fuzzer.utils.logger import get_logger
+
+from .base import FormatFuzzerBase
+from .dicom_dictionaries import DICOMDictionaries
 
 logger = get_logger(__name__)
 
 
-class DictionaryFuzzer:
+class DictionaryFuzzer(FormatFuzzerBase):
     """Dictionary-based fuzzing strategy for DICOM files.
 
     Maps DICOM tags to appropriate value dictionaries and systematically
     replaces field values with dictionary entries. This produces inputs
     that pass validation but trigger edge cases.
     """
+
+    @property
+    def strategy_name(self) -> str:
+        """Return the strategy name for identification."""
+        return "dictionary"
 
     # Mapping of DICOM tags to appropriate dictionaries for realistic mutations
     TAG_TO_DICTIONARY: dict[int, str] = {
