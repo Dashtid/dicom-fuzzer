@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.core.engine.gui_fuzzer import GUIFuzzer
-from dicom_fuzzer.core.engine.gui_monitor_types import (
+from dicom_fuzzer.core.harness.gui_fuzzer import GUIFuzzer
+from dicom_fuzzer.core.harness.gui_monitor_types import (
     MonitorConfig,
     ResponseType,
 )
@@ -201,7 +201,7 @@ class TestBackwardCompatibility:
 
     def test_responseawarefuzzer_alias_from_engine(self) -> None:
         """Verify ResponseAwareFuzzer alias from engine package."""
-        from dicom_fuzzer.core.engine import ResponseAwareFuzzer
+        from dicom_fuzzer.core.harness import ResponseAwareFuzzer
 
         assert ResponseAwareFuzzer is GUIFuzzer
 
@@ -213,7 +213,7 @@ class TestBackwardCompatibility:
 
     def test_guifuzzer_from_gui_fuzzer(self) -> None:
         """Verify GUIFuzzer from gui_fuzzer module."""
-        from dicom_fuzzer.core.engine.gui_fuzzer import GUIFuzzer as GUIFuzzerAlias
+        from dicom_fuzzer.core.harness.gui_fuzzer import GUIFuzzer as GUIFuzzerAlias
 
         assert GUIFuzzerAlias is GUIFuzzer
 

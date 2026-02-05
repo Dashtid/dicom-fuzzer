@@ -28,11 +28,11 @@ Examples:
   # Fuzz all DICOM files in a directory
   %(prog)s ./dicom_folder/ -c 10 -o ./output
 
-  # Generate synthetic samples
-  %(prog)s samples --generate -c 10 -o ./samples
+  # List DICOM sample sources
+  %(prog)s samples --list-sources
 
 Subcommands (use --help for details):
-  samples      Generate synthetic/malicious DICOM samples
+  samples      Manage DICOM seed files (sources, strip pixel data)
   tls          DICOM TLS/authentication testing
   persistent   AFL-style persistent mode fuzzing
   state        Protocol state machine fuzzing

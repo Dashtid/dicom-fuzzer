@@ -15,6 +15,9 @@ Example usage:
     result = harness.test_study_directory(Path("./mutated_study"))
 """
 
+from dicom_fuzzer.core.harness.gui_fuzzer import GUIFuzzer
+from dicom_fuzzer.core.harness.gui_monitor import GUIMonitor
+from dicom_fuzzer.core.harness.gui_monitor_types import GUIResponse, MonitorConfig
 from dicom_fuzzer.core.harness.harness import TargetHarness
 from dicom_fuzzer.core.harness.monitoring import (
     is_psutil_available,
@@ -57,6 +60,9 @@ from dicom_fuzzer.core.harness.viewer_launcher_3d import (
     create_generic_config,
 )
 
+# Backward compatibility alias
+ResponseAwareFuzzer = GUIFuzzer
+
 __all__ = [
     # Main class
     "TargetHarness",
@@ -96,4 +102,10 @@ __all__ = [
     "create_stateless_test_wrapper",
     "detect_state_leaks",
     "validate_determinism",
+    # GUI monitoring and fuzzing (moved from engine/)
+    "GUIFuzzer",
+    "GUIMonitor",
+    "GUIResponse",
+    "MonitorConfig",
+    "ResponseAwareFuzzer",
 ]

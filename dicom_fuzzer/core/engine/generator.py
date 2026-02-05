@@ -6,11 +6,11 @@ from typing import Any
 from pydicom.dataset import Dataset
 from pydicom.uid import UID, generate_uid
 
-from dicom_fuzzer.core.dicom.parser import DicomParser
 from dicom_fuzzer.attacks.format.header_fuzzer import HeaderFuzzer
 from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
 from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
 from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
+from dicom_fuzzer.core.dicom.parser import DicomParser
 from dicom_fuzzer.utils.identifiers import generate_short_id
 
 
@@ -207,31 +207,29 @@ class DICOMGenerator:
     def _apply_mutations(
         self, base_dataset: Dataset, active_fuzzers: dict[str, Any]
     ) -> tuple[Dataset | None, list[str]]:
-        """Apply random mutations to dataset.
+        """Apply a single random mutation to dataset.
+
+        Selects exactly one fuzzer per file for clean crash attribution.
 
         Returns (dataset, strategies) or (None, []).
         """
         mutated_dataset = base_dataset.copy()
 
-        # Randomly select fuzzers (70% chance each)
-        fuzzers_to_apply = [
-            (name, fuzzer)
-            for name, fuzzer in active_fuzzers.items()
-            if random.random() > 0.3
-        ]
+        if not active_fuzzers:
+            return mutated_dataset, []
 
-        strategies_applied = [name for name, _ in fuzzers_to_apply]
+        # Select exactly one fuzzer per file for clean crash attribution
+        fuzzer_name = random.choice(list(active_fuzzers.keys()))
+        fuzzer = active_fuzzers[fuzzer_name]
 
-        # Apply mutations
         try:
-            for fuzzer_type, fuzzer in fuzzers_to_apply:
-                mutated_dataset = self._apply_single_fuzzer(
-                    fuzzer_type, fuzzer, mutated_dataset
-                )
+            mutated_dataset = self._apply_single_fuzzer(
+                fuzzer_name, fuzzer, mutated_dataset
+            )
         except (ValueError, TypeError, AttributeError) as e:
             return self._handle_mutation_error(e)
 
-        return mutated_dataset, strategies_applied
+        return mutated_dataset, [fuzzer_name]
 
     def _apply_single_fuzzer(
         self, fuzzer_type: str, fuzzer: Any, dataset: Dataset

@@ -8,14 +8,14 @@ dicom-fuzzer INPUT [OPTIONS]
 
 ### Common Options
 
-| Option                   | Default               | Description                      |
-| ------------------------ | --------------------- | -------------------------------- |
-| `-c, --count N`          | 100                   | Number of fuzzed files           |
-| `-o, --output DIR`       | ./artifacts/campaigns | Output directory                 |
-| `-s, --strategies STRAT` | all                   | metadata,header,pixel,structure  |
-| `-r, --recursive`        | false                 | Recursive directory scan         |
-| `-v, --verbose`          | false                 | Verbose logging                  |
-| `--json`                 | false                 | JSON output                      |
+| Option                   | Default               | Description                     |
+| ------------------------ | --------------------- | ------------------------------- |
+| `-c, --count N`          | 100                   | Number of fuzzed files          |
+| `-o, --output DIR`       | ./artifacts/campaigns | Output directory                |
+| `-s, --strategies STRAT` | all                   | metadata,header,pixel,structure |
+| `-r, --recursive`        | false                 | Recursive directory scan        |
+| `-v, --verbose`          | false                 | Verbose logging                 |
+| `--json`                 | false                 | JSON output                     |
 
 ### Target Testing
 
@@ -30,13 +30,13 @@ dicom-fuzzer INPUT [OPTIONS]
 
 ### Network Fuzzing
 
-| Option                     | Default   | Description              |
-| -------------------------- | --------- | ------------------------ |
-| `--network-fuzz`           | false     | Enable network fuzzing   |
-| `--host HOST`              | localhost | Target host              |
-| `--port PORT`              | 11112     | Target port              |
-| `--ae-title TITLE`         | FUZZ_SCU  | AE Title                 |
-| `--network-strategy STRAT` | all       | malformed_pdu, etc.      |
+| Option                     | Default   | Description            |
+| -------------------------- | --------- | ---------------------- |
+| `--network-fuzz`           | false     | Enable network fuzzing |
+| `--host HOST`              | localhost | Target host            |
+| `--port PORT`              | 11112     | Target port            |
+| `--ae-title TITLE`         | FUZZ_SCU  | AE Title               |
+| `--network-strategy STRAT` | all       | malformed_pdu, etc.    |
 
 ### Security Testing
 
@@ -63,37 +63,33 @@ dicom-fuzzer cve --product MicroDicom -t template.dcm -o ./output
 dicom-fuzzer cve --info CVE-2025-5943
 ```
 
-| Option             | Description                        |
-| ------------------ | ---------------------------------- |
-| `--list`           | List available CVEs                |
-| `--all`            | Generate all CVE files             |
-| `--cve CVE-ID`     | Generate specific CVE              |
-| `--product NAME`   | Filter by product                  |
-| `--category CAT`   | Filter by category                 |
-| `--info CVE-ID`    | Show CVE details                   |
-| `-t, --template`   | Template DICOM file                |
-| `-o, --output DIR` | Output directory                   |
+| Option             | Description            |
+| ------------------ | ---------------------- |
+| `--list`           | List available CVEs    |
+| `--all`            | Generate all CVE files |
+| `--cve CVE-ID`     | Generate specific CVE  |
+| `--product NAME`   | Filter by product      |
+| `--category CAT`   | Filter by category     |
+| `--info CVE-ID`    | Show CVE details       |
+| `-t, --template`   | Template DICOM file    |
+| `-o, --output DIR` | Output directory       |
 
 ---
 
 ### samples
 
-Generate synthetic DICOM files.
+Manage DICOM seed files for fuzzing.
 
 ```bash
-dicom-fuzzer samples --generate -c 10 -m CT -o ./samples
-dicom-fuzzer samples --malicious -o ./malicious
-dicom-fuzzer samples --scan ./files --recursive
+dicom-fuzzer samples --list-sources
+dicom-fuzzer samples --strip-pixel-data ./corpus -o ./optimized
 ```
 
-| Option               | Description                |
-| -------------------- | -------------------------- |
-| `--generate`         | Generate synthetic files   |
-| `--malicious`        | Generate malicious samples |
-| `--preamble-attacks` | PE/ELF polyglot files      |
-| `--scan PATH`        | Scan for security issues   |
-| `-c, --count N`      | Number of files            |
-| `-m, --modality MOD` | CT, MR, US, etc.           |
+| Option               | Description                               |
+| -------------------- | ----------------------------------------- |
+| `--list-sources`     | List public DICOM sample download sources |
+| `--strip-pixel-data` | Strip PixelData for corpus optimization   |
+| `-o, --output DIR`   | Output directory                          |
 
 ---
 
@@ -122,12 +118,12 @@ Study-level fuzzing with target testing.
 dicom-fuzzer study-campaign --target ./viewer.exe --study ./study -o ./output
 ```
 
-| Option                | Default | Description              |
-| --------------------- | ------- | ------------------------ |
-| `--target EXE`        | -       | Target application       |
-| `--study DIR`         | -       | Study directory          |
-| `--adapter NAME`      | -       | Viewer adapter (affinity)|
-| `--stop-on-crash`     | false   | Stop on first crash      |
+| Option            | Default | Description               |
+| ----------------- | ------- | ------------------------- |
+| `--target EXE`    | -       | Target application        |
+| `--study DIR`     | -       | Study directory           |
+| `--adapter NAME`  | -       | Viewer adapter (affinity) |
+| `--stop-on-crash` | false   | Stop on first crash       |
 
 ---
 
@@ -142,12 +138,12 @@ dicom-fuzzer corpus --dedup ./corpus -o ./unique
 dicom-fuzzer corpus --minimize-study ./crash --target ./viewer.exe
 ```
 
-| Option                 | Description                      |
-| ---------------------- | -------------------------------- |
-| `--generate-study DIR` | Generate mutated study corpus    |
-| `--analyze DIR`        | Show corpus statistics           |
-| `--dedup DIR`          | Deduplicate by hash              |
-| `--minimize-study DIR` | Minimize crashing study          |
+| Option                 | Description                   |
+| ---------------------- | ----------------------------- |
+| `--generate-study DIR` | Generate mutated study corpus |
+| `--analyze DIR`        | Show corpus statistics        |
+| `--dedup DIR`          | Deduplicate by hash           |
+| `--minimize-study DIR` | Minimize crashing study       |
 
 ---
 
@@ -160,10 +156,10 @@ dicom-fuzzer calibrate --input image.dcm --category pixel-spacing -o ./output
 dicom-fuzzer calibrate --list-categories
 ```
 
-| Option           | Description                              |
-| ---------------- | ---------------------------------------- |
-| `--input FILE`   | Input DICOM file                         |
-| `--category CAT` | pixel-spacing, hounsfield, window-level  |
+| Option           | Description                             |
+| ---------------- | --------------------------------------- |
+| `--input FILE`   | Input DICOM file                        |
+| `--category CAT` | pixel-spacing, hounsfield, window-level |
 
 ---
 
@@ -176,11 +172,11 @@ dicom-fuzzer stress --generate-series --slices 500 -o ./large_series
 dicom-fuzzer stress --list-scenarios
 ```
 
-| Option             | Description              |
-| ------------------ | ------------------------ |
-| `--generate-series`| Generate large series    |
-| `--slices N`       | Number of slices         |
-| `--dimensions WxH` | Slice dimensions         |
+| Option              | Description           |
+| ------------------- | --------------------- |
+| `--generate-series` | Generate large series |
+| `--slices N`        | Number of slices      |
+| `--dimensions WxH`  | Slice dimensions      |
 
 ---
 
@@ -197,8 +193,8 @@ dicom-fuzzer fda-report --sample -o sample.md
 
 ## Exit Codes
 
-| Code | Meaning         |
-| ---- | --------------- |
-| 0    | Success         |
-| 1    | Error           |
-| 130  | User interrupt  |
+| Code | Meaning        |
+| ---- | -------------- |
+| 0    | Success        |
+| 1    | Error          |
+| 130  | User interrupt |

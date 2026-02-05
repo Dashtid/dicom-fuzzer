@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 # Import types from gui_monitor_types
-from dicom_fuzzer.core.engine.gui_monitor_types import (
+from dicom_fuzzer.core.harness.gui_monitor_types import (
     GUIResponse,
     MonitorConfig,
     ResponseType,

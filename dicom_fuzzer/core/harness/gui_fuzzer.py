@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from dicom_fuzzer.attacks.network.stateful.coverage import StateCoverageTracker
-from dicom_fuzzer.core.engine.gui_monitor_types import (
+from dicom_fuzzer.core.harness.gui_monitor_types import (
     GUIResponse,
     MonitorConfig,
     ResponseType,
@@ -80,7 +80,7 @@ class GUIFuzzer:
 
         """
         # Import here to avoid circular import
-        from dicom_fuzzer.core.engine.gui_monitor import GUIMonitor
+        from dicom_fuzzer.core.harness.gui_monitor import GUIMonitor
 
         self.target_executable = Path(target_executable)
         self.monitor: GUIMonitor = GUIMonitor(config)

@@ -15,8 +15,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.core.engine import ResponseAwareFuzzer
-from dicom_fuzzer.core.engine.gui_monitor import (
+from dicom_fuzzer.core.harness import ResponseAwareFuzzer
+from dicom_fuzzer.core.harness.gui_monitor import (
     GUIMonitor,
     GUIResponse,
     MonitorConfig,
@@ -268,7 +268,7 @@ class TestGUIMonitor:
         monitor.stop_monitoring()
         assert monitor._monitoring is False
 
-    @patch("dicom_fuzzer.core.engine.gui_monitor.HAS_PSUTIL", False)
+    @patch("dicom_fuzzer.core.harness.gui_monitor.HAS_PSUTIL", False)
     def test_monitor_without_psutil(self) -> None:
         """Test monitor behavior without psutil."""
         monitor = GUIMonitor()
@@ -480,7 +480,7 @@ class TestGUIMonitorMonitorLoop:
     def test_monitor_loop_without_psutil(self) -> None:
         """Test monitor loop without psutil returns early."""
         # Save original value
-        import dicom_fuzzer.core.engine.gui_monitor as gm
+        import dicom_fuzzer.core.harness.gui_monitor as gm
 
         original = gm.HAS_PSUTIL
         try:
@@ -502,7 +502,7 @@ class TestGUIMonitorMonitorLoop:
 class TestGUIMonitorMemoryChecks:
     """Tests for memory checking functionality."""
 
-    @patch("dicom_fuzzer.core.engine.gui_monitor.psutil")
+    @patch("dicom_fuzzer.core.harness.gui_monitor.psutil")
     def test_check_memory_exceeds_threshold(self, mock_psutil: MagicMock) -> None:
         """Test memory check when threshold exceeded."""
         config = MonitorConfig(memory_threshold_mb=1000.0)
@@ -518,7 +518,7 @@ class TestGUIMonitorMemoryChecks:
         assert len(responses) >= 1
         assert responses[0].response_type == ResponseType.RESOURCE_EXHAUSTION
 
-    @patch("dicom_fuzzer.core.engine.gui_monitor.psutil")
+    @patch("dicom_fuzzer.core.harness.gui_monitor.psutil")
     def test_check_memory_spike(self, mock_psutil: MagicMock) -> None:
         """Test memory check detects spike."""
         config = MonitorConfig(memory_spike_percent=50.0)
@@ -538,7 +538,7 @@ class TestGUIMonitorMemoryChecks:
         ]
         assert len(spike_responses) >= 1
 
-    @patch("dicom_fuzzer.core.engine.gui_monitor.psutil")
+    @patch("dicom_fuzzer.core.harness.gui_monitor.psutil")
     def test_check_memory_nosuchprocess(self, mock_psutil: MagicMock) -> None:
         """Test memory check handles NoSuchProcess gracefully."""
         monitor = GUIMonitor()
@@ -594,7 +594,7 @@ class TestGUIMonitorHangDetection:
 class TestGUIMonitorDialogChecks:
     """Tests for dialog checking functionality."""
 
-    @patch("dicom_fuzzer.core.engine.gui_monitor.HAS_PYWINAUTO", False)
+    @patch("dicom_fuzzer.core.harness.gui_monitor.HAS_PYWINAUTO", False)
     def test_check_dialogs_without_pywinauto(self) -> None:
         """Test dialog check returns early without pywinauto."""
         monitor = GUIMonitor()
@@ -604,13 +604,13 @@ class TestGUIMonitorDialogChecks:
         # Verify no dialog responses generated (early return)
         assert len(monitor.get_responses()) == 0
 
-    @patch("dicom_fuzzer.core.engine.gui_monitor.HAS_PYWINAUTO", True)
-    @patch("dicom_fuzzer.core.engine.gui_monitor.Application")
+    @patch("dicom_fuzzer.core.harness.gui_monitor.HAS_PYWINAUTO", True)
+    @patch("dicom_fuzzer.core.harness.gui_monitor.Application")
     def test_check_dialogs_element_not_found(self, mock_app_class: MagicMock) -> None:
         """Test dialog check handles ElementNotFoundError gracefully."""
         monitor = GUIMonitor()
 
-        from dicom_fuzzer.core.engine.gui_monitor import ElementNotFoundError
+        from dicom_fuzzer.core.harness.gui_monitor import ElementNotFoundError
 
         mock_app_class.return_value.connect.side_effect = ElementNotFoundError()
 
@@ -619,8 +619,8 @@ class TestGUIMonitorDialogChecks:
         # Verify no dialog responses (element not found is expected)
         assert len(monitor.get_responses()) == 0
 
-    @patch("dicom_fuzzer.core.engine.gui_monitor.HAS_PYWINAUTO", True)
-    @patch("dicom_fuzzer.core.engine.gui_monitor.Application")
+    @patch("dicom_fuzzer.core.harness.gui_monitor.HAS_PYWINAUTO", True)
+    @patch("dicom_fuzzer.core.harness.gui_monitor.Application")
     def test_check_dialogs_generic_exception(self, mock_app_class: MagicMock) -> None:
         """Test dialog check handles generic exceptions gracefully."""
         monitor = GUIMonitor()

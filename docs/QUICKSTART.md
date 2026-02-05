@@ -55,20 +55,20 @@ dicom-fuzzer cve --all -t template.dcm -o ./cve_output
 dicom-fuzzer cve --cve CVE-2025-5943 -t template.dcm -o ./output
 ```
 
-## Generate Synthetic Data
+## List Sample Sources
 
 ```bash
-dicom-fuzzer samples --generate -c 10 -m CT -o ./samples
+dicom-fuzzer samples --list-sources
 ```
 
 ## Strategies
 
-| CLI Flag    | Fuzzers Applied                         |
-| ----------- | --------------------------------------- |
-| `metadata`  | MetadataFuzzer, EncodingFuzzer          |
-| `pixel`     | PixelFuzzer, CompressedPixelFuzzer      |
-| `header`    | HeaderFuzzer, PrivateTagFuzzer          |
-| `structure` | StructureFuzzer, SequenceFuzzer         |
+| CLI Flag    | Fuzzers Applied                    |
+| ----------- | ---------------------------------- |
+| `metadata`  | MetadataFuzzer, EncodingFuzzer     |
+| `pixel`     | PixelFuzzer, CompressedPixelFuzzer |
+| `header`    | HeaderFuzzer, PrivateTagFuzzer     |
+| `structure` | StructureFuzzer, SequenceFuzzer    |
 
 Combine: `-s metadata,pixel,header` (default: all)
 

@@ -12,12 +12,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.core.engine.gui_monitor import (
+from dicom_fuzzer.core.harness.gui_monitor import (
     HAS_PSUTIL,
     HAS_PYWINAUTO,
     GUIMonitor,
 )
-from dicom_fuzzer.core.engine.gui_monitor_types import (
+from dicom_fuzzer.core.harness.gui_monitor_types import (
     GUIResponse,
     MonitorConfig,
     ResponseType,

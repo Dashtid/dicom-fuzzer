@@ -127,23 +127,19 @@ from .dicom.parser import DicomParser
 from .dicom.validator import DicomValidator
 
 # Fuzzing engines
-from .engine import (
-    DICOMGenerator,
+from .engine import DICOMGenerator
+
+# Exceptions
+from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
+
+# Target harness (includes GUI monitoring)
+from .harness import (
     GUIFuzzer,
     GUIMonitor,
     GUIResponse,
     MonitorConfig,
     ResponseAwareFuzzer,
-    SyntheticDataGenerator,
-    SyntheticDicomGenerator,
-    SyntheticPatient,
-    SyntheticSeries,
-    SyntheticStudy,
-    generate_sample_files,
 )
-
-# Exceptions
-from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
 
 # Target harness
 from .harness.target_runner import ExecutionStatus, TargetRunner
@@ -282,13 +278,6 @@ __all__ = [
     "Series3DReport",
     "Series3DReportGenerator",
     "SeriesMutationSummary",
-    # Synthetic DICOM Generation
-    "SyntheticDicomGenerator",
-    "SyntheticDataGenerator",
-    "SyntheticPatient",
-    "SyntheticStudy",
-    "SyntheticSeries",
-    "generate_sample_files",
     # Response-Aware Fuzzing with State Coverage
     "GUIFuzzer",
     "GUIMonitor",

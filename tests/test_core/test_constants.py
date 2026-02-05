@@ -343,7 +343,7 @@ class TestResponseTypeBackwardCompatibility:
 
     def test_import_from_gui_monitor_types(self) -> None:
         """Test ResponseType import from gui_monitor_types."""
-        from dicom_fuzzer.core.engine.gui_monitor_types import (
+        from dicom_fuzzer.core.harness.gui_monitor_types import (
             ResponseType as ResponseTypeGUI,
         )
 
