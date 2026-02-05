@@ -13,7 +13,7 @@ from argparse import Namespace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from dicom_fuzzer.cli.gui_runner import GUITargetRunner
+from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
 from dicom_fuzzer.core.harness.target_runner import TargetRunner
 
 if TYPE_CHECKING:

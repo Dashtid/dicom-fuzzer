@@ -17,7 +17,7 @@ class TestGUIExecutionResult:
 
     def test_dataclass_fields(self):
         """Test that dataclass has expected fields."""
-        from dicom_fuzzer.cli.gui_runner import GUIExecutionResult
+        from dicom_fuzzer.cli.utils.gui_runner import GUIExecutionResult
 
         result = GUIExecutionResult(
             test_file=Path("/test/file.dcm"),
@@ -43,7 +43,7 @@ class TestGUIExecutionResult:
 
     def test_bool_not_crashed(self):
         """Test __bool__ returns True when not crashed."""
-        from dicom_fuzzer.cli.gui_runner import GUIExecutionResult
+        from dicom_fuzzer.cli.utils.gui_runner import GUIExecutionResult
 
         result = GUIExecutionResult(
             test_file=Path("/test/file.dcm"),
@@ -59,7 +59,7 @@ class TestGUIExecutionResult:
 
     def test_bool_crashed(self):
         """Test __bool__ returns False when crashed."""
-        from dicom_fuzzer.cli.gui_runner import GUIExecutionResult
+        from dicom_fuzzer.cli.utils.gui_runner import GUIExecutionResult
 
         result = GUIExecutionResult(
             test_file=Path("/test/file.dcm"),
@@ -83,8 +83,8 @@ class TestGUITargetRunnerInit:
         exe_path = tmp_path / "viewer.exe"
         exe_path.write_bytes(b"mock executable")
 
-        with patch("dicom_fuzzer.cli.gui_runner.HAS_PSUTIL", True):
-            from dicom_fuzzer.cli.gui_runner import GUITargetRunner
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
 
             runner = GUITargetRunner(
                 target_executable=str(exe_path),
@@ -103,8 +103,8 @@ class TestGUITargetRunnerInit:
 
     def test_init_missing_executable(self, tmp_path):
         """Test initialization with missing executable raises error."""
-        with patch("dicom_fuzzer.cli.gui_runner.HAS_PSUTIL", True):
-            from dicom_fuzzer.cli.gui_runner import GUITargetRunner
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
 
             with pytest.raises(FileNotFoundError):
                 GUITargetRunner(
@@ -117,9 +117,9 @@ class TestGUITargetRunnerInit:
         exe_path = tmp_path / "viewer.exe"
         exe_path.write_bytes(b"mock executable")
 
-        with patch("dicom_fuzzer.cli.gui_runner.HAS_PSUTIL", False):
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", False):
             # Need to reload to get the check
-            from dicom_fuzzer.cli.gui_runner import GUITargetRunner
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
 
             with pytest.raises(ImportError) as exc_info:
                 GUITargetRunner(target_executable=str(exe_path))
@@ -136,8 +136,8 @@ class TestGUITargetRunnerExecute:
         exe_path = tmp_path / "viewer.exe"
         exe_path.write_bytes(b"mock executable")
 
-        with patch("dicom_fuzzer.cli.gui_runner.HAS_PSUTIL", True):
-            from dicom_fuzzer.cli.gui_runner import GUITargetRunner
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
 
             runner = GUITargetRunner(
                 target_executable=str(exe_path),
@@ -259,8 +259,8 @@ class TestGUITargetRunnerCampaign:
         exe_path = tmp_path / "viewer.exe"
         exe_path.write_bytes(b"mock executable")
 
-        with patch("dicom_fuzzer.cli.gui_runner.HAS_PSUTIL", True):
-            from dicom_fuzzer.cli.gui_runner import GUITargetRunner
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
 
             runner = GUITargetRunner(
                 target_executable=str(exe_path),
@@ -271,7 +271,7 @@ class TestGUITargetRunnerCampaign:
 
     def test_run_campaign_all_success(self, mock_runner, tmp_path):
         """Test campaign where all tests succeed."""
-        from dicom_fuzzer.cli.gui_runner import GUIExecutionResult
+        from dicom_fuzzer.cli.utils.gui_runner import GUIExecutionResult
 
         test_files = [tmp_path / f"test{i}.dcm" for i in range(3)]
         for f in test_files:
@@ -296,7 +296,7 @@ class TestGUITargetRunnerCampaign:
 
     def test_run_campaign_with_crash(self, mock_runner, tmp_path):
         """Test campaign with one crash."""
-        from dicom_fuzzer.cli.gui_runner import GUIExecutionResult
+        from dicom_fuzzer.cli.utils.gui_runner import GUIExecutionResult
 
         test_files = [tmp_path / f"test{i}.dcm" for i in range(3)]
         for f in test_files:
@@ -338,7 +338,7 @@ class TestGUITargetRunnerCampaign:
 
     def test_run_campaign_stop_on_crash(self, mock_runner, tmp_path):
         """Test campaign stops on first crash when stop_on_crash=True."""
-        from dicom_fuzzer.cli.gui_runner import GUIExecutionResult
+        from dicom_fuzzer.cli.utils.gui_runner import GUIExecutionResult
 
         test_files = [tmp_path / f"test{i}.dcm" for i in range(5)]
         for f in test_files:
@@ -363,7 +363,7 @@ class TestGUITargetRunnerCampaign:
 
     def test_get_summary(self, mock_runner, tmp_path):
         """Test campaign summary generation."""
-        from dicom_fuzzer.cli.gui_runner import GUIExecutionResult
+        from dicom_fuzzer.cli.utils.gui_runner import GUIExecutionResult
 
         test_file = tmp_path / "test.dcm"
         test_file.write_bytes(b"test")
@@ -422,8 +422,8 @@ class TestGUITargetRunnerKillProcessTree:
         exe_path = tmp_path / "viewer.exe"
         exe_path.write_bytes(b"mock executable")
 
-        with patch("dicom_fuzzer.cli.gui_runner.HAS_PSUTIL", True):
-            from dicom_fuzzer.cli.gui_runner import GUITargetRunner
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
 
             runner = GUITargetRunner(
                 target_executable=str(exe_path),
@@ -558,8 +558,8 @@ class TestGUITargetRunnerExecuteEdgeCases:
         exe_path = tmp_path / "viewer.exe"
         exe_path.write_bytes(b"mock executable")
 
-        with patch("dicom_fuzzer.cli.gui_runner.HAS_PSUTIL", True):
-            from dicom_fuzzer.cli.gui_runner import GUITargetRunner
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
 
             runner = GUITargetRunner(
                 target_executable=str(exe_path),

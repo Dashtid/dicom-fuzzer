@@ -50,6 +50,7 @@ class SecurityFuzzingController:
 
         Returns:
             Exit code (0 for success, 1 for failure)
+
         """
         print("\n" + "=" * 70)
         print("  NOTICE: --security-fuzz is deprecated")
@@ -64,7 +65,9 @@ class SecurityFuzzingController:
         print()
         print("  Or for a specific CVE:")
         print()
-        print(f"    dicom-fuzzer cve --cve CVE-2025-5943 -t {input_file} -o {output_dir}")
+        print(
+            f"    dicom-fuzzer cve --cve CVE-2025-5943 -t {input_file} -o {output_dir}"
+        )
         print()
         print("  List available CVEs:")
         print()
@@ -90,6 +93,8 @@ class SecurityFuzzingController:
             return 0
 
         except Exception as e:
-            logger.error(f"CVE generation failed: {e}", exc_info=getattr(args, "verbose", False))
+            logger.error(
+                f"CVE generation failed: {e}", exc_info=getattr(args, "verbose", False)
+            )
             print(f"\n[ERROR] CVE generation failed: {e}")
             return 1

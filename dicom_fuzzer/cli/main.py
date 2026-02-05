@@ -15,12 +15,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from dicom_fuzzer.cli import output as cli
-from dicom_fuzzer.cli.argument_parser import create_parser
-from dicom_fuzzer.cli.campaign_runner import CampaignRunner
-from dicom_fuzzer.cli.network_controller import NetworkFuzzingController
-from dicom_fuzzer.cli.security_controller import SecurityFuzzingController
-from dicom_fuzzer.cli.target_controller import TargetTestingController
+from dicom_fuzzer.cli.controllers.campaign_runner import CampaignRunner
+from dicom_fuzzer.cli.controllers.network_controller import NetworkFuzzingController
+from dicom_fuzzer.cli.controllers.security_controller import SecurityFuzzingController
+from dicom_fuzzer.cli.controllers.target_controller import TargetTestingController
+from dicom_fuzzer.cli.utils import output as cli
+from dicom_fuzzer.cli.utils.argument_parser import create_parser
 from dicom_fuzzer.core.session.resource_manager import ResourceLimits, ResourceManager
 
 # Module-level logger
@@ -37,17 +37,18 @@ faulthandler.enable(file=sys.stderr, all_threads=True)
 # Subcommand registry: maps subcommand name to module path
 # Uses lazy imports for faster startup when subcommand not used
 SUBCOMMANDS: dict[str, str] = {
-    "samples": "dicom_fuzzer.cli.samples",
-    "tls": "dicom_fuzzer.cli.tls",
-    "persistent": "dicom_fuzzer.cli.persistent",
-    "state": "dicom_fuzzer.cli.state",
-    "corpus": "dicom_fuzzer.cli.corpus",
-    "study": "dicom_fuzzer.cli.study",
-    "study-campaign": "dicom_fuzzer.cli.study_campaign",
-    "calibrate": "dicom_fuzzer.cli.calibrate",
-    "stress": "dicom_fuzzer.cli.stress",
-    "target": "dicom_fuzzer.cli.target",
-    "cve": "dicom_fuzzer.cli.cve_cli",  # CVE replication (deterministic, not fuzzing)
+    "samples": "dicom_fuzzer.cli.commands.samples",
+    "tls": "dicom_fuzzer.cli.commands.tls",
+    "persistent": "dicom_fuzzer.cli.commands.persistent",
+    "state": "dicom_fuzzer.cli.commands.state",
+    "corpus": "dicom_fuzzer.cli.commands.corpus",
+    "study": "dicom_fuzzer.cli.commands.study",
+    "study-campaign": "dicom_fuzzer.cli.commands.study_campaign",
+    "calibrate": "dicom_fuzzer.cli.commands.calibrate",
+    "stress": "dicom_fuzzer.cli.commands.stress",
+    "target": "dicom_fuzzer.cli.commands.target",
+    "cve": "dicom_fuzzer.cli.commands.cve",
+    "report": "dicom_fuzzer.cli.commands.reports",  # Report generation
 }
 
 

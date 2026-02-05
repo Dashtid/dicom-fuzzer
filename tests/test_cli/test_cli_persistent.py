@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli import persistent
+from dicom_fuzzer.cli.commands import persistent
 
 
 class TestCreateParser:

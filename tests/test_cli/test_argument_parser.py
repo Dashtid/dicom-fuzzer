@@ -8,7 +8,7 @@ import argparse
 
 import pytest
 
-from dicom_fuzzer.cli.argument_parser import VERSION, create_parser
+from dicom_fuzzer.cli.utils.argument_parser import VERSION, create_parser
 
 
 class TestCreateParser:

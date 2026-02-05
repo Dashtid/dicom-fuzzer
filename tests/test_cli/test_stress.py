@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.stress import (
+from dicom_fuzzer.cli.commands.stress import (
     create_parser,
     main,
     parse_dimensions,
@@ -351,7 +351,7 @@ class TestMain:
     def test_main_generate_series(self, tmp_path):
         """Test main with --generate-series dispatches correctly."""
         with patch(
-            "dicom_fuzzer.cli.stress.run_generate_series", return_value=0
+            "dicom_fuzzer.cli.commands.stress.run_generate_series", return_value=0
         ) as mock_run:
             result = main(["--generate-series", "-o", str(tmp_path)])
             assert result == 0
@@ -360,7 +360,7 @@ class TestMain:
     def test_main_run_test(self, tmp_path):
         """Test main with --run-test dispatches correctly."""
         with patch(
-            "dicom_fuzzer.cli.stress.run_stress_test", return_value=0
+            "dicom_fuzzer.cli.commands.stress.run_stress_test", return_value=0
         ) as mock_run:
             result = main(["--run-test", "-o", str(tmp_path)])
             assert result == 0

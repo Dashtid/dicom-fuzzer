@@ -13,7 +13,7 @@ class TestConsoleInit:
     def test_get_console_creates_console(self):
         """Test that _get_console creates a console instance."""
         # Reset module state for clean test
-        import dicom_fuzzer.cli.output as output_module
+        import dicom_fuzzer.cli.utils.output as output_module
 
         output_module._console = None
         output_module._use_color = None
@@ -25,7 +25,7 @@ class TestConsoleInit:
 
     def test_get_console_caches_instance(self):
         """Test that _get_console returns cached instance."""
-        import dicom_fuzzer.cli.output as output_module
+        import dicom_fuzzer.cli.utils.output as output_module
 
         # Get console twice
         console1 = output_module._get_console()
@@ -36,7 +36,7 @@ class TestConsoleInit:
 
     def test_supports_color_detection(self):
         """Test color support detection."""
-        import dicom_fuzzer.cli.output as output_module
+        import dicom_fuzzer.cli.utils.output as output_module
 
         output_module._console = None
         output_module._use_color = None
@@ -52,9 +52,9 @@ class TestStatusFunctions:
 
     def test_success_message(self):
         """Test success message formatting."""
-        from dicom_fuzzer.cli.output import success
+        from dicom_fuzzer.cli.utils.output import success
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -67,9 +67,9 @@ class TestStatusFunctions:
 
     def test_error_message(self):
         """Test error message formatting."""
-        from dicom_fuzzer.cli.output import error
+        from dicom_fuzzer.cli.utils.output import error
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -82,9 +82,9 @@ class TestStatusFunctions:
 
     def test_warning_message(self):
         """Test warning message formatting."""
-        from dicom_fuzzer.cli.output import warning
+        from dicom_fuzzer.cli.utils.output import warning
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -97,9 +97,9 @@ class TestStatusFunctions:
 
     def test_info_message(self):
         """Test info message formatting."""
-        from dicom_fuzzer.cli.output import info
+        from dicom_fuzzer.cli.utils.output import info
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -112,9 +112,9 @@ class TestStatusFunctions:
 
     def test_status_message(self):
         """Test plain status message."""
-        from dicom_fuzzer.cli.output import status
+        from dicom_fuzzer.cli.utils.output import status
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -128,9 +128,9 @@ class TestFormatting:
 
     def test_header_with_subtitle(self):
         """Test header with subtitle."""
-        from dicom_fuzzer.cli.output import header
+        from dicom_fuzzer.cli.utils.output import header
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -141,9 +141,9 @@ class TestFormatting:
 
     def test_header_without_subtitle(self):
         """Test header without subtitle."""
-        from dicom_fuzzer.cli.output import header
+        from dicom_fuzzer.cli.utils.output import header
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -154,9 +154,9 @@ class TestFormatting:
 
     def test_section(self):
         """Test section header."""
-        from dicom_fuzzer.cli.output import section
+        from dicom_fuzzer.cli.utils.output import section
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -168,9 +168,9 @@ class TestFormatting:
 
     def test_detail(self):
         """Test detail line formatting."""
-        from dicom_fuzzer.cli.output import detail
+        from dicom_fuzzer.cli.utils.output import detail
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -183,9 +183,9 @@ class TestFormatting:
 
     def test_table_row_with_widths(self):
         """Test table row with column widths."""
-        from dicom_fuzzer.cli.output import table_row
+        from dicom_fuzzer.cli.utils.output import table_row
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -195,9 +195,9 @@ class TestFormatting:
 
     def test_table_row_without_widths(self):
         """Test table row without column widths."""
-        from dicom_fuzzer.cli.output import table_row
+        from dicom_fuzzer.cli.utils.output import table_row
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -207,9 +207,9 @@ class TestFormatting:
 
     def test_divider(self):
         """Test horizontal divider."""
-        from dicom_fuzzer.cli.output import divider
+        from dicom_fuzzer.cli.utils.output import divider
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -225,7 +225,7 @@ class TestProgressBar:
 
     def test_progress_bar_context_manager(self):
         """Test progress bar as context manager."""
-        from dicom_fuzzer.cli.output import progress_bar
+        from dicom_fuzzer.cli.utils.output import progress_bar
 
         # Patch where Progress is imported from (rich.progress)
         with patch("rich.progress.Progress") as mock_progress_cls:
@@ -241,7 +241,7 @@ class TestProgressBar:
 
     def test_progress_bar_yields_tuple(self):
         """Test progress bar yields progress and task_id tuple."""
-        from dicom_fuzzer.cli.output import progress_bar
+        from dicom_fuzzer.cli.utils.output import progress_bar
 
         # Use actual progress bar briefly
         with progress_bar("Test", total=10, transient=True) as (progress, task):
@@ -257,9 +257,9 @@ class TestSpinner:
 
     def test_spinner_context_manager(self):
         """Test spinner as context manager."""
-        from dicom_fuzzer.cli.output import spinner
+        from dicom_fuzzer.cli.utils.output import spinner
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_status = MagicMock()
             mock_status.__enter__ = MagicMock(return_value=None)
@@ -274,9 +274,9 @@ class TestSpinner:
 
     def test_spinner_custom_message(self):
         """Test spinner with custom message."""
-        from dicom_fuzzer.cli.output import spinner
+        from dicom_fuzzer.cli.utils.output import spinner
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_status = MagicMock()
             mock_status.__enter__ = MagicMock(return_value=None)
@@ -296,9 +296,9 @@ class TestPrintSummary:
 
     def test_print_summary_basic(self):
         """Test basic summary printing."""
-        from dicom_fuzzer.cli.output import print_summary
+        from dicom_fuzzer.cli.utils.output import print_summary
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -309,9 +309,9 @@ class TestPrintSummary:
 
     def test_print_summary_with_success_count(self):
         """Test summary with success coloring."""
-        from dicom_fuzzer.cli.output import print_summary
+        from dicom_fuzzer.cli.utils.output import print_summary
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -322,9 +322,9 @@ class TestPrintSummary:
 
     def test_print_summary_with_error_count(self):
         """Test summary with error coloring."""
-        from dicom_fuzzer.cli.output import print_summary
+        from dicom_fuzzer.cli.utils.output import print_summary
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -339,9 +339,9 @@ class TestFormatCrashInfo:
 
     def test_format_crash_info_basic(self):
         """Test basic crash info formatting."""
-        from dicom_fuzzer.cli.output import format_crash_info
+        from dicom_fuzzer.cli.utils.output import format_crash_info
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -351,9 +351,9 @@ class TestFormatCrashInfo:
 
     def test_format_crash_info_with_memory(self):
         """Test crash info with memory info."""
-        from dicom_fuzzer.cli.output import format_crash_info
+        from dicom_fuzzer.cli.utils.output import format_crash_info
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -363,9 +363,9 @@ class TestFormatCrashInfo:
 
     def test_format_crash_info_with_error_msg(self):
         """Test crash info with error message."""
-        from dicom_fuzzer.cli.output import format_crash_info
+        from dicom_fuzzer.cli.utils.output import format_crash_info
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -379,9 +379,9 @@ class TestFormatCrashInfo:
 
     def test_format_crash_info_all_fields(self):
         """Test crash info with all fields."""
-        from dicom_fuzzer.cli.output import format_crash_info
+        from dicom_fuzzer.cli.utils.output import format_crash_info
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -401,7 +401,7 @@ class TestIntegration:
 
     def test_full_output_workflow(self):
         """Test a realistic output workflow."""
-        from dicom_fuzzer.cli.output import (
+        from dicom_fuzzer.cli.utils.output import (
             divider,
             error,
             header,
@@ -410,7 +410,7 @@ class TestIntegration:
             success,
         )
 
-        with patch("dicom_fuzzer.cli.output._get_console") as mock_get:
+        with patch("dicom_fuzzer.cli.utils.output._get_console") as mock_get:
             mock_console = MagicMock()
             mock_get.return_value = mock_console
 
@@ -427,7 +427,7 @@ class TestIntegration:
 
     def test_module_state_reset(self):
         """Test that module state can be reset."""
-        import dicom_fuzzer.cli.output as output_module
+        import dicom_fuzzer.cli.utils.output as output_module
 
         # Reset state
         output_module._console = None

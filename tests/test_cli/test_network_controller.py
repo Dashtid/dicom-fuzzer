@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.network_controller import (
+from dicom_fuzzer.cli.controllers.network_controller import (
     HAS_NETWORK_FUZZER,
     STRATEGY_MAP,
     NetworkFuzzingController,
@@ -55,7 +55,9 @@ class TestNetworkFuzzingControllerRun:
 
     def test_run_not_available(self, basic_args: Namespace) -> None:
         """Test run when network fuzzer not available."""
-        with patch("dicom_fuzzer.cli.network_controller.HAS_NETWORK_FUZZER", False):
+        with patch(
+            "dicom_fuzzer.cli.controllers.network_controller.HAS_NETWORK_FUZZER", False
+        ):
             result = NetworkFuzzingController.run(args=basic_args)
 
             assert result == 1  # Failure
@@ -64,7 +66,7 @@ class TestNetworkFuzzingControllerRun:
     def test_run_success(self, basic_args: Namespace) -> None:
         """Test successful run."""
         with patch(
-            "dicom_fuzzer.cli.network_controller.DICOMNetworkFuzzer"
+            "dicom_fuzzer.cli.controllers.network_controller.DICOMNetworkFuzzer"
         ) as mock_fuzzer_class:
             mock_fuzzer = MagicMock()
             mock_fuzzer_class.return_value = mock_fuzzer
@@ -81,7 +83,7 @@ class TestNetworkFuzzingControllerRun:
         basic_args.network_strategy = "malformed_pdu"
 
         with patch(
-            "dicom_fuzzer.cli.network_controller.DICOMNetworkFuzzer"
+            "dicom_fuzzer.cli.controllers.network_controller.DICOMNetworkFuzzer"
         ) as mock_fuzzer_class:
             mock_fuzzer = MagicMock()
             mock_fuzzer_class.return_value = mock_fuzzer
@@ -101,7 +103,7 @@ class TestNetworkFuzzingControllerRun:
         basic_args.network_strategy = "all"
 
         with patch(
-            "dicom_fuzzer.cli.network_controller.DICOMNetworkFuzzer"
+            "dicom_fuzzer.cli.controllers.network_controller.DICOMNetworkFuzzer"
         ) as mock_fuzzer_class:
             mock_fuzzer = MagicMock()
             mock_fuzzer_class.return_value = mock_fuzzer
@@ -118,7 +120,7 @@ class TestNetworkFuzzingControllerRun:
     def test_run_exception_handling(self, basic_args: Namespace) -> None:
         """Test run handles exceptions gracefully."""
         with patch(
-            "dicom_fuzzer.cli.network_controller.DICOMNetworkFuzzer"
+            "dicom_fuzzer.cli.controllers.network_controller.DICOMNetworkFuzzer"
         ) as mock_fuzzer_class:
             mock_fuzzer_class.side_effect = Exception("Connection failed")
 
@@ -132,7 +134,7 @@ class TestNetworkFuzzingControllerRun:
         basic_args.verbose = True
 
         with patch(
-            "dicom_fuzzer.cli.network_controller.DICOMNetworkFuzzer"
+            "dicom_fuzzer.cli.controllers.network_controller.DICOMNetworkFuzzer"
         ) as mock_fuzzer_class:
             mock_fuzzer_class.side_effect = Exception("Connection failed")
 
@@ -144,7 +146,7 @@ class TestNetworkFuzzingControllerRun:
     def test_run_with_generated_files(self, basic_args: Namespace) -> None:
         """Test run with generated_files parameter (for interface consistency)."""
         with patch(
-            "dicom_fuzzer.cli.network_controller.DICOMNetworkFuzzer"
+            "dicom_fuzzer.cli.controllers.network_controller.DICOMNetworkFuzzer"
         ) as mock_fuzzer_class:
             mock_fuzzer = MagicMock()
             mock_fuzzer_class.return_value = mock_fuzzer

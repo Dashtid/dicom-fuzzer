@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from dicom_fuzzer.cli.samples import (
+from dicom_fuzzer.cli.commands.samples import (
     SAMPLE_SOURCES,
     SUPPORTED_MODALITIES,
     create_parser,

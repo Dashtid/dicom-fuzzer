@@ -751,11 +751,11 @@ def run_campaign(args: argparse.Namespace) -> int:
     _log_campaign_header(target_path, study_path, output_path, args, log_file)
 
     try:
-        from dicom_fuzzer.core.harness.target_harness import TargetConfig, TargetHarness
         from dicom_fuzzer.attacks.series.study_mutator import (
             StudyMutationStrategy,
             StudyMutator,
         )
+        from dicom_fuzzer.core.harness.target_harness import TargetConfig, TargetHarness
 
         # Setup target harness
         config = TargetConfig(

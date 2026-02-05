@@ -17,7 +17,11 @@ import sys
 from pathlib import Path
 
 from dicom_fuzzer.cve import CVEGenerator, get_cve_info, list_cves
-from dicom_fuzzer.cve.registry import CVECategory, get_cves_by_category, get_cves_by_product
+from dicom_fuzzer.cve.registry import (
+    CVECategory,
+    get_cves_by_category,
+    get_cves_by_product,
+)
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -142,10 +146,16 @@ def cmd_list_cves(json_output: bool = False) -> int:
     for cve_id in cves:
         info = get_cve_info(cve_id)
         if info:
-            desc = info.description[:45] + "..." if len(info.description) > 45 else info.description
-            print(f"{cve_id:<18} {info.severity:<10} {info.affected_product:<20} {desc}")
+            desc = (
+                info.description[:45] + "..."
+                if len(info.description) > 45
+                else info.description
+            )
+            print(
+                f"{cve_id:<18} {info.severity:<10} {info.affected_product:<20} {desc}"
+            )
 
-    print(f"\n[i] Use 'dicom-fuzzer cve --info CVE-ID' for details")
+    print("\n[i] Use 'dicom-fuzzer cve --info CVE-ID' for details")
     return 0
 
 
@@ -155,12 +165,12 @@ def cmd_show_info(cve_id: str) -> int:
 
     if info is None:
         print(f"[-] Unknown CVE: {cve_id}")
-        print(f"[i] Use 'dicom-fuzzer cve --list' to see available CVEs")
+        print("[i] Use 'dicom-fuzzer cve --list' to see available CVEs")
         return 1
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  {info.cve_id}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  Description: {info.description}")
     print(f"  Category:    {info.category.value}")
     print(f"  Severity:    {info.severity.upper()}")
@@ -173,7 +183,7 @@ def cmd_show_info(cve_id: str) -> int:
     print(f"  Variants:    {info.variants}")
 
     if info.references:
-        print(f"\n  References:")
+        print("\n  References:")
         for ref in info.references:
             print(f"    - {ref}")
 

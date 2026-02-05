@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from dicom_fuzzer.cli import corpus
+from dicom_fuzzer.cli.commands import corpus
 
 
 class TestCreateParser:

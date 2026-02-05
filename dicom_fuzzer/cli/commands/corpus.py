@@ -522,11 +522,11 @@ def _generate_single_study(
 
 def run_generate_study(args: argparse.Namespace) -> int:
     """Generate mutated study corpus from a source study."""
-    from dicom_fuzzer.core.series.study_corpus import StudyCorpusManager
     from dicom_fuzzer.attacks.series.study_mutator import (
         StudyMutationStrategy,
         StudyMutator,
     )
+    from dicom_fuzzer.core.series.study_corpus import StudyCorpusManager
 
     source_dir = Path(args.generate_study)
     if not source_dir.exists():

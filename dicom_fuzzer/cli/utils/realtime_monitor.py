@@ -26,14 +26,24 @@ try:
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
-    Console = None  # type: ignore[assignment, misc]
-    Live = None  # type: ignore[assignment, misc]
+    Console = None
+    Live = None
 
 # Import canonical FuzzingSession for module users
 from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
 
 # Explicit re-exports for module consumers
-__all__ = ["RealtimeMonitor", "FuzzingSession", "Console", "Live", "HAS_RICH"]
+__all__ = [
+    "RealtimeMonitor",
+    "FuzzingSession",
+    "Console",
+    "Live",
+    "HAS_RICH",
+    "main",
+    "display_stats",
+    "monitor_loop",
+    "get_session_stats",
+]
 
 
 class RealtimeMonitor:

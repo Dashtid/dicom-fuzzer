@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.target import create_parser, main
+from dicom_fuzzer.cli.commands.target import create_parser, main
 from dicom_fuzzer.core.harness.target_calibrator import (
     CalibrationResult,
     CrashDetectionStatus,
@@ -343,14 +343,14 @@ class TestMain:
 class TestModuleExecution:
     """Test module can be executed directly."""
 
-    @patch("dicom_fuzzer.cli.target.main")
+    @patch("dicom_fuzzer.cli.commands.target.main")
     @patch("sys.exit")
     def test_module_main(self, mock_exit, mock_main):
         """Test __main__ block calls main()."""
         mock_main.return_value = 0
 
         # Simulate running as __main__
-        import dicom_fuzzer.cli.target as target_module
+        import dicom_fuzzer.cli.commands.target as target_module
 
         # The __name__ == "__main__" block won't run in tests,
         # but we can verify main() is callable

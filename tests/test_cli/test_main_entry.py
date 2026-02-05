@@ -194,7 +194,9 @@ class TestSubcommandDispatch:
         """Test 'samples' subcommand dispatch."""
         with (
             patch("sys.argv", ["dicom-fuzzer", "samples", "--help"]),
-            patch("dicom_fuzzer.cli.samples.main", return_value=0) as mock_samples,
+            patch(
+                "dicom_fuzzer.cli.commands.samples.main", return_value=0
+            ) as mock_samples,
         ):
             from dicom_fuzzer.cli.main import main
 
@@ -210,7 +212,7 @@ class TestSubcommandDispatch:
         """Test 'tls' subcommand dispatch."""
         with (
             patch("sys.argv", ["dicom-fuzzer", "tls", "--list-vulns"]),
-            patch("dicom_fuzzer.cli.tls.main", return_value=0) as mock_tls,
+            patch("dicom_fuzzer.cli.commands.tls.main", return_value=0) as mock_tls,
         ):
             from dicom_fuzzer.cli.main import main
 
@@ -224,7 +226,9 @@ class TestSubcommandDispatch:
         """Test 'calibrate' subcommand dispatch."""
         with (
             patch("sys.argv", ["dicom-fuzzer", "calibrate", "--list-categories"]),
-            patch("dicom_fuzzer.cli.calibrate.main", return_value=0) as mock_calibrate,
+            patch(
+                "dicom_fuzzer.cli.commands.calibrate.main", return_value=0
+            ) as mock_calibrate,
         ):
             from dicom_fuzzer.cli.main import main
 
@@ -237,7 +241,9 @@ class TestSubcommandDispatch:
         """Test 'corpus' subcommand dispatch."""
         with (
             patch("sys.argv", ["dicom-fuzzer", "corpus", "--help"]),
-            patch("dicom_fuzzer.cli.corpus.main", return_value=0) as mock_corpus,
+            patch(
+                "dicom_fuzzer.cli.commands.corpus.main", return_value=0
+            ) as mock_corpus,
         ):
             from dicom_fuzzer.cli.main import main
 
@@ -252,7 +258,7 @@ class TestSubcommandDispatch:
         """Test 'study' subcommand dispatch."""
         with (
             patch("sys.argv", ["dicom-fuzzer", "study", "--help"]),
-            patch("dicom_fuzzer.cli.study.main", return_value=0) as mock_study,
+            patch("dicom_fuzzer.cli.commands.study.main", return_value=0) as mock_study,
         ):
             from dicom_fuzzer.cli.main import main
 
@@ -268,7 +274,7 @@ class TestSubcommandDispatch:
         with (
             patch("sys.argv", ["dicom-fuzzer", "persistent", "--help"]),
             patch(
-                "dicom_fuzzer.cli.persistent.main", return_value=0
+                "dicom_fuzzer.cli.commands.persistent.main", return_value=0
             ) as mock_persistent,
         ):
             from dicom_fuzzer.cli.main import main
@@ -284,7 +290,7 @@ class TestSubcommandDispatch:
         """Test 'state' subcommand dispatch."""
         with (
             patch("sys.argv", ["dicom-fuzzer", "state", "--help"]),
-            patch("dicom_fuzzer.cli.state.main", return_value=0) as mock_state,
+            patch("dicom_fuzzer.cli.commands.state.main", return_value=0) as mock_state,
         ):
             from dicom_fuzzer.cli.main import main
 
@@ -300,7 +306,7 @@ class TestSubcommandDispatch:
         with (
             patch("sys.argv", ["dicom-fuzzer", "study-campaign", "--help"]),
             patch(
-                "dicom_fuzzer.cli.study_campaign.main", return_value=0
+                "dicom_fuzzer.cli.commands.study_campaign.main", return_value=0
             ) as mock_study_campaign,
         ):
             from dicom_fuzzer.cli.main import main
@@ -316,7 +322,9 @@ class TestSubcommandDispatch:
         """Test 'stress' subcommand dispatch."""
         with (
             patch("sys.argv", ["dicom-fuzzer", "stress", "--help"]),
-            patch("dicom_fuzzer.cli.stress.main", return_value=0) as mock_stress,
+            patch(
+                "dicom_fuzzer.cli.commands.stress.main", return_value=0
+            ) as mock_stress,
         ):
             from dicom_fuzzer.cli.main import main
 
@@ -331,7 +339,9 @@ class TestSubcommandDispatch:
         """Test 'target' subcommand dispatch."""
         with (
             patch("sys.argv", ["dicom-fuzzer", "target", "--help"]),
-            patch("dicom_fuzzer.cli.target.main", return_value=0) as mock_target,
+            patch(
+                "dicom_fuzzer.cli.commands.target.main", return_value=0
+            ) as mock_target,
         ):
             from dicom_fuzzer.cli.main import main
 
@@ -376,7 +386,9 @@ class TestMainArgumentParsing:
 
         with (
             patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "1"]),
-            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
+            patch(
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
+            ) as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -398,7 +410,9 @@ class TestMainArgumentParsing:
         # Use count < 20 to avoid batch splitting
         with (
             patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "10"]),
-            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
+            patch(
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
+            ) as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -428,7 +442,9 @@ class TestMainArgumentParsing:
                 "sys.argv",
                 ["dicom-fuzzer", str(test_file), "-c", "1", "-o", str(output_dir)],
             ),
-            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
+            patch(
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
+            ) as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -457,7 +473,9 @@ class TestMainArgumentParsing:
                 "sys.argv",
                 ["dicom-fuzzer", str(test_file), "-c", "1", "-s", "metadata,header"],
             ),
-            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
+            patch(
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
+            ) as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -489,7 +507,9 @@ class TestMainArgumentParsing:
             patch(
                 "sys.argv", ["dicom-fuzzer", str(test_file), "-c", "1", "--json", "-q"]
             ),
-            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
+            patch(
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
+            ) as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -527,7 +547,9 @@ class TestMainArgumentParsing:
 
         with (
             patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "1", "-q"]),
-            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
+            patch(
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
+            ) as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -554,7 +576,9 @@ class TestMainErrorHandling:
 
         with (
             patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "100"]),
-            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
+            patch(
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
+            ) as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)
@@ -574,7 +598,9 @@ class TestMainErrorHandling:
 
         with (
             patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "1"]),
-            patch("dicom_fuzzer.cli.campaign_runner.DICOMGenerator") as mock_gen,
+            patch(
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
+            ) as mock_gen,
             patch("shutil.disk_usage") as mock_disk,
         ):
             mock_disk.return_value = MagicMock(free=10 * 1024 * 1024 * 1024)

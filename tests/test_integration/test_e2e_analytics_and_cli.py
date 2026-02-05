@@ -316,7 +316,7 @@ class TestRealtimeMonitorE2E:
 
     def test_realtime_monitor_initialization(self, temp_session_dir):
         """Test RealtimeMonitor initialization."""
-        from dicom_fuzzer.cli.realtime_monitor import RealtimeMonitor
+        from dicom_fuzzer.cli.utils.realtime_monitor import RealtimeMonitor
 
         monitor = RealtimeMonitor(
             session_dir=temp_session_dir / "output",
@@ -330,7 +330,7 @@ class TestRealtimeMonitorE2E:
 
     def test_display_stats_with_rich(self):
         """Test display_stats function with rich console."""
-        from dicom_fuzzer.cli.realtime_monitor import display_stats
+        from dicom_fuzzer.cli.utils.realtime_monitor import display_stats
 
         stats = {
             "iterations": 100,
@@ -348,12 +348,12 @@ class TestRealtimeMonitorE2E:
 
     def test_display_stats_fallback(self):
         """Test display_stats fallback when rich not available."""
-        from dicom_fuzzer.cli.realtime_monitor import display_stats
+        from dicom_fuzzer.cli.utils.realtime_monitor import display_stats
 
         stats = {"iterations": 100, "crashes": 5}
 
         # Mock HAS_RICH to False
-        with patch("dicom_fuzzer.cli.realtime_monitor.HAS_RICH", False):
+        with patch("dicom_fuzzer.cli.utils.realtime_monitor.HAS_RICH", False):
             display_stats(stats)  # Should use print fallback
 
         # Verify stats are valid
@@ -362,7 +362,7 @@ class TestRealtimeMonitorE2E:
 
     def test_get_session_stats(self):
         """Test get_session_stats function."""
-        from dicom_fuzzer.cli.realtime_monitor import get_session_stats
+        from dicom_fuzzer.cli.utils.realtime_monitor import get_session_stats
 
         stats = get_session_stats("test_session")
 
@@ -373,11 +373,13 @@ class TestRealtimeMonitorE2E:
 
     def test_monitor_loop_keyboard_interrupt(self):
         """Test monitor_loop handles KeyboardInterrupt."""
-        from dicom_fuzzer.cli.realtime_monitor import monitor_loop
+        from dicom_fuzzer.cli.utils.realtime_monitor import monitor_loop
 
-        with patch("dicom_fuzzer.cli.realtime_monitor.get_session_stats") as mock_stats:
+        with patch(
+            "dicom_fuzzer.cli.utils.realtime_monitor.get_session_stats"
+        ) as mock_stats:
             with patch(
-                "dicom_fuzzer.cli.realtime_monitor.display_stats"
+                "dicom_fuzzer.cli.utils.realtime_monitor.display_stats"
             ) as mock_display:
                 with patch("time.sleep", side_effect=KeyboardInterrupt):
                     mock_stats.return_value = {"iterations": 0}
@@ -387,11 +389,11 @@ class TestRealtimeMonitorE2E:
 
     def test_realtime_monitor_main(self):
         """Test realtime_monitor main function."""
-        from dicom_fuzzer.cli.realtime_monitor import main
+        from dicom_fuzzer.cli.utils.realtime_monitor import main
 
         with patch("sys.argv", ["realtime_monitor", "--session-dir", "./test"]):
             with patch(
-                "dicom_fuzzer.cli.realtime_monitor.RealtimeMonitor"
+                "dicom_fuzzer.cli.utils.realtime_monitor.RealtimeMonitor"
             ) as mock_class:
                 mock_monitor = MagicMock()
                 mock_class.return_value = mock_monitor
@@ -449,7 +451,7 @@ class TestGenerateReportE2E:
 
     def test_generate_json_report(self, tmp_path):
         """Test JSON report generation using generate_json_report."""
-        from dicom_fuzzer.cli.generate_report import generate_json_report
+        from dicom_fuzzer.cli.commands.reports import generate_json_report
 
         output_path = tmp_path / "output_report.json"
 
@@ -468,7 +470,7 @@ class TestGenerateReportE2E:
 
     def test_generate_csv_report(self, tmp_path):
         """Test CSV report generation."""
-        from dicom_fuzzer.cli.generate_report import generate_csv_report
+        from dicom_fuzzer.cli.commands.reports import generate_csv_report
 
         output_path = tmp_path / "crashes.csv"
 
@@ -486,7 +488,7 @@ class TestGenerateReportE2E:
 
     def test_generate_markdown_report(self, tmp_path):
         """Test Markdown report generation."""
-        from dicom_fuzzer.cli.generate_report import generate_markdown_report
+        from dicom_fuzzer.cli.commands.reports import generate_markdown_report
 
         output_path = tmp_path / "report.md"
 
@@ -507,13 +509,13 @@ class TestGenerateReportE2E:
 
     def test_generate_reports_function(self, temp_session_json, tmp_path):
         """Test main generate_reports function."""
-        from dicom_fuzzer.cli.generate_report import generate_reports
+        from dicom_fuzzer.cli.commands.reports import generate_reports
 
         output_html = tmp_path / "report.html"
 
         # Mock the EnhancedReportGenerator to avoid file dependencies
         with patch(
-            "dicom_fuzzer.cli.generate_report.EnhancedReportGenerator"
+            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
         ) as mock_reporter_class:
             mock_reporter = MagicMock()
             mock_reporter.generate_html_report.return_value = output_html
@@ -563,7 +565,7 @@ class TestCreateHtmlReportE2E:
 
     def test_create_html_report(self, sample_json_report, tmp_path):
         """Test HTML report creation from JSON."""
-        from dicom_fuzzer.cli.create_html_report import create_html_report
+        from dicom_fuzzer.cli.commands.reports import create_html_report
 
         html_path = tmp_path / "report.html"
 
@@ -577,7 +579,7 @@ class TestCreateHtmlReportE2E:
 
     def test_create_html_report_auto_path(self, sample_json_report):
         """Test HTML report with auto-generated output path."""
-        from dicom_fuzzer.cli.create_html_report import create_html_report
+        from dicom_fuzzer.cli.commands.reports import create_html_report
 
         result = create_html_report(str(sample_json_report))
 
@@ -590,7 +592,7 @@ class TestCreateHtmlReportE2E:
 
     def test_load_template(self, tmp_path):
         """Test load_template function."""
-        from dicom_fuzzer.cli.create_html_report import load_template
+        from dicom_fuzzer.cli.commands.reports import load_template
 
         template_content = "<html>{{ title }}</html>"
         template_file = tmp_path / "template.html"
@@ -601,7 +603,7 @@ class TestCreateHtmlReportE2E:
 
     def test_render_report(self):
         """Test render_report function."""
-        from dicom_fuzzer.cli.create_html_report import render_report
+        from dicom_fuzzer.cli.commands.reports import render_report
 
         template = "<html><title>{{ title }}</title></html>"
         data = {"title": "Test Report"}
@@ -611,7 +613,7 @@ class TestCreateHtmlReportE2E:
 
     def test_save_report(self, tmp_path):
         """Test save_report function."""
-        from dicom_fuzzer.cli.create_html_report import save_report
+        from dicom_fuzzer.cli.commands.reports import save_report
 
         content = "<html>Test Content</html>"
         output_file = tmp_path / "output.html"
@@ -623,7 +625,7 @@ class TestCreateHtmlReportE2E:
 
     def test_create_report_with_charts(self):
         """Test create_report_with_charts function."""
-        from dicom_fuzzer.cli.create_html_report import create_report_with_charts
+        from dicom_fuzzer.cli.commands.reports import create_report_with_charts
 
         data = {"crashes": [], "coverage": 0.5}
 
@@ -635,7 +637,7 @@ class TestCreateHtmlReportE2E:
 
     def test_generate_charts(self):
         """Test generate_charts function."""
-        from dicom_fuzzer.cli.create_html_report import generate_charts
+        from dicom_fuzzer.cli.commands.reports import generate_charts
 
         data = {"metrics": {"coverage": 0.75}}
 
@@ -680,7 +682,7 @@ class TestCoverageFuzzE2E:
         """Test basic coverage-guided fuzzing."""
         import shutil
 
-        from dicom_fuzzer.cli.coverage_fuzz import main
+        from dicom_fuzzer.cli.commands.coverage_fuzz import main
 
         output_dir = tmp_path / "output"
         output_dir.mkdir()
@@ -702,7 +704,7 @@ class TestCoverageFuzzE2E:
 
         with patch("sys.argv", args):
             with patch(
-                "dicom_fuzzer.cli.coverage_fuzz.CoverageGuidedFuzzer"
+                "dicom_fuzzer.cli.commands.coverage_fuzz.CoverageGuidedFuzzer"
             ) as mock_fuzzer_class:
                 # Create mock fuzzer stats result
                 mock_stats = MagicMock()
@@ -738,7 +740,7 @@ class TestCoverageFuzzE2E:
         import shutil
         import sys
 
-        from dicom_fuzzer.cli.coverage_fuzz import main as coverage_fuzz_main
+        from dicom_fuzzer.cli.commands.coverage_fuzz import main as coverage_fuzz_main
 
         output_dir = tmp_path / "output"
         output_dir.mkdir()
@@ -771,7 +773,7 @@ class TestCoverageFuzzE2E:
 
         with patch("sys.argv", args):
             with patch(
-                "dicom_fuzzer.cli.coverage_fuzz.CoverageGuidedFuzzer"
+                "dicom_fuzzer.cli.commands.coverage_fuzz.CoverageGuidedFuzzer"
             ) as mock_fuzzer_class:
                 # Create mock fuzzer stats result
                 mock_stats = MagicMock()
@@ -941,7 +943,7 @@ class TestIntegrationWorkflowE2E:
 
     def test_realtime_monitor_with_session_data(self, tmp_path):
         """Test realtime monitor integration with session data."""
-        from dicom_fuzzer.cli.realtime_monitor import RealtimeMonitor
+        from dicom_fuzzer.cli.utils.realtime_monitor import RealtimeMonitor
 
         # Create session directory structure
         reports_dir = tmp_path / "reports" / "json"
@@ -967,7 +969,7 @@ class TestIntegrationWorkflowE2E:
         # Test internal methods
         with patch.object(monitor, "_display_stats") as mock_display:
             with patch(
-                "dicom_fuzzer.cli.realtime_monitor.Path", return_value=reports_dir
+                "dicom_fuzzer.cli.utils.realtime_monitor.Path", return_value=reports_dir
             ):
                 # Manually test refresh display
                 monitor._refresh_display()

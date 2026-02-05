@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.coverage_fuzz import (
+from dicom_fuzzer.cli.commands.coverage_fuzz import (
     CoverageFuzzCLI,
     create_config_from_args,
     create_mutation_table,
@@ -402,7 +402,7 @@ class TestRunCoverageFuzzing:
         mock_fuzzer.run.return_value = {"crashes": 1, "coverage": 0.75}
 
         mocker.patch(
-            "dicom_fuzzer.cli.coverage_fuzz.CoverageGuidedFuzzer",
+            "dicom_fuzzer.cli.commands.coverage_fuzz.CoverageGuidedFuzzer",
             return_value=mock_fuzzer,
         )
 
@@ -446,11 +446,11 @@ class TestMain:
 
         # Mock run_fuzzing_campaign to avoid actual execution
         mock_run = mocker.patch(
-            "dicom_fuzzer.cli.coverage_fuzz.run_fuzzing_campaign",
+            "dicom_fuzzer.cli.commands.coverage_fuzz.run_fuzzing_campaign",
             return_value=None,
         )
         mock_asyncio = mocker.patch(
-            "dicom_fuzzer.cli.coverage_fuzz.asyncio.run",
+            "dicom_fuzzer.cli.commands.coverage_fuzz.asyncio.run",
             return_value=None,
         )
 
@@ -465,7 +465,7 @@ class TestMain:
     def test_keyboard_interrupt(self, mocker, capsys):
         """Test main handles keyboard interrupt."""
         mocker.patch(
-            "dicom_fuzzer.cli.coverage_fuzz.asyncio.run",
+            "dicom_fuzzer.cli.commands.coverage_fuzz.asyncio.run",
             side_effect=KeyboardInterrupt,
         )
 
@@ -478,7 +478,7 @@ class TestMain:
     def test_general_exception(self, mocker, capsys):
         """Test main handles general exception."""
         mocker.patch(
-            "dicom_fuzzer.cli.coverage_fuzz.asyncio.run",
+            "dicom_fuzzer.cli.commands.coverage_fuzz.asyncio.run",
             side_effect=RuntimeError("Test error"),
         )
 
@@ -493,7 +493,7 @@ class TestMain:
     def test_verbose_exception(self, mocker, capsys):
         """Test main shows traceback in verbose mode."""
         mocker.patch(
-            "dicom_fuzzer.cli.coverage_fuzz.asyncio.run",
+            "dicom_fuzzer.cli.commands.coverage_fuzz.asyncio.run",
             side_effect=RuntimeError("Verbose test error"),
         )
 
@@ -512,7 +512,7 @@ class TestRunFuzzingCampaignIntegration:
     @pytest.mark.asyncio
     async def test_campaign_starts(self, mocker):
         """Test that fuzzing campaign can be started with mocked fuzzer."""
-        from dicom_fuzzer.cli.coverage_fuzz import run_fuzzing_campaign
+        from dicom_fuzzer.cli.commands.coverage_fuzz import run_fuzzing_campaign
         from dicom_fuzzer.core.engine.coverage_guided_fuzzer import FuzzingConfig
 
         # Create mock stats
@@ -536,7 +536,7 @@ class TestRunFuzzingCampaignIntegration:
         mock_fuzzer.run = mock_run
 
         mocker.patch(
-            "dicom_fuzzer.cli.coverage_fuzz.CoverageGuidedFuzzer",
+            "dicom_fuzzer.cli.commands.coverage_fuzz.CoverageGuidedFuzzer",
             return_value=mock_fuzzer,
         )
 

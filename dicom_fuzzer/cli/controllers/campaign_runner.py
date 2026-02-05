@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from dicom_fuzzer.cli import output as cli
+from dicom_fuzzer.cli.utils import output as cli
 from dicom_fuzzer.core.engine.generator import DICOMGenerator
 
 logger = logging.getLogger(__name__)

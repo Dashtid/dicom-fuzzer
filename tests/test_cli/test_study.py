@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.study import (
+from dicom_fuzzer.cli.commands.study import (
     create_parser,
     main,
     run_list_strategies,
@@ -263,7 +263,7 @@ class TestMain:
         study_path.mkdir()
 
         with patch(
-            "dicom_fuzzer.cli.study.run_study_mutation", return_value=0
+            "dicom_fuzzer.cli.commands.study.run_study_mutation", return_value=0
         ) as mock_run:
             result = main(["--study", str(study_path)])
             assert result == 0

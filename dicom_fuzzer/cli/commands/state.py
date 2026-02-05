@@ -100,7 +100,9 @@ def run_fuzz(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import StateAwareFuzzer
+        from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import (
+            StateAwareFuzzer,
+        )
 
         print("[i] Initializing state-aware fuzzer...")
         fuzzer = StateAwareFuzzer()
@@ -155,7 +157,9 @@ def run_export_sm(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import StateAwareFuzzer
+        from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import (
+            StateAwareFuzzer,
+        )
 
         fuzzer = StateAwareFuzzer()
         sm_data: dict[str, Any] = fuzzer.export_state_machine()

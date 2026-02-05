@@ -9,7 +9,7 @@ import logging
 from argparse import Namespace
 from typing import TYPE_CHECKING
 
-from dicom_fuzzer.cli import output as cli
+from dicom_fuzzer.cli.utils import output as cli
 
 if TYPE_CHECKING:
     from pathlib import Path

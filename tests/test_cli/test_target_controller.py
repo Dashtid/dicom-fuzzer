@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.target_controller import (
+from dicom_fuzzer.cli.controllers.target_controller import (
     HAS_PSUTIL,
     TargetTestingController,
 )
@@ -93,7 +93,7 @@ class TestDisplayHeader:
 class TestCreateRunner:
     """Tests for _create_runner method."""
 
-    @patch("dicom_fuzzer.cli.target_controller.TargetRunner")
+    @patch("dicom_fuzzer.cli.controllers.target_controller.TargetRunner")
     def test_create_cli_runner(self, mock_runner: MagicMock, tmp_path: Path) -> None:
         """Test creating CLI runner."""
         args = Namespace(target="/path/to/app", timeout=5)
@@ -114,7 +114,7 @@ class TestCreateRunner:
         assert call_kwargs["timeout"] == 5
 
     @pytest.mark.skipif(not HAS_PSUTIL, reason="psutil not installed")
-    @patch("dicom_fuzzer.cli.target_controller.GUITargetRunner")
+    @patch("dicom_fuzzer.cli.controllers.target_controller.GUITargetRunner")
     def test_create_gui_runner_with_psutil(
         self, mock_runner: MagicMock, tmp_path: Path
     ) -> None:
@@ -137,7 +137,7 @@ class TestCreateRunner:
         assert call_kwargs["memory_limit_mb"] == 512
         assert call_kwargs["startup_delay"] == 1.0
 
-    @patch("dicom_fuzzer.cli.target_controller.HAS_PSUTIL", False)
+    @patch("dicom_fuzzer.cli.controllers.target_controller.HAS_PSUTIL", False)
     def test_create_gui_runner_without_psutil(self, tmp_path: Path) -> None:
         """Test GUI runner creation fails without psutil."""
         args = Namespace(target="/path/to/app", timeout=10, startup_delay=0.0)
@@ -155,7 +155,7 @@ class TestCreateRunner:
 
         assert exc_info.value.code == 1
 
-    @patch("dicom_fuzzer.cli.target_controller.TargetRunner")
+    @patch("dicom_fuzzer.cli.controllers.target_controller.TargetRunner")
     def test_create_runner_with_resource_limits(
         self, mock_runner: MagicMock, tmp_path: Path
     ) -> None:
@@ -181,8 +181,12 @@ class TestCreateRunner:
 class TestRun:
     """Tests for run method."""
 
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._create_runner")
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._display_header")
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._create_runner"
+    )
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._display_header"
+    )
     def test_run_success(
         self, mock_header: MagicMock, mock_create_runner: MagicMock, tmp_path: Path
     ) -> None:
@@ -210,8 +214,12 @@ class TestRun:
         assert result == 0
         mock_runner.run_campaign.assert_called_once()
 
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._create_runner")
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._display_header")
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._create_runner"
+    )
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._display_header"
+    )
     def test_run_file_not_found(
         self, mock_header: MagicMock, mock_create_runner: MagicMock, tmp_path: Path
     ) -> None:
@@ -234,8 +242,12 @@ class TestRun:
 
         assert result == 1
 
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._create_runner")
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._display_header")
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._create_runner"
+    )
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._display_header"
+    )
     def test_run_import_error(
         self, mock_header: MagicMock, mock_create_runner: MagicMock, tmp_path: Path
     ) -> None:
@@ -258,8 +270,12 @@ class TestRun:
 
         assert result == 1
 
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._create_runner")
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._display_header")
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._create_runner"
+    )
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._display_header"
+    )
     def test_run_general_exception(
         self, mock_header: MagicMock, mock_create_runner: MagicMock, tmp_path: Path
     ) -> None:
@@ -282,8 +298,12 @@ class TestRun:
 
         assert result == 1
 
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._create_runner")
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._display_header")
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._create_runner"
+    )
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._display_header"
+    )
     def test_run_general_exception_verbose(
         self, mock_header: MagicMock, mock_create_runner: MagicMock, tmp_path: Path
     ) -> None:
@@ -306,8 +326,12 @@ class TestRun:
 
         assert result == 1
 
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._create_runner")
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._display_header")
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._create_runner"
+    )
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._display_header"
+    )
     def test_run_with_resource_limits_logging(
         self, mock_header: MagicMock, mock_create_runner: MagicMock, tmp_path: Path
     ) -> None:
@@ -342,8 +366,12 @@ class TestRun:
 class TestGetAttrDefaults:
     """Tests for getattr default value handling."""
 
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._create_runner")
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._display_header")
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._create_runner"
+    )
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._display_header"
+    )
     def test_run_without_gui_mode_attr(
         self, mock_header: MagicMock, mock_create_runner: MagicMock, tmp_path: Path
     ) -> None:
@@ -372,8 +400,12 @@ class TestGetAttrDefaults:
         call_kwargs = mock_create_runner.call_args[1]
         assert call_kwargs["gui_mode"] is False
 
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._create_runner")
-    @patch("dicom_fuzzer.cli.target_controller.TargetTestingController._display_header")
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._create_runner"
+    )
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._display_header"
+    )
     def test_run_without_memory_limit_attr(
         self, mock_header: MagicMock, mock_create_runner: MagicMock, tmp_path: Path
     ) -> None:

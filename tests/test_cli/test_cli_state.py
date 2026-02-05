@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli import state
+from dicom_fuzzer.cli.commands import state
 
 
 class TestCreateParser:

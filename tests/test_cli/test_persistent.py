@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.persistent import (
+from dicom_fuzzer.cli.commands.persistent import (
     create_parser,
     main,
     run_fuzz,
@@ -306,7 +306,9 @@ class TestMain:
         corpus_dir = tmp_path / "corpus"
         corpus_dir.mkdir()
 
-        with patch("dicom_fuzzer.cli.persistent.run_fuzz", return_value=0) as mock_run:
+        with patch(
+            "dicom_fuzzer.cli.commands.persistent.run_fuzz", return_value=0
+        ) as mock_run:
             result = main(["--corpus", str(corpus_dir)])
             assert result == 0
             mock_run.assert_called_once()

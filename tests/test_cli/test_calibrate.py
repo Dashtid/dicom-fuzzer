@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.calibrate import (
+from dicom_fuzzer.cli.commands.calibrate import (
     create_parser,
     main,
     run_calibration_mutation,

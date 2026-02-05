@@ -251,9 +251,7 @@ def run_calibration_mutation(args: argparse.Namespace) -> int:
 
     except ImportError as e:
         print(f"[-] Module not available: {e}")
-        print(
-            "[i] Ensure dicom_fuzzer.attacks.format.calibration_fuzzer is installed"
-        )
+        print("[i] Ensure dicom_fuzzer.attacks.format.calibration_fuzzer is installed")
         return 1
     except Exception as e:
         print(f"[-] Failed: {e}")

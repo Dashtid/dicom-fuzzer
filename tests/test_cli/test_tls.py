@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.tls import (
+from dicom_fuzzer.cli.commands.tls import (
     create_parser,
     main,
     run_list_vulns,

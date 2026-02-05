@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.coverage_fuzz import (
+from dicom_fuzzer.cli.commands.coverage_fuzz import (
     create_config_from_args,
     create_mutation_table,
     create_parser,
@@ -339,7 +339,7 @@ class TestMain:
     def test_main_dry_run(self, capsys):
         """Test main with --dry-run flag."""
         with patch("sys.argv", ["coverage_fuzz", "--dry-run"]):
-            with patch("dicom_fuzzer.cli.coverage_fuzz.console"):
+            with patch("dicom_fuzzer.cli.commands.coverage_fuzz.console"):
                 result = main()  # Should not raise with --dry-run
                 assert result is None  # main() completes without error
 
@@ -352,7 +352,7 @@ class TestMain:
         with patch(
             "sys.argv", ["coverage_fuzz", "--config", str(config_file), "--dry-run"]
         ):
-            with patch("dicom_fuzzer.cli.coverage_fuzz.console"):
+            with patch("dicom_fuzzer.cli.commands.coverage_fuzz.console"):
                 result = main()  # Should not raise
                 assert result is None  # main() completes without error
 
@@ -360,10 +360,10 @@ class TestMain:
         """Test main handles keyboard interrupt."""
         with patch("sys.argv", ["coverage_fuzz"]):
             with patch(
-                "dicom_fuzzer.cli.coverage_fuzz.asyncio.run",
+                "dicom_fuzzer.cli.commands.coverage_fuzz.asyncio.run",
                 side_effect=KeyboardInterrupt(),
             ):
-                with patch("dicom_fuzzer.cli.coverage_fuzz.console"):
+                with patch("dicom_fuzzer.cli.commands.coverage_fuzz.console"):
                     result = main()  # Should not raise, handles interrupt
                     assert result is None  # Gracefully handled keyboard interrupt
 
@@ -383,7 +383,7 @@ class TestRunCoverageFuzzing:
         mock_fuzzer.run.return_value = {"crashes": 0, "coverage": 0.5}
 
         with patch(
-            "dicom_fuzzer.cli.coverage_fuzz.CoverageGuidedFuzzer",
+            "dicom_fuzzer.cli.commands.coverage_fuzz.CoverageGuidedFuzzer",
             return_value=mock_fuzzer,
         ):
             result = run_coverage_fuzzing(
@@ -413,7 +413,7 @@ class TestRunCoverageFuzzing:
         mock_fuzzer.run.return_value = mock_run()
 
         with patch(
-            "dicom_fuzzer.cli.coverage_fuzz.CoverageGuidedFuzzer",
+            "dicom_fuzzer.cli.commands.coverage_fuzz.CoverageGuidedFuzzer",
             return_value=mock_fuzzer,
         ):
             result = run_coverage_fuzzing(
@@ -475,7 +475,7 @@ class TestRunFuzzingCampaign:
     @pytest.mark.asyncio
     async def test_run_fuzzing_campaign_basic(self, tmp_path):
         """Test running a fuzzing campaign."""
-        from dicom_fuzzer.cli.coverage_fuzz import run_fuzzing_campaign
+        from dicom_fuzzer.cli.commands.coverage_fuzz import run_fuzzing_campaign
         from dicom_fuzzer.core.engine.coverage_guided_fuzzer import FuzzingConfig
 
         config = FuzzingConfig()
@@ -503,11 +503,11 @@ class TestRunFuzzingCampaign:
 
         with (
             patch(
-                "dicom_fuzzer.cli.coverage_fuzz.CoverageGuidedFuzzer",
+                "dicom_fuzzer.cli.commands.coverage_fuzz.CoverageGuidedFuzzer",
                 return_value=mock_fuzzer,
             ),
-            patch("dicom_fuzzer.cli.coverage_fuzz.console"),
-            patch("dicom_fuzzer.cli.coverage_fuzz.Live"),
+            patch("dicom_fuzzer.cli.commands.coverage_fuzz.console"),
+            patch("dicom_fuzzer.cli.commands.coverage_fuzz.Live"),
         ):
             await run_fuzzing_campaign(config)
 
@@ -517,7 +517,7 @@ class TestCoverageFuzzCLI:
 
     def test_class_exists(self):
         """Test that CoverageFuzzCLI class exists for compatibility."""
-        from dicom_fuzzer.cli.coverage_fuzz import CoverageFuzzCLI
+        from dicom_fuzzer.cli.commands.coverage_fuzz import CoverageFuzzCLI
 
         # Just verify the class exists
         assert CoverageFuzzCLI is not None
