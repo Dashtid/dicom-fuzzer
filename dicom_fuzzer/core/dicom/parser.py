@@ -4,6 +4,7 @@ This module provides secure parsing capabilities for DICOM files,
 with extensive validation, error handling, and security considerations.
 """
 
+import copy
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
@@ -123,7 +124,8 @@ class DicomParser:
     def _parse_dicom_file(self) -> None:
         """Parse the DICOM file with comprehensive error handling."""
         try:
-            # Use force=True to handle non-standard DICOM files
+            # force=True: seed files may be non-standard DICOM; security checks above
+            # handle file-level safety (size, existence), force handles format tolerance
             self._dataset = pydicom.dcmread(
                 str(self.file_path), force=True, stop_before_pixels=False
             )
@@ -439,8 +441,7 @@ class DicomParser:
             The dataset for temporary modification
 
         """
-        # Create a deep copy for mutation
-        original_state = self.dataset.copy()
+        original_state = copy.deepcopy(self.dataset)
 
         try:
             yield self.dataset

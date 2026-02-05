@@ -7,7 +7,7 @@ intelligence and stability tracking.
 Subpackages:
 - corpus/: Corpus management and minimization
 - crash/: Crash detection, triage, and analysis
-- dicom/: DICOM file I/O -- parsing, validation, lazy loading
+- dicom/: DICOM file I/O -- parsing, validation, series
 - engine/: Fuzzing engines and orchestrators
 - harness/: Target execution and monitoring
 - mutation/: Mutation primitives -- byte, dataset, multiframe
@@ -122,11 +122,6 @@ from .crash.crash_triage import (
 
 # DICOM I/O
 from .dicom.dicom_series import DicomSeries
-from .dicom.lazy_loader import (
-    LazyDicomLoader,
-    create_deferred_loader,
-    create_metadata_loader,
-)
 from .dicom.parser import DicomParser
 from .dicom.validator import DicomValidator
 
@@ -283,9 +278,6 @@ __all__ = [
     "SeriesWriter",
     "SeriesMetadata",
     # Performance optimization
-    "LazyDicomLoader",
-    "create_metadata_loader",
-    "create_deferred_loader",
     "SeriesCache",
     "CacheEntry",
     # Enhanced Reporting & Analytics

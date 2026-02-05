@@ -361,7 +361,7 @@ class TestParserErrorPaths:
         # Missing: StudyInstanceUID, SeriesInstanceUID
 
         minimal_file = tmp_path / "minimal_tags.dcm"
-        ds.save_as(minimal_file, write_like_original=False)
+        ds.save_as(minimal_file, enforce_file_format=True)
 
         parser = DicomParser(minimal_file)
         critical_tags = parser.get_critical_tags()
@@ -390,7 +390,7 @@ class TestParserErrorPaths:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         minimal_file = tmp_path / "minimal_metadata.dcm"
-        ds.save_as(minimal_file, write_like_original=False)
+        ds.save_as(minimal_file, enforce_file_format=True)
 
         parser = DicomParser(minimal_file)
         metadata = parser.extract_metadata()
@@ -424,7 +424,7 @@ class TestParserErrorPaths:
         # Don't add any required tags - this should fail validation
 
         minimal_file = tmp_path / "minimal_invalid.dcm"
-        ds.save_as(minimal_file, write_like_original=False)
+        ds.save_as(minimal_file, enforce_file_format=True)
 
         # Should raise error for empty dataset
         with pytest.raises(ParsingError):
@@ -462,7 +462,7 @@ class TestParserEdgeCases:
         ds.SeriesInstanceUID = "1.2.3.4.5.6"
 
         minimal_file = tmp_path / "minimal.dcm"
-        ds.save_as(minimal_file, write_like_original=False)
+        ds.save_as(minimal_file, enforce_file_format=True)
 
         parser = DicomParser(minimal_file)
         assert parser.dataset is not None
@@ -506,7 +506,7 @@ class TestParserEdgeCases:
         ds.PixelData = b"\x00" * 100
 
         test_file = tmp_path / "test_pixel_exception.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
 
@@ -540,7 +540,7 @@ class TestParserEdgeCases:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         # Manually set dataset to None to trigger error
@@ -570,7 +570,7 @@ class TestParserEdgeCases:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_empty.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
 
@@ -607,7 +607,7 @@ class TestParserEdgeCases:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_dims.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
 
@@ -648,7 +648,7 @@ class TestCoverageMissingLines:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         # Mock dcmread to raise InvalidDicomError
         with patch(
@@ -677,7 +677,7 @@ class TestCoverageMissingLines:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         # Mock dcmread to return None
         with patch("pydicom.dcmread", return_value=None):
@@ -716,7 +716,7 @@ class TestCoverageMissingLines:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
 
@@ -763,7 +763,7 @@ class TestCoverageMissingLines:
         ds.PixelData = pixel_array.tobytes()
 
         test_file = tmp_path / "test_with_pixels.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -797,7 +797,7 @@ class TestCoverageMissingLines:
         ds.add_new(private_tag, "LO", "Private Value")
 
         test_file = tmp_path / "test_private.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata(include_private=True)
@@ -1155,7 +1155,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_patient_id.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1184,7 +1184,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_patient_name.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1213,7 +1213,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_birth_date.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1240,7 +1240,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_sex.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1269,7 +1269,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_study_date.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1298,7 +1298,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_study_time.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1327,7 +1327,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_study_desc.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1356,7 +1356,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_modality.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1385,7 +1385,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_institution.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1414,7 +1414,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_manufacturer.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1443,7 +1443,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_model.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1472,7 +1472,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_software.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1500,7 +1500,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = "1.2.3.4.5"
 
         test_file = tmp_path / "test_sop_class.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1528,7 +1528,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SOPInstanceUID = unique_value  # Tag (0x0008, 0x0018)
 
         test_file = tmp_path / "test_sop_instance.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1557,7 +1557,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.StudyInstanceUID = unique_value  # Tag (0x0020, 0x000D)
 
         test_file = tmp_path / "test_study_uid.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1586,7 +1586,7 @@ class TestExtractMetadataTagMappingMutationKilling:
         ds.SeriesInstanceUID = unique_value  # Tag (0x0020, 0x000E)
 
         test_file = tmp_path / "test_series_uid.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1625,7 +1625,7 @@ class TestExtractMetadataPixelDataMutationKilling:
         ds.PixelData = np.zeros((10, 10), dtype=np.uint8).tobytes()
 
         test_file = tmp_path / "test_pixel_true.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1652,7 +1652,7 @@ class TestExtractMetadataPixelDataMutationKilling:
         # No PixelData
 
         test_file = tmp_path / "test_no_pixel.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1687,7 +1687,7 @@ class TestExtractMetadataPixelDataMutationKilling:
         ds.PixelData = np.zeros((256, 128), dtype=np.uint8).tobytes()
 
         test_file = tmp_path / "test_rows.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1723,7 +1723,7 @@ class TestExtractMetadataPixelDataMutationKilling:
         ds.PixelData = np.zeros((10, 10), dtype=np.uint16).tobytes()
 
         test_file = tmp_path / "test_bits.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1762,7 +1762,7 @@ class TestExtractMetadataPixelDataMutationKilling:
         ds.PixelData = np.zeros((10, 10, 3), dtype=np.uint8).tobytes()
 
         test_file = tmp_path / "test_spp.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1797,7 +1797,7 @@ class TestExtractMetadataPixelDataMutationKilling:
         ds.PixelData = np.zeros((100, 200), dtype=np.uint8).tobytes()
 
         test_file = tmp_path / "test_shape.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1833,7 +1833,7 @@ class TestExtractMetadataPixelDataMutationKilling:
         ds.PixelData = np.zeros((10, 10), dtype=np.uint8).tobytes()
 
         test_file = tmp_path / "test_dtype.dcm"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         parser = DicomParser(test_file)
         metadata = parser.extract_metadata()
@@ -1965,7 +1965,7 @@ class TestSecurityChecksMutationKilling:
         ds.PatientID = "ID123"
         ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
         ds.SOPInstanceUID = "1.2.3.4.5"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         # Use custom max_file_size that matches actual file size
         actual_size = test_file.stat().st_size
@@ -2002,7 +2002,7 @@ class TestSecurityChecksMutationKilling:
         ds.PatientID = "ID123"
         ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
         ds.SOPInstanceUID = "1.2.3.4.5"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         import logging
 
@@ -2029,7 +2029,7 @@ class TestSecurityChecksMutationKilling:
         ds.PatientID = "ID123"
         ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
         ds.SOPInstanceUID = "1.2.3.4.5"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         import logging
 
@@ -2055,7 +2055,7 @@ class TestSecurityChecksMutationKilling:
         ds.PatientID = "ID123"
         ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
         ds.SOPInstanceUID = "1.2.3.4.5"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         import logging
 
@@ -2064,8 +2064,10 @@ class TestSecurityChecksMutationKilling:
             assert parser._dataset is not None
             assert "Unusual file extension" not in caplog.text
 
-    def test_unusual_extension_triggers_warning(self, tmp_path, capsys):
+    def test_unusual_extension_triggers_warning(self, tmp_path):
         """Verify unusual extension triggers warning."""
+        from unittest.mock import patch
+
         import pydicom
         from pydicom.uid import ExplicitVRLittleEndian
 
@@ -2081,15 +2083,15 @@ class TestSecurityChecksMutationKilling:
         ds.PatientID = "ID123"
         ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
         ds.SOPInstanceUID = "1.2.3.4.5"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
-        parser = DicomParser(test_file, security_checks=True)
-        assert parser._dataset is not None
-
-        # structlog outputs to stdout
-        captured = capsys.readouterr()
-        assert "Unusual file extension" in captured.out
-        assert ".txt" in captured.out
+        with patch("dicom_fuzzer.core.dicom.parser.logger") as mock_logger:
+            parser = DicomParser(test_file, security_checks=True)
+            assert parser._dataset is not None
+        mock_logger.warning.assert_called_once()
+        warning_text = str(mock_logger.warning.call_args)
+        assert "Unusual file extension" in warning_text
+        assert ".txt" in warning_text
 
     def test_uppercase_dcm_extension_accepted(self, tmp_path, caplog):
         """Verify .DCM (uppercase) extension does NOT trigger warning."""
@@ -2108,7 +2110,7 @@ class TestSecurityChecksMutationKilling:
         ds.PatientID = "ID123"
         ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
         ds.SOPInstanceUID = "1.2.3.4.5"
-        ds.save_as(test_file, write_like_original=False)
+        ds.save_as(test_file, enforce_file_format=True)
 
         import logging
 

@@ -114,7 +114,7 @@ class SeriesCache:
 
         Args:
             file_path: Path to DICOM file
-            loader: Callable to load file if not cached (e.g., LazyDicomLoader.load)
+            loader: Callable to load file if not cached (e.g., pydicom.dcmread)
 
         Returns:
             Cached or freshly loaded dataset, or None if file doesn't exist

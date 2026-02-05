@@ -51,6 +51,19 @@ class DicomSeries:
             raise ValueError("StudyInstanceUID cannot be empty")
         if not self.modality:
             raise ValueError("Modality cannot be empty")
+        self._slice_cache: dict[Path, Dataset] = {}
+
+    def _load_slice_metadata(self, slice_path: Path) -> Dataset | None:
+        """Load slice metadata with caching (metadata-only, no pixel data)."""
+        if slice_path in self._slice_cache:
+            return self._slice_cache[slice_path]
+        try:
+            ds = pydicom.dcmread(slice_path, stop_before_pixels=True)
+            self._slice_cache[slice_path] = ds
+            return ds
+        except Exception as e:
+            logger.error(f"Error reading slice {slice_path}: {e}")
+            return None
 
     @property
     def slice_count(self) -> int:
@@ -81,18 +94,14 @@ class DicomSeries:
         """
         positions = []
         for slice_path in self.slices:
-            try:
-                ds = pydicom.dcmread(slice_path, stop_before_pixels=True)
-                if hasattr(ds, "ImagePositionPatient"):
-                    pos = ds.ImagePositionPatient
-                    positions.append((float(pos[0]), float(pos[1]), float(pos[2])))
-                else:
-                    logger.warning(
-                        f"Slice {slice_path.name} missing ImagePositionPatient"
-                    )
-                    positions.append((0.0, 0.0, 0.0))
-            except Exception as e:
-                logger.error(f"Error reading slice {slice_path}: {e}")
+            ds = self._load_slice_metadata(slice_path)
+            if ds is None:
+                positions.append((0.0, 0.0, 0.0))
+            elif hasattr(ds, "ImagePositionPatient"):
+                pos = ds.ImagePositionPatient
+                positions.append((float(pos[0]), float(pos[1]), float(pos[2])))
+            else:
+                logger.warning(f"Slice {slice_path.name} missing ImagePositionPatient")
                 positions.append((0.0, 0.0, 0.0))
         return positions
 
@@ -148,12 +157,15 @@ class DicomSeries:
         if not self.slices:
             return None
 
+        first_slice = self._load_slice_metadata(self.slices[0])
+        if first_slice is None:
+            return None
+
         try:
-            first_slice = pydicom.dcmread(self.slices[0], stop_before_pixels=True)
             rows = int(first_slice.Rows) if hasattr(first_slice, "Rows") else 0
             cols = int(first_slice.Columns) if hasattr(first_slice, "Columns") else 0
             return (rows, cols, self.slice_count)
-        except Exception as e:
+        except (TypeError, ValueError) as e:
             logger.error(f"Error reading dimensions: {e}")
             return None
 
@@ -195,45 +207,42 @@ class DicomSeries:
             return errors
 
         for i, slice_path in enumerate(self.slices):
-            try:
-                ds = pydicom.dcmread(slice_path, stop_before_pixels=True)
+            ds = self._load_slice_metadata(slice_path)
+            if ds is None:
+                errors.append(f"Error reading slice {i} ({slice_path.name})")
+                continue
 
-                # Check SeriesInstanceUID
-                if hasattr(ds, "SeriesInstanceUID"):
-                    if ds.SeriesInstanceUID != self.series_uid:
-                        errors.append(
-                            f"Slice {i} ({slice_path.name}) has mismatched "
-                            f"SeriesInstanceUID: {ds.SeriesInstanceUID}"
-                        )
-                else:
+            # Check SeriesInstanceUID
+            if hasattr(ds, "SeriesInstanceUID"):
+                if ds.SeriesInstanceUID != self.series_uid:
                     errors.append(
-                        f"Slice {i} ({slice_path.name}) missing SeriesInstanceUID"
+                        f"Slice {i} ({slice_path.name}) has mismatched "
+                        f"SeriesInstanceUID: {ds.SeriesInstanceUID}"
                     )
+            else:
+                errors.append(
+                    f"Slice {i} ({slice_path.name}) missing SeriesInstanceUID"
+                )
 
-                # Check StudyInstanceUID
-                if hasattr(ds, "StudyInstanceUID"):
-                    if ds.StudyInstanceUID != self.study_uid:
-                        errors.append(
-                            f"Slice {i} ({slice_path.name}) has mismatched "
-                            f"StudyInstanceUID: {ds.StudyInstanceUID}"
-                        )
-                else:
+            # Check StudyInstanceUID
+            if hasattr(ds, "StudyInstanceUID"):
+                if ds.StudyInstanceUID != self.study_uid:
                     errors.append(
-                        f"Slice {i} ({slice_path.name}) missing StudyInstanceUID"
+                        f"Slice {i} ({slice_path.name}) has mismatched "
+                        f"StudyInstanceUID: {ds.StudyInstanceUID}"
                     )
+            else:
+                errors.append(f"Slice {i} ({slice_path.name}) missing StudyInstanceUID")
 
-                # Check Modality
-                if hasattr(ds, "Modality"):
-                    if ds.Modality != self.modality:
-                        errors.append(
-                            f"Slice {i} ({slice_path.name}) has mismatched "
-                            f"Modality: {ds.Modality}"
-                        )
-                else:
-                    errors.append(f"Slice {i} ({slice_path.name}) missing Modality")
-
-            except Exception as e:
-                errors.append(f"Error reading slice {i} ({slice_path.name}): {e}")
+            # Check Modality
+            if hasattr(ds, "Modality"):
+                if ds.Modality != self.modality:
+                    errors.append(
+                        f"Slice {i} ({slice_path.name}) has mismatched "
+                        f"Modality: {ds.Modality}"
+                    )
+            else:
+                errors.append(f"Slice {i} ({slice_path.name}) missing Modality")
 
         return errors
 

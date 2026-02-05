@@ -17,11 +17,7 @@ security_logger = SecurityEventLogger(logger)
 
 
 class ValidationResult:
-    """LEARNING: This class encapsulates validation results with details.
-
-    CONCEPT: Rather than just returning True/False, we return detailed
-    information about what passed and what failed.
-    """
+    """Encapsulates validation results with details."""
 
     def __init__(self, is_valid: bool = True):
         """Initialize validation result.
@@ -99,16 +95,15 @@ class ValidationResult:
 
 
 class DicomValidator:
-    """LEARNING: This class validates DICOM files for correctness and compliance.
+    """Validates DICOM files for correctness and compliance.
 
-    CONCEPT: Validation ensures that generated/mutated DICOM files are:
+    Ensures that generated/mutated DICOM files are:
     1. Structurally correct (proper format)
     2. Compliant with DICOM standards
     3. Secure (no malicious content)
     4. Parseable by target systems
     """
 
-    # LEARNING: Class variables define required tags for different modalities
     REQUIRED_TAGS = {
         "Patient": [
             Tag(0x0010, 0x0010),  # Patient's Name
@@ -155,8 +150,6 @@ class DicomValidator:
         check_security: bool = True,
     ) -> ValidationResult:
         """Validate DICOM dataset comprehensively.
-
-        LEARNING: This method orchestrates multiple validation checks.
 
         Args:
             dataset: DICOM dataset to validate (can be None)
@@ -280,8 +273,6 @@ class DicomValidator:
     def _validate_structure(self, dataset: Dataset, result: ValidationResult) -> bool:
         """Validate basic DICOM structure.
 
-        LEARNING: This checks fundamental DICOM requirements.
-
         Args:
             dataset: DICOM dataset
             result: Validation result to update
@@ -355,8 +346,6 @@ class DicomValidator:
 
     def _validate_security(self, dataset: Dataset, result: ValidationResult) -> None:
         """Perform security-focused validation.
-
-        LEARNING: Security validation checks for potential attacks or exploits.
 
         Args:
             dataset: DICOM dataset
@@ -493,32 +482,3 @@ class DicomValidator:
         )
 
         return results
-
-
-if __name__ == "__main__":
-    """Test the validator functionality."""
-    print("Testing DICOM Validator...\n")
-
-    # Create validator
-    validator = DicomValidator(strict_mode=False)
-    print(f"Created validator: strict_mode={validator.strict_mode}\n")
-
-    # Create minimal test dataset
-    from pydicom.dataset import Dataset
-
-    test_dataset = Dataset()
-    test_dataset.PatientName = "Test^Patient"
-    test_dataset.PatientID = "TEST001"
-    test_dataset.StudyInstanceUID = "1.2.3.4.5"
-    test_dataset.StudyDate = "20250930"
-    test_dataset.SeriesInstanceUID = "1.2.3.4.5.6"
-    test_dataset.Modality = "CT"
-    test_dataset.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-    test_dataset.SOPInstanceUID = "1.2.3.4.5.6.7"
-
-    # Validate
-    result = validator.validate(test_dataset)
-    print("Validation Result:")
-    print(result)
-
-    print("\nValidator testing complete!")
