@@ -329,18 +329,6 @@ class TestStateCoverageTrackerBranchCoverage:
 class TestBackwardCompatibility:
     """Test backward compatibility with gui_monitor module."""
 
-    def test_imports_from_gui_monitor(self) -> None:
-        """Verify types can be imported from gui_monitor."""
-        from dicom_fuzzer.core.engine.gui_monitor import (
-            StateCoverageTracker as SCTracker,
-        )
-        from dicom_fuzzer.core.engine.gui_monitor import (
-            StateTransition as STrans,
-        )
-
-        assert SCTracker is StateCoverageTracker
-        assert STrans is StateTransition
-
     def test_imports_from_core(self) -> None:
         """Verify types can be imported from core __init__."""
         from dicom_fuzzer.core import (

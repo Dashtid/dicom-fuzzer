@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from dicom_fuzzer.cli.utils import output as cli
-from dicom_fuzzer.core.engine.generator import DICOMGenerator
+from dicom_fuzzer.core.engine import DICOMGenerator
 
 logger = logging.getLogger(__name__)
 

@@ -140,7 +140,6 @@ class TestMonitorConfig:
         assert config.memory_threshold_mb == 2048.0
         assert config.memory_spike_percent == 50.0
         assert config.hang_timeout == 5.0
-        assert config.capture_screenshots is True
         assert len(config.error_patterns) > 0
         assert len(config.warning_patterns) > 0
 
@@ -150,13 +149,11 @@ class TestMonitorConfig:
             poll_interval=0.5,
             memory_threshold_mb=4096.0,
             hang_timeout=10.0,
-            capture_screenshots=False,
         )
 
         assert config.poll_interval == 0.5
         assert config.memory_threshold_mb == 4096.0
         assert config.hang_timeout == 10.0
-        assert config.capture_screenshots is False
 
     def test_error_patterns_content(self) -> None:
         """Verify error patterns contain expected patterns."""

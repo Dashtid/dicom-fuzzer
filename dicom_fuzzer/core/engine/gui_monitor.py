@@ -35,12 +35,6 @@ from dicom_fuzzer.core.engine.gui_monitor_types import (
     SeverityLevel,
 )
 
-# Import state coverage types
-from dicom_fuzzer.attacks.network.stateful.coverage import (
-    StateCoverageTracker,
-    StateTransition,
-)
-
 if TYPE_CHECKING:
     import subprocess
 
@@ -104,10 +98,6 @@ class GUIMonitor:
         # Compile regex patterns
         self._error_patterns = [re.compile(p) for p in self.config.error_patterns]
         self._warning_patterns = [re.compile(p) for p in self.config.warning_patterns]
-
-        # Create screenshot directory if needed
-        if self.config.capture_screenshots:
-            self.config.screenshot_dir.mkdir(parents=True, exist_ok=True)
 
         logger.info(
             f"GUIMonitor initialized: poll_interval={self.config.poll_interval}s, "
@@ -182,7 +172,7 @@ class GUIMonitor:
 
             except psutil.NoSuchProcess:
                 # Process died
-                self._add_response(
+                self.add_response(
                     GUIResponse(
                         response_type=ResponseType.CRASH,
                         severity=SeverityLevel.CRITICAL,
@@ -199,7 +189,7 @@ class GUIMonitor:
         # Final check after process exits
         exit_code = process.poll()
         if exit_code is not None and exit_code != 0:
-            self._add_response(
+            self.add_response(
                 GUIResponse(
                     response_type=ResponseType.CRASH,
                     severity=SeverityLevel.CRITICAL,
@@ -222,7 +212,7 @@ class GUIMonitor:
 
             # Check absolute threshold
             if mem_mb > self.config.memory_threshold_mb:
-                self._add_response(
+                self.add_response(
                     GUIResponse(
                         response_type=ResponseType.RESOURCE_EXHAUSTION,
                         severity=SeverityLevel.HIGH,
@@ -239,7 +229,7 @@ class GUIMonitor:
                     (mem_mb - self._baseline_memory) / self._baseline_memory
                 ) * 100
                 if increase_percent > self.config.memory_spike_percent:
-                    self._add_response(
+                    self.add_response(
                         GUIResponse(
                             response_type=ResponseType.MEMORY_SPIKE,
                             severity=SeverityLevel.MEDIUM,
@@ -279,7 +269,7 @@ class GUIMonitor:
                     # Check for error patterns
                     for pattern in self._error_patterns:
                         if pattern.search(combined_text) or pattern.search(title):
-                            self._add_response(
+                            self.add_response(
                                 GUIResponse(
                                     response_type=ResponseType.ERROR_DIALOG,
                                     severity=SeverityLevel.HIGH,
@@ -294,7 +284,7 @@ class GUIMonitor:
                     # Check for warning patterns
                     for pattern in self._warning_patterns:
                         if pattern.search(combined_text) or pattern.search(title):
-                            self._add_response(
+                            self.add_response(
                                 GUIResponse(
                                     response_type=ResponseType.WARNING_DIALOG,
                                     severity=SeverityLevel.MEDIUM,
@@ -369,7 +359,7 @@ class GUIMonitor:
                 try:
                     threads = ps_process.threads()
                     if all(t.user_time == 0 for t in threads):
-                        self._add_response(
+                        self.add_response(
                             GUIResponse(
                                 response_type=ResponseType.HANG,
                                 severity=SeverityLevel.HIGH,
@@ -386,7 +376,7 @@ class GUIMonitor:
             # Process exited during hang check - not actually hung
             logger.debug("Process exited during hang check")
 
-    def _add_response(self, response: GUIResponse) -> None:
+    def add_response(self, response: GUIResponse) -> None:
         """Add a response to the list (thread-safe).
 
         Args:
@@ -463,16 +453,6 @@ class GUIMonitor:
             return summary
 
 
-# Import GUIFuzzer for backward compatibility
-# Cyclic import is intentional: gui_fuzzer imports GUIMonitor at runtime in __init__
-from dicom_fuzzer.core.engine.gui_fuzzer import (  # noqa: E402
-    GUIFuzzer,
-)
-
-# Backward compatibility alias
-ResponseAwareFuzzer = GUIFuzzer
-
-
 # Re-export all public symbols for backward compatibility
 __all__ = [
     # Types and Enums (from gui_monitor_types)
@@ -480,12 +460,6 @@ __all__ = [
     "SeverityLevel",
     "GUIResponse",
     "MonitorConfig",
-    # State coverage (from state_coverage)
-    "StateTransition",
-    "StateCoverageTracker",
     # Main class
     "GUIMonitor",
-    # Fuzzer (from gui_fuzzer)
-    "GUIFuzzer",
-    "ResponseAwareFuzzer",  # Backward compatibility alias
 ]

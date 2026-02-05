@@ -77,8 +77,6 @@ class MonitorConfig:
         memory_threshold_mb: Memory usage that triggers alert
         memory_spike_percent: Percentage increase that triggers spike alert
         hang_timeout: Seconds of unresponsiveness before hang detection
-        capture_screenshots: Whether to capture screenshots of issues
-        screenshot_dir: Directory to save screenshots
         error_patterns: Regex patterns to detect in dialog text
         warning_patterns: Regex patterns for warning dialogs
 
@@ -88,10 +86,6 @@ class MonitorConfig:
     memory_threshold_mb: float = 2048.0
     memory_spike_percent: float = 50.0
     hang_timeout: float = 5.0
-    capture_screenshots: bool = True
-    screenshot_dir: Path = field(
-        default_factory=lambda: Path("./artifacts/screenshots")
-    )
     error_patterns: list[str] = field(
         default_factory=lambda: [
             r"(?i)error",

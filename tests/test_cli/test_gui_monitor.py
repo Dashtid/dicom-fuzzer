@@ -15,11 +15,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from dicom_fuzzer.core.engine import ResponseAwareFuzzer
 from dicom_fuzzer.core.engine.gui_monitor import (
     GUIMonitor,
     GUIResponse,
     MonitorConfig,
-    ResponseAwareFuzzer,
     ResponseType,
     SeverityLevel,
 )
@@ -129,7 +129,6 @@ class TestMonitorConfig:
         assert config.memory_threshold_mb == 2048.0
         assert config.memory_spike_percent == 50.0
         assert config.hang_timeout == 5.0
-        assert config.capture_screenshots is True
         assert len(config.error_patterns) > 0
         assert len(config.warning_patterns) > 0
 
@@ -140,12 +139,10 @@ class TestMonitorConfig:
             memory_threshold_mb=4096.0,
             memory_spike_percent=100.0,
             hang_timeout=10.0,
-            capture_screenshots=False,
         )
 
         assert config.poll_interval == 0.5
         assert config.memory_threshold_mb == 4096.0
-        assert config.capture_screenshots is False
 
     def test_error_patterns_defaults(self) -> None:
         """Test default error patterns include common errors."""
@@ -258,8 +255,8 @@ class TestGUIMonitor:
         )
 
         # Add same response twice quickly
-        monitor._add_response(response)
-        monitor._add_response(response)
+        monitor.add_response(response)
+        monitor.add_response(response)
 
         # Should only have one due to debounce
         assert len(monitor.get_responses()) == 1
@@ -435,36 +432,6 @@ class TestGUIMonitorMemoryChecking:
         # Any usage above 2048 should trigger
         assert 2049 > config.memory_threshold_mb
         assert 2047 < config.memory_threshold_mb
-
-
-class TestScreenshotDirectory:
-    """Tests for screenshot directory handling."""
-
-    def test_screenshot_dir_created(self, tmp_path: Path) -> None:
-        """Test screenshot directory is created."""
-        screenshot_dir = tmp_path / "screenshots"
-        config = MonitorConfig(
-            capture_screenshots=True,
-            screenshot_dir=screenshot_dir,
-        )
-
-        GUIMonitor(config)
-
-        assert screenshot_dir.exists()
-
-    def test_screenshot_dir_not_created_when_disabled(self, tmp_path: Path) -> None:
-        """Test screenshot dir not created when screenshots disabled."""
-        screenshot_dir = tmp_path / "no_screenshots"
-        config = MonitorConfig(
-            capture_screenshots=False,
-            screenshot_dir=screenshot_dir,
-        )
-
-        GUIMonitor(config)
-
-        # Dir is still created by default factory, but feature is disabled
-        # The monitor should work regardless
-        assert config.capture_screenshots is False
 
 
 class TestGUIMonitorStartStop:
@@ -777,11 +744,11 @@ class TestGUIMonitorAddResponse:
             details="Same error message",
         )
 
-        monitor._add_response(response1)
+        monitor.add_response(response1)
         import time
 
         time.sleep(1.1)  # Wait for debounce
-        monitor._add_response(response2)
+        monitor.add_response(response2)
 
         # Second should be detected as duplicate
         assert len(monitor.get_responses()) <= 2
@@ -791,7 +758,7 @@ class TestGUIMonitorAddResponse:
         monitor = GUIMonitor()
         monitor._last_response_time = 0
 
-        monitor._add_response(
+        monitor.add_response(
             GUIResponse(
                 response_type=ResponseType.ERROR_DIALOG,
                 severity=SeverityLevel.HIGH,
@@ -803,7 +770,7 @@ class TestGUIMonitorAddResponse:
 
         time.sleep(1.1)  # Wait for debounce
 
-        monitor._add_response(
+        monitor.add_response(
             GUIResponse(
                 response_type=ResponseType.WARNING_DIALOG,
                 severity=SeverityLevel.MEDIUM,

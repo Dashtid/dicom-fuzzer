@@ -35,6 +35,7 @@ from dicom_fuzzer.attacks.network.dimse import (
     SOPClass,
     UIDGenerator,
 )
+from dicom_fuzzer.attacks.network.stateful.coverage import StateCoverageTracker
 
 # State-Aware Fuzzer (moved to attacks/network/stateful/)
 from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import (
@@ -126,16 +127,13 @@ from .dicom.parser import DicomParser
 from .dicom.validator import DicomValidator
 
 # Fuzzing engines
-from .engine.generator import DICOMGenerator
-from .engine.gui_monitor import (
+from .engine import (
+    DICOMGenerator,
     GUIFuzzer,
     GUIMonitor,
     GUIResponse,
     MonitorConfig,
     ResponseAwareFuzzer,
-    StateCoverageTracker,
-)
-from .engine.synthetic import (
     SyntheticDataGenerator,
     SyntheticDicomGenerator,
     SyntheticPatient,

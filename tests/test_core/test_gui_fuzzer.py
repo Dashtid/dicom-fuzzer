@@ -199,9 +199,9 @@ class TestGUIFuzzer:
 class TestBackwardCompatibility:
     """Test backward compatibility aliases."""
 
-    def test_responseawarefuzzer_alias_from_gui_monitor(self) -> None:
-        """Verify ResponseAwareFuzzer alias from gui_monitor."""
-        from dicom_fuzzer.core.engine.gui_monitor import ResponseAwareFuzzer
+    def test_responseawarefuzzer_alias_from_engine(self) -> None:
+        """Verify ResponseAwareFuzzer alias from engine package."""
+        from dicom_fuzzer.core.engine import ResponseAwareFuzzer
 
         assert ResponseAwareFuzzer is GUIFuzzer
 
@@ -211,9 +211,9 @@ class TestBackwardCompatibility:
 
         assert ResponseAwareFuzzer is GUIFuzzer
 
-    def test_guifuzzer_from_gui_monitor(self) -> None:
-        """Verify GUIFuzzer from gui_monitor."""
-        from dicom_fuzzer.core.engine.gui_monitor import GUIFuzzer as GUIFuzzerAlias
+    def test_guifuzzer_from_gui_fuzzer(self) -> None:
+        """Verify GUIFuzzer from gui_fuzzer module."""
+        from dicom_fuzzer.core.engine.gui_fuzzer import GUIFuzzer as GUIFuzzerAlias
 
         assert GUIFuzzerAlias is GUIFuzzer
 

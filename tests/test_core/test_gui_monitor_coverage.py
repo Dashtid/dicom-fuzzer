@@ -41,12 +41,9 @@ class TestMonitorConfig:
         config = MonitorConfig(
             poll_interval=0.5,
             memory_threshold_mb=2048,
-            capture_screenshots=True,
-            screenshot_dir=tmp_path / "screenshots",
         )
         assert config.poll_interval == 0.5
         assert config.memory_threshold_mb == 2048
-        assert config.capture_screenshots is True
 
 
 class TestGUIResponse:
@@ -102,12 +99,9 @@ class TestGUIMonitorInit:
         """Test initialization with custom config."""
         config = MonitorConfig(
             poll_interval=0.1,
-            capture_screenshots=True,
-            screenshot_dir=tmp_path / "screenshots",
         )
         monitor = GUIMonitor(config)
         assert monitor.config.poll_interval == 0.1
-        assert (tmp_path / "screenshots").exists()
 
     def test_init_compiles_patterns(self) -> None:
         """Test that regex patterns are compiled."""

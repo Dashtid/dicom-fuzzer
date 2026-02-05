@@ -21,13 +21,13 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from dicom_fuzzer.attacks.network.stateful.coverage import StateCoverageTracker
 from dicom_fuzzer.core.engine.gui_monitor_types import (
     GUIResponse,
     MonitorConfig,
     ResponseType,
     SeverityLevel,
 )
-from dicom_fuzzer.attacks.network.stateful.coverage import StateCoverageTracker
 
 # Note: GUIMonitor is imported at runtime in __init__ to avoid circular import
 # TYPE_CHECKING import not needed with 'from __future__ import annotations'
@@ -41,6 +41,9 @@ except ImportError:
     HAS_PSUTIL = False
 
 logger = logging.getLogger(__name__)
+
+# GUI-specific state (not in StateCoverageTracker which is network-focused)
+STATE_RENDER_ANOMALY = "render_anomaly"
 
 
 class GUIFuzzer:
@@ -148,7 +151,7 @@ class GUIFuzzer:
 
         except Exception as e:
             logger.error(f"Error testing {test_file}: {e}")
-            self.monitor._add_response(
+            self.monitor.add_response(
                 GUIResponse(
                     response_type=ResponseType.CRASH,
                     severity=SeverityLevel.CRITICAL,
@@ -213,7 +216,7 @@ class GUIFuzzer:
             ResponseType.HANG: StateCoverageTracker.STATE_HANG,
             ResponseType.MEMORY_SPIKE: StateCoverageTracker.STATE_MEMORY_ISSUE,
             ResponseType.RESOURCE_EXHAUSTION: StateCoverageTracker.STATE_MEMORY_ISSUE,
-            ResponseType.RENDER_ANOMALY: "render_anomaly",
+            ResponseType.RENDER_ANOMALY: STATE_RENDER_ANOMALY,
         }
         return mapping.get(response_type, "unknown")
 

@@ -227,15 +227,6 @@ class TestMutationTypeBackwardCompatibility:
         assert ByteMutationTypeCore is ByteMutationType
         assert MutationTypeCore.HAVOC.value == "havoc"
 
-    def test_import_from_persistent_fuzzer(self) -> None:
-        """Test MutationType import from persistent_fuzzer still works."""
-        # persistent_fuzzer now imports from constants
-        from dicom_fuzzer.core.engine.persistent_fuzzer import MOptScheduler
-
-        # MOptScheduler uses MutationType internally
-        scheduler = MOptScheduler()
-        assert len(scheduler.mutation_types) > 0
-
     def test_import_from_byte_mutator(self) -> None:
         """Test ByteMutationType import from byte_mutator still works."""
         from dicom_fuzzer.core.mutation.byte_mutator import (
@@ -244,15 +235,6 @@ class TestMutationTypeBackwardCompatibility:
 
         assert ByteMutationTypeMutator is MutationType
         assert ByteMutationTypeMutator.BIT_FLIP_1.value == "bit_flip_1"
-
-    def test_import_from_coverage_guided_mutator(self) -> None:
-        """Test MutationType import from coverage_guided_mutator works."""
-        from dicom_fuzzer.core.engine.coverage_guided_mutator import (
-            MutationType as MutationTypeCoverage,
-        )
-
-        assert MutationTypeCoverage is MutationType
-        assert MutationTypeCoverage.CVE_RANDOM.value == "cve_random"
 
 
 class TestSeverity:
@@ -308,36 +290,12 @@ class TestSeverityBackwardCompatibility:
         assert CrashSeverityCore is Severity
         assert SeverityCore.CRITICAL.value == "critical"
 
-    def test_import_from_crash_analyzer(self) -> None:
-        """Test CrashSeverity import from crash_analyzer still works."""
-        from dicom_fuzzer.core.crash.crash_analyzer import (
-            CrashSeverity as CrashSeverityAnalyzer,
-        )
-
-        assert CrashSeverityAnalyzer is Severity
-        assert CrashSeverityAnalyzer.CRITICAL.value == "critical"
-
     def test_import_from_crash_triage(self) -> None:
         """Test Severity import from crash_triage still works."""
         from dicom_fuzzer.core.crash.crash_triage import Severity as SeverityTriage
 
         assert SeverityTriage is Severity
         assert SeverityTriage.INFO.value == "info"
-
-    def test_import_from_semantic_bucketer(self) -> None:
-        """Test Severity and SEVERITY_SCORES import from semantic_bucketer."""
-        from dicom_fuzzer.core.semantic_bucketer import (
-            SEVERITY_SCORES as SeverityScoresBucketer,
-        )
-        from dicom_fuzzer.core.semantic_bucketer import Severity as SeverityBucketer
-
-        assert SeverityBucketer is Severity
-        assert SeverityScoresBucketer is SEVERITY_SCORES
-        # Verify numeric scoring works
-        assert (
-            SeverityScoresBucketer[SeverityBucketer.CRITICAL]
-            > SeverityScoresBucketer[SeverityBucketer.LOW]
-        )
 
 
 class TestGUIResponseType:
@@ -391,15 +349,6 @@ class TestResponseTypeBackwardCompatibility:
 
         assert ResponseTypeGUI is GUIResponseType
         assert ResponseTypeGUI.NORMAL.value == "normal"
-
-    def test_import_from_response_aware_fuzzer(self) -> None:
-        """Test ResponseType import from response_aware_fuzzer."""
-        from dicom_fuzzer.core.response_aware_fuzzer import (
-            ResponseType as ResponseTypeProtocol,
-        )
-
-        assert ResponseTypeProtocol is ProtocolResponseType
-        assert ResponseTypeProtocol.ACCEPT.value == "accept"
 
 
 class TestDICOMState:
@@ -492,17 +441,3 @@ class TestProtocolEnumsBackwardCompatibility:
         assert StateTransitionTypeCore is StateTransitionType
         assert DICOMStateCore.IDLE is not None
         assert StateTransitionTypeCore.VALID.value == "valid"
-
-    def test_import_from_state_aware_fuzzer(self) -> None:
-        """Test enums can still be imported from state_aware_fuzzer."""
-        from dicom_fuzzer.core.state_aware_fuzzer import (
-            DICOMState as DICOMStateAware,
-        )
-        from dicom_fuzzer.core.state_aware_fuzzer import (
-            StateTransitionType as StateTransitionTypeAware,
-        )
-
-        from dicom_fuzzer.core.constants import DICOMState, StateTransitionType
-
-        assert DICOMStateAware is DICOMState
-        assert StateTransitionTypeAware is StateTransitionType
