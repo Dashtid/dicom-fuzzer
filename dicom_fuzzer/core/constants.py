@@ -141,7 +141,7 @@ class MutationType(str, Enum):
     """Unified mutation type enum for all fuzzing operations.
 
     Inherits from str for easy serialization and logging.
-    Used by ByteMutator, PersistentFuzzer, and CoverageGuidedMutator.
+    Used by ByteMutator and other mutation engines.
 
     Categories:
     - AFL-style bit/byte mutations (general and specific sizes)
@@ -155,14 +155,12 @@ class MutationType(str, Enum):
 
     # -------------------------------------------------------------------------
     # AFL-style bit/byte mutations - general
-    # Used by CoverageGuidedMutator
     # -------------------------------------------------------------------------
     BIT_FLIP = "bit_flip"
     BYTE_FLIP = "byte_flip"
 
     # -------------------------------------------------------------------------
     # AFL-style bit/byte mutations - specific sizes
-    # Used by ByteMutator and PersistentFuzzer for granular tracking
     # -------------------------------------------------------------------------
     BIT_FLIP_1 = "bit_flip_1"
     BIT_FLIP_2 = "bit_flip_2"
@@ -173,7 +171,6 @@ class MutationType(str, Enum):
 
     # -------------------------------------------------------------------------
     # Arithmetic mutations
-    # Used by ByteMutator and PersistentFuzzer
     # -------------------------------------------------------------------------
     ARITH_8 = "arith_8"
     ARITH_16 = "arith_16"
@@ -181,7 +178,6 @@ class MutationType(str, Enum):
 
     # -------------------------------------------------------------------------
     # Interesting value mutations
-    # Used by PersistentFuzzer
     # -------------------------------------------------------------------------
     INTERESTING_8 = "interesting_8"
     INTERESTING_16 = "interesting_16"
@@ -189,7 +185,6 @@ class MutationType(str, Enum):
 
     # -------------------------------------------------------------------------
     # Interesting value mutations - legacy naming
-    # Used by ByteMutator for backward compatibility
     # -------------------------------------------------------------------------
     INTEREST_8 = "interest_8"
     INTEREST_16 = "interest_16"
@@ -197,14 +192,12 @@ class MutationType(str, Enum):
 
     # -------------------------------------------------------------------------
     # Havoc/Splice mutations
-    # Used by ByteMutator and PersistentFuzzer
     # -------------------------------------------------------------------------
     HAVOC = "havoc"
     SPLICE = "splice"
 
     # -------------------------------------------------------------------------
     # Byte mutations
-    # Used by CoverageGuidedMutator
     # -------------------------------------------------------------------------
     RANDOM_BYTE = "random_byte"
     BYTE_INSERT = "byte_insert"
@@ -212,7 +205,6 @@ class MutationType(str, Enum):
 
     # -------------------------------------------------------------------------
     # Arithmetic mutations - directional
-    # Used by CoverageGuidedMutator
     # -------------------------------------------------------------------------
     ARITHMETIC_INC = "arithmetic_inc"
     ARITHMETIC_DEC = "arithmetic_dec"
@@ -220,7 +212,6 @@ class MutationType(str, Enum):
 
     # -------------------------------------------------------------------------
     # Block mutations
-    # Used by CoverageGuidedMutator
     # -------------------------------------------------------------------------
     BLOCK_REMOVE = "block_remove"
     BLOCK_DUPLICATE = "block_duplicate"
@@ -228,7 +219,6 @@ class MutationType(str, Enum):
 
     # -------------------------------------------------------------------------
     # Interesting value mutations - named
-    # Used by CoverageGuidedMutator
     # -------------------------------------------------------------------------
     INTERESTING_BYTES = "interesting_bytes"
     INTERESTING_INTS = "interesting_ints"
@@ -236,7 +226,6 @@ class MutationType(str, Enum):
 
     # -------------------------------------------------------------------------
     # DICOM-specific mutations
-    # Used by CoverageGuidedMutator
     # -------------------------------------------------------------------------
     DICOM_TAG_CORRUPT = "dicom_tag_corrupt"
     DICOM_VR_MISMATCH = "dicom_vr_mismatch"
@@ -246,7 +235,6 @@ class MutationType(str, Enum):
 
     # -------------------------------------------------------------------------
     # CVE-based security mutations
-    # Used by CoverageGuidedMutator
     # -------------------------------------------------------------------------
     CVE_INTEGER_OVERFLOW = "cve_integer_overflow"
     CVE_PATH_TRAVERSAL = "cve_path_traversal"

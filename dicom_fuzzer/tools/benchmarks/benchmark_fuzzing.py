@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian
 
-from dicom_fuzzer.core.coverage.corpus import CorpusManager
+from dicom_fuzzer.core.corpus.corpus import CorpusManager
 from dicom_fuzzer.core.dicom.parser import DicomParser
 from dicom_fuzzer.core.mutation.mutator import DicomMutator
 from dicom_fuzzer.core.types import MutationSeverity

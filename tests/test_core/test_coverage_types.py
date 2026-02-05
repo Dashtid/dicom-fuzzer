@@ -1,4 +1,4 @@
-"""Tests for unified coverage tracking types."""
+"""Tests for state and coverage types."""
 
 from __future__ import annotations
 
@@ -6,15 +6,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import pytest
-
-from dicom_fuzzer.core.constants import MAP_SIZE, CoverageType
-from dicom_fuzzer.core.coverage.coverage_types import (
-    CoverageInfo,
-    CoverageInsight,
-    CoverageMap,
+from dicom_fuzzer.core.constants import CoverageType
+from dicom_fuzzer.core.corpus.coverage_types import (
     CoverageSnapshot,
-    ExecutionCoverageInfo,
     GUIStateTransition,
     ProtocolStateTransition,
     SeedCoverageInfo,
@@ -48,93 +42,6 @@ class TestCoverageType:
         assert len(all_types) == 6
         assert CoverageType.EDGE in all_types
         assert CoverageType.STATE in all_types
-
-
-class TestExecutionCoverageInfo:
-    """Tests for ExecutionCoverageInfo dataclass."""
-
-    def test_default_values(self) -> None:
-        """Test default initialization."""
-        info = ExecutionCoverageInfo()
-        assert info.edges == set()
-        assert info.branches == set()
-        assert info.functions == set()
-        assert info.lines == set()
-        assert info.execution_time == 0.0
-        assert info.input_hash is None
-        assert info.new_coverage is False
-
-    def test_initialization_with_data(self) -> None:
-        """Test initialization with actual data."""
-        edges = {("file.py", 10, "file.py", 20)}
-        branches = {("file.py", 15, True)}
-        functions = {"test_func"}
-        lines = {("file.py", 10), ("file.py", 15)}
-
-        info = ExecutionCoverageInfo(
-            edges=edges,
-            branches=branches,
-            functions=functions,
-            lines=lines,
-            execution_time=0.5,
-            input_hash="abc123",
-            new_coverage=True,
-        )
-
-        assert info.edges == edges
-        assert info.branches == branches
-        assert info.functions == functions
-        assert info.lines == lines
-        assert info.execution_time == 0.5
-        assert info.input_hash == "abc123"
-        assert info.new_coverage is True
-
-    def test_merge(self) -> None:
-        """Test merging two coverage infos."""
-        info1 = ExecutionCoverageInfo(
-            edges={("a.py", 1, "a.py", 2)},
-            branches={("a.py", 1, True)},
-            functions={"func1"},
-            lines={("a.py", 1)},
-        )
-        info2 = ExecutionCoverageInfo(
-            edges={("b.py", 1, "b.py", 2)},
-            branches={("b.py", 1, False)},
-            functions={"func2"},
-            lines={("b.py", 1)},
-        )
-
-        info1.merge(info2)
-
-        assert len(info1.edges) == 2
-        assert len(info1.branches) == 2
-        assert len(info1.functions) == 2
-        assert len(info1.lines) == 2
-        assert ("b.py", 1, "b.py", 2) in info1.edges
-
-    def test_get_coverage_hash(self) -> None:
-        """Test coverage hash generation."""
-        info = ExecutionCoverageInfo(
-            edges={("file.py", 10, "file.py", 20)},
-            branches={("file.py", 15, True)},
-        )
-
-        hash1 = info.get_coverage_hash()
-        assert len(hash1) == 16
-        assert isinstance(hash1, str)
-
-        # Same coverage should give same hash
-        info2 = ExecutionCoverageInfo(
-            edges={("file.py", 10, "file.py", 20)},
-            branches={("file.py", 15, True)},
-        )
-        assert info.get_coverage_hash() == info2.get_coverage_hash()
-
-    def test_coverage_info_alias(self) -> None:
-        """Test CoverageInfo is alias for ExecutionCoverageInfo."""
-        assert CoverageInfo is ExecutionCoverageInfo
-        info = CoverageInfo()
-        assert isinstance(info, ExecutionCoverageInfo)
 
 
 class TestSeedCoverageInfo:
@@ -177,6 +84,34 @@ class TestSeedCoverageInfo:
         assert info.file_size == 2048
         # Pre-set hash should be preserved
         assert info.coverage_hash == "abc123def456ghi7"
+
+    def test_no_hash_no_bitmap(self) -> None:
+        """Test SeedCoverageInfo with no hash and no bitmap (branch: hash stays empty)."""
+        info = SeedCoverageInfo(seed_path=Path("nonexistent.dcm"))
+        assert info.coverage_hash == ""  # No bitmap means no auto-hash
+
+    def test_with_hash_and_bitmap(self) -> None:
+        """Test SeedCoverageInfo with pre-set hash and bitmap (hash preserved)."""
+        info = SeedCoverageInfo(
+            seed_path=Path("test.dcm"),
+            coverage_hash="preexisting",
+            bitmap=b"\x01\x02\x03",
+        )
+        # Pre-set hash should be preserved, not overwritten
+        assert info.coverage_hash == "preexisting"
+
+    def test_existing_file_size(self, tmp_path: Path) -> None:
+        """Test SeedCoverageInfo auto-calculates file size for existing file."""
+        test_file = tmp_path / "test.dcm"
+        test_file.write_bytes(b"x" * 100)
+
+        info = SeedCoverageInfo(seed_path=test_file)
+        assert info.file_size == 100
+
+    def test_nonexistent_file_size(self) -> None:
+        """Test SeedCoverageInfo with nonexistent file (no size calculation)."""
+        info = SeedCoverageInfo(seed_path=Path("/nonexistent/path.dcm"))
+        assert info.file_size == 0
 
 
 class TestCoverageSnapshot:
@@ -242,89 +177,6 @@ class TestCoverageSnapshot:
         assert snapshot.coverage_percentage(0) == 0.0
 
 
-class TestCoverageMap:
-    """Tests for CoverageMap dataclass."""
-
-    def test_default_values(self) -> None:
-        """Test default initialization with MAP_SIZE."""
-        cov_map = CoverageMap()
-        assert cov_map.size == MAP_SIZE
-        assert len(cov_map.virgin_bits) == MAP_SIZE
-        assert cov_map.total_bits == 0
-        assert cov_map.new_bits == 0
-
-    def test_update_finds_new_coverage(self) -> None:
-        """Test update method detects new coverage."""
-        cov_map = CoverageMap()
-
-        # First trace with some coverage
-        trace = bytearray(MAP_SIZE)
-        trace[100] = 1
-        trace[200] = 2
-
-        has_new = cov_map.update(bytes(trace))
-        assert has_new is True
-        assert cov_map.total_bits == 2
-        assert cov_map.new_bits == 2
-        assert cov_map.virgin_bits[100] == 1
-        assert cov_map.virgin_bits[200] == 2
-
-    def test_update_no_new_coverage(self) -> None:
-        """Test update returns False when no new coverage."""
-        cov_map = CoverageMap()
-
-        # First trace
-        trace = bytearray(MAP_SIZE)
-        trace[100] = 1
-        cov_map.update(bytes(trace))
-
-        # Same trace again
-        has_new = cov_map.update(bytes(trace))
-        assert has_new is False
-
-    def test_update_higher_hit_count(self) -> None:
-        """Test update tracks higher hit counts."""
-        cov_map = CoverageMap()
-
-        # First trace
-        trace1 = bytearray(MAP_SIZE)
-        trace1[100] = 1
-        cov_map.update(bytes(trace1))
-
-        # Higher hit count
-        trace2 = bytearray(MAP_SIZE)
-        trace2[100] = 5
-        has_new = cov_map.update(bytes(trace2))
-
-        assert has_new is True
-        assert cov_map.virgin_bits[100] == 5
-
-    def test_get_coverage_percent(self) -> None:
-        """Test coverage percentage calculation."""
-        cov_map = CoverageMap()
-
-        trace = bytearray(MAP_SIZE)
-        trace[0] = 1
-        trace[1] = 1
-        cov_map.update(bytes(trace))
-
-        # 2 out of 65536
-        expected = (2 / MAP_SIZE) * 100
-        assert cov_map.get_coverage_percent() == pytest.approx(expected)
-
-    def test_compute_hash(self) -> None:
-        """Test hash computation."""
-        cov_map = CoverageMap()
-
-        trace = bytearray(MAP_SIZE)
-        trace[100] = 1
-        cov_map.update(bytes(trace))
-
-        hash_val = cov_map.compute_hash()
-        assert isinstance(hash_val, str)
-        assert len(hash_val) == 16
-
-
 class TestGUIStateTransition:
     """Tests for GUIStateTransition dataclass."""
 
@@ -382,6 +234,22 @@ class TestGUIStateTransition:
         t = StateTransition(from_state="a", to_state="b")
         assert isinstance(t, GUIStateTransition)
 
+    def test_inequality_with_non_transition(self) -> None:
+        """Test GUIStateTransition inequality with non-transition object."""
+        transition = GUIStateTransition(from_state="a", to_state="b")
+
+        assert transition != "not a transition"
+        assert transition != 123
+        assert transition is not None
+        assert transition != {"from_state": "a", "to_state": "b"}
+
+    def test_explicit_timestamp(self) -> None:
+        """Test GUIStateTransition with explicit timestamp (not auto-set)."""
+        transition = GUIStateTransition(
+            from_state="a", to_state="b", timestamp=12345.67
+        )
+        assert transition.timestamp == 12345.67
+
 
 class TestProtocolStateTransition:
     """Tests for ProtocolStateTransition dataclass."""
@@ -417,6 +285,15 @@ class TestProtocolStateTransition:
         assert transition.response == b"\x02\x00\x00\x00"
         assert transition.duration_ms == 15.5
         assert transition.coverage_increase == 10
+
+    def test_explicit_timestamp(self) -> None:
+        """Test ProtocolStateTransition with explicit timestamp."""
+        transition = ProtocolStateTransition(
+            from_state="IDLE",
+            to_state="ASSOCIATED",
+            timestamp=98765.43,
+        )
+        assert transition.timestamp == 98765.43
 
 
 class TestStateFingerprint:
@@ -461,6 +338,58 @@ class TestStateFingerprint:
 
         similarity = fp1.similarity(fp2)
         assert 0.3 < similarity < 0.4
+
+    def test_explicit_timestamp(self) -> None:
+        """Test StateFingerprint with explicit timestamp."""
+        fp = StateFingerprint(
+            hash_value="abc",
+            state="IDLE",
+            timestamp=11111.22,
+        )
+        assert fp.timestamp == 11111.22
+
+    def test_similarity_one_empty_bitmap(self) -> None:
+        """Test StateFingerprint similarity when only one bitmap is empty."""
+        fp1 = StateFingerprint(
+            hash_value="a",
+            state="IDLE",
+            coverage_bitmap=bytes([1, 0, 1, 0]),
+        )
+        fp2 = StateFingerprint(hash_value="b", state="IDLE", coverage_bitmap=b"")
+
+        assert fp1.similarity(fp2) == 0.0
+        assert fp2.similarity(fp1) == 0.0
+
+    def test_similarity_both_empty_edges(self) -> None:
+        """Test StateFingerprint similarity when both have no edges (all zeros)."""
+        fp1 = StateFingerprint(
+            hash_value="a",
+            state="IDLE",
+            coverage_bitmap=bytes([0, 0, 0, 0]),
+        )
+        fp2 = StateFingerprint(
+            hash_value="b",
+            state="IDLE",
+            coverage_bitmap=bytes([0, 0, 0, 0]),
+        )
+
+        # Both empty edge sets should return 1.0 similarity
+        assert fp1.similarity(fp2) == 1.0
+
+    def test_similarity_one_empty_edges(self) -> None:
+        """Test StateFingerprint similarity when one has no edges."""
+        fp1 = StateFingerprint(
+            hash_value="a",
+            state="IDLE",
+            coverage_bitmap=bytes([1, 0, 1, 0]),
+        )
+        fp2 = StateFingerprint(
+            hash_value="b",
+            state="IDLE",
+            coverage_bitmap=bytes([0, 0, 0, 0]),  # No edges
+        )
+
+        assert fp1.similarity(fp2) == 0.0
 
 
 class TestStateCoverage:
@@ -590,196 +519,7 @@ class TestStateCoverage:
 
         assert uncovered == {"DATA_TRANSFER", "CLOSED"}
 
-
-class TestCoverageInsight:
-    """Tests for CoverageInsight dataclass."""
-
-    def test_default_values(self) -> None:
-        """Test default initialization."""
-        insight = CoverageInsight(identifier="func:test_func")
-        assert insight.identifier == "func:test_func"
-        assert insight.total_hits == 0
-        assert insight.crash_hits == 0
-        assert insight.safe_hits == 0
-        assert insight.crash_rate == 0.0
-        assert insight.unique_crashes == set()
-
-    def test_update_crash_rate(self) -> None:
-        """Test crash rate calculation."""
-        insight = CoverageInsight(
-            identifier="func:test",
-            total_hits=100,
-            crash_hits=25,
-            safe_hits=75,
-        )
-
-        insight.update_crash_rate()
-        assert insight.crash_rate == 0.25
-
-    def test_update_crash_rate_zero_hits(self) -> None:
-        """Test crash rate with zero total hits."""
-        insight = CoverageInsight(identifier="func:test")
-        insight.update_crash_rate()
-        assert insight.crash_rate == 0.0
-
-
-class TestCoverageTypesBranchCoverage:
-    """Additional tests for branch coverage in coverage_types."""
-
-    def test_seed_coverage_info_no_hash_no_bitmap(self) -> None:
-        """Test SeedCoverageInfo with no hash and no bitmap (branch: hash stays empty)."""
-        info = SeedCoverageInfo(seed_path=Path("nonexistent.dcm"))
-        assert info.coverage_hash == ""  # No bitmap means no auto-hash
-
-    def test_seed_coverage_info_with_hash_and_bitmap(self) -> None:
-        """Test SeedCoverageInfo with pre-set hash and bitmap (hash preserved)."""
-        info = SeedCoverageInfo(
-            seed_path=Path("test.dcm"),
-            coverage_hash="preexisting",
-            bitmap=b"\x01\x02\x03",
-        )
-        # Pre-set hash should be preserved, not overwritten
-        assert info.coverage_hash == "preexisting"
-
-    def test_seed_coverage_info_existing_file_size(self, tmp_path: Path) -> None:
-        """Test SeedCoverageInfo auto-calculates file size for existing file."""
-        test_file = tmp_path / "test.dcm"
-        test_file.write_bytes(b"x" * 100)
-
-        info = SeedCoverageInfo(seed_path=test_file)
-        assert info.file_size == 100
-
-    def test_seed_coverage_info_nonexistent_file_size(self) -> None:
-        """Test SeedCoverageInfo with nonexistent file (no size calculation)."""
-        info = SeedCoverageInfo(seed_path=Path("/nonexistent/path.dcm"))
-        assert info.file_size == 0
-
-    def test_coverage_map_update_trace_zero_virgin_nonzero(self) -> None:
-        """Test CoverageMap update when trace is 0 but virgin is nonzero."""
-        cov_map = CoverageMap()
-
-        # First update with trace at position 100
-        trace1 = bytearray(MAP_SIZE)
-        trace1[100] = 5
-        cov_map.update(bytes(trace1))
-        assert cov_map.virgin_bits[100] == 5
-
-        # Second trace with 0 at position 100 - should not change virgin
-        trace2 = bytearray(MAP_SIZE)
-        trace2[100] = 0  # trace is 0, virgin is 5
-        has_new = cov_map.update(bytes(trace2))
-
-        # No change since trace is 0
-        assert cov_map.virgin_bits[100] == 5
-
-    def test_coverage_map_update_trace_equal_virgin(self) -> None:
-        """Test CoverageMap update when trace equals virgin (no update)."""
-        cov_map = CoverageMap()
-
-        trace = bytearray(MAP_SIZE)
-        trace[100] = 3
-        cov_map.update(bytes(trace))
-
-        # Same trace again - trace == virgin, so no update
-        has_new = cov_map.update(bytes(trace))
-        assert has_new is False
-        assert cov_map.virgin_bits[100] == 3
-
-    def test_coverage_map_update_trace_less_than_virgin(self) -> None:
-        """Test CoverageMap update when trace < virgin (no update)."""
-        cov_map = CoverageMap()
-
-        # First trace with higher value
-        trace1 = bytearray(MAP_SIZE)
-        trace1[100] = 10
-        cov_map.update(bytes(trace1))
-
-        # Second trace with lower value
-        trace2 = bytearray(MAP_SIZE)
-        trace2[100] = 5  # Less than virgin
-        has_new = cov_map.update(bytes(trace2))
-
-        # Virgin should not decrease
-        assert cov_map.virgin_bits[100] == 10
-
-    def test_gui_state_transition_inequality_with_non_transition(self) -> None:
-        """Test GUIStateTransition inequality with non-transition object."""
-        transition = GUIStateTransition(from_state="a", to_state="b")
-
-        assert transition != "not a transition"
-        assert transition != 123
-        assert transition is not None
-        assert transition != {"from_state": "a", "to_state": "b"}
-
-    def test_gui_state_transition_explicit_timestamp(self) -> None:
-        """Test GUIStateTransition with explicit timestamp (not auto-set)."""
-        transition = GUIStateTransition(
-            from_state="a", to_state="b", timestamp=12345.67
-        )
-        assert transition.timestamp == 12345.67
-
-    def test_protocol_state_transition_explicit_timestamp(self) -> None:
-        """Test ProtocolStateTransition with explicit timestamp."""
-        transition = ProtocolStateTransition(
-            from_state="IDLE",
-            to_state="ASSOCIATED",
-            timestamp=98765.43,
-        )
-        assert transition.timestamp == 98765.43
-
-    def test_state_fingerprint_explicit_timestamp(self) -> None:
-        """Test StateFingerprint with explicit timestamp."""
-        fp = StateFingerprint(
-            hash_value="abc",
-            state="IDLE",
-            timestamp=11111.22,
-        )
-        assert fp.timestamp == 11111.22
-
-    def test_state_fingerprint_similarity_one_empty_bitmap(self) -> None:
-        """Test StateFingerprint similarity when only one bitmap is empty."""
-        fp1 = StateFingerprint(
-            hash_value="a",
-            state="IDLE",
-            coverage_bitmap=bytes([1, 0, 1, 0]),
-        )
-        fp2 = StateFingerprint(hash_value="b", state="IDLE", coverage_bitmap=b"")
-
-        assert fp1.similarity(fp2) == 0.0
-        assert fp2.similarity(fp1) == 0.0
-
-    def test_state_fingerprint_similarity_both_empty_edges(self) -> None:
-        """Test StateFingerprint similarity when both have no edges (all zeros)."""
-        fp1 = StateFingerprint(
-            hash_value="a",
-            state="IDLE",
-            coverage_bitmap=bytes([0, 0, 0, 0]),
-        )
-        fp2 = StateFingerprint(
-            hash_value="b",
-            state="IDLE",
-            coverage_bitmap=bytes([0, 0, 0, 0]),
-        )
-
-        # Both empty edge sets should return 1.0 similarity
-        assert fp1.similarity(fp2) == 1.0
-
-    def test_state_fingerprint_similarity_one_empty_edges(self) -> None:
-        """Test StateFingerprint similarity when one has no edges."""
-        fp1 = StateFingerprint(
-            hash_value="a",
-            state="IDLE",
-            coverage_bitmap=bytes([1, 0, 1, 0]),
-        )
-        fp2 = StateFingerprint(
-            hash_value="b",
-            state="IDLE",
-            coverage_bitmap=bytes([0, 0, 0, 0]),  # No edges
-        )
-
-        assert fp1.similarity(fp2) == 0.0
-
-    def test_state_coverage_add_state_new_depth_tracking(self) -> None:
+    def test_add_state_new_depth_tracking(self) -> None:
         """Test StateCoverage add_state depth tracking for new state."""
         cov = StateCoverage()
 
@@ -800,33 +540,12 @@ class TestCoverageTypesBackwardCompatibility:
     """Test backward compatibility for coverage type imports."""
 
     def test_import_from_core(self) -> None:
-        """Test all types can be imported from core."""
-        from dicom_fuzzer.core import (
-            CoverageInfo as CoverageInfoCore,
-        )
-        from dicom_fuzzer.core import (
-            CoverageInsight as CoverageInsightCore,
-        )
-        from dicom_fuzzer.core import (
-            CoverageMap as CoverageMapCore,
-        )
-        from dicom_fuzzer.core import (
-            CoverageSnapshot as CoverageSnapshotCore,
-        )
-        from dicom_fuzzer.core import (
-            CoverageType as CoverageTypeCore,
-        )
-        from dicom_fuzzer.core import (
-            ExecutionCoverageInfo as ExecutionCoverageInfoCore,
-        )
+        """Test key types can be imported from core."""
         from dicom_fuzzer.core import (
             GUIStateTransition as GUIStateTransitionCore,
         )
         from dicom_fuzzer.core import (
             ProtocolStateTransition as ProtocolStateTransitionCore,
-        )
-        from dicom_fuzzer.core import (
-            SeedCoverageInfo as SeedCoverageInfoCore,
         )
         from dicom_fuzzer.core import (
             StateCoverage as StateCoverageCore,
@@ -838,72 +557,17 @@ class TestCoverageTypesBackwardCompatibility:
             StateTransition as StateTransitionCore,
         )
 
-        assert CoverageInfoCore is ExecutionCoverageInfo
-        assert CoverageMapCore is CoverageMap
-        assert CoverageSnapshotCore is CoverageSnapshot
-        assert CoverageTypeCore is CoverageType
-        assert ExecutionCoverageInfoCore is ExecutionCoverageInfo
         assert GUIStateTransitionCore is GUIStateTransition
         assert ProtocolStateTransitionCore is ProtocolStateTransition
-        assert SeedCoverageInfoCore is SeedCoverageInfo
         assert StateCoverageCore is StateCoverage
         assert StateFingerprintCore is StateFingerprint
         assert StateTransitionCore is GUIStateTransition
-        assert CoverageInsightCore is CoverageInsight
-
-    def test_import_from_coverage_instrumentation(self) -> None:
-        """Test CoverageInfo import from coverage_instrumentation."""
-        from dicom_fuzzer.core.coverage.coverage_instrumentation import (
-            CoverageInfo as CoverageInfoInstr,
-        )
-
-        assert CoverageInfoInstr is ExecutionCoverageInfo
-
-    def test_import_from_coverage_tracker(self) -> None:
-        """Test CoverageSnapshot import from coverage_tracker."""
-        from dicom_fuzzer.core.coverage.coverage_tracker import (
-            CoverageSnapshot as CoverageSnapshotTracker,
-        )
-
-        assert CoverageSnapshotTracker is CoverageSnapshot
 
     def test_import_from_corpus_minimizer(self) -> None:
         """Test imports from corpus_minimizer."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import (
+        from dicom_fuzzer.core.corpus.corpus_minimizer import (
             CoverageInfo as CoverageInfoMinimizer,
         )
 
         # corpus_minimizer has backward compatibility alias
         assert CoverageInfoMinimizer is SeedCoverageInfo
-
-    def test_import_from_persistent_fuzzer(self) -> None:
-        """Test CoverageMap import from persistent_fuzzer."""
-        from dicom_fuzzer.core.engine.persistent_fuzzer import (
-            CoverageMap as CoverageMapPersistent,
-        )
-
-        assert CoverageMapPersistent is CoverageMap
-
-    def test_import_from_state_coverage(self) -> None:
-        """Test StateTransition import from state_coverage."""
-        from dicom_fuzzer.core.state_coverage import (
-            StateTransition as StateTransitionCov,
-        )
-
-        assert StateTransitionCov is GUIStateTransition
-
-    def test_import_from_state_aware_fuzzer(self) -> None:
-        """Test imports from state_aware_fuzzer."""
-        from dicom_fuzzer.core.state_aware_fuzzer import (
-            StateCoverage as StateCoverageAware,
-        )
-        from dicom_fuzzer.core.state_aware_fuzzer import (
-            StateFingerprint as StateFingerprintAware,
-        )
-        from dicom_fuzzer.core.state_aware_fuzzer import (
-            StateTransition as StateTransitionAware,
-        )
-
-        assert StateCoverageAware is StateCoverage
-        assert StateFingerprintAware is StateFingerprint
-        assert StateTransitionAware is ProtocolStateTransition

@@ -1,16 +1,10 @@
-"""Unified Coverage Types for DICOM Fuzzer.
+"""State and Coverage Types for DICOM Fuzzer.
 
-This module provides a single source of truth for all coverage-related types,
-consolidating definitions from multiple modules to eliminate duplication.
-
-Type Hierarchy:
-- ExecutionCoverageInfo: Runtime execution coverage (edges, branches, lines)
-- SeedCoverageInfo: Corpus seed coverage metadata
-- CoverageSnapshot: Point-in-time coverage state
-- CoverageMap: AFL-style shared memory bitmap
-- GUIStateTransition: State transition for GUI monitoring
-- ProtocolStateTransition: State transition for DICOM protocol
-- StateCoverage: Protocol state coverage tracking
+This module provides types for:
+- Corpus seed coverage metadata (SeedCoverageInfo)
+- Coverage snapshots for comparison (CoverageSnapshot)
+- GUI state transitions (GUIStateTransition)
+- DICOM protocol state tracking (ProtocolStateTransition, StateCoverage)
 
 """
 
@@ -23,56 +17,12 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from dicom_fuzzer.core.constants import MAP_SIZE, DICOMState, StateTransitionType
+from dicom_fuzzer.core.constants import DICOMState, StateTransitionType
 from dicom_fuzzer.utils.hashing import hash_string
 
 # =============================================================================
-# Execution Coverage Types
+# Corpus Coverage Types
 # =============================================================================
-
-
-@dataclass
-class ExecutionCoverageInfo:
-    """Coverage information collected during a single execution.
-
-    Used for tracking what code was executed during fuzzing.
-    Consolidates the CoverageInfo from coverage_instrumentation.py.
-
-    Attributes:
-        edges: Set of (from_file, from_line, to_file, to_line) edge transitions
-        branches: Set of (file, line, direction) branch coverage
-        functions: Set of function names that were called
-        lines: Set of (file, line) that were executed
-        execution_time: Time in seconds for execution
-        input_hash: Hash of the input that produced this coverage
-        new_coverage: Whether this execution found new coverage
-
-    """
-
-    edges: set[tuple[str, int, str, int]] = field(default_factory=set)
-    branches: set[tuple[str, int, bool]] = field(default_factory=set)
-    functions: set[str] = field(default_factory=set)
-    lines: set[tuple[str, int]] = field(default_factory=set)
-    execution_time: float = 0.0
-    input_hash: str | None = None
-    new_coverage: bool = False
-
-    def merge(self, other: ExecutionCoverageInfo) -> None:
-        """Merge another coverage info into this one."""
-        self.edges.update(other.edges)
-        self.branches.update(other.branches)
-        self.functions.update(other.functions)
-        self.lines.update(other.lines)
-
-    def get_coverage_hash(self) -> str:
-        """Generate a unique hash for this coverage signature."""
-        coverage_data = sorted(self.edges) + sorted(self.branches)
-        coverage_str = str(coverage_data)
-        return hash_string(coverage_str, 16)
-
-
-# Backward compatibility alias
-CoverageInfo = ExecutionCoverageInfo
 
 
 @dataclass
@@ -80,7 +30,6 @@ class SeedCoverageInfo:
     """Coverage metadata for a corpus seed.
 
     Used for corpus minimization and seed management.
-    Consolidates the CoverageInfo from corpus_minimizer.py.
 
     Attributes:
         seed_path: Path to the seed file
@@ -113,7 +62,7 @@ class CoverageSnapshot:
     """Point-in-time coverage state for comparison.
 
     Represents a snapshot of coverage that can be compared with others
-    to find new coverage. Consolidates from coverage_tracker.py.
+    to find new coverage.
 
     Attributes:
         lines_covered: Set of (filename, line_number) tuples executed
@@ -160,59 +109,6 @@ class CoverageSnapshot:
         return (self.total_lines / total_possible_lines) * 100.0
 
 
-@dataclass
-class CoverageMap:
-    """AFL-style shared memory coverage bitmap.
-
-    Used for persistent mode fuzzing with fast coverage tracking.
-    Consolidates from persistent_fuzzer.py.
-
-    Attributes:
-        size: Size of the bitmap (default: MAP_SIZE = 65536)
-        virgin_bits: Bitmap tracking covered edges
-        total_bits: Total number of bits set
-        new_bits: Newly discovered bits
-
-    """
-
-    size: int = MAP_SIZE
-    virgin_bits: bytearray = field(default_factory=lambda: bytearray(MAP_SIZE))
-    total_bits: int = 0
-    new_bits: int = 0
-
-    def update(self, trace_bits: bytes) -> bool:
-        """Update coverage map with new trace.
-
-        Returns:
-            True if new coverage was found.
-
-        """
-        has_new = False
-
-        for i, (virgin, trace) in enumerate(
-            zip(self.virgin_bits, trace_bits, strict=False)
-        ):
-            if trace and not virgin:
-                self.virgin_bits[i] = trace
-                self.new_bits += 1
-                has_new = True
-            elif trace and virgin:
-                if trace > virgin:
-                    self.virgin_bits[i] = trace
-                    has_new = True
-
-        self.total_bits = sum(1 for b in self.virgin_bits if b > 0)
-        return has_new
-
-    def get_coverage_percent(self) -> float:
-        """Get coverage as percentage of map."""
-        return (self.total_bits / self.size) * 100
-
-    def compute_hash(self) -> str:
-        """Compute hash of coverage state."""
-        return hashlib.sha256(bytes(self.virgin_bits)).hexdigest()[:16]
-
-
 # =============================================================================
 # State Transition Types
 # =============================================================================
@@ -224,7 +120,6 @@ class GUIStateTransition:
 
     AFLNet-style state tracking for GUI applications.
     Uses string states for flexibility with any application.
-    Consolidates StateTransition from state_coverage.py.
 
     Attributes:
         from_state: Origin state name
@@ -267,7 +162,6 @@ class ProtocolStateTransition:
     """State transition for DICOM protocol fuzzing.
 
     Uses DICOMState enum for type-safe protocol state tracking.
-    Consolidates StateTransition from state_aware_fuzzer.py.
 
     Attributes:
         from_state: Origin DICOM protocol state
@@ -347,8 +241,6 @@ class StateFingerprint:
 class StateCoverage:
     """Tracks coverage of protocol states.
 
-    Consolidates from state_aware_fuzzer.py.
-
     Attributes:
         visited_states: Set of visited DICOM states
         state_transitions: Dict mapping (from, to) to count
@@ -417,57 +309,17 @@ class StateCoverage:
 
 
 # =============================================================================
-# Analysis Types
-# =============================================================================
-
-
-@dataclass
-class CoverageInsight:
-    """Coverage insights for crash correlation analysis.
-
-    Used to identify code paths that correlate with crashes.
-    Consolidates from utils/coverage_correlation.py.
-
-    Attributes:
-        identifier: Function/file:line/block identifier
-        total_hits: Total times this path was hit
-        crash_hits: Times this path led to crash
-        safe_hits: Times this path was hit safely
-        crash_rate: Ratio of crash_hits to total_hits
-        unique_crashes: Set of unique crash identifiers
-
-    """
-
-    identifier: str
-    total_hits: int = 0
-    crash_hits: int = 0
-    safe_hits: int = 0
-    crash_rate: float = 0.0
-    unique_crashes: set[str] = field(default_factory=set)
-
-    def update_crash_rate(self) -> None:
-        """Recalculate crash rate."""
-        if self.total_hits > 0:
-            self.crash_rate = self.crash_hits / self.total_hits
-
-
-# =============================================================================
 # Public API
 # =============================================================================
 
 __all__ = [
-    # Execution coverage
-    "ExecutionCoverageInfo",
-    "CoverageInfo",  # Alias
+    # Corpus coverage
     "SeedCoverageInfo",
     "CoverageSnapshot",
-    "CoverageMap",
     # State transitions
     "GUIStateTransition",
     "StateTransition",  # Alias
     "ProtocolStateTransition",
     "StateFingerprint",
     "StateCoverage",
-    # Analysis
-    "CoverageInsight",
 ]

@@ -7,9 +7,7 @@ Subcommands are lazily loaded by main.py based on the SUBCOMMANDS registry.
 __all__ = [
     "calibrate",
     "corpus",
-    "coverage_fuzz",
     "cve",
-    "persistent",
     "reports",
     "samples",
     "state",

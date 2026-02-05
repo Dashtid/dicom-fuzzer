@@ -12,7 +12,7 @@ from pydicom import FileDataset
 from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
 
-from dicom_fuzzer.core.coverage.corpus_minimization import (
+from dicom_fuzzer.core.corpus.corpus_minimization import (
     minimize_corpus_for_campaign,
     validate_corpus_quality,
 )

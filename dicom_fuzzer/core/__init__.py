@@ -5,7 +5,7 @@ generation, validation, and advanced stability features including crash
 intelligence and stability tracking.
 
 Subpackages:
-- coverage/: Coverage tracking, corpus management, stability metrics
+- corpus/: Corpus management and minimization
 - crash/: Crash detection, triage, and analysis
 - dicom/: DICOM file I/O -- parsing, validation, lazy loading
 - engine/: Fuzzing engines and orchestrators
@@ -79,7 +79,6 @@ from .constants import (
     SEVERITY_SCORES,
     BugSeverity,
     ByteMutationType,
-    CoverageType,
     CrashSeverity,
     DICOMState,
     GUIResponseType,
@@ -91,8 +90,8 @@ from .constants import (
     StateTransitionType,
 )
 
-# Coverage tracking & corpus management
-from .coverage.corpus_minimizer import (
+# Corpus management & minimization
+from .corpus.corpus_minimizer import (
     CorpusMinimizer,
     CorpusStats,
     CorpusSynchronizer,
@@ -106,20 +105,13 @@ from .coverage.corpus_minimizer import (
     create_sync_node,
     minimize_corpus,
 )
-from .coverage.coverage_types import (
-    CoverageInfo,
-    CoverageInsight,
-    CoverageMap,
-    CoverageSnapshot,
-    ExecutionCoverageInfo,
+from .corpus.coverage_types import (
     GUIStateTransition,
     ProtocolStateTransition,
-    SeedCoverageInfo,
     StateCoverage,
     StateFingerprint,
     StateTransition,
 )
-from .coverage.stability_tracker import StabilityMetrics, StabilityTracker
 
 # Crash intelligence
 from .crash.crash_triage import (
@@ -147,12 +139,6 @@ from .engine.gui_monitor import (
     MonitorConfig,
     ResponseAwareFuzzer,
     StateCoverageTracker,
-)
-from .engine.persistent_fuzzer import (
-    MOptScheduler,
-    PersistentFuzzer,
-    PowerSchedule,
-    SeedEntry,
 )
 from .engine.synthetic import (
     SyntheticDataGenerator,
@@ -233,16 +219,9 @@ __all__ = [
     "Severity",
     "SeverityLevel",
     "SEVERITY_SCORES",
-    # Unified Coverage Types (v1.8.0)
-    "CoverageInfo",
-    "CoverageInsight",
-    "CoverageMap",
-    "CoverageSnapshot",
-    "CoverageType",
-    "ExecutionCoverageInfo",
+    # State tracking types (for GUI/protocol fuzzing)
     "GUIStateTransition",
     "ProtocolStateTransition",
-    "SeedCoverageInfo",
     "StateCoverage",
     "StateFingerprint",
     "StateTransition",
@@ -294,9 +273,6 @@ __all__ = [
     "ExploitabilityRating",
     "TestMinimizer",
     "MinimizationStrategy",
-    # Stability tracking
-    "StabilityTracker",
-    "StabilityMetrics",
     # 3D Series support
     "DicomSeries",
     "SeriesDetector",
@@ -339,11 +315,6 @@ __all__ = [
     "StateGuidedHavoc",
     "StateInferenceEngine",
     "StateMutator",
-    # Persistent Mode Fuzzing
-    "MOptScheduler",
-    "PersistentFuzzer",
-    "PowerSchedule",
-    "SeedEntry",
     # DICOM TLS Security Fuzzer
     "COMMON_AE_TITLES",
     "INJECTION_PAYLOADS",
