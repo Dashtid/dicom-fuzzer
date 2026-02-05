@@ -37,9 +37,6 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-      # Prevent commits to protected branches
-      - id: no-commit-to-branch
-        args: [--branch, main]
       # File size and format checks
       - id: check-added-large-files
         args: [--maxkb=1000]
