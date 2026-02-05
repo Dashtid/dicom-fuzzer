@@ -1,7 +1,6 @@
-"""Comprehensive tests for dicom_fuzzer.core.coverage.corpus module.
+"""Comprehensive tests for dicom_fuzzer.core.corpus.corpus module.
 
-Tests corpus management for coverage-guided fuzzing including CorpusEntry
-and CorpusManager classes.
+Tests corpus management including CorpusEntry and CorpusManager classes.
 """
 
 from datetime import UTC, datetime
@@ -10,8 +9,8 @@ import pydicom
 import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
 
-from dicom_fuzzer.core.coverage.corpus import CorpusEntry, CorpusManager
-from dicom_fuzzer.core.coverage.coverage_tracker import CoverageSnapshot
+from dicom_fuzzer.core.corpus.corpus import CorpusEntry, CorpusManager
+from dicom_fuzzer.core.corpus.coverage_types import CoverageSnapshot
 
 
 @pytest.fixture

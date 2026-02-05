@@ -33,7 +33,7 @@ from typing import Any
 
 # Import unified types from central location
 from dicom_fuzzer.core.constants import CoverageType
-from dicom_fuzzer.core.coverage.coverage_types import SeedCoverageInfo
+from dicom_fuzzer.core.corpus.coverage_types import SeedCoverageInfo
 
 logger = logging.getLogger(__name__)
 

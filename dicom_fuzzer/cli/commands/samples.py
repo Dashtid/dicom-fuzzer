@@ -244,7 +244,7 @@ def run_strip_pixel_data(args: argparse.Namespace) -> int:
     print("=" * 70 + "\n")
 
     try:
-        from dicom_fuzzer.core.coverage.corpus_minimization import (
+        from dicom_fuzzer.core.corpus.corpus_minimization import (
             optimize_corpus,
             strip_pixel_data,
         )

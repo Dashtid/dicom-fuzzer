@@ -184,10 +184,11 @@ class TestMutationType:
 
     def test_dicom_specific_mutations_exist(self) -> None:
         """Test DICOM-specific mutations are defined."""
-        assert MutationType.TAG_MUTATION.value == "tag_mutation"
-        assert MutationType.VR_MUTATION.value == "vr_mutation"
-        assert MutationType.DICOM_STRUCTURE.value == "dicom_structure"
         assert MutationType.DICOM_TAG_CORRUPT.value == "dicom_tag_corrupt"
+        assert MutationType.DICOM_VR_MISMATCH.value == "dicom_vr_mismatch"
+        assert MutationType.DICOM_LENGTH_OVERFLOW.value == "dicom_length_overflow"
+        assert MutationType.DICOM_SEQUENCE_NEST.value == "dicom_sequence_nest"
+        assert MutationType.DICOM_TRANSFER_SYNTAX.value == "dicom_transfer_syntax"
 
     def test_cve_mutations_exist(self) -> None:
         """Test CVE-based security mutations are defined."""
@@ -204,7 +205,7 @@ class TestMutationType:
     def test_mutation_type_iteration(self) -> None:
         """Test all mutation types can be iterated."""
         all_types = list(MutationType)
-        assert len(all_types) > 50  # We have many mutation types
+        assert len(all_types) >= 40  # Core mutation types
         assert MutationType.HAVOC in all_types
         assert MutationType.CVE_RANDOM in all_types
 

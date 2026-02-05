@@ -9,12 +9,6 @@ from .gui_monitor import (
     ResponseAwareFuzzer,
     StateCoverageTracker,
 )
-from .persistent_fuzzer import (
-    MOptScheduler,
-    PersistentFuzzer,
-    PowerSchedule,
-    SeedEntry,
-)
 from .synthetic import (
     SyntheticDataGenerator,
     SyntheticDicomGenerator,
@@ -30,11 +24,7 @@ __all__ = [
     "GUIMonitor",
     "GUIResponse",
     "MonitorConfig",
-    "MOptScheduler",
-    "PersistentFuzzer",
-    "PowerSchedule",
     "ResponseAwareFuzzer",
-    "SeedEntry",
     "StateCoverageTracker",
     "SyntheticDataGenerator",
     "SyntheticDicomGenerator",

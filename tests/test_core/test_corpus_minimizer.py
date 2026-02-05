@@ -8,7 +8,7 @@ import hashlib
 
 import pytest
 
-from dicom_fuzzer.core.coverage.corpus_minimizer import (
+from dicom_fuzzer.core.corpus.corpus_minimizer import (
     CorpusStats,
     CoverageInfo,
     CoverageType,
@@ -340,28 +340,28 @@ class TestTargetCoverageCollector:
 
     def test_init_with_string_command(self):
         """Test initialization with string command."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import TargetCoverageCollector
+        from dicom_fuzzer.core.corpus.corpus_minimizer import TargetCoverageCollector
 
         collector = TargetCoverageCollector(target_cmd="echo test")
         assert collector.target_cmd == ["echo", "test"]
 
     def test_init_with_list_command(self):
         """Test initialization with list command."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import TargetCoverageCollector
+        from dicom_fuzzer.core.corpus.corpus_minimizer import TargetCoverageCollector
 
         collector = TargetCoverageCollector(target_cmd=["python", "-c", "print(1)"])
         assert collector.target_cmd == ["python", "-c", "print(1)"]
 
     def test_init_with_timeout(self):
         """Test initialization with custom timeout."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import TargetCoverageCollector
+        from dicom_fuzzer.core.corpus.corpus_minimizer import TargetCoverageCollector
 
         collector = TargetCoverageCollector(target_cmd="echo test", timeout=10.0)
         assert collector.timeout == 10.0
 
     def test_init_with_coverage_dir(self, tmp_path):
         """Test initialization with coverage directory."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import TargetCoverageCollector
+        from dicom_fuzzer.core.corpus.corpus_minimizer import TargetCoverageCollector
 
         cov_dir = tmp_path / "coverage"
         collector = TargetCoverageCollector(target_cmd="echo", coverage_dir=cov_dir)
@@ -379,7 +379,7 @@ class TestCorpusMinimizer:
     @pytest.fixture
     def minimizer(self):
         """Create a CorpusMinimizer with SimpleCoverageCollector."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import CorpusMinimizer
+        from dicom_fuzzer.core.corpus.corpus_minimizer import CorpusMinimizer
 
         collector = SimpleCoverageCollector()
         return CorpusMinimizer(collector=collector)
@@ -399,14 +399,14 @@ class TestCorpusMinimizer:
 
     def test_init_default(self):
         """Test default initialization."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import CorpusMinimizer
+        from dicom_fuzzer.core.corpus.corpus_minimizer import CorpusMinimizer
 
         minimizer = CorpusMinimizer()
         assert minimizer.collector is not None
 
     def test_init_with_collector(self):
         """Test initialization with custom collector."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import CorpusMinimizer
+        from dicom_fuzzer.core.corpus.corpus_minimizer import CorpusMinimizer
 
         collector = SimpleCoverageCollector()
         minimizer = CorpusMinimizer(collector=collector)
@@ -414,7 +414,7 @@ class TestCorpusMinimizer:
 
     def test_init_with_config(self):
         """Test initialization with custom config."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import (
+        from dicom_fuzzer.core.corpus.corpus_minimizer import (
             CorpusMinimizer,
             MinimizationConfig,
         )
@@ -473,7 +473,7 @@ class TestMinimizationConfig:
 
     def test_default_config(self):
         """Test default MinimizationConfig values."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import MinimizationConfig
+        from dicom_fuzzer.core.corpus.corpus_minimizer import MinimizationConfig
 
         config = MinimizationConfig()
         assert config.prefer_smaller is True
@@ -485,7 +485,7 @@ class TestMinimizationConfig:
 
     def test_custom_config(self):
         """Test MinimizationConfig with custom values."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import MinimizationConfig
+        from dicom_fuzzer.core.corpus.corpus_minimizer import MinimizationConfig
 
         config = MinimizationConfig(
             prefer_smaller=False,
@@ -507,7 +507,7 @@ class TestMinimizationAlgorithm:
 
     def test_different_content_different_coverage(self, tmp_path):
         """Test that different content produces different coverage."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import CorpusMinimizer
+        from dicom_fuzzer.core.corpus.corpus_minimizer import CorpusMinimizer
 
         corpus = tmp_path / "corpus"
         corpus.mkdir()
@@ -526,7 +526,7 @@ class TestMinimizationAlgorithm:
 
     def test_handles_corrupt_files(self, tmp_path):
         """Test handling of corrupt/unreadable files."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import CorpusMinimizer
+        from dicom_fuzzer.core.corpus.corpus_minimizer import CorpusMinimizer
 
         corpus = tmp_path / "corpus"
         corpus.mkdir()
@@ -552,7 +552,7 @@ class TestSyncMode:
 
     def test_sync_mode_values(self):
         """Test sync mode values."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import SyncMode
+        from dicom_fuzzer.core.corpus.corpus_minimizer import SyncMode
 
         assert SyncMode.PUSH.value == "push"
         assert SyncMode.PULL.value == "pull"
@@ -570,7 +570,7 @@ class TestFuzzerNode:
 
     def test_default_values(self, tmp_path):
         """Test default FuzzerNode values."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import FuzzerNode
+        from dicom_fuzzer.core.corpus.corpus_minimizer import FuzzerNode
 
         node = FuzzerNode(node_id="test", corpus_dir=tmp_path)
 
@@ -583,7 +583,7 @@ class TestFuzzerNode:
 
     def test_custom_values(self, tmp_path):
         """Test FuzzerNode with custom values."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import FuzzerNode
+        from dicom_fuzzer.core.corpus.corpus_minimizer import FuzzerNode
 
         node = FuzzerNode(
             node_id="master",
@@ -609,7 +609,7 @@ class TestSyncConfig:
 
     def test_default_values(self):
         """Test default SyncConfig values."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import SyncConfig, SyncMode
+        from dicom_fuzzer.core.corpus.corpus_minimizer import SyncConfig, SyncMode
 
         config = SyncConfig()
 
@@ -622,7 +622,7 @@ class TestSyncConfig:
 
     def test_custom_values(self):
         """Test SyncConfig with custom values."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import SyncConfig, SyncMode
+        from dicom_fuzzer.core.corpus.corpus_minimizer import SyncConfig, SyncMode
 
         config = SyncConfig(
             sync_interval=30.0,
@@ -646,7 +646,7 @@ class TestCorpusSynchronizer:
     @pytest.fixture
     def node(self, tmp_path):
         """Create a FuzzerNode."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import FuzzerNode
+        from dicom_fuzzer.core.corpus.corpus_minimizer import FuzzerNode
 
         corpus = tmp_path / "corpus"
         corpus.mkdir()
@@ -655,13 +655,13 @@ class TestCorpusSynchronizer:
     @pytest.fixture
     def synchronizer(self, node):
         """Create a CorpusSynchronizer."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import CorpusSynchronizer
+        from dicom_fuzzer.core.corpus.corpus_minimizer import CorpusSynchronizer
 
         return CorpusSynchronizer(node=node)
 
     def test_init_default(self, node):
         """Test default initialization."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import CorpusSynchronizer
+        from dicom_fuzzer.core.corpus.corpus_minimizer import CorpusSynchronizer
 
         sync = CorpusSynchronizer(node=node)
 
@@ -673,7 +673,7 @@ class TestCorpusSynchronizer:
 
     def test_init_with_config(self, node):
         """Test initialization with custom config."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import (
+        from dicom_fuzzer.core.corpus.corpus_minimizer import (
             CorpusSynchronizer,
             SyncConfig,
         )
@@ -721,7 +721,7 @@ class TestCorpusSynchronizer:
 
     def test_sync_once_push(self, node, tmp_path):
         """Test sync pushes to peers."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import (
+        from dicom_fuzzer.core.corpus.corpus_minimizer import (
             CorpusSynchronizer,
             SyncConfig,
             SyncMode,
@@ -783,7 +783,7 @@ class TestConvenienceFunctions:
 
     def test_minimize_corpus_basic(self, tmp_path):
         """Test minimize_corpus function."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import minimize_corpus
+        from dicom_fuzzer.core.corpus.corpus_minimizer import minimize_corpus
 
         input_dir = tmp_path / "input"
         input_dir.mkdir()
@@ -799,7 +799,7 @@ class TestConvenienceFunctions:
 
     def test_minimize_corpus_with_target_cmd(self, tmp_path):
         """Test minimize_corpus with target command."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import minimize_corpus
+        from dicom_fuzzer.core.corpus.corpus_minimizer import minimize_corpus
 
         input_dir = tmp_path / "input"
         input_dir.mkdir()
@@ -814,7 +814,7 @@ class TestConvenienceFunctions:
 
     def test_create_sync_node_basic(self, tmp_path):
         """Test create_sync_node function."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import create_sync_node
+        from dicom_fuzzer.core.corpus.corpus_minimizer import create_sync_node
 
         corpus_dir = tmp_path / "corpus"
 
@@ -826,7 +826,7 @@ class TestConvenienceFunctions:
 
     def test_create_sync_node_with_peers(self, tmp_path):
         """Test create_sync_node with peer directories."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import create_sync_node
+        from dicom_fuzzer.core.corpus.corpus_minimizer import create_sync_node
 
         corpus_dir = tmp_path / "corpus"
         peer1 = tmp_path / "peer1"
@@ -851,7 +851,7 @@ class TestTargetCoverageCollectorAdvanced:
 
     def test_get_coverage_runs_command(self, tmp_path):
         """Test get_coverage executes target command."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import TargetCoverageCollector
+        from dicom_fuzzer.core.corpus.corpus_minimizer import TargetCoverageCollector
 
         seed = tmp_path / "test.dcm"
         seed.write_bytes(b"test content")
@@ -871,7 +871,7 @@ class TestTargetCoverageCollectorAdvanced:
 
     def test_get_coverage_timeout(self, tmp_path):
         """Test get_coverage handles timeout."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import TargetCoverageCollector
+        from dicom_fuzzer.core.corpus.corpus_minimizer import TargetCoverageCollector
 
         seed = tmp_path / "test.dcm"
         seed.write_bytes(b"test content")
@@ -890,7 +890,7 @@ class TestTargetCoverageCollectorAdvanced:
 
     def test_merge_coverage_empty(self):
         """Test merge_coverage with empty list."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import TargetCoverageCollector
+        from dicom_fuzzer.core.corpus.corpus_minimizer import TargetCoverageCollector
 
         collector = TargetCoverageCollector(target_cmd="echo")
         result = collector.merge_coverage([])
@@ -899,7 +899,7 @@ class TestTargetCoverageCollectorAdvanced:
 
     def test_merge_coverage_single_bitmap(self, tmp_path):
         """Test merge_coverage with single bitmap."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import (
+        from dicom_fuzzer.core.corpus.corpus_minimizer import (
             CoverageInfo,
             TargetCoverageCollector,
         )
@@ -914,7 +914,7 @@ class TestTargetCoverageCollectorAdvanced:
 
     def test_merge_coverage_with_bitmaps(self, tmp_path):
         """Test merge_coverage merges correctly."""
-        from dicom_fuzzer.core.coverage.corpus_minimizer import (
+        from dicom_fuzzer.core.corpus.corpus_minimizer import (
             CoverageInfo,
             TargetCoverageCollector,
         )

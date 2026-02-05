@@ -1,12 +1,13 @@
-"""Corpus Management for Coverage-Guided Fuzzing.
+"""Corpus Management for DICOM Fuzzing.
 
-Manages a collection of interesting test cases that have discovered unique
-code paths. The corpus is the fuzzer's memory, enabling incremental discovery.
+Manages a collection of test cases (seeds) for fuzzing. Supports lazy loading
+of DICOM datasets and tracking of fitness scores for seed selection.
 """
 
 import copy
 import json
 import shutil
+import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,7 +16,7 @@ from typing import Any
 import pydicom
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.coverage.coverage_tracker import CoverageSnapshot
+from dicom_fuzzer.core.corpus.coverage_types import CoverageSnapshot
 from dicom_fuzzer.core.serialization import SerializableMixin
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -186,11 +187,14 @@ class CorpusManager:
         self.max_corpus_size = max_corpus_size
         self.min_fitness_threshold = min_fitness_threshold
 
-        # Corpus storage
+        # Thread safety lock for corpus operations
+        self._lock = threading.RLock()
+
+        # Corpus storage (protected by _lock)
         self.corpus: dict[str, CorpusEntry] = {}
         self.coverage_map: dict[str, set[str]] = {}  # coverage_hash -> entry_ids
 
-        # Statistics
+        # Statistics (protected by _lock)
         self.total_added = 0
         self.total_rejected = 0
         self.total_evicted = 0
@@ -279,65 +283,66 @@ class CorpusManager:
 
         fitness = self._calculate_fitness(dataset, coverage, crash_triggered)
 
-        if fitness < self.min_fitness_threshold and not crash_triggered:
-            self.total_rejected += 1
-            logger.debug(
-                f"Rejected corpus entry {entry_id}",
-                fitness=fitness,
-                threshold=self.min_fitness_threshold,
+        with self._lock:
+            if fitness < self.min_fitness_threshold and not crash_triggered:
+                self.total_rejected += 1
+                logger.debug(
+                    f"Rejected corpus entry {entry_id}",
+                    fitness=fitness,
+                    threshold=self.min_fitness_threshold,
+                )
+                return False
+
+            if coverage and self._is_duplicate_coverage(coverage, fitness, entry_id):
+                return False
+
+            # Determine generation
+            generation = 0
+            if parent_id and parent_id in self.corpus:
+                generation = self.corpus[parent_id].generation + 1
+
+            # Create entry
+            # CRITICAL: Use deepcopy to ensure the stored dataset is completely independent
+            # of the original. Shallow copy (dataset.copy()) may share nested structures
+            # like sequences, which could be corrupted if the original is modified.
+            entry = CorpusEntry(
+                entry_id=entry_id,
+                dataset=copy.deepcopy(dataset),
+                coverage=coverage,
+                fitness_score=fitness,
+                generation=generation,
+                parent_id=parent_id,
+                crash_triggered=crash_triggered,
             )
-            return False
 
-        if coverage and self._is_duplicate_coverage(coverage, fitness, entry_id):
-            return False
+            # Add to corpus
+            self.corpus[entry_id] = entry
 
-        # Determine generation
-        generation = 0
-        if parent_id and parent_id in self.corpus:
-            generation = self.corpus[parent_id].generation + 1
+            # Update coverage map
+            if coverage:
+                cov_hash = coverage.coverage_hash()
+                if cov_hash not in self.coverage_map:
+                    self.coverage_map[cov_hash] = set()
+                self.coverage_map[cov_hash].add(entry_id)
 
-        # Create entry
-        # CRITICAL: Use deepcopy to ensure the stored dataset is completely independent
-        # of the original. Shallow copy (dataset.copy()) may share nested structures
-        # like sequences, which could be corrupted if the original is modified.
-        entry = CorpusEntry(
-            entry_id=entry_id,
-            dataset=copy.deepcopy(dataset),
-            coverage=coverage,
-            fitness_score=fitness,
-            generation=generation,
-            parent_id=parent_id,
-            crash_triggered=crash_triggered,
-        )
+            self.total_added += 1
 
-        # Add to corpus
-        self.corpus[entry_id] = entry
+            # Save to disk
+            self._save_entry(entry)
 
-        # Update coverage map
-        if coverage:
-            cov_hash = coverage.coverage_hash()
-            if cov_hash not in self.coverage_map:
-                self.coverage_map[cov_hash] = set()
-            self.coverage_map[cov_hash].add(entry_id)
+            logger.info(
+                "Added corpus entry",
+                entry_id=entry_id,
+                fitness=fitness,
+                generation=generation,
+                crash=crash_triggered,
+            )
 
-        self.total_added += 1
+            # Check if we need to evict
+            if len(self.corpus) > self.max_corpus_size:
+                self._evict_lowest_fitness()
 
-        # Save to disk
-        self._save_entry(entry)
-
-        logger.info(
-            "Added corpus entry",
-            entry_id=entry_id,
-            fitness=fitness,
-            generation=generation,
-            crash=crash_triggered,
-        )
-
-        # Check if we need to evict
-        if len(self.corpus) > self.max_corpus_size:
-            self._evict_lowest_fitness()
-
-        return True
+            return True
 
     def get_best_entries(self, count: int = 10) -> list[CorpusEntry]:
         """Get the highest fitness entries from the corpus.
@@ -352,16 +357,17 @@ class CorpusManager:
             List of top entries sorted by fitness (highest first)
 
         """
-        sorted_entries = sorted(
-            self.corpus.values(), key=lambda e: e.fitness_score, reverse=True
-        )
-        return sorted_entries[:count]
+        with self._lock:
+            sorted_entries = sorted(
+                self.corpus.values(), key=lambda e: e.fitness_score, reverse=True
+            )
+            return sorted_entries[:count]
 
     def get_best_seed(self) -> CorpusEntry | None:
         """Get the best seed for mutation.
 
         CONCEPT: Returns the single best entry for mutation purposes.
-        Used in coverage-guided fuzzing workflows.
+        Used in fuzzing workflows.
 
         Returns:
             Best corpus entry, or None if corpus is empty
@@ -379,18 +385,20 @@ class CorpusManager:
             Random corpus entry, or None if corpus is empty
 
         """
-        if not self.corpus:
-            return None
-
         import random
 
-        # nosec B311 - random.choice is acceptable for fuzzing seed selection (non-cryptographic)
-        entry_id = random.choice(list(self.corpus.keys()))  # nosec
-        return self.corpus[entry_id]
+        with self._lock:
+            if not self.corpus:
+                return None
+
+            # nosec B311 - random.choice is acceptable for fuzzing seed selection (non-cryptographic)
+            entry_id = random.choice(list(self.corpus.keys()))  # nosec
+            return self.corpus[entry_id]
 
     def get_entry(self, entry_id: str) -> CorpusEntry | None:
         """Get a specific entry by ID."""
-        return self.corpus.get(entry_id)
+        with self._lock:
+            return self.corpus.get(entry_id)
 
     def size(self) -> int:
         """Get the current size of the corpus.
@@ -399,7 +407,8 @@ class CorpusManager:
             Number of entries in the corpus
 
         """
-        return len(self.corpus)
+        with self._lock:
+            return len(self.corpus)
 
     def _calculate_fitness(
         self, dataset: Dataset, coverage: CoverageSnapshot | None, crash: bool

@@ -7,7 +7,7 @@ Corpus management utilities including:
 - Study-level crash minimization
 
 NOTE: This CLI module provides basic corpus utilities.
-For advanced minimization, import dicom_fuzzer.core.coverage.corpus_minimizer directly.
+For advanced minimization, import dicom_fuzzer.core.corpus.corpus_minimizer directly.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ Examples:
       --count 50 --strategy all --severity aggressive
 
 For advanced minimization, use the Python API:
-  from dicom_fuzzer.core.coverage.corpus_minimizer import CorpusMinimizer
+  from dicom_fuzzer.core.corpus.corpus_minimizer import CorpusMinimizer
   from dicom_fuzzer.core.series.study_minimizer import StudyMinimizer
         """,
     )

@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 # Import unified state transition type
-from dicom_fuzzer.core.coverage.coverage_types import GUIStateTransition
+from dicom_fuzzer.core.corpus.coverage_types import GUIStateTransition
 
 # Backward compatibility alias
 StateTransition = GUIStateTransition

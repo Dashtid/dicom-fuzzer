@@ -1,5 +1,12 @@
-"""Coverage tracking, corpus management, and stability metrics."""
+"""Corpus management and minimization for DICOM fuzzing."""
 
+from .corpus_minimization import (
+    CoverageAwarePrioritizer,
+    MoonLightMinimizer,
+    optimize_corpus,
+    strip_pixel_data,
+    validate_corpus_quality,
+)
 from .corpus_minimizer import (
     CorpusMinimizer,
     CorpusStats,
@@ -15,54 +22,35 @@ from .corpus_minimizer import (
     minimize_corpus,
 )
 from .coverage_types import (
-    CoverageInfo,
-    CoverageInsight,
-    CoverageMap,
-    CoverageSnapshot,
-    ExecutionCoverageInfo,
     GUIStateTransition,
     ProtocolStateTransition,
-    SeedCoverageInfo,
     StateCoverage,
     StateFingerprint,
     StateTransition,
 )
-from .corpus_minimization import (
-    CoverageAwarePrioritizer,
-    MoonLightMinimizer,
-    optimize_corpus,
-    strip_pixel_data,
-    validate_corpus_quality,
-)
-from .stability_tracker import StabilityMetrics, StabilityTracker
 
 __all__ = [
-    "CoverageAwarePrioritizer",
+    # Corpus minimization
     "CorpusMinimizer",
     "CorpusStats",
     "CorpusSynchronizer",
     "CoverageCollector",
-    "CoverageInfo",
-    "CoverageInsight",
-    "CoverageMap",
-    "CoverageSnapshot",
-    "ExecutionCoverageInfo",
     "FuzzerNode",
-    "GUIStateTransition",
     "MinimizationConfig",
-    "ProtocolStateTransition",
-    "SeedCoverageInfo",
     "SimpleCoverageCollector",
-    "StabilityMetrics",
-    "StabilityTracker",
-    "StateCoverage",
-    "StateFingerprint",
-    "StateTransition",
     "SyncConfig",
     "SyncMode",
     "TargetCoverageCollector",
     "create_sync_node",
     "minimize_corpus",
+    # State tracking types (for GUI/protocol fuzzing)
+    "GUIStateTransition",
+    "ProtocolStateTransition",
+    "StateCoverage",
+    "StateFingerprint",
+    "StateTransition",
+    # Advanced minimization
+    "CoverageAwarePrioritizer",
     "MoonLightMinimizer",
     "optimize_corpus",
     "strip_pixel_data",

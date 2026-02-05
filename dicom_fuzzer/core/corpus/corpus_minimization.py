@@ -51,10 +51,17 @@ def _strip_tags(ds: Any, strip_overlays: bool, strip_waveforms: bool) -> None:
     for tag in _PIXEL_DATA_TAGS:
         _delete_tag_if_present(ds, tag)
 
-    # Strip overlay data (groups 6000-601E)
+    # Strip overlay data (ALL elements in groups 6000-601E)
+    # DICOM overlay groups contain multiple elements (OverlayData, OverlayRows,
+    # OverlayColumns, OverlayOrigin, etc.) - we strip all of them
     if strip_overlays:
-        for group in range(OVERLAY_GROUP_START, OVERLAY_GROUP_END + 1, 2):
-            _delete_tag_if_present(ds, (group, 0x3000))
+        tags_to_remove = [
+            elem.tag
+            for elem in ds
+            if OVERLAY_GROUP_START <= elem.tag.group <= OVERLAY_GROUP_END
+        ]
+        for tag in tags_to_remove:
+            del ds[tag]
 
     # Strip waveform data
     if strip_waveforms:
