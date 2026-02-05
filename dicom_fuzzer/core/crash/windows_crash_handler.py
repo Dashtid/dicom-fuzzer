@@ -13,18 +13,17 @@ identify exploitable vulnerabilities vs. benign errors.
 
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+from dicom_fuzzer.core.constants import Severity
 from dicom_fuzzer.utils.hashing import hash_string
 from dicom_fuzzer.utils.logger import get_logger
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_logger(__name__)
 
@@ -48,7 +47,9 @@ class WindowsExceptionCode(IntEnum):
 
     # Stack issues - potential stack overflow/RCE
     STACK_OVERFLOW = 0xC00000FD  # -1073741571
-    STACK_BUFFER_OVERRUN = 0xC0000409  # -1073740791 (Security cookie check failed)
+    STACK_BUFFER_OVERRUN = (
+        0xC0000409  # -1073740791 (/GS check failed, also CFG violations)
+    )
 
     # Integer issues
     INTEGER_DIVIDE_BY_ZERO = 0xC0000094  # -1073741676
@@ -66,38 +67,34 @@ class WindowsExceptionCode(IntEnum):
     FLOAT_OVERFLOW = 0xC0000091  # -1073741679
     FLOAT_UNDERFLOW = 0xC0000093  # -1073741677
 
-    # Control flow guard (CFG) violation - security feature triggered
-    CONTROL_FLOW_GUARD = 0xC0000409  # Same as STACK_BUFFER_OVERRUN
-
     # Assertion failures
     ASSERTION_FAILURE = 0xC0000420  # -1073740768
 
 
 # Map exception codes to severity (CRITICAL = exploitable, HIGH = DoS)
-EXCEPTION_SEVERITY = {
-    WindowsExceptionCode.ACCESS_VIOLATION: "critical",
-    WindowsExceptionCode.HEAP_CORRUPTION: "critical",
-    WindowsExceptionCode.STACK_BUFFER_OVERRUN: "critical",
-    WindowsExceptionCode.STACK_OVERFLOW: "high",
-    WindowsExceptionCode.IN_PAGE_ERROR: "high",
-    WindowsExceptionCode.INTEGER_OVERFLOW: "medium",
-    WindowsExceptionCode.INTEGER_DIVIDE_BY_ZERO: "medium",
-    WindowsExceptionCode.ARRAY_BOUNDS_EXCEEDED: "critical",
-    WindowsExceptionCode.ILLEGAL_INSTRUCTION: "high",
-    WindowsExceptionCode.PRIVILEGED_INSTRUCTION: "medium",
-    WindowsExceptionCode.FLOAT_DIVIDE_BY_ZERO: "low",
-    WindowsExceptionCode.FLOAT_OVERFLOW: "low",
-    WindowsExceptionCode.FLOAT_UNDERFLOW: "low",
-    WindowsExceptionCode.CONTROL_FLOW_GUARD: "critical",
-    WindowsExceptionCode.ASSERTION_FAILURE: "medium",
-    WindowsExceptionCode.INVALID_HANDLE: "medium",
+EXCEPTION_SEVERITY: dict[WindowsExceptionCode, Severity] = {
+    WindowsExceptionCode.ACCESS_VIOLATION: Severity.CRITICAL,
+    WindowsExceptionCode.HEAP_CORRUPTION: Severity.CRITICAL,
+    WindowsExceptionCode.STACK_BUFFER_OVERRUN: Severity.CRITICAL,
+    WindowsExceptionCode.STACK_OVERFLOW: Severity.HIGH,
+    WindowsExceptionCode.IN_PAGE_ERROR: Severity.HIGH,
+    WindowsExceptionCode.INTEGER_OVERFLOW: Severity.MEDIUM,
+    WindowsExceptionCode.INTEGER_DIVIDE_BY_ZERO: Severity.MEDIUM,
+    WindowsExceptionCode.ARRAY_BOUNDS_EXCEEDED: Severity.CRITICAL,
+    WindowsExceptionCode.ILLEGAL_INSTRUCTION: Severity.HIGH,
+    WindowsExceptionCode.PRIVILEGED_INSTRUCTION: Severity.MEDIUM,
+    WindowsExceptionCode.FLOAT_DIVIDE_BY_ZERO: Severity.LOW,
+    WindowsExceptionCode.FLOAT_OVERFLOW: Severity.LOW,
+    WindowsExceptionCode.FLOAT_UNDERFLOW: Severity.LOW,
+    WindowsExceptionCode.ASSERTION_FAILURE: Severity.MEDIUM,
+    WindowsExceptionCode.INVALID_HANDLE: Severity.MEDIUM,
 }
 
 # Human-readable descriptions
 EXCEPTION_DESCRIPTIONS = {
     WindowsExceptionCode.ACCESS_VIOLATION: "Memory access violation (read/write to invalid address)",
     WindowsExceptionCode.HEAP_CORRUPTION: "Heap corruption detected (potential heap overflow)",
-    WindowsExceptionCode.STACK_BUFFER_OVERRUN: "Stack buffer overrun (/GS security check failed)",
+    WindowsExceptionCode.STACK_BUFFER_OVERRUN: "Stack buffer overrun (/GS security check or CFG violation)",
     WindowsExceptionCode.STACK_OVERFLOW: "Stack overflow (recursion or large stack allocation)",
     WindowsExceptionCode.IN_PAGE_ERROR: "Page fault accessing memory-mapped file",
     WindowsExceptionCode.INTEGER_OVERFLOW: "Integer overflow in arithmetic operation",
@@ -108,7 +105,6 @@ EXCEPTION_DESCRIPTIONS = {
     WindowsExceptionCode.FLOAT_DIVIDE_BY_ZERO: "Floating-point division by zero",
     WindowsExceptionCode.FLOAT_OVERFLOW: "Floating-point overflow",
     WindowsExceptionCode.FLOAT_UNDERFLOW: "Floating-point underflow",
-    WindowsExceptionCode.CONTROL_FLOW_GUARD: "Control Flow Guard violation",
     WindowsExceptionCode.ASSERTION_FAILURE: "Debug assertion failed",
     WindowsExceptionCode.INVALID_HANDLE: "Invalid handle used",
 }
@@ -121,7 +117,7 @@ class WindowsCrashInfo:
     exception_code: int
     exception_name: str
     description: str
-    severity: str
+    severity: Severity
     is_exploitable: bool
     crash_address: int | None = None
     faulting_module: str | None = None
@@ -254,13 +250,13 @@ class WindowsCrashHandler:
             description = EXCEPTION_DESCRIPTIONS.get(
                 exception, f"Unknown exception 0x{unsigned_code:08X}"
             )
-            severity = EXCEPTION_SEVERITY.get(exception, "unknown")
+            severity = EXCEPTION_SEVERITY.get(exception, Severity.UNKNOWN)
         except ValueError:
             exception_name = f"UNKNOWN_0x{unsigned_code:08X}"
             description = f"Unknown Windows exception code: 0x{unsigned_code:08X}"
-            severity = "high" if unsigned_code >= 0xC0000000 else "medium"
+            severity = Severity.HIGH if unsigned_code >= 0xC0000000 else Severity.MEDIUM
 
-        is_exploitable = severity in ("critical", "high")
+        is_exploitable = severity in (Severity.CRITICAL, Severity.HIGH)
 
         # Extract any crash details from stderr (common patterns)
         crash_address = self._extract_crash_address(stderr)
@@ -304,8 +300,6 @@ class WindowsCrashHandler:
             Crash address if found, None otherwise
 
         """
-        import re
-
         patterns = [
             r"at (?:address )?0x([0-9a-fA-F]+)",
             r"Exception at 0x([0-9a-fA-F]+)",
@@ -338,8 +332,6 @@ class WindowsCrashHandler:
             Module name if found, None otherwise
 
         """
-        import re
-
         patterns = [
             r"in (?:module )?([a-zA-Z0-9_.-]+\.(?:dll|exe))",
             r"([a-zA-Z0-9_.-]+\.(?:dll|exe))!",
@@ -388,11 +380,11 @@ class WindowsCrashHandler:
                 try:
                     exception = WindowsExceptionCode(exception_code)
                     exception_name = exception.name
-                    severity = EXCEPTION_SEVERITY.get(exception, "unknown")
+                    severity = EXCEPTION_SEVERITY.get(exception, Severity.UNKNOWN)
                     description = EXCEPTION_DESCRIPTIONS.get(exception, "")
                 except ValueError:
                     exception_name = f"UNKNOWN_0x{exception_code:08X}"
-                    severity = "high"
+                    severity = Severity.HIGH
                     description = f"Unknown exception 0x{exception_code:08X}"
 
                 # Get crash address
@@ -426,7 +418,7 @@ class WindowsCrashHandler:
                     exception_name=exception_name,
                     description=description,
                     severity=severity,
-                    is_exploitable=severity in ("critical", "high"),
+                    is_exploitable=severity in (Severity.CRITICAL, Severity.HIGH),
                     crash_address=crash_address,
                     registers=registers,
                     crash_hash=crash_hash,

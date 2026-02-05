@@ -15,15 +15,12 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from dicom_fuzzer.core.crash.crash_analyzer import CrashAnalyzer
+from dicom_fuzzer.core.crash import CrashAnalyzer
 from dicom_fuzzer.core.session.resource_manager import ResourceLimits, ResourceManager
 from dicom_fuzzer.utils.logger import get_logger
 
 if TYPE_CHECKING:
-    from dicom_fuzzer.core.crash.windows_crash_handler import (
-        WindowsCrashHandler,
-        WindowsCrashInfo,
-    )
+    from dicom_fuzzer.core.crash import WindowsCrashHandler, WindowsCrashInfo
 
 logger = get_logger(__name__)
 
@@ -166,9 +163,7 @@ class TargetRunner:
         # Initialize Windows crash handler if on Windows
         self.windows_crash_handler: WindowsCrashHandler | None = None
         if sys.platform == "win32":
-            from dicom_fuzzer.core.crash.windows_crash_handler import (
-                WindowsCrashHandler,
-            )
+            from dicom_fuzzer.core.crash import WindowsCrashHandler
 
             self.windows_crash_handler = WindowsCrashHandler(crash_dir=self.crash_dir)
             logger.debug("Windows crash handler initialized")

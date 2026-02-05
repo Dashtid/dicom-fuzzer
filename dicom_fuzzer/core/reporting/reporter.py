@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from dicom_fuzzer.core.crash.crash_analyzer import CrashAnalyzer, CrashReport
+from dicom_fuzzer.core.crash import CrashAnalyzer, CrashReport
 from dicom_fuzzer.utils.identifiers import generate_timestamp_id
 
 

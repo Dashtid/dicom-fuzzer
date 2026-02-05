@@ -6,10 +6,10 @@ Targets uncovered code paths to increase coverage.
 from datetime import datetime
 from pathlib import Path
 
+from dicom_fuzzer.core.constants import Severity
 from dicom_fuzzer.core.crash.crash_analyzer import (
     CrashAnalyzer,
     CrashReport,
-    CrashSeverity,
     CrashType,
 )
 
@@ -62,7 +62,7 @@ class TestAnalyzeException:
             report = analyzer.analyze_exception(e, "/test.dcm")
 
         assert report.crash_type == CrashType.OUT_OF_MEMORY
-        assert report.severity == CrashSeverity.HIGH
+        assert report.severity == Severity.HIGH
 
     def test_analyze_recursion_error(self):
         """Test analyzing RecursionError."""
@@ -74,7 +74,7 @@ class TestAnalyzeException:
             report = analyzer.analyze_exception(e, "/test.dcm")
 
         assert report.crash_type == CrashType.STACK_OVERFLOW
-        assert report.severity == CrashSeverity.HIGH
+        assert report.severity == Severity.HIGH
 
     def test_analyze_assertion_error(self):
         """Test analyzing AssertionError."""
@@ -86,7 +86,7 @@ class TestAnalyzeException:
             report = analyzer.analyze_exception(e, "/test.dcm")
 
         assert report.crash_type == CrashType.ASSERTION_FAILURE
-        assert report.severity == CrashSeverity.MEDIUM
+        assert report.severity == Severity.MEDIUM
 
     def test_analyze_timeout_error(self):
         """Test analyzing TimeoutError."""
@@ -98,7 +98,7 @@ class TestAnalyzeException:
             report = analyzer.analyze_exception(e, "/test.dcm")
 
         assert report.crash_type == CrashType.TIMEOUT
-        assert report.severity == CrashSeverity.HIGH
+        assert report.severity == Severity.HIGH
 
 
 class TestCrashHashGeneration:
@@ -181,7 +181,7 @@ class TestSaveCrashReport:
             crash_id="test_crash_001",
             timestamp=datetime.now(),
             crash_type=CrashType.UNCAUGHT_EXCEPTION,
-            severity=CrashSeverity.MEDIUM,
+            severity=Severity.MEDIUM,
             test_case_path="/test.dcm",
             stack_trace="Stack trace here",
             exception_message="Error message",
@@ -201,11 +201,11 @@ class TestSaveCrashReport:
         report = CrashReport(
             crash_id="test_002",
             timestamp=datetime.now(),
-            crash_type=CrashType.SEGFAULT,
-            severity=CrashSeverity.CRITICAL,
+            crash_type=CrashType.UNCAUGHT_EXCEPTION,
+            severity=Severity.CRITICAL,
             test_case_path="/seg.dcm",
-            stack_trace="SIGSEGV",
-            exception_message="Segmentation fault",
+            stack_trace="Error in processing",
+            exception_message="Processing error",
             crash_hash="def456",
             additional_info={},
         )
@@ -216,7 +216,7 @@ class TestSaveCrashReport:
         content = report_path.read_text(encoding="utf-8")
         assert "test_002" in content
         assert "CRITICAL" in content or "critical" in content
-        assert "Segmentation fault" in content
+        assert "Processing error" in content
 
 
 class TestRecordCrash:
@@ -389,7 +389,7 @@ class TestSeverityDetermination:
         except BufferError as e:
             report = analyzer.analyze_exception(e, "/test.dcm")
 
-        assert report.severity == CrashSeverity.CRITICAL
+        assert report.severity == Severity.CRITICAL
 
     def test_memory_keyword_increases_severity(self):
         """Test memory-related exceptions are CRITICAL."""
@@ -404,7 +404,7 @@ class TestSeverityDetermination:
         except MemoryCorruption as e:
             report = analyzer.analyze_exception(e, "/test.dcm")
 
-        assert report.severity == CrashSeverity.CRITICAL
+        assert report.severity == Severity.CRITICAL
 
 
 class TestAdditionalInfo:

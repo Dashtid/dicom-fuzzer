@@ -26,7 +26,7 @@ except ImportError as _import_err:
     TrendAnalysis = None  # type: ignore[misc,assignment]
     FuzzingVisualizer = None  # type: ignore[misc,assignment]
     del _import_err  # Avoid unused variable warning
-from dicom_fuzzer.core.crash.crash_analyzer import CrashAnalyzer
+from dicom_fuzzer.core.crash import CrashAnalyzer
 from dicom_fuzzer.core.dicom.parser import DicomParser
 from dicom_fuzzer.core.engine.generator import DICOMGenerator
 from dicom_fuzzer.core.mutation.mutator import DicomMutator
