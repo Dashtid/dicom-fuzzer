@@ -6,6 +6,7 @@ DIMSE (DICOM Message Service Element) layer fuzzing including:
 - Query level attacks
 """
 
+from .dataset_mutator import DatasetMutator
 from .fuzzer import DIMSECommandBuilder, DIMSEFuzzer, QueryGenerator
 from .types import (
     DICOMElement,
@@ -18,6 +19,7 @@ from .types import (
 
 __all__ = [
     # Fuzzers
+    "DatasetMutator",
     "DIMSEFuzzer",
     "DIMSECommandBuilder",
     "QueryGenerator",

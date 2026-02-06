@@ -10,7 +10,7 @@ Subpackages:
 - dicom/: DICOM file I/O -- parsing, validation, series
 - engine/: Fuzzing engines and orchestrators
 - harness/: Target execution and monitoring
-- mutation/: Mutation primitives -- byte, dataset, multiframe
+- mutation/: Mutation primitives -- byte, multiframe, orchestration
 - reporting/: Reports, analytics, templates
 - series/: 3D series management
 - session/: Runtime and session management
@@ -136,7 +136,6 @@ from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
 from .harness.target_runner import ExecutionStatus, TargetRunner
 
 # Mutation primitives
-from .mutation.dataset_mutator import DatasetMutator
 from .mutation.multiframe_handler import (
     FrameInfo,
     MultiFrameHandler,
@@ -145,7 +144,6 @@ from .mutation.multiframe_handler import (
     create_multiframe_mutator,
 )
 from .mutation.mutator import DicomMutator
-from .mutation.test_minimizer import MinimizationStrategy, TestMinimizer
 
 # Reporting
 from .reporting.series_reporter import (
@@ -234,8 +232,6 @@ __all__ = [
     "QueryRetrieveLevel",
     "SOPClass",
     "UIDGenerator",
-    # Dataset Mutation (v1.7.0)
-    "DatasetMutator",
     # Target testing
     "TargetRunner",
     "ExecutionStatus",
@@ -251,8 +247,6 @@ __all__ = [
     "CrashTriageEngine",
     "CrashTriage",
     "ExploitabilityRating",
-    "TestMinimizer",
-    "MinimizationStrategy",
     # 3D Series support
     "DicomSeries",
     "SeriesDetector",

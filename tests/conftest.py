@@ -19,10 +19,6 @@ import pytest
 from pydicom.dataset import Dataset, FileDataset
 from pydicom.uid import generate_uid
 
-# Ignore production modules that have class names starting with "Test" but are not test classes
-# This prevents pytest from collecting them as tests
-collect_ignore_glob = ["**/dicom_fuzzer/core/test_minimizer.py"]
-
 
 @pytest.fixture(autouse=True)
 def gc_collect_around_test():

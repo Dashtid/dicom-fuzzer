@@ -11,7 +11,7 @@ import random
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from dicom_fuzzer.attacks.network.dimse.types import (
+    from .types import (
         DICOMElement,
         DIMSEFuzzingConfig,
     )
@@ -97,14 +97,13 @@ class DatasetMutator:
 
         """
         if config is None:
-            from dicom_fuzzer.attacks.network.dimse.types import (
+            from .types import (
                 DIMSEFuzzingConfig,
             )
 
             config = DIMSEFuzzingConfig()
         self.config = config
-        # Lazy import to avoid circular dependency
-        from dicom_fuzzer.attacks.network.dimse.types import DICOMElement
+        from .types import DICOMElement
 
         self._DICOMElement = DICOMElement
 

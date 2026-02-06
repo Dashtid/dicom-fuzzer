@@ -1,6 +1,6 @@
-"""Mutation primitives -- byte, dataset, multiframe, and minimization."""
+"""Mutation primitives -- byte, multiframe, and orchestration."""
 
-from .dataset_mutator import DatasetMutator
+from .byte_mutator import ByteMutator, DICOMByteMutator
 from .multiframe_handler import (
     FrameInfo,
     MultiFrameHandler,
@@ -9,16 +9,14 @@ from .multiframe_handler import (
     create_multiframe_mutator,
 )
 from .mutator import DicomMutator
-from .test_minimizer import MinimizationStrategy, TestMinimizer
 
 __all__ = [
-    "DatasetMutator",
+    "ByteMutator",
+    "DICOMByteMutator",
     "DicomMutator",
     "FrameInfo",
-    "MinimizationStrategy",
     "MultiFrameHandler",
     "MultiFrameMutationRecord",
     "MultiFrameMutationStrategy",
-    "TestMinimizer",
     "create_multiframe_mutator",
 ]
