@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
 """Comprehensive Performance Benchmarking for 3D DICOM Fuzzing
 
-Benchmarks Phase 1-4 performance with various series sizes:
+Benchmarks performance with various series sizes:
 - Series detection and loading
 - Mutation strategies (serial and parallel)
 - Series writing (full and incremental)
 - Memory usage profiling
 
-USAGE:
-    python scripts/benchmark_3d_fuzzing.py
-    python scripts/benchmark_3d_fuzzing.py --size 500 --iterations 5
-    python scripts/benchmark_3d_fuzzing.py --profile memory
+Usage:
+    uv run python dicom_fuzzer/tools/benchmarks/benchmark_3d_fuzzing.py
+    uv run python dicom_fuzzer/tools/benchmarks/benchmark_3d_fuzzing.py --sizes 100 250 500
+    uv run python dicom_fuzzer/tools/benchmarks/benchmark_3d_fuzzing.py --iterations 5
 """
 
 import argparse
 import gc
-import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -24,9 +23,6 @@ import psutil
 import pydicom
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import generate_uid
-
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dicom_fuzzer.attacks.series.series_mutator import (
     Series3DMutator,
@@ -85,8 +81,6 @@ class PerformanceBenchmark:
             # Create main dataset
             ds = Dataset()
             ds.file_meta = file_meta
-            ds.is_implicit_VR = True
-            ds.is_little_endian = True
 
             # Patient Module
             ds.PatientName = "BENCHMARK^TEST"

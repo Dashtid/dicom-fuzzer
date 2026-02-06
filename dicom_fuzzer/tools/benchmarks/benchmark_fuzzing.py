@@ -8,18 +8,14 @@ Measures baseline performance metrics for the DICOM fuzzer:
 - Throughput (files/minute)
 
 Usage:
-    python scripts/benchmark_fuzzing.py
+    uv run python dicom_fuzzer/tools/benchmarks/benchmark_fuzzing.py
 """
 
-import sys
 import tempfile
 import time
 import tracemalloc
 from pathlib import Path
 from statistics import mean, stdev
-
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian
@@ -49,8 +45,6 @@ def create_sample_dicom() -> Dataset:
     ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
     ds.StudyDescription = "Performance Benchmark Study"
     ds.SeriesDescription = "Benchmark Series"
-    ds.is_little_endian = True
-    ds.is_implicit_VR = False
 
     return ds
 
