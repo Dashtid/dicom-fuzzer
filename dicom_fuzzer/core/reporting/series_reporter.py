@@ -4,15 +4,17 @@ Provides specialized reporting for 3D series fuzzing campaigns, tracking
 multi-slice mutations and spatial integrity issues.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from dicom_fuzzer.attacks.series.series_mutator import (
-    SeriesMutationRecord,
-)
 from dicom_fuzzer.utils.identifiers import generate_timestamp_id
+
+if TYPE_CHECKING:
+    from dicom_fuzzer.attacks.series.series_mutator import SeriesMutationRecord
 
 
 @dataclass

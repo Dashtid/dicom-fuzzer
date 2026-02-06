@@ -28,25 +28,15 @@ except ImportError as _import_err:
     del _import_err  # Avoid unused variable warning
 from dicom_fuzzer.core.crash import CrashAnalyzer
 from dicom_fuzzer.core.dicom.parser import DicomParser
+from dicom_fuzzer.core.dicom.validator import DicomValidator
 from dicom_fuzzer.core.engine import DICOMGenerator
 from dicom_fuzzer.core.mutation.mutator import DicomMutator
-from dicom_fuzzer.core.reporting.reporter import ReportGenerator
+from dicom_fuzzer.core.reporting.series_reporter import (
+    Series3DReport,
+    Series3DReportGenerator,
+    SeriesMutationSummary,
+)
 from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
-
-# Phase 5 - Enhanced Reporting & Analytics (optional imports)
-try:
-    from dicom_fuzzer.core.reporting.series_reporter import (
-        Series3DReport,
-        Series3DReportGenerator,
-        SeriesMutationSummary,
-    )
-except ImportError as _import_err:
-    Series3DReport = None  # type: ignore[misc,assignment]
-    Series3DReportGenerator = None  # type: ignore[misc,assignment]
-    SeriesMutationSummary = None  # type: ignore[misc,assignment]
-    del _import_err  # Avoid unused variable warning
-from dicom_fuzzer.core.dicom.validator import DicomValidator
-from dicom_fuzzer.core.reporting.statistics import StatisticsCollector
 
 __all__ = [
     "__version__",
@@ -58,9 +48,7 @@ __all__ = [
     "DicomValidator",
     "FuzzingSession",
     "CrashAnalyzer",
-    "ReportGenerator",
-    "StatisticsCollector",
-    # Phase 5 - Enhanced Reporting & Analytics
+    # Reporting & Analytics
     "Series3DReport",
     "Series3DReportGenerator",
     "SeriesMutationSummary",
