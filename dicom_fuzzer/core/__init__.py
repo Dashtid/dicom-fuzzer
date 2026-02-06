@@ -156,8 +156,6 @@ from .reporting.series_reporter import (
 )
 
 # Session management
-from .session.config_validator import ConfigValidator, ValidationResult
-from .session.error_recovery import CampaignRecovery, CampaignStatus, SignalHandler
 from .session.resource_manager import ResourceLimits, ResourceManager
 
 # Protocol types
@@ -230,11 +228,6 @@ __all__ = [
     # Session management
     "ResourceManager",
     "ResourceLimits",
-    "CampaignRecovery",
-    "CampaignStatus",
-    "SignalHandler",
-    "ConfigValidator",
-    "ValidationResult",
     # Crash intelligence
     "CrashTriageEngine",
     "CrashTriage",
