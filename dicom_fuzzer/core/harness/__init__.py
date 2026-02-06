@@ -1,111 +1,29 @@
-"""Target Harness Package.
+"""Target harness -- execution, monitoring, calibration.
 
-Provides a reusable harness for testing target applications (DICOM viewers, etc.)
-with mutated DICOM studies. Monitors for crashes, memory issues, and timeouts.
+Provides the TargetRunner for testing target applications (DICOM viewers, etc.)
+with fuzzed DICOM inputs. Monitors for crashes, hangs, memory issues.
 
 Example usage:
-    from dicom_fuzzer.core.harness import TargetHarness, TargetConfig
+    from dicom_fuzzer.core.harness import TargetRunner, ExecutionStatus
 
-    config = TargetConfig(
-        executable=Path("/path/to/viewer.exe"),
-        timeout_seconds=15.0,
+    runner = TargetRunner(
+        target_executable="/path/to/viewer.exe",
+        timeout=15.0,
+        enable_monitoring=True,
         memory_limit_mb=2048,
     )
-    harness = TargetHarness(config, crash_dir=Path("./crashes"))
-    result = harness.test_study_directory(Path("./mutated_study"))
+    result = runner.execute_with_monitoring(Path("./mutated_study"))
 """
 
-from dicom_fuzzer.core.harness.gui_fuzzer import GUIFuzzer
-from dicom_fuzzer.core.harness.gui_monitor import GUIMonitor
-from dicom_fuzzer.core.harness.gui_monitor_types import GUIResponse, MonitorConfig
-from dicom_fuzzer.core.harness.harness import TargetHarness
-from dicom_fuzzer.core.harness.monitoring import (
-    is_psutil_available,
-    kill_target_processes,
-    monitor_process,
-    run_observation_phase,
-)
 from dicom_fuzzer.core.harness.process_monitor import (
     ProcessMonitor,
     terminate_process_tree,
 )
-from dicom_fuzzer.core.harness.stateless_harness import (
-    create_stateless_test_wrapper,
-    detect_state_leaks,
-    validate_determinism,
-)
-from dicom_fuzzer.core.harness.stress_tester import (
-    MemorySnapshot,
-    StressTestConfig,
-    StressTester,
-    StressTestResult,
-)
 from dicom_fuzzer.core.harness.target_runner import ExecutionStatus, TargetRunner
-from dicom_fuzzer.core.harness.types import (
-    DEFAULT_OBSERVATION_PHASES,
-    CrashArtifact,
-    ObservationPhase,
-    PhasedTestResult,
-    PhaseResult,
-    TargetConfig,
-    TestResult,
-    TestStatus,
-    ValidationResult,
-)
-from dicom_fuzzer.core.harness.viewer_launcher_3d import (
-    SeriesTestResult,
-    ViewerConfig,
-    ViewerLauncher3D,
-    ViewerType,
-    create_generic_config,
-)
-
-# Backward compatibility alias
-ResponseAwareFuzzer = GUIFuzzer
 
 __all__ = [
-    # Main class
-    "TargetHarness",
-    # Target runner
     "ExecutionStatus",
     "TargetRunner",
-    # Types
-    "TestStatus",
-    "TargetConfig",
-    "TestResult",
-    "CrashArtifact",
-    "ValidationResult",
-    "ObservationPhase",
-    "PhaseResult",
-    "PhasedTestResult",
-    "DEFAULT_OBSERVATION_PHASES",
-    # Monitoring functions
-    "is_psutil_available",
-    "monitor_process",
-    "run_observation_phase",
-    "kill_target_processes",
-    # Process monitor
     "ProcessMonitor",
     "terminate_process_tree",
-    # Stress testing
-    "StressTester",
-    "StressTestConfig",
-    "StressTestResult",
-    "MemorySnapshot",
-    # 3D viewer launcher
-    "ViewerLauncher3D",
-    "ViewerConfig",
-    "ViewerType",
-    "SeriesTestResult",
-    "create_generic_config",
-    # Stateless harness validation
-    "create_stateless_test_wrapper",
-    "detect_state_leaks",
-    "validate_determinism",
-    # GUI monitoring and fuzzing (moved from engine/)
-    "GUIFuzzer",
-    "GUIMonitor",
-    "GUIResponse",
-    "MonitorConfig",
-    "ResponseAwareFuzzer",
 ]

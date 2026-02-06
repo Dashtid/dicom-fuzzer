@@ -165,18 +165,15 @@ dicom-fuzzer calibrate --list-categories
 
 ### stress
 
-Memory stress testing.
+Stress testing scenarios.
 
 ```bash
-dicom-fuzzer stress --generate-series --slices 500 -o ./large_series
 dicom-fuzzer stress --list-scenarios
 ```
 
-| Option              | Description           |
-| ------------------- | --------------------- |
-| `--generate-series` | Generate large series |
-| `--slices N`        | Number of slices      |
-| `--dimensions WxH`  | Slice dimensions      |
+| Option             | Description                          |
+| ------------------ | ------------------------------------ |
+| `--list-scenarios` | List available stress test scenarios |
 
 ---
 

@@ -775,8 +775,8 @@ class TestLogCampaignSummary:
             "total": 100,
             "success": 90,
             "crash": 5,
+            "timeout": 3,
             "memory_exceeded": 2,
-            "render_failed": 3,
             "error": 0,
         }
         log_file = tmp_path / "test.log"
@@ -788,24 +788,24 @@ class TestLogCampaignSummary:
         assert "Total tests: 100" in captured.out
         assert "Success: 90" in captured.out
         assert "Crashes: 5" in captured.out
-        assert "Render failed: 3" in captured.out
+        assert "Timeouts: 3" in captured.out
 
-    def test_summary_no_render_failed(self, capsys):
-        """Test summary skips render_failed when zero."""
+    def test_summary_no_timeout(self, capsys):
+        """Test summary skips timeout when zero."""
         from dicom_fuzzer.cli.commands.study_campaign import _log_campaign_summary
 
         stats = {
             "total": 100,
             "success": 100,
             "crash": 0,
+            "timeout": 0,
             "memory_exceeded": 0,
-            "render_failed": 0,
             "error": 0,
         }
         _log_campaign_summary(stats, 60.0, None)
 
         captured = capsys.readouterr()
-        assert "Render failed" not in captured.out
+        assert "Timeout" not in captured.out
 
 
 class TestSetupViewerAdapter:

@@ -132,15 +132,6 @@ from .engine import DICOMGenerator
 # Exceptions
 from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
 
-# Target harness (includes GUI monitoring)
-from .harness import (
-    GUIFuzzer,
-    GUIMonitor,
-    GUIResponse,
-    MonitorConfig,
-    ResponseAwareFuzzer,
-)
-
 # Target harness
 from .harness.target_runner import ExecutionStatus, TargetRunner
 
@@ -279,11 +270,6 @@ __all__ = [
     "Series3DReportGenerator",
     "SeriesMutationSummary",
     # Response-Aware Fuzzing with State Coverage
-    "GUIFuzzer",
-    "GUIMonitor",
-    "GUIResponse",
-    "MonitorConfig",
-    "ResponseAwareFuzzer",
     "StateCoverageTracker",
     # State-Aware Protocol Fuzzing
     "DICOMState",

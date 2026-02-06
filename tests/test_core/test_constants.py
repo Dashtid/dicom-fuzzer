@@ -338,19 +338,6 @@ class TestProtocolResponseType:
         assert ProtocolResponseType.CRASH.value == "crash"
 
 
-class TestResponseTypeBackwardCompatibility:
-    """Test backward compatibility for ResponseType imports."""
-
-    def test_import_from_gui_monitor_types(self) -> None:
-        """Test ResponseType import from gui_monitor_types."""
-        from dicom_fuzzer.core.harness.gui_monitor_types import (
-            ResponseType as ResponseTypeGUI,
-        )
-
-        assert ResponseTypeGUI is GUIResponseType
-        assert ResponseTypeGUI.NORMAL.value == "normal"
-
-
 class TestDICOMState:
     """Tests for DICOMState enum."""
 

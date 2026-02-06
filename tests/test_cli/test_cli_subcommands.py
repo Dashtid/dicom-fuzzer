@@ -216,62 +216,6 @@ class TestStressSubcommand:
         with pytest.raises(SystemExit):
             main([])
 
-    def test_parser_pattern_choices(self):
-        """Test parser accepts valid patterns."""
-        from dicom_fuzzer.cli.commands.stress import create_parser
-
-        parser = create_parser()
-
-        for pattern in ["gradient", "random", "anatomical"]:
-            args = parser.parse_args(["--generate-series", "--pattern", pattern])
-            assert args.pattern == pattern
-
-    def test_parser_modality_choices(self):
-        """Test parser accepts valid modalities."""
-        from dicom_fuzzer.cli.commands.stress import create_parser
-
-        parser = create_parser()
-
-        for modality in ["CT", "MR", "PT"]:
-            args = parser.parse_args(["--generate-series", "--modality", modality])
-            assert args.modality == modality
-
-    def test_parser_defaults(self):
-        """Test parser default values."""
-        from dicom_fuzzer.cli.commands.stress import create_parser
-
-        parser = create_parser()
-        args = parser.parse_args(["--generate-series"])
-
-        assert args.slices == 100
-        assert args.dimensions == "512x512"
-        assert args.pattern == "gradient"
-        assert args.modality == "CT"
-        assert args.memory_limit == 4096
-        assert args.output == "./artifacts/stress"
-        assert args.verbose is False
-
-    def test_parse_dimensions_valid(self):
-        """Test dimension string parsing."""
-        from dicom_fuzzer.cli.commands.stress import parse_dimensions
-
-        assert parse_dimensions("512x512") == (512, 512)
-        assert parse_dimensions("1024x768") == (1024, 768)
-        assert parse_dimensions("256X256") == (256, 256)  # Case insensitive
-
-    def test_parse_dimensions_invalid(self):
-        """Test dimension string parsing with invalid input."""
-        from dicom_fuzzer.cli.commands.stress import parse_dimensions
-
-        with pytest.raises(ValueError, match="Invalid dimensions"):
-            parse_dimensions("invalid")
-
-        with pytest.raises(ValueError, match="Invalid dimensions"):
-            parse_dimensions("512")
-
-        with pytest.raises(ValueError, match="Invalid dimensions"):
-            parse_dimensions("axb")
-
 
 class TestOutputModule:
     """Test CLI output utilities."""
@@ -385,58 +329,6 @@ class TestOutputModule:
         captured = capsys.readouterr()
         assert "Test Summary" in captured.out
         assert "100" in captured.out
-
-
-class TestStressTesterIntegration:
-    """Integration tests for stress tester CLI."""
-
-    def test_generate_series_creates_output(self, tmp_path, capsys):
-        """Test generate-series creates files."""
-        from dicom_fuzzer.cli.commands.stress import create_parser, run_generate_series
-
-        output_dir = tmp_path / "stress_out"
-        parser = create_parser()
-        args = parser.parse_args(
-            [
-                "--generate-series",
-                "--slices",
-                "2",  # Minimal for speed
-                "--dimensions",
-                "64x64",
-                "-o",
-                str(output_dir),
-            ]
-        )
-
-        result = run_generate_series(args)
-        assert result == 0
-
-        # Check files created
-        assert output_dir.exists()
-        dcm_files = list(output_dir.rglob("*.dcm"))
-        assert len(dcm_files) == 2
-
-    def test_generate_series_verbose(self, tmp_path, capsys):
-        """Test generate-series with verbose output."""
-        from dicom_fuzzer.cli.commands.stress import create_parser, run_generate_series
-
-        output_dir = tmp_path / "stress_out"
-        parser = create_parser()
-        args = parser.parse_args(
-            [
-                "--generate-series",
-                "--slices",
-                "2",
-                "--dimensions",
-                "64x64",
-                "-o",
-                str(output_dir),
-                "-v",
-            ]
-        )
-
-        result = run_generate_series(args)
-        assert result == 0
 
 
 class TestCalibrationIntegration:

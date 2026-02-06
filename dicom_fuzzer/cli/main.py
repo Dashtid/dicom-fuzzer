@@ -8,6 +8,7 @@ import argparse
 import faulthandler
 import importlib
 import importlib.util
+import io
 import json
 import logging
 import shutil
@@ -31,7 +32,11 @@ HAS_PSUTIL = importlib.util.find_spec("psutil") is not None
 
 # Enable faulthandler for debugging silent crashes and segfaults
 # This will dump Python tracebacks on crashes (SIGSEGV, SIGFPE, SIGABRT, etc.)
-faulthandler.enable(file=sys.stderr, all_threads=True)
+try:
+    faulthandler.enable(file=sys.stderr, all_threads=True)
+except (io.UnsupportedOperation, AttributeError):
+    # stderr may not have fileno() in some test environments (pytest capsys)
+    pass
 
 
 # Subcommand registry: maps subcommand name to module path
