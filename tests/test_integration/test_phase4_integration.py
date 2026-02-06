@@ -16,9 +16,8 @@ from dicom_fuzzer.attacks.series.series_mutator import (
     SeriesMutationStrategy,
 )
 from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
-from dicom_fuzzer.core.series.series_cache import SeriesCache
-from dicom_fuzzer.core.series.series_detector import SeriesDetector
-from dicom_fuzzer.core.series.series_writer import SeriesWriter
+from dicom_fuzzer.core.dicom.series_detector import SeriesDetector
+from dicom_fuzzer.core.dicom.series_writer import SeriesWriter
 
 
 @pytest.fixture
@@ -84,21 +83,6 @@ class TestPhase1Phase4Integration:
         series = series_list[0]
         assert series.slice_count == 20
         assert series.modality == "CT"
-
-    def test_series_detector_with_cache(self, sample_series_files):
-        """Test SeriesDetector benefits from caching."""
-        series_dir, slice_paths = sample_series_files
-
-        # Create cache and detector
-        cache = SeriesCache(max_size_mb=50, max_entries=100)
-        detector = SeriesDetector()
-
-        # First detection (cache misses) - pass explicit file list
-        series_list = detector.detect_series(slice_paths)
-        assert len(series_list) == 1
-
-        # Cache should be empty initially (detector doesn't use cache yet)
-        # This test demonstrates future integration opportunity
 
 
 class TestPhase2Phase4Integration:
@@ -272,31 +256,6 @@ class TestPerformanceRegression:
         assert hasattr(ds, "Modality")
         assert ds.PatientName == "Integration^Test"
         assert ds.Modality == "CT"
-
-    def test_cache_does_not_corrupt_data(self, sample_series_files):
-        """Test that caching doesn't corrupt DICOM data."""
-        _, slice_paths = sample_series_files
-
-        cache = SeriesCache(max_size_mb=50, max_entries=100)
-
-        # Load same file multiple times through cache
-        ds1 = cache.get(
-            slice_paths[0],
-            lambda p: pydicom.dcmread(p, stop_before_pixels=True, force=True),
-        )
-        ds2 = cache.get(
-            slice_paths[0],
-            lambda p: pydicom.dcmread(p, stop_before_pixels=True, force=True),
-        )  # Cache hit
-        ds3 = cache.get(
-            slice_paths[0],
-            lambda p: pydicom.dcmread(p, stop_before_pixels=True, force=True),
-        )  # Cache hit
-
-        # All should have same metadata
-        assert ds1.PatientName == ds2.PatientName == ds3.PatientName
-        assert ds1.SeriesInstanceUID == ds2.SeriesInstanceUID == ds3.SeriesInstanceUID
-        assert ds1.InstanceNumber == ds2.InstanceNumber == ds3.InstanceNumber
 
     def test_parallel_mutations_maintain_series_integrity(self, sample_series_files):
         """Test that parallel mutations don't break series integrity."""

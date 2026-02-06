@@ -49,7 +49,7 @@ Examples:
 
 For advanced minimization, use the Python API:
   from dicom_fuzzer.core.corpus.corpus_minimizer import CorpusMinimizer
-  from dicom_fuzzer.core.series.study_minimizer import StudyMinimizer
+  from dicom_fuzzer.core.corpus.study_minimizer import StudyMinimizer
         """,
     )
 
@@ -390,12 +390,12 @@ def _validate_minimize_study_args(
 
 def run_minimize_study(args: argparse.Namespace) -> int:
     """Minimize a crashing 3D study to find trigger slice(s)."""
-    from dicom_fuzzer.core.harness.target_runner import TargetRunner
-    from dicom_fuzzer.core.series.study_minimizer import (
+    from dicom_fuzzer.core.corpus.study_minimizer import (
         MinimizationConfig,
         StudyMinimizer,
         create_crash_test_from_runner,
     )
+    from dicom_fuzzer.core.harness.target_runner import TargetRunner
 
     paths = _validate_minimize_study_args(args)
     if paths is None:
@@ -526,7 +526,7 @@ def run_generate_study(args: argparse.Namespace) -> int:
         StudyMutationStrategy,
         StudyMutator,
     )
-    from dicom_fuzzer.core.series.study_corpus import StudyCorpusManager
+    from dicom_fuzzer.core.corpus.study_corpus import StudyCorpusManager
 
     source_dir = Path(args.generate_study)
     if not source_dir.exists():

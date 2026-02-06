@@ -628,11 +628,11 @@ class TestRunMinimizeStudy:
                 "dicom_fuzzer.core.harness.target_runner.TargetRunner"
             ) as mock_runner_cls,
             patch(
-                "dicom_fuzzer.core.series.study_minimizer.StudyMinimizer",
+                "dicom_fuzzer.core.corpus.study_minimizer.StudyMinimizer",
                 return_value=mock_minimizer,
             ),
             patch(
-                "dicom_fuzzer.core.series.study_minimizer.create_crash_test_from_runner"
+                "dicom_fuzzer.core.corpus.study_minimizer.create_crash_test_from_runner"
             ),
         ):
             result = corpus.run_minimize_study(args)
@@ -677,11 +677,11 @@ class TestRunMinimizeStudy:
         with (
             patch("dicom_fuzzer.core.harness.target_runner.TargetRunner"),
             patch(
-                "dicom_fuzzer.core.series.study_minimizer.StudyMinimizer",
+                "dicom_fuzzer.core.corpus.study_minimizer.StudyMinimizer",
                 return_value=mock_minimizer,
             ),
             patch(
-                "dicom_fuzzer.core.series.study_minimizer.create_crash_test_from_runner"
+                "dicom_fuzzer.core.corpus.study_minimizer.create_crash_test_from_runner"
             ),
         ):
             result = corpus.run_minimize_study(args)
@@ -832,7 +832,7 @@ class TestRunGenerateStudy:
                 return_value=mock_mutator,
             ),
             patch(
-                "dicom_fuzzer.core.series.study_corpus.StudyCorpusManager",
+                "dicom_fuzzer.core.corpus.study_corpus.StudyCorpusManager",
                 return_value=mock_corpus,
             ),
         ):
@@ -883,7 +883,7 @@ class TestRunGenerateStudy:
                 return_value=mock_mutator,
             ),
             patch(
-                "dicom_fuzzer.core.series.study_corpus.StudyCorpusManager",
+                "dicom_fuzzer.core.corpus.study_corpus.StudyCorpusManager",
                 return_value=mock_corpus,
             ),
         ):
@@ -935,7 +935,7 @@ class TestRunGenerateStudy:
                 return_value=mock_mutator,
             ),
             patch(
-                "dicom_fuzzer.core.series.study_corpus.StudyCorpusManager",
+                "dicom_fuzzer.core.corpus.study_corpus.StudyCorpusManager",
                 return_value=mock_corpus,
             ),
         ):

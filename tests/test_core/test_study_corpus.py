@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from pydicom.dataset import FileDataset, FileMetaDataset
 
-from dicom_fuzzer.core.series.study_corpus import (
+from dicom_fuzzer.core.corpus.study_corpus import (
     CrashInfo,
     SeriesInfo,
     StudyCorpusEntry,

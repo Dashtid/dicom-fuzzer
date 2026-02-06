@@ -12,7 +12,6 @@ Subpackages:
 - harness/: Target execution and monitoring
 - mutation/: Mutation primitives -- byte, multiframe, orchestration
 - reporting/: Reports, analytics, templates
-- series/: 3D series management
 - session/: Runtime and session management
 """
 
@@ -124,6 +123,10 @@ from .crash.crash_triage import (
 # DICOM I/O
 from .dicom.dicom_series import DicomSeries
 from .dicom.parser import DicomParser
+
+# Series detection & writing (in core/dicom/)
+from .dicom.series_detector import SeriesDetector
+from .dicom.series_writer import SeriesMetadata, SeriesWriter
 from .dicom.validator import DicomValidator
 
 # Fuzzing engines
@@ -151,17 +154,6 @@ from .reporting.series_reporter import (
     Series3DReportGenerator,
     SeriesMutationSummary,
 )
-
-# Series management
-from .series.series_cache import CacheEntry, SeriesCache
-from .series.series_detector import SeriesDetector
-from .series.series_validator import (
-    SeriesValidator,
-    ValidationIssue,
-    ValidationReport,
-    ValidationSeverity,
-)
-from .series.series_writer import SeriesMetadata, SeriesWriter
 
 # Session management
 from .session.config_validator import ConfigValidator, ValidationResult
@@ -250,15 +242,8 @@ __all__ = [
     # 3D Series support
     "DicomSeries",
     "SeriesDetector",
-    "SeriesValidator",
-    "ValidationIssue",
-    "ValidationReport",
-    "ValidationSeverity",
     "SeriesWriter",
     "SeriesMetadata",
-    # Performance optimization
-    "SeriesCache",
-    "CacheEntry",
     # Enhanced Reporting & Analytics
     "Series3DReport",
     "Series3DReportGenerator",

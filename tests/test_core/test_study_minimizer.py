@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from dicom_fuzzer.core.series.study_minimizer import (
+from dicom_fuzzer.core.corpus.study_minimizer import (
     MinimizationConfig,
     MinimizedStudy,
     StudyMinimizer,

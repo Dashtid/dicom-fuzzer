@@ -40,8 +40,8 @@ from pydicom.sequence import Sequence
 from pydicom.uid import generate_uid
 
 from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.core.dicom.series_detector import SeriesDetector
 from dicom_fuzzer.core.serialization import SerializableMixin
-from dicom_fuzzer.core.series.series_detector import SeriesDetector
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)

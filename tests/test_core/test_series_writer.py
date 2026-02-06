@@ -15,7 +15,7 @@ import pytest
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
-from dicom_fuzzer.core.series.series_writer import SeriesMetadata, SeriesWriter
+from dicom_fuzzer.core.dicom.series_writer import SeriesMetadata, SeriesWriter
 
 
 # Helper function for mocking save_as
@@ -92,7 +92,7 @@ class TestSeriesWriterInitialization:
 class TestWriteSeries:
     """Test write_series method."""
 
-    @patch("dicom_fuzzer.core.series.series_writer.Dataset.save_as")
+    @patch("dicom_fuzzer.core.dicom.series_writer.Dataset.save_as")
     def test_write_series_basic(
         self, mock_save_as, temp_output_dir, sample_series, sample_datasets
     ):
@@ -111,7 +111,7 @@ class TestWriteSeries:
         # Check save_as was called for each slice
         assert mock_save_as.call_count == 3
 
-    @patch("dicom_fuzzer.core.series.series_writer.Dataset.save_as")
+    @patch("dicom_fuzzer.core.dicom.series_writer.Dataset.save_as")
     def test_write_series_with_mutations(
         self, mock_save_as, temp_output_dir, sample_series, sample_datasets
     ):
@@ -136,7 +136,7 @@ class TestWriteSeries:
         assert metadata.mutation_count == 2
         assert len(metadata.mutations_applied) == 2
 
-    @patch("dicom_fuzzer.core.series.series_writer.Dataset.save_as")
+    @patch("dicom_fuzzer.core.dicom.series_writer.Dataset.save_as")
     def test_write_series_with_original_series(
         self, mock_save_as, temp_output_dir, sample_series, sample_datasets
     ):
@@ -171,7 +171,7 @@ class TestWriteSeries:
         with pytest.raises(ValueError, match="Dataset count.*does not match"):
             writer.write_series(sample_series, sample_datasets[:2])
 
-    @patch("dicom_fuzzer.core.series.series_writer.Dataset.save_as")
+    @patch("dicom_fuzzer.core.dicom.series_writer.Dataset.save_as")
     def test_write_series_creates_directory(
         self, mock_save_as, temp_output_dir, sample_series, sample_datasets
     ):
@@ -191,7 +191,7 @@ class TestWriteSeries:
 class TestWriteSingleSlice:
     """Test write_single_slice method."""
 
-    @patch("dicom_fuzzer.core.series.series_writer.Dataset.save_as")
+    @patch("dicom_fuzzer.core.dicom.series_writer.Dataset.save_as")
     def test_write_single_slice_basic(
         self, mock_save_as, temp_output_dir, sample_datasets
     ):
@@ -204,7 +204,7 @@ class TestWriteSingleSlice:
         assert output_path == temp_output_dir / "test_slice.dcm"
         mock_save_as.assert_called_once()
 
-    @patch("dicom_fuzzer.core.series.series_writer.Dataset.save_as")
+    @patch("dicom_fuzzer.core.dicom.series_writer.Dataset.save_as")
     def test_write_single_slice_with_mutations(
         self, mock_save_as, temp_output_dir, sample_datasets
     ):
@@ -366,7 +366,7 @@ class TestSeriesMetadata:
 class TestSeriesWriterIntegration:
     """Integration tests for SeriesWriter."""
 
-    @patch("dicom_fuzzer.core.series.series_writer.Dataset.save_as")
+    @patch("dicom_fuzzer.core.dicom.series_writer.Dataset.save_as")
     def test_full_write_workflow(
         self, mock_save_as, temp_output_dir, sample_series, sample_datasets
     ):
@@ -406,7 +406,7 @@ class TestSeriesWriterIntegration:
 class TestSeriesWriterErrorHandling:
     """Test error handling in SeriesWriter."""
 
-    @patch("dicom_fuzzer.core.series.series_writer.Dataset.save_as")
+    @patch("dicom_fuzzer.core.dicom.series_writer.Dataset.save_as")
     def test_write_series_save_failure(
         self, mock_save_as, temp_output_dir, sample_series, sample_datasets
     ):
@@ -418,7 +418,7 @@ class TestSeriesWriterErrorHandling:
         with pytest.raises(OSError, match="Failed to write slice"):
             writer.write_series(sample_series, sample_datasets)
 
-    @patch("dicom_fuzzer.core.series.series_writer.Dataset.save_as")
+    @patch("dicom_fuzzer.core.dicom.series_writer.Dataset.save_as")
     def test_write_single_slice_save_failure(
         self, mock_save_as, temp_output_dir, sample_datasets
     ):
@@ -547,7 +547,7 @@ class TestCleanupOldSeriesEdgeCases:
 
         # Mock shutil.rmtree to simulate permission error
         with patch(
-            "dicom_fuzzer.core.series.series_writer.shutil.rmtree"
+            "dicom_fuzzer.core.dicom.series_writer.shutil.rmtree"
         ) as mock_rmtree:
             mock_rmtree.side_effect = PermissionError("Cannot delete")
 

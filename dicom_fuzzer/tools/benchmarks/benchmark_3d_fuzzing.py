@@ -28,13 +28,13 @@ from pydicom.uid import generate_uid
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
-from dicom_fuzzer.core.series.series_detector import SeriesDetector
-from dicom_fuzzer.core.series.series_writer import SeriesWriter
 from dicom_fuzzer.attacks.series.series_mutator import (
     Series3DMutator,
     SeriesMutationStrategy,
 )
+from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.core.dicom.series_detector import SeriesDetector
+from dicom_fuzzer.core.dicom.series_writer import SeriesWriter
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)

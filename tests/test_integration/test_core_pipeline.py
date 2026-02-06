@@ -29,7 +29,6 @@ from dicom_fuzzer.core import (
     DicomParser,
     DicomValidator,
     SeriesDetector,
-    SeriesValidator,
 )
 
 
@@ -249,19 +248,14 @@ class TestModuleInteractionAndDataFlow:
 class TestSeriesIntegration:
     """Test series detection and validation integration."""
 
-    def test_series_detection_and_validation(self, sample_dicom_series, temp_dir):
-        """Test detection and validation of a DICOM series."""
+    def test_series_detection(self, sample_dicom_series, temp_dir):
+        """Test detection of a DICOM series."""
         detector = SeriesDetector()
         series_list = detector.detect_series_in_directory(temp_dir)
 
         assert len(series_list) == 1
         series = series_list[0]
         assert series.slice_count == 3
-
-        validator = SeriesValidator()
-        validation_result = validator.validate_series(series)
-        assert validation_result.is_valid
-        assert len(validation_result.issues) == 0
 
     def test_series_detector_with_mixed_files(self, temp_dir):
         """Test series detector with mixed DICOM and non-DICOM files."""
