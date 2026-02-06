@@ -9,13 +9,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from .payloads import CVE_MUTATIONS
 from .registry import CVE_REGISTRY, CVEInfo, get_cve_info
-
-if TYPE_CHECKING:
-    pass
 
 
 @dataclass
@@ -27,6 +23,7 @@ class CVEFile:
         variant: Name of the specific attack variant
         data: The mutated DICOM bytes
         info: Metadata about the CVE
+
     """
 
     cve_id: str
@@ -47,6 +44,7 @@ class CVEFile:
 
         Returns:
             Path to the saved file
+
         """
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -72,6 +70,7 @@ class CVEGenerator:
 
         # Generate all CVEs
         all_files = generator.generate_all(template_bytes)
+
     """
 
     def __init__(self) -> None:
@@ -92,6 +91,7 @@ class CVEGenerator:
 
         Returns:
             CVEInfo object or None if CVE not found
+
         """
         return get_cve_info(cve_id)
 
@@ -107,6 +107,7 @@ class CVEGenerator:
 
         Raises:
             ValueError: If CVE ID is not recognized
+
         """
         cve_id = cve_id.upper()
 
@@ -147,6 +148,7 @@ class CVEGenerator:
 
         Raises:
             ValueError: If CVE ID is not recognized
+
         """
         files = self.generate(cve_id, template)
         return files[0]
@@ -159,6 +161,7 @@ class CVEGenerator:
 
         Returns:
             Dictionary mapping CVE ID to list of CVEFile objects
+
         """
         results = {}
         for cve_id in self._mutations:
@@ -176,6 +179,7 @@ class CVEGenerator:
 
         Returns:
             Dictionary mapping CVE ID to list of CVEFile objects
+
         """
         results = {}
         for cve_id, info in self._registry.items():
@@ -195,6 +199,7 @@ class CVEGenerator:
 
         Returns:
             Dictionary mapping CVE ID to list of CVEFile objects
+
         """
         results = {}
         product_lower = product.lower()
@@ -217,6 +222,7 @@ class CVEGenerator:
 
         Returns:
             List of paths to saved files
+
         """
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)

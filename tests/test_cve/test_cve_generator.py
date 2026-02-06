@@ -1,18 +1,22 @@
 """Tests for CVE Generator - Deterministic CVE file generation."""
 
+import struct
+
 import pytest
+from pydicom.dataset import Dataset, FileMetaDataset
+from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
 from dicom_fuzzer.cve import (
-    CVEGenerator,
     CVE_REGISTRY,
     CVECategory,
+    CVEFile,
+    CVEGenerator,
     CVEInfo,
     get_cve_info,
     get_cves_by_category,
     get_cves_by_product,
     list_cves,
 )
-from dicom_fuzzer.cve.generator import CVEFile
 
 
 # =============================================================================
@@ -25,10 +29,39 @@ def generator() -> CVEGenerator:
 
 
 @pytest.fixture
-def template_bytes() -> bytes:
-    """Create minimal DICOM-like template bytes."""
-    # Minimal structure: 128 preamble + DICM + some data
-    return b"\x00" * 128 + b"DICM" + b"\x00" * 100
+def template_bytes(tmp_path) -> bytes:
+    """Create a real DICOM template with tags that CVE mutations target."""
+    file_meta = FileMetaDataset()
+    file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.ImplementationClassUID = generate_uid()
+
+    ds = Dataset()
+    ds.file_meta = file_meta
+    ds.PatientName = "CVE^Template"
+    ds.PatientID = "CVE001"
+    ds.StudyInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
+    ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+    ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+    ds.Modality = "CT"
+    ds.Manufacturer = "TestManufacturer"
+    ds.InstitutionAddress = "http://example.com"
+    ds.StationName = "STATION01"
+    ds.Rows = 64
+    ds.Columns = 64
+    ds.BitsAllocated = 16
+    ds.BitsStored = 16
+    ds.HighBit = 15
+    ds.SamplesPerPixel = 1
+    ds.PixelRepresentation = 0
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.PixelData = b"\x00" * (64 * 64 * 2)
+
+    path = tmp_path / "template.dcm"
+    ds.save_as(path, enforce_file_format=True)
+    return path.read_bytes()
 
 
 # =============================================================================
@@ -156,17 +189,13 @@ class TestCVEGenerator:
         files2 = generator.generate("cve-2025-5943", template_bytes)
         assert len(files1) == len(files2)
 
-    def test_generate_one(
-        self, generator: CVEGenerator, template_bytes: bytes
-    ) -> None:
+    def test_generate_one(self, generator: CVEGenerator, template_bytes: bytes) -> None:
         """Test generate_one returns single file."""
         file = generator.generate_one("CVE-2025-5943", template_bytes)
         assert isinstance(file, CVEFile)
         assert file.cve_id == "CVE-2025-5943"
 
-    def test_generate_all(
-        self, generator: CVEGenerator, template_bytes: bytes
-    ) -> None:
+    def test_generate_all(self, generator: CVEGenerator, template_bytes: bytes) -> None:
         """Test generate_all returns files for all CVEs."""
         all_files = generator.generate_all(template_bytes)
         assert isinstance(all_files, dict)
@@ -273,3 +302,61 @@ class TestCVECoverage:
         """Test 2025 CVEs are included."""
         cves_2025 = [cve for cve in list_cves() if cve.startswith("CVE-2025")]
         assert len(cves_2025) >= 5, "Should have at least 5 2025 CVEs"
+
+
+# =============================================================================
+# Mutation Effectiveness Tests
+# =============================================================================
+class TestMutationEffectiveness:
+    """Tests that mutations actually modify the template (not no-ops)."""
+
+    def test_memory_cves_modify_pixel_dimensions(
+        self, generator: CVEGenerator, template_bytes: bytes
+    ) -> None:
+        """Memory CVEs should modify Rows/Columns/BitsAllocated."""
+        rows_tag = b"\x28\x00\x10\x00"
+        original_idx = template_bytes.find(rows_tag)
+        assert original_idx != -1, "Template must contain Rows tag"
+
+        files = generator.generate("CVE-2025-5943", template_bytes)
+        for f in files:
+            mutated_idx = f.data.find(rows_tag)
+            assert mutated_idx != -1, f"Rows tag missing in variant {f.variant}"
+            # Value should differ from original (64 = 0x0040)
+            original_val = struct.unpack_from("<H", template_bytes, original_idx + 6)[0]
+            mutated_val = struct.unpack_from("<H", f.data, mutated_idx + 6)[0]
+            assert mutated_val != original_val, f"Rows not modified in {f.variant}"
+
+    def test_all_cves_produce_different_output(
+        self, generator: CVEGenerator, template_bytes: bytes
+    ) -> None:
+        """Every CVE mutation should produce output different from the template."""
+        for cve_id in generator.available_cves:
+            files = generator.generate(cve_id, template_bytes)
+            for f in files:
+                assert f.data != template_bytes, (
+                    f"{cve_id}/{f.variant} produced unchanged output"
+                )
+
+    def test_output_retains_dicm_magic(
+        self, generator: CVEGenerator, template_bytes: bytes
+    ) -> None:
+        """Generated files should retain DICM magic at offset 128."""
+        for cve_id in generator.available_cves:
+            files = generator.generate(cve_id, template_bytes)
+            for f in files:
+                assert f.data[128:132] == b"DICM", (
+                    f"{cve_id}/{f.variant} lost DICM magic"
+                )
+
+    def test_all_cves_match_declared_variant_count(
+        self, generator: CVEGenerator, template_bytes: bytes
+    ) -> None:
+        """Every CVE should produce exactly the declared number of variants."""
+        for cve_id in generator.available_cves:
+            info = generator.get_info(cve_id)
+            assert info is not None
+            files = generator.generate(cve_id, template_bytes)
+            assert len(files) == info.variants, (
+                f"{cve_id}: expected {info.variants} variants, got {len(files)}"
+            )

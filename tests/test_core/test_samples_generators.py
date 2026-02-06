@@ -128,62 +128,6 @@ class TestPreambleAttackGenerator:
         assert magic == b"DICM"  # Still valid DICOM
 
 
-class TestCVEGenerator:
-    """Tests for CVE reproduction sample generation."""
-
-    def test_import_generator(self) -> None:
-        """Test that CVE generator module can be imported."""
-        from cve_reproductions.generator import CVE_DATABASE, CVESampleGenerator
-
-        assert CVESampleGenerator is not None
-        assert len(CVE_DATABASE) >= 7
-
-    def test_generate_cve_2019_11687(self, tmp_path: Path) -> None:
-        """Test CVE-2019-11687 sample generation."""
-        from cve_reproductions.generator import CVESampleGenerator
-
-        generator = CVESampleGenerator(tmp_path)
-        result = generator.generate_cve_2019_11687()
-
-        assert result.exists()
-        assert result.stat().st_size > 0
-
-        # Verify PE header
-        with open(result, "rb") as f:
-            preamble = f.read(128)
-        assert preamble[:2] == b"MZ"
-
-    def test_generate_cve_2022_2119(self, tmp_path: Path) -> None:
-        """Test CVE-2022-2119 sample generation (path traversal)."""
-        from cve_reproductions.generator import CVESampleGenerator
-
-        generator = CVESampleGenerator(tmp_path)
-        result = generator.generate_cve_2022_2119()
-
-        assert result.exists()
-
-    def test_generate_cve_2025_5943(self, tmp_path: Path) -> None:
-        """Test CVE-2025-5943 sample generation (OOB write)."""
-        from cve_reproductions.generator import CVESampleGenerator
-
-        generator = CVESampleGenerator(tmp_path)
-        result = generator.generate_cve_2025_5943()
-
-        assert result.exists()
-
-    def test_generate_all_cves(self, tmp_path: Path) -> None:
-        """Test generating all CVE samples."""
-        from cve_reproductions.generator import CVESampleGenerator
-
-        generator = CVESampleGenerator(tmp_path)
-        results = generator.generate_all()
-
-        assert len(results) == 12
-        for cve_id, path in results.items():
-            if path is not None:
-                assert path.exists(), f"Missing sample for {cve_id}"
-
-
 class TestParserStressGenerator:
     """Tests for parser stress test generation."""
 

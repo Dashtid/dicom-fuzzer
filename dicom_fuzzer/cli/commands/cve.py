@@ -8,6 +8,7 @@ Usage:
     dicom-fuzzer cve --cve CVE-2025-5943 -t input.dcm -o output/
     dicom-fuzzer cve --all -t input.dcm -o cve_files/
     dicom-fuzzer cve --product MicroDicom -t input.dcm -o output/
+    dicom-fuzzer cve --all -t input.dcm --target viewer.exe   # Generate + test
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from dicom_fuzzer.cve import CVEGenerator, get_cve_info, list_cves
+from dicom_fuzzer.cve import CVEFile, CVEGenerator, get_cve_info, list_cves
 from dicom_fuzzer.cve.registry import (
     CVECategory,
     get_cves_by_category,
@@ -46,6 +47,9 @@ Examples:
 
   # Generate files for a specific category
   dicom-fuzzer cve --category heap_overflow -t template.dcm -o ./output
+
+  # Generate and test against a target viewer
+  dicom-fuzzer cve --all -t template.dcm --target viewer.exe
 """,
     )
 
@@ -101,6 +105,25 @@ Examples:
         default="./cve_output",
         metavar="DIR",
         help="Output directory for generated files (default: ./cve_output)",
+    )
+
+    # Target testing options
+    parser.add_argument(
+        "--target",
+        type=str,
+        metavar="EXE",
+        help="Path to viewer executable to test generated files against",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=10.0,
+        help="Per-file execution timeout in seconds (default: 10.0)",
+    )
+    parser.add_argument(
+        "--stop-on-crash",
+        action="store_true",
+        help="Stop testing after the first crash",
     )
 
     # Output format options
@@ -198,13 +221,18 @@ def cmd_generate(
     output_dir: Path,
     flat: bool,
     verbose: bool,
-) -> int:
-    """Generate files for a specific CVE."""
+) -> tuple[int, list[CVEFile]]:
+    """Generate files for a specific CVE.
+
+    Returns:
+        Tuple of (return_code, list_of_generated_files).
+
+    """
     try:
         files = generator.generate(cve_id, template)
     except ValueError as e:
         print(f"[-] Error: {e}")
-        return 1
+        return 1, []
 
     info = files[0].info
     print(f"\n[+] {cve_id}: {info.description}")
@@ -224,7 +252,90 @@ def cmd_generate(
         if verbose:
             print(f"    -> {file_path}")
 
-    return 0
+    return 0, files
+
+
+def cmd_test_target(
+    cve_files: list[CVEFile],
+    target: str,
+    output_dir: Path,
+    timeout: float,
+    stop_on_crash: bool,
+    verbose: bool,
+) -> int:
+    """Run generated CVE files against a target executable."""
+    from dicom_fuzzer.core.harness.target_runner import ExecutionStatus, TargetRunner
+
+    target_path = Path(target)
+    if not target_path.exists():
+        print(f"[-] Error: Target executable not found: {target}")
+        return 1
+
+    crash_dir = output_dir / "crashes"
+    crash_dir.mkdir(parents=True, exist_ok=True)
+
+    runner = TargetRunner(
+        target_executable=str(target_path),
+        timeout=timeout,
+        crash_dir=str(crash_dir),
+        enable_monitoring=True,
+        collect_stdout=False,
+        collect_stderr=True,
+        max_retries=0,
+        enable_circuit_breaker=False,
+    )
+
+    # Save files to a test directory and build path -> CVEFile map
+    test_dir = output_dir / "test_files"
+    test_dir.mkdir(parents=True, exist_ok=True)
+    test_paths: list[Path] = []
+    file_map: dict[Path, CVEFile] = {}
+    for cve_file in cve_files:
+        path = cve_file.save(test_dir)
+        test_paths.append(path)
+        file_map[path] = cve_file
+
+    print(f"\n[+] Testing {len(test_paths)} CVE files against: {target_path.name}")
+    results = runner.run_campaign(test_paths, stop_on_crash=stop_on_crash)
+
+    crashes = results.get(ExecutionStatus.CRASH, [])
+    hangs = results.get(ExecutionStatus.HANG, [])
+    successes = results.get(ExecutionStatus.SUCCESS, [])
+    errors = results.get(ExecutionStatus.ERROR, [])
+
+    total = len(test_paths)
+    print(f"\n{'=' * 60}")
+    print(f"  CVE Validation Results: {total} files tested")
+    print(f"{'=' * 60}")
+    print(f"  [+] Passed:  {len(successes)}")
+    print(f"  [-] Crashed: {len(crashes)}")
+    print(f"  [!] Hung:    {len(hangs)}")
+    print(f"  [!] Errors:  {len(errors)}")
+
+    if crashes:
+        print("\n  Crashes (potential vulnerabilities):")
+        for r in crashes:
+            cf = file_map.get(r.test_file)
+            label = f"{cf.cve_id}/{cf.variant}" if cf else str(r.test_file.name)
+            info_line = f"    [-] {label}"
+            if r.is_exploitable and r.windows_crash_info:
+                info_line += f" [EXPLOITABLE: {r.windows_crash_info.exception_name}]"
+            print(info_line)
+            if verbose and r.stderr:
+                for line in r.stderr.strip().splitlines()[:3]:
+                    print(f"        {line}")
+
+    if hangs:
+        print("\n  Hangs (potential DoS):")
+        for r in hangs:
+            cf = file_map.get(r.test_file)
+            label = f"{cf.cve_id}/{cf.variant}" if cf else str(r.test_file.name)
+            print(f"    [!] {label} ({r.hang_reason})")
+
+    if crashes:
+        print(f"\n  [i] Crash artifacts saved to: {crash_dir}")
+
+    return 1 if crashes or hangs else 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -256,10 +367,11 @@ def main(argv: list[str] | None = None) -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     generator = CVEGenerator()
+    all_cve_files: list[CVEFile] = []
 
     # Handle specific CVE
     if args.cve:
-        return cmd_generate(
+        rc, files = cmd_generate(
             generator,
             args.cve.upper(),
             template_bytes,
@@ -267,13 +379,16 @@ def main(argv: list[str] | None = None) -> int:
             args.flat,
             args.verbose,
         )
+        if rc != 0:
+            return rc
+        all_cve_files.extend(files)
 
     # Handle --all
-    if args.all:
+    elif args.all:
         print(f"\n[+] Generating files for all {len(generator.available_cves)} CVEs...")
         total_files = 0
         for cve_id in generator.available_cves:
-            result = cmd_generate(
+            rc, files = cmd_generate(
                 generator,
                 cve_id,
                 template_bytes,
@@ -281,17 +396,16 @@ def main(argv: list[str] | None = None) -> int:
                 args.flat,
                 args.verbose,
             )
-            if result != 0:
+            if rc != 0:
                 print(f"    [!] Warning: Failed to generate {cve_id}")
             else:
-                files = generator.generate(cve_id, template_bytes)
                 total_files += len(files)
+                all_cve_files.extend(files)
 
         print(f"\n[+] Generated {total_files} files in {output_dir}")
-        return 0
 
     # Handle --product
-    if args.product:
+    elif args.product:
         matching = get_cves_by_product(args.product)
         if not matching:
             print(f"[-] No CVEs found for product: {args.product}")
@@ -300,7 +414,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\n[+] Found {len(matching)} CVEs affecting {args.product}")
         for info in matching:
             if info.cve_id in generator.available_cves:
-                cmd_generate(
+                rc, files = cmd_generate(
                     generator,
                     info.cve_id,
                     template_bytes,
@@ -308,10 +422,11 @@ def main(argv: list[str] | None = None) -> int:
                     args.flat,
                     args.verbose,
                 )
-        return 0
+                if rc == 0:
+                    all_cve_files.extend(files)
 
     # Handle --category
-    if args.category:
+    elif args.category:
         try:
             category = CVECategory(args.category)
         except ValueError:
@@ -327,7 +442,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\n[+] Found {len(matching)} CVEs in category {args.category}")
         for info in matching:
             if info.cve_id in generator.available_cves:
-                cmd_generate(
+                rc, files = cmd_generate(
                     generator,
                     info.cve_id,
                     template_bytes,
@@ -335,7 +450,19 @@ def main(argv: list[str] | None = None) -> int:
                     args.flat,
                     args.verbose,
                 )
-        return 0
+                if rc == 0:
+                    all_cve_files.extend(files)
+
+    # If --target specified, run generated files against the target
+    if args.target and all_cve_files:
+        return cmd_test_target(
+            all_cve_files,
+            args.target,
+            output_dir,
+            args.timeout,
+            args.stop_on_crash,
+            args.verbose,
+        )
 
     return 0
 

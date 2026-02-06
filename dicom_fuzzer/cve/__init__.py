@@ -12,18 +12,15 @@ Usage:
     # Get info about a specific CVE
     info = get_cve_info("CVE-2025-5943")
 
-    # Generate a file for a specific CVE
-    generator = CVEGenerator()
-    result = generator.generate("CVE-2025-5943", template_bytes)
-
     # Generate all variants for a CVE (some CVEs have multiple attack vectors)
-    results = generator.generate_all_variants("CVE-2025-5943", template_bytes)
+    generator = CVEGenerator()
+    files = generator.generate("CVE-2025-5943", template_bytes)
 
     # Generate files for all known CVEs
     all_files = generator.generate_all(template_bytes)
 """
 
-from .generator import CVEGenerator
+from .generator import CVEFile, CVEGenerator
 from .registry import (
     CVE_REGISTRY,
     CVECategory,
@@ -35,7 +32,8 @@ from .registry import (
 )
 
 __all__ = [
-    # Main class
+    # Main classes
+    "CVEFile",
     "CVEGenerator",
     # Registry access
     "CVE_REGISTRY",
