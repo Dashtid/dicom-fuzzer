@@ -12,6 +12,7 @@ Phase 1b: CompressedPixelFuzzer (8 strategies)
 Phase 1c: EncodingFuzzer (10 strategies)
 Phase 2a: HeaderFuzzer (7 strategies)
 Phase 2b: SequenceFuzzer (8 strategies)
+Phase 2c: StructureFuzzer (6 strategies)
 """
 
 import copy
@@ -33,6 +34,7 @@ from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
 from dicom_fuzzer.attacks.format.header_fuzzer import VR_MUTATIONS, HeaderFuzzer
 from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
 from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
+from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
 from dicom_fuzzer.attacks.format.uid_attacks import INVALID_UIDS, UID_TAG_NAMES
 
 # ---------------------------------------------------------------------------
@@ -1876,3 +1878,270 @@ class TestMassiveItemCount:
                     assert len(elem.value[-1]) > 0, "Last item is empty"
                     return
         pytest.fail("Could not find massive sequence to verify item data")
+
+
+# ===========================================================================
+# Phase 2c: StructureFuzzer (6 strategies)
+# ===========================================================================
+
+
+@pytest.fixture
+def str_fuzzer() -> StructureFuzzer:
+    """StructureFuzzer instance."""
+    return StructureFuzzer()
+
+
+@pytest.fixture
+def structure_dataset() -> Dataset:
+    """Dataset with diverse elements for StructureFuzzer mutations.
+
+    Includes string VRs (LO, SH, PN), numeric VRs (US, DS),
+    UID/date/time VRs, and multi-value tags for VM mismatch testing.
+    """
+    ds = Dataset()
+    ds.PatientName = "Structure^Test"
+    ds.PatientID = "STR001"
+    ds.StudyDescription = "Structure Test"
+    ds.InstitutionName = "Test Hospital"
+    ds.Modality = "CT"
+    ds.StudyDate = "20250101"
+    ds.StudyTime = "120000"
+    ds.SOPInstanceUID = generate_uid()
+    ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    ds.Rows = 64
+    ds.Columns = 64
+    ds.BitsAllocated = 16
+    ds.BitsStored = 12
+    ds.SamplesPerPixel = 1
+    ds.PixelRepresentation = 0
+    ds.SliceThickness = 1.0
+    ds.ImagePositionPatient = [0.0, 0.0, 0.0]
+    ds.ImageOrientationPatient = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]
+    ds.PixelSpacing = [0.5, 0.5]
+    return ds
+
+
+# ---------------------------------------------------------------------------
+# 40. _corrupt_tag_ordering
+# ---------------------------------------------------------------------------
+class TestCorruptTagOrdering:
+    """Verify _corrupt_tag_ordering disrupts ascending tag order."""
+
+    def test_returns_new_dataset(self, str_fuzzer, structure_dataset):
+        """Strategy must return a new Dataset object (not the original)."""
+        result = str_fuzzer._corrupt_tag_ordering(structure_dataset)
+        assert result is not structure_dataset
+
+    def test_preserves_all_tags(self, str_fuzzer, structure_dataset):
+        """All original tags must still be present."""
+        original_tags = set(structure_dataset.keys())
+        result = str_fuzzer._corrupt_tag_ordering(structure_dataset)
+        assert set(result.keys()) == original_tags
+
+    def test_tag_ordering_disrupted(self, str_fuzzer, structure_dataset):
+        """Tags should not be in ascending order after corruption."""
+        any_unsorted = False
+        for _ in range(20):
+            ds = copy.deepcopy(structure_dataset)
+            result = str_fuzzer._corrupt_tag_ordering(ds)
+            tags = list(result.keys())
+            is_sorted = all(tags[i] <= tags[i + 1] for i in range(len(tags) - 1))
+            if not is_sorted:
+                any_unsorted = True
+                break
+        assert any_unsorted, "_corrupt_tag_ordering never disrupted tag order"
+
+
+# ---------------------------------------------------------------------------
+# 41. _corrupt_length_fields
+# ---------------------------------------------------------------------------
+class TestCorruptLengthFields:
+    """Verify _corrupt_length_fields modifies string element values."""
+
+    STRING_VRS = {"LO", "SH", "PN", "LT", "ST", "UT"}
+
+    def test_string_element_modified(self, str_fuzzer, structure_dataset):
+        """At least one string element must be modified."""
+        any_modified = False
+        for _ in range(30):
+            ds = copy.deepcopy(structure_dataset)
+            original = copy.deepcopy(ds)
+            result = str_fuzzer._corrupt_length_fields(ds)
+            for tag, elem in result.items():
+                if tag not in original:
+                    continue
+                vr = getattr(elem, "VR", None)
+                if vr in self.STRING_VRS:
+                    if str(elem.value) != str(original[tag].value):
+                        any_modified = True
+                        break
+            if any_modified:
+                break
+        assert any_modified, "_corrupt_length_fields never modified a string element"
+
+    def test_multiple_corruption_types(self, str_fuzzer, structure_dataset):
+        """Should produce at least 2 different corruption types across runs."""
+        patterns = set()
+        for _ in range(100):
+            ds = copy.deepcopy(structure_dataset)
+            original = copy.deepcopy(ds)
+            result = str_fuzzer._corrupt_length_fields(ds)
+            for tag, elem in result.items():
+                if tag not in original:
+                    continue
+                vr = getattr(elem, "VR", None)
+                if vr not in self.STRING_VRS:
+                    continue
+                old_val = str(original[tag].value)
+                new_val = str(elem.value)
+                if new_val == old_val:
+                    continue
+                if "XXXXXXXXX" in new_val:
+                    patterns.add("overflow")
+                elif new_val == "":
+                    patterns.add("underflow")
+                elif "\x00" in new_val and len(new_val) > len(old_val):
+                    patterns.add("mismatch")
+        assert len(patterns) >= 2, f"Only saw corruption types: {patterns}"
+
+
+# ---------------------------------------------------------------------------
+# 42. _insert_unexpected_tags
+# ---------------------------------------------------------------------------
+class TestInsertUnexpectedTags:
+    """Verify _insert_unexpected_tags adds reserved/invalid tag numbers."""
+
+    def test_unexpected_tag_present(self, str_fuzzer, structure_dataset):
+        """At least one tag not in the original dataset must be added."""
+        original_tags = set(structure_dataset.keys())
+        any_new = False
+        for _ in range(20):
+            ds = copy.deepcopy(structure_dataset)
+            result = str_fuzzer._insert_unexpected_tags(ds)
+            new_tags = set(result.keys()) - original_tags
+            if new_tags:
+                any_new = True
+                break
+        assert any_new, "_insert_unexpected_tags never added a new tag"
+
+    def test_unexpected_data_is_un_vr(self, str_fuzzer, structure_dataset):
+        """Inserted tags must use UN (Unknown) VR with null bytes."""
+        original_tags = set(structure_dataset.keys())
+        for _ in range(20):
+            ds = copy.deepcopy(structure_dataset)
+            result = str_fuzzer._insert_unexpected_tags(ds)
+            new_tags = set(result.keys()) - original_tags
+            for tag in new_tags:
+                elem = result[tag]
+                assert elem.VR == "UN", f"Expected UN VR, got {elem.VR}"
+                assert elem.value == b"\x00" * 100
+                return
+        pytest.fail("Could not find unexpected tag to verify VR")
+
+
+# ---------------------------------------------------------------------------
+# 43. _duplicate_tags
+# ---------------------------------------------------------------------------
+class TestDuplicateTags:
+    """Verify _duplicate_tags overwrites an element with _DUPLICATE suffix.
+
+    pydicom prevents true duplicate tags at the Dataset level, so the
+    strategy replaces the original value with one ending in '_DUPLICATE'.
+    """
+
+    def test_duplicate_suffix_in_value(self, str_fuzzer, structure_dataset):
+        """At least one element value must end with '_DUPLICATE'."""
+        any_duplicate = False
+        for _ in range(30):
+            ds = copy.deepcopy(structure_dataset)
+            result = str_fuzzer._duplicate_tags(ds)
+            for elem in result:
+                try:
+                    val = str(elem.value)
+                    if "_DUPLICATE" in val:
+                        any_duplicate = True
+                        break
+                except Exception:
+                    pass
+            if any_duplicate:
+                break
+        assert any_duplicate, "_duplicate_tags never produced _DUPLICATE suffix"
+
+
+# ---------------------------------------------------------------------------
+# 44. _length_field_attacks
+# ---------------------------------------------------------------------------
+class TestLengthFieldAttacks:
+    """Verify _length_field_attacks creates extreme/zero/boundary length values."""
+
+    def test_attack_evidence_present(self, str_fuzzer, structure_dataset):
+        """At least one length field attack pattern must be detectable."""
+        for _ in range(100):
+            ds = copy.deepcopy(structure_dataset)
+            original = copy.deepcopy(ds)
+            result = str_fuzzer._length_field_attacks(ds)
+            for tag, elem in result.items():
+                if tag not in original:
+                    continue
+                old = original[tag]
+                new_val = getattr(elem, "_value", elem.value)
+                old_val = getattr(old, "_value", old.value)
+                if new_val == old_val:
+                    continue
+                # Extreme string length (65535+)
+                if isinstance(new_val, str) and len(new_val) >= 10000:
+                    return
+                # Zero-length required field
+                if new_val == "" and old_val != "":
+                    return
+                # Odd-length for word-aligned VR
+                if isinstance(new_val, bytes) and len(new_val) % 2 == 1:
+                    return
+                # Boundary numeric value
+                if isinstance(new_val, int) and new_val in {65535, 4294967295}:
+                    return
+        pytest.fail("No length field attack pattern detected in 100 runs")
+
+
+# ---------------------------------------------------------------------------
+# 45. _vm_mismatch_attacks
+# ---------------------------------------------------------------------------
+class TestVmMismatchAttacks:
+    """Verify _vm_mismatch_attacks creates Value Multiplicity violations."""
+
+    # Multi-value tags (VM > 1) that can be reduced to single value
+    MULTI_VALUE_TAGS = {
+        Tag(0x0020, 0x0032): 3,  # ImagePositionPatient
+        Tag(0x0020, 0x0037): 6,  # ImageOrientationPatient
+        Tag(0x0028, 0x0030): 2,  # PixelSpacing
+    }
+    # Single-value tags (VM = 1) that can get multiple values
+    SINGLE_VALUE_TAGS = {
+        Tag(0x0018, 0x0050),  # SliceThickness (DS)
+        Tag(0x0008, 0x0018),  # SOPInstanceUID (UI)
+    }
+
+    def test_vm_mismatch_detectable(self, str_fuzzer, structure_dataset):
+        """At least one VM mismatch pattern must be detectable."""
+        for _ in range(100):
+            ds = copy.deepcopy(structure_dataset)
+            result = str_fuzzer._vm_mismatch_attacks(ds)
+            # too_many: single-value tag now has backslash separator
+            for tag in self.SINGLE_VALUE_TAGS:
+                if tag in result:
+                    val = getattr(result[tag], "_value", None)
+                    if isinstance(val, str) and "\\" in val:
+                        return
+            # too_few: multi-value tag reduced to single value
+            for tag in self.MULTI_VALUE_TAGS:
+                if tag in result:
+                    val = getattr(result[tag], "_value", None)
+                    if val == "1.0":
+                        return
+            # empty_multivalue: multi-value tag set to ""
+            for tag in self.MULTI_VALUE_TAGS:
+                if tag in result:
+                    val = getattr(result[tag], "_value", None)
+                    if val == "":
+                        return
+        pytest.fail("No VM mismatch detected in 100 runs")
