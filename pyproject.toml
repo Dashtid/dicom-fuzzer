@@ -197,7 +197,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["D", "S101", "S607", "B", "F841", "PT011"]  # Relax docstring, assert, subprocess path, and pytest in tests
-"dicom_fuzzer/tools/demos/**/*.py" = ["D", "S"]  # Relax docstring and security rules in demos
+
 
 [tool.mypy]
 python_version = "3.11"
