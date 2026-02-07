@@ -409,12 +409,12 @@ def terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
             try:
                 child.terminate()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
+                pass  # Process may have already exited
 
         try:
             ps_process.terminate()
         except (psutil.NoSuchProcess, psutil.AccessDenied):
-            pass
+            pass  # Process may have already exited
 
         _, alive = psutil.wait_procs([ps_process] + children, timeout=2.0)
 
@@ -422,7 +422,7 @@ def terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
             try:
                 proc.kill()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
+                pass  # Process may have already exited
 
         logger.debug(f"Terminated process tree: 1 parent + {len(children)} children")
 

@@ -341,7 +341,7 @@ class EncodingFuzzer(FormatFuzzerBase):
                 try:
                     dataset.add_new(tag, "LO", value)
                 except Exception:
-                    pass
+                    pass  # Some tags may reject null byte values
 
         except Exception as e:
             logger.debug(f"Null byte injection failed: {e}")

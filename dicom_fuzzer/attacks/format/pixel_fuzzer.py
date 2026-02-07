@@ -106,7 +106,7 @@ class PixelFuzzer(FormatFuzzerBase):
                 dataset.SamplesPerPixel = random.choice([65535, 256, 128])
 
         except Exception:
-            pass
+            pass  # Mutation may fail on incompatible datasets
 
         return dataset
 
@@ -143,7 +143,7 @@ class PixelFuzzer(FormatFuzzerBase):
                 dataset.PlanarConfiguration = 1
 
         except Exception:
-            pass
+            pass  # Mutation may fail on incompatible datasets
 
         return dataset
 
@@ -162,7 +162,7 @@ class PixelFuzzer(FormatFuzzerBase):
             pixels[noise_mask] = np.random.randint(0, 255, noise_count)
             dataset.PixelData = pixels.tobytes()
         except (ValueError, AttributeError, TypeError):
-            pass
+            pass  # Pixel array may be unreadable or incompatible
 
         return dataset
 
@@ -212,7 +212,7 @@ class PixelFuzzer(FormatFuzzerBase):
                 else:
                     dataset.Columns = extreme
         except Exception:
-            pass
+            pass  # Mutation may fail on incompatible datasets
 
         return dataset
 
@@ -254,7 +254,7 @@ class PixelFuzzer(FormatFuzzerBase):
             elif attack == "extreme_bits":
                 dataset.BitsAllocated = random.choice([1, 64, 128, 255])
         except Exception:
-            pass
+            pass  # Mutation may fail on incompatible datasets
 
         return dataset
 
@@ -278,6 +278,6 @@ class PixelFuzzer(FormatFuzzerBase):
         try:
             dataset.PhotometricInterpretation = random.choice(invalid_photometrics)
         except Exception:
-            pass
+            pass  # Mutation may fail on incompatible datasets
 
         return dataset

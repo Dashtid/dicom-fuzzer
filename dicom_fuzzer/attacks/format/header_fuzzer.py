@@ -520,7 +520,7 @@ class HeaderFuzzer(FormatFuzzerBase):
                     attack_value = random.choice(numeric_attacks[vr])
                     elem.value = attack_value
                 except Exception:
-                    pass
+                    pass  # Some VR types may reject the attack value
 
         return dataset
 
@@ -565,6 +565,6 @@ class HeaderFuzzer(FormatFuzzerBase):
                     if elem:
                         elem._value = random.choice(uid_attacks)
                 except Exception:
-                    pass
+                    pass  # UID element may reject invalid format
 
         return dataset
