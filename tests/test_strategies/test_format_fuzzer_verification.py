@@ -13,6 +13,7 @@ Phase 1c: EncodingFuzzer (10 strategies)
 Phase 2a: HeaderFuzzer (7 strategies)
 Phase 2b: SequenceFuzzer (8 strategies)
 Phase 2c: StructureFuzzer (6 strategies)
+Phase 3a: ConformanceFuzzer (10 strategies)
 """
 
 import copy
@@ -22,6 +23,7 @@ import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.tag import Tag
 from pydicom.uid import (
+    ExplicitVRBigEndian,
     ExplicitVRLittleEndian,
     JPEG2000Lossless,
     JPEGBaseline8Bit,
@@ -30,6 +32,7 @@ from pydicom.uid import (
 )
 
 from dicom_fuzzer.attacks.format.compressed_pixel_fuzzer import CompressedPixelFuzzer
+from dicom_fuzzer.attacks.format.conformance_fuzzer import ConformanceFuzzer
 from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
 from dicom_fuzzer.attacks.format.header_fuzzer import VR_MUTATIONS, HeaderFuzzer
 from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
@@ -2145,3 +2148,315 @@ class TestVmMismatchAttacks:
                     if val == "":
                         return
         pytest.fail("No VM mismatch detected in 100 runs")
+
+
+# ===========================================================================
+# Phase 3a: ConformanceFuzzer (10 strategies)
+# ===========================================================================
+
+
+@pytest.fixture
+def conf_fuzzer() -> ConformanceFuzzer:
+    """ConformanceFuzzer instance."""
+    return ConformanceFuzzer()
+
+
+@pytest.fixture
+def conformance_dataset() -> Dataset:
+    """Dataset with full file_meta for ConformanceFuzzer mutations.
+
+    Includes all meta information elements that the 10 strategies target:
+    TransferSyntaxUID, MediaStorageSOPClassUID, ImplementationClassUID,
+    FileMetaInformationVersion, Modality, and UID fields.
+    """
+    file_meta = FileMetaDataset()
+    file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.ImplementationClassUID = generate_uid()
+    file_meta.ImplementationVersionName = "TEST_V1"
+    file_meta.FileMetaInformationVersion = b"\x00\x01"
+
+    ds = Dataset()
+    ds.file_meta = file_meta
+    ds.PatientName = "Conformance^Test"
+    ds.PatientID = "CNF001"
+    ds.Modality = "CT"
+    ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+    ds.StudyInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
+    return ds
+
+
+# ---------------------------------------------------------------------------
+# 46. _invalid_sop_class
+# ---------------------------------------------------------------------------
+class TestInvalidSopClass:
+    """Verify _invalid_sop_class sets SOPClassUID to non-standard value."""
+
+    def test_sop_class_changed(self, conf_fuzzer, conformance_dataset):
+        """SOPClassUID must differ from original after mutation."""
+        original = conformance_dataset.SOPClassUID
+        any_changed = False
+        for _ in range(10):
+            ds = copy.deepcopy(conformance_dataset)
+            result = conf_fuzzer._invalid_sop_class(ds)
+            if str(result.SOPClassUID) != str(original):
+                any_changed = True
+                break
+        assert any_changed, "_invalid_sop_class never changed SOPClassUID"
+
+    def test_file_meta_matches_dataset(self, conf_fuzzer, conformance_dataset):
+        """MediaStorageSOPClassUID must match SOPClassUID."""
+        result = conf_fuzzer._invalid_sop_class(conformance_dataset)
+        assert str(result.file_meta.MediaStorageSOPClassUID) == str(result.SOPClassUID)
+
+
+# ---------------------------------------------------------------------------
+# 47. _invalid_transfer_syntax
+# ---------------------------------------------------------------------------
+class TestInvalidTransferSyntax:
+    """Verify _invalid_transfer_syntax sets non-standard TransferSyntaxUID."""
+
+    def test_transfer_syntax_changed(self, conf_fuzzer, conformance_dataset):
+        """TransferSyntaxUID must differ from original."""
+        original = str(conformance_dataset.file_meta.TransferSyntaxUID)
+        any_changed = False
+        for _ in range(10):
+            ds = copy.deepcopy(conformance_dataset)
+            result = conf_fuzzer._invalid_transfer_syntax(ds)
+            if str(result.file_meta.TransferSyntaxUID) != original:
+                any_changed = True
+                break
+        assert any_changed, "_invalid_transfer_syntax never changed TransferSyntaxUID"
+
+
+# ---------------------------------------------------------------------------
+# 48. _sop_transfer_mismatch
+# ---------------------------------------------------------------------------
+class TestSopTransferMismatch:
+    """Verify _sop_transfer_mismatch creates SOP/syntax incompatibility."""
+
+    # Known incompatible pairs from the strategy
+    MISMATCH_PAIRS = {
+        ("1.2.840.10008.5.1.4.1.1.2", "1.2.840.10008.1.2.4.100"),
+        ("1.2.840.10008.5.1.4.1.1.88.11", "1.2.840.10008.1.2.4.50"),
+        ("1.2.840.10008.5.1.4.1.1.104.1", "1.2.840.10008.1.2.5"),
+        ("1.2.840.10008.5.1.4.1.1.481.2", "1.2.840.10008.1.2.4.102"),
+    }
+
+    def test_sop_and_syntax_are_mismatched(self, conf_fuzzer, conformance_dataset):
+        """SOP class and transfer syntax must be an incompatible pair."""
+        result = conf_fuzzer._sop_transfer_mismatch(conformance_dataset)
+        pair = (str(result.SOPClassUID), str(result.file_meta.TransferSyntaxUID))
+        assert pair in self.MISMATCH_PAIRS, f"Pair {pair} not in known mismatches"
+
+
+# ---------------------------------------------------------------------------
+# 49. _missing_file_meta
+# ---------------------------------------------------------------------------
+class TestMissingFileMeta:
+    """Verify _missing_file_meta removes file_meta or required elements."""
+
+    def test_meta_element_removed(self, conf_fuzzer, conformance_dataset):
+        """file_meta must be None or missing at least one required element."""
+        any_removed = False
+        for _ in range(20):
+            ds = copy.deepcopy(conformance_dataset)
+            result = conf_fuzzer._missing_file_meta(ds)
+            if result.file_meta is None:
+                any_removed = True
+                break
+            if not hasattr(result.file_meta, "MediaStorageSOPClassUID"):
+                any_removed = True
+                break
+            if not hasattr(result.file_meta, "TransferSyntaxUID"):
+                any_removed = True
+                break
+            if not hasattr(result.file_meta, "MediaStorageSOPInstanceUID"):
+                any_removed = True
+                break
+        assert any_removed, "_missing_file_meta never removed meta information"
+
+    def test_multiple_removal_types(self, conf_fuzzer, conformance_dataset):
+        """Should produce at least 2 different removal types across runs."""
+        removals = set()
+        for _ in range(100):
+            ds = copy.deepcopy(conformance_dataset)
+            result = conf_fuzzer._missing_file_meta(ds)
+            if result.file_meta is None:
+                removals.add("all")
+            elif not hasattr(result.file_meta, "MediaStorageSOPClassUID"):
+                removals.add("sop_class")
+            elif not hasattr(result.file_meta, "TransferSyntaxUID"):
+                removals.add("transfer_syntax")
+            elif not hasattr(result.file_meta, "MediaStorageSOPInstanceUID"):
+                removals.add("sop_instance")
+        assert len(removals) >= 2, f"Only saw removal types: {removals}"
+
+
+# ---------------------------------------------------------------------------
+# 50. _corrupted_file_meta
+# ---------------------------------------------------------------------------
+class TestCorruptedFileMeta:
+    """Verify _corrupted_file_meta corrupts file meta fields."""
+
+    def test_meta_corrupted(self, conf_fuzzer, conformance_dataset):
+        """At least one file meta corruption pattern must be detectable."""
+        for _ in range(20):
+            ds = copy.deepcopy(conformance_dataset)
+            result = conf_fuzzer._corrupted_file_meta(ds)
+            # wrong_preamble
+            if hasattr(result, "preamble") and result.preamble == b"\xff" * 128:
+                return
+            # wrong_version
+            fmiv = getattr(result.file_meta, "FileMetaInformationVersion", None)
+            if fmiv == b"\xff\xff":
+                return
+            # extra_meta_elements
+            if Tag(0x0002, 0x9999) in result.file_meta:
+                return
+            # wrong_meta_length
+            fmigl = getattr(result.file_meta, "FileMetaInformationGroupLength", None)
+            if fmigl == 99999:
+                return
+        pytest.fail("No file meta corruption detected")
+
+
+# ---------------------------------------------------------------------------
+# 51. _version_mismatch
+# ---------------------------------------------------------------------------
+class TestVersionMismatch:
+    """Verify _version_mismatch sets FileMetaInformationVersion to wrong bytes."""
+
+    STANDARD_VERSION = b"\x00\x01"
+
+    def test_version_not_standard(self, conf_fuzzer, conformance_dataset):
+        """FileMetaInformationVersion must differ from standard b'\\x00\\x01'."""
+        result = conf_fuzzer._version_mismatch(conformance_dataset)
+        version = result.file_meta.FileMetaInformationVersion
+        assert version != self.STANDARD_VERSION, (
+            "Version should not be standard after mutation"
+        )
+
+    def test_version_is_known_attack_value(self, conf_fuzzer, conformance_dataset):
+        """Version must be one of the known attack values."""
+        attack_versions = {b"\x00\x00", b"\x00\x99", b"\xff\xff\xff\xff"}
+        any_known = False
+        for _ in range(10):
+            ds = copy.deepcopy(conformance_dataset)
+            result = conf_fuzzer._version_mismatch(ds)
+            if result.file_meta.FileMetaInformationVersion in attack_versions:
+                any_known = True
+                break
+        assert any_known, "Version never set to a known attack value"
+
+
+# ---------------------------------------------------------------------------
+# 52. _implementation_uid_attack
+# ---------------------------------------------------------------------------
+class TestImplementationUidAttack:
+    """Verify _implementation_uid_attack corrupts implementation identifiers."""
+
+    def test_implementation_modified(self, conf_fuzzer, conformance_dataset):
+        """ImplementationClassUID or VersionName must change."""
+        original_uid = str(conformance_dataset.file_meta.ImplementationClassUID)
+        original_ver = conformance_dataset.file_meta.ImplementationVersionName
+        any_changed = False
+        for _ in range(10):
+            ds = copy.deepcopy(conformance_dataset)
+            result = conf_fuzzer._implementation_uid_attack(ds)
+            uid = str(result.file_meta.ImplementationClassUID)
+            ver = result.file_meta.ImplementationVersionName
+            if uid != original_uid or ver != original_ver:
+                any_changed = True
+                break
+        assert any_changed, "_implementation_uid_attack never modified identifiers"
+
+
+# ---------------------------------------------------------------------------
+# 53. _modality_sop_mismatch
+# ---------------------------------------------------------------------------
+class TestModalitySopMismatch:
+    """Verify _modality_sop_mismatch creates Modality/SOPClass incompatibility."""
+
+    # Known mismatch pairs (Modality, wrong SOPClassUID)
+    MISMATCH_PAIRS = {
+        ("CT", "1.2.840.10008.5.1.4.1.1.4"),
+        ("MR", "1.2.840.10008.5.1.4.1.1.2"),
+        ("US", "1.2.840.10008.5.1.4.1.1.20"),
+        ("PT", "1.2.840.10008.5.1.4.1.1.1"),
+        ("RTDOSE", "1.2.840.10008.5.1.4.1.1.2"),
+        ("SR", "1.2.840.10008.5.1.4.1.1.6.1"),
+    }
+
+    def test_modality_and_sop_mismatched(self, conf_fuzzer, conformance_dataset):
+        """Modality and SOPClassUID must be an incompatible pair."""
+        result = conf_fuzzer._modality_sop_mismatch(conformance_dataset)
+        pair = (result.Modality, str(result.SOPClassUID))
+        assert pair in self.MISMATCH_PAIRS, f"Pair {pair} not in known mismatch set"
+
+
+# ---------------------------------------------------------------------------
+# 54. _uid_format_violations
+# ---------------------------------------------------------------------------
+class TestUidFormatViolations:
+    """Verify _uid_format_violations injects INVALID_UIDS into UID fields."""
+
+    UID_TAGS = [
+        Tag(0x0008, 0x0016),  # SOPClassUID
+        Tag(0x0008, 0x0018),  # SOPInstanceUID
+        Tag(0x0020, 0x000D),  # StudyInstanceUID
+        Tag(0x0020, 0x000E),  # SeriesInstanceUID
+    ]
+
+    def test_uid_changed_to_invalid(self, conf_fuzzer, conformance_dataset):
+        """At least one UID field must be changed from its original value."""
+        original_uids = {}
+        for tag in self.UID_TAGS:
+            if tag in conformance_dataset:
+                original_uids[tag] = str(conformance_dataset[tag].value)
+
+        any_changed = False
+        for _ in range(20):
+            ds = copy.deepcopy(conformance_dataset)
+            result = conf_fuzzer._uid_format_violations(ds)
+            for tag, orig in original_uids.items():
+                if tag in result and str(result[tag].value) != orig:
+                    any_changed = True
+                    break
+            if any_changed:
+                break
+        assert any_changed, "_uid_format_violations never changed a UID field"
+
+
+# ---------------------------------------------------------------------------
+# 55. _retired_syntax_attack
+# ---------------------------------------------------------------------------
+class TestRetiredSyntaxAttack:
+    """Verify _retired_syntax_attack uses retired/deprecated transfer syntaxes."""
+
+    RETIRED_TS = {
+        "1.2.840.10008.1.2.4.52",
+        "1.2.840.10008.1.2.4.53",
+        "1.2.840.10008.1.2.4.54",
+    }
+
+    def test_retired_or_deprecated_syntax_used(self, conf_fuzzer, conformance_dataset):
+        """TransferSyntaxUID must be retired, or SOP class must be retired."""
+        for _ in range(20):
+            ds = copy.deepcopy(conformance_dataset)
+            result = conf_fuzzer._retired_syntax_attack(ds)
+            ts = str(result.file_meta.TransferSyntaxUID)
+            sop = str(result.file_meta.MediaStorageSOPClassUID)
+            # Retired transfer syntax
+            if ts in self.RETIRED_TS:
+                return
+            # Explicit VR Big Endian (retired)
+            if ts == str(ExplicitVRBigEndian):
+                return
+            # Retired SOP class with modern syntax
+            if sop == "1.2.840.10008.5.1.4.1.1.5":
+                return
+        pytest.fail("No retired/deprecated syntax detected")
