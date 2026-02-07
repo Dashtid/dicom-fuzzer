@@ -107,7 +107,7 @@ class MatplotlibChartRenderer:
             plt.close()
             return output_path
 
-        timestamps = [ts for ts, _ in trend_data.crashes_over_time]
+        timestamps: list = [ts for ts, _ in trend_data.crashes_over_time]
         cumulative_crashes = []
         total = 0
         for _, count in trend_data.crashes_over_time:
