@@ -10,7 +10,7 @@ import pydicom
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.tag import Tag
 
-from dicom_fuzzer.core.parser import DicomParser
+from dicom_fuzzer.core.dicom.parser import DicomParser
 
 
 class TestMetadataExtraction:

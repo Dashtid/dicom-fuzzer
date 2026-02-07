@@ -1,4 +1,4 @@
-"""Comprehensive tests for dicom_fuzzer.core.target_runner module.
+"""Comprehensive tests for dicom_fuzzer.core.harness.target_runner module.
 
 This test suite provides thorough coverage of target runner functionality,
 including execution monitoring, crash detection, circuit breaker pattern, and resource management.
@@ -11,13 +11,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from dicom_fuzzer.core.resource_manager import ResourceLimits
-from dicom_fuzzer.core.target_runner import (
+from dicom_fuzzer.core.harness.target_runner import (
     CircuitBreakerState,
     ExecutionResult,
     ExecutionStatus,
     TargetRunner,
 )
+from dicom_fuzzer.core.session.resource_manager import ResourceLimits
 
 
 class TestExecutionStatus:

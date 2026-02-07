@@ -10,12 +10,12 @@ from pydicom.dataset import Dataset, FileDataset
 from pydicom.tag import Tag
 from pydicom.uid import generate_uid
 
+from dicom_fuzzer.core.dicom.parser import DicomParser
 from dicom_fuzzer.core.exceptions import (
     ParsingError,
     SecurityViolationError,
     ValidationError,
 )
-from dicom_fuzzer.core.parser import DicomParser
 
 
 @pytest.fixture

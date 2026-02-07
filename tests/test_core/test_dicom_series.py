@@ -16,7 +16,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from dicom_fuzzer.core.dicom_series import DicomSeries
+from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
 
 
 class TestDicomSeriesInitialization:
@@ -154,7 +154,7 @@ class TestDicomSeriesProperties:
 class TestGetSlicePositions:
     """Test get_slice_positions method."""
 
-    @patch("dicom_fuzzer.core.dicom_series.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.dicom.dicom_series.pydicom.dcmread")
     def test_get_positions_with_valid_data(self, mock_dcmread):
         """Test extracting positions from slices with valid ImagePositionPatient."""
         # Mock DICOM datasets
@@ -186,7 +186,7 @@ class TestGetSlicePositions:
         assert positions[1] == (100.0, 200.0, 5.0)
         assert positions[2] == (100.0, 200.0, 10.0)
 
-    @patch("dicom_fuzzer.core.dicom_series.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.dicom.dicom_series.pydicom.dcmread")
     def test_get_positions_missing_attribute(self, mock_dcmread):
         """Test handling of missing ImagePositionPatient."""
         mock_ds = Mock(spec=[])  # No ImagePositionPatient attribute
@@ -203,7 +203,7 @@ class TestGetSlicePositions:
         assert len(positions) == 1
         assert positions[0] == (0.0, 0.0, 0.0)  # Default fallback
 
-    @patch("dicom_fuzzer.core.dicom_series.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.dicom.dicom_series.pydicom.dcmread")
     def test_get_positions_read_error(self, mock_dcmread):
         """Test handling of file read errors."""
         mock_dcmread.side_effect = Exception("File not found")
@@ -223,7 +223,7 @@ class TestGetSlicePositions:
 class TestCalculateSliceSpacing:
     """Test calculate_slice_spacing method."""
 
-    @patch("dicom_fuzzer.core.dicom_series.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.dicom.dicom_series.pydicom.dcmread")
     def test_uniform_spacing(self, mock_dcmread):
         """Test calculating uniform slice spacing."""
         # Mock slices with uniform 5mm spacing
@@ -246,7 +246,7 @@ class TestCalculateSliceSpacing:
         assert spacing is not None
         assert pytest.approx(spacing, abs=0.01) == 5.0
 
-    @patch("dicom_fuzzer.core.dicom_series.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.dicom.dicom_series.pydicom.dcmread")
     def test_non_uniform_spacing(self, mock_dcmread):
         """Test non-uniform spacing returns None."""
         # Mock slices with non-uniform spacing
@@ -284,7 +284,7 @@ class TestCalculateSliceSpacing:
 class TestGetDimensions:
     """Test get_dimensions method."""
 
-    @patch("dicom_fuzzer.core.dicom_series.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.dicom.dicom_series.pydicom.dcmread")
     def test_dimensions_valid(self, mock_dcmread):
         """Test getting dimensions from valid series."""
         mock_ds = Mock()
@@ -302,7 +302,7 @@ class TestGetDimensions:
         dims = series.get_dimensions()
         assert dims == (512, 512, 130)
 
-    @patch("dicom_fuzzer.core.dicom_series.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.dicom.dicom_series.pydicom.dcmread")
     def test_dimensions_missing_attributes(self, mock_dcmread):
         """Test dimensions with missing Rows/Columns."""
         mock_ds = Mock(spec=[])  # No Rows/Columns
@@ -333,7 +333,7 @@ class TestGetDimensions:
 class TestLoadFirstSlice:
     """Test load_first_slice method."""
 
-    @patch("dicom_fuzzer.core.dicom_series.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.dicom.dicom_series.pydicom.dcmread")
     def test_load_first_slice_success(self, mock_dcmread):
         """Test successfully loading first slice."""
         mock_ds = Mock()
@@ -361,7 +361,7 @@ class TestLoadFirstSlice:
         ds = series.load_first_slice()
         assert ds is None
 
-    @patch("dicom_fuzzer.core.dicom_series.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.dicom.dicom_series.pydicom.dcmread")
     def test_load_first_slice_error(self, mock_dcmread):
         """Test error handling when loading fails."""
         mock_dcmread.side_effect = Exception("Read error")
@@ -380,7 +380,7 @@ class TestLoadFirstSlice:
 class TestValidateSeriesConsistency:
     """Test validate_series_consistency method."""
 
-    @patch("dicom_fuzzer.core.dicom_series.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.dicom.dicom_series.pydicom.dcmread")
     def test_consistent_series(self, mock_dcmread):
         """Test validation of consistent series."""
         # Mock consistent slices
@@ -404,7 +404,7 @@ class TestValidateSeriesConsistency:
         errors = series.validate_series_consistency()
         assert len(errors) == 0
 
-    @patch("dicom_fuzzer.core.dicom_series.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.dicom.dicom_series.pydicom.dcmread")
     def test_mismatched_series_uid(self, mock_dcmread):
         """Test detection of mismatched SeriesInstanceUID."""
         ds1 = Mock()
@@ -430,7 +430,7 @@ class TestValidateSeriesConsistency:
         assert len(errors) > 0
         assert any("mismatched SeriesInstanceUID" in err for err in errors)
 
-    @patch("dicom_fuzzer.core.dicom_series.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.dicom.dicom_series.pydicom.dcmread")
     def test_mismatched_modality(self, mock_dcmread):
         """Test detection of mismatched Modality."""
         ds1 = Mock()
@@ -456,7 +456,7 @@ class TestValidateSeriesConsistency:
         assert len(errors) > 0
         assert any("mismatched Modality" in err for err in errors)
 
-    @patch("dicom_fuzzer.core.dicom_series.pydicom.dcmread")
+    @patch("dicom_fuzzer.core.dicom.dicom_series.pydicom.dcmread")
     def test_missing_required_attributes(self, mock_dcmread):
         """Test detection of missing required attributes."""
         ds = Mock(spec=[])  # No DICOM attributes

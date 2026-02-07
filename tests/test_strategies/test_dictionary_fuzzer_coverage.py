@@ -13,8 +13,8 @@ import pytest
 from pydicom.dataelem import DataElement
 from pydicom.dataset import Dataset
 
+from dicom_fuzzer.attacks.format.dictionary_fuzzer import DictionaryFuzzer
 from dicom_fuzzer.core.types import MutationSeverity
-from dicom_fuzzer.strategies.dictionary_fuzzer import DictionaryFuzzer
 
 
 class TestConvertToIntVR:
@@ -576,7 +576,7 @@ class TestMutateWithSpecificDictionaryEdgeCases:
 
         # Invalid dictionary name raises KeyError (not caught by method)
         with patch(
-            "dicom_fuzzer.utils.dicom_dictionaries.DICOMDictionaries.get_random_value",
+            "dicom_fuzzer.attacks.format.dicom_dictionaries.DICOMDictionaries.get_random_value",
             side_effect=KeyError("not_found"),
         ):
             with pytest.raises(KeyError):

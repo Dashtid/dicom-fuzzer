@@ -9,7 +9,7 @@ import pytest
 from pydicom.dataset import Dataset, FileDataset
 from pydicom.uid import generate_uid
 
-from dicom_fuzzer.core.generator import DICOMGenerator, GenerationStats
+from dicom_fuzzer.core.engine.generator import DICOMGenerator, GenerationStats
 
 
 @pytest.fixture

@@ -8,7 +8,7 @@ import pytest
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 
-from dicom_fuzzer.core.multiframe_handler import (
+from dicom_fuzzer.core.mutation.multiframe_handler import (
     FrameInfo,
     MultiFrameHandler,
     MultiFrameMutationRecord,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dicom_fuzzer.core.html_templates import (
+from dicom_fuzzer.core.reporting.html_templates import (
     REPORT_CSS,
     SEVERITY_COLORS,
     escape_html,

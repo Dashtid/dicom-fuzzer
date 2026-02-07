@@ -3,77 +3,49 @@
 This module contains the fundamental components for DICOM parsing, mutation,
 generation, validation, and advanced stability features including crash
 intelligence and stability tracking.
+
+Subpackages:
+- corpus/: Corpus management and minimization
+- crash/: Crash detection, triage, and analysis
+- dicom/: DICOM file I/O -- parsing, validation, series
+- engine/: Fuzzing engines and orchestrators
+- harness/: Target execution and monitoring
+- mutation/: Mutation primitives -- byte, multiframe, orchestration
+- reporting/: Reports, analytics, templates
+- session/: Runtime and session management
 """
 
 # Shared fuzzing constants (v1.7.0)
-from .config_validator import ConfigValidator, ValidationResult
-from .constants import (
-    ARITH_MAX,
-    INTERESTING_8,
-    INTERESTING_8_UNSIGNED,
-    INTERESTING_16,
-    INTERESTING_16_UNSIGNED,
-    INTERESTING_32,
-    INTERESTING_32_UNSIGNED,
-    MAP_SIZE,
-    MAP_SIZE_POW2,
-    SEVERITY_SCORES,
-    BugSeverity,
-    ByteMutationType,
-    CoverageType,
-    CrashSeverity,
-    DICOMState,
-    GUIResponseType,
-    MutationType,
-    ProtocolResponseType,
-    ResponseType,
-    Severity,
-    SeverityLevel,
-    StateTransitionType,
+# Network re-exports (backward compatibility -- canonical location is attacks.network)
+from dicom_fuzzer.attacks.network import (
+    DICOMNetworkConfig,
+    DICOMNetworkFuzzer,
+    DICOMProtocolBuilder,
+    FuzzingStrategy,
+    NetworkFuzzResult,
+    PDUFuzzingMixin,
+    TLSFuzzingMixin,
 )
-
-# Corpus Minimization & Multi-Fuzzer Sync (v1.5.0)
-from .corpus_minimizer import (
-    CorpusMinimizer,
-    CorpusStats,
-    CorpusSynchronizer,
-    CoverageCollector,
-    FuzzerNode,
-    MinimizationConfig,
-    SimpleCoverageCollector,
-    SyncConfig,
-    SyncMode,
-    TargetCoverageCollector,
-    create_sync_node,
-    minimize_corpus,
+from dicom_fuzzer.attacks.network.dimse import (
+    DICOMElement,
+    DIMSEFuzzingConfig,
+    DIMSEMessage,
+    QueryRetrieveLevel,
+    SOPClass,
+    UIDGenerator,
 )
+from dicom_fuzzer.attacks.network.stateful.coverage import StateCoverageTracker
 
-# Unified Coverage Types (v1.8.0)
-from .coverage_types import (
-    CoverageInfo,
-    CoverageInsight,
-    CoverageMap,
-    CoverageSnapshot,
-    ExecutionCoverageInfo,
-    GUIStateTransition,
-    ProtocolStateTransition,
-    SeedCoverageInfo,
-    StateCoverage,
-    StateFingerprint,
-    StateTransition,
+# State-Aware Fuzzer (moved to attacks/network/stateful/)
+from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import (
+    MessageSequence,
+    ProtocolMessage,
+    StateAwareFuzzer,
+    StateGuidedHavoc,
+    StateInferenceEngine,
+    StateMutator,
 )
-from .crash_triage import (
-    CrashTriage,
-    CrashTriageEngine,
-    ExploitabilityRating,
-)
-
-# Dataset Mutation (v1.7.0)
-from .dataset_mutator import DatasetMutator
-from .dicom_series import DicomSeries
-
-# DICOM TLS Security Fuzzer (v1.5.0, modularized v1.7.0)
-from .dicom_tls_fuzzer import (
+from dicom_fuzzer.attacks.network.tls import (
     COMMON_AE_TITLES,
     INJECTION_PAYLOADS,
     SOP_CLASS_UIDS,
@@ -88,104 +60,109 @@ from .dicom_tls_fuzzer import (
     TLSFuzzResult,
     TLSSecurityTester,
     TLSVulnerability,
+)
+from dicom_fuzzer.attacks.network.tls.fuzzer import (
     create_dicom_tls_fuzzer,
     quick_scan,
 )
 
-# Advanced Fuzzing Engines (v1.5.0)
-from .differential_fuzzer import (
-    DCMTKParser,
-    DICOMParser,
-    Difference,
-    DifferenceType,
-    DifferentialAnalyzer,
-    DifferentialFuzzer,
-    DifferentialResult,
-    GDCMParser,
-    ImplementationType,
-    ParseResult,
-    PydicomParser,
+from .constants import (
+    ARITH_MAX,
+    INTERESTING_8,
+    INTERESTING_8_UNSIGNED,
+    INTERESTING_16,
+    INTERESTING_16_UNSIGNED,
+    INTERESTING_32,
+    INTERESTING_32_UNSIGNED,
+    MAP_SIZE,
+    MAP_SIZE_POW2,
+    SEVERITY_SCORES,
+    BugSeverity,
+    ByteMutationType,
+    CrashSeverity,
+    DICOMState,
+    GUIResponseType,
+    MutationType,
+    ProtocolResponseType,
+    ResponseType,
+    Severity,
+    SeverityLevel,
+    StateTransitionType,
 )
 
-# DIMSE Protocol Types (v1.7.0)
-from .dimse_types import (
-    DICOMElement,
-    DIMSEFuzzingConfig,
-    DIMSEMessage,
-    FuzzingConfig,
-    QueryRetrieveLevel,
-    SOPClass,
-    UIDGenerator,
+# Corpus management & minimization
+from .corpus.corpus_minimizer import (
+    CorpusMinimizer,
+    CorpusStats,
+    CorpusSynchronizer,
+    CoverageCollector,
+    FuzzerNode,
+    MinimizationConfig,
+    SimpleCoverageCollector,
+    SyncConfig,
+    SyncMode,
+    TargetCoverageCollector,
+    create_sync_node,
+    minimize_corpus,
 )
-from .error_recovery import CampaignRecovery, CampaignStatus, SignalHandler
+from .corpus.coverage_types import (
+    GUIStateTransition,
+    ProtocolStateTransition,
+    StateCoverage,
+    StateFingerprint,
+    StateTransition,
+)
+
+# Crash intelligence
+from .crash.crash_triage import (
+    CrashTriage,
+    CrashTriageEngine,
+    ExploitabilityRating,
+)
+
+# DICOM I/O
+from .dicom.dicom_series import DicomSeries
+from .dicom.parser import DicomParser
+
+# Series detection & writing (in core/dicom/)
+from .dicom.series_detector import SeriesDetector
+from .dicom.series_writer import SeriesMetadata, SeriesWriter
+from .dicom.validator import DicomValidator
+
+# Fuzzing engines
+from .engine import DICOMGenerator
+
+# Exceptions
 from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
-from .generator import DICOMGenerator
-from .gui_monitor import (
-    GUIFuzzer,
-    GUIMonitor,
-    GUIResponse,
-    MonitorConfig,
-    ResponseAwareFuzzer,
-    StateCoverageTracker,
-)
-from .lazy_loader import (
-    LazyDicomLoader,
-    create_deferred_loader,
-    create_metadata_loader,
-)
 
-# Multi-Frame Handler (v1.5.0, modularized v1.8.0)
-from .multiframe_handler import (
+# Target harness
+from .harness.target_runner import ExecutionStatus, TargetRunner
+
+# Mutation primitives
+from .mutation.multiframe_handler import (
     FrameInfo,
     MultiFrameHandler,
     MultiFrameMutationRecord,
     MultiFrameMutationStrategy,
     create_multiframe_mutator,
 )
-from .mutator import DicomMutator
-from .parser import DicomParser
-from .persistent_fuzzer import (
-    MOptScheduler,
-    PersistentFuzzer,
-    PowerSchedule,
-    SeedEntry,
-)
-from .resource_manager import ResourceLimits, ResourceManager
-from .series_cache import CacheEntry, SeriesCache
-from .series_detector import SeriesDetector
-from .series_reporter import (
+from .mutation.mutator import DicomMutator
+
+# Reporting
+from .reporting.series_reporter import (
     Series3DReport,
     Series3DReportGenerator,
     SeriesMutationSummary,
 )
-from .series_validator import (
-    SeriesValidator,
-    ValidationIssue,
-    ValidationReport,
-    ValidationSeverity,
-)
-from .series_writer import SeriesMetadata, SeriesWriter
-from .stability_tracker import StabilityMetrics, StabilityTracker
-from .state_aware_fuzzer import (
-    MessageSequence,
-    ProtocolMessage,
-    StateAwareFuzzer,
-    StateGuidedHavoc,
-    StateInferenceEngine,
-    StateMutator,
-)
-from .synthetic import (
-    SyntheticDataGenerator,
-    SyntheticDicomGenerator,
-    SyntheticPatient,
-    SyntheticSeries,
-    SyntheticStudy,
-    generate_sample_files,
-)
-from .target_runner import ExecutionStatus, TargetRunner
-from .test_minimizer import MinimizationStrategy, TestMinimizer
+
+# Session management
+from .session.resource_manager import ResourceLimits, ResourceManager
+
+# Protocol types
 from .types import DICOMCommand, DIMSECommand, MutationSeverity, PDUType
-from .validator import DicomValidator
+
+# Backward compatibility alias
+FuzzingConfig = DIMSEFuzzingConfig
 
 __all__ = [
     # Shared fuzzing constants (v1.7.0)
@@ -210,16 +187,9 @@ __all__ = [
     "Severity",
     "SeverityLevel",
     "SEVERITY_SCORES",
-    # Unified Coverage Types (v1.8.0)
-    "CoverageInfo",
-    "CoverageInsight",
-    "CoverageMap",
-    "CoverageSnapshot",
-    "CoverageType",
-    "ExecutionCoverageInfo",
+    # State tracking types (for GUI/protocol fuzzing)
     "GUIStateTransition",
     "ProtocolStateTransition",
-    "SeedCoverageInfo",
     "StateCoverage",
     "StateFingerprint",
     "StateTransition",
@@ -236,6 +206,14 @@ __all__ = [
     "DICOMCommand",
     "DIMSECommand",
     "PDUType",
+    # Network Protocol Fuzzer (canonical: attacks.network)
+    "DICOMNetworkConfig",
+    "DICOMNetworkFuzzer",
+    "DICOMProtocolBuilder",
+    "FuzzingStrategy",
+    "NetworkFuzzResult",
+    "PDUFuzzingMixin",
+    "TLSFuzzingMixin",
     # DIMSE Protocol Types (v1.7.0)
     "DICOMElement",
     "DIMSEFuzzingConfig",
@@ -244,62 +222,27 @@ __all__ = [
     "QueryRetrieveLevel",
     "SOPClass",
     "UIDGenerator",
-    # Dataset Mutation (v1.7.0)
-    "DatasetMutator",
     # Target testing
     "TargetRunner",
     "ExecutionStatus",
-    # Stability features (v1.1.0)
+    # Session management
     "ResourceManager",
     "ResourceLimits",
-    "CampaignRecovery",
-    "CampaignStatus",
-    "SignalHandler",
-    "ConfigValidator",
-    "ValidationResult",
-    # Crash intelligence (v1.2.0)
+    # Crash intelligence
     "CrashTriageEngine",
     "CrashTriage",
     "ExploitabilityRating",
-    "TestMinimizer",
-    "MinimizationStrategy",
-    # Stability tracking (v1.2.0)
-    "StabilityTracker",
-    "StabilityMetrics",
-    # 3D Series support (v2.0.0-alpha)
+    # 3D Series support
     "DicomSeries",
     "SeriesDetector",
-    "SeriesValidator",
-    "ValidationIssue",
-    "ValidationReport",
-    "ValidationSeverity",
     "SeriesWriter",
     "SeriesMetadata",
-    # Performance optimization (v2.0.0-alpha Phase 4)
-    "LazyDicomLoader",
-    "create_metadata_loader",
-    "create_deferred_loader",
-    "SeriesCache",
-    "CacheEntry",
-    # Enhanced Reporting & Analytics (v2.0.0-alpha Phase 5)
+    # Enhanced Reporting & Analytics
     "Series3DReport",
     "Series3DReportGenerator",
     "SeriesMutationSummary",
-    # Synthetic DICOM Generation
-    "SyntheticDicomGenerator",
-    "SyntheticDataGenerator",
-    "SyntheticPatient",
-    "SyntheticStudy",
-    "SyntheticSeries",
-    "generate_sample_files",
-    # Response-Aware Fuzzing with State Coverage (v1.5.0, modularized v1.8.0)
-    "GUIFuzzer",
-    "GUIMonitor",
-    "GUIResponse",
-    "MonitorConfig",
-    "ResponseAwareFuzzer",  # Backward compatibility alias for GUIFuzzer
+    # Response-Aware Fuzzing with State Coverage
     "StateCoverageTracker",
-    # Advanced Fuzzing Engines (v1.5.0)
     # State-Aware Protocol Fuzzing
     "DICOMState",
     "StateTransitionType",
@@ -309,24 +252,7 @@ __all__ = [
     "StateGuidedHavoc",
     "StateInferenceEngine",
     "StateMutator",
-    # Differential Fuzzing
-    "DCMTKParser",
-    "Difference",
-    "DifferenceType",
-    "DifferentialAnalyzer",
-    "DifferentialFuzzer",
-    "DifferentialResult",
-    "DICOMParser",
-    "GDCMParser",
-    "ImplementationType",
-    "ParseResult",
-    "PydicomParser",
-    # Persistent Mode Fuzzing
-    "MOptScheduler",
-    "PersistentFuzzer",
-    "PowerSchedule",
-    "SeedEntry",
-    # DICOM TLS Security Fuzzer (v1.5.0, modularized v1.7.0)
+    # DICOM TLS Security Fuzzer
     "COMMON_AE_TITLES",
     "INJECTION_PAYLOADS",
     "SOP_CLASS_UIDS",
@@ -344,7 +270,7 @@ __all__ = [
     "TLSVulnerability",
     "create_dicom_tls_fuzzer",
     "quick_scan",
-    # Corpus Minimization & Multi-Fuzzer Sync (v1.5.0)
+    # Corpus Minimization & Multi-Fuzzer Sync
     "CorpusMinimizer",
     "CorpusStats",
     "CorpusSynchronizer",
@@ -357,7 +283,7 @@ __all__ = [
     "TargetCoverageCollector",
     "create_sync_node",
     "minimize_corpus",
-    # Multi-Frame Handler (v1.5.0, modularized v1.8.0)
+    # Multi-Frame Handler
     "FrameInfo",
     "MultiFrameHandler",
     "MultiFrameMutationRecord",

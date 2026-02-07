@@ -8,6 +8,7 @@ import argparse
 import faulthandler
 import importlib
 import importlib.util
+import io
 import json
 import logging
 import shutil
@@ -15,13 +16,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from dicom_fuzzer.cli import output as cli
-from dicom_fuzzer.cli.argument_parser import create_parser
-from dicom_fuzzer.cli.campaign_runner import CampaignRunner
-from dicom_fuzzer.cli.network_controller import NetworkFuzzingController
-from dicom_fuzzer.cli.security_controller import SecurityFuzzingController
-from dicom_fuzzer.cli.target_controller import TargetTestingController
-from dicom_fuzzer.core.resource_manager import ResourceLimits, ResourceManager
+from dicom_fuzzer.cli.controllers.campaign_runner import CampaignRunner
+from dicom_fuzzer.cli.controllers.network_controller import NetworkFuzzingController
+from dicom_fuzzer.cli.controllers.security_controller import SecurityFuzzingController
+from dicom_fuzzer.cli.controllers.target_controller import TargetTestingController
+from dicom_fuzzer.cli.utils import output as cli
+from dicom_fuzzer.cli.utils.argument_parser import create_parser
+from dicom_fuzzer.core.session.resource_manager import ResourceLimits, ResourceManager
 
 # Module-level logger
 logger = logging.getLogger(__name__)
@@ -31,23 +32,27 @@ HAS_PSUTIL = importlib.util.find_spec("psutil") is not None
 
 # Enable faulthandler for debugging silent crashes and segfaults
 # This will dump Python tracebacks on crashes (SIGSEGV, SIGFPE, SIGABRT, etc.)
-faulthandler.enable(file=sys.stderr, all_threads=True)
+try:
+    faulthandler.enable(file=sys.stderr, all_threads=True)
+except (io.UnsupportedOperation, AttributeError):
+    # stderr may not have fileno() in some test environments (pytest capsys)
+    pass
 
 
 # Subcommand registry: maps subcommand name to module path
 # Uses lazy imports for faster startup when subcommand not used
 SUBCOMMANDS: dict[str, str] = {
-    "samples": "dicom_fuzzer.cli.samples",
-    "tls": "dicom_fuzzer.cli.tls",
-    "differential": "dicom_fuzzer.cli.differential",
-    "persistent": "dicom_fuzzer.cli.persistent",
-    "state": "dicom_fuzzer.cli.state",
-    "corpus": "dicom_fuzzer.cli.corpus",
-    "study": "dicom_fuzzer.cli.study",
-    "study-campaign": "dicom_fuzzer.cli.study_campaign",
-    "calibrate": "dicom_fuzzer.cli.calibrate",
-    "stress": "dicom_fuzzer.cli.stress",
-    "target": "dicom_fuzzer.cli.target",
+    "samples": "dicom_fuzzer.cli.commands.samples",
+    "tls": "dicom_fuzzer.cli.commands.tls",
+    "state": "dicom_fuzzer.cli.commands.state",
+    "corpus": "dicom_fuzzer.cli.commands.corpus",
+    "study": "dicom_fuzzer.cli.commands.study",
+    "study-campaign": "dicom_fuzzer.cli.commands.study_campaign",
+    "calibrate": "dicom_fuzzer.cli.commands.calibrate",
+    "stress": "dicom_fuzzer.cli.commands.stress",
+    "target": "dicom_fuzzer.cli.commands.target",
+    "cve": "dicom_fuzzer.cli.commands.cve",
+    "report": "dicom_fuzzer.cli.commands.reports",  # Report generation
 }
 
 
@@ -299,6 +304,10 @@ def parse_strategies(strategies_str: str | None) -> list[str]:
     Returns:
         List of strategy names
 
+    Note:
+        CVE replication is NOT part of fuzzing. Use the 'cve' subcommand
+        or dicom_fuzzer.cve module for deterministic CVE file generation.
+
     """
     valid_strategies = {"metadata", "header", "pixel", "structure"}
 
@@ -311,6 +320,12 @@ def parse_strategies(strategies_str: str | None) -> list[str]:
         return []
 
     strategies = [s.strip().lower() for s in strategies_str.split(",")]
+
+    # Check for removed exploit-patterns
+    if "exploit-patterns" in strategies:
+        print("Note: 'exploit-patterns' has been moved to the 'cve' subcommand")
+        print("Use: dicom-fuzzer cve --help for CVE file generation")
+        strategies = [s for s in strategies if s != "exploit-patterns"]
 
     invalid = set(strategies) - valid_strategies
     if invalid:

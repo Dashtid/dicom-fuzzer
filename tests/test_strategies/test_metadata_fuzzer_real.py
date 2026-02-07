@@ -7,7 +7,8 @@ from datetime import datetime
 
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
+from dicom_fuzzer.attacks.format.base import FormatFuzzerBase
+from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
 
 
 class TestMetadataFuzzerInitialization:
@@ -244,3 +245,91 @@ class TestIntegrationScenarios:
         # Both should have same fake data
         assert fuzzer1.fake_names == fuzzer2.fake_names
         assert fuzzer1.fake_ids == fuzzer2.fake_ids
+
+
+class TestMutateMethod:
+    """Test the mutate() method with real Datasets."""
+
+    # All attribute names that the 5 attack categories can set
+    _ALL_ATTACK_ATTRIBUTES = {
+        "PatientID",
+        "PatientName",
+        "PatientBirthDate",
+        "PatientSex",
+        "PatientAge",
+        "PatientWeight",
+        "PatientSize",
+        "StudyDate",
+        "StudyTime",
+        "StudyID",
+        "AccessionNumber",
+        "ReferringPhysicianName",
+        "SeriesDate",
+        "SeriesDescription",
+        "BodyPartExamined",
+        "InstitutionName",
+        "InstitutionAddress",
+        "StationName",
+        "OperatorsName",
+        "PerformingPhysicianName",
+    }
+
+    def test_mutate_returns_dataset(self):
+        """Test that mutate() returns the same dataset object."""
+        fuzzer = MetadataFuzzer()
+        dataset = Dataset()
+
+        result = fuzzer.mutate(dataset)
+
+        assert result is dataset
+
+    def test_mutate_adds_attributes(self):
+        """Test that mutate() adds attributes from multiple categories."""
+        fuzzer = MetadataFuzzer()
+
+        seen_attributes = set()
+        for _ in range(30):
+            dataset = Dataset()
+            fuzzer.mutate(dataset)
+            for attr in self._ALL_ATTACK_ATTRIBUTES:
+                if hasattr(dataset, attr):
+                    seen_attributes.add(attr)
+
+        # Across 30 runs with 1-3 categories each, we should see
+        # attributes from at least 3 different fields
+        assert len(seen_attributes) >= 3, (
+            f"Expected at least 3 different attribute types across 30 runs, "
+            f"but only saw {len(seen_attributes)}: {seen_attributes}"
+        )
+
+    def test_mutate_does_not_affect_pixel_data(self):
+        """Test that mutate() leaves PixelData unchanged."""
+        fuzzer = MetadataFuzzer()
+        dataset = Dataset()
+        dataset.PixelData = b"\x00\x01"
+
+        fuzzer.mutate(dataset)
+
+        assert dataset.PixelData == b"\x00\x01"
+
+    def test_mutate_preserves_existing_fields(self):
+        """Test that mutate() preserves fields it does not target."""
+        fuzzer = MetadataFuzzer()
+        dataset = Dataset()
+        dataset.Modality = "CT"
+
+        fuzzer.mutate(dataset)
+
+        assert dataset.Modality == "CT"
+
+
+class TestFormatFuzzerBaseCompliance:
+    """Verify MetadataFuzzer complies with FormatFuzzerBase interface."""
+
+    def test_is_format_fuzzer_base(self):
+        """Test that MetadataFuzzer is an instance of FormatFuzzerBase."""
+        assert isinstance(MetadataFuzzer(), FormatFuzzerBase)
+
+    def test_strategy_name(self):
+        """Test that strategy_name returns 'metadata'."""
+        assert MetadataFuzzer().strategy_name == "metadata"

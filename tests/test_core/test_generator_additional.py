@@ -12,7 +12,7 @@ import pydicom
 import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
 
-from dicom_fuzzer.core.generator import DICOMGenerator, GenerationStats
+from dicom_fuzzer.core.engine.generator import DICOMGenerator, GenerationStats
 
 
 class TestGenerationStats:
@@ -113,7 +113,7 @@ class TestGeneratorErrorHandling:
         # Patch random.random to ensure fuzzers are always selected (> 0.3 check)
         with (
             patch.object(generator, "_apply_single_fuzzer") as mock_fuzzer,
-            patch("dicom_fuzzer.core.generator.random.random", return_value=0.5),
+            patch("dicom_fuzzer.core.engine.generator.random.random", return_value=0.5),
         ):
             mock_fuzzer.side_effect = ValueError("Test error")
 
@@ -268,7 +268,7 @@ class TestGeneratorErrorHandling:
         # Patch random.random to ensure fuzzers are always selected (> 0.3 check)
         with (
             patch.object(generator, "_apply_single_fuzzer") as mock_fuzzer,
-            patch("dicom_fuzzer.core.generator.random.random", return_value=0.5),
+            patch("dicom_fuzzer.core.engine.generator.random.random", return_value=0.5),
         ):
             mock_fuzzer.side_effect = TypeError("Invalid type")
 

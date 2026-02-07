@@ -1,1 +1,0 @@
-# DICOM Compliance Violation Generators

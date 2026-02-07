@@ -51,11 +51,9 @@ jobs:
 
       - name: Create virtual environment and install dependencies
         run: |
-          uv venv .venv
-          source .venv/bin/activate
-          uv pip install -e ".[dev]"
+          # Use uv sync to install all dependencies including hypothesis (needed for some tests)
+          uv sync --all-extras
           uv pip install mutmut toml
-          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Configure mutation paths
         env:
@@ -68,7 +66,7 @@ jobs:
             PATHS=$(echo "$INPUT_MODULES" | sed 's/,/","/g')
 
             # Update pyproject.toml with custom paths
-            python3 << EOF
+            uv run python << EOF
           import toml
 
           with open('pyproject.toml', 'r') as f:
@@ -95,60 +93,132 @@ jobs:
           # Override pytest addopts to avoid conflicts with mutmut's internal runner
           PYTEST_ADDOPTS: ""
         run: |
-          # mutmut 3.4+ uses paths from pyproject.toml
-          # Clear pytest addopts to avoid conflicts
-          mutmut run || true
+          # mutmut 3.4+ reads pytest config from pyproject.toml and appends its own args
+          # This causes conflicts. Simplify addopts and limit tests to utils modules.
+          cp pyproject.toml pyproject.toml.bak
+
+          # Create minimal pytest config for mutation testing
+          # Remove conflicting pytest args but let mutmut discover tests naturally
+          uv run python << 'EOF'
+          import toml
+
+          with open('pyproject.toml', 'r') as f:
+              config = toml.load(f)
+
+          # Minimal pytest options for mutmut - avoid args that conflict with mutmut's internal args
+          # Only run the specific test files that test the mutated modules
+          config['tool']['pytest']['ini_options']['addopts'] = [
+              "--import-mode=importlib",
+          ]
+          # Restrict to only the test files that test the mutated modules
+          config['tool']['pytest']['ini_options']['testpaths'] = [
+              "tests/test_core/test_parser.py",
+              "tests/test_core/test_parser_real.py",
+              "tests/test_core/test_parser_additional.py",
+              "tests/test_core/test_crash_deduplication.py",
+              "tests/test_core/test_byte_mutator.py",
+              "tests/test_strategies/test_byte_mutator.py",
+              "tests/test_strategies/test_security_patterns.py",
+          ]
+          # NOTE: Do NOT set pythonpath here - it causes imports to resolve to
+          # the original modules instead of the mutated ones in mutants/
+
+          with open('pyproject.toml', 'w') as f:
+              toml.dump(config, f)
+
+          print("[i] Configured pytest for mutation testing")
+          EOF
+
+          # Pre-populate mutants directory with non-mutated modules
+          # mutmut only copies files it mutates, but tests need other modules too
+          # (e.g., exceptions.py, __init__.py, etc.)
+          mkdir -p mutants/dicom_fuzzer
+          cp -r dicom_fuzzer/* mutants/dicom_fuzzer/
+          cp -r tests mutants/
+
+          # Run mutmut - it will overwrite the files it mutates
+          uv run mutmut run 2>&1 | tee mutmut-run.log || true
+
+          # Restore original pyproject.toml
+          mv pyproject.toml.bak pyproject.toml
 
       - name: Generate mutation report
         run: |
-          # Get mutation results
-          mutmut results > mutation-results.txt 2>&1 || true
+          # Get detailed mutation results (surviving mutants only)
+          uv run mutmut results > mutation-results.txt 2>&1 || true
+
+          # Parse the final line from mutmut run which has format:
+          # ⠼ 416/416  🎉 372 🫥 0  ⏰ 2  🤔 0  🙁 42  🔇 0
+          # Strip ANSI codes and extract numbers after emojis
+          # Use sed to clean control characters first
+          CLEAN_LOG=$(cat mutmut-run.log | sed 's/\x1b\[[0-9;]*m//g' | tr -d '\r')
+          FINAL_LINE=$(echo "$CLEAN_LOG" | grep -E "[0-9]+/[0-9]+.*🎉" | tail -1) || FINAL_LINE=""
+
+          echo "DEBUG: Looking for progress line in mutmut-run.log"
+
+          if [ -n "$FINAL_LINE" ]; then
+            # Parse emoji counts - use sed as fallback if grep -P not available
+            KILLED=$(echo "$FINAL_LINE" | sed -n 's/.*🎉[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            SURVIVED=$(echo "$FINAL_LINE" | sed -n 's/.*🙁[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            TIMEOUT=$(echo "$FINAL_LINE" | sed -n 's/.*⏰[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            NO_COVERAGE=$(echo "$FINAL_LINE" | sed -n 's/.*🫥[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            SUSPICIOUS=$(echo "$FINAL_LINE" | sed -n 's/.*🤔[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+
+            # Ensure defaults if sed fails
+            KILLED=${KILLED:-0}
+            SURVIVED=${SURVIVED:-0}
+            TIMEOUT=${TIMEOUT:-0}
+            NO_COVERAGE=${NO_COVERAGE:-0}
+            SUSPICIOUS=${SUSPICIOUS:-0}
+
+            echo "DEBUG: Parsed KILLED=$KILLED SURVIVED=$SURVIVED from: $FINAL_LINE"
+          else
+            echo "DEBUG: No progress line found, using fallback"
+            # Fallback to counting from results file
+            KILLED=$(grep -c "killed" mutation-results.txt 2>/dev/null) || KILLED=0
+            SURVIVED=$(grep -c "survived" mutation-results.txt 2>/dev/null) || SURVIVED=0
+            TIMEOUT=$(grep -c "timeout" mutation-results.txt 2>/dev/null) || TIMEOUT=0
+            NO_COVERAGE=0
+            SUSPICIOUS=0
+          fi
 
           # Show results in logs
           echo "=== Mutation Testing Results ==="
-          cat mutation-results.txt || echo "No results file"
+          echo "Killed: $KILLED"
+          echo "Survived: $SURVIVED"
+          echo "Timeout: $TIMEOUT"
+          echo "No Coverage: $NO_COVERAGE"
+          echo "Suspicious: $SUSPICIOUS"
 
           # Generate summary for GitHub
           echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🎉 Killed | $KILLED |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🙁 Survived | $SURVIVED |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏰ Timeout | $TIMEOUT |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🫥 No Coverage | $NO_COVERAGE |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🤔 Suspicious | $SUSPICIOUS |" >> $GITHUB_STEP_SUMMARY
 
-          # Parse results - handle both emoji and text formats
-          # Use grep -c with explicit 0 fallback
-          KILLED=$(grep -c "🎉" mutation-results.txt 2>/dev/null) || KILLED=0
-          if [ "$KILLED" -eq 0 ]; then
-            KILLED=$(grep -c "killed" mutation-results.txt 2>/dev/null) || KILLED=0
-          fi
-
-          SURVIVED=$(grep -c "🙁" mutation-results.txt 2>/dev/null) || SURVIVED=0
-          if [ "$SURVIVED" -eq 0 ]; then
-            SURVIVED=$(grep -c "survived" mutation-results.txt 2>/dev/null) || SURVIVED=0
-          fi
-
-          TIMEOUT=$(grep -c "⏰" mutation-results.txt 2>/dev/null) || TIMEOUT=0
-          if [ "$TIMEOUT" -eq 0 ]; then
-            TIMEOUT=$(grep -c "timeout" mutation-results.txt 2>/dev/null) || TIMEOUT=0
-          fi
-
-          echo "| Killed | $KILLED |" >> $GITHUB_STEP_SUMMARY
-          echo "| Survived | $SURVIVED |" >> $GITHUB_STEP_SUMMARY
-          echo "| Timeout | $TIMEOUT |" >> $GITHUB_STEP_SUMMARY
-
-          # Calculate mutation score
+          # Calculate mutation score (killed / (killed + survived))
           TOTAL=$((KILLED + SURVIVED))
           if [ "$TOTAL" -gt 0 ]; then
-            SCORE=$(echo "scale=2; $KILLED * 100 / $TOTAL" | bc)
+            SCORE=$(echo "scale=1; $KILLED * 100 / $TOTAL" | bc)
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Mutation Score: ${SCORE}%**" >> $GITHUB_STEP_SUMMARY
+            echo "**Mutation Score: ${SCORE}%** ($KILLED/$TOTAL)" >> $GITHUB_STEP_SUMMARY
           else
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**No mutations generated or results unavailable**" >> $GITHUB_STEP_SUMMARY
           fi
 
-          # Copy full results to summary
+          # Export for threshold check
+          echo "MUTATION_KILLED=$KILLED" >> $GITHUB_ENV
+          echo "MUTATION_SURVIVED=$SURVIVED" >> $GITHUB_ENV
+
+          # Copy surviving mutants to summary
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "<details><summary>Full Results</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "<details><summary>Surviving Mutants ($SURVIVED)</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           head -100 mutation-results.txt >> $GITHUB_STEP_SUMMARY || echo "No results" >> $GITHUB_STEP_SUMMARY
@@ -161,23 +231,16 @@ jobs:
           name: mutation-report
           path: |
             mutation-results.txt
+            mutmut-run.log
             .mutmut-cache
           retention-days: 30
           if-no-files-found: warn
 
       - name: Check mutation score threshold
         run: |
-          # Parse mutation score - handle both emoji and text formats
-          KILLED=$(grep -c "🎉" mutation-results.txt 2>/dev/null) || KILLED=0
-          if [ "$KILLED" -eq 0 ]; then
-            KILLED=$(grep -c "killed" mutation-results.txt 2>/dev/null) || KILLED=0
-          fi
-
-          SURVIVED=$(grep -c "🙁" mutation-results.txt 2>/dev/null) || SURVIVED=0
-          if [ "$SURVIVED" -eq 0 ]; then
-            SURVIVED=$(grep -c "survived" mutation-results.txt 2>/dev/null) || SURVIVED=0
-          fi
-
+          # Use values from environment (set in previous step)
+          KILLED="${MUTATION_KILLED:-0}"
+          SURVIVED="${MUTATION_SURVIVED:-0}"
           TOTAL=$((KILLED + SURVIVED))
 
           if [ "$TOTAL" -gt 0 ]; then
@@ -241,18 +304,15 @@ jobs:
       - name: Create virtual environment and install dependencies
         if: steps.changed-files.outputs.files != ''
         run: |
-          uv venv .venv
-          source .venv/bin/activate
-          uv pip install -e ".[dev]"
+          uv sync --all-extras
           uv pip install mutmut toml
-          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Configure mutation paths for changed files
         if: steps.changed-files.outputs.files != ''
         run: |
           # Update pyproject.toml with changed file paths
           CHANGED_FILES="${{ steps.changed-files.outputs.files }}"
-          python3 << EOF
+          uv run python << EOF
           import toml
 
           with open('pyproject.toml', 'r') as f:
@@ -272,9 +332,70 @@ jobs:
         env:
           PYTEST_ADDOPTS: ""
         run: |
-          mutmut run || true
-          mutmut results > pr-mutation-results.txt 2>&1 || true
-          cat pr-mutation-results.txt
+          # Simplify pytest addopts to avoid conflicts with mutmut
+          cp pyproject.toml pyproject.toml.bak
+
+          # Create minimal pytest config for mutation testing
+          uv run python << 'EOF'
+          import toml
+
+          with open('pyproject.toml', 'r') as f:
+              config = toml.load(f)
+
+          # Only run the specific test files that test the mutated modules (same as main job)
+          config['tool']['pytest']['ini_options']['addopts'] = [
+              "--import-mode=importlib",
+          ]
+          config['tool']['pytest']['ini_options']['testpaths'] = [
+              "tests/test_core/test_parser.py",
+              "tests/test_core/test_parser_real.py",
+              "tests/test_core/test_parser_additional.py",
+              "tests/test_core/test_crash_deduplication.py",
+              "tests/test_core/test_byte_mutator.py",
+              "tests/test_strategies/test_byte_mutator.py",
+              "tests/test_strategies/test_security_patterns.py",
+          ]
+          # NOTE: Do NOT set pythonpath - it causes imports to resolve to
+          # the original modules instead of the mutated ones in mutants/
+
+          with open('pyproject.toml', 'w') as f:
+              toml.dump(config, f)
+          EOF
+
+          # Pre-populate mutants directory with non-mutated modules
+          mkdir -p mutants/dicom_fuzzer
+          cp -r dicom_fuzzer/* mutants/dicom_fuzzer/
+          cp -r tests mutants/
+
+          uv run mutmut run 2>&1 | tee pr-mutmut-run.log || true
+          uv run mutmut results > pr-mutation-results.txt 2>&1 || true
+
+          # Parse the final line from mutmut run for accurate counts
+          CLEAN_LOG=$(cat pr-mutmut-run.log | sed 's/\x1b\[[0-9;]*m//g' | tr -d '\r')
+          FINAL_LINE=$(echo "$CLEAN_LOG" | grep -E "[0-9]+/[0-9]+.*🎉" | tail -1) || FINAL_LINE=""
+          if [ -n "$FINAL_LINE" ]; then
+            KILLED=$(echo "$FINAL_LINE" | sed -n 's/.*🎉[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            SURVIVED=$(echo "$FINAL_LINE" | sed -n 's/.*🙁[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            TIMEOUT=$(echo "$FINAL_LINE" | sed -n 's/.*⏰[[:space:]]*\([0-9]*\).*/\1/p' || echo "0")
+            KILLED=${KILLED:-0}
+            SURVIVED=${SURVIVED:-0}
+            TIMEOUT=${TIMEOUT:-0}
+          else
+            KILLED=$(grep -c "killed" pr-mutation-results.txt 2>/dev/null) || KILLED=0
+            SURVIVED=$(grep -c "survived" pr-mutation-results.txt 2>/dev/null) || SURVIVED=0
+            TIMEOUT=$(grep -c "timeout" pr-mutation-results.txt 2>/dev/null) || TIMEOUT=0
+          fi
+
+          # Save counts for the comment step
+          echo "PR_MUTATION_KILLED=$KILLED" >> $GITHUB_ENV
+          echo "PR_MUTATION_SURVIVED=$SURVIVED" >> $GITHUB_ENV
+          echo "PR_MUTATION_TIMEOUT=$TIMEOUT" >> $GITHUB_ENV
+
+          echo "=== PR Mutation Testing Results ==="
+          echo "Killed: $KILLED, Survived: $SURVIVED, Timeout: $TIMEOUT"
+
+          # Restore original
+          mv pyproject.toml.bak pyproject.toml
 
       - name: Comment PR with results
         if: steps.changed-files.outputs.files != '' && github.event_name == 'pull_request'
@@ -283,21 +404,17 @@ jobs:
           script: |
             const fs = require('fs');
 
-            let results = '';
+            let survivingMutants = '';
             try {
-              results = fs.readFileSync('pr-mutation-results.txt', 'utf8');
+              survivingMutants = fs.readFileSync('pr-mutation-results.txt', 'utf8');
             } catch (e) {
-              results = 'No mutation results available';
+              survivingMutants = 'No mutation results available';
             }
 
-            // mutmut 3.x uses emojis: 🎉 killed, 🙁 survived, ⏰ timeout
-            const killedEmoji = (results.match(/🎉/g) || []).length;
-            const survivedEmoji = (results.match(/🙁/g) || []).length;
-            const killedText = (results.match(/killed/gi) || []).length;
-            const survivedText = (results.match(/survived/gi) || []).length;
-
-            const killed = killedEmoji || killedText;
-            const survived = survivedEmoji || survivedText;
+            // Get counts from environment (parsed from mutmut run output)
+            const killed = parseInt(process.env.PR_MUTATION_KILLED || '0', 10);
+            const survived = parseInt(process.env.PR_MUTATION_SURVIVED || '0', 10);
+            const timeout = parseInt(process.env.PR_MUTATION_TIMEOUT || '0', 10);
             const total = killed + survived;
             const score = total > 0 ? ((killed / total) * 100).toFixed(1) : 'N/A';
 
@@ -305,15 +422,16 @@ jobs:
 
             | Metric | Count |
             |--------|-------|
-            | Killed | ${killed} |
-            | Survived | ${survived} |
-            | **Score** | **${score}%** |
+            | 🎉 Killed | ${killed} |
+            | 🙁 Survived | ${survived} |
+            | ⏰ Timeout | ${timeout} |
+            | **Score** | **${score}%** (${killed}/${total}) |
 
             <details>
-            <summary>Details</summary>
+            <summary>Surviving Mutants (${survived})</summary>
 
             \`\`\`
-            ${results.slice(0, 3000)}
+            ${survivingMutants.slice(0, 3000)}
             \`\`\`
 
             </details>`;

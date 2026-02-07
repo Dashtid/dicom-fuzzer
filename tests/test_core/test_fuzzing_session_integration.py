@@ -16,7 +16,7 @@ from pathlib import Path
 import pydicom
 import pytest
 
-from dicom_fuzzer.core.fuzzing_session import (
+from dicom_fuzzer.core.session.fuzzing_session import (
     FuzzingSession,
 )
 

@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.tls import (
+from dicom_fuzzer.cli.commands.tls import (
     create_parser,
     main,
     run_list_vulns,
@@ -172,7 +172,7 @@ class TestRunScan:
     def test_scan_with_mock_fuzzer(self, tmp_path, capsys):
         """Test successful TLS scan."""
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer"
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer"
         ) as mock_create_fuzzer:
             mock_fuzzer = MagicMock()
             mock_fuzzer.get_vulnerabilities.return_value = ["heartbleed", "poodle"]
@@ -203,7 +203,7 @@ class TestRunScan:
     def test_scan_with_no_tls(self, capsys):
         """Test scan without TLS."""
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer"
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer"
         ) as mock_create_fuzzer:
             mock_fuzzer = MagicMock()
             mock_fuzzer.get_vulnerabilities.return_value = []
@@ -230,7 +230,7 @@ class TestRunScan:
     def test_scan_saves_json_report(self, tmp_path, capsys):
         """Test scan saves JSON report when output specified."""
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer"
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer"
         ) as mock_create_fuzzer:
             mock_fuzzer = MagicMock()
             mock_fuzzer.get_vulnerabilities.return_value = ["heartbleed"]
@@ -267,7 +267,7 @@ class TestRunScan:
     def test_scan_saves_text_report(self, tmp_path, capsys):
         """Test scan saves text report when output specified."""
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer"
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer"
         ) as mock_create_fuzzer:
             mock_fuzzer = MagicMock()
             mock_fuzzer.get_vulnerabilities.return_value = ["poodle"]
@@ -298,7 +298,7 @@ class TestRunScan:
     def test_scan_import_error(self, capsys):
         """Test handling when TLS fuzzer import fails."""
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer",
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer",
             side_effect=ImportError("TLS module not available"),
         ):
             args = argparse.Namespace(
@@ -321,7 +321,7 @@ class TestRunScan:
     def test_scan_exception_handling(self, capsys):
         """Test handling of general exceptions during scan."""
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer",
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer",
             side_effect=Exception("Connection failed"),
         ):
             args = argparse.Namespace(
@@ -344,7 +344,7 @@ class TestRunScan:
     def test_scan_verbose_traceback(self, capsys):
         """Test verbose mode prints traceback on error."""
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer",
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer",
             side_effect=Exception("Test error"),
         ):
             args = argparse.Namespace(
@@ -368,7 +368,7 @@ class TestRunScan:
     def test_scan_creates_output_directory(self, tmp_path):
         """Test scan creates output directory if needed."""
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer"
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer"
         ) as mock_create_fuzzer:
             mock_fuzzer = MagicMock()
             mock_fuzzer.get_vulnerabilities.return_value = []
@@ -406,7 +406,7 @@ class TestMain:
     def test_main_scan(self):
         """Test main dispatches to scan."""
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer"
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer"
         ) as mock_create_fuzzer:
             mock_fuzzer = MagicMock()
             mock_fuzzer.get_vulnerabilities.return_value = []
@@ -419,7 +419,7 @@ class TestMain:
     def test_main_with_all_options(self, tmp_path):
         """Test main with all command line options."""
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer"
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer"
         ) as mock_create_fuzzer:
             mock_fuzzer = MagicMock()
             mock_fuzzer.get_vulnerabilities.return_value = ["test_vuln"]
@@ -458,7 +458,7 @@ class TestEdgeCases:
     def test_scan_prints_header(self, capsys):
         """Test scan prints header with target info."""
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer"
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer"
         ) as mock_create_fuzzer:
             mock_fuzzer = MagicMock()
             mock_fuzzer.get_vulnerabilities.return_value = []

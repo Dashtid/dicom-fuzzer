@@ -1,19 +1,8 @@
-"""Configuration Management - Environment-Specific Settings
+"""Configuration Management - Environment-Specific Settings.
 
-LEARNING OBJECTIVE: This module demonstrates production-ready configuration
-management with environment variables, validation, and security.
-
-CONCEPT: Applications need different settings for different environments:
-1. Development - verbose logging, relaxed security
-2. Testing - isolated data, predictable behavior
-3. Production - optimized performance, strict security
-
-WHY: Hardcoded values are inflexible and insecure. Environment-based
-configuration enables:
-- Different settings per deployment
-- Secrets managed separately from code
-- Easy configuration changes without code changes
-- Validation prevents misconfigurations
+Provides environment-aware configuration with validation. Supports
+development, testing, and production environments with appropriate
+defaults and security settings.
 """
 
 import os
@@ -27,7 +16,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Environment(str, Enum):
     """Application environment types.
 
-    CONCEPT: Different environments have different requirements:
     - DEVELOPMENT: Local development with debug features
     - TESTING: CI/CD and test automation
     - PRODUCTION: Live deployment with strict security
@@ -51,7 +39,7 @@ class LogLevel(str, Enum):
 class FuzzingConfig(BaseSettings):
     """Fuzzing campaign configuration.
 
-    CONCEPT: Controls the behavior and intensity of fuzzing campaigns.
+    Controls the behavior and intensity of fuzzing campaigns.
     """
 
     # Mutation probabilities (0.0 - 1.0)
@@ -91,8 +79,8 @@ class FuzzingConfig(BaseSettings):
 class SecurityConfig(BaseSettings):
     """Security validation configuration.
 
-    CONCEPT: Security thresholds prevent generation of excessively
-    malicious files that could harm testing infrastructure.
+    Thresholds to prevent generation of excessively large or malicious
+    files that could harm testing infrastructure.
     """
 
     # File size limits
@@ -129,8 +117,7 @@ class SecurityConfig(BaseSettings):
 class PathConfig(BaseSettings):
     """File system paths configuration.
 
-    CONCEPT: Centralized path management ensures consistent
-    directory structure across environments.
+    Centralized path management for consistent directory structure.
     """
 
     # Base directories
@@ -167,7 +154,7 @@ class PathConfig(BaseSettings):
 class LoggingConfig(BaseSettings):
     """Logging configuration.
 
-    CONCEPT: Different environments need different logging verbosity.
+    Environment-specific verbosity and output settings.
     """
 
     log_level: LogLevel = Field(default=LogLevel.INFO, description="Logging level")
@@ -185,13 +172,12 @@ class LoggingConfig(BaseSettings):
 class Settings(BaseSettings):
     """Main application settings.
 
-    CONCEPT: Hierarchical configuration with validation.
-    Loads from environment variables and .env file.
+    Hierarchical configuration with validation. Loads from environment
+    variables and .env file.
 
-    USAGE:
+    Usage:
         from dicom_fuzzer.core.config import get_settings
         settings = get_settings()
-        print(settings.environment)
     """
 
     model_config = SettingsConfigDict(
@@ -299,9 +285,6 @@ def get_settings(force_reload: bool = False) -> Settings:
 
     Returns:
         Settings instance
-
-    CONCEPT: Singleton pattern ensures configuration is loaded once
-    and reused throughout the application.
 
     """
     global _settings

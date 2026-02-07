@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.realtime_monitor import (
+from dicom_fuzzer.cli.utils.realtime_monitor import (
     HAS_RICH,
     RealtimeMonitor,
     display_stats,
@@ -121,7 +121,7 @@ class TestRefreshDisplay:
         monitor = RealtimeMonitor(session_dir=tmp_path)
 
         with patch(
-            "dicom_fuzzer.cli.realtime_monitor.Path",
+            "dicom_fuzzer.cli.utils.realtime_monitor.Path",
             return_value=MagicMock(
                 exists=MagicMock(return_value=True),
                 glob=MagicMock(return_value=[]),
@@ -367,7 +367,7 @@ class TestDisplayStatsFunction:
             "coverage": 75.5,
         }
 
-        with patch("dicom_fuzzer.cli.realtime_monitor.HAS_RICH", False):
+        with patch("dicom_fuzzer.cli.utils.realtime_monitor.HAS_RICH", False):
             display_stats(stats)
 
         captured = capsys.readouterr()
@@ -404,7 +404,7 @@ class TestDisplayStatsFunction:
 
     def test_display_stats_empty_dict(self, capsys):
         """Test display_stats with empty dictionary."""
-        with patch("dicom_fuzzer.cli.realtime_monitor.HAS_RICH", False):
+        with patch("dicom_fuzzer.cli.utils.realtime_monitor.HAS_RICH", False):
             display_stats({})
 
         captured = capsys.readouterr()
@@ -416,8 +416,10 @@ class TestMonitorLoop:
 
     def test_monitor_loop_keyboard_interrupt(self):
         """Test that monitor_loop handles keyboard interrupt."""
-        with patch("dicom_fuzzer.cli.realtime_monitor.get_session_stats") as mock_stats:
-            with patch("dicom_fuzzer.cli.realtime_monitor.display_stats"):
+        with patch(
+            "dicom_fuzzer.cli.utils.realtime_monitor.get_session_stats"
+        ) as mock_stats:
+            with patch("dicom_fuzzer.cli.utils.realtime_monitor.display_stats"):
                 with patch("time.sleep", side_effect=KeyboardInterrupt):
                     mock_stats.return_value = {"iterations": 0}
 
@@ -436,10 +438,10 @@ class TestMonitorLoop:
             return {"iterations": call_count}
 
         with patch(
-            "dicom_fuzzer.cli.realtime_monitor.get_session_stats",
+            "dicom_fuzzer.cli.utils.realtime_monitor.get_session_stats",
             side_effect=count_calls,
         ):
-            with patch("dicom_fuzzer.cli.realtime_monitor.display_stats"):
+            with patch("dicom_fuzzer.cli.utils.realtime_monitor.display_stats"):
                 with patch("time.sleep"):
                     with pytest.raises(KeyboardInterrupt):
                         monitor_loop("test_session")
@@ -455,8 +457,10 @@ class TestMonitorLoop:
             if len(sleep_values) >= 2:
                 raise KeyboardInterrupt
 
-        with patch("dicom_fuzzer.cli.realtime_monitor.get_session_stats") as mock_stats:
-            with patch("dicom_fuzzer.cli.realtime_monitor.display_stats"):
+        with patch(
+            "dicom_fuzzer.cli.utils.realtime_monitor.get_session_stats"
+        ) as mock_stats:
+            with patch("dicom_fuzzer.cli.utils.realtime_monitor.display_stats"):
                 with patch("time.sleep", side_effect=capture_sleep):
                     mock_stats.return_value = {"iterations": 0}
 
@@ -501,7 +505,7 @@ class TestMainFunction:
         """Test main with default arguments."""
         with patch("sys.argv", ["realtime_monitor.py"]):
             with patch(
-                "dicom_fuzzer.cli.realtime_monitor.RealtimeMonitor"
+                "dicom_fuzzer.cli.utils.realtime_monitor.RealtimeMonitor"
             ) as mock_monitor:
                 mock_instance = MagicMock()
                 mock_monitor.return_value = mock_instance
@@ -517,7 +521,7 @@ class TestMainFunction:
             "sys.argv", ["realtime_monitor.py", "--session-dir", "/custom/path"]
         ):
             with patch(
-                "dicom_fuzzer.cli.realtime_monitor.RealtimeMonitor"
+                "dicom_fuzzer.cli.utils.realtime_monitor.RealtimeMonitor"
             ) as mock_monitor:
                 mock_instance = MagicMock()
                 mock_monitor.return_value = mock_instance
@@ -531,7 +535,7 @@ class TestMainFunction:
         """Test main with custom refresh rate."""
         with patch("sys.argv", ["realtime_monitor.py", "--refresh", "5"]):
             with patch(
-                "dicom_fuzzer.cli.realtime_monitor.RealtimeMonitor"
+                "dicom_fuzzer.cli.utils.realtime_monitor.RealtimeMonitor"
             ) as mock_monitor:
                 mock_instance = MagicMock()
                 mock_monitor.return_value = mock_instance
@@ -547,13 +551,13 @@ class TestFuzzingSessionClass:
 
     def test_fuzzing_session_exists(self):
         """Test that FuzzingSession class is importable."""
-        from dicom_fuzzer.cli.realtime_monitor import FuzzingSession
+        from dicom_fuzzer.cli.utils.realtime_monitor import FuzzingSession
 
         assert FuzzingSession is not None
 
     def test_fuzzing_session_instantiation(self):
         """Test that FuzzingSession can be instantiated."""
-        from dicom_fuzzer.cli.realtime_monitor import FuzzingSession
+        from dicom_fuzzer.cli.utils.realtime_monitor import FuzzingSession
 
         session = FuzzingSession()
         assert session is not None
@@ -570,7 +574,7 @@ class TestRichImportHandling:
         """Test that module imports work when rich is simulated as unavailable."""
         # The module should already be imported and working
         # This test verifies the import doesn't raise
-        from dicom_fuzzer.cli.realtime_monitor import (
+        from dicom_fuzzer.cli.utils.realtime_monitor import (
             RealtimeMonitor,
             display_stats,
         )

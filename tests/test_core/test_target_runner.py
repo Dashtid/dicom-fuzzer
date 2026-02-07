@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from dicom_fuzzer.core.target_runner import (
+from dicom_fuzzer.core.harness.target_runner import (
     ExecutionResult,
     ExecutionStatus,
     TargetRunner,
@@ -558,7 +558,7 @@ class TestEnhancedMonitoring:
         mock_is_available = MagicMock(return_value=True)
 
         with patch(
-            "dicom_fuzzer.core.target_runner.TargetRunner.__init__",
+            "dicom_fuzzer.core.harness.target_runner.TargetRunner.__init__",
             return_value=None,
         ):
             runner = TargetRunner.__new__(TargetRunner)

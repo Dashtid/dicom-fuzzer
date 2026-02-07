@@ -10,7 +10,7 @@ from unittest.mock import Mock
 import pytest
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.mutator import (
+from dicom_fuzzer.core.mutation.mutator import (
     DicomMutator,
     MutationRecord,
     MutationSession,

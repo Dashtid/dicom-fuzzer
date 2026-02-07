@@ -48,7 +48,7 @@ The fuzzer generates intentionally malicious DICOM samples. See [CVE Reference](
 | Category               | Risk   | Description                          |
 | ---------------------- | ------ | ------------------------------------ |
 | preamble_attacks/      | HIGH   | PE/ELF polyglots (CVE-2019-11687)    |
-| cve_reproductions/     | HIGH   | Known CVE reproductions              |
+| dicom_fuzzer/cve/      | HIGH   | Known CVE reproductions              |
 | parser_stress/         | MEDIUM | DoS via deep nesting, truncation     |
 | compliance_violations/ | LOW    | Malformed samples for parser testing |
 

@@ -37,10 +37,10 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run Ruff linter
-        run: uv run ruff check --output-format=github dicom_fuzzer/ tests/ tools/examples/
+        run: uv run ruff check --output-format=github dicom_fuzzer/ tests/
 
       - name: Run Ruff formatter
-        run: uv run ruff format --check dicom_fuzzer/ tests/ tools/examples/
+        run: uv run ruff format --check dicom_fuzzer/ tests/
 
   security-scan:
     name: Security Scan (Bandit)
@@ -152,14 +152,14 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
 
       - name: Download coverage artifact
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v4
         with:
           name: coverage-xml-report
           path: .
         continue-on-error: true
 
       - name: Download test results
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v4
         with:
           name: test-results-ubuntu-latest-py3.13-group1
           path: .

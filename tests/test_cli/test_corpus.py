@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from dicom_fuzzer.cli.corpus import (
+from dicom_fuzzer.cli.commands.corpus import (
     create_parser,
     main,
     run_analyze,

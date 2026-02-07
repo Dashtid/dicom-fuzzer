@@ -8,12 +8,12 @@ import pytest
 # Skip the entire module if plotly is not available
 pytest.importorskip("plotly", reason="plotly not installed")
 
-from dicom_fuzzer.analytics.campaign_analytics import (
+from dicom_fuzzer.core.analytics.campaign_analytics import (
     CoverageCorrelation,
     PerformanceMetrics,
     TrendAnalysis,
 )
-from dicom_fuzzer.analytics.visualization import FuzzingVisualizer
+from dicom_fuzzer.core.analytics.visualization import FuzzingVisualizer
 
 
 def create_trend_analysis():

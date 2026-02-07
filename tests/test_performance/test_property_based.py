@@ -18,8 +18,8 @@ from hypothesis import strategies as st
 from hypothesis.strategies import composite
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.fuzzing_session import FuzzingSession
-from dicom_fuzzer.core.mutator import DicomMutator
+from dicom_fuzzer.core.mutation.mutator import DicomMutator
+from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
 from dicom_fuzzer.core.types import MutationSeverity
 
 
@@ -269,7 +269,7 @@ class TestFuzzingSessionProperties:
             for i in range(num_crashes):
                 file_id = f"crash_file_{i}"
                 # Create a proper file record structure
-                from dicom_fuzzer.core.fuzzing_session import FuzzedFileRecord
+                from dicom_fuzzer.core.session.fuzzing_session import FuzzedFileRecord
 
                 file_record = FuzzedFileRecord(
                     file_id=file_id,
@@ -289,7 +289,7 @@ class TestFuzzingSessionProperties:
             for i in range(num_hangs):
                 file_id = f"hang_file_{i}"
                 # Create a proper file record structure
-                from dicom_fuzzer.core.fuzzing_session import FuzzedFileRecord
+                from dicom_fuzzer.core.session.fuzzing_session import FuzzedFileRecord
 
                 file_record = FuzzedFileRecord(
                     file_id=file_id,

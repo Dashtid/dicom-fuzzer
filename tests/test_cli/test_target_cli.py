@@ -10,8 +10,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.target import create_parser, main
-from dicom_fuzzer.core.target_calibrator import (
+from dicom_fuzzer.cli.commands.target import create_parser, main
+from dicom_fuzzer.core.harness.target_calibrator import (
     CalibrationResult,
     CrashDetectionStatus,
     TargetType,
@@ -188,7 +188,7 @@ class TestMain:
         captured = capsys.readouterr()
         assert "Corpus not found" in captured.err
 
-    @patch("dicom_fuzzer.core.target_calibrator.calibrate_target")
+    @patch("dicom_fuzzer.core.harness.target_calibrator.calibrate_target")
     def test_main_success(
         self, mock_calibrate, mock_executable, mock_calibration_result
     ):
@@ -200,7 +200,7 @@ class TestMain:
         assert result == 0
         mock_calibrate.assert_called_once()
 
-    @patch("dicom_fuzzer.core.target_calibrator.calibrate_target")
+    @patch("dicom_fuzzer.core.harness.target_calibrator.calibrate_target")
     def test_main_with_corpus(
         self, mock_calibrate, mock_executable, mock_corpus, mock_calibration_result
     ):
@@ -221,7 +221,7 @@ class TestMain:
         call_kwargs = mock_calibrate.call_args[1]
         assert call_kwargs["corpus"] == mock_corpus
 
-    @patch("dicom_fuzzer.core.target_calibrator.calibrate_target")
+    @patch("dicom_fuzzer.core.harness.target_calibrator.calibrate_target")
     def test_main_json_output(
         self, mock_calibrate, mock_executable, mock_calibration_result, capsys
     ):
@@ -238,7 +238,7 @@ class TestMain:
         assert output["target_type"] == "cli"
         assert output["recommended_timeout"] == 5.0
 
-    @patch("dicom_fuzzer.core.target_calibrator.calibrate_target")
+    @patch("dicom_fuzzer.core.harness.target_calibrator.calibrate_target")
     def test_main_verbose(
         self, mock_calibrate, mock_executable, mock_calibration_result
     ):
@@ -257,7 +257,7 @@ class TestMain:
         call_kwargs = mock_calibrate.call_args[1]
         assert call_kwargs["verbose"] is True
 
-    @patch("dicom_fuzzer.core.target_calibrator.calibrate_target")
+    @patch("dicom_fuzzer.core.harness.target_calibrator.calibrate_target")
     def test_main_prints_header(
         self, mock_calibrate, mock_executable, mock_calibration_result, capsys
     ):
@@ -271,7 +271,7 @@ class TestMain:
         assert "DICOM Fuzzer - Target Calibration" in captured.out
         assert str(mock_executable) in captured.out
 
-    @patch("dicom_fuzzer.core.target_calibrator.calibrate_target")
+    @patch("dicom_fuzzer.core.harness.target_calibrator.calibrate_target")
     def test_main_no_header_in_json_mode(
         self, mock_calibrate, mock_executable, mock_calibration_result, capsys
     ):
@@ -285,7 +285,7 @@ class TestMain:
         # Header should not appear in JSON mode
         assert "DICOM Fuzzer - Target Calibration" not in captured.out
 
-    @patch("dicom_fuzzer.core.target_calibrator.calibrate_target")
+    @patch("dicom_fuzzer.core.harness.target_calibrator.calibrate_target")
     def test_main_calls_print_summary(
         self, mock_calibrate, mock_executable, mock_calibration_result
     ):
@@ -299,7 +299,7 @@ class TestMain:
         assert result == 0
         mock_result.print_summary.assert_called_once()
 
-    @patch("dicom_fuzzer.core.target_calibrator.calibrate_target")
+    @patch("dicom_fuzzer.core.harness.target_calibrator.calibrate_target")
     def test_main_handles_file_not_found(self, mock_calibrate, mock_executable, capsys):
         """Test main handles FileNotFoundError from calibrate."""
         mock_calibrate.side_effect = FileNotFoundError("File not found")
@@ -310,7 +310,7 @@ class TestMain:
         captured = capsys.readouterr()
         assert "Error" in captured.err
 
-    @patch("dicom_fuzzer.core.target_calibrator.calibrate_target")
+    @patch("dicom_fuzzer.core.harness.target_calibrator.calibrate_target")
     def test_main_handles_exception(self, mock_calibrate, mock_executable, capsys):
         """Test main handles generic exceptions."""
         mock_calibrate.side_effect = RuntimeError("Something went wrong")
@@ -321,7 +321,7 @@ class TestMain:
         captured = capsys.readouterr()
         assert "Calibration failed" in captured.err
 
-    @patch("dicom_fuzzer.core.target_calibrator.calibrate_target")
+    @patch("dicom_fuzzer.core.harness.target_calibrator.calibrate_target")
     def test_main_verbose_shows_traceback(
         self, mock_calibrate, mock_executable, capsys
     ):
@@ -343,14 +343,14 @@ class TestMain:
 class TestModuleExecution:
     """Test module can be executed directly."""
 
-    @patch("dicom_fuzzer.cli.target.main")
+    @patch("dicom_fuzzer.cli.commands.target.main")
     @patch("sys.exit")
     def test_module_main(self, mock_exit, mock_main):
         """Test __main__ block calls main()."""
         mock_main.return_value = 0
 
         # Simulate running as __main__
-        import dicom_fuzzer.cli.target as target_module
+        import dicom_fuzzer.cli.commands.target as target_module
 
         # The __name__ == "__main__" block won't run in tests,
         # but we can verify main() is callable

@@ -27,7 +27,7 @@ class TestAffinityAdapterBasics:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             yield adapter, mock_app_class
@@ -89,7 +89,7 @@ class TestAffinityAdapterConnection:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             result = adapter.connect(pid=1234)
@@ -109,7 +109,7 @@ class TestAffinityAdapterConnection:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             result = adapter.connect(pid=1234)
@@ -126,7 +126,7 @@ class TestAffinityAdapterConnection:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             result = adapter.connect(pid=9999)
@@ -142,7 +142,7 @@ class TestAffinityAdapterConnection:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             adapter.connect(pid=1234)
@@ -206,7 +206,7 @@ class TestAffinityAdapterLoadStudy:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             adapter.connect(pid=1234)
@@ -221,7 +221,7 @@ class TestAffinityAdapterLoadStudy:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             result = adapter.load_study_into_viewport(Path("./test"))
@@ -310,7 +310,7 @@ class TestAffinityAdapterPatientInfo:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             adapter.connect(pid=1234)
@@ -325,7 +325,7 @@ class TestAffinityAdapterPatientInfo:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             info = adapter.get_displayed_patient_info()
@@ -400,7 +400,7 @@ class TestAffinityAdapterErrorDialogs:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             adapter.connect(pid=1234)
@@ -415,7 +415,7 @@ class TestAffinityAdapterErrorDialogs:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             errors = adapter.check_error_dialogs()
@@ -443,7 +443,7 @@ class TestAffinityAdapterScreenshot:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             result = adapter.capture_screenshot(tmp_path / "test.png")
@@ -472,7 +472,7 @@ class TestAffinityAdapterScreenshot:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             adapter.connect(pid=1234)
@@ -495,7 +495,7 @@ class TestAffinityAdapterCloseStudy:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             result = adapter.close_study()
@@ -521,7 +521,7 @@ class TestAffinityAdapterCloseStudy:
         sys.modules["pywinauto"] = mock_module
 
         try:
-            from dicom_fuzzer.adapters.affinity import AffinityAdapter
+            from dicom_fuzzer.core.adapters.affinity import AffinityAdapter
 
             adapter = AffinityAdapter()
             adapter.connect(pid=1234)

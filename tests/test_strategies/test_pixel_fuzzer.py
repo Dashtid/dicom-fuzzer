@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, PropertyMock
 
 import numpy as np
 
-from dicom_fuzzer.strategies.pixel_fuzzer import PixelFuzzer
+from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
 
 
 class TestPixelFuzzerInit:
@@ -114,9 +114,10 @@ class TestMutatePixels:
         # Set a fixed seed for reproducibility
         np.random.seed(42)
 
-        result = fuzzer.mutate_pixels(dataset)
+        # Call the noise injection method directly to test it
+        result = fuzzer._noise_injection(dataset)
 
-        # PixelData should be set
+        # PixelData should be set as bytes
         assert dataset.PixelData is not None
         assert isinstance(dataset.PixelData, bytes)
 
@@ -133,14 +134,15 @@ class TestMutatePixels:
         assert result is not None
 
     def test_pixel_data_converted_to_bytes(self):
-        """Test that pixel data is converted to bytes."""
+        """Test that pixel data is converted to bytes by noise injection."""
         fuzzer = PixelFuzzer()
 
         dataset = MagicMock()
         dataset.__contains__ = MagicMock(return_value=True)
         dataset.pixel_array = np.zeros((10, 10), dtype=np.uint8)
 
-        fuzzer.mutate_pixels(dataset)
+        # Call noise injection directly to ensure bytes conversion
+        fuzzer._noise_injection(dataset)
 
         # PixelData should be bytes
         assert isinstance(dataset.PixelData, bytes)
