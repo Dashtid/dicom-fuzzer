@@ -18,12 +18,9 @@ Mixins (used internally by Series3DMutator):
 from .parallel_mutator import ParallelSeriesMutator, get_optimal_workers
 from .series_3d_attacks import Reconstruction3DAttacksMixin
 from .series_core_mutations import CoreMutationsMixin
-from .series_mutator import (
-    Series3DMutator,
-    SeriesMutationRecord,
-    SeriesMutationStrategy,
-)
+from .series_mutator import Series3DMutator
 from .series_temporal_attacks import TemporalAttacksMixin
+from .series_types import SeriesMutationRecord, SeriesMutationStrategy
 from .study_mutator import StudyMutationStrategy, StudyMutator
 
 __all__ = [

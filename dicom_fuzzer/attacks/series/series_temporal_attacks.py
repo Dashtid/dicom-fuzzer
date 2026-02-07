@@ -17,10 +17,10 @@ import pydicom
 from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
 
+from .series_types import SeriesMutationRecord
+
 if TYPE_CHECKING:
     from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
-
-    from .series_mutator import SeriesMutationRecord
 
 
 class TemporalAttacksMixin:
@@ -46,8 +46,6 @@ class TemporalAttacksMixin:
         details: dict[str, Any] | None = None,
     ) -> SeriesMutationRecord:
         """Create a SeriesMutationRecord for cross-slice reference attacks."""
-        from .series_mutator import SeriesMutationRecord
-
         return SeriesMutationRecord(
             strategy="cross_slice_reference",
             slice_index=slice_index,
@@ -220,8 +218,6 @@ class TemporalAttacksMixin:
         self, datasets: list[Dataset], records: list[SeriesMutationRecord]
     ) -> None:
         """Randomize acquisition times across all slices."""
-        from .series_mutator import SeriesMutationRecord
-
         for ds in datasets:
             ds.AcquisitionTime = (
                 f"{random.randint(0, 23):02d}{random.randint(0, 59):02d}"
@@ -243,8 +239,6 @@ class TemporalAttacksMixin:
         self, datasets: list[Dataset], records: list[SeriesMutationRecord]
     ) -> None:
         """Set all slices to identical timestamp."""
-        from .series_mutator import SeriesMutationRecord
-
         for ds in datasets:
             ds.AcquisitionTime = "120000.000000"
             ds.AcquisitionDateTime = "20230101120000.000000"
@@ -264,8 +258,6 @@ class TemporalAttacksMixin:
         self, datasets: list[Dataset], records: list[SeriesMutationRecord], past: bool
     ) -> None:
         """Set extreme date (1900 or 9999)."""
-        from .series_mutator import SeriesMutationRecord
-
         slice_idx = random.randint(0, len(datasets) - 1)
         ds = datasets[slice_idx]
         if past:
@@ -296,8 +288,6 @@ class TemporalAttacksMixin:
         self, datasets: list[Dataset], records: list[SeriesMutationRecord]
     ) -> None:
         """Set invalid time format."""
-        from .series_mutator import SeriesMutationRecord
-
         slice_idx = random.randint(0, len(datasets) - 1)
         invalid_times = [
             "25:00:00",
@@ -325,8 +315,6 @@ class TemporalAttacksMixin:
         self, datasets: list[Dataset], records: list[SeriesMutationRecord]
     ) -> None:
         """Reverse temporal order vs InstanceNumber."""
-        from .series_mutator import SeriesMutationRecord
-
         for i, ds in enumerate(datasets):
             ds.AcquisitionTime = f"12{len(datasets) - 1 - i:02d}00.000000"
             ds.InstanceNumber = i + 1
@@ -346,8 +334,6 @@ class TemporalAttacksMixin:
         self, datasets: list[Dataset], records: list[SeriesMutationRecord]
     ) -> None:
         """Conflicts within same millisecond."""
-        from .series_mutator import SeriesMutationRecord
-
         for i, ds in enumerate(datasets):
             ds.AcquisitionTime = f"120000.{(i * 7) % 1000:06d}"
         records.append(

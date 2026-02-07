@@ -326,20 +326,19 @@ class PerformanceBenchmark:
             slices=file_paths,
         )
 
-        writer = SeriesWriter()
-
         times = []
         memory_usage = []
 
         for iteration in range(iterations):
             output_dir = temp_dir / f"output_{num_slices}_iter{iteration}"
+            writer = SeriesWriter(output_dir)
 
             gc.collect()
             start_mem = self.get_memory_usage()
             start_time = time.perf_counter()
 
             # Write series
-            _ = writer.write_series(series, output_dir, datasets)
+            _ = writer.write_series(series, datasets)
 
             end_time = time.perf_counter()
             end_mem = self.get_memory_usage()
