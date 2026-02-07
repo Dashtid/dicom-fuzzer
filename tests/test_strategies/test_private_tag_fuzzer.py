@@ -8,10 +8,10 @@ from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
 from dicom_fuzzer.attacks.format.private_tag_fuzzer import (
-    PrivateTagFuzzer,
     KNOWN_CREATORS,
     MALICIOUS_CREATORS,
     PRIVATE_GROUPS,
+    PrivateTagFuzzer,
 )
 
 
@@ -126,7 +126,9 @@ class TestCreatorCollision:
         self, fuzzer: PrivateTagFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test multiple creators in same block."""
-        with patch.object(random, "choice", side_effect=[0x0009, "multiple_creators_same_block"]):
+        with patch.object(
+            random, "choice", side_effect=[0x0009, "multiple_creators_same_block"]
+        ):
             result = fuzzer._creator_collision(minimal_dataset)
         assert isinstance(result, Dataset)
 
@@ -134,7 +136,9 @@ class TestCreatorCollision:
         self, fuzzer: PrivateTagFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test creator overwriting data."""
-        with patch.object(random, "choice", side_effect=[0x0009, "creator_overwrites_data"]):
+        with patch.object(
+            random, "choice", side_effect=[0x0009, "creator_overwrites_data"]
+        ):
             result = fuzzer._creator_collision(minimal_dataset)
         assert isinstance(result, Dataset)
 
@@ -142,7 +146,9 @@ class TestCreatorCollision:
         self, fuzzer: PrivateTagFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test duplicate creator with different data."""
-        with patch.object(random, "choice", side_effect=[0x0009, "duplicate_creator_different_data"]):
+        with patch.object(
+            random, "choice", side_effect=[0x0009, "duplicate_creator_different_data"]
+        ):
             result = fuzzer._creator_collision(minimal_dataset)
         assert isinstance(result, Dataset)
 
@@ -157,9 +163,9 @@ class TestInvalidPrivateVr:
         self, fuzzer: PrivateTagFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test numeric data stored as string."""
-        with patch.object(random, "choice", side_effect=[
-            0x0009, "GEMS_GENIE_1", "numeric_as_string"
-        ]):
+        with patch.object(
+            random, "choice", side_effect=[0x0009, "GEMS_GENIE_1", "numeric_as_string"]
+        ):
             result = fuzzer._invalid_private_vr(minimal_dataset)
         assert isinstance(result, Dataset)
 
@@ -167,9 +173,9 @@ class TestInvalidPrivateVr:
         self, fuzzer: PrivateTagFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test string data as binary."""
-        with patch.object(random, "choice", side_effect=[
-            0x0009, "GEMS_GENIE_1", "string_as_binary"
-        ]):
+        with patch.object(
+            random, "choice", side_effect=[0x0009, "GEMS_GENIE_1", "string_as_binary"]
+        ):
             result = fuzzer._invalid_private_vr(minimal_dataset)
         assert isinstance(result, Dataset)
 
@@ -177,9 +183,11 @@ class TestInvalidPrivateVr:
         self, fuzzer: PrivateTagFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test sequence where primitive expected."""
-        with patch.object(random, "choice", side_effect=[
-            0x0009, "GEMS_GENIE_1", "sequence_where_primitive"
-        ]):
+        with patch.object(
+            random,
+            "choice",
+            side_effect=[0x0009, "GEMS_GENIE_1", "sequence_where_primitive"],
+        ):
             result = fuzzer._invalid_private_vr(minimal_dataset)
         assert isinstance(result, Dataset)
 
@@ -278,7 +286,9 @@ class TestPrivateSequenceAttack:
         self, fuzzer: PrivateTagFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test mixed creators in items."""
-        with patch.object(random, "choice", side_effect=[0x0009, "mixed_creators_in_items"]):
+        with patch.object(
+            random, "choice", side_effect=[0x0009, "mixed_creators_in_items"]
+        ):
             result = fuzzer._private_sequence_attack(minimal_dataset)
         assert isinstance(result, Dataset)
 
@@ -313,9 +323,7 @@ class TestPrivateTagFuzzerIntegration:
         assert result is not None
         assert isinstance(result, Dataset)
 
-    def test_multiple_mutations(
-        self, fuzzer: PrivateTagFuzzer
-    ) -> None:
+    def test_multiple_mutations(self, fuzzer: PrivateTagFuzzer) -> None:
         """Test multiple mutations in sequence."""
         for i in range(5):
             random.seed(i)

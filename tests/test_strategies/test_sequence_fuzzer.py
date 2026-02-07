@@ -153,17 +153,23 @@ class TestItemLengthMismatch:
         self, fuzzer: SequenceFuzzer, sample_dataset: Dataset
     ) -> None:
         """Test different attack types."""
-        attacks = ["overflow_length", "zero_length", "negative_length", "undefined_length_non_sq"]
+        attacks = [
+            "overflow_length",
+            "zero_length",
+            "negative_length",
+            "undefined_length_non_sq",
+        ]
         for attack in attacks:
             ds = Dataset()
             item = Dataset()
             item.add_new(Tag(0x0008, 0x0100), "SH", "CODE")
             ds.add_new(Tag(0x0008, 0x1115), "SQ", Sequence([item]))
 
-            with patch.object(random, "choice", side_effect=[
-                (Tag(0x0008, 0x1115), ds[Tag(0x0008, 0x1115)]),
-                attack
-            ]):
+            with patch.object(
+                random,
+                "choice",
+                side_effect=[(Tag(0x0008, 0x1115), ds[Tag(0x0008, 0x1115)]), attack],
+            ):
                 result = fuzzer._item_length_mismatch(ds)
             assert isinstance(result, Dataset)
 
@@ -178,7 +184,9 @@ class TestEmptyRequiredSequence:
         self, fuzzer: SequenceFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test empty sequence attack."""
-        with patch.object(random, "choice", side_effect=["empty_sequence", Tag(0x0008, 0x1115)]):
+        with patch.object(
+            random, "choice", side_effect=["empty_sequence", Tag(0x0008, 0x1115)]
+        ):
             result = fuzzer._empty_required_sequence(minimal_dataset)
         assert isinstance(result, Dataset)
 
@@ -186,7 +194,9 @@ class TestEmptyRequiredSequence:
         self, fuzzer: SequenceFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test null first item attack."""
-        with patch.object(random, "choice", side_effect=["null_first_item", Tag(0x0008, 0x1115)]):
+        with patch.object(
+            random, "choice", side_effect=["null_first_item", Tag(0x0008, 0x1115)]
+        ):
             result = fuzzer._empty_required_sequence(minimal_dataset)
         assert isinstance(result, Dataset)
 
@@ -194,7 +204,9 @@ class TestEmptyRequiredSequence:
         self, fuzzer: SequenceFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test empty nested sequence attack."""
-        with patch.object(random, "choice", side_effect=["empty_nested", Tag(0x0008, 0x1115)]):
+        with patch.object(
+            random, "choice", side_effect=["empty_nested", Tag(0x0008, 0x1115)]
+        ):
             result = fuzzer._empty_required_sequence(minimal_dataset)
         assert isinstance(result, Dataset)
 
@@ -316,9 +328,7 @@ class TestSequenceFuzzerIntegration:
         assert result is not None
         assert isinstance(result, Dataset)
 
-    def test_multiple_mutations_deterministic(
-        self, fuzzer: SequenceFuzzer
-    ) -> None:
+    def test_multiple_mutations_deterministic(self, fuzzer: SequenceFuzzer) -> None:
         """Test that same seed produces same mutations."""
         random.seed(123)
         ds1 = Dataset()

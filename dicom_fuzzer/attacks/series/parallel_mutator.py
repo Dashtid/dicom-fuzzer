@@ -31,12 +31,12 @@ import pydicom
 from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
 
-from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
 from dicom_fuzzer.attacks.series.series_mutator import (
     Series3DMutator,
     SeriesMutationRecord,
     SeriesMutationStrategy,
 )
+from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)

@@ -38,13 +38,6 @@ from typing import TYPE_CHECKING
 
 from pydicom.dataset import Dataset
 
-# Import types from multiframe_types
-from dicom_fuzzer.core.mutation.multiframe_types import (
-    FrameInfo,
-    MultiFrameMutationRecord,
-    MultiFrameMutationStrategy,
-)
-
 # Import strategies from multiframe_strategies
 from dicom_fuzzer.attacks.multiframe import (
     DimensionOverflowStrategy,
@@ -56,6 +49,13 @@ from dicom_fuzzer.attacks.multiframe import (
     PerFrameDimensionStrategy,
     PixelDataTruncationStrategy,
     SharedGroupStrategy,
+)
+
+# Import types from multiframe_types
+from dicom_fuzzer.core.mutation.multiframe_types import (
+    FrameInfo,
+    MultiFrameMutationRecord,
+    MultiFrameMutationStrategy,
 )
 from dicom_fuzzer.utils.logger import get_logger
 

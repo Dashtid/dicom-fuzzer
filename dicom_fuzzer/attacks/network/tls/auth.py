@@ -12,12 +12,13 @@ import ssl
 import struct
 import time
 
+from dicom_fuzzer.core.types import PDUType
+
 from .types import (
     COMMON_AE_TITLES,
     DICOMTLSFuzzerConfig,
     TLSFuzzResult,
 )
-from dicom_fuzzer.core.types import PDUType
 
 
 class DICOMAuthTester:

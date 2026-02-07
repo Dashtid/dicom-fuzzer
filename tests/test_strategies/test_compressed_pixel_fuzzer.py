@@ -6,12 +6,10 @@ from unittest.mock import patch
 import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.tag import Tag
-from pydicom.uid import ExplicitVRLittleEndian, JPEGBaseline8Bit
+from pydicom.uid import ExplicitVRLittleEndian
 
 from dicom_fuzzer.attacks.format.compressed_pixel_fuzzer import (
     CompressedPixelFuzzer,
-    JPEG_SOI,
-    JPEG_EOI,
 )
 
 

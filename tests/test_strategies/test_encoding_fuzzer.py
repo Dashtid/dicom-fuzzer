@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 from pydicom.dataset import Dataset
-from pydicom.tag import Tag
 
 from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
 
@@ -89,7 +88,9 @@ class TestInvalidCharsetValue:
         self, fuzzer: EncodingFuzzer, sample_dataset: Dataset
     ) -> None:
         """Test unknown charset attack."""
-        with patch.object(random, "choice", side_effect=["unknown_charset", "INVALID_CHARSET"]):
+        with patch.object(
+            random, "choice", side_effect=["unknown_charset", "INVALID_CHARSET"]
+        ):
             result = fuzzer._invalid_charset_value(sample_dataset)
         assert isinstance(result, Dataset)
 
@@ -194,7 +195,9 @@ class TestBomInjection:
         self, fuzzer: EncodingFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test BOM at start of value."""
-        with patch.object(random, "choice", side_effect=[b"\xEF\xBB\xBF", "bom_at_start"]):
+        with patch.object(
+            random, "choice", side_effect=[b"\xef\xbb\xbf", "bom_at_start"]
+        ):
             result = fuzzer._bom_injection(minimal_dataset)
         assert isinstance(result, Dataset)
 
@@ -202,7 +205,9 @@ class TestBomInjection:
         self, fuzzer: EncodingFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test BOM in middle of value."""
-        with patch.object(random, "choice", side_effect=[b"\xEF\xBB\xBF", "bom_in_middle"]):
+        with patch.object(
+            random, "choice", side_effect=[b"\xef\xbb\xbf", "bom_in_middle"]
+        ):
             result = fuzzer._bom_injection(minimal_dataset)
         assert isinstance(result, Dataset)
 
@@ -210,7 +215,9 @@ class TestBomInjection:
         self, fuzzer: EncodingFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test multiple BOMs in value."""
-        with patch.object(random, "choice", side_effect=[b"\xEF\xBB\xBF", "multiple_boms"]):
+        with patch.object(
+            random, "choice", side_effect=[b"\xef\xbb\xbf", "multiple_boms"]
+        ):
             result = fuzzer._bom_injection(minimal_dataset)
         assert isinstance(result, Dataset)
 
@@ -336,9 +343,7 @@ class TestEncodingFuzzerIntegration:
         assert result is not None
         assert isinstance(result, Dataset)
 
-    def test_multiple_mutations(
-        self, fuzzer: EncodingFuzzer
-    ) -> None:
+    def test_multiple_mutations(self, fuzzer: EncodingFuzzer) -> None:
         """Test multiple mutations in sequence."""
         for i in range(5):
             random.seed(i)

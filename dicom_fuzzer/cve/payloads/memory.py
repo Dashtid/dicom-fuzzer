@@ -185,10 +185,7 @@ def mutate_cve_2024_22100(data: bytes) -> list[tuple[str, bytes]]:
     if idx == -1:
         insert_pos = min(200, len(result) - 4)
         overflow_payload = (
-            private_creator_tag
-            + b"LO"
-            + struct.pack("<H", 0xFFFF)
-            + b"A" * 256
+            private_creator_tag + b"LO" + struct.pack("<H", 0xFFFF) + b"A" * 256
         )
         result = result[:insert_pos] + overflow_payload + result[insert_pos:]
     else:
@@ -325,7 +322,14 @@ def mutate_cve_2024_47796(data: bytes) -> list[tuple[str, bytes]]:
         ("12bit_unusual", 1024, 1024, 1, 11, 12),
     ]
 
-    for variant_name, rows, cols, frames, high_bit, bits_stored in lut_overflow_patterns:
+    for (
+        variant_name,
+        rows,
+        cols,
+        frames,
+        high_bit,
+        bits_stored,
+    ) in lut_overflow_patterns:
         result = bytearray(data)
 
         for tag, value in [
@@ -349,7 +353,9 @@ def mutate_cve_2024_47796(data: bytes) -> list[tuple[str, bytes]]:
             frames_str = str(frames).encode()
             if len(frames_str) % 2:
                 frames_str += b" "
-            frames_element = frames_tag + b"IS" + struct.pack("<H", len(frames_str)) + frames_str
+            frames_element = (
+                frames_tag + b"IS" + struct.pack("<H", len(frames_str)) + frames_str
+            )
             result = result[:insert_pos] + frames_element + result[insert_pos:]
 
         idx = data.find(pixel_data_tag)

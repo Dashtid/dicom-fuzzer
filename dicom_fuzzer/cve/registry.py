@@ -51,6 +51,7 @@ class CVEInfo:
         target_component: DICOM component targeted
         references: List of reference URLs
         variants: Number of attack variants available
+
     """
 
     cve_id: str
@@ -92,7 +93,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="MicroDicom",
         affected_versions="< 2024.2",
         target_component="pixel_data",
-        references=["https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-037-01"],
+        references=[
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-037-01"
+        ],
         variants=2,  # heap_overflow + integer_overflow
     ),
     "CVE-2025-35975": CVEInfo(
@@ -104,7 +107,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="MicroDicom",
         affected_versions="< 2024.2",
         target_component="pixel_data",
-        references=["https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-160-01"],
+        references=[
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-160-01"
+        ],
         variants=4,  # Different dimension combinations
     ),
     "CVE-2025-36521": CVEInfo(
@@ -116,7 +121,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="MicroDicom",
         affected_versions="< 2024.2",
         target_component="pixel_data",
-        references=["https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-121-01"],
+        references=[
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-121-01"
+        ],
         variants=5,  # Different dimension triggers
     ),
     "CVE-2025-11266": CVEInfo(
@@ -128,7 +135,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="GDCM",
         affected_versions="< 3.0.24",
         target_component="encapsulated_pixel_data",
-        references=["https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-345-01"],
+        references=[
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-345-01"
+        ],
         variants=2,  # underflow + fragment_count_mismatch
     ),
     "CVE-2025-53618": CVEInfo(
@@ -140,7 +149,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="GDCM",
         affected_versions="< 3.0.24",
         target_component="jpeg_codec",
-        references=["https://claroty.com/team82/research/dicom-demystified-exploring-the-underbelly-of-medical-imaging"],
+        references=[
+            "https://claroty.com/team82/research/dicom-demystified-exploring-the-underbelly-of-medical-imaging"
+        ],
         variants=1,
     ),
     "CVE-2025-53619": CVEInfo(
@@ -152,7 +163,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="GDCM",
         affected_versions="< 3.0.24",
         target_component="jpeg_codec",
-        references=["https://claroty.com/team82/research/dicom-demystified-exploring-the-underbelly-of-medical-imaging"],
+        references=[
+            "https://claroty.com/team82/research/dicom-demystified-exploring-the-underbelly-of-medical-imaging"
+        ],
         variants=1,
     ),
     "CVE-2025-1001": CVEInfo(
@@ -164,7 +177,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="RadiAnt DICOM Viewer",
         affected_versions="< 2024.1",
         target_component="metadata",
-        references=["https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-051-01"],
+        references=[
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-051-01"
+        ],
         variants=5,  # Different URL payloads
     ),
     "CVE-2025-1002": CVEInfo(
@@ -176,7 +191,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="MicroDicom",
         affected_versions="< 2024.2",
         target_component="metadata",
-        references=["https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-121-01"],
+        references=[
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-121-01"
+        ],
         variants=7,  # Different MITM URL payloads
     ),
     "CVE-2025-27578": CVEInfo(
@@ -188,7 +205,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="OsiriX MD",
         affected_versions="< 13.0.2",
         target_component="sequence",
-        references=["https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-128-01"],
+        references=[
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-128-01"
+        ],
         variants=1,
     ),
     "CVE-2025-31946": CVEInfo(
@@ -200,7 +219,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="OsiriX MD",
         affected_versions="< 13.0.2",
         target_component="pixel_data",
-        references=["https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-128-01"],
+        references=[
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-25-128-01"
+        ],
         variants=1,
     ),
     "CVE-2025-5307": CVEInfo(
@@ -225,7 +246,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="MicroDicom",
         affected_versions="< 2023.3",
         target_component="private_elements",
-        references=["https://www.cisa.gov/news-events/ics-medical-advisories/icsma-24-058-01"],
+        references=[
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-24-058-01"
+        ],
         variants=1,
     ),
     "CVE-2024-25578": CVEInfo(
@@ -237,7 +260,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="MicroDicom",
         affected_versions="< 2023.3",
         target_component="vr_length",
-        references=["https://www.cisa.gov/news-events/ics-medical-advisories/icsma-24-060-01"],
+        references=[
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-24-060-01"
+        ],
         variants=1,
     ),
     "CVE-2024-28877": CVEInfo(
@@ -249,7 +274,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="MicroDicom",
         affected_versions="< 2023.3",
         target_component="sequence",
-        references=["https://www.cisa.gov/news-events/ics-medical-advisories/icsma-24-058-01"],
+        references=[
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-24-058-01"
+        ],
         variants=1,
     ),
     "CVE-2024-33606": CVEInfo(
@@ -261,7 +288,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="MicroDicom",
         affected_versions="< 2023.3",
         target_component="url_elements",
-        references=["https://www.cisa.gov/news-events/ics-medical-advisories/icsma-24-060-01"],
+        references=[
+            "https://www.cisa.gov/news-events/ics-medical-advisories/icsma-24-060-01"
+        ],
         variants=10,  # Different URL payloads
     ),
     "CVE-2024-1453": CVEInfo(
@@ -285,7 +314,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="DCMTK",
         affected_versions="< 3.6.9",
         target_component="lut_data",
-        references=["https://talosintelligence.com/vulnerability_reports/TALOS-2024-2122"],
+        references=[
+            "https://talosintelligence.com/vulnerability_reports/TALOS-2024-2122"
+        ],
         variants=5,  # Different LUT overflow patterns
     ),
     "CVE-2024-52333": CVEInfo(
@@ -297,7 +328,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="DCMTK",
         affected_versions="< 3.6.9",
         target_component="pixel_data",
-        references=["https://talosintelligence.com/vulnerability_reports/TALOS-2024-2121"],
+        references=[
+            "https://talosintelligence.com/vulnerability_reports/TALOS-2024-2121"
+        ],
         variants=5,  # Different minmax overflow patterns
     ),
     # === Legacy CVEs ===
@@ -346,7 +379,9 @@ CVE_REGISTRY: dict[str, CVEInfo] = {
         affected_product="Multiple",
         affected_versions="all",
         target_component="preamble",
-        references=["https://marcoramilli.com/2019/02/28/dicom-dread-the-infection-is-one-click-away/"],
+        references=[
+            "https://marcoramilli.com/2019/02/28/dicom-dread-the-infection-is-one-click-away/"
+        ],
         variants=2,  # PE polyglot + ELF polyglot
     ),
 }

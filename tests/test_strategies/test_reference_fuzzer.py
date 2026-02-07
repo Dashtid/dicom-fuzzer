@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 import pytest
 from pydicom.dataset import Dataset
-from pydicom.sequence import Sequence
 from pydicom.tag import Tag
 from pydicom.uid import generate_uid
 
@@ -118,7 +117,9 @@ class TestOrphanReference:
         self, fuzzer: ReferenceFuzzer, minimal_dataset: Dataset
     ) -> None:
         """Test nonexistent frame of reference."""
-        with patch.object(random, "choice", return_value="nonexistent_frame_of_reference"):
+        with patch.object(
+            random, "choice", return_value="nonexistent_frame_of_reference"
+        ):
             result = fuzzer._orphan_reference(minimal_dataset)
         assert isinstance(result, Dataset)
         assert result.FrameOfReferenceUID == "1.2.3.4.5.6.7.8.9.NOFRAME"
@@ -211,9 +212,7 @@ class TestInvalidFrameReference:
             result = fuzzer._invalid_frame_reference(sample_dataset)
         assert isinstance(result, Dataset)
 
-    def test_zero_frame(
-        self, fuzzer: ReferenceFuzzer, sample_dataset: Dataset
-    ) -> None:
+    def test_zero_frame(self, fuzzer: ReferenceFuzzer, sample_dataset: Dataset) -> None:
         """Test zero frame number."""
         with patch.object(random, "choice", return_value="zero_frame"):
             result = fuzzer._invalid_frame_reference(sample_dataset)
@@ -354,9 +353,7 @@ class TestReferenceFuzzerIntegration:
         assert result is not None
         assert isinstance(result, Dataset)
 
-    def test_multiple_mutations(
-        self, fuzzer: ReferenceFuzzer
-    ) -> None:
+    def test_multiple_mutations(self, fuzzer: ReferenceFuzzer) -> None:
         """Test multiple mutations in sequence."""
         for i in range(5):
             random.seed(i)

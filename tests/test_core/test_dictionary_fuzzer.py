@@ -10,8 +10,8 @@ This test suite verifies the dictionary fuzzer's ability to:
 
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.types import MutationSeverity
 from dicom_fuzzer.attacks.format.dictionary_fuzzer import DictionaryFuzzer
+from dicom_fuzzer.core.types import MutationSeverity
 
 
 class TestDictionaryFuzzerInit:

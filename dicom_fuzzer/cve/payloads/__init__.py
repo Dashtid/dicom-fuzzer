@@ -12,10 +12,10 @@ from .memory import (
     mutate_cve_2024_28877,
     mutate_cve_2024_47796,
     mutate_cve_2024_52333,
-    mutate_cve_2025_35975,
-    mutate_cve_2025_36521,
     mutate_cve_2025_5307,
     mutate_cve_2025_5943,
+    mutate_cve_2025_35975,
+    mutate_cve_2025_36521,
 )
 from .protocol import (
     mutate_cve_2019_11687,

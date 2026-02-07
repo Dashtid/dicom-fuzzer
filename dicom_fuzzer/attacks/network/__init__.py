@@ -8,8 +8,6 @@ Network-level fuzzing for DICOM protocol implementations including:
 """
 
 # Main network fuzzer
-from .fuzzer import DICOMNetworkFuzzer
-
 # Base types and config
 from .base import (
     DICOMCommand,
@@ -22,9 +20,19 @@ from .base import (
 # Builder
 from .builder import DICOMProtocolBuilder
 
+# DIMSE subpackage
+from .dimse import DIMSECommandBuilder, DIMSEFuzzer
+from .fuzzer import DICOMNetworkFuzzer
+
 # Mixins
 from .pdu_mixin import PDUFuzzingMixin
-from .tls_mixin import TLSFuzzingMixin
+
+# Stateful subpackage
+from .stateful import (
+    DICOMStateMachine,
+    SequenceGenerator,
+    StatefulFuzzer,
+)
 
 # TLS subpackage
 from .tls import (
@@ -33,16 +41,7 @@ from .tls import (
     PACSQueryInjector,
     TLSSecurityTester,
 )
-
-# DIMSE subpackage
-from .dimse import DIMSECommandBuilder, DIMSEFuzzer
-
-# Stateful subpackage
-from .stateful import (
-    DICOMStateMachine,
-    SequenceGenerator,
-    StatefulFuzzer,
-)
+from .tls_mixin import TLSFuzzingMixin
 
 __all__ = [
     # Main fuzzer

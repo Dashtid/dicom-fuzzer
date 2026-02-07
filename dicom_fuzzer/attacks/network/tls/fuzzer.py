@@ -28,6 +28,9 @@ import logging
 from pathlib import Path
 from typing import Any
 
+# Import PDUType from types.py for backward compatibility
+from dicom_fuzzer.core.types import PDUType
+
 from .auth import DICOMAuthTester
 from .query import (
     INJECTION_PAYLOADS,
@@ -51,9 +54,6 @@ from .types import (
     TLSFuzzResult,
     TLSVulnerability,
 )
-
-# Import PDUType from types.py for backward compatibility
-from dicom_fuzzer.core.types import PDUType
 
 logger = logging.getLogger(__name__)
 

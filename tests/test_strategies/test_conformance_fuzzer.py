@@ -9,9 +9,8 @@ from pydicom.tag import Tag
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
 from dicom_fuzzer.attacks.format.conformance_fuzzer import (
-    ConformanceFuzzer,
     SOP_CLASSES,
-    TRANSFER_SYNTAXES,
+    ConformanceFuzzer,
 )
 
 
@@ -116,10 +115,11 @@ class TestInvalidSopClass:
         self, fuzzer: ConformanceFuzzer, sample_dataset: Dataset
     ) -> None:
         """Test retired SOP Class UID."""
-        with patch.object(random, "choice", side_effect=[
-            "retired_sop_class",
-            "1.2.840.10008.5.1.4.1.1.5"
-        ]):
+        with patch.object(
+            random,
+            "choice",
+            side_effect=["retired_sop_class", "1.2.840.10008.5.1.4.1.1.5"],
+        ):
             result = fuzzer._invalid_sop_class(sample_dataset)
         assert isinstance(result, Dataset)
 
@@ -215,7 +215,7 @@ class TestCorruptedFileMeta:
         with patch.object(random, "choice", return_value="wrong_preamble"):
             result = fuzzer._corrupted_file_meta(sample_dataset)
         assert isinstance(result, Dataset)
-        assert result.preamble == b"\xFF" * 128
+        assert result.preamble == b"\xff" * 128
 
     def test_wrong_version(
         self, fuzzer: ConformanceFuzzer, sample_dataset: Dataset
@@ -267,10 +267,14 @@ class TestImplementationUidAttack:
         self, fuzzer: ConformanceFuzzer, sample_dataset: Dataset
     ) -> None:
         """Test known vulnerable implementation attack."""
-        with patch.object(random, "choice", side_effect=[
-            "known_vulnerable",
-            ("1.2.276.0.7230010.3.0.3.6.0", "OFFIS_DCMTK_360")
-        ]):
+        with patch.object(
+            random,
+            "choice",
+            side_effect=[
+                "known_vulnerable",
+                ("1.2.276.0.7230010.3.0.3.6.0", "OFFIS_DCMTK_360"),
+            ],
+        ):
             result = fuzzer._implementation_uid_attack(sample_dataset)
         assert isinstance(result, Dataset)
 
@@ -309,10 +313,11 @@ class TestUidFormatViolations:
         self, fuzzer: ConformanceFuzzer, sample_dataset: Dataset
     ) -> None:
         """Test too long UID attack."""
-        with patch.object(random, "choice", side_effect=[
-            "too_long_uid",
-            (Tag(0x0008, 0x0016), "SOPClassUID")
-        ]):
+        with patch.object(
+            random,
+            "choice",
+            side_effect=["too_long_uid", (Tag(0x0008, 0x0016), "SOPClassUID")],
+        ):
             result = fuzzer._uid_format_violations(sample_dataset)
         assert isinstance(result, Dataset)
 
@@ -320,10 +325,14 @@ class TestUidFormatViolations:
         self, fuzzer: ConformanceFuzzer, sample_dataset: Dataset
     ) -> None:
         """Test non-numeric component in UID."""
-        with patch.object(random, "choice", side_effect=[
-            "non_numeric_component",
-            (Tag(0x0008, 0x0018), "SOPInstanceUID")
-        ]):
+        with patch.object(
+            random,
+            "choice",
+            side_effect=[
+                "non_numeric_component",
+                (Tag(0x0008, 0x0018), "SOPInstanceUID"),
+            ],
+        ):
             result = fuzzer._uid_format_violations(sample_dataset)
         assert isinstance(result, Dataset)
 
@@ -338,10 +347,11 @@ class TestRetiredSyntaxAttack:
         self, fuzzer: ConformanceFuzzer, sample_dataset: Dataset
     ) -> None:
         """Test retired transfer syntax attack."""
-        with patch.object(random, "choice", side_effect=[
-            "retired_transfer_syntax",
-            "1.2.840.10008.1.2.4.52"
-        ]):
+        with patch.object(
+            random,
+            "choice",
+            side_effect=["retired_transfer_syntax", "1.2.840.10008.1.2.4.52"],
+        ):
             result = fuzzer._retired_syntax_attack(sample_dataset)
         assert isinstance(result, Dataset)
 
@@ -369,9 +379,7 @@ class TestConformanceFuzzerIntegration:
         assert result is not None
         assert isinstance(result, Dataset)
 
-    def test_multiple_mutations(
-        self, fuzzer: ConformanceFuzzer
-    ) -> None:
+    def test_multiple_mutations(self, fuzzer: ConformanceFuzzer) -> None:
         """Test multiple mutations in sequence."""
         for i in range(5):
             random.seed(i)

@@ -17,6 +17,10 @@ import pytest
 pytest.importorskip("matplotlib", reason="matplotlib not installed")
 pytest.importorskip("plotly", reason="plotly not installed")
 
+from dicom_fuzzer.attacks.series.series_mutator import (
+    SeriesMutationRecord,
+    SeriesMutationStrategy,
+)
 from dicom_fuzzer.core.analytics.campaign_analytics import (
     CampaignAnalyzer,
     CoverageCorrelation,
@@ -30,10 +34,6 @@ from dicom_fuzzer.core.reporting.series_reporter import (
     SeriesMutationSummary,
 )
 from dicom_fuzzer.core.reporting.statistics import MutationStatistics
-from dicom_fuzzer.attacks.series.series_mutator import (
-    SeriesMutationRecord,
-    SeriesMutationStrategy,
-)
 
 
 class TestSeriesMutationSummary:
