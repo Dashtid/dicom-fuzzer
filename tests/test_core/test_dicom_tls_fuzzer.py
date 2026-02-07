@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.core.dicom_tls_fuzzer import (
+from dicom_fuzzer.attacks.network.tls.fuzzer import (
     COMMON_AE_TITLES,
     SOP_CLASS_UIDS,
     AuthBypassType,

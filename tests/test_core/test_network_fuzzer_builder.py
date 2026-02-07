@@ -6,7 +6,7 @@ dicom_fuzzer.core.network_fuzzer_builder module.
 
 import struct
 
-from dicom_fuzzer.core.network_fuzzer_builder import DICOMProtocolBuilder
+from dicom_fuzzer.attacks.network.builder import DICOMProtocolBuilder
 from dicom_fuzzer.core.types import PDUType
 
 

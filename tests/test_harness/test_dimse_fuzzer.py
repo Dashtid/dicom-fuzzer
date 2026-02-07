@@ -8,7 +8,7 @@ import struct
 
 import pytest
 
-from dicom_fuzzer.core.dimse_fuzzer import (
+from dicom_fuzzer.attacks.network.dimse.fuzzer import (
     DatasetMutator,
     DICOMElement,
     DIMSECommand,

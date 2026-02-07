@@ -70,7 +70,6 @@ auth.yaml
 *.dicom
 *.DCM
 *.DICOM
-/tools/generators/*.dcm
 /test_data/*.dcm
 /fixtures/*.dcm
 /patient_data/
@@ -383,10 +382,7 @@ truncated*.dcm
 !/data/seeds/.gitkeep
 !/data/dictionaries/.gitkeep
 
-# Sample/Test DICOM Files (keep structure but ignore files)
-/tools/generators/*.dcm
-/tools/generators/generated/
-!/tools/generators/.gitkeep
+# Sample/Test DICOM Files
 
 # IDE Settings
 .vscode/
@@ -440,7 +436,6 @@ TESTING_SESSION*.md
 # Empty placeholder directories
 /screenshots/
 /data/
-/scripts/
 
 # Mutation testing
 mutation-results.txt

@@ -17,7 +17,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from dicom_fuzzer.core.target_runner import (
+from dicom_fuzzer.core.harness.target_runner import (
     ExecutionResult,
     ExecutionStatus,
     TargetRunner,

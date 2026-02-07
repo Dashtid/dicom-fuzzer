@@ -6,8 +6,8 @@ Enriches crash records with automated triage analysis.
 from datetime import datetime
 from typing import Any
 
-from dicom_fuzzer.core.crash_triage import CrashTriageEngine
-from dicom_fuzzer.core.fuzzing_session import CrashRecord
+from dicom_fuzzer.core.crash.crash_triage import CrashTriageEngine
+from dicom_fuzzer.core.session.fuzzing_session import CrashRecord
 
 
 class CrashTriageEnricher:

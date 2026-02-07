@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from dicom_fuzzer.cli.create_html_report import (
+from dicom_fuzzer.cli.commands.reports import (
     create_html_report,
     create_report_with_charts,
     generate_charts,
@@ -368,7 +368,7 @@ class TestRenderReport:
     def test_render_report_without_jinja2(self):
         """Test fallback rendering without jinja2."""
         # Mock jinja2 as None
-        with patch("dicom_fuzzer.cli.create_html_report.jinja2", None):
+        with patch("dicom_fuzzer.cli.commands.reports.jinja2", None):
             template = "Hello {{ name }}"
             data = {"name": "World"}
 
@@ -378,7 +378,7 @@ class TestRenderReport:
 
     def test_render_report_fallback_multiple_replacements(self):
         """Test fallback with multiple replacements."""
-        with patch("dicom_fuzzer.cli.create_html_report.jinja2", None):
+        with patch("dicom_fuzzer.cli.commands.reports.jinja2", None):
             template = "{{ a }} - {{ b }} - {{ c }}"
             data = {"a": "One", "b": "Two", "c": "Three"}
 
@@ -526,7 +526,7 @@ class TestMainModule:
         try:
             sys.argv = ["create_html_report.py", str(json_path)]
             # Reload module to trigger __main__ block
-            import dicom_fuzzer.cli.create_html_report as module
+            import dicom_fuzzer.cli.commands.reports as module
 
             # Call create_html_report directly
             html_path = module.create_html_report(str(json_path))
@@ -547,7 +547,7 @@ class TestMainModule:
         with open(json_path, "w") as f:
             json.dump(json_data, f)
 
-        import dicom_fuzzer.cli.create_html_report as module
+        import dicom_fuzzer.cli.commands.reports as module
 
         result = module.create_html_report(str(json_path), str(html_path))
         assert result == str(html_path)

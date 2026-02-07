@@ -1,24 +1,23 @@
 """
 Integration tests for Phase 4 performance optimizations.
 
-Tests integration of Phase 4 (lazy loading, caching, parallel processing)
+Tests integration of Phase 4 (caching, parallel processing)
 with Phase 1-3 components (series detection, mutations, viewer testing).
 """
 
+import pydicom
 import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import generate_uid
 
-from dicom_fuzzer.core.dicom_series import DicomSeries
-from dicom_fuzzer.core.lazy_loader import create_metadata_loader
-from dicom_fuzzer.core.series_cache import SeriesCache
-from dicom_fuzzer.core.series_detector import SeriesDetector
-from dicom_fuzzer.core.series_writer import SeriesWriter
-from dicom_fuzzer.strategies.parallel_mutator import ParallelSeriesMutator
-from dicom_fuzzer.strategies.series_mutator import (
+from dicom_fuzzer.attacks.series.parallel_mutator import ParallelSeriesMutator
+from dicom_fuzzer.attacks.series.series_mutator import (
     Series3DMutator,
     SeriesMutationStrategy,
 )
+from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.core.dicom.series_detector import SeriesDetector
+from dicom_fuzzer.core.dicom.series_writer import SeriesWriter
 
 
 @pytest.fixture
@@ -62,7 +61,7 @@ def sample_series_files(tmp_path):
         ds.PixelData = b"\x00" * (64 * 64 * 2)
 
         file_path = tmp_path / f"slice_{i:03d}.dcm"
-        ds.save_as(file_path, write_like_original=False)
+        ds.save_as(file_path, enforce_file_format=True)
         slice_paths.append(file_path)
 
     return tmp_path, slice_paths
@@ -71,36 +70,19 @@ def sample_series_files(tmp_path):
 class TestPhase1Phase4Integration:
     """Test integration of Phase 1 (Series Detection) with Phase 4 (Optimizations)."""
 
-    def test_series_detector_with_lazy_loader(self, sample_series_files):
-        """Test SeriesDetector with lazy loading optimization."""
+    def test_series_detector_finds_series(self, sample_series_files):
+        """Test SeriesDetector finds series from file list."""
         series_dir, slice_paths = sample_series_files
 
-        # Create detector with lazy loader
         detector = SeriesDetector()
-        loader = create_metadata_loader()
 
-        # Detect series using lazy loading (pass explicit file list to avoid duplicate pattern issue)
+        # Detect series (pass explicit file list to avoid duplicate pattern issue)
         series_list = detector.detect_series(slice_paths)
 
         assert len(series_list) == 1
         series = series_list[0]
         assert series.slice_count == 20
         assert series.modality == "CT"
-
-    def test_series_detector_with_cache(self, sample_series_files):
-        """Test SeriesDetector benefits from caching."""
-        series_dir, slice_paths = sample_series_files
-
-        # Create cache and detector
-        cache = SeriesCache(max_size_mb=50, max_entries=100)
-        detector = SeriesDetector()
-
-        # First detection (cache misses) - pass explicit file list
-        series_list = detector.detect_series(slice_paths)
-        assert len(series_list) == 1
-
-        # Cache should be empty initially (detector doesn't use cache yet)
-        # This test demonstrates future integration opportunity
 
 
 class TestPhase2Phase4Integration:
@@ -261,14 +243,11 @@ class TestFullWorkflowIntegration:
 class TestPerformanceRegression:
     """Test that Phase 4 optimizations don't break existing functionality."""
 
-    def test_lazy_loading_preserves_metadata(self, sample_series_files):
-        """Test that lazy loading preserves all required metadata."""
+    def test_metadata_loading_preserves_attributes(self, sample_series_files):
+        """Test that metadata-only loading preserves all required attributes."""
         _, slice_paths = sample_series_files
 
-        loader = create_metadata_loader()
-
-        # Load with lazy loader
-        ds = loader.load(slice_paths[0])
+        ds = pydicom.dcmread(slice_paths[0], stop_before_pixels=True, force=True)
 
         # All required metadata should be present
         assert hasattr(ds, "PatientName")
@@ -277,23 +256,6 @@ class TestPerformanceRegression:
         assert hasattr(ds, "Modality")
         assert ds.PatientName == "Integration^Test"
         assert ds.Modality == "CT"
-
-    def test_cache_does_not_corrupt_data(self, sample_series_files):
-        """Test that caching doesn't corrupt DICOM data."""
-        _, slice_paths = sample_series_files
-
-        cache = SeriesCache(max_size_mb=50, max_entries=100)
-        loader = create_metadata_loader()
-
-        # Load same file multiple times through cache
-        ds1 = cache.get(slice_paths[0], lambda p: loader.load(p))
-        ds2 = cache.get(slice_paths[0], lambda p: loader.load(p))  # Cache hit
-        ds3 = cache.get(slice_paths[0], lambda p: loader.load(p))  # Cache hit
-
-        # All should have same metadata
-        assert ds1.PatientName == ds2.PatientName == ds3.PatientName
-        assert ds1.SeriesInstanceUID == ds2.SeriesInstanceUID == ds3.SeriesInstanceUID
-        assert ds1.InstanceNumber == ds2.InstanceNumber == ds3.InstanceNumber
 
     def test_parallel_mutations_maintain_series_integrity(self, sample_series_files):
         """Test that parallel mutations don't break series integrity."""

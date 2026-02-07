@@ -1,9 +1,9 @@
-"""Tests for dicom_fuzzer.utils.dicom_dictionaries module.
+"""Tests for dicom_fuzzer.attacks.format.dicom_dictionaries module.
 
 Tests DICOM-specific value dictionaries for intelligent fuzzing.
 """
 
-from dicom_fuzzer.utils.dicom_dictionaries import (
+from dicom_fuzzer.attacks.format.dicom_dictionaries import (
     INSTITUTION_NAMES,
     MODALITY_CODES,
     PATIENT_SEX_CODES,

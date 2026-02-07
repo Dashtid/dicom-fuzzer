@@ -16,7 +16,7 @@ class TestStudyCampaignParser:
 
     def test_create_parser(self):
         """Test study-campaign parser creation."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         assert isinstance(parser, argparse.ArgumentParser)
@@ -24,7 +24,7 @@ class TestStudyCampaignParser:
 
     def test_list_strategies_standalone(self):
         """Test --list-strategies works without other args."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(["--list-strategies"])
@@ -32,7 +32,7 @@ class TestStudyCampaignParser:
 
     def test_required_arguments_target_or_list_strategies(self):
         """Test --target or --list-strategies is required."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
 
@@ -51,7 +51,7 @@ class TestStudyCampaignParser:
 
     def test_strategy_choices(self):
         """Test valid strategy choices are accepted."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         valid_strategies = [
@@ -71,7 +71,7 @@ class TestStudyCampaignParser:
 
     def test_invalid_strategy_rejected(self):
         """Test invalid strategy is rejected."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         with pytest.raises(SystemExit):
@@ -81,7 +81,7 @@ class TestStudyCampaignParser:
 
     def test_severity_choices(self):
         """Test valid severity choices are accepted."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
 
@@ -93,7 +93,7 @@ class TestStudyCampaignParser:
 
     def test_invalid_severity_rejected(self):
         """Test invalid severity is rejected."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         with pytest.raises(SystemExit):
@@ -103,7 +103,7 @@ class TestStudyCampaignParser:
 
     def test_default_values(self):
         """Test default values for optional arguments."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(["--target", "./app.exe", "--study", "./test"])
@@ -120,7 +120,7 @@ class TestStudyCampaignParser:
 
     def test_count_argument(self):
         """Test --count argument."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(["--target", "./app", "--study", "./test", "-c", "50"])
@@ -128,7 +128,7 @@ class TestStudyCampaignParser:
 
     def test_timeout_argument(self):
         """Test --timeout argument."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(
@@ -138,7 +138,7 @@ class TestStudyCampaignParser:
 
     def test_memory_limit_argument(self):
         """Test --memory-limit argument."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(
@@ -148,7 +148,7 @@ class TestStudyCampaignParser:
 
     def test_startup_delay_argument(self):
         """Test --startup-delay argument."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(
@@ -158,7 +158,7 @@ class TestStudyCampaignParser:
 
     def test_output_directory_argument(self):
         """Test -o/--output argument."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(
@@ -168,7 +168,7 @@ class TestStudyCampaignParser:
 
     def test_stop_on_crash_flag(self):
         """Test --stop-on-crash flag."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(
@@ -178,7 +178,7 @@ class TestStudyCampaignParser:
 
     def test_verbose_flag(self):
         """Test -v/--verbose flag."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(["--target", "./app", "--study", "./test", "-v"])
@@ -190,7 +190,7 @@ class TestStudyCampaignListStrategies:
 
     def test_list_strategies_output(self, capsys):
         """Test --list-strategies prints all strategies."""
-        from dicom_fuzzer.cli.study_campaign import run_list_strategies
+        from dicom_fuzzer.cli.commands.study_campaign import run_list_strategies
 
         result = run_list_strategies()
         assert result == 0
@@ -205,7 +205,7 @@ class TestStudyCampaignListStrategies:
 
     def test_main_list_strategies(self, capsys):
         """Test main() with --list-strategies."""
-        from dicom_fuzzer.cli.study_campaign import main
+        from dicom_fuzzer.cli.commands.study_campaign import main
 
         result = main(["--list-strategies"])
         assert result == 0
@@ -219,7 +219,7 @@ class TestStudyCampaignValidation:
 
     def test_target_not_found_error(self, tmp_path, capsys):
         """Test error when target executable doesn't exist."""
-        from dicom_fuzzer.cli.study_campaign import main
+        from dicom_fuzzer.cli.commands.study_campaign import main
 
         study_dir = tmp_path / "study"
         study_dir.mkdir()
@@ -239,7 +239,7 @@ class TestStudyCampaignValidation:
 
     def test_study_not_found_error(self, tmp_path, capsys):
         """Test error when study directory doesn't exist."""
-        from dicom_fuzzer.cli.study_campaign import main
+        from dicom_fuzzer.cli.commands.study_campaign import main
 
         # Create a mock target
         target = tmp_path / "target.exe"
@@ -260,7 +260,7 @@ class TestStudyCampaignValidation:
 
     def test_creates_output_directory(self, tmp_path, capsys):
         """Test output directory is created if it doesn't exist."""
-        from dicom_fuzzer.cli.study_campaign import main
+        from dicom_fuzzer.cli.commands.study_campaign import main
 
         # Create mock target and study
         target = tmp_path / "target.py"
@@ -324,7 +324,7 @@ class TestStudyCampaignExecution:
         self, tmp_path, sample_study, mock_target, capsys
     ):
         """Test campaign with count=0 exits cleanly."""
-        from dicom_fuzzer.cli.study_campaign import main
+        from dicom_fuzzer.cli.commands.study_campaign import main
 
         output_dir = tmp_path / "output"
 
@@ -346,7 +346,7 @@ class TestStudyCampaignExecution:
 
     def test_campaign_statistics_saved(self, tmp_path, sample_study, mock_target):
         """Test campaign_results.json is written."""
-        from dicom_fuzzer.cli.study_campaign import main
+        from dicom_fuzzer.cli.commands.study_campaign import main
 
         output_dir = tmp_path / "output"
 
@@ -378,7 +378,7 @@ class TestStudyCampaignExecution:
 
     def test_campaign_logs_created(self, tmp_path, sample_study, mock_target):
         """Test campaign.log is created."""
-        from dicom_fuzzer.cli.study_campaign import main
+        from dicom_fuzzer.cli.commands.study_campaign import main
 
         output_dir = tmp_path / "output"
 
@@ -405,7 +405,7 @@ class TestStudyCampaignExecution:
 
     def test_stop_on_crash_flag_parsed(self, tmp_path, sample_study, mock_target):
         """Test --stop-on-crash flag is properly parsed."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(
@@ -421,7 +421,7 @@ class TestStudyCampaignExecution:
 
     def test_verbose_flag_parsed(self, tmp_path, sample_study, mock_target):
         """Test --verbose flag is properly parsed."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(
@@ -437,7 +437,7 @@ class TestStudyCampaignExecution:
 
     def test_campaign_header_output(self, tmp_path, sample_study, mock_target, capsys):
         """Test campaign outputs header information."""
-        from dicom_fuzzer.cli.study_campaign import main
+        from dicom_fuzzer.cli.commands.study_campaign import main
 
         output_dir = tmp_path / "output"
 
@@ -465,14 +465,14 @@ class TestStudyCampaignMainCLI:
 
     def test_main_no_args_shows_help(self, capsys):
         """Test main() with no args shows help."""
-        from dicom_fuzzer.cli.study_campaign import main
+        from dicom_fuzzer.cli.commands.study_campaign import main
 
         with pytest.raises(SystemExit):
             main([])
 
     def test_main_help_flag(self, capsys):
         """Test main() with --help."""
-        from dicom_fuzzer.cli.study_campaign import main
+        from dicom_fuzzer.cli.commands.study_campaign import main
 
         with pytest.raises(SystemExit) as exc_info:
             main(["--help"])
@@ -521,7 +521,7 @@ class TestLogFunction:
 
     def test_log_to_stdout(self, capsys):
         """Test log prints to stdout."""
-        from dicom_fuzzer.cli.study_campaign import log
+        from dicom_fuzzer.cli.commands.study_campaign import log
 
         log("Test message")
         captured = capsys.readouterr()
@@ -529,7 +529,7 @@ class TestLogFunction:
 
     def test_log_to_file(self, tmp_path):
         """Test log writes to file when provided."""
-        from dicom_fuzzer.cli.study_campaign import log
+        from dicom_fuzzer.cli.commands.study_campaign import log
 
         log_file = tmp_path / "test.log"
         log("Test message", log_file)
@@ -540,7 +540,7 @@ class TestLogFunction:
 
     def test_log_timestamp_format(self, capsys):
         """Test log includes timestamp."""
-        from dicom_fuzzer.cli.study_campaign import log
+        from dicom_fuzzer.cli.commands.study_campaign import log
 
         log("Test")
         captured = capsys.readouterr()
@@ -553,7 +553,7 @@ class TestListAdapters:
 
     def test_list_adapters_basic(self, capsys):
         """Test run_list_adapters prints header."""
-        from dicom_fuzzer.cli.study_campaign import run_list_adapters
+        from dicom_fuzzer.cli.commands.study_campaign import run_list_adapters
 
         result = run_list_adapters()
         assert result == 0
@@ -562,7 +562,7 @@ class TestListAdapters:
 
     def test_list_adapters_shows_install_hint(self, capsys):
         """Test list adapters shows pywinauto install hint when no adapters."""
-        from dicom_fuzzer.cli.study_campaign import run_list_adapters
+        from dicom_fuzzer.cli.commands.study_campaign import run_list_adapters
 
         result = run_list_adapters()
         assert result == 0
@@ -578,7 +578,7 @@ class TestValidateCampaignArgs:
         """Test validation fails when --study is missing."""
         import argparse
 
-        from dicom_fuzzer.cli.study_campaign import _validate_campaign_args
+        from dicom_fuzzer.cli.commands.study_campaign import _validate_campaign_args
 
         args = argparse.Namespace(target="./app.exe", study=None)
         result = _validate_campaign_args(args)
@@ -590,7 +590,7 @@ class TestValidateCampaignArgs:
         """Test validation fails when target doesn't exist."""
         import argparse
 
-        from dicom_fuzzer.cli.study_campaign import _validate_campaign_args
+        from dicom_fuzzer.cli.commands.study_campaign import _validate_campaign_args
 
         study_dir = tmp_path / "study"
         study_dir.mkdir()
@@ -609,7 +609,7 @@ class TestValidateCampaignArgs:
         """Test validation fails when study doesn't exist."""
         import argparse
 
-        from dicom_fuzzer.cli.study_campaign import _validate_campaign_args
+        from dicom_fuzzer.cli.commands.study_campaign import _validate_campaign_args
 
         target = tmp_path / "app.exe"
         target.write_text("mock")
@@ -628,7 +628,7 @@ class TestValidateCampaignArgs:
         """Test validation succeeds with valid args."""
         import argparse
 
-        from dicom_fuzzer.cli.study_campaign import _validate_campaign_args
+        from dicom_fuzzer.cli.commands.study_campaign import _validate_campaign_args
 
         target = tmp_path / "app.exe"
         target.write_text("mock")
@@ -652,7 +652,7 @@ class TestSetupCampaignDirs:
 
     def test_creates_directories(self, tmp_path):
         """Test directories are created."""
-        from dicom_fuzzer.cli.study_campaign import _setup_campaign_dirs
+        from dicom_fuzzer.cli.commands.study_campaign import _setup_campaign_dirs
 
         output_path = tmp_path / "output" / "nested"
         crashes_dir, log_file = _setup_campaign_dirs(output_path)
@@ -664,7 +664,7 @@ class TestSetupCampaignDirs:
 
     def test_existing_directory(self, tmp_path):
         """Test works with existing directory."""
-        from dicom_fuzzer.cli.study_campaign import _setup_campaign_dirs
+        from dicom_fuzzer.cli.commands.study_campaign import _setup_campaign_dirs
 
         output_path = tmp_path / "output"
         output_path.mkdir()
@@ -678,7 +678,7 @@ class TestGetStrategies:
 
     def test_all_strategies(self):
         """Test 'all' returns all strategies."""
-        from dicom_fuzzer.cli.study_campaign import _get_strategies
+        from dicom_fuzzer.cli.commands.study_campaign import _get_strategies
 
         strategy_map = {"a": 1, "b": 2, "c": 3}
         result = _get_strategies("all", strategy_map)
@@ -686,7 +686,7 @@ class TestGetStrategies:
 
     def test_single_strategy(self):
         """Test single strategy selection."""
-        from dicom_fuzzer.cli.study_campaign import _get_strategies
+        from dicom_fuzzer.cli.commands.study_campaign import _get_strategies
 
         strategy_map = {"a": 1, "b": 2, "c": 3}
         result = _get_strategies("b", strategy_map)
@@ -698,28 +698,28 @@ class TestGetSeverities:
 
     def test_moderate_default(self):
         """Test moderate returns full severity list."""
-        from dicom_fuzzer.cli.study_campaign import _get_severities
+        from dicom_fuzzer.cli.commands.study_campaign import _get_severities
 
         result = _get_severities("moderate")
         assert result == ["moderate", "aggressive", "extreme"]
 
     def test_aggressive_start(self):
         """Test aggressive starts from that severity."""
-        from dicom_fuzzer.cli.study_campaign import _get_severities
+        from dicom_fuzzer.cli.commands.study_campaign import _get_severities
 
         result = _get_severities("aggressive")
         assert result == ["aggressive", "extreme"]
 
     def test_extreme_start(self):
         """Test extreme returns only extreme."""
-        from dicom_fuzzer.cli.study_campaign import _get_severities
+        from dicom_fuzzer.cli.commands.study_campaign import _get_severities
 
         result = _get_severities("extreme")
         assert result == ["extreme"]
 
     def test_minimal_not_in_list(self):
         """Test minimal returns just itself."""
-        from dicom_fuzzer.cli.study_campaign import _get_severities
+        from dicom_fuzzer.cli.commands.study_campaign import _get_severities
 
         result = _get_severities("minimal")
         assert result == ["minimal"]
@@ -732,7 +732,7 @@ class TestLogProgress:
         """Test no output when test_id not multiple of 10."""
         import time
 
-        from dicom_fuzzer.cli.study_campaign import _log_progress
+        from dicom_fuzzer.cli.commands.study_campaign import _log_progress
 
         _log_progress(5, 100, time.time(), None)
         captured = capsys.readouterr()
@@ -742,7 +742,7 @@ class TestLogProgress:
         """Test output when test_id is multiple of 10."""
         import time
 
-        from dicom_fuzzer.cli.study_campaign import _log_progress
+        from dicom_fuzzer.cli.commands.study_campaign import _log_progress
 
         log_file = tmp_path / "test.log"
         start = time.time() - 10  # 10 seconds ago
@@ -757,7 +757,7 @@ class TestLogProgress:
         """Test handles zero elapsed time."""
         import time
 
-        from dicom_fuzzer.cli.study_campaign import _log_progress
+        from dicom_fuzzer.cli.commands.study_campaign import _log_progress
 
         _log_progress(10, 100, time.time(), None)
         captured = capsys.readouterr()
@@ -769,14 +769,14 @@ class TestLogCampaignSummary:
 
     def test_summary_output(self, capsys, tmp_path):
         """Test summary outputs all stats."""
-        from dicom_fuzzer.cli.study_campaign import _log_campaign_summary
+        from dicom_fuzzer.cli.commands.study_campaign import _log_campaign_summary
 
         stats = {
             "total": 100,
             "success": 90,
             "crash": 5,
+            "timeout": 3,
             "memory_exceeded": 2,
-            "render_failed": 3,
             "error": 0,
         }
         log_file = tmp_path / "test.log"
@@ -788,24 +788,24 @@ class TestLogCampaignSummary:
         assert "Total tests: 100" in captured.out
         assert "Success: 90" in captured.out
         assert "Crashes: 5" in captured.out
-        assert "Render failed: 3" in captured.out
+        assert "Timeouts: 3" in captured.out
 
-    def test_summary_no_render_failed(self, capsys):
-        """Test summary skips render_failed when zero."""
-        from dicom_fuzzer.cli.study_campaign import _log_campaign_summary
+    def test_summary_no_timeout(self, capsys):
+        """Test summary skips timeout when zero."""
+        from dicom_fuzzer.cli.commands.study_campaign import _log_campaign_summary
 
         stats = {
             "total": 100,
             "success": 100,
             "crash": 0,
+            "timeout": 0,
             "memory_exceeded": 0,
-            "render_failed": 0,
             "error": 0,
         }
         _log_campaign_summary(stats, 60.0, None)
 
         captured = capsys.readouterr()
-        assert "Render failed" not in captured.out
+        assert "Timeout" not in captured.out
 
 
 class TestSetupViewerAdapter:
@@ -813,7 +813,7 @@ class TestSetupViewerAdapter:
 
     def test_no_adapter_specified(self, tmp_path):
         """Test returns None when no adapter specified."""
-        from dicom_fuzzer.cli.study_campaign import _setup_viewer_adapter
+        from dicom_fuzzer.cli.commands.study_campaign import _setup_viewer_adapter
 
         log_file = tmp_path / "test.log"
         adapter, error = _setup_viewer_adapter(None, log_file)
@@ -824,7 +824,7 @@ class TestSetupViewerAdapter:
         """Test handles ValueError when adapter not found."""
         from unittest.mock import MagicMock, patch
 
-        from dicom_fuzzer.cli.study_campaign import _setup_viewer_adapter
+        from dicom_fuzzer.cli.commands.study_campaign import _setup_viewer_adapter
 
         log_file = tmp_path / "test.log"
 
@@ -853,7 +853,7 @@ class TestLogCampaignHeader:
         """Test header contains all expected info."""
         import argparse
 
-        from dicom_fuzzer.cli.study_campaign import _log_campaign_header
+        from dicom_fuzzer.cli.commands.study_campaign import _log_campaign_header
 
         args = argparse.Namespace(
             strategy="cross-series",
@@ -887,7 +887,7 @@ class TestSaveCampaignResults:
         """Test campaign results are saved to JSON."""
         import argparse
 
-        from dicom_fuzzer.cli.study_campaign import _save_campaign_results
+        from dicom_fuzzer.cli.commands.study_campaign import _save_campaign_results
 
         output_path = tmp_path / "output"
         output_path.mkdir()
@@ -925,7 +925,7 @@ class TestMainListAdapters:
 
     def test_main_list_adapters(self, capsys):
         """Test main() with --list-adapters option."""
-        from dicom_fuzzer.cli.study_campaign import main
+        from dicom_fuzzer.cli.commands.study_campaign import main
 
         result = main(["--list-adapters"])
         assert result == 0
@@ -939,7 +939,7 @@ class TestMutationsPerTest:
 
     def test_mutations_per_test_argument(self):
         """Test --mutations-per-test argument parsing."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(
@@ -949,7 +949,7 @@ class TestMutationsPerTest:
 
     def test_mutations_per_test_default(self):
         """Test --mutations-per-test default value."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(["--target", "./app", "--study", "./test"])
@@ -961,7 +961,7 @@ class TestAdapterArguments:
 
     def test_adapter_argument(self):
         """Test --adapter argument parsing."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(
@@ -971,7 +971,7 @@ class TestAdapterArguments:
 
     def test_series_name_argument(self):
         """Test --series-name argument parsing."""
-        from dicom_fuzzer.cli.study_campaign import create_parser
+        from dicom_fuzzer.cli.commands.study_campaign import create_parser
 
         parser = create_parser()
         args = parser.parse_args(

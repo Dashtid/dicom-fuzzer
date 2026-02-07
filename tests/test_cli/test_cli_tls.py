@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli import tls
+from dicom_fuzzer.cli.commands import tls
 
 
 class TestCreateParser:
@@ -109,7 +109,7 @@ class TestRunScan:
         mock_fuzzer.get_vulnerabilities.return_value = ["heartbleed", "poodle"]
 
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer",
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer",
             return_value=mock_fuzzer,
         ):
             result = tls.run_scan(args)
@@ -139,7 +139,7 @@ class TestRunScan:
         mock_fuzzer.get_vulnerabilities.return_value = ["heartbleed"]
 
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer",
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer",
             return_value=mock_fuzzer,
         ):
             result = tls.run_scan(args)
@@ -177,7 +177,7 @@ class TestRunScan:
         mock_fuzzer.get_vulnerabilities.return_value = []
 
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer",
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer",
             return_value=mock_fuzzer,
         ):
             result = tls.run_scan(args)
@@ -208,7 +208,7 @@ class TestRunScan:
         mock_fuzzer.get_vulnerabilities.return_value = []
 
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer",
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer",
             return_value=mock_fuzzer,
         ) as mock_create:
             result = tls.run_scan(args)
@@ -236,7 +236,7 @@ class TestRunScan:
         )
 
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer",
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer",
             side_effect=ImportError("Module not found"),
         ):
             result = tls.run_scan(args)
@@ -259,7 +259,7 @@ class TestRunScan:
         )
 
         with patch(
-            "dicom_fuzzer.core.dicom_tls_fuzzer.create_dicom_tls_fuzzer",
+            "dicom_fuzzer.attacks.network.tls.fuzzer.create_dicom_tls_fuzzer",
             side_effect=ConnectionError("Connection refused"),
         ):
             result = tls.run_scan(args)

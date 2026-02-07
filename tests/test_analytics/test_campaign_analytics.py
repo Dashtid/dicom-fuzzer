@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from dicom_fuzzer.analytics.campaign_analytics import (
+from dicom_fuzzer.core.analytics.campaign_analytics import (
     CampaignAnalyzer,
     CoverageCorrelation,
     PerformanceMetrics,

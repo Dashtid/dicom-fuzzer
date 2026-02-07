@@ -1,1 +1,0 @@
-# Parser Stress Test Generators

@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from dicom_fuzzer.core.target_calibrator import (
+from dicom_fuzzer.core.harness.target_calibrator import (
     CalibrationResult,
     CrashDetectionStatus,
     TargetCalibrator,

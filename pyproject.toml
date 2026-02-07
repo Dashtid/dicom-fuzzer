@@ -76,9 +76,6 @@ distributed = [
 metrics = [
     "prometheus-client>=0.21.0",
 ]
-differential = [
-    "python-gdcm>=3.0.0; platform_system != 'Windows'",
-]
 security = [
     "pip-audit>=2.7.0",
     "cyclonedx-bom>=4.0.0",
@@ -200,7 +197,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["D", "S101", "S607", "B", "F841", "PT011"]  # Relax docstring, assert, subprocess path, and pytest in tests
-"tools/examples/**/*.py" = ["D", "S"]  # Relax docstring and security rules in examples
+"dicom_fuzzer/tools/demos/**/*.py" = ["D", "S"]  # Relax docstring and security rules in demos
 
 [tool.mypy]
 python_version = "3.11"
@@ -226,7 +223,6 @@ module = [
     "jinja2.*",   # Optional dependency for HTML reports
     "redis.*",    # Optional dependency for distributed fuzzing
     "prometheus_client.*",  # Optional dependency for metrics
-    "gdcm.*",     # Optional dependency for differential fuzzing
     "httpx.*",    # Optional dependency for async HTTP
     "requests.*", # HTTP client
     "psutil.*",   # Process utilities
@@ -243,6 +239,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "dicom_fuzzer.adapters.*",
+    "dicom_fuzzer.core.adapters.*",
     "dicom_fuzzer.core.ui_validator",
     "dicom_fuzzer.core.target_harness",
     "dicom_fuzzer.cli.study_campaign",
@@ -250,6 +247,19 @@ module = [
 ]
 # pywinauto uses dynamic attributes; matplotlib stubs inconsistent across platforms
 disable_error_code = ["union-attr", "attr-defined", "unreachable", "operator", "valid-type", "no-any-return", "arg-type"]
+
+[[tool.mypy.overrides]]
+module = [
+    "dicom_fuzzer.tools.*",
+]
+# Support scripts, benchmarks, and demos -- excluded from pre-commit mypy
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "dicom_fuzzer.attacks.format.*"
+# Format fuzzers intentionally violate type safety: accessing internal pydicom
+# attributes (_value), assigning invalid strings to UID fields, etc.
+disable_error_code = ["union-attr", "misc", "valid-type", "var-annotated", "arg-type", "assignment", "no-any-return"]
 
 # Pyright configuration (fast, modern type checker - 3-5x faster than mypy)
 [tool.pyright]
@@ -298,7 +308,7 @@ addopts = [
     # Use one of these methods for coverage:
     #   1. pytest --cov (uses [tool.coverage.run] config)
     #   2. coverage run -m pytest (direct coverage.py, more reliable)
-    #   3. ./scripts/coverage.ps1 or ./scripts/coverage.sh (recommended)
+    #   3. uv run python dicom_fuzzer/tools/reporting/run_coverage.py (recommended)
     # CI/CD enforces 55% minimum coverage threshold via GitHub Actions
 ]
 testpaths = ["tests"]
@@ -400,5 +410,5 @@ paths_to_mutate = [
     "dicom_fuzzer/core/parser.py",
     "dicom_fuzzer/core/crash_deduplication.py",
     "dicom_fuzzer/core/byte_mutator.py",
-    "dicom_fuzzer/strategies/security_patterns.py",
+    "dicom_fuzzer/attacks/security_patterns.py",
 ]

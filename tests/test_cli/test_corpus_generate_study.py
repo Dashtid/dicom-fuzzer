@@ -14,7 +14,7 @@ class TestGenerateStudyParser:
 
     def test_generate_study_action(self):
         """Test --generate-study action is recognized."""
-        from dicom_fuzzer.cli.corpus import create_parser
+        from dicom_fuzzer.cli.commands.corpus import create_parser
 
         parser = create_parser()
         args = parser.parse_args(["--generate-study", "./source", "-o", "./output"])
@@ -23,7 +23,7 @@ class TestGenerateStudyParser:
 
     def test_default_values(self):
         """Test default values for generation options."""
-        from dicom_fuzzer.cli.corpus import create_parser
+        from dicom_fuzzer.cli.commands.corpus import create_parser
 
         parser = create_parser()
         args = parser.parse_args(["--generate-study", "./source", "-o", "./output"])
@@ -36,7 +36,7 @@ class TestGenerateStudyParser:
 
     def test_count_argument(self):
         """Test -c/--count argument."""
-        from dicom_fuzzer.cli.corpus import create_parser
+        from dicom_fuzzer.cli.commands.corpus import create_parser
 
         parser = create_parser()
         args = parser.parse_args(
@@ -51,7 +51,7 @@ class TestGenerateStudyParser:
 
     def test_strategy_choices(self):
         """Test valid strategy choices are accepted."""
-        from dicom_fuzzer.cli.corpus import create_parser
+        from dicom_fuzzer.cli.commands.corpus import create_parser
 
         parser = create_parser()
         valid_strategies = [
@@ -78,7 +78,7 @@ class TestGenerateStudyParser:
 
     def test_invalid_strategy_rejected(self):
         """Test invalid strategy is rejected."""
-        from dicom_fuzzer.cli.corpus import create_parser
+        from dicom_fuzzer.cli.commands.corpus import create_parser
 
         parser = create_parser()
         with pytest.raises(SystemExit):
@@ -95,7 +95,7 @@ class TestGenerateStudyParser:
 
     def test_severity_choices(self):
         """Test valid severity choices are accepted."""
-        from dicom_fuzzer.cli.corpus import create_parser
+        from dicom_fuzzer.cli.commands.corpus import create_parser
 
         parser = create_parser()
         for severity in ["minimal", "moderate", "aggressive", "extreme"]:
@@ -113,7 +113,7 @@ class TestGenerateStudyParser:
 
     def test_invalid_severity_rejected(self):
         """Test invalid severity is rejected."""
-        from dicom_fuzzer.cli.corpus import create_parser
+        from dicom_fuzzer.cli.commands.corpus import create_parser
 
         parser = create_parser()
         with pytest.raises(SystemExit):
@@ -130,7 +130,7 @@ class TestGenerateStudyParser:
 
     def test_mutations_per_study_argument(self):
         """Test --mutations-per-study argument."""
-        from dicom_fuzzer.cli.corpus import create_parser
+        from dicom_fuzzer.cli.commands.corpus import create_parser
 
         parser = create_parser()
         args = parser.parse_args(
@@ -147,7 +147,7 @@ class TestGenerateStudyParser:
 
     def test_verbose_flag(self):
         """Test -v/--verbose flag."""
-        from dicom_fuzzer.cli.corpus import create_parser
+        from dicom_fuzzer.cli.commands.corpus import create_parser
 
         parser = create_parser()
         args = parser.parse_args(
@@ -161,7 +161,7 @@ class TestGenerateStudyValidation:
 
     def test_source_not_found_error(self, tmp_path, capsys):
         """Test error when source study doesn't exist."""
-        from dicom_fuzzer.cli.corpus import main
+        from dicom_fuzzer.cli.commands.corpus import main
 
         result = main(
             [
@@ -178,7 +178,7 @@ class TestGenerateStudyValidation:
 
     def test_output_required_error(self, tmp_path, capsys):
         """Test error when --output not provided."""
-        from dicom_fuzzer.cli.corpus import main
+        from dicom_fuzzer.cli.commands.corpus import main
 
         # Create a source directory
         source = tmp_path / "source"
@@ -215,7 +215,7 @@ class TestGenerateStudyExecution:
 
     def test_generation_creates_output_directory(self, tmp_path, sample_study, capsys):
         """Test output directory is created."""
-        from dicom_fuzzer.cli.corpus import main
+        from dicom_fuzzer.cli.commands.corpus import main
 
         output_dir = tmp_path / "output" / "nested"
 
@@ -235,7 +235,7 @@ class TestGenerateStudyExecution:
 
     def test_generation_creates_corpus_index(self, tmp_path, sample_study, capsys):
         """Test corpus index file is created."""
-        from dicom_fuzzer.cli.corpus import main
+        from dicom_fuzzer.cli.commands.corpus import main
 
         output_dir = tmp_path / "output"
 
@@ -261,7 +261,7 @@ class TestGenerateStudyExecution:
 
     def test_generation_copies_studies_to_corpus(self, tmp_path, sample_study, capsys):
         """Test studies are copied to corpus directory."""
-        from dicom_fuzzer.cli.corpus import main
+        from dicom_fuzzer.cli.commands.corpus import main
 
         output_dir = tmp_path / "output"
 
@@ -286,7 +286,7 @@ class TestGenerateStudyExecution:
 
     def test_generation_with_specific_strategy(self, tmp_path, sample_study, capsys):
         """Test generation with specific strategy."""
-        from dicom_fuzzer.cli.corpus import main
+        from dicom_fuzzer.cli.commands.corpus import main
 
         output_dir = tmp_path / "output"
 
@@ -309,7 +309,7 @@ class TestGenerateStudyExecution:
 
     def test_generation_with_verbose_output(self, tmp_path, sample_study, capsys):
         """Test verbose output shows mutation details."""
-        from dicom_fuzzer.cli.corpus import main
+        from dicom_fuzzer.cli.commands.corpus import main
 
         output_dir = tmp_path / "output"
 
@@ -332,7 +332,7 @@ class TestGenerateStudyExecution:
 
     def test_generation_summary_output(self, tmp_path, sample_study, capsys):
         """Test summary output is displayed."""
-        from dicom_fuzzer.cli.corpus import main
+        from dicom_fuzzer.cli.commands.corpus import main
 
         output_dir = tmp_path / "output"
 
@@ -359,7 +359,7 @@ class TestGenerateStudyMutualExclusion:
 
     def test_cannot_combine_with_analyze(self):
         """Test --generate-study cannot be combined with --analyze."""
-        from dicom_fuzzer.cli.corpus import create_parser
+        from dicom_fuzzer.cli.commands.corpus import create_parser
 
         parser = create_parser()
         with pytest.raises(SystemExit):
@@ -367,7 +367,7 @@ class TestGenerateStudyMutualExclusion:
 
     def test_cannot_combine_with_dedup(self):
         """Test --generate-study cannot be combined with --dedup."""
-        from dicom_fuzzer.cli.corpus import create_parser
+        from dicom_fuzzer.cli.commands.corpus import create_parser
 
         parser = create_parser()
         with pytest.raises(SystemExit):
@@ -375,7 +375,7 @@ class TestGenerateStudyMutualExclusion:
 
     def test_cannot_combine_with_minimize_study(self):
         """Test --generate-study cannot be combined with --minimize-study."""
-        from dicom_fuzzer.cli.corpus import create_parser
+        from dicom_fuzzer.cli.commands.corpus import create_parser
 
         parser = create_parser()
         with pytest.raises(SystemExit):

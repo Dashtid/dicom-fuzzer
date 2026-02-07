@@ -24,7 +24,7 @@ from dicom_fuzzer.cli.main import (
     validate_input_file,
     validate_strategy,
 )
-from dicom_fuzzer.core.resource_manager import ResourceLimits
+from dicom_fuzzer.core.session.resource_manager import ResourceLimits
 
 
 # =============================================================================
@@ -537,7 +537,7 @@ class TestMain:
             ],
         ):
             with patch(
-                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
@@ -578,7 +578,7 @@ class TestMain:
             ],
         ):
             with patch(
-                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
@@ -638,7 +638,7 @@ class TestMain:
             ],
         ):
             with patch(
-                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
@@ -679,7 +679,7 @@ class TestMain:
             ],
         ):
             with patch(
-                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_generator_class:
                 mock_generator = MagicMock()
                 generated_files = [
@@ -692,7 +692,7 @@ class TestMain:
                 mock_generator_class.return_value = mock_generator
 
                 with patch(
-                    "dicom_fuzzer.cli.target_controller.TargetRunner"
+                    "dicom_fuzzer.cli.controllers.target_controller.TargetRunner"
                 ) as mock_runner_class:
                     mock_runner = MagicMock()
                     mock_runner.run_campaign.return_value = []
@@ -748,7 +748,7 @@ class TestMain:
             ],
         ):
             with patch(
-                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
@@ -783,7 +783,7 @@ class TestMain:
             ],
         ):
             with patch(
-                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_generator_class:
                 mock_generator_class.side_effect = KeyboardInterrupt()
 
@@ -810,7 +810,7 @@ class TestMain:
             ],
         ):
             with patch(
-                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_generator_class:
                 mock_generator_class.side_effect = RuntimeError("Generator failed")
 
@@ -841,7 +841,7 @@ class TestMain:
             ],
         ):
             with patch(
-                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
@@ -853,7 +853,7 @@ class TestMain:
                 mock_generator_class.return_value = mock_generator
 
                 with patch(
-                    "dicom_fuzzer.cli.target_controller.TargetRunner"
+                    "dicom_fuzzer.cli.controllers.target_controller.TargetRunner"
                 ) as mock_runner_class:
                     mock_runner_class.side_effect = RuntimeError("Runner failed")
 
@@ -884,7 +884,7 @@ class TestMain:
             ],
         ):
             with patch(
-                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
@@ -896,7 +896,7 @@ class TestMain:
                 mock_generator_class.return_value = mock_generator
 
                 with patch(
-                    "dicom_fuzzer.cli.target_controller.TargetRunner"
+                    "dicom_fuzzer.cli.controllers.target_controller.TargetRunner"
                 ) as mock_runner_class:
                     mock_runner_class.side_effect = FileNotFoundError(
                         "Executable not found"
@@ -948,7 +948,7 @@ class TestMain:
             ],
         ):
             with patch(
-                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
@@ -960,7 +960,7 @@ class TestMain:
                 mock_generator_class.return_value = mock_generator
 
                 with patch(
-                    "dicom_fuzzer.cli.target_controller.TargetRunner"
+                    "dicom_fuzzer.cli.controllers.target_controller.TargetRunner"
                 ) as mock_runner_class:
                     mock_runner = MagicMock()
                     mock_runner.run_campaign.return_value = []
@@ -1001,7 +1001,7 @@ class TestProgressBar:
             ],
         ):
             with patch(
-                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
@@ -1012,8 +1012,12 @@ class TestProgressBar:
                 mock_generator.stats.strategies_used = {}
                 mock_generator_class.return_value = mock_generator
 
-                with patch("dicom_fuzzer.cli.campaign_runner.HAS_TQDM", True):
-                    with patch("dicom_fuzzer.cli.campaign_runner.tqdm") as mock_tqdm:
+                with patch(
+                    "dicom_fuzzer.cli.controllers.campaign_runner.HAS_TQDM", True
+                ):
+                    with patch(
+                        "dicom_fuzzer.cli.controllers.campaign_runner.tqdm"
+                    ) as mock_tqdm:
                         mock_pbar = MagicMock()
                         mock_tqdm.return_value.__enter__ = MagicMock(
                             return_value=mock_pbar
@@ -1044,7 +1048,7 @@ class TestProgressBar:
             ],
         ):
             with patch(
-                "dicom_fuzzer.cli.campaign_runner.DICOMGenerator"
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_generator_class:
                 mock_generator = MagicMock()
                 mock_generator.generate_batch.return_value = [
@@ -1055,7 +1059,9 @@ class TestProgressBar:
                 mock_generator.stats.strategies_used = {}
                 mock_generator_class.return_value = mock_generator
 
-                with patch("dicom_fuzzer.cli.campaign_runner.HAS_TQDM", False):
+                with patch(
+                    "dicom_fuzzer.cli.controllers.campaign_runner.HAS_TQDM", False
+                ):
                     result = main()
 
                     assert result == 0

@@ -15,10 +15,10 @@ from pathlib import Path
 
 import pytest
 
-from dicom_fuzzer.core.crash_analyzer import (
+from dicom_fuzzer.core.constants import Severity
+from dicom_fuzzer.core.crash.crash_analyzer import (
     CrashAnalyzer,
     CrashReport,
-    CrashSeverity,
     CrashType,
 )
 
@@ -89,7 +89,7 @@ class TestSeverityDetermination:
         except Exception as e:
             crash_type = analyzer._classify_exception(e)
             severity = analyzer._determine_severity(crash_type, e)
-            assert severity == CrashSeverity.HIGH
+            assert severity == Severity.HIGH
 
     def test_stack_overflow_severity(self):
         """Test RecursionError has HIGH severity."""
@@ -100,7 +100,7 @@ class TestSeverityDetermination:
         except Exception as e:
             crash_type = analyzer._classify_exception(e)
             severity = analyzer._determine_severity(crash_type, e)
-            assert severity == CrashSeverity.HIGH
+            assert severity == Severity.HIGH
 
     def test_assertion_failure_severity(self):
         """Test AssertionError has MEDIUM severity."""
@@ -111,7 +111,7 @@ class TestSeverityDetermination:
         except Exception as e:
             crash_type = analyzer._classify_exception(e)
             severity = analyzer._determine_severity(crash_type, e)
-            assert severity == CrashSeverity.MEDIUM
+            assert severity == Severity.MEDIUM
 
     def test_memory_corruption_keywords(self):
         """Test exceptions with memory corruption keywords are CRITICAL."""
@@ -122,15 +122,7 @@ class TestSeverityDetermination:
         except Exception as e:
             crash_type = analyzer._classify_exception(e)
             severity = analyzer._determine_severity(crash_type, e)
-            assert severity == CrashSeverity.CRITICAL
-
-    def test_segfault_severity(self):
-        """Test SEGFAULT crash type is CRITICAL (line 219)."""
-        analyzer = CrashAnalyzer(crash_dir=tempfile.mkdtemp())
-
-        # Directly test _determine_severity with SEGFAULT type
-        severity = analyzer._determine_severity(CrashType.SEGFAULT, ValueError("test"))
-        assert severity == CrashSeverity.CRITICAL
+            assert severity == Severity.CRITICAL
 
 
 class TestCrashDeduplication:

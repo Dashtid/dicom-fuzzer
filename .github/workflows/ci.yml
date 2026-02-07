@@ -37,10 +37,10 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run Ruff linter
-        run: uv run ruff check --output-format=github dicom_fuzzer/ tests/ tools/examples/
+        run: uv run ruff check --output-format=github dicom_fuzzer/ tests/
 
       - name: Run Ruff formatter
-        run: uv run ruff format --check dicom_fuzzer/ tests/ tools/examples/
+        run: uv run ruff format --check dicom_fuzzer/ tests/
 
   security-scan:
     name: Security Scan (Bandit)

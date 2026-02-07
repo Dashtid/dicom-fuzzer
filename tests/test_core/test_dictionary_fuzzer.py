@@ -10,8 +10,8 @@ This test suite verifies the dictionary fuzzer's ability to:
 
 from pydicom.dataset import Dataset
 
+from dicom_fuzzer.attacks.format.dictionary_fuzzer import DictionaryFuzzer
 from dicom_fuzzer.core.types import MutationSeverity
-from dicom_fuzzer.strategies.dictionary_fuzzer import DictionaryFuzzer
 
 
 class TestDictionaryFuzzerInit:
@@ -310,7 +310,7 @@ class TestIntegrationWithMutator:
 
     def test_mutator_registers_dictionary_strategy(self):
         """Test that mutator can register dictionary strategy."""
-        from dicom_fuzzer.core.mutator import DicomMutator
+        from dicom_fuzzer.core.mutation.mutator import DicomMutator
 
         mutator = DicomMutator()
         initial_count = len(mutator.strategies)
@@ -323,7 +323,7 @@ class TestIntegrationWithMutator:
 
     def test_mutator_uses_dictionary_strategy(self):
         """Test mutator applies dictionary mutations."""
-        from dicom_fuzzer.core.mutator import DicomMutator
+        from dicom_fuzzer.core.mutation.mutator import DicomMutator
 
         ds = Dataset()
         ds.PatientName = "Original"
@@ -349,7 +349,7 @@ class TestIntegrationWithMutator:
 
     def test_auto_register_strategies(self):
         """Test mutator auto-registers dictionary strategy."""
-        from dicom_fuzzer.core.mutator import DicomMutator
+        from dicom_fuzzer.core.mutation.mutator import DicomMutator
 
         mutator = DicomMutator({"auto_register_strategies": True})
 

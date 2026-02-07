@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.state import (
+from dicom_fuzzer.cli.commands.state import (
     create_parser,
     main,
     run_export_sm,
@@ -108,7 +108,8 @@ class TestRunFuzz:
         )
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.state_aware_fuzzer": mock_module}
+            "sys.modules",
+            {"dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer": mock_module},
         ):
             result = run_fuzz(args)
 
@@ -137,7 +138,8 @@ class TestRunFuzz:
         )
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.state_aware_fuzzer": mock_module}
+            "sys.modules",
+            {"dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer": mock_module},
         ):
             result = run_fuzz(args)
 
@@ -163,7 +165,8 @@ class TestRunFuzz:
         )
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.state_aware_fuzzer": mock_module}
+            "sys.modules",
+            {"dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer": mock_module},
         ):
             result = run_fuzz(args)
 
@@ -209,7 +212,8 @@ class TestRunFuzz:
         )
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.state_aware_fuzzer": mock_module}
+            "sys.modules",
+            {"dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer": mock_module},
         ):
             result = run_fuzz(args)
 
@@ -234,7 +238,8 @@ class TestRunExportSM:
         args = argparse.Namespace(export_sm=str(output_file))
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.state_aware_fuzzer": mock_module}
+            "sys.modules",
+            {"dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer": mock_module},
         ):
             result = run_export_sm(args)
 
@@ -259,7 +264,8 @@ class TestRunExportSM:
         args = argparse.Namespace(export_sm=str(output_file))
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.state_aware_fuzzer": mock_module}
+            "sys.modules",
+            {"dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer": mock_module},
         ):
             result = run_export_sm(args)
 
@@ -295,14 +301,18 @@ class TestMain:
 
     def test_main_fuzz_dispatch(self, capsys):
         """Test main dispatches to run_fuzz."""
-        with patch("dicom_fuzzer.cli.state.run_fuzz", return_value=0) as mock_run:
+        with patch(
+            "dicom_fuzzer.cli.commands.state.run_fuzz", return_value=0
+        ) as mock_run:
             result = main(["--fuzz"])
             assert result == 0
             mock_run.assert_called_once()
 
     def test_main_export_dispatch(self, tmp_path):
         """Test main dispatches to run_export_sm."""
-        with patch("dicom_fuzzer.cli.state.run_export_sm", return_value=0) as mock_run:
+        with patch(
+            "dicom_fuzzer.cli.commands.state.run_export_sm", return_value=0
+        ) as mock_run:
             result = main(["--export-sm", str(tmp_path / "out.json")])
             assert result == 0
             mock_run.assert_called_once()

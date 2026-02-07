@@ -13,7 +13,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.core.windows_crash_handler import (
+from dicom_fuzzer.core.constants import Severity
+from dicom_fuzzer.core.crash.windows_crash_handler import (
     EXCEPTION_DESCRIPTIONS,
     EXCEPTION_SEVERITY,
     WindowsCrashHandler,
@@ -68,41 +69,51 @@ class TestExceptionMappings:
 
     def test_severity_for_critical_exceptions(self):
         """Test critical severity for exploitable exceptions."""
-        assert EXCEPTION_SEVERITY[WindowsExceptionCode.ACCESS_VIOLATION] == "critical"
-        assert EXCEPTION_SEVERITY[WindowsExceptionCode.HEAP_CORRUPTION] == "critical"
         assert (
-            EXCEPTION_SEVERITY[WindowsExceptionCode.STACK_BUFFER_OVERRUN] == "critical"
+            EXCEPTION_SEVERITY[WindowsExceptionCode.ACCESS_VIOLATION]
+            == Severity.CRITICAL
         )
         assert (
-            EXCEPTION_SEVERITY[WindowsExceptionCode.ARRAY_BOUNDS_EXCEEDED] == "critical"
+            EXCEPTION_SEVERITY[WindowsExceptionCode.HEAP_CORRUPTION]
+            == Severity.CRITICAL
+        )
+        assert (
+            EXCEPTION_SEVERITY[WindowsExceptionCode.STACK_BUFFER_OVERRUN]
+            == Severity.CRITICAL
+        )
+        assert (
+            EXCEPTION_SEVERITY[WindowsExceptionCode.ARRAY_BOUNDS_EXCEEDED]
+            == Severity.CRITICAL
         )
 
     def test_severity_for_high_exceptions(self):
         """Test high severity for DoS exceptions."""
-        assert EXCEPTION_SEVERITY[WindowsExceptionCode.STACK_OVERFLOW] == "high"
-        assert EXCEPTION_SEVERITY[WindowsExceptionCode.IN_PAGE_ERROR] == "high"
-        assert EXCEPTION_SEVERITY[WindowsExceptionCode.ILLEGAL_INSTRUCTION] == "high"
+        assert EXCEPTION_SEVERITY[WindowsExceptionCode.STACK_OVERFLOW] == Severity.HIGH
+        assert EXCEPTION_SEVERITY[WindowsExceptionCode.IN_PAGE_ERROR] == Severity.HIGH
+        assert (
+            EXCEPTION_SEVERITY[WindowsExceptionCode.ILLEGAL_INSTRUCTION]
+            == Severity.HIGH
+        )
 
     def test_severity_for_low_exceptions(self):
         """Test low severity for benign exceptions."""
-        assert EXCEPTION_SEVERITY[WindowsExceptionCode.FLOAT_DIVIDE_BY_ZERO] == "low"
-        assert EXCEPTION_SEVERITY[WindowsExceptionCode.FLOAT_OVERFLOW] == "low"
+        assert (
+            EXCEPTION_SEVERITY[WindowsExceptionCode.FLOAT_DIVIDE_BY_ZERO]
+            == Severity.LOW
+        )
+        assert EXCEPTION_SEVERITY[WindowsExceptionCode.FLOAT_OVERFLOW] == Severity.LOW
 
     def test_all_exceptions_have_severity(self):
         """Test all exception codes have a severity mapping."""
         for code in WindowsExceptionCode:
-            if (
-                code != WindowsExceptionCode.CONTROL_FLOW_GUARD
-            ):  # Same as STACK_BUFFER_OVERRUN
-                assert code in EXCEPTION_SEVERITY, f"Missing severity for {code.name}"
+            assert code in EXCEPTION_SEVERITY, f"Missing severity for {code.name}"
 
     def test_all_exceptions_have_description(self):
         """Test all exception codes have a description."""
         for code in WindowsExceptionCode:
-            if code != WindowsExceptionCode.CONTROL_FLOW_GUARD:
-                assert code in EXCEPTION_DESCRIPTIONS, (
-                    f"Missing description for {code.name}"
-                )
+            assert code in EXCEPTION_DESCRIPTIONS, (
+                f"Missing description for {code.name}"
+            )
 
     def test_descriptions_are_non_empty(self):
         """Test all descriptions are non-empty strings."""
@@ -120,13 +131,13 @@ class TestWindowsCrashInfo:
             exception_code=0xC0000005,
             exception_name="ACCESS_VIOLATION",
             description="Memory access violation",
-            severity="critical",
+            severity=Severity.CRITICAL,
             is_exploitable=True,
         )
 
         assert info.exception_code == 0xC0000005
         assert info.exception_name == "ACCESS_VIOLATION"
-        assert info.severity == "critical"
+        assert info.severity == Severity.CRITICAL
         assert info.is_exploitable is True
         assert info.crash_address is None
         assert info.faulting_module is None
@@ -139,7 +150,7 @@ class TestWindowsCrashInfo:
             exception_code=0xC0000005,
             exception_name="ACCESS_VIOLATION",
             description="Memory access violation",
-            severity="critical",
+            severity=Severity.CRITICAL,
             is_exploitable=True,
             crash_address=0x7FFE12345678,
             faulting_module="myapp.exe",
@@ -162,7 +173,7 @@ class TestWindowsCrashInfo:
             exception_code=0xC0000005,
             exception_name="ACCESS_VIOLATION",
             description="Test",
-            severity="critical",
+            severity=Severity.CRITICAL,
             is_exploitable=True,
         )
 
@@ -280,7 +291,7 @@ class TestWindowsCrashHandlerAnalysis:
         )
 
         assert crash_info.exception_name == "ACCESS_VIOLATION"
-        assert crash_info.severity == "critical"
+        assert crash_info.severity == Severity.CRITICAL
         assert crash_info.is_exploitable is True
         assert crash_info.crash_hash is not None
 
@@ -295,7 +306,7 @@ class TestWindowsCrashHandlerAnalysis:
         )
 
         assert crash_info.exception_name == "HEAP_CORRUPTION"
-        assert crash_info.severity == "critical"
+        assert crash_info.severity == Severity.CRITICAL
 
     def test_analyze_crash_unknown_code(self, handler, tmp_path):
         """Test analyzing unknown exception code."""
@@ -308,7 +319,7 @@ class TestWindowsCrashHandlerAnalysis:
         )
 
         assert "UNKNOWN" in crash_info.exception_name
-        assert crash_info.severity == "high"  # High for unknown NTSTATUS
+        assert crash_info.severity == Severity.HIGH  # High for unknown NTSTATUS
 
     def test_analyze_crash_extracts_address(self, handler, tmp_path):
         """Test crash address extraction from stderr."""
@@ -427,7 +438,7 @@ class TestCrashReportSaving:
             exception_code=0xC0000005,
             exception_name="ACCESS_VIOLATION",
             description="Memory access violation",
-            severity="critical",
+            severity=Severity.CRITICAL,
             is_exploitable=True,
             crash_hash="abc123",
         )
@@ -448,7 +459,7 @@ class TestCrashReportSaving:
             exception_code=0xC0000005,
             exception_name="ACCESS_VIOLATION",
             description="Memory access violation",
-            severity="critical",
+            severity=Severity.CRITICAL,
             is_exploitable=True,
             crash_address=0x7FFE12345678,
             faulting_module="myapp.exe",
@@ -482,7 +493,7 @@ class TestTriageClassification:
             exception_code=0xC0000005,
             exception_name="ACCESS_VIOLATION",
             description="Memory access violation",
-            severity="critical",
+            severity=Severity.CRITICAL,
             is_exploitable=True,
             crash_hash="abc123",
         )
@@ -490,7 +501,7 @@ class TestTriageClassification:
         result = handler.classify_for_triage(crash_info)
 
         assert result["crash_type"] == "access_violation"
-        assert result["severity"] == "critical"
+        assert result["severity"] == Severity.CRITICAL
         assert result["exploitable"] is True
         assert result["windows_specific"] is True
         assert result["exception_code"] == 0xC0000005
@@ -501,14 +512,14 @@ class TestTriageClassification:
             exception_code=0xC000008E,
             exception_name="FLOAT_DIVIDE_BY_ZERO",
             description="Floating-point division by zero",
-            severity="low",
+            severity=Severity.LOW,
             is_exploitable=False,
             crash_hash="def456",
         )
 
         result = handler.classify_for_triage(crash_info)
 
-        assert result["severity"] == "low"
+        assert result["severity"] == Severity.LOW
         assert result["exploitable"] is False
 
 
@@ -552,13 +563,13 @@ class TestMinidumpParsing:
             },
         ):
             with patch(
-                "dicom_fuzzer.core.windows_crash_handler.WindowsCrashHandler.parse_minidump"
+                "dicom_fuzzer.core.crash.windows_crash_handler.WindowsCrashHandler.parse_minidump"
             ) as mock_parse:
                 mock_parse.return_value = WindowsCrashInfo(
                     exception_code=0xC0000005,
                     exception_name="ACCESS_VIOLATION",
                     description="Memory access violation",
-                    severity="critical",
+                    severity=Severity.CRITICAL,
                     is_exploitable=True,
                     crash_address=0x12345678,
                 )
@@ -592,7 +603,8 @@ class TestPlatformFunctions:
     def test_get_crash_handler_on_windows(self, tmp_path):
         """Test get_crash_handler returns handler on Windows."""
         with patch(
-            "dicom_fuzzer.core.windows_crash_handler.is_windows", return_value=True
+            "dicom_fuzzer.core.crash.windows_crash_handler.is_windows",
+            return_value=True,
         ):
             handler = get_crash_handler(tmp_path)
 
@@ -601,7 +613,8 @@ class TestPlatformFunctions:
     def test_get_crash_handler_on_linux(self, tmp_path):
         """Test get_crash_handler returns None on Linux."""
         with patch(
-            "dicom_fuzzer.core.windows_crash_handler.is_windows", return_value=False
+            "dicom_fuzzer.core.crash.windows_crash_handler.is_windows",
+            return_value=False,
         ):
             handler = get_crash_handler(tmp_path)
 

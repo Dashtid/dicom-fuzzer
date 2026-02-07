@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.strategies.structure_fuzzer import StructureFuzzer
+from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
 
 
 class TestStructureFuzzerInitialization:
@@ -23,7 +23,7 @@ class TestStructureFuzzerInitialization:
         assert fuzzer is not None
         assert hasattr(fuzzer, "corruption_strategies")
         assert isinstance(fuzzer.corruption_strategies, list)
-        assert len(fuzzer.corruption_strategies) == 4
+        assert len(fuzzer.corruption_strategies) == 6
 
 
 class TestMutateStructure:

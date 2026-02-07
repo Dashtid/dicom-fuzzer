@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dicom_fuzzer.core.multiframe_types import (
+from dicom_fuzzer.core.mutation.multiframe_types import (
     FrameInfo,
     MultiFrameMutationRecord,
     MultiFrameMutationStrategy,
@@ -13,8 +13,8 @@ class TestMultiFrameMutationStrategy:
     """Tests for MultiFrameMutationStrategy enum."""
 
     def test_all_strategies_defined(self) -> None:
-        """Verify all 8 mutation strategies are defined."""
-        assert len(MultiFrameMutationStrategy) == 8
+        """Verify all 10 mutation strategies are defined."""
+        assert len(MultiFrameMutationStrategy) == 10
 
     def test_strategy_values(self) -> None:
         """Verify strategy values match expected strings."""
@@ -49,6 +49,14 @@ class TestMultiFrameMutationStrategy:
             MultiFrameMutationStrategy.PIXEL_DATA_TRUNCATION.value
             == "pixel_data_truncation"
         )
+        assert (
+            MultiFrameMutationStrategy.ENCAPSULATED_PIXEL_DATA.value
+            == "encapsulated_pixel_data"
+        )
+        assert (
+            MultiFrameMutationStrategy.DIMENSION_INDEX_ATTACK.value
+            == "dimension_index_attack"
+        )
 
     def test_strategy_lookup_by_value(self) -> None:
         """Verify strategies can be looked up by value."""
@@ -60,7 +68,7 @@ class TestMultiFrameMutationStrategy:
     def test_strategy_iteration(self) -> None:
         """Verify all strategies can be iterated."""
         strategies = list(MultiFrameMutationStrategy)
-        assert len(strategies) == 8
+        assert len(strategies) == 10
 
 
 class TestFrameInfo:
@@ -182,7 +190,7 @@ class TestBackwardCompatibilityImports:
 
     def test_import_from_multiframe_types(self) -> None:
         """Verify imports from multiframe_types work."""
-        from dicom_fuzzer.core.multiframe_types import (
+        from dicom_fuzzer.core.mutation.multiframe_types import (
             FrameInfo,
             MultiFrameMutationRecord,
             MultiFrameMutationStrategy,
@@ -194,7 +202,7 @@ class TestBackwardCompatibilityImports:
 
     def test_import_from_multiframe_handler(self) -> None:
         """Verify imports from multiframe_handler still work."""
-        from dicom_fuzzer.core.multiframe_handler import (
+        from dicom_fuzzer.core.mutation.multiframe_handler import (
             FrameInfo,
             MultiFrameMutationRecord,
             MultiFrameMutationStrategy,

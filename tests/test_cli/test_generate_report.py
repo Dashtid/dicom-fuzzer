@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dicom_fuzzer.cli.generate_report import (
+from dicom_fuzzer.cli.commands.reports import (
     _matplotlib,
     generate_coverage_chart,
     generate_csv_report,
@@ -43,7 +43,7 @@ class TestGenerateReports:
         session_file.write_text(json.dumps(session_data))
 
         with patch(
-            "dicom_fuzzer.cli.generate_report.EnhancedReportGenerator"
+            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
         ) as mock_reporter:
             mock_instance = MagicMock()
             mock_instance.generate_html_report.return_value = tmp_path / "report.html"
@@ -73,7 +73,7 @@ class TestGenerateReports:
         custom_output = tmp_path / "custom_report.html"
 
         with patch(
-            "dicom_fuzzer.cli.generate_report.EnhancedReportGenerator"
+            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
         ) as mock_reporter:
             mock_instance = MagicMock()
             mock_instance.generate_html_report.return_value = custom_output
@@ -98,7 +98,7 @@ class TestGenerateReports:
         session_file.write_text(json.dumps(session_data))
 
         with patch(
-            "dicom_fuzzer.cli.generate_report.EnhancedReportGenerator"
+            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
         ) as mock_reporter:
             mock_instance = MagicMock()
             mock_instance.generate_html_report.return_value = tmp_path / "report.html"
@@ -133,7 +133,7 @@ class TestGenerateReports:
         session_file.write_text(json.dumps(session_data))
 
         with patch(
-            "dicom_fuzzer.cli.generate_report.EnhancedReportGenerator"
+            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
         ) as mock_reporter:
             mock_instance = MagicMock()
             mock_instance.generate_html_report.return_value = tmp_path / "report.html"
@@ -165,7 +165,7 @@ class TestMainFunction:
 
         with patch("sys.argv", ["generate_report.py", str(session_file)]):
             with patch(
-                "dicom_fuzzer.cli.generate_report.generate_reports"
+                "dicom_fuzzer.cli.commands.reports.generate_reports"
             ) as mock_generate:
                 mock_generate.return_value = tmp_path / "report.html"
 
@@ -187,7 +187,7 @@ class TestMainFunction:
             ["generate_report.py", str(session_file), "--output", str(custom_output)],
         ):
             with patch(
-                "dicom_fuzzer.cli.generate_report.generate_reports"
+                "dicom_fuzzer.cli.commands.reports.generate_reports"
             ) as mock_generate:
                 mock_generate.return_value = custom_output
 
@@ -205,7 +205,7 @@ class TestMainFunction:
             "sys.argv", ["generate_report.py", str(session_file), "--keep-json"]
         ):
             with patch(
-                "dicom_fuzzer.cli.generate_report.generate_reports"
+                "dicom_fuzzer.cli.commands.reports.generate_reports"
             ) as mock_generate:
                 mock_generate.return_value = tmp_path / "report.html"
 
@@ -232,7 +232,7 @@ class TestMainFunction:
             ],
         ):
             with patch(
-                "dicom_fuzzer.cli.generate_report.generate_reports"
+                "dicom_fuzzer.cli.commands.reports.generate_reports"
             ) as mock_generate:
                 mock_generate.return_value = custom_output
 
@@ -246,12 +246,9 @@ class TestMainFunction:
         """Test main with non-existent file."""
         nonexistent = tmp_path / "nonexistent.json"
 
-        with patch("sys.argv", ["generate_report.py", str(nonexistent)]):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
+        result = main([str(nonexistent)])
 
-            assert exc_info.value.code == 1
-
+        assert result == 1
         captured = capsys.readouterr()
         assert "Error: File not found" in captured.err
 
@@ -260,12 +257,9 @@ class TestMainFunction:
         invalid_file = tmp_path / "invalid.json"
         invalid_file.write_text("not valid json {{{")
 
-        with patch("sys.argv", ["generate_report.py", str(invalid_file)]):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
+        result = main([str(invalid_file)])
 
-            assert exc_info.value.code == 1
-
+        assert result == 1
         captured = capsys.readouterr()
         assert "Error: Invalid JSON file" in captured.err
 
@@ -274,16 +268,13 @@ class TestMainFunction:
         session_file = tmp_path / "session.json"
         session_file.write_text(json.dumps({"statistics": {}, "crashes": []}))
 
-        with patch("sys.argv", ["generate_report.py", str(session_file)]):
-            with patch(
-                "dicom_fuzzer.cli.generate_report.generate_reports",
-                side_effect=Exception("Test error"),
-            ):
-                with pytest.raises(SystemExit) as exc_info:
-                    main()
+        with patch(
+            "dicom_fuzzer.cli.commands.reports.generate_reports",
+            side_effect=Exception("Test error"),
+        ):
+            result = main([str(session_file)])
 
-                assert exc_info.value.code == 1
-
+        assert result == 1
         captured = capsys.readouterr()
         assert "Error generating report" in captured.err
 
@@ -433,7 +424,7 @@ class TestGenerateCoverageChart:
 
         output_file = tmp_path / "coverage.png"
 
-        with patch("dicom_fuzzer.cli.generate_report._matplotlib", None):
+        with patch("dicom_fuzzer.cli.commands.reports._matplotlib", None):
             generate_coverage_chart(coverage_data, str(output_file))
 
         # Fallback creates empty file
@@ -443,7 +434,7 @@ class TestGenerateCoverageChart:
         """Test coverage chart with empty data."""
         output_file = tmp_path / "empty_coverage.png"
 
-        with patch("dicom_fuzzer.cli.generate_report._matplotlib", None):
+        with patch("dicom_fuzzer.cli.commands.reports._matplotlib", None):
             generate_coverage_chart({}, str(output_file))
 
         assert output_file.exists()
@@ -527,7 +518,7 @@ class TestMatplotlibImport:
 
     def test_matplotlib_import_variable_exists(self):
         """Test that _matplotlib variable exists."""
-        from dicom_fuzzer.cli.generate_report import _matplotlib
+        from dicom_fuzzer.cli.commands.reports import _matplotlib
 
         # Should be either a module or None
         assert _matplotlib is None or hasattr(_matplotlib, "pyplot")
@@ -548,7 +539,7 @@ class TestEdgeCases:
         session_file.write_text(json.dumps(session_data))
 
         with patch(
-            "dicom_fuzzer.cli.generate_report.EnhancedReportGenerator"
+            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
         ) as mock_reporter:
             mock_instance = MagicMock()
             mock_instance.generate_html_report.return_value = tmp_path / "report.html"
@@ -610,7 +601,7 @@ class TestEdgeCases:
         session_file.write_text(json.dumps(session_data))
 
         with patch(
-            "dicom_fuzzer.cli.generate_report.EnhancedReportGenerator"
+            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
         ) as mock_reporter:
             mock_instance = MagicMock()
             mock_instance.generate_html_report.return_value = tmp_path / "report.html"

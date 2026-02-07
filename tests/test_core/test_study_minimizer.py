@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from dicom_fuzzer.core.study_minimizer import (
+from dicom_fuzzer.core.corpus.study_minimizer import (
     MinimizationConfig,
     MinimizedStudy,
     StudyMinimizer,
@@ -539,7 +539,7 @@ class TestCreateCrashTestFromRunner:
 
     def test_create_crash_test_basic(self, tmp_path):
         """Test creating crash test from mock runner."""
-        from dicom_fuzzer.core.target_runner import ExecutionStatus
+        from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
 
         mock_runner = MagicMock()
         mock_result = MagicMock()
@@ -557,7 +557,7 @@ class TestCreateCrashTestFromRunner:
 
     def test_create_crash_test_no_crash(self, tmp_path):
         """Test crash test returns False for non-crash."""
-        from dicom_fuzzer.core.target_runner import ExecutionStatus
+        from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
 
         mock_runner = MagicMock()
         mock_result = MagicMock()

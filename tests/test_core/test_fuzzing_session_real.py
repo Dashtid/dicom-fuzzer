@@ -12,7 +12,7 @@ import pytest
 from pydicom.dataset import Dataset, FileDataset
 from pydicom.uid import ImplicitVRLittleEndian
 
-from dicom_fuzzer.core.fuzzing_session import (
+from dicom_fuzzer.core.session.fuzzing_session import (
     CrashRecord,
     FuzzedFileRecord,
     FuzzingSession,

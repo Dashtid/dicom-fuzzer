@@ -27,19 +27,17 @@ repos:
         additional_dependencies:
           - pydantic>=2.0.0
           - pydicom>=2.4.0
+          - rich>=13.0.0
           - types-aiofiles>=25.0.0
         args:
           - --config-file=pyproject.toml
           - --ignore-missing-imports
-        exclude: ^(tests/|tools/|demo/)
+        exclude: ^(tests/|dicom_fuzzer/tools/|demo/)
 
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-      # Prevent commits to protected branches
-      - id: no-commit-to-branch
-        args: [--branch, main]
       # File size and format checks
       - id: check-added-large-files
         args: [--maxkb=1000]

@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from dicom_fuzzer.utils.corpus_minimization import (
+from dicom_fuzzer.core.corpus.corpus_minimization import (
     OVERLAY_GROUP_END,
     OVERLAY_GROUP_START,
     STRIP_TAGS,

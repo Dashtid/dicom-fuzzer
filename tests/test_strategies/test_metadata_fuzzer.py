@@ -6,7 +6,10 @@ Tests cover patient info mutation and random date generation.
 import random
 from unittest.mock import MagicMock, patch
 
-from dicom_fuzzer.strategies.metadata_fuzzer import MetadataFuzzer
+from pydicom.dataset import Dataset
+
+from dicom_fuzzer.attacks.format.base import FormatFuzzerBase
+from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
 
 
 class TestMetadataFuzzerInit:
@@ -130,3 +133,203 @@ class TestRandomDate:
         date2 = fuzzer2._random_date()
 
         assert date1 == date2
+
+
+class TestFormatFuzzerBase:
+    """Test that MetadataFuzzer conforms to FormatFuzzerBase interface."""
+
+    def test_isinstance_format_fuzzer_base(self):
+        """Test that MetadataFuzzer is an instance of FormatFuzzerBase."""
+        fuzzer = MetadataFuzzer()
+        assert isinstance(fuzzer, FormatFuzzerBase)
+
+    def test_strategy_name(self):
+        """Test that strategy_name returns 'metadata'."""
+        fuzzer = MetadataFuzzer()
+        assert fuzzer.strategy_name == "metadata"
+
+    def test_has_mutate_method(self):
+        """Test that MetadataFuzzer has a mutate method."""
+        fuzzer = MetadataFuzzer()
+        assert hasattr(fuzzer, "mutate")
+
+
+class TestMutate:
+    """Test the mutate() method."""
+
+    def test_mutate_returns_dataset(self):
+        """Test that mutate returns the same dataset object."""
+        fuzzer = MetadataFuzzer()
+        dataset = MagicMock()
+        result = fuzzer.mutate(dataset)
+        assert result is dataset
+
+    def test_mutate_modifies_dataset(self):
+        """Test that mutate adds attributes to the dataset over many calls."""
+        fuzzer = MetadataFuzzer()
+        all_possible_fields = [
+            "PatientID",
+            "PatientName",
+            "PatientBirthDate",
+            "PatientSex",
+            "PatientAge",
+            "PatientWeight",
+            "PatientSize",
+            "StudyDate",
+            "StudyTime",
+            "StudyID",
+            "AccessionNumber",
+            "ReferringPhysicianName",
+            "SeriesDate",
+            "SeriesDescription",
+            "BodyPartExamined",
+            "InstitutionName",
+            "InstitutionAddress",
+            "StationName",
+            "OperatorsName",
+            "PerformingPhysicianName",
+        ]
+        found_any = False
+        for _ in range(20):
+            dataset = MagicMock()
+            fuzzer.mutate(dataset)
+            for field in all_possible_fields:
+                if hasattr(dataset, field):
+                    found_any = True
+                    break
+            if found_any:
+                break
+        assert found_any, "mutate() should set at least some DICOM attributes"
+
+
+class TestPatientDemographicsAttack:
+    """Test _patient_demographics_attack method."""
+
+    def test_sets_patient_sex(self):
+        """Test that _patient_demographics_attack sets PatientSex."""
+        fuzzer = MetadataFuzzer()
+        # Call multiple times since the method randomly selects fields
+        found = False
+        for _ in range(20):
+            dataset = Dataset()
+            fuzzer._patient_demographics_attack(dataset)
+            if hasattr(dataset, "PatientSex"):
+                found = True
+                break
+        assert found, "PatientSex should be set in at least one call"
+
+    def test_sets_patient_age(self):
+        """Test that _patient_demographics_attack sets PatientAge."""
+        fuzzer = MetadataFuzzer()
+        found = False
+        for _ in range(20):
+            dataset = Dataset()
+            fuzzer._patient_demographics_attack(dataset)
+            if hasattr(dataset, "PatientAge"):
+                found = True
+                break
+        assert found, "PatientAge should be set in at least one call"
+
+    def test_sets_weight_or_size(self):
+        """Test that _patient_demographics_attack sets PatientWeight or PatientSize."""
+        fuzzer = MetadataFuzzer()
+        found = False
+        for _ in range(20):
+            dataset = Dataset()
+            fuzzer._patient_demographics_attack(dataset)
+            if hasattr(dataset, "PatientWeight") or hasattr(dataset, "PatientSize"):
+                found = True
+                break
+        assert found, "PatientWeight or PatientSize should be set in at least one call"
+
+
+class TestStudyMetadataAttack:
+    """Test _study_metadata_attack method."""
+
+    def test_modifies_study_fields(self):
+        """Test that _study_metadata_attack sets study-level fields."""
+        fuzzer = MetadataFuzzer()
+        study_fields = [
+            "StudyDate",
+            "StudyTime",
+            "StudyID",
+            "AccessionNumber",
+            "ReferringPhysicianName",
+        ]
+        found = False
+        for _ in range(20):
+            dataset = Dataset()
+            fuzzer._study_metadata_attack(dataset)
+            for field in study_fields:
+                if hasattr(dataset, field):
+                    found = True
+                    break
+            if found:
+                break
+        assert found, "At least one study field should be set"
+
+
+class TestSeriesMetadataAttack:
+    """Test _series_metadata_attack method."""
+
+    def test_modifies_series_fields(self):
+        """Test that _series_metadata_attack sets series-level fields."""
+        fuzzer = MetadataFuzzer()
+        series_fields = ["SeriesDate", "SeriesDescription", "BodyPartExamined"]
+        found = False
+        for _ in range(20):
+            dataset = Dataset()
+            fuzzer._series_metadata_attack(dataset)
+            for field in series_fields:
+                if hasattr(dataset, field):
+                    found = True
+                    break
+            if found:
+                break
+        assert found, "At least one series field should be set"
+
+
+class TestInstitutionPersonnelAttack:
+    """Test _institution_personnel_attack method."""
+
+    def test_modifies_institution_fields(self):
+        """Test that _institution_personnel_attack sets institution/personnel fields."""
+        fuzzer = MetadataFuzzer()
+        institution_fields = [
+            "InstitutionName",
+            "InstitutionAddress",
+            "StationName",
+            "OperatorsName",
+            "PerformingPhysicianName",
+        ]
+        found = False
+        for _ in range(20):
+            dataset = Dataset()
+            fuzzer._institution_personnel_attack(dataset)
+            for field in institution_fields:
+                if hasattr(dataset, field):
+                    found = True
+                    break
+            if found:
+                break
+        assert found, "At least one institution/personnel field should be set"
+
+
+class TestRandomPnAttack:
+    """Test _random_pn_attack helper method."""
+
+    def test_returns_string(self):
+        """Test that _random_pn_attack returns a string."""
+        fuzzer = MetadataFuzzer()
+        result = fuzzer._random_pn_attack()
+        assert isinstance(result, str)
+
+    def test_variety(self):
+        """Test that _random_pn_attack produces varied output."""
+        fuzzer = MetadataFuzzer()
+        results = set()
+        for _ in range(50):
+            results.add(fuzzer._random_pn_attack())
+        assert len(results) > 5, (
+            f"Expected more than 5 unique values from 50 calls, got {len(results)}"
+        )
