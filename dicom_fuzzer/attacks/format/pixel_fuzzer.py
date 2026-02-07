@@ -68,7 +68,7 @@ class PixelFuzzer(FormatFuzzerBase):
             try:
                 dataset = mutation(dataset)
             except Exception:
-                pass
+                pass  # Individual mutations may fail on incompatible datasets
 
         return dataset
 
