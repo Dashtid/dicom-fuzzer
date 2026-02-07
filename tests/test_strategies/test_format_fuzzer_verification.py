@@ -10,6 +10,7 @@ properties of the output.
 Phase 1a: PixelFuzzer (6 strategies)
 Phase 1b: CompressedPixelFuzzer (8 strategies)
 Phase 1c: EncodingFuzzer (10 strategies)
+Phase 2a: HeaderFuzzer (7 strategies)
 """
 
 import copy
@@ -28,7 +29,9 @@ from pydicom.uid import (
 
 from dicom_fuzzer.attacks.format.compressed_pixel_fuzzer import CompressedPixelFuzzer
 from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
+from dicom_fuzzer.attacks.format.header_fuzzer import VR_MUTATIONS, HeaderFuzzer
 from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
+from dicom_fuzzer.attacks.format.uid_attacks import INVALID_UIDS, UID_TAG_NAMES
 
 # ---------------------------------------------------------------------------
 # Constants for encapsulated data parsing
@@ -1143,3 +1146,417 @@ class TestSurrogatePairAttack:
         result = enc_fuzzer._surrogate_pair_attack(encoding_dataset)
         raw = _get_element_raw(result, PATIENT_NAME_TAG)
         assert b"Patient" in raw and b"Name" in raw
+
+
+# ===========================================================================
+# Phase 2a: HeaderFuzzer (7 strategies)
+# ===========================================================================
+
+
+@pytest.fixture
+def hdr_fuzzer() -> HeaderFuzzer:
+    """HeaderFuzzer instance."""
+    return HeaderFuzzer()
+
+
+@pytest.fixture
+def header_dataset() -> Dataset:
+    """Dataset with diverse VR types for HeaderFuzzer mutations.
+
+    Includes required tags, dates, times, numeric fields, UIDs, and
+    string fields to exercise all 7 header fuzzer strategies.
+    """
+    file_meta = FileMetaDataset()
+    file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.ImplementationClassUID = generate_uid()
+
+    ds = Dataset()
+    ds.file_meta = file_meta
+    ds.PatientName = "Header^Test"
+    ds.PatientID = "HDR001"
+    ds.PatientAge = "045Y"
+    ds.StudyInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
+    ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+    ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+    ds.FrameOfReferenceUID = generate_uid()
+    ds.Modality = "CT"
+    ds.Manufacturer = "TestManufacturer"
+    ds.InstitutionName = "Test Hospital"
+    ds.StudyDescription = "Header Test Study"
+    ds.StudyDate = "20250101"
+    ds.StudyTime = "120000"
+    ds.SeriesNumber = 1
+    ds.InstanceNumber = 1
+    ds.Rows = 64
+    ds.Columns = 64
+    ds.BitsAllocated = 16
+    ds.BitsStored = 12
+    ds.HighBit = 11
+    ds.SamplesPerPixel = 1
+    ds.PixelRepresentation = 0
+    ds.SliceThickness = 1.0
+    ds.ModelName = "TestModel"
+    ds.SoftwareVersions = "1.0"
+    return ds
+
+
+# ---------------------------------------------------------------------------
+# 25. _overlong_strings
+# ---------------------------------------------------------------------------
+class TestOverlongStrings:
+    """Verify _overlong_strings creates strings exceeding VR max length.
+
+    LO VR has a 64-character maximum. The strategy sets fields to
+    512-2048 characters, far exceeding the limit.
+    """
+
+    def test_institution_name_overlong(self, hdr_fuzzer, header_dataset):
+        """InstitutionName must exceed LO max (64 chars)."""
+        result = hdr_fuzzer._overlong_strings(header_dataset)
+        assert len(result.InstitutionName) > 64
+
+    def test_study_description_overlong(self, hdr_fuzzer, header_dataset):
+        """StudyDescription must exceed LO max (64 chars)."""
+        result = hdr_fuzzer._overlong_strings(header_dataset)
+        assert len(result.StudyDescription) > 64
+
+    def test_manufacturer_overlong(self, hdr_fuzzer, header_dataset):
+        """Manufacturer must exceed LO max (64 chars)."""
+        result = hdr_fuzzer._overlong_strings(header_dataset)
+        assert len(result.Manufacturer) > 64
+
+    def test_all_values_different_characters(self, hdr_fuzzer, header_dataset):
+        """Each overlong field should use a different fill character."""
+        result = hdr_fuzzer._overlong_strings(header_dataset)
+        chars = {
+            result.InstitutionName[0],
+            result.StudyDescription[0],
+            result.Manufacturer[0],
+        }
+        assert len(chars) == 3, "Expected different fill characters per field"
+
+
+# ---------------------------------------------------------------------------
+# 26. _missing_required_tags
+# ---------------------------------------------------------------------------
+class TestMissingRequiredTags:
+    """Verify _missing_required_tags removes Type 1 tags."""
+
+    REQUIRED = {"PatientName", "PatientID", "StudyInstanceUID", "SeriesInstanceUID"}
+
+    def test_at_least_one_removed(self, hdr_fuzzer, header_dataset):
+        """At least one required tag must be absent after mutation."""
+        any_removed = False
+        for _ in range(20):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._missing_required_tags(ds)
+            present = {t for t in self.REQUIRED if hasattr(result, t)}
+            if present != self.REQUIRED:
+                any_removed = True
+                break
+        assert any_removed, "_missing_required_tags never removed any required tag"
+
+    def test_removes_different_tags(self, hdr_fuzzer, header_dataset):
+        """Should remove different tags across multiple runs."""
+        removed_tags = set()
+        for _ in range(100):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._missing_required_tags(ds)
+            for tag in self.REQUIRED:
+                if not hasattr(result, tag):
+                    removed_tags.add(tag)
+        assert len(removed_tags) >= 2, f"Only ever removed: {removed_tags}"
+
+    def test_not_all_tags_removed(self, hdr_fuzzer, header_dataset):
+        """Should not remove all 4 required tags (removes 1-2 max)."""
+        for _ in range(50):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._missing_required_tags(ds)
+            present = {t for t in self.REQUIRED if hasattr(result, t)}
+            assert len(present) >= 2, "Removed too many required tags at once"
+
+
+# ---------------------------------------------------------------------------
+# 27. _invalid_vr_values
+# ---------------------------------------------------------------------------
+class TestInvalidVrValues:
+    """Verify _invalid_vr_values injects VR-violating values."""
+
+    INVALID_DATES = {
+        "INVALID",
+        "99999999",
+        "20251332",
+        "20250145",
+        "2025-01-01",
+        "",
+        "1",
+    }
+    INVALID_TIMES = {"999999", "126000", "120075", "ABCDEF", "12:30:45"}
+    INVALID_IS = {"NOT_A_NUMBER", "3.14159", "999999999999", "-999999999", ""}
+    INVALID_DS = {"INVALID", "1.2.3", "NaN", "Infinity", "1e999"}
+
+    def test_study_date_invalid(self, hdr_fuzzer, header_dataset):
+        """StudyDate must be set to a known invalid date value."""
+        any_invalid = False
+        for _ in range(10):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._invalid_vr_values(ds)
+            if result.StudyDate in self.INVALID_DATES:
+                any_invalid = True
+                break
+        assert any_invalid, "StudyDate was never set to an invalid value"
+
+    def test_study_time_invalid(self, hdr_fuzzer, header_dataset):
+        """StudyTime must be set to a known invalid time value."""
+        any_invalid = False
+        for _ in range(10):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._invalid_vr_values(ds)
+            if result.StudyTime in self.INVALID_TIMES:
+                any_invalid = True
+                break
+        assert any_invalid, "StudyTime was never set to an invalid value"
+
+    def test_series_number_invalid_is(self, hdr_fuzzer, header_dataset):
+        """SeriesNumber internal value must be set to invalid IS string."""
+        any_invalid = False
+        for _ in range(10):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._invalid_vr_values(ds)
+            elem = result[Tag(0x0020, 0x0011)]  # SeriesNumber
+            val = getattr(elem, "_value", None)
+            if val in self.INVALID_IS:
+                any_invalid = True
+                break
+        assert any_invalid, "SeriesNumber was never set to an invalid IS value"
+
+    def test_slice_thickness_invalid_ds(self, hdr_fuzzer, header_dataset):
+        """SliceThickness internal value must be an invalid decimal string."""
+        any_invalid = False
+        for _ in range(10):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._invalid_vr_values(ds)
+            elem = result[Tag(0x0018, 0x0050)]  # SliceThickness
+            val = getattr(elem, "_value", None)
+            if val in self.INVALID_DS:
+                any_invalid = True
+                break
+        assert any_invalid, "SliceThickness was never set to an invalid DS value"
+
+
+# ---------------------------------------------------------------------------
+# 28. _boundary_values
+# ---------------------------------------------------------------------------
+class TestBoundaryValues:
+    """Verify _boundary_values sets numeric fields to edge case values."""
+
+    ROW_BOUNDARIES = {0, 1, 65535, -1, 2147483647}
+    COL_BOUNDARIES = {0, 1, 65535, -1}
+    BOUNDARY_AGES = {"000Y", "999Y", "001D", "999W", "000M"}
+
+    def test_rows_set_to_boundary(self, hdr_fuzzer, header_dataset):
+        """Rows must be set to a boundary value."""
+        result = hdr_fuzzer._boundary_values(header_dataset)
+        assert result.Rows in self.ROW_BOUNDARIES, (
+            f"Rows={result.Rows} is not a known boundary value"
+        )
+
+    def test_columns_set_to_boundary(self, hdr_fuzzer, header_dataset):
+        """Columns must be set to a boundary value."""
+        result = hdr_fuzzer._boundary_values(header_dataset)
+        assert result.Columns in self.COL_BOUNDARIES, (
+            f"Columns={result.Columns} is not a known boundary value"
+        )
+
+    def test_patient_name_at_vr_limit(self, hdr_fuzzer, header_dataset):
+        """PatientName must be exactly 64 or 65 characters."""
+        any_at_limit = False
+        for _ in range(10):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._boundary_values(ds)
+            name = str(result.PatientName)
+            if len(name) in (64, 65):
+                any_at_limit = True
+                break
+        assert any_at_limit, "PatientName never set to VR boundary length"
+
+    def test_patient_age_boundary(self, hdr_fuzzer, header_dataset):
+        """PatientAge must be set to a boundary age value."""
+        result = hdr_fuzzer._boundary_values(header_dataset)
+        assert result.PatientAge in self.BOUNDARY_AGES, (
+            f"PatientAge={result.PatientAge} is not a boundary value"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 29. _comprehensive_vr_mutations
+# ---------------------------------------------------------------------------
+class TestComprehensiveVrMutations:
+    """Verify _comprehensive_vr_mutations injects VR_MUTATIONS values."""
+
+    def test_vr_mutation_value_injected(self, hdr_fuzzer, header_dataset):
+        """At least one element must have a value from VR_MUTATIONS."""
+        any_injected = False
+        for _ in range(30):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._comprehensive_vr_mutations(ds)
+            for elem in result:
+                vr = getattr(elem, "VR", None)
+                if vr and vr in VR_MUTATIONS:
+                    internal = getattr(elem, "_value", None)
+                    if internal is not None and internal in VR_MUTATIONS[vr]:
+                        any_injected = True
+                        break
+            if any_injected:
+                break
+        assert any_injected, (
+            "_comprehensive_vr_mutations never injected a VR_MUTATIONS value"
+        )
+
+    def test_targets_multiple_vr_types(self, hdr_fuzzer, header_dataset):
+        """Should target at least 2 different VR types across runs."""
+        targeted_vrs = set()
+        for _ in range(50):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._comprehensive_vr_mutations(ds)
+            for elem in result:
+                vr = getattr(elem, "VR", None)
+                if vr and vr in VR_MUTATIONS:
+                    internal = getattr(elem, "_value", None)
+                    if internal is not None and internal in VR_MUTATIONS[vr]:
+                        targeted_vrs.add(vr)
+        assert len(targeted_vrs) >= 2, f"Only targeted VR types: {targeted_vrs}"
+
+    def test_does_not_crash(self, hdr_fuzzer, header_dataset):
+        """Running 20 times must not raise any exceptions."""
+        for _ in range(20):
+            ds = copy.deepcopy(header_dataset)
+            hdr_fuzzer._comprehensive_vr_mutations(ds)
+
+
+# ---------------------------------------------------------------------------
+# 30. _numeric_vr_mutations
+# ---------------------------------------------------------------------------
+class TestNumericVrMutations:
+    """Verify _numeric_vr_mutations sets US/SS/UL/SL to boundary values."""
+
+    BOUNDARY_VALUES = {
+        "US": {0, 1, 65534, 65535},
+        "SS": {-32768, -1, 0, 32767},
+        "UL": {0, 1, 2147483647, 4294967295},
+        "SL": {-2147483648, -1, 0, 2147483647},
+    }
+
+    def test_numeric_boundary_applied(self, hdr_fuzzer, header_dataset):
+        """At least one numeric element must be changed to a boundary value."""
+        any_changed = False
+        for _ in range(30):
+            ds = copy.deepcopy(header_dataset)
+            original = copy.deepcopy(ds)
+            result = hdr_fuzzer._numeric_vr_mutations(ds)
+            for elem in result:
+                vr = getattr(elem, "VR", None)
+                if vr in self.BOUNDARY_VALUES:
+                    try:
+                        new_val = int(elem.value)
+                        orig_val = int(original[elem.tag].value)
+                        if new_val != orig_val and new_val in self.BOUNDARY_VALUES[vr]:
+                            any_changed = True
+                            break
+                    except (ValueError, TypeError, KeyError):
+                        pass
+            if any_changed:
+                break
+        assert any_changed, "_numeric_vr_mutations never changed a numeric field"
+
+    def test_multiple_boundary_values_seen(self, hdr_fuzzer, header_dataset):
+        """Should produce at least 2 different boundary values across runs."""
+        original_values = {}
+        for elem in header_dataset:
+            vr = getattr(elem, "VR", None)
+            if vr in self.BOUNDARY_VALUES:
+                try:
+                    original_values[elem.tag] = int(elem.value)
+                except (ValueError, TypeError):
+                    pass
+
+        seen_changed = set()
+        for _ in range(50):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._numeric_vr_mutations(ds)
+            for elem in result:
+                vr = getattr(elem, "VR", None)
+                if vr in self.BOUNDARY_VALUES:
+                    try:
+                        val = int(elem.value)
+                        orig = original_values.get(elem.tag)
+                        if orig is not None and val != orig:
+                            seen_changed.add(val)
+                    except (ValueError, TypeError):
+                        pass
+        assert len(seen_changed) >= 2, (
+            f"Only saw changed boundary values: {seen_changed}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 31. _uid_mutations
+# ---------------------------------------------------------------------------
+class TestUidMutations:
+    """Verify _uid_mutations injects INVALID_UIDS into UID fields."""
+
+    def test_uid_has_invalid_value(self, hdr_fuzzer, header_dataset):
+        """At least one UID field must contain an INVALID_UIDS value."""
+        any_invalid = False
+        for _ in range(20):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._uid_mutations(ds)
+            for tag_name in UID_TAG_NAMES:
+                if hasattr(result, tag_name):
+                    elem = result.data_element(tag_name)
+                    if elem and getattr(elem, "_value", None) in INVALID_UIDS:
+                        any_invalid = True
+                        break
+            if any_invalid:
+                break
+        assert any_invalid, "_uid_mutations never injected an INVALID_UIDS value"
+
+    def test_targets_different_uid_fields(self, hdr_fuzzer, header_dataset):
+        """Should target different UID fields across runs."""
+        targeted = set()
+        for _ in range(100):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._uid_mutations(ds)
+            for tag_name in UID_TAG_NAMES:
+                if hasattr(result, tag_name):
+                    elem = result.data_element(tag_name)
+                    if elem and getattr(elem, "_value", None) in INVALID_UIDS:
+                        targeted.add(tag_name)
+        assert len(targeted) >= 2, f"Only targeted UID fields: {targeted}"
+
+    def test_invalid_uid_has_structural_violation(self, hdr_fuzzer, header_dataset):
+        """Injected UIDs should have structural violations per DICOM PS3.5."""
+        for _ in range(20):
+            ds = copy.deepcopy(header_dataset)
+            result = hdr_fuzzer._uid_mutations(ds)
+            for tag_name in UID_TAG_NAMES:
+                if hasattr(result, tag_name):
+                    elem = result.data_element(tag_name)
+                    val = getattr(elem, "_value", None)
+                    if val in INVALID_UIDS:
+                        has_violation = (
+                            val == ""
+                            or len(val) > 64
+                            or val.startswith(".")
+                            or val.endswith(".")
+                            or ".." in val
+                            or "\x00" in val
+                            or " " in val
+                            or any(c.isalpha() for c in val.replace(".", ""))
+                        )
+                        if has_violation:
+                            return  # Pass
+        pytest.fail("No structural UID violation detected")
