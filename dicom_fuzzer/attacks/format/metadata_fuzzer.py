@@ -150,7 +150,7 @@ class MetadataFuzzer(FormatFuzzerBase):
             try:
                 attack(dataset)
             except Exception:
-                pass
+                pass  # Mutation failures are expected in fuzzing
 
         return dataset
 

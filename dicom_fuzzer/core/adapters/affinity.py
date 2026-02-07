@@ -113,7 +113,7 @@ class AffinityAdapter(ViewerAdapter):
                 logger.debug(f"Using first window: {self._main_window.window_text()}")
                 return True
         except Exception:
-            pass
+            pass  # Window enumeration may fail if process is not ready
         return False
 
     def connect(self, pid: int | None = None, process_name: str | None = None) -> bool:
