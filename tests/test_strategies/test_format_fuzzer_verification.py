@@ -11,6 +11,7 @@ Phase 1a: PixelFuzzer (6 strategies)
 Phase 1b: CompressedPixelFuzzer (8 strategies)
 Phase 1c: EncodingFuzzer (10 strategies)
 Phase 2a: HeaderFuzzer (7 strategies)
+Phase 2b: SequenceFuzzer (8 strategies)
 """
 
 import copy
@@ -31,6 +32,7 @@ from dicom_fuzzer.attacks.format.compressed_pixel_fuzzer import CompressedPixelF
 from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
 from dicom_fuzzer.attacks.format.header_fuzzer import VR_MUTATIONS, HeaderFuzzer
 from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
+from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
 from dicom_fuzzer.attacks.format.uid_attacks import INVALID_UIDS, UID_TAG_NAMES
 
 # ---------------------------------------------------------------------------
@@ -1560,3 +1562,317 @@ class TestUidMutations:
                         if has_violation:
                             return  # Pass
         pytest.fail("No structural UID violation detected")
+
+
+# ===========================================================================
+# Phase 2b: SequenceFuzzer (8 strategies)
+# ===========================================================================
+
+
+@pytest.fixture
+def seq_fuzzer() -> SequenceFuzzer:
+    """SequenceFuzzer instance."""
+    return SequenceFuzzer()
+
+
+@pytest.fixture
+def sequence_dataset() -> Dataset:
+    """Dataset with an existing sequence for SequenceFuzzer mutations.
+
+    Includes a ReferencedSeriesSequence with one item so strategies that
+    operate on existing sequences (e.g. _delimiter_corruption) have
+    something to work with.
+    """
+    from pydicom.sequence import Sequence
+
+    ds = Dataset()
+    ds.PatientName = "Sequence^Test"
+    ds.PatientID = "SEQ001"
+    ds.StudyDescription = "Sequence Test Study"
+
+    # Existing sequence for strategies that need one
+    item = Dataset()
+    item.add_new(Tag(0x0008, 0x0100), "SH", "ORIGINAL_CODE")
+    item.add_new(Tag(0x0008, 0x0104), "LO", "Original Description")
+    ds.add_new(Tag(0x0008, 0x1115), "SQ", Sequence([item]))
+
+    return ds
+
+
+# ---------------------------------------------------------------------------
+# 32. _deep_nesting_attack
+# ---------------------------------------------------------------------------
+class TestDeepNestingAttack:
+    """Verify _deep_nesting_attack creates deeply nested sequences."""
+
+    CONTENT_TAG = Tag(0x0040, 0xA730)
+    NESTED_TAG = Tag(0x0008, 0x1115)
+
+    def test_content_sequence_added(self, seq_fuzzer, sequence_dataset):
+        """ContentSequence tag must be present after mutation."""
+        any_added = False
+        for _ in range(10):
+            ds = copy.deepcopy(sequence_dataset)
+            result = seq_fuzzer._deep_nesting_attack(ds)
+            if self.CONTENT_TAG in result:
+                any_added = True
+                break
+        assert any_added, "_deep_nesting_attack never added ContentSequence"
+
+    def test_nesting_depth_at_least_50(self, seq_fuzzer, sequence_dataset):
+        """Sequence must be nested at least 50 levels deep."""
+        max_depth = 0
+        for _ in range(10):
+            ds = copy.deepcopy(sequence_dataset)
+            result = seq_fuzzer._deep_nesting_attack(ds)
+            if self.CONTENT_TAG not in result:
+                continue
+            depth = 0
+            current = result[self.CONTENT_TAG].value
+            while current and len(current) > 0 and depth < 60:
+                depth += 1
+                item = current[0]
+                if self.NESTED_TAG in item:
+                    current = item[self.NESTED_TAG].value
+                else:
+                    break
+            max_depth = max(max_depth, depth)
+            if depth >= 50:
+                break
+        assert max_depth >= 50, f"Max nesting depth={max_depth}, expected >= 50"
+
+
+# ---------------------------------------------------------------------------
+# 33. _item_length_mismatch
+# ---------------------------------------------------------------------------
+class TestItemLengthMismatch:
+    """Verify _item_length_mismatch creates items with mismatched length data."""
+
+    SQ_TAG = Tag(0x0008, 0x1115)
+
+    def test_sequence_present(self, seq_fuzzer, sequence_dataset):
+        """Sequence must still be present after mutation."""
+        result = seq_fuzzer._item_length_mismatch(sequence_dataset)
+        assert self.SQ_TAG in result
+
+    def test_item_has_attack_element(self, seq_fuzzer, sequence_dataset):
+        """Item must contain an element with length mismatch characteristics."""
+        any_attack = False
+        for _ in range(20):
+            ds = copy.deepcopy(sequence_dataset)
+            result = seq_fuzzer._item_length_mismatch(ds)
+            item = result[self.SQ_TAG].value[0]
+            for elem in item:
+                val = elem.value if isinstance(elem.value, str) else ""
+                # overflow_length: 65536, negative_length: 32768,
+                # undefined_length_non_sq: 100000, zero_length: ""
+                if len(val) >= 32768 or (val == "" and elem.VR == "LO"):
+                    any_attack = True
+                    break
+            if any_attack:
+                break
+        assert any_attack, "_item_length_mismatch never created attack element"
+
+
+# ---------------------------------------------------------------------------
+# 34. _empty_required_sequence
+# ---------------------------------------------------------------------------
+class TestEmptyRequiredSequence:
+    """Verify _empty_required_sequence creates sequences with no meaningful items."""
+
+    REQUIRED_SQ_TAGS = {
+        Tag(0x0008, 0x1115),
+        Tag(0x0008, 0x1140),
+        Tag(0x0032, 0x1064),
+        Tag(0x0040, 0x0275),
+        Tag(0x5200, 0x9230),
+    }
+
+    def test_required_sequence_added(self, seq_fuzzer, sequence_dataset):
+        """A required sequence tag must be present after mutation."""
+        result = seq_fuzzer._empty_required_sequence(sequence_dataset)
+        found = any(tag in result for tag in self.REQUIRED_SQ_TAGS)
+        assert found, "No required sequence tag was added"
+
+    def test_sequence_is_empty_or_has_empty_item(self, seq_fuzzer, sequence_dataset):
+        """Sequence must have 0 items, an empty item, or an empty nested SQ."""
+        any_empty = False
+        for _ in range(30):
+            ds = copy.deepcopy(sequence_dataset)
+            result = seq_fuzzer._empty_required_sequence(ds)
+            for tag in self.REQUIRED_SQ_TAGS:
+                if tag not in result:
+                    continue
+                sq_elem = result[tag]
+                if not (hasattr(sq_elem, "VR") and sq_elem.VR == "SQ"):
+                    continue
+                seq_val = sq_elem.value
+                # empty_sequence: Sequence([])
+                if len(seq_val) == 0:
+                    any_empty = True
+                    break
+                # null_first_item: item with 0 data elements
+                if any(len(item) == 0 for item in seq_val):
+                    any_empty = True
+                    break
+                # empty_nested: item has nested SQ with 0 items
+                for item in seq_val:
+                    for elem in item:
+                        if elem.VR == "SQ" and len(elem.value) == 0:
+                            any_empty = True
+                            break
+                    if any_empty:
+                        break
+            if any_empty:
+                break
+        assert any_empty, "_empty_required_sequence never created empty sequence"
+
+
+# ---------------------------------------------------------------------------
+# 35. _orphan_item_attack
+# ---------------------------------------------------------------------------
+class TestOrphanItemAttack:
+    """Verify _orphan_item_attack places Item-like data outside a sequence."""
+
+    CREATOR_TAG = Tag(0x0009, 0x0010)
+    DATA_TAG = Tag(0x0009, 0x1000)
+    ITEM_TAG_BYTES = b"\xfe\xff\x00\xe0"
+
+    def test_private_creator_added(self, seq_fuzzer, sequence_dataset):
+        """Private creator element must be present."""
+        result = seq_fuzzer._orphan_item_attack(sequence_dataset)
+        assert self.CREATOR_TAG in result
+        assert result[self.CREATOR_TAG].value == "OrphanItemCreator"
+
+    def test_item_bytes_in_non_sequence_element(self, seq_fuzzer, sequence_dataset):
+        """UN element must contain Item tag bytes outside a sequence context."""
+        result = seq_fuzzer._orphan_item_attack(sequence_dataset)
+        assert self.DATA_TAG in result
+        val = result[self.DATA_TAG].value
+        assert self.ITEM_TAG_BYTES in val, "No Item tag bytes found in private data"
+
+
+# ---------------------------------------------------------------------------
+# 36. _circular_reference_attack
+# ---------------------------------------------------------------------------
+class TestCircularReferenceAttack:
+    """Verify _circular_reference_attack creates mutual UID references."""
+
+    REF_TAG = Tag(0x0008, 0x1140)  # ReferencedImageSequence
+    SOP_UID_TAG = Tag(0x0008, 0x0018)
+    REF_SOP_TAG = Tag(0x0008, 0x1155)
+
+    def test_reference_sequence_added(self, seq_fuzzer, sequence_dataset):
+        """ReferencedImageSequence must be present with 2 items."""
+        result = seq_fuzzer._circular_reference_attack(sequence_dataset)
+        assert self.REF_TAG in result
+        assert len(result[self.REF_TAG].value) == 2
+
+    def test_items_reference_each_other(self, seq_fuzzer, sequence_dataset):
+        """Item1 must reference Item2's UID and vice versa."""
+        result = seq_fuzzer._circular_reference_attack(sequence_dataset)
+        seq = result[self.REF_TAG].value
+
+        uid1 = seq[0][self.SOP_UID_TAG].value
+        uid2 = seq[1][self.SOP_UID_TAG].value
+        ref1 = seq[0][self.REF_SOP_TAG].value  # Item1 references...
+        ref2 = seq[1][self.REF_SOP_TAG].value  # Item2 references...
+
+        assert str(ref1) == str(uid2), "Item1 should reference Item2's UID"
+        assert str(ref2) == str(uid1), "Item2 should reference Item1's UID"
+
+
+# ---------------------------------------------------------------------------
+# 37. _delimiter_corruption
+# ---------------------------------------------------------------------------
+class TestDelimiterCorruption:
+    """Verify _delimiter_corruption embeds delimiter bytes in text values."""
+
+    SQ_TAG = Tag(0x0008, 0x1115)
+    DESC_TAG = Tag(0x0008, 0x1030)  # StudyDescription within item
+
+    def test_delimiter_bytes_in_text(self, seq_fuzzer, sequence_dataset):
+        """Item text value must contain sequence delimiter bytes."""
+        result = seq_fuzzer._delimiter_corruption(sequence_dataset)
+        item = result[self.SQ_TAG].value[0]
+        assert self.DESC_TAG in item, "StudyDescription not added to item"
+        val = item[self.DESC_TAG].value
+        # Sequence delimiter bytes: FE FF DD E0
+        assert "\xfe\xff\xdd\xe0" in val, (
+            "Sequence delimiter bytes not found in text value"
+        )
+
+    def test_original_item_data_preserved(self, seq_fuzzer, sequence_dataset):
+        """Original item elements should still be present."""
+        result = seq_fuzzer._delimiter_corruption(sequence_dataset)
+        item = result[self.SQ_TAG].value[0]
+        assert Tag(0x0008, 0x0100) in item  # Original CODE element
+
+
+# ---------------------------------------------------------------------------
+# 38. _mixed_encoding_sequence
+# ---------------------------------------------------------------------------
+class TestMixedEncodingSequence:
+    """Verify _mixed_encoding_sequence creates items with different charsets."""
+
+    SQ_TAG = Tag(0x0032, 0x1064)  # RequestedProcedureCodeSequence
+    CS_TAG = Tag(0x0008, 0x0005)  # SpecificCharacterSet
+
+    def test_sequence_added(self, seq_fuzzer, sequence_dataset):
+        """Requested Procedure Code Sequence must be present."""
+        result = seq_fuzzer._mixed_encoding_sequence(sequence_dataset)
+        assert self.SQ_TAG in result
+
+    def test_three_items_created(self, seq_fuzzer, sequence_dataset):
+        """Sequence must contain exactly 3 items."""
+        result = seq_fuzzer._mixed_encoding_sequence(sequence_dataset)
+        assert len(result[self.SQ_TAG].value) == 3
+
+    def test_items_have_different_charsets(self, seq_fuzzer, sequence_dataset):
+        """Items must declare different SpecificCharacterSet values."""
+        result = seq_fuzzer._mixed_encoding_sequence(sequence_dataset)
+        seq = result[self.SQ_TAG].value
+        charsets = set()
+        for item in seq:
+            if self.CS_TAG in item:
+                charsets.add(item[self.CS_TAG].value)
+            else:
+                charsets.add(None)  # No charset declared
+        assert len(charsets) >= 2, f"Only saw charsets: {charsets}"
+
+
+# ---------------------------------------------------------------------------
+# 39. _massive_item_count
+# ---------------------------------------------------------------------------
+class TestMassiveItemCount:
+    """Verify _massive_item_count creates sequences with >= 100 items."""
+
+    def test_sequence_has_many_items(self, seq_fuzzer, sequence_dataset):
+        """At least one sequence must have >= 100 items."""
+        any_massive = False
+        for _ in range(10):
+            ds = copy.deepcopy(sequence_dataset)
+            result = seq_fuzzer._massive_item_count(ds)
+            for _, elem in result.items():
+                if hasattr(elem, "VR") and elem.VR == "SQ":
+                    if len(elem.value) >= 100:
+                        any_massive = True
+                        break
+            if any_massive:
+                break
+        assert any_massive, (
+            "_massive_item_count never created sequence with >= 100 items"
+        )
+
+    def test_items_have_data(self, seq_fuzzer, sequence_dataset):
+        """Items in massive sequence must contain actual data elements."""
+        for _ in range(10):
+            ds = copy.deepcopy(sequence_dataset)
+            result = seq_fuzzer._massive_item_count(ds)
+            for _, elem in result.items():
+                if hasattr(elem, "VR") and elem.VR == "SQ" and len(elem.value) >= 100:
+                    # Spot-check first and last items have data
+                    assert len(elem.value[0]) > 0, "First item is empty"
+                    assert len(elem.value[-1]) > 0, "Last item is empty"
+                    return
+        pytest.fail("Could not find massive sequence to verify item data")
