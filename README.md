@@ -91,12 +91,12 @@ for i in range(100):
 ```text
 dicom-fuzzer/
 ├── dicom_fuzzer/    # Main package
-│   ├── cli/         # Command-line interface (11 subcommands)
-│   ├── core/        # Core logic (mutation, corpus, crash analysis, session)
-│   ├── cve/         # CVE replication (deterministic, 22 CVEs)
 │   ├── attacks/     # Attack modules (format, series, network, multiframe)
-│   └── tools/       # Benchmarks and scripts
-├── tests/           # Test suite (5000+ tests)
+│   ├── cli/         # Command-line interface (11 subcommands)
+│   ├── core/        # Engine, mutation, corpus, crash analysis, harness, reporting
+│   ├── cve/         # CVE replication (deterministic, 22 CVEs)
+│   └── utils/       # Logging, hashing, identifiers
+├── tests/           # Test suite
 ├── docs/            # Documentation
 └── artifacts/       # Runtime output (gitignored)
 ```
