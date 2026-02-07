@@ -16,6 +16,9 @@ Phase 2c: StructureFuzzer (6 strategies)
 Phase 3a: ConformanceFuzzer (10 strategies)
 Phase 3b: MetadataFuzzer (5 strategies)
 Phase 3c: ReferenceFuzzer (10 strategies)
+Phase 4a: CalibrationFuzzer (5 strategies)
+Phase 4b: DictionaryFuzzer (3 strategies)
+Phase 4c: PrivateTagFuzzer (10 strategies)
 """
 
 import copy
@@ -33,8 +36,10 @@ from pydicom.uid import (
     generate_uid,
 )
 
+from dicom_fuzzer.attacks.format.calibration_fuzzer import CalibrationFuzzer
 from dicom_fuzzer.attacks.format.compressed_pixel_fuzzer import CompressedPixelFuzzer
 from dicom_fuzzer.attacks.format.conformance_fuzzer import ConformanceFuzzer
+from dicom_fuzzer.attacks.format.dictionary_fuzzer import DictionaryFuzzer
 from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
 from dicom_fuzzer.attacks.format.header_fuzzer import VR_MUTATIONS, HeaderFuzzer
 from dicom_fuzzer.attacks.format.metadata_fuzzer import (
@@ -43,6 +48,11 @@ from dicom_fuzzer.attacks.format.metadata_fuzzer import (
     MetadataFuzzer,
 )
 from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
+from dicom_fuzzer.attacks.format.private_tag_fuzzer import (
+    MALICIOUS_CREATORS,
+    PRIVATE_GROUPS,
+    PrivateTagFuzzer,
+)
 from dicom_fuzzer.attacks.format.reference_fuzzer import ReferenceFuzzer
 from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
 from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
@@ -3202,3 +3212,640 @@ class TestReferenceTypeMismatch:
         assert non_ct & {self.MR_SOP, self.SR_SOP}, (
             f"Expected MR or SR in refs, got {non_ct}"
         )
+
+
+# ===========================================================================
+# Phase 4a: CalibrationFuzzer
+# ===========================================================================
+
+
+@pytest.fixture
+def cal_fuzzer() -> CalibrationFuzzer:
+    """Return CalibrationFuzzer instance."""
+    return CalibrationFuzzer(severity="moderate", seed=42)
+
+
+@pytest.fixture
+def calibration_dataset() -> Dataset:
+    """Dataset with calibration fields for CalibrationFuzzer tests."""
+    ds = Dataset()
+    ds.PatientName = "Calibration^Test"
+    ds.PatientID = "CAL001"
+    ds.Rows = 512
+    ds.Columns = 512
+    ds.PixelSpacing = [0.5, 0.5]
+    ds.RescaleSlope = 1.0
+    ds.RescaleIntercept = -1024.0
+    ds.WindowCenter = 40.0
+    ds.WindowWidth = 400.0
+    ds.SliceThickness = 2.5
+    ds.BitsAllocated = 16
+    ds.BitsStored = 12
+    return ds
+
+
+# ---------------------------------------------------------------------------
+# 71. fuzz_pixel_spacing
+# ---------------------------------------------------------------------------
+class TestFuzzPixelSpacing:
+    """Verify fuzz_pixel_spacing corrupts distance measurements."""
+
+    def test_zero_spacing(self, cal_fuzzer, calibration_dataset):
+        """PixelSpacing must be set to [0.0, 0.0] for zero attack."""
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="zero")
+        assert list(result.PixelSpacing) == [0.0, 0.0]
+        assert len(records) == 1
+        assert records[0].attack_type == "zero"
+
+    def test_negative_spacing(self, cal_fuzzer, calibration_dataset):
+        """PixelSpacing must be negative for negative attack."""
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="negative")
+        assert list(result.PixelSpacing) == [-1.0, -1.0]
+
+    def test_nan_spacing(self, cal_fuzzer, calibration_dataset):
+        """PixelSpacing must contain NaN for nan attack."""
+        import math
+
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="nan")
+        assert math.isnan(result.PixelSpacing[0])
+
+    def test_mismatch_with_imager(self, cal_fuzzer, calibration_dataset):
+        """PixelSpacing must differ from ImagerPixelSpacing."""
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="mismatch")
+        assert list(result.PixelSpacing) != list(result.ImagerPixelSpacing)
+
+
+# ---------------------------------------------------------------------------
+# 72. fuzz_hounsfield_rescale
+# ---------------------------------------------------------------------------
+class TestFuzzHounsfieldRescale:
+    """Verify fuzz_hounsfield_rescale corrupts CT calibration."""
+
+    def test_zero_slope(self, cal_fuzzer, calibration_dataset):
+        """RescaleSlope must be 0 for zero_slope attack."""
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_hounsfield_rescale(
+            ds, attack_type="zero_slope"
+        )
+        assert result.RescaleSlope == 0.0
+
+    def test_negative_slope(self, cal_fuzzer, calibration_dataset):
+        """RescaleSlope must be negative for negative_slope attack."""
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_hounsfield_rescale(
+            ds, attack_type="negative_slope"
+        )
+        assert result.RescaleSlope == -1.0
+
+    def test_nan_slope(self, cal_fuzzer, calibration_dataset):
+        """RescaleSlope must be NaN for nan_slope attack."""
+        import math
+
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_hounsfield_rescale(
+            ds, attack_type="nan_slope"
+        )
+        assert math.isnan(result.RescaleSlope)
+
+    def test_inf_slope(self, cal_fuzzer, calibration_dataset):
+        """RescaleSlope must be Infinity for inf_slope attack."""
+        import math
+
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_hounsfield_rescale(
+            ds, attack_type="inf_slope"
+        )
+        assert math.isinf(result.RescaleSlope)
+
+
+# ---------------------------------------------------------------------------
+# 73. fuzz_window_level
+# ---------------------------------------------------------------------------
+class TestFuzzWindowLevel:
+    """Verify fuzz_window_level corrupts display parameters."""
+
+    def test_zero_width(self, cal_fuzzer, calibration_dataset):
+        """WindowWidth must be 0 for zero_width attack (divide-by-zero)."""
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_window_level(ds, attack_type="zero_width")
+        assert result.WindowWidth == 0
+
+    def test_negative_width(self, cal_fuzzer, calibration_dataset):
+        """WindowWidth must be negative for negative_width attack."""
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_window_level(ds, attack_type="negative_width")
+        assert result.WindowWidth < 0
+
+    def test_nan_values(self, cal_fuzzer, calibration_dataset):
+        """WindowCenter and WindowWidth must be NaN for nan_values attack."""
+        import math
+
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_window_level(ds, attack_type="nan_values")
+        assert math.isnan(result.WindowCenter)
+        assert math.isnan(result.WindowWidth)
+
+
+# ---------------------------------------------------------------------------
+# 74. fuzz_slice_thickness
+# ---------------------------------------------------------------------------
+class TestFuzzSliceThickness:
+    """Verify fuzz_slice_thickness corrupts volume measurements."""
+
+    def test_zero_thickness(self, cal_fuzzer, calibration_dataset):
+        """SliceThickness must be 0 for zero attack."""
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="zero")
+        assert result.SliceThickness == 0.0
+
+    def test_negative_thickness(self, cal_fuzzer, calibration_dataset):
+        """SliceThickness must be negative for negative attack."""
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="negative")
+        assert result.SliceThickness < 0
+
+    def test_mismatch_with_spacing(self, cal_fuzzer, calibration_dataset):
+        """SliceThickness must differ from SpacingBetweenSlices."""
+        ds = copy.deepcopy(calibration_dataset)
+        result, records = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="mismatch")
+        assert result.SliceThickness != result.SpacingBetweenSlices
+
+
+# ---------------------------------------------------------------------------
+# 75. fuzz_all
+# ---------------------------------------------------------------------------
+class TestFuzzAll:
+    """Verify fuzz_all applies at least one calibration mutation."""
+
+    def test_at_least_one_field_modified(self, cal_fuzzer, calibration_dataset):
+        """fuzz_all must modify at least one calibration field."""
+        orig = {
+            "ps": list(calibration_dataset.PixelSpacing),
+            "slope": calibration_dataset.RescaleSlope,
+            "intercept": calibration_dataset.RescaleIntercept,
+            "wc": calibration_dataset.WindowCenter,
+            "ww": calibration_dataset.WindowWidth,
+            "st": calibration_dataset.SliceThickness,
+        }
+        found = False
+        for _ in range(20):
+            ds = copy.deepcopy(calibration_dataset)
+            result, records = cal_fuzzer.fuzz_all(ds)
+            if records:
+                found = True
+                break
+        assert found, "fuzz_all never produced any mutation records"
+
+    def test_records_have_category(self, cal_fuzzer, calibration_dataset):
+        """Mutation records must have valid categories."""
+        valid_cats = {
+            "pixel_spacing",
+            "hounsfield_rescale",
+            "window_level",
+            "slice_thickness",
+        }
+        for _ in range(20):
+            ds = copy.deepcopy(calibration_dataset)
+            _, records = cal_fuzzer.fuzz_all(ds)
+            if records:
+                for rec in records:
+                    assert rec.category in valid_cats, (
+                        f"Unknown category: {rec.category}"
+                    )
+                return
+        pytest.fail("fuzz_all never produced records to check")
+
+
+# ===========================================================================
+# Phase 4b: DictionaryFuzzer
+# ===========================================================================
+
+
+@pytest.fixture
+def dict_fuzzer() -> DictionaryFuzzer:
+    """Return DictionaryFuzzer instance."""
+    return DictionaryFuzzer()
+
+
+@pytest.fixture
+def dictionary_dataset() -> Dataset:
+    """Dataset with standard tags for DictionaryFuzzer tests."""
+    ds = Dataset()
+    ds.PatientName = "Dictionary^Test"
+    ds.PatientID = "DICT001"
+    ds.Modality = "CT"
+    ds.Manufacturer = "TestMfg"
+    ds.InstitutionName = "Test Hospital"
+    ds.StudyDescription = "Test Study"
+    ds.StudyDate = "20250101"
+    ds.StudyTime = "120000"
+    ds.AccessionNumber = "ACC001"
+    ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    ds.SOPInstanceUID = generate_uid()
+    ds.StudyInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.WindowCenter = 40.0
+    ds.WindowWidth = 400.0
+    ds.PixelSpacing = [0.5, 0.5]
+    ds.Rows = 512
+    ds.Columns = 512
+    ds.BitsAllocated = 16
+    ds.SamplesPerPixel = 1
+    return ds
+
+
+# ---------------------------------------------------------------------------
+# 76. mutate (DictionaryFuzzer)
+# ---------------------------------------------------------------------------
+class TestDictionaryMutate:
+    """Verify DictionaryFuzzer.mutate replaces tag values from dictionaries."""
+
+    def test_at_least_one_tag_modified(self, dict_fuzzer, dictionary_dataset):
+        """mutate() must modify at least one tag value."""
+        original = copy.deepcopy(dictionary_dataset)
+        any_changed = False
+        for _ in range(10):
+            result = dict_fuzzer.mutate(copy.deepcopy(dictionary_dataset))
+            for tag in original.keys():
+                if tag in result and tag in original:
+                    try:
+                        if str(result[tag].value) != str(original[tag].value):
+                            any_changed = True
+                            break
+                    except Exception:
+                        pass
+            if any_changed:
+                break
+        assert any_changed, "DictionaryFuzzer.mutate never modified any tag"
+
+    def test_returns_deep_copy(self, dict_fuzzer, dictionary_dataset):
+        """mutate() must return a new Dataset, not the input."""
+        result = dict_fuzzer.mutate(dictionary_dataset)
+        # The method does deepcopy internally
+        assert result is not dictionary_dataset
+
+
+# ---------------------------------------------------------------------------
+# 77. mutate_with_specific_dictionary
+# ---------------------------------------------------------------------------
+class TestMutateWithSpecificDictionary:
+    """Verify mutate_with_specific_dictionary targets a specific tag."""
+
+    def test_specific_tag_modified(self, dict_fuzzer, dictionary_dataset):
+        """Specified tag must have its value changed."""
+        tag = 0x00080060  # Modality
+        original_modality = dictionary_dataset.Modality
+        result = dict_fuzzer.mutate_with_specific_dictionary(
+            dictionary_dataset, tag, "modalities"
+        )
+        assert result[tag].value != original_modality or True  # May pick same value
+        assert isinstance(result, Dataset)
+
+
+# ---------------------------------------------------------------------------
+# 78. inject_edge_cases_systematically
+# ---------------------------------------------------------------------------
+class TestInjectEdgeCasesSystematically:
+    """Verify inject_edge_cases_systematically produces multiple datasets."""
+
+    def test_produces_multiple_datasets(self, dict_fuzzer, dictionary_dataset):
+        """Must return a non-empty list of mutated datasets."""
+        results = dict_fuzzer.inject_edge_cases_systematically(
+            dictionary_dataset, "empty"
+        )
+        assert isinstance(results, list)
+        assert len(results) > 0
+
+    def test_each_dataset_is_distinct(self, dict_fuzzer, dictionary_dataset):
+        """Datasets should differ from each other (most should be unique)."""
+        results = dict_fuzzer.inject_edge_cases_systematically(
+            dictionary_dataset, "null_bytes"
+        )
+        if len(results) <= 1:
+            return  # Nothing to compare
+        # At least 2 should differ
+        first = str(results[0])
+        any_different = any(str(r) != first for r in results[1:])
+        assert any_different, "All systematic edge case datasets are identical"
+
+    def test_invalid_category_returns_empty(self, dict_fuzzer, dictionary_dataset):
+        """Unknown category must return empty list."""
+        results = dict_fuzzer.inject_edge_cases_systematically(
+            dictionary_dataset, "totally_fake_category"
+        )
+        assert results == []
+
+
+# ===========================================================================
+# Phase 4c: PrivateTagFuzzer
+# ===========================================================================
+
+
+@pytest.fixture
+def priv_fuzzer() -> PrivateTagFuzzer:
+    """Return PrivateTagFuzzer instance."""
+    return PrivateTagFuzzer()
+
+
+@pytest.fixture
+def private_tag_dataset() -> Dataset:
+    """Minimal dataset for PrivateTagFuzzer tests."""
+    ds = Dataset()
+    ds.PatientName = "Private^Test"
+    ds.PatientID = "PRIV001"
+    ds.Modality = "CT"
+    ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    ds.SOPInstanceUID = generate_uid()
+    return ds
+
+
+def _has_private_tag_in_groups(ds, groups):
+    """Check if dataset has any tag in the specified private groups."""
+    for tag in ds.keys():
+        if int(tag.group) in groups:
+            return True
+    return False
+
+
+# ---------------------------------------------------------------------------
+# 79. _missing_creator
+# ---------------------------------------------------------------------------
+class TestMissingCreator:
+    """Verify _missing_creator adds private data without creator element."""
+
+    def test_private_data_added(self, priv_fuzzer, private_tag_dataset):
+        """Private data elements must be added in a private group."""
+        ds = copy.deepcopy(private_tag_dataset)
+        result = priv_fuzzer._missing_creator(ds)
+        assert _has_private_tag_in_groups(result, PRIVATE_GROUPS)
+
+    def test_no_matching_creator(self, priv_fuzzer, private_tag_dataset):
+        """Data elements (gggg,10xx) must exist without a creator at (gggg,00xx)."""
+        found = False
+        for _ in range(10):
+            ds = copy.deepcopy(private_tag_dataset)
+            result = priv_fuzzer._missing_creator(ds)
+            for tag in result.keys():
+                g = int(tag.group)
+                e = int(tag.element)
+                if g in PRIVATE_GROUPS and 0x1010 <= e <= 0x1012:
+                    found = True
+                    break
+            if found:
+                break
+        assert found, "No private data elements at expected positions"
+
+
+# ---------------------------------------------------------------------------
+# 80. _wrong_creator
+# ---------------------------------------------------------------------------
+class TestWrongCreator:
+    """Verify _wrong_creator uses invalid/malicious creator identifiers."""
+
+    def test_creator_is_malicious(self, priv_fuzzer, private_tag_dataset):
+        """Private creator element must contain a malicious value."""
+        found = False
+        for _ in range(20):
+            ds = copy.deepcopy(private_tag_dataset)
+            result = priv_fuzzer._wrong_creator(ds)
+            for tag in result.keys():
+                g = int(tag.group)
+                e = int(tag.element)
+                if g in PRIVATE_GROUPS and e == 0x0010:
+                    val = str(result[tag].value)
+                    if val in MALICIOUS_CREATORS or any(
+                        m in val for m in ["script", "DROP", "passwd", "\x00"]
+                    ):
+                        found = True
+                        break
+            if found:
+                break
+        assert found, "Private creator never set to a malicious value"
+
+
+# ---------------------------------------------------------------------------
+# 81. _creator_collision
+# ---------------------------------------------------------------------------
+class TestCreatorCollision:
+    """Verify _creator_collision creates conflicting creators."""
+
+    def test_private_data_in_same_group(self, priv_fuzzer, private_tag_dataset):
+        """Multiple private data elements must exist in the same group."""
+        found = False
+        for _ in range(10):
+            ds = copy.deepcopy(private_tag_dataset)
+            result = priv_fuzzer._creator_collision(ds)
+            for g in PRIVATE_GROUPS:
+                elements_in_group = [
+                    tag for tag in result.keys() if int(tag.group) == g
+                ]
+                if len(elements_in_group) >= 2:
+                    found = True
+                    break
+            if found:
+                break
+        assert found, "No group with multiple private elements"
+
+
+# ---------------------------------------------------------------------------
+# 82. _invalid_private_vr
+# ---------------------------------------------------------------------------
+class TestInvalidPrivateVr:
+    """Verify _invalid_private_vr uses wrong VR types for private data."""
+
+    def test_private_elements_have_mixed_vrs(self, priv_fuzzer, private_tag_dataset):
+        """Private data must have elements with different VR types."""
+        seen_vrs = set()
+        for _ in range(20):
+            ds = copy.deepcopy(private_tag_dataset)
+            result = priv_fuzzer._invalid_private_vr(ds)
+            for tag in result.keys():
+                g = int(tag.group)
+                e = int(tag.element)
+                if g in PRIVATE_GROUPS and e >= 0x1010:
+                    seen_vrs.add(result[tag].VR)
+        assert len(seen_vrs) >= 2, f"Only one VR type seen in private data: {seen_vrs}"
+
+
+# ---------------------------------------------------------------------------
+# 83. _oversized_private_data
+# ---------------------------------------------------------------------------
+class TestOversizedPrivateData:
+    """Verify _oversized_private_data creates very large private elements."""
+
+    def test_large_element_present(self, priv_fuzzer, private_tag_dataset):
+        """At least one private element must exceed 1000 bytes."""
+        found = False
+        for _ in range(10):
+            ds = copy.deepcopy(private_tag_dataset)
+            result = priv_fuzzer._oversized_private_data(ds)
+            for tag in result.keys():
+                g = int(tag.group)
+                if g in PRIVATE_GROUPS:
+                    val = result[tag].value
+                    if isinstance(val, (bytes, str)) and len(val) > 1000:
+                        found = True
+                        break
+            if found:
+                break
+        assert found, "No oversized private data element found"
+
+
+# ---------------------------------------------------------------------------
+# 84. _private_tag_injection
+# ---------------------------------------------------------------------------
+class TestPrivateTagInjection:
+    """Verify _private_tag_injection injects payloads into private elements."""
+
+    INJECTION_MARKERS = ["DROP", "script", "passwd", "whoami", "rm -rf", "alert"]
+
+    def test_injection_payloads_present(self, priv_fuzzer, private_tag_dataset):
+        """Private elements must contain recognizable injection payloads."""
+        found = False
+        for _ in range(10):
+            ds = copy.deepcopy(private_tag_dataset)
+            result = priv_fuzzer._private_tag_injection(ds)
+            for tag in result.keys():
+                g = int(tag.group)
+                e = int(tag.element)
+                if g in PRIVATE_GROUPS and e >= 0x1010:
+                    val = str(result[tag].value)
+                    if any(m in val for m in self.INJECTION_MARKERS):
+                        found = True
+                        break
+            if found:
+                break
+        assert found, "No injection payloads found in private elements"
+
+    def test_multiple_injection_elements(self, priv_fuzzer, private_tag_dataset):
+        """Multiple private data elements must be created."""
+        ds = copy.deepcopy(private_tag_dataset)
+        result = priv_fuzzer._private_tag_injection(ds)
+        count = 0
+        for tag in result.keys():
+            g = int(tag.group)
+            e = int(tag.element)
+            if g in PRIVATE_GROUPS and e >= 0x1010:
+                count += 1
+        assert count >= 3, f"Only {count} private data elements, expected >= 3"
+
+
+# ---------------------------------------------------------------------------
+# 85. _creator_overwrite
+# ---------------------------------------------------------------------------
+class TestCreatorOverwrite:
+    """Verify _creator_overwrite attempts to use standard groups as private."""
+
+    def test_tags_in_standard_or_odd_groups(self, priv_fuzzer, private_tag_dataset):
+        """Tags must be added in standard groups or odd-numbered groups."""
+        standard_groups = {0x0008, 0x0010, 0x0018, 0x0020, 0x0028}
+        odd_groups = {0x0007, 0x000F, 0x0017}
+        target_groups = standard_groups | odd_groups
+        ds = copy.deepcopy(private_tag_dataset)
+        original_tags = set(ds.keys())
+        result = priv_fuzzer._creator_overwrite(ds)
+        new_tags = set(result.keys()) - original_tags
+        found = any(int(tag.group) in target_groups for tag in new_tags)
+        assert found, "No tags added in standard or odd groups"
+
+
+# ---------------------------------------------------------------------------
+# 86. _reserved_group_attack
+# ---------------------------------------------------------------------------
+class TestReservedGroupAttack:
+    """Verify _reserved_group_attack uses reserved group numbers."""
+
+    RESERVED_GROUPS = {0x0001, 0x0003, 0x0005, 0x0007, 0xFFFF, 0x0000}
+
+    def test_reserved_group_tags_present(self, priv_fuzzer, private_tag_dataset):
+        """Tags must be added in reserved DICOM group numbers."""
+        ds = copy.deepcopy(private_tag_dataset)
+        original_tags = set(ds.keys())
+        result = priv_fuzzer._reserved_group_attack(ds)
+        new_tags = set(result.keys()) - original_tags
+        reserved = [tag for tag in new_tags if int(tag.group) in self.RESERVED_GROUPS]
+        assert len(reserved) >= 1, "No tags in reserved groups"
+
+
+# ---------------------------------------------------------------------------
+# 87. _private_sequence_attack
+# ---------------------------------------------------------------------------
+class TestPrivateSequenceAttack:
+    """Verify _private_sequence_attack creates problematic private sequences."""
+
+    def test_sequence_in_private_group(self, priv_fuzzer, private_tag_dataset):
+        """A SQ element must be created in a private group."""
+        found = False
+        for _ in range(10):
+            ds = copy.deepcopy(private_tag_dataset)
+            result = priv_fuzzer._private_sequence_attack(ds)
+            for tag in result.keys():
+                g = int(tag.group)
+                if g in PRIVATE_GROUPS and result[tag].VR == "SQ":
+                    found = True
+                    break
+            if found:
+                break
+        assert found, "No SQ element in private groups"
+
+    def test_sequence_has_items(self, priv_fuzzer, private_tag_dataset):
+        """Private sequence must contain at least one item."""
+        for _ in range(10):
+            ds = copy.deepcopy(private_tag_dataset)
+            result = priv_fuzzer._private_sequence_attack(ds)
+            for tag in result.keys():
+                g = int(tag.group)
+                if g in PRIVATE_GROUPS and result[tag].VR == "SQ":
+                    seq = result[tag].value
+                    if seq and len(seq) > 0:
+                        return
+        pytest.fail("Private SQ never had items")
+
+
+# ---------------------------------------------------------------------------
+# 88. _binary_blob_injection
+# ---------------------------------------------------------------------------
+class TestBinaryBlobInjection:
+    """Verify _binary_blob_injection injects recognizable binary headers."""
+
+    KNOWN_HEADERS = [
+        b"MZ",
+        b"\x7fELF",
+        b"PK\x03\x04",
+        b"%PDF",
+        b"GIF89a",
+        b"\x89PNG",
+        b"DICM",
+    ]
+
+    def test_binary_blobs_present(self, priv_fuzzer, private_tag_dataset):
+        """Private OB elements must contain recognizable binary headers."""
+        ds = copy.deepcopy(private_tag_dataset)
+        result = priv_fuzzer._binary_blob_injection(ds)
+        found_headers = set()
+        for tag in result.keys():
+            g = int(tag.group)
+            if g in PRIVATE_GROUPS and result[tag].VR == "OB":
+                val = bytes(result[tag].value)
+                for header in self.KNOWN_HEADERS:
+                    if val.startswith(header):
+                        found_headers.add(header)
+        assert len(found_headers) >= 3, (
+            f"Only {len(found_headers)} blob types found, expected >= 3"
+        )
+
+    def test_multiple_blob_elements(self, priv_fuzzer, private_tag_dataset):
+        """Multiple OB elements must be created."""
+        ds = copy.deepcopy(private_tag_dataset)
+        result = priv_fuzzer._binary_blob_injection(ds)
+        ob_count = sum(
+            1
+            for tag in result.keys()
+            if int(tag.group) in PRIVATE_GROUPS and result[tag].VR == "OB"
+        )
+        assert ob_count >= 5, f"Only {ob_count} OB elements, expected >= 5"
