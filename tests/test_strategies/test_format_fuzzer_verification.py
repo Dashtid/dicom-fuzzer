@@ -15,6 +15,7 @@ Phase 2b: SequenceFuzzer (8 strategies)
 Phase 2c: StructureFuzzer (6 strategies)
 Phase 3a: ConformanceFuzzer (10 strategies)
 Phase 3b: MetadataFuzzer (5 strategies)
+Phase 3c: ReferenceFuzzer (10 strategies)
 """
 
 import copy
@@ -42,6 +43,7 @@ from dicom_fuzzer.attacks.format.metadata_fuzzer import (
     MetadataFuzzer,
 )
 from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
+from dicom_fuzzer.attacks.format.reference_fuzzer import ReferenceFuzzer
 from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
 from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
 from dicom_fuzzer.attacks.format.uid_attacks import INVALID_UIDS, UID_TAG_NAMES
@@ -2812,3 +2814,391 @@ class TestInstitutionPersonnelAttack:
                     found_attack = True
                     break
         assert found_attack, "InstitutionName never set to an attack value"
+
+
+# ===========================================================================
+# Phase 3c: ReferenceFuzzer
+# ===========================================================================
+
+REF_IMAGE_SEQ_TAG = Tag(0x0008, 0x1140)  # ReferencedImageSequence
+REF_STUDY_SEQ_TAG = Tag(0x0008, 0x1110)  # ReferencedStudySequence
+REF_SERIES_SEQ_TAG = Tag(0x0008, 0x1115)  # ReferencedSeriesSequence
+SOURCE_IMAGE_SEQ_TAG = Tag(0x0008, 0x2112)  # SourceImageSequence
+REF_FOR_SEQ_TAG = Tag(0x3006, 0x0080)  # ReferencedFrameOfReferenceSequence
+
+
+@pytest.fixture
+def ref_fuzzer() -> ReferenceFuzzer:
+    """Return ReferenceFuzzer instance."""
+    return ReferenceFuzzer()
+
+
+@pytest.fixture
+def reference_dataset() -> Dataset:
+    """Dataset with UIDs and frame info for ReferenceFuzzer tests."""
+    ds = Dataset()
+    ds.SOPInstanceUID = generate_uid()
+    ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT
+    ds.StudyInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
+    ds.FrameOfReferenceUID = generate_uid()
+    ds.Modality = "CT"
+    ds.NumberOfFrames = 10
+    ds.PatientName = "Ref^Test"
+    ds.PatientID = "REF001"
+    return ds
+
+
+# ---------------------------------------------------------------------------
+# 61. _orphan_reference
+# ---------------------------------------------------------------------------
+class TestOrphanReference:
+    """Verify _orphan_reference creates references to non-existent objects."""
+
+    ORPHAN_MARKERS = ["NONEXISTENT", "NOSERIES", "NOSTUDY", "NOFRAME"]
+
+    def test_orphan_reference_created(self, ref_fuzzer, reference_dataset):
+        """A reference to a non-existent UID must be added."""
+        any_orphan = False
+        for _ in range(20):
+            ds = copy.deepcopy(reference_dataset)
+            result = ref_fuzzer._orphan_reference(ds)
+            # Check sequence tags for orphan UIDs
+            for seq_tag in [REF_IMAGE_SEQ_TAG, REF_STUDY_SEQ_TAG, REF_SERIES_SEQ_TAG]:
+                if seq_tag in result:
+                    for item in result[seq_tag].value:
+                        for attr in [
+                            "ReferencedSOPInstanceUID",
+                            "SeriesInstanceUID",
+                        ]:
+                            val = str(getattr(item, attr, ""))
+                            if any(m in val for m in self.ORPHAN_MARKERS):
+                                any_orphan = True
+                                break
+            # Check FrameOfReferenceUID directly
+            fr = str(getattr(result, "FrameOfReferenceUID", ""))
+            if "NOFRAME" in fr:
+                any_orphan = True
+            if any_orphan:
+                break
+        assert any_orphan, "_orphan_reference never created an orphan UID"
+
+    def test_orphan_uid_format_invalid(self, ref_fuzzer, reference_dataset):
+        """Orphan UIDs should contain non-numeric characters (invalid DICOM UID)."""
+        for _ in range(20):
+            ds = copy.deepcopy(reference_dataset)
+            result = ref_fuzzer._orphan_reference(ds)
+            for seq_tag in [REF_IMAGE_SEQ_TAG, REF_STUDY_SEQ_TAG, REF_SERIES_SEQ_TAG]:
+                if seq_tag in result:
+                    for item in result[seq_tag].value:
+                        for attr in [
+                            "ReferencedSOPInstanceUID",
+                            "SeriesInstanceUID",
+                        ]:
+                            val = str(getattr(item, attr, ""))
+                            if any(m in val for m in self.ORPHAN_MARKERS):
+                                # Contains alpha chars -> invalid UID format
+                                assert not val.replace(".", "").isdigit()
+                                return
+        pytest.fail("Could not find orphan UID to verify format")
+
+
+# ---------------------------------------------------------------------------
+# 62. _circular_reference
+# ---------------------------------------------------------------------------
+class TestCircularReference:
+    """Verify _circular_reference creates self-referencing chains."""
+
+    def _find_self_uid_in_tree(self, ds, self_uid, depth=0):
+        """Recursively search for self_uid in nested references."""
+        if depth > 20:
+            return False
+        if REF_IMAGE_SEQ_TAG in ds:
+            for item in ds[REF_IMAGE_SEQ_TAG].value:
+                ref_uid = str(getattr(item, "ReferencedSOPInstanceUID", ""))
+                if ref_uid == str(self_uid):
+                    return True
+                if self._find_self_uid_in_tree(item, self_uid, depth + 1):
+                    return True
+        return False
+
+    def test_circular_reference_contains_self_uid(self, ref_fuzzer, reference_dataset):
+        """Reference chain must eventually point back to the dataset's own UID."""
+        self_uid = reference_dataset.SOPInstanceUID
+        found_circular = False
+        for _ in range(20):
+            ds = copy.deepcopy(reference_dataset)
+            result = ref_fuzzer._circular_reference(ds)
+            if self._find_self_uid_in_tree(result, self_uid):
+                found_circular = True
+                break
+        assert found_circular, "_circular_reference never created a back-reference"
+
+
+# ---------------------------------------------------------------------------
+# 63. _self_reference
+# ---------------------------------------------------------------------------
+class TestSelfReference:
+    """Verify _self_reference creates direct self-references."""
+
+    def test_self_reference_uses_own_uid(self, ref_fuzzer, reference_dataset):
+        """A reference sequence must contain the dataset's own UID."""
+        found_self = False
+        for _ in range(20):
+            ds = copy.deepcopy(reference_dataset)
+            result = ref_fuzzer._self_reference(ds)
+            own_uids = {
+                str(result.StudyInstanceUID),
+                str(result.SeriesInstanceUID),
+                str(result.SOPInstanceUID),
+            }
+            # Check all reference sequences for own UID
+            for seq_tag in [
+                REF_IMAGE_SEQ_TAG,
+                REF_STUDY_SEQ_TAG,
+                REF_SERIES_SEQ_TAG,
+                SOURCE_IMAGE_SEQ_TAG,
+            ]:
+                if seq_tag in result:
+                    for item in result[seq_tag].value:
+                        for attr in [
+                            "ReferencedSOPInstanceUID",
+                            "SeriesInstanceUID",
+                        ]:
+                            val = str(getattr(item, attr, ""))
+                            if val in own_uids:
+                                found_self = True
+                                break
+            if found_self:
+                break
+        assert found_self, "_self_reference never used the dataset's own UID"
+
+
+# ---------------------------------------------------------------------------
+# 64. _invalid_frame_reference
+# ---------------------------------------------------------------------------
+class TestInvalidFrameReference:
+    """Verify _invalid_frame_reference creates out-of-bounds frame numbers."""
+
+    def test_frame_number_invalid(self, ref_fuzzer, reference_dataset):
+        """ReferencedFrameNumber must be out of valid range [1, NumberOfFrames]."""
+        num_frames = reference_dataset.NumberOfFrames
+        found_invalid = False
+        for _ in range(20):
+            ds = copy.deepcopy(reference_dataset)
+            result = ref_fuzzer._invalid_frame_reference(ds)
+            if REF_IMAGE_SEQ_TAG in result:
+                for item in result[REF_IMAGE_SEQ_TAG].value:
+                    frame_num = getattr(item, "ReferencedFrameNumber", None)
+                    if frame_num is not None:
+                        if frame_num <= 0 or frame_num > num_frames:
+                            found_invalid = True
+                            break
+            if found_invalid:
+                break
+        assert found_invalid, "ReferencedFrameNumber never set to an invalid value"
+
+    def test_frame_number_attack_variants(self, ref_fuzzer, reference_dataset):
+        """Must produce at least two distinct invalid frame number types."""
+        seen_types = set()
+        num_frames = reference_dataset.NumberOfFrames
+        for _ in range(50):
+            ds = copy.deepcopy(reference_dataset)
+            result = ref_fuzzer._invalid_frame_reference(ds)
+            if REF_IMAGE_SEQ_TAG in result:
+                for item in result[REF_IMAGE_SEQ_TAG].value:
+                    fn = getattr(item, "ReferencedFrameNumber", None)
+                    if fn is not None:
+                        if fn < 0:
+                            seen_types.add("negative")
+                        elif fn == 0:
+                            seen_types.add("zero")
+                        elif fn > num_frames:
+                            seen_types.add("beyond_count")
+            if len(seen_types) >= 2:
+                break
+        assert len(seen_types) >= 2, f"Only saw frame attack types: {seen_types}"
+
+
+# ---------------------------------------------------------------------------
+# 65. _mismatched_study_reference
+# ---------------------------------------------------------------------------
+class TestMismatchedStudyReference:
+    """Verify _mismatched_study_reference creates UID hierarchy mismatches."""
+
+    def test_study_or_series_uid_mismatch(self, ref_fuzzer, reference_dataset):
+        """Referenced item must have a different StudyInstanceUID or SeriesInstanceUID."""
+        found_mismatch = False
+        for _ in range(20):
+            ds = copy.deepcopy(reference_dataset)
+            result = ref_fuzzer._mismatched_study_reference(ds)
+            study_uid = str(result.StudyInstanceUID)
+            series_uid = str(result.SeriesInstanceUID)
+            for seq_tag in [REF_IMAGE_SEQ_TAG, REF_SERIES_SEQ_TAG]:
+                if seq_tag in result:
+                    for item in result[seq_tag].value:
+                        ref_study = str(getattr(item, "StudyInstanceUID", ""))
+                        ref_series = str(getattr(item, "SeriesInstanceUID", ""))
+                        if (ref_study and ref_study != study_uid) or (
+                            ref_series and ref_series != series_uid
+                        ):
+                            found_mismatch = True
+                            break
+            if found_mismatch:
+                break
+        assert found_mismatch, "No UID hierarchy mismatch found"
+
+
+# ---------------------------------------------------------------------------
+# 66. _broken_series_reference
+# ---------------------------------------------------------------------------
+class TestBrokenSeriesReference:
+    """Verify _broken_series_reference creates defective series references."""
+
+    def test_has_empty_or_duplicate_series(self, ref_fuzzer, reference_dataset):
+        """ReferencedSeriesSequence must have empty instance list or duplicate UIDs."""
+        ds = copy.deepcopy(reference_dataset)
+        result = ref_fuzzer._broken_series_reference(ds)
+        assert REF_SERIES_SEQ_TAG in result, "No ReferencedSeriesSequence created"
+        seq = result[REF_SERIES_SEQ_TAG].value
+
+        # Collect defects
+        has_empty_instances = False
+        has_duplicate_uid = False
+        series_uids = []
+        for item in seq:
+            series_uids.append(str(item.SeriesInstanceUID))
+            ref_sop_tag = Tag(0x0008, 0x1199)
+            if ref_sop_tag in item:
+                if len(item[ref_sop_tag].value) == 0:
+                    has_empty_instances = True
+
+        if len(series_uids) != len(set(series_uids)):
+            has_duplicate_uid = True
+
+        assert has_empty_instances or has_duplicate_uid, (
+            "No empty instance list or duplicate SeriesInstanceUID found"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 67. _frame_of_reference_attack
+# ---------------------------------------------------------------------------
+class TestFrameOfReferenceAttack:
+    """Verify _frame_of_reference_attack corrupts spatial references."""
+
+    def test_for_uid_conflict_or_missing(self, ref_fuzzer, reference_dataset):
+        """FrameOfReferenceUID must conflict with sequence or be removed."""
+        found_defect = False
+        for _ in range(20):
+            ds = copy.deepcopy(reference_dataset)
+            result = ref_fuzzer._frame_of_reference_attack(ds)
+
+            # Case 1: FoR removed but position data present
+            if not hasattr(result, "FrameOfReferenceUID"):
+                if hasattr(result, "ImagePositionPatient"):
+                    found_defect = True
+                    break
+                continue
+
+            # Case 2: FoR conflicts with referenced FoR sequence
+            if REF_FOR_SEQ_TAG in result:
+                dataset_for = str(result.FrameOfReferenceUID)
+                for item in result[REF_FOR_SEQ_TAG].value:
+                    ref_for = str(getattr(item, "FrameOfReferenceUID", ""))
+                    if ref_for and ref_for != dataset_for:
+                        found_defect = True
+                        break
+            if found_defect:
+                break
+        assert found_defect, "No Frame of Reference conflict or removal detected"
+
+
+# ---------------------------------------------------------------------------
+# 68. _duplicate_references
+# ---------------------------------------------------------------------------
+class TestDuplicateReferences:
+    """Verify _duplicate_references creates multiple refs to same object."""
+
+    def test_duplicate_sop_instance_uids(self, ref_fuzzer, reference_dataset):
+        """ReferencedImageSequence must contain duplicate ReferencedSOPInstanceUIDs."""
+        ds = copy.deepcopy(reference_dataset)
+        result = ref_fuzzer._duplicate_references(ds)
+        assert REF_IMAGE_SEQ_TAG in result, "No ReferencedImageSequence created"
+        seq = result[REF_IMAGE_SEQ_TAG].value
+        uids = [str(item.ReferencedSOPInstanceUID) for item in seq]
+        assert len(uids) > 1, "Need at least 2 reference items"
+        assert len(set(uids)) == 1, (
+            f"Expected all identical UIDs, got {len(set(uids))} unique"
+        )
+
+    def test_duplicate_count_at_least_ten(self, ref_fuzzer, reference_dataset):
+        """Must create at least 10 identical references."""
+        ds = copy.deepcopy(reference_dataset)
+        result = ref_fuzzer._duplicate_references(ds)
+        seq = result[REF_IMAGE_SEQ_TAG].value
+        assert len(seq) >= 10, f"Expected >= 10 duplicate refs, got {len(seq)}"
+
+
+# ---------------------------------------------------------------------------
+# 69. _massive_reference_chain
+# ---------------------------------------------------------------------------
+class TestMassiveReferenceChain:
+    """Verify _massive_reference_chain creates deeply nested reference chains."""
+
+    def _measure_depth(self, ds, max_depth=200):
+        """Measure nesting depth of ReferencedImageSequence."""
+        depth = 0
+        current = ds
+        while depth < max_depth:
+            if REF_IMAGE_SEQ_TAG not in current:
+                break
+            seq = current[REF_IMAGE_SEQ_TAG].value
+            if not seq:
+                break
+            current = seq[0]
+            depth += 1
+        return depth
+
+    def test_chain_depth_at_least_100(self, ref_fuzzer, reference_dataset):
+        """Reference chain must be at least 100 levels deep."""
+        found_deep = False
+        for _ in range(10):
+            ds = copy.deepcopy(reference_dataset)
+            result = ref_fuzzer._massive_reference_chain(ds)
+            depth = self._measure_depth(result)
+            if depth >= 100:
+                found_deep = True
+                break
+        assert found_deep, f"Chain depth never reached 100 (best: {depth})"
+
+
+# ---------------------------------------------------------------------------
+# 70. _reference_type_mismatch
+# ---------------------------------------------------------------------------
+class TestReferenceTypeMismatch:
+    """Verify _reference_type_mismatch references wrong SOP class types."""
+
+    CT_SOP = "1.2.840.10008.5.1.4.1.1.2"
+    MR_SOP = "1.2.840.10008.5.1.4.1.1.4"
+    SR_SOP = "1.2.840.10008.5.1.4.1.1.88.11"
+
+    def test_modality_is_ct_but_refs_non_ct(self, ref_fuzzer, reference_dataset):
+        """Dataset claims CT but references MR or SR objects."""
+        ds = copy.deepcopy(reference_dataset)
+        result = ref_fuzzer._reference_type_mismatch(ds)
+        assert result.Modality == "CT"
+        assert str(result.SOPClassUID) == self.CT_SOP
+        assert REF_IMAGE_SEQ_TAG in result
+
+        ref_sop_classes = set()
+        for item in result[REF_IMAGE_SEQ_TAG].value:
+            ref_sop_classes.add(str(item.ReferencedSOPClassUID))
+
+        # Must reference at least one non-CT SOP class
+        non_ct = ref_sop_classes - {self.CT_SOP}
+        assert non_ct, f"All references are CT, expected MR or SR: {ref_sop_classes}"
+        # Verify known wrong types
+        assert non_ct & {self.MR_SOP, self.SR_SOP}, (
+            f"Expected MR or SR in refs, got {non_ct}"
+        )
