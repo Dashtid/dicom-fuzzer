@@ -64,10 +64,42 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
-      - name: Generate malicious samples
+      - name: Generate CVE replication samples
         run: |
           mkdir -p ./test_samples
-          uv run dicom-fuzzer samples --malicious -o ./test_samples
+
+          # Create a template DICOM file for CVE generation
+          uv run python -c "
+          import pydicom
+          from pydicom.dataset import Dataset, FileMetaDataset
+          from pydicom.uid import generate_uid, ImplicitVRLittleEndian
+          file_meta = FileMetaDataset()
+          file_meta.TransferSyntaxUID = ImplicitVRLittleEndian
+          file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
+          file_meta.MediaStorageSOPInstanceUID = generate_uid()
+          file_meta.ImplementationClassUID = generate_uid()
+          ds = Dataset()
+          ds.file_meta = file_meta
+          ds.is_implicit_VR = True
+          ds.is_little_endian = True
+          ds.PatientName = 'CI^Template'
+          ds.PatientID = 'CI001'
+          ds.Modality = 'CT'
+          ds.Rows = 64
+          ds.Columns = 64
+          ds.BitsAllocated = 16
+          ds.BitsStored = 16
+          ds.HighBit = 15
+          ds.SamplesPerPixel = 1
+          ds.PixelRepresentation = 0
+          ds.PhotometricInterpretation = 'MONOCHROME2'
+          ds.PixelData = b'\x00' * (64 * 64 * 2)
+          ds.save_as('./template.dcm', enforce_file_format=True)
+          print('[+] Template created')
+          "
+
+          # Generate CVE replication files
+          uv run dicom-fuzzer cve --all -t ./template.dcm -o ./test_samples
         timeout-minutes: 5
 
       - name: Validate generated samples
@@ -82,20 +114,17 @@ jobs:
           fi
           echo "[+] Sample generation validated"
 
-      - name: Run security scanner on samples
+      - name: Validate CVE listing
         run: |
-          uv run dicom-fuzzer samples --scan ./test_samples --recursive --json > scan_results.json
-          echo "[i] Scan results:"
-          cat scan_results.json | head -50
+          uv run dicom-fuzzer cve --list
+          echo "[+] CVE listing validated"
 
       - name: Upload sample artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         if: always()
         with:
           name: pr-sample-validation
-          path: |
-            ./test_samples/
-            scan_results.json
+          path: ./test_samples/
           retention-days: 7
 
   # PR fuzzing - quick validation
@@ -134,22 +163,41 @@ jobs:
           mkdir -p ./corpus ./crashes ./output
 
           echo "[i] Starting PR fuzzing campaign..."
-          echo "[i] Duration: ${{ env.PR_FUZZ_DURATION }}s, Iterations: ${{ env.PR_FUZZ_ITERATIONS }}"
 
-          # Generate seed samples for fuzzing
-          uv run dicom-fuzzer samples --generate -c 5 -o ./corpus/seeds
+          # Create a template DICOM file
+          uv run python -c "
+          import pydicom
+          from pydicom.dataset import Dataset, FileMetaDataset
+          from pydicom.uid import generate_uid, ImplicitVRLittleEndian
+          file_meta = FileMetaDataset()
+          file_meta.TransferSyntaxUID = ImplicitVRLittleEndian
+          file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
+          file_meta.MediaStorageSOPInstanceUID = generate_uid()
+          file_meta.ImplementationClassUID = generate_uid()
+          ds = Dataset()
+          ds.file_meta = file_meta
+          ds.is_implicit_VR = True
+          ds.is_little_endian = True
+          ds.PatientName = 'CI^Template'
+          ds.PatientID = 'CI001'
+          ds.Modality = 'CT'
+          ds.Rows = 64
+          ds.Columns = 64
+          ds.BitsAllocated = 16
+          ds.BitsStored = 16
+          ds.HighBit = 15
+          ds.SamplesPerPixel = 1
+          ds.PixelRepresentation = 0
+          ds.PhotometricInterpretation = 'MONOCHROME2'
+          ds.PixelData = b'\x00' * (64 * 64 * 2)
+          ds.save_as('./corpus/template.dcm', enforce_file_format=True)
+          print('[+] Template created')
+          "
 
-          # Run coverage-guided fuzzing
-          uv run python -m dicom_fuzzer.cli.coverage_fuzz \
-            --iterations ${{ env.PR_FUZZ_ITERATIONS }} \
-            --timeout 1.0 \
-            --seeds ./corpus/seeds \
-            --corpus ./corpus \
-            --output ./output \
-            --crashes ./crashes \
-            --workers 2 \
-            --adaptive \
-            --dicom-aware \
+          # Run mutation-based fuzzing
+          uv run dicom-fuzzer ./corpus/template.dcm \
+            -c ${{ env.PR_FUZZ_ITERATIONS }} \
+            -o ./output \
             2>&1 | tee fuzz_output.log || true
 
           echo "[+] Fuzzing completed"
@@ -230,28 +278,43 @@ jobs:
           mkdir -p ./corpus ./crashes ./output ./reports
 
           echo "[i] Starting nightly fuzzing campaign..."
-          echo "[i] Duration: ${{ steps.params.outputs.duration }}s"
           echo "[i] Iterations: ${{ steps.params.outputs.iterations }}"
           echo "[i] Start time: $(date -Iseconds)"
 
-          # Generate fresh malicious samples for corpus seeding
-          uv run dicom-fuzzer samples --malicious -o ./corpus/malicious_seeds
+          # Create a template DICOM file
+          uv run python -c "
+          import pydicom
+          from pydicom.dataset import Dataset, FileMetaDataset
+          from pydicom.uid import generate_uid, ImplicitVRLittleEndian
+          file_meta = FileMetaDataset()
+          file_meta.TransferSyntaxUID = ImplicitVRLittleEndian
+          file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
+          file_meta.MediaStorageSOPInstanceUID = generate_uid()
+          file_meta.ImplementationClassUID = generate_uid()
+          ds = Dataset()
+          ds.file_meta = file_meta
+          ds.is_implicit_VR = True
+          ds.is_little_endian = True
+          ds.PatientName = 'CI^Template'
+          ds.PatientID = 'CI001'
+          ds.Modality = 'CT'
+          ds.Rows = 64
+          ds.Columns = 64
+          ds.BitsAllocated = 16
+          ds.BitsStored = 16
+          ds.HighBit = 15
+          ds.SamplesPerPixel = 1
+          ds.PixelRepresentation = 0
+          ds.PhotometricInterpretation = 'MONOCHROME2'
+          ds.PixelData = b'\x00' * (64 * 64 * 2)
+          ds.save_as('./corpus/template.dcm', enforce_file_format=True)
+          print('[+] Template created')
+          "
 
-          # Generate additional synthetic seeds
-          uv run dicom-fuzzer samples --generate -c 20 -o ./corpus/synthetic_seeds
-
-          # Run comprehensive coverage-guided fuzzing
-          uv run python -m dicom_fuzzer.cli.coverage_fuzz \
-            --iterations ${{ steps.params.outputs.iterations }} \
-            --timeout 2.0 \
-            --seeds ./corpus \
-            --corpus ./corpus/evolved \
-            --output ./output \
-            --crashes ./crashes \
-            --workers 4 \
-            --adaptive \
-            --dicom-aware \
-            --max-corpus-size 5000 \
+          # Run mutation-based fuzzing
+          uv run dicom-fuzzer ./corpus/template.dcm \
+            -c ${{ steps.params.outputs.iterations }} \
+            -o ./output \
             2>&1 | tee fuzz_output.log || true
 
           echo "[i] End time: $(date -Iseconds)"
@@ -323,67 +386,64 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
+      - name: Create template DICOM
+        run: |
+          uv run python -c "
+          import pydicom
+          from pydicom.dataset import Dataset, FileMetaDataset
+          from pydicom.uid import generate_uid, ImplicitVRLittleEndian
+          file_meta = FileMetaDataset()
+          file_meta.TransferSyntaxUID = ImplicitVRLittleEndian
+          file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.2'
+          file_meta.MediaStorageSOPInstanceUID = generate_uid()
+          file_meta.ImplementationClassUID = generate_uid()
+          ds = Dataset()
+          ds.file_meta = file_meta
+          ds.is_implicit_VR = True
+          ds.is_little_endian = True
+          ds.PatientName = 'CVE^Template'
+          ds.PatientID = 'CVE001'
+          ds.Modality = 'CT'
+          ds.Rows = 64
+          ds.Columns = 64
+          ds.BitsAllocated = 16
+          ds.BitsStored = 16
+          ds.HighBit = 15
+          ds.SamplesPerPixel = 1
+          ds.PixelRepresentation = 0
+          ds.PhotometricInterpretation = 'MONOCHROME2'
+          ds.PixelData = b'\x00' * (64 * 64 * 2)
+          ds.save_as('./template.dcm', enforce_file_format=True)
+          print('[+] Template created')
+          "
+
       - name: Generate and validate CVE samples
         run: |
           mkdir -p ./cve_samples
 
-          echo "[i] Generating CVE reproduction samples..."
-          uv run dicom-fuzzer samples --cve-samples -o ./cve_samples
+          echo "[i] Listing available CVEs..."
+          uv run dicom-fuzzer cve --list
 
-          echo "[i] Validating CVE samples..."
-          for cve_file in ./cve_samples/*.dcm; do
-            if [ -f "$cve_file" ]; then
-              echo "[+] Validating: $(basename $cve_file)"
-              uv run dicom-fuzzer samples --scan "$cve_file" || true
-            fi
-          done
+          echo "[i] Generating all CVE reproduction samples..."
+          uv run dicom-fuzzer cve --all -t ./template.dcm -o ./cve_samples
 
           CVE_COUNT=$(find ./cve_samples -name "*.dcm" | wc -l)
           echo "[+] Generated $CVE_COUNT CVE samples"
 
-      - name: Generate preamble attack samples
-        run: |
-          mkdir -p ./preamble_samples
-
-          echo "[i] Generating preamble attack samples..."
-          uv run dicom-fuzzer samples --preamble-attacks -o ./preamble_samples
-
-          echo "[i] Validating preamble samples..."
-          for sample in ./preamble_samples/*.dcm; do
-            if [ -f "$sample" ]; then
-              echo "[+] $(basename $sample)"
-              uv run dicom-fuzzer samples --scan "$sample" || true
-            fi
-          done
-
-      - name: Test sanitization
-        run: |
-          mkdir -p ./sanitized
-
-          echo "[i] Testing preamble sanitization..."
-          for sample in ./preamble_samples/*.dcm; do
-            if [ -f "$sample" ]; then
-              sanitized_name="./sanitized/clean_$(basename $sample)"
-              uv run dicom-fuzzer samples --sanitize "$sample" -o "$sanitized_name" || true
-
-              if [ -f "$sanitized_name" ]; then
-                echo "[+] Sanitized: $(basename $sample)"
-              fi
-            fi
-          done
+          if [ "$CVE_COUNT" -lt 10 ]; then
+            echo "[-] FAIL: Expected at least 10 CVE samples, got $CVE_COUNT"
+            exit 1
+          fi
 
       - name: Upload CVE validation results
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
         if: always()
         with:
           name: cve-validation-results
-          path: |
-            ./cve_samples/
-            ./preamble_samples/
-            ./sanitized/
+          path: ./cve_samples/
           retention-days: 14
 
-  # Sample generator tests
+  # CVE generator tests
   sample-generator-tests:
     name: Sample Generator Tests
     runs-on: ubuntu-latest
@@ -404,9 +464,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
-      - name: Run sample generator tests
+      - name: Run CVE generator tests
         run: |
-          uv run pytest tests/test_core/test_samples_generators.py -v --tb=short --timeout=120
+          uv run pytest tests/test_cve/ -v --tb=short --timeout=120
         timeout-minutes: 10
 
       - name: Run security tests

@@ -26,6 +26,7 @@ import logging
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 try:
     import pydicom
@@ -74,7 +75,7 @@ class CorpusImporter:
         self.skip_corrupted = skip_corrupted
 
         # Statistics
-        self.stats = {
+        self.stats: dict[str, Any] = {
             "files_found": 0,
             "files_imported": 0,
             "files_skipped": 0,
@@ -359,7 +360,7 @@ def parse_size(size_str: str) -> int:
     return int(size_str)
 
 
-def main():
+def main() -> None:
     """Import real DICOM files as fuzzing seed corpus."""
     parser = argparse.ArgumentParser(
         description="Import real DICOM files as fuzzing seed corpus",

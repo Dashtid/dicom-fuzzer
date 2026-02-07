@@ -122,7 +122,7 @@ class GUITargetRunner:
                 [str(self.target), str(test_file)],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                creationflags=subprocess.CREATE_NO_WINDOW
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)
                 if sys.platform == "win32"
                 else 0,
             )
@@ -319,23 +319,22 @@ class OvernightCampaign:
             True if successful, False otherwise.
 
         """
-        if sys.platform != "win32":
-            return True
-
-        try:
-            # Method 1: Set error mode to prevent dialogs
-            kernel32 = ctypes.windll.kernel32
-            sem_nogpfaulterrorbox = 0x0002  # Windows constants
-            sem_failcriticalerrors = 0x0001
-            sem_noopenfileerrorbox = 0x8000
-            kernel32.SetErrorMode(
-                sem_nogpfaulterrorbox | sem_failcriticalerrors | sem_noopenfileerrorbox
-            )
-            self.logger.info("[+] Disabled Windows Error Reporting dialogs")
-            return True
-        except Exception as e:
-            self.logger.warning(f"[!] Could not disable WER: {e}")
-            return False
+        if sys.platform == "win32":
+            try:
+                kernel32 = ctypes.windll.kernel32
+                sem_nogpfaulterrorbox = 0x0002
+                sem_failcriticalerrors = 0x0001
+                sem_noopenfileerrorbox = 0x8000
+                kernel32.SetErrorMode(
+                    sem_nogpfaulterrorbox
+                    | sem_failcriticalerrors
+                    | sem_noopenfileerrorbox
+                )
+                self.logger.info("[+] Disabled Windows Error Reporting dialogs")
+            except Exception as e:
+                self.logger.warning(f"[!] Could not disable WER: {e}")
+                return False
+        return True
 
     def _load_corpus(self) -> None:
         """Load and optionally minimize seed corpus."""
@@ -420,7 +419,8 @@ class OvernightCampaign:
             # Apply random CVE-inspired mutation
             try:
                 cve_func = random.choice(self.cve_funcs)
-                return cve_func(seed_data)
+                result: bytes = cve_func(seed_data)
+                return result
             except Exception:
                 return self.byte_mutator.mutate(seed_data)
         else:
