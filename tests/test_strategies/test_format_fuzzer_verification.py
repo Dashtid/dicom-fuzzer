@@ -14,6 +14,7 @@ Phase 2a: HeaderFuzzer (7 strategies)
 Phase 2b: SequenceFuzzer (8 strategies)
 Phase 2c: StructureFuzzer (6 strategies)
 Phase 3a: ConformanceFuzzer (10 strategies)
+Phase 3b: MetadataFuzzer (5 strategies)
 """
 
 import copy
@@ -35,6 +36,11 @@ from dicom_fuzzer.attacks.format.compressed_pixel_fuzzer import CompressedPixelF
 from dicom_fuzzer.attacks.format.conformance_fuzzer import ConformanceFuzzer
 from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
 from dicom_fuzzer.attacks.format.header_fuzzer import VR_MUTATIONS, HeaderFuzzer
+from dicom_fuzzer.attacks.format.metadata_fuzzer import (
+    _INVALID_DATES,
+    _INVALID_TIMES,
+    MetadataFuzzer,
+)
 from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
 from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
 from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
@@ -2027,8 +2033,12 @@ class TestInsertUnexpectedTags:
                 break
         assert any_new, "_insert_unexpected_tags never added a new tag"
 
-    def test_unexpected_data_is_un_vr(self, str_fuzzer, structure_dataset):
-        """Inserted tags must use UN (Unknown) VR with null bytes."""
+    def test_unexpected_data_has_null_bytes(self, str_fuzzer, structure_dataset):
+        """Inserted tags must contain null-byte payload.
+
+        pydicom may override the requested "UN" VR for known tags
+        (e.g. 0x00000000 -> UL), so we verify the value content instead.
+        """
         original_tags = set(structure_dataset.keys())
         for _ in range(20):
             ds = copy.deepcopy(structure_dataset)
@@ -2036,10 +2046,14 @@ class TestInsertUnexpectedTags:
             new_tags = set(result.keys()) - original_tags
             for tag in new_tags:
                 elem = result[tag]
-                assert elem.VR == "UN", f"Expected UN VR, got {elem.VR}"
-                assert elem.value == b"\x00" * 100
+                raw = (
+                    bytes(elem.value)
+                    if not isinstance(elem.value, bytes)
+                    else elem.value
+                )
+                assert b"\x00" in raw, f"Expected null bytes in payload, got {raw!r}"
                 return
-        pytest.fail("Could not find unexpected tag to verify VR")
+        pytest.fail("Could not find unexpected tag to verify")
 
 
 # ---------------------------------------------------------------------------
@@ -2460,3 +2474,341 @@ class TestRetiredSyntaxAttack:
             if sop == "1.2.840.10008.5.1.4.1.1.5":
                 return
         pytest.fail("No retired/deprecated syntax detected")
+
+
+# ===========================================================================
+# Phase 3b: MetadataFuzzer
+# ===========================================================================
+
+
+@pytest.fixture
+def meta_fuzzer() -> MetadataFuzzer:
+    """Return MetadataFuzzer instance."""
+    return MetadataFuzzer()
+
+
+@pytest.fixture
+def metadata_dataset() -> Dataset:
+    """Dataset with full metadata hierarchy for MetadataFuzzer tests."""
+    ds = Dataset()
+    # Patient identifiers
+    ds.PatientName = "Smith^John"
+    ds.PatientID = "PAT001"
+    ds.PatientBirthDate = "19800101"
+    # Patient demographics
+    ds.PatientSex = "M"
+    ds.PatientAge = "045Y"
+    ds.PatientWeight = 75.0
+    ds.PatientSize = 1.75
+    # Study metadata
+    ds.StudyDate = "20250101"
+    ds.StudyTime = "120000"
+    ds.StudyID = "STUDY001"
+    ds.AccessionNumber = "ACC001"
+    ds.ReferringPhysicianName = "Jones^Alice"
+    # Series metadata
+    ds.SeriesDate = "20250101"
+    ds.SeriesDescription = "CT HEAD W/O CONTRAST"
+    ds.BodyPartExamined = "HEAD"
+    # Institution / personnel
+    ds.InstitutionName = "Test Hospital"
+    ds.InstitutionAddress = "123 Main St, City, ST 12345"
+    ds.StationName = "CT_SCANNER_1"
+    ds.OperatorsName = "Tech^Bob"
+    ds.PerformingPhysicianName = "Doctor^Chris"
+    return ds
+
+
+# ---------------------------------------------------------------------------
+# 56. _patient_identifier_attack
+# ---------------------------------------------------------------------------
+class TestPatientIdentifierAttack:
+    """Verify _patient_identifier_attack injects malicious patient identifiers."""
+
+    def test_at_least_one_identifier_modified(self, meta_fuzzer, metadata_dataset):
+        """At least one of PatientID, PatientName, PatientBirthDate must change."""
+        orig_id = metadata_dataset.PatientID
+        orig_name = str(metadata_dataset.PatientName)
+        orig_dob = metadata_dataset.PatientBirthDate
+        any_changed = False
+        for _ in range(20):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._patient_identifier_attack(ds)
+            if (
+                ds.PatientID != orig_id
+                or str(ds.PatientName) != orig_name
+                or ds.PatientBirthDate != orig_dob
+            ):
+                any_changed = True
+                break
+        assert any_changed, "_patient_identifier_attack never modified any identifier"
+
+    def test_patient_id_attack_values(self, meta_fuzzer, metadata_dataset):
+        """PatientID should be set to injection, overlong, or boundary values."""
+        orig_id = metadata_dataset.PatientID
+        attack_found = False
+        for _ in range(50):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._patient_identifier_attack(ds)
+            pid = ds.PatientID
+            if pid != orig_id:
+                is_injection = any(
+                    p in pid for p in ["DROP", "script", "passwd", "jndi"]
+                )
+                is_overlong = len(pid) > 64
+                is_boundary = pid == "" or "\x00" in pid or "\t" in pid or "\\" in pid
+                if is_injection or is_overlong or is_boundary:
+                    attack_found = True
+                    break
+        assert attack_found, "PatientID never set to a recognizable attack value"
+
+    def test_birth_date_invalid_format(self, meta_fuzzer, metadata_dataset):
+        """PatientBirthDate should be set to an invalid DICOM date."""
+        orig_dob = metadata_dataset.PatientBirthDate
+        found_invalid = False
+        for _ in range(50):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._patient_identifier_attack(ds)
+            if (
+                ds.PatientBirthDate != orig_dob
+                and ds.PatientBirthDate in _INVALID_DATES
+            ):
+                found_invalid = True
+                break
+        assert found_invalid, "PatientBirthDate never set to a known invalid date"
+
+
+# ---------------------------------------------------------------------------
+# 57. _patient_demographics_attack
+# ---------------------------------------------------------------------------
+class TestPatientDemographicsAttack:
+    """Verify _patient_demographics_attack creates invalid demographic values."""
+
+    def test_at_least_one_demographic_modified(self, meta_fuzzer, metadata_dataset):
+        """At least one demographic field must change."""
+        orig = {
+            "sex": metadata_dataset.PatientSex,
+            "age": metadata_dataset.PatientAge,
+            "weight": metadata_dataset.PatientWeight,
+            "size": metadata_dataset.PatientSize,
+        }
+        any_changed = False
+        for _ in range(20):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._patient_demographics_attack(ds)
+            if (
+                ds.PatientSex != orig["sex"]
+                or ds.PatientAge != orig["age"]
+                or ds.PatientWeight != orig["weight"]
+                or ds.PatientSize != orig["size"]
+            ):
+                any_changed = True
+                break
+        assert any_changed
+
+    def test_sex_invalid_code(self, meta_fuzzer, metadata_dataset):
+        """PatientSex should be set to an invalid code."""
+        valid_codes = {"M", "F", "O"}
+        found_invalid = False
+        for _ in range(50):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._patient_demographics_attack(ds)
+            if ds.PatientSex not in valid_codes:
+                found_invalid = True
+                break
+        assert found_invalid, "PatientSex never set to an invalid code"
+
+    def test_weight_boundary_value(self, meta_fuzzer, metadata_dataset):
+        """PatientWeight should be zero, negative, extreme, or special float."""
+        import math
+
+        found_boundary = False
+        for _ in range(50):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._patient_demographics_attack(ds)
+            w = ds.PatientWeight
+            if w != 75.0:
+                if w <= 0 or w > 1e6 or math.isinf(w) or w < 0.001 or w > 1e300:
+                    found_boundary = True
+                    break
+        assert found_boundary, "PatientWeight never set to a boundary value"
+
+
+# ---------------------------------------------------------------------------
+# 58. _study_metadata_attack
+# ---------------------------------------------------------------------------
+class TestStudyMetadataAttack:
+    """Verify _study_metadata_attack creates invalid study-level metadata."""
+
+    def test_at_least_one_study_field_modified(self, meta_fuzzer, metadata_dataset):
+        """At least one study metadata field must change."""
+        orig = {
+            "date": metadata_dataset.StudyDate,
+            "time": metadata_dataset.StudyTime,
+            "id": metadata_dataset.StudyID,
+            "acc": metadata_dataset.AccessionNumber,
+            "ref": str(metadata_dataset.ReferringPhysicianName),
+        }
+        any_changed = False
+        for _ in range(20):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._study_metadata_attack(ds)
+            if (
+                ds.StudyDate != orig["date"]
+                or ds.StudyTime != orig["time"]
+                or ds.StudyID != orig["id"]
+                or ds.AccessionNumber != orig["acc"]
+                or str(ds.ReferringPhysicianName) != orig["ref"]
+            ):
+                any_changed = True
+                break
+        assert any_changed
+
+    def test_study_date_invalid(self, meta_fuzzer, metadata_dataset):
+        """StudyDate should be set to a known invalid date."""
+        found = False
+        for _ in range(50):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._study_metadata_attack(ds)
+            if ds.StudyDate in _INVALID_DATES:
+                found = True
+                break
+        assert found, "StudyDate never set to a known invalid date"
+
+    def test_study_time_invalid(self, meta_fuzzer, metadata_dataset):
+        """StudyTime should be set to a known invalid time."""
+        found = False
+        for _ in range(50):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._study_metadata_attack(ds)
+            if ds.StudyTime in _INVALID_TIMES:
+                found = True
+                break
+        assert found, "StudyTime never set to a known invalid time"
+
+
+# ---------------------------------------------------------------------------
+# 59. _series_metadata_attack
+# ---------------------------------------------------------------------------
+class TestSeriesMetadataAttack:
+    """Verify _series_metadata_attack creates invalid series-level metadata."""
+
+    def test_at_least_one_series_field_modified(self, meta_fuzzer, metadata_dataset):
+        """At least one series metadata field must change."""
+        orig = {
+            "date": metadata_dataset.SeriesDate,
+            "desc": metadata_dataset.SeriesDescription,
+            "body": metadata_dataset.BodyPartExamined,
+        }
+        any_changed = False
+        for _ in range(20):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._series_metadata_attack(ds)
+            if (
+                ds.SeriesDate != orig["date"]
+                or ds.SeriesDescription != orig["desc"]
+                or ds.BodyPartExamined != orig["body"]
+            ):
+                any_changed = True
+                break
+        assert any_changed
+
+    def test_series_description_attack_value(self, meta_fuzzer, metadata_dataset):
+        """SeriesDescription should contain injection or boundary values."""
+        original = metadata_dataset.SeriesDescription
+        found_attack = False
+        for _ in range(50):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._series_metadata_attack(ds)
+            desc = ds.SeriesDescription
+            if desc != original:
+                is_attack = (
+                    len(desc) > 64
+                    or desc == ""
+                    or "\x00" in desc
+                    or "script" in desc.lower()
+                    or "DROP" in desc
+                    or "\n" in desc
+                    or "jndi" in desc
+                    or "\x1b" in desc
+                )
+                if is_attack:
+                    found_attack = True
+                    break
+        assert found_attack, "SeriesDescription never set to an attack value"
+
+    def test_body_part_invalid_code(self, meta_fuzzer, metadata_dataset):
+        """BodyPartExamined should be set to an invalid code."""
+        standard_parts = {"HEAD", "CHEST", "ABDOMEN", "PELVIS", "EXTREMITY", "SPINE"}
+        original = metadata_dataset.BodyPartExamined
+        found_invalid = False
+        for _ in range(50):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._series_metadata_attack(ds)
+            bp = ds.BodyPartExamined
+            if bp != original:
+                is_invalid = (
+                    bp == ""
+                    or len(bp) > 16
+                    or bp != bp.upper()
+                    or "\x00" in bp
+                    or "\n" in bp
+                    or ";" in bp
+                )
+                if is_invalid:
+                    found_invalid = True
+                    break
+        assert found_invalid, "BodyPartExamined never set to an invalid code"
+
+
+# ---------------------------------------------------------------------------
+# 60. _institution_personnel_attack
+# ---------------------------------------------------------------------------
+class TestInstitutionPersonnelAttack:
+    """Verify _institution_personnel_attack corrupts institution/personnel fields."""
+
+    def test_at_least_one_field_modified(self, meta_fuzzer, metadata_dataset):
+        """At least one institution/personnel field must change."""
+        orig = {
+            "inst": metadata_dataset.InstitutionName,
+            "addr": metadata_dataset.InstitutionAddress,
+            "stat": metadata_dataset.StationName,
+            "oper": str(metadata_dataset.OperatorsName),
+            "phys": str(metadata_dataset.PerformingPhysicianName),
+        }
+        any_changed = False
+        for _ in range(20):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._institution_personnel_attack(ds)
+            if (
+                ds.InstitutionName != orig["inst"]
+                or ds.InstitutionAddress != orig["addr"]
+                or ds.StationName != orig["stat"]
+                or str(ds.OperatorsName) != orig["oper"]
+                or str(ds.PerformingPhysicianName) != orig["phys"]
+            ):
+                any_changed = True
+                break
+        assert any_changed
+
+    def test_institution_name_attack_value(self, meta_fuzzer, metadata_dataset):
+        """InstitutionName should contain injection or boundary values."""
+        original = metadata_dataset.InstitutionName
+        found_attack = False
+        for _ in range(50):
+            ds = copy.deepcopy(metadata_dataset)
+            meta_fuzzer._institution_personnel_attack(ds)
+            name = ds.InstitutionName
+            if name != original:
+                is_attack = (
+                    len(name) > 64
+                    or name == ""
+                    or "\x00" in name
+                    or "script" in name.lower()
+                    or "DROP" in name
+                    or "\n" in name
+                )
+                if is_attack:
+                    found_attack = True
+                    break
+        assert found_attack, "InstitutionName never set to an attack value"
