@@ -23,11 +23,12 @@ import logging
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 try:
     import pydicom
-    from pydicom.dataset import Dataset, FileDataset
-    from pydicom.uid import ImplicitVRLittleEndian, generate_uid
+    from pydicom.dataset import FileDataset, FileMetaDataset
+    from pydicom.uid import UID, ImplicitVRLittleEndian, generate_uid
 except ImportError:
     print("[!] Error: pydicom not installed. Run: pip install pydicom")
     sys.exit(1)
@@ -62,7 +63,12 @@ class SeedDownloader:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        self.stats = {"downloaded": 0, "failed": 0, "total_bytes": 0, "sources": {}}
+        self.stats: dict[str, Any] = {
+            "downloaded": 0,
+            "failed": 0,
+            "total_bytes": 0,
+            "sources": {},
+        }
 
     def download_pydicom_samples(self) -> int:
         """Download test data from pydicom library.
@@ -173,10 +179,10 @@ class SeedDownloader:
         for i in range(count):
             try:
                 # Create minimal file meta
-                file_meta = Dataset()
+                file_meta = FileMetaDataset()
                 file_meta.FileMetaInformationGroupLength = 192
                 file_meta.FileMetaInformationVersion = b"\x00\x01"
-                file_meta.MediaStorageSOPClassUID = (
+                file_meta.MediaStorageSOPClassUID = UID(
                     "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
                 )
                 file_meta.MediaStorageSOPInstanceUID = generate_uid()
@@ -332,7 +338,7 @@ class SeedDownloader:
         return f"{bytes_val:.1f} TB"
 
 
-def main():
+def main() -> None:
     """Download public DICOM samples for fuzzing seed corpus."""
     parser = argparse.ArgumentParser(
         description="Download public DICOM samples for fuzzing seed corpus",

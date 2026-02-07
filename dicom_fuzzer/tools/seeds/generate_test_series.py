@@ -17,12 +17,12 @@ from datetime import datetime
 from pathlib import Path
 
 import pydicom
-from pydicom.dataset import Dataset, FileDataset
+from pydicom.dataset import FileDataset, FileMetaDataset
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dicom_fuzzer.utils.logger import get_logger, setup_logging
+from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -48,10 +48,12 @@ def generate_ct_slice(
 
     """
     # Create new dataset
-    file_meta = Dataset()
+    file_meta = FileMetaDataset()
     file_meta.FileMetaInformationGroupLength = 192
     file_meta.FileMetaInformationVersion = b"\x00\x01"
-    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
+    file_meta.MediaStorageSOPClassUID = pydicom.uid.UID(
+        "1.2.840.10008.5.1.4.1.1.2"
+    )  # CT Image Storage
     file_meta.MediaStorageSOPInstanceUID = pydicom.uid.generate_uid()
     file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
     file_meta.ImplementationClassUID = pydicom.uid.PYDICOM_IMPLEMENTATION_UID
@@ -59,8 +61,8 @@ def generate_ct_slice(
 
     # Create file dataset
     ds = FileDataset(
-        filename=None,
-        dataset={},
+        "",
+        {},
         file_meta=file_meta,
         preamble=b"\0" * 128,
     )
@@ -202,7 +204,7 @@ def generate_series(output_dir: Path, slice_count: int = 30) -> None:
     logger.info(f"[+] Summary saved to: {summary_path}")
 
 
-def main():
+def main() -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Generate synthetic 3D DICOM series for fuzzing",
@@ -234,8 +236,10 @@ def main():
     args = parser.parse_args()
 
     # Setup logging
-    log_level = "DEBUG" if args.verbose else "INFO"
-    setup_logging(log_level=log_level)
+    if args.verbose:
+        import logging
+
+        logging.basicConfig(level=logging.DEBUG)
 
     # Generate series
     output_dir = Path(args.output)

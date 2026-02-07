@@ -26,8 +26,8 @@ try:
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
-    Console = None
-    Live = None
+    Console = None  # type: ignore[assignment,misc]
+    Live = None  # type: ignore[assignment,misc]
 
 # Import canonical FuzzingSession for module users
 from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
