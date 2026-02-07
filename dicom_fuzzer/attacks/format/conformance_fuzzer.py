@@ -27,6 +27,7 @@ from pydicom.uid import (
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+from .uid_attacks import INVALID_UIDS
 
 logger = get_logger(__name__)
 
@@ -70,23 +71,6 @@ TRANSFER_SYNTAXES = {
     "mpeg2": "1.2.840.10008.1.2.4.100",
     "mpeg4": "1.2.840.10008.1.2.4.102",
 }
-
-# Invalid/problematic UIDs
-INVALID_UIDS = [
-    "",  # Empty
-    "1.2.3",  # Too short
-    "1" * 65,  # Too long (max 64)
-    "1.2.3.4.5.6.7.8.9.0.a",  # Non-numeric component
-    ".1.2.3.4",  # Leading dot
-    "1.2.3.4.",  # Trailing dot
-    "1..2.3.4",  # Double dot
-    "1.2.3.4.00005",  # Leading zeros
-    "0.0.0.0",  # nosec B104 - DICOM UID, not a bind address  # noqa: S104
-    "999.999.999.999.999",  # Large components
-    "1.2.3.4\x00",  # Null byte
-    "1.2.3.4 ",  # Trailing space
-    " 1.2.3.4",  # Leading space
-]
 
 
 class ConformanceFuzzer(FormatFuzzerBase):
@@ -459,7 +443,6 @@ class ConformanceFuzzer(FormatFuzzerBase):
         UIDs have strict format requirements that are often
         not properly validated.
         """
-        # UID tags to corrupt
         uid_tags = [
             (Tag(0x0008, 0x0016), "SOPClassUID"),
             (Tag(0x0008, 0x0018), "SOPInstanceUID"),
@@ -469,32 +452,8 @@ class ConformanceFuzzer(FormatFuzzerBase):
         ]
 
         try:
-            attack = random.choice(
-                [
-                    "too_long_uid",
-                    "non_numeric_component",
-                    "leading_zeros",
-                    "empty_component",
-                ]
-            )
-
             tag, name = random.choice(uid_tags[:4])  # Only actual UID tags
-
-            if attack == "too_long_uid":
-                # UID max 64 chars
-                uid = "1.2.3." + "9" * 60
-
-            elif attack == "non_numeric_component":
-                uid = "1.2.3.abc.4.5"
-
-            elif attack == "leading_zeros":
-                uid = "1.2.3.007.4.5"
-
-            elif attack == "empty_component":
-                uid = "1.2..3.4.5"
-
-            dataset.add_new(tag, "UI", uid)
-
+            dataset.add_new(tag, "UI", random.choice(INVALID_UIDS))
         except Exception as e:
             logger.debug(f"UID format violation attack failed: {e}")
 

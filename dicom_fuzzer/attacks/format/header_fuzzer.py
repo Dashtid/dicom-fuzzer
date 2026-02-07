@@ -15,6 +15,7 @@ from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
 from .base import FormatFuzzerBase
+from .uid_attacks import INVALID_UIDS, UID_TAG_NAMES
 
 # VR-specific invalid values for comprehensive testing
 # Based on DICOM PS3.5 VR definitions
@@ -530,31 +531,8 @@ class HeaderFuzzer(FormatFuzzerBase):
         UIDs are critical for DICOM - invalid UIDs can cause lookup failures,
         reference errors, and parsing crashes.
         """
-        uid_attacks = [
-            "",  # Empty UID
-            "0",  # Single digit
-            "1" * 65,  # Over 64 char limit
-            "1.2.3.4.5.6.7.8.9." + "0" * 50,  # Long but valid-ish format
-            "1.2.abc.3",  # Non-numeric component
-            "1..2.3",  # Empty component
-            ".1.2.3",  # Leading dot
-            "1.2.3.",  # Trailing dot
-            "1.2.3\x00.4",  # Embedded null
-            " 1.2.3.4",  # Leading space
-            "1.2.3.4 ",  # Trailing space
-            "1.2.840.10008.99999999999999999",  # Very large component
-        ]
-
-        uid_tags = [
-            "StudyInstanceUID",
-            "SeriesInstanceUID",
-            "SOPInstanceUID",
-            "FrameOfReferenceUID",
-            "ReferencedSOPInstanceUID",
-        ]
-
         # Mutate 1-2 UID fields
-        available_tags = [t for t in uid_tags if hasattr(dataset, t)]
+        available_tags = [t for t in UID_TAG_NAMES if hasattr(dataset, t)]
         if available_tags:
             tags_to_mutate = random.sample(
                 available_tags, k=min(random.randint(1, 2), len(available_tags))
@@ -563,7 +541,7 @@ class HeaderFuzzer(FormatFuzzerBase):
                 try:
                     elem = dataset.data_element(tag)
                     if elem:
-                        elem._value = random.choice(uid_attacks)
+                        elem._value = random.choice(INVALID_UIDS)
                 except Exception:
                     pass  # UID element may reject invalid format
 
