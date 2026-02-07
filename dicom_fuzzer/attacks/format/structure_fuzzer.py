@@ -329,7 +329,7 @@ class StructureFuzzer(FormatFuzzerBase):
                             element._value = b"\x00" * size
 
         except Exception:
-            pass
+            pass  # Length field attacks may fail on some element types
 
         return dataset
 
@@ -396,7 +396,7 @@ class StructureFuzzer(FormatFuzzerBase):
                         break
 
         except Exception:
-            pass
+            pass  # VM mismatch attacks may fail on some element types
 
         return dataset
 
