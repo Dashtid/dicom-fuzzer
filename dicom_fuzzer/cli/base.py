@@ -39,13 +39,11 @@ class SubcommandBase(ABC):
     @abstractmethod
     def name(self) -> str:
         """Command name (e.g., 'samples', 'tls')."""
-        ...
 
     @property
     @abstractmethod
     def description(self) -> str:
         """Short description for help text."""
-        ...
 
     @property
     def epilog(self) -> str:
@@ -60,7 +58,6 @@ class SubcommandBase(ABC):
             parser: The argument parser to configure.
 
         """
-        ...
 
     @abstractmethod
     def run(self, args: argparse.Namespace) -> int:
@@ -73,7 +70,6 @@ class SubcommandBase(ABC):
             Exit code: 0 for success, 1 for failure.
 
         """
-        ...
 
     def create_parser(self) -> argparse.ArgumentParser:
         """Create argument parser with standard formatting.
