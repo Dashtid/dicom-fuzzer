@@ -28,7 +28,7 @@ dicom-fuzzer INPUT [OPTIONS]
 | `--memory-limit MB`   | -       | Memory limit (GUI mode)  |
 | `--startup-delay SEC` | 0.0     | Startup delay (GUI mode) |
 
-### Network Fuzzing
+### Network Fuzzing (Experimental)
 
 | Option                     | Default   | Description            |
 | -------------------------- | --------- | ---------------------- |
@@ -38,22 +38,13 @@ dicom-fuzzer INPUT [OPTIONS]
 | `--ae-title TITLE`         | FUZZ_SCU  | AE Title               |
 | `--network-strategy STRAT` | all       | malformed_pdu, etc.    |
 
-### Security Testing
-
-| Option                   | Default | Description               |
-| ------------------------ | ------- | ------------------------- |
-| `--security-fuzz`        | false   | Extended security fuzzing |
-| `--target-cves CVES`     | all     | Comma-separated CVEs      |
-| `--vuln-classes CLASSES` | all     | Vulnerability classes     |
-| `--security-report FILE` | -       | Security report (JSON)    |
-
 ---
 
 ## Subcommands
 
 ### cve
 
-Generate CVE replication files.
+Generate deterministic DICOM files that replicate known CVEs. Not fuzzing -- produces specific malformed files for vulnerability validation.
 
 ```bash
 dicom-fuzzer cve --list
@@ -61,18 +52,22 @@ dicom-fuzzer cve --all -t template.dcm -o ./output
 dicom-fuzzer cve --cve CVE-2025-5943 -t template.dcm -o ./output
 dicom-fuzzer cve --product MicroDicom -t template.dcm -o ./output
 dicom-fuzzer cve --info CVE-2025-5943
+dicom-fuzzer cve --all -t template.dcm --target ./viewer.exe
 ```
 
-| Option             | Description            |
-| ------------------ | ---------------------- |
-| `--list`           | List available CVEs    |
-| `--all`            | Generate all CVE files |
-| `--cve CVE-ID`     | Generate specific CVE  |
-| `--product NAME`   | Filter by product      |
-| `--category CAT`   | Filter by category     |
-| `--info CVE-ID`    | Show CVE details       |
-| `-t, --template`   | Template DICOM file    |
-| `-o, --output DIR` | Output directory       |
+| Option             | Description                                |
+| ------------------ | ------------------------------------------ |
+| `--list`           | List available CVEs                        |
+| `--all`            | Generate all CVE files                     |
+| `--cve CVE-ID`     | Generate specific CVE                      |
+| `--product NAME`   | Filter by product                          |
+| `--category CAT`   | Filter by category                         |
+| `--info CVE-ID`    | Show CVE details                           |
+| `-t, --template`   | Template DICOM file                        |
+| `-o, --output DIR` | Output directory                           |
+| `--target EXE`     | Run generated files against target viewer  |
+| `--timeout SEC`    | Per-file execution timeout (default: 10.0) |
+| `--stop-on-crash`  | Stop testing after first crash             |
 
 ---
 
@@ -174,17 +169,6 @@ dicom-fuzzer stress --list-scenarios
 | Option             | Description                          |
 | ------------------ | ------------------------------------ |
 | `--list-scenarios` | List available stress test scenarios |
-
----
-
-### fda-report
-
-FDA-compliant reporting.
-
-```bash
-dicom-fuzzer fda-report -i results.json --organization "Corp" --device "Viewer" -o report.md
-dicom-fuzzer fda-report --sample -o sample.md
-```
 
 ---
 

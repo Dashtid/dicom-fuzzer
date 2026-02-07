@@ -1,6 +1,6 @@
 # DICOM Fuzzer
 
-Security testing framework for DICOM medical imaging systems. Identifies vulnerabilities in PACS servers, medical imaging viewers, and DICOM parsers through automated fuzzing.
+Mutation-based fuzzer for robustness testing of DICOM medical imaging viewers and parsers. Generates malformed DICOM files and feeds them into target applications to find crashes and vulnerabilities.
 
 [![CI](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
@@ -18,45 +18,52 @@ source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 ## Quick Start
 
 ```bash
-# Basic fuzzing
+# Generate 100 fuzzed DICOM files
 dicom-fuzzer input.dcm -c 100 -o ./artifacts/output
 
-# With target application testing
+# Fuzz and test against a target viewer
 dicom-fuzzer input.dcm -c 1000 -t ./viewer.exe --timeout 10
 
-# Generate HTML report
-dicom-fuzzer report ./artifacts/output --format html
+# Replicate known CVEs against a target
+dicom-fuzzer cve --all -t template.dcm --target ./viewer.exe
 ```
 
 ## Features
 
 ### Fuzzing
 
-- Mutation-based and grammar-aware DICOM fuzzing
-- **CVE-based security mutations enabled by default** (20 CVEs, 26 mutations)
-- Coverage-guided fuzzing with corpus management
+- 12 mutation strategies: metadata, pixel, header, structure, encoding, sequences, compressed pixel, conformance, references, private tags, calibration, dictionary
 - 3D series fuzzing (CT/MRI volumetric data)
-- Network protocol fuzzing (DIMSE, TLS)
+- Multi-frame fuzzing (temporal, dimensional, encapsulated pixel)
+- Study-level cross-series attacks
+- Network protocol fuzzing (DIMSE, TLS) -- experimental
+
+### CVE Replication
+
+- 22 known DICOM CVEs with 75 deterministic variants
+- Filter by product, category, or specific CVE ID
+- Run generated files against a target viewer for validation
+- Not fuzzing -- produces deterministic output for specific vulnerabilities
 
 ### Analysis
 
 - Automatic crash detection and deduplication
-- Crash triaging with severity/exploitability scoring
-- Test case minimization (delta debugging)
-- Stability tracking for non-deterministic behavior
+- Crash triaging with severity and exploitability scoring
+- Test case minimization
+- Corpus management
 
 ### Integration
 
-- CLI with 10+ subcommands
+- CLI with 11 subcommands
 - Python API for custom workflows
-- Docker targets (DCMTK, Orthanc)
-- CI/CD pipeline ready
+- Docker container for isolated execution
+- CI/CD compatible
 
 ## CLI Reference
 
 ```bash
 dicom-fuzzer --help              # Main help
-dicom-fuzzer fuzz --help         # Fuzzing options
+dicom-fuzzer cve --help          # CVE replication
 dicom-fuzzer report --help       # Report generation
 dicom-fuzzer corpus --help       # Corpus management
 dicom-fuzzer tls --help          # TLS/auth testing
@@ -67,19 +74,16 @@ See [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE.md) for full command documentatio
 ## Python API
 
 ```python
-from dicom_fuzzer.core.mutator import DicomMutator
-from dicom_fuzzer.core.fuzzing_session import FuzzingSession
+from dicom_fuzzer.core.mutation.mutator import DicomMutator
+from dicom_fuzzer.core.types import MutationSeverity
 import pydicom
 
-session = FuzzingSession(output_dir="./artifacts/output")
 mutator = DicomMutator()
 dataset = pydicom.dcmread("input.dcm")
 
 for i in range(100):
-    fuzzed = mutator.mutate(dataset)
+    fuzzed = mutator.mutate(dataset.copy(), severity=MutationSeverity.MODERATE)
     fuzzed.save_as(f"artifacts/output/fuzz_{i:04d}.dcm")
-
-session.save_report()
 ```
 
 ## Project Structure
@@ -87,8 +91,12 @@ session.save_report()
 ```text
 dicom-fuzzer/
 ├── dicom_fuzzer/    # Main package
-│   └── tools/       # Scripts, examples, benchmarks
-├── tests/           # Test suite (2000+ tests)
+│   ├── cli/         # Command-line interface (11 subcommands)
+│   ├── core/        # Core logic (mutation, corpus, crash analysis, session)
+│   ├── cve/         # CVE replication (deterministic, 22 CVEs)
+│   ├── attacks/     # Attack modules (format, series, network, multiframe)
+│   └── tools/       # Benchmarks and scripts
+├── tests/           # Test suite (5000+ tests)
 ├── docs/            # Documentation
 └── artifacts/       # Runtime output (gitignored)
 ```
