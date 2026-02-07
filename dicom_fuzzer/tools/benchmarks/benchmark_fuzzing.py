@@ -111,7 +111,7 @@ def benchmark_parsing(iterations: int = 100) -> dict:
     try:
         # Warm-up
         for _ in range(5):
-            parser = DicomParser(tmp_path, security_checks=False)
+            DicomParser(tmp_path, security_checks=False)
 
         # Benchmark
         times = []

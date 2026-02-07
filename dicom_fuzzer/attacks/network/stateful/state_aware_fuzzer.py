@@ -21,6 +21,7 @@ Research References:
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import random
 import time
@@ -767,8 +768,6 @@ class StateAwareFuzzer:
                 "fitness_score": seq.fitness_score,
             }
             meta_path = seq_dir / "metadata.json"
-            import json
-
             meta_path.write_text(json.dumps(meta, indent=2))
 
             count += 1
@@ -850,8 +849,6 @@ if __name__ == "__main__":
     stats = fuzzer.run(iterations=100)
 
     print("\n[+] Fuzzing Statistics:")
-    import json
-
     print(json.dumps(stats, indent=2))
 
     print("\n[+] State Machine:")

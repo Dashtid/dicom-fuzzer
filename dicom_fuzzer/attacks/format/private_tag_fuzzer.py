@@ -351,7 +351,7 @@ class PrivateTagFuzzer(FormatFuzzerBase):
                     dataset.add_new(Tag(g, 0x0010), "LO", "OddGroupCreator")
                     dataset.add_new(Tag(g, 0x1010), "LO", "OddGroupData")
                 except Exception:
-                    pass
+                    pass  # Some groups may be rejected by pydicom
 
         except Exception as e:
             logger.debug(f"Creator overwrite attack failed: {e}")
@@ -372,13 +372,13 @@ class PrivateTagFuzzer(FormatFuzzerBase):
                     dataset.add_new(Tag(group, 0x0010), "LO", f"Reserved_{group:04X}")
                     dataset.add_new(Tag(group, 0x1010), "LO", f"Data_{group:04X}")
                 except Exception:
-                    pass
+                    pass  # Reserved groups may be rejected by pydicom
 
             # Also try group 0x0000 (Command group, not for data)
             try:
                 dataset.add_new(Tag(0x0000, 0x0010), "LO", "CommandGroupData")
             except Exception:
-                pass
+                pass  # Command group tags may be rejected
 
         except Exception as e:
             logger.debug(f"Reserved group attack failed: {e}")
@@ -488,7 +488,7 @@ class PrivateTagFuzzer(FormatFuzzerBase):
                 try:
                     dataset.add_new(Tag(group, element), "OB", blob)
                 except Exception:
-                    pass
+                    pass  # Some blob payloads may be rejected
 
         except Exception as e:
             logger.debug(f"Binary blob injection failed: {e}")
