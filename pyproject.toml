@@ -249,13 +249,6 @@ module = [
 disable_error_code = ["union-attr", "attr-defined", "unreachable", "operator", "valid-type", "no-any-return", "arg-type"]
 
 [[tool.mypy.overrides]]
-module = [
-    "dicom_fuzzer.tools.*",
-]
-# Support scripts, benchmarks, and demos -- excluded from pre-commit mypy
-ignore_errors = true
-
-[[tool.mypy.overrides]]
 module = "dicom_fuzzer.attacks.format.*"
 # Format fuzzers intentionally violate type safety: accessing internal pydicom
 # attributes (_value), assigning invalid strings to UID fields, etc.
