@@ -156,7 +156,7 @@ class TestRunStudyMutation:
         mock_module.StudyMutationStrategy = MagicMock()
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.attacks.study_mutator": mock_module}
+            "sys.modules", {"dicom_fuzzer.attacks.series.study_mutator": mock_module}
         ):
             result = run_study_mutation(args)
 
@@ -207,7 +207,7 @@ class TestRunStudyMutation:
         mock_module.StudyMutationStrategy = mock_strategy_enum
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.attacks.study_mutator": mock_module}
+            "sys.modules", {"dicom_fuzzer.attacks.series.study_mutator": mock_module}
         ):
             result = run_study_mutation(args)
 

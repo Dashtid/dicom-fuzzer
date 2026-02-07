@@ -269,23 +269,6 @@ class TestSubcommandDispatch:
 
             mock_study.assert_called()
 
-    def test_persistent_subcommand(self):
-        """Test 'persistent' subcommand dispatch."""
-        with (
-            patch("sys.argv", ["dicom-fuzzer", "persistent", "--help"]),
-            patch(
-                "dicom_fuzzer.cli.commands.persistent.main", return_value=0
-            ) as mock_persistent,
-        ):
-            from dicom_fuzzer.cli.main import main
-
-            try:
-                result = main()
-            except SystemExit:
-                pass
-
-            mock_persistent.assert_called()
-
     def test_state_subcommand(self):
         """Test 'state' subcommand dispatch."""
         with (

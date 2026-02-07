@@ -191,6 +191,9 @@ class TemporalAttacksMixin:
         """
         records: list[SeriesMutationRecord] = []
 
+        if not datasets:
+            return datasets, records
+
         existing_uids = [
             str(ds.SOPInstanceUID) for ds in datasets if hasattr(ds, "SOPInstanceUID")
         ]

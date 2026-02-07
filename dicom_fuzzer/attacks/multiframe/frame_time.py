@@ -55,7 +55,7 @@ class FrameTimeCorruptionStrategy(MutationStrategyBase):
         return MultiFrameMutationRecord(
             strategy=self.strategy_name,
             tag="FrameTimeVector",
-            original_value=f"length={len(original) if original else 0}",
+            original_value=f"length={len(original) if original and hasattr(original, '__len__') else (1 if original else 0)}",
             mutated_value=f"length={wrong_length}",
             severity=self.severity,
             details={

@@ -34,7 +34,6 @@ Examples:
 Subcommands (use --help for details):
   samples      Manage DICOM seed files (sources, strip pixel data)
   tls          DICOM TLS/authentication testing
-  persistent   AFL-style persistent mode fuzzing
   state        Protocol state machine fuzzing
   corpus       Corpus management and minimization
   study        Study-level fuzzing (cross-series attacks)

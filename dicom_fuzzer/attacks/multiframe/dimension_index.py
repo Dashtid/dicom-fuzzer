@@ -104,6 +104,13 @@ class DimensionIndexStrategy(MutationStrategyBase):
         """Set DimensionIndexPointer to a non-existent tag."""
         dim_seq = self._ensure_dimension_index_seq(dataset)
 
+        if not dim_seq:
+            # Re-create if a prior attack emptied it
+            dim_item = Dataset()
+            dim_item.DimensionIndexPointer = Tag(0x0020, 0x0032)
+            dim_item.FunctionalGroupPointer = Tag(0x0020, 0x9113)
+            dim_seq.append(dim_item)
+
         # Pick a random item and corrupt its pointer
         idx = random.randint(0, len(dim_seq) - 1)
         bad_tag = Tag(0x9999, 0x9999)

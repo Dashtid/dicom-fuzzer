@@ -108,7 +108,8 @@ class TestRunFuzz:
         )
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.state_aware_fuzzer": mock_module}
+            "sys.modules",
+            {"dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer": mock_module},
         ):
             result = run_fuzz(args)
 
@@ -137,7 +138,8 @@ class TestRunFuzz:
         )
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.state_aware_fuzzer": mock_module}
+            "sys.modules",
+            {"dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer": mock_module},
         ):
             result = run_fuzz(args)
 
@@ -163,7 +165,8 @@ class TestRunFuzz:
         )
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.state_aware_fuzzer": mock_module}
+            "sys.modules",
+            {"dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer": mock_module},
         ):
             result = run_fuzz(args)
 
@@ -209,7 +212,8 @@ class TestRunFuzz:
         )
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.state_aware_fuzzer": mock_module}
+            "sys.modules",
+            {"dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer": mock_module},
         ):
             result = run_fuzz(args)
 
@@ -234,7 +238,8 @@ class TestRunExportSM:
         args = argparse.Namespace(export_sm=str(output_file))
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.state_aware_fuzzer": mock_module}
+            "sys.modules",
+            {"dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer": mock_module},
         ):
             result = run_export_sm(args)
 
@@ -259,7 +264,8 @@ class TestRunExportSM:
         args = argparse.Namespace(export_sm=str(output_file))
 
         with patch.dict(
-            "sys.modules", {"dicom_fuzzer.core.state_aware_fuzzer": mock_module}
+            "sys.modules",
+            {"dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer": mock_module},
         ):
             result = run_export_sm(args)
 

@@ -246,12 +246,9 @@ class TestMainFunction:
         """Test main with non-existent file."""
         nonexistent = tmp_path / "nonexistent.json"
 
-        with patch("sys.argv", ["generate_report.py", str(nonexistent)]):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
+        result = main([str(nonexistent)])
 
-            assert exc_info.value.code == 1
-
+        assert result == 1
         captured = capsys.readouterr()
         assert "Error: File not found" in captured.err
 
@@ -260,12 +257,9 @@ class TestMainFunction:
         invalid_file = tmp_path / "invalid.json"
         invalid_file.write_text("not valid json {{{")
 
-        with patch("sys.argv", ["generate_report.py", str(invalid_file)]):
-            with pytest.raises(SystemExit) as exc_info:
-                main()
+        result = main([str(invalid_file)])
 
-            assert exc_info.value.code == 1
-
+        assert result == 1
         captured = capsys.readouterr()
         assert "Error: Invalid JSON file" in captured.err
 
@@ -274,16 +268,13 @@ class TestMainFunction:
         session_file = tmp_path / "session.json"
         session_file.write_text(json.dumps({"statistics": {}, "crashes": []}))
 
-        with patch("sys.argv", ["generate_report.py", str(session_file)]):
-            with patch(
-                "dicom_fuzzer.cli.commands.reports.generate_reports",
-                side_effect=Exception("Test error"),
-            ):
-                with pytest.raises(SystemExit) as exc_info:
-                    main()
+        with patch(
+            "dicom_fuzzer.cli.commands.reports.generate_reports",
+            side_effect=Exception("Test error"),
+        ):
+            result = main([str(session_file)])
 
-                assert exc_info.value.code == 1
-
+        assert result == 1
         captured = capsys.readouterr()
         assert "Error generating report" in captured.err
 
