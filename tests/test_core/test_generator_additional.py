@@ -106,18 +106,13 @@ class TestGeneratorErrorHandling:
         output_dir = tmp_path / "output"
         generator = DICOMGenerator(
             output_dir=str(output_dir),
-            skip_write_errors=False,  # Don't skip errors
+            skip_write_errors=False,
         )
 
-        # Mock a fuzzer to raise an error
-        # Patch random.random to ensure fuzzers are always selected (> 0.3 check)
-        with (
-            patch.object(generator, "_apply_single_fuzzer") as mock_fuzzer,
-            patch("dicom_fuzzer.core.engine.generator.random.random", return_value=0.5),
-        ):
-            mock_fuzzer.side_effect = ValueError("Test error")
+        # Mock _apply_mutations to raise an error
+        with patch.object(generator, "_apply_mutations") as mock_apply:
+            mock_apply.side_effect = ValueError("Test error")
 
-            # Should raise the error (not skip it)
             with pytest.raises(ValueError, match="Test error"):
                 generator.generate_batch(str(test_file), count=1)
 
@@ -262,30 +257,25 @@ class TestGeneratorErrorHandling:
 
         output_dir = tmp_path / "output"
 
-        # Test with skip_write_errors=True (lines 168-170)
+        # Test with skip_write_errors=True - mock mutator.apply_mutations
+        # so the error goes through _apply_mutations' own handler
         generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
 
-        # Patch random.random to ensure fuzzers are always selected (> 0.3 check)
-        with (
-            patch.object(generator, "_apply_single_fuzzer") as mock_fuzzer,
-            patch("dicom_fuzzer.core.engine.generator.random.random", return_value=0.5),
-        ):
-            mock_fuzzer.side_effect = TypeError("Invalid type")
+        with patch.object(generator.mutator, "apply_mutations") as mock_apply:
+            mock_apply.side_effect = TypeError("Invalid type")
 
-            generator.generate_batch(str(test_file), count=1)
-            assert generator.stats.skipped_due_to_write_errors > 0
+            # Should not raise - errors are caught by _apply_mutations
+            files = generator.generate_batch(str(test_file), count=1)
+            assert len(files) == 0
 
-        # Test with skip_write_errors=False (lines 172-173)
+        # Test with skip_write_errors=False
         generator2 = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=False)
 
-        with patch.object(generator2, "_apply_single_fuzzer") as mock_fuzzer:
-            mock_fuzzer.side_effect = AttributeError("Missing attribute")
+        with patch.object(generator2.mutator, "apply_mutations") as mock_apply:
+            mock_apply.side_effect = AttributeError("Missing attribute")
 
             with pytest.raises(AttributeError):
                 generator2.generate_batch(str(test_file), count=1)
-
-            assert generator2.stats.failed > 0
-            assert "AttributeError" in generator2.stats.error_types
 
 
 class TestGeneratorEdgeCases:

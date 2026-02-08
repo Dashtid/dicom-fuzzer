@@ -16,8 +16,11 @@ Common vulnerabilities:
 - Fragment offset table corruption
 """
 
+from __future__ import annotations
+
 import random
 import struct
+from typing import TYPE_CHECKING
 
 from pydicom.dataset import Dataset
 from pydicom.encaps import encapsulate
@@ -31,6 +34,9 @@ from pydicom.uid import (
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+
+if TYPE_CHECKING:
+    from dicom_fuzzer.core.types import MutationSeverity
 
 logger = get_logger(__name__)
 
@@ -76,11 +82,14 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
         """Return the strategy name for identification."""
         return "compressed_pixel"
 
-    def mutate(self, dataset: Dataset) -> Dataset:
+    def mutate(
+        self, dataset: Dataset, severity: MutationSeverity | None = None
+    ) -> Dataset:
         """Apply compressed pixel data mutations.
 
         Args:
             dataset: The DICOM dataset to mutate
+            severity: Optional mutation severity level (unused)
 
         Returns:
             Mutated dataset with compressed pixel corruptions

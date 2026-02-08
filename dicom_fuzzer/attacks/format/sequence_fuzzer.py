@@ -16,8 +16,10 @@ Common vulnerabilities:
 - Empty required sequences causing null pointer dereference
 """
 
+from __future__ import annotations
+
 import random
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
@@ -26,6 +28,9 @@ from pydicom.tag import Tag
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+
+if TYPE_CHECKING:
+    from dicom_fuzzer.core.types import MutationSeverity
 
 logger = get_logger(__name__)
 
@@ -75,11 +80,14 @@ class SequenceFuzzer(FormatFuzzerBase):
         """Return the strategy name for identification."""
         return "sequence"
 
-    def mutate(self, dataset: Dataset) -> Dataset:
+    def mutate(
+        self, dataset: Dataset, severity: MutationSeverity | None = None
+    ) -> Dataset:
         """Apply sequence-level mutations to the dataset.
 
         Args:
             dataset: The DICOM dataset to mutate
+            severity: Optional mutation severity level (unused)
 
         Returns:
             Mutated dataset with sequence corruptions

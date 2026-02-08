@@ -5,6 +5,8 @@ values with entries from curated dictionaries. This produces inputs that
 pass initial validation but may trigger edge cases in deeper code paths.
 """
 
+from __future__ import annotations
+
 import copy
 import random
 
@@ -92,7 +94,7 @@ class DictionaryFuzzer(FormatFuzzerBase):
         )
 
     def mutate(
-        self, dataset: Dataset, severity: MutationSeverity = MutationSeverity.MODERATE
+        self, dataset: Dataset, severity: MutationSeverity | None = None
     ) -> Dataset:
         """Apply dictionary-based mutations to a DICOM dataset.
 
@@ -110,6 +112,8 @@ class DictionaryFuzzer(FormatFuzzerBase):
             Mutated dataset
 
         """
+        if severity is None:
+            severity = MutationSeverity.MODERATE
         mutated = copy.deepcopy(dataset)
 
         # Determine number of mutations based on severity

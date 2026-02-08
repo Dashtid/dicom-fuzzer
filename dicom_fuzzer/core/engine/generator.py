@@ -1,16 +1,13 @@
-import random
 import struct
+import sys
 from pathlib import Path
 from typing import Any
 
 from pydicom.dataset import Dataset
 from pydicom.uid import UID, generate_uid
 
-from dicom_fuzzer.attacks.format.header_fuzzer import HeaderFuzzer
-from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
-from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
-from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
 from dicom_fuzzer.core.dicom.parser import DicomParser
+from dicom_fuzzer.core.mutation.mutator import DicomMutator
 from dicom_fuzzer.utils.identifiers import generate_short_id
 
 
@@ -42,6 +39,9 @@ class DICOMGenerator:
 
     Coordinates multiple fuzzing strategies to create a diverse set
     of test cases that stress different aspects of DICOM parsers.
+
+    Delegates mutation orchestration to DicomMutator, which registers
+    all 12 format fuzzers and handles strategy selection/application.
     """
 
     def __init__(
@@ -62,6 +62,13 @@ class DICOMGenerator:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.skip_write_errors = skip_write_errors
         self.stats = GenerationStats()
+        self.mutator = DicomMutator(
+            config={
+                "max_mutations_per_file": 1,
+                "mutation_probability": 1.0,
+                "auto_register_strategies": True,
+            }
+        )
 
     def generate(self, output_path: str, tags: dict[str, Any] | None = None) -> Path:
         """Generate a single DICOM file from scratch.
@@ -142,7 +149,6 @@ class DICOMGenerator:
             original_file: Path to original DICOM file
             count: Number of files to generate
             strategies: List of strategy names to use (None = all)
-                       Valid: 'metadata', 'header', 'pixel', 'structure'
 
         Returns:
             List of paths to generated files
@@ -150,53 +156,28 @@ class DICOMGenerator:
         """
         parser = DicomParser(original_file)
         base_dataset = parser.dataset
-        active_fuzzers = self._select_fuzzers(strategies)
 
         generated_files = []
         self.stats = GenerationStats()
+        self.mutator.start_session(base_dataset)
 
         for _i in range(count):
-            result = self._generate_single_file(base_dataset, active_fuzzers)
+            result = self._generate_single_file(base_dataset, strategies)
             if result is not None:
                 generated_files.append(result)
 
+        self.mutator.end_session()
         return generated_files
 
-    def _select_fuzzers(self, strategies: list[str] | None) -> dict[str, Any]:
-        """Select fuzzers based on strategy names.
-
-        Note: CVE replication is NOT part of fuzzing. Use the dicom_fuzzer.cve
-        module for deterministic CVE file generation instead.
-        """
-        all_fuzzers = {
-            "metadata": MetadataFuzzer(),
-            "header": HeaderFuzzer(),
-            "pixel": PixelFuzzer(),
-            "structure": StructureFuzzer(),
-        }
-
-        if strategies is None:
-            # Default: use metadata, header, and pixel fuzzers
-            return {
-                "metadata": all_fuzzers["metadata"],
-                "header": all_fuzzers["header"],
-                "pixel": all_fuzzers["pixel"],
-            }
-
-        # Use only specified strategies
-        return {
-            name: fuzzer for name, fuzzer in all_fuzzers.items() if name in strategies
-        }
-
     def _generate_single_file(
-        self, base_dataset: Dataset, active_fuzzers: dict[str, Any]
+        self, base_dataset: Dataset, strategy_names: list[str] | None = None
     ) -> Path | None:
         """Generate a single fuzzed file. Returns None if generation fails."""
         self.stats.total_attempted += 1
 
         # Create mutated dataset
         mutated_dataset, strategies_applied = self._apply_mutations(
-            base_dataset, active_fuzzers
+            base_dataset, strategy_names
         )
         if mutated_dataset is None:
             return None
@@ -205,44 +186,35 @@ class DICOMGenerator:
         return self._save_mutated_file(mutated_dataset, strategies_applied)
 
     def _apply_mutations(
-        self, base_dataset: Dataset, active_fuzzers: dict[str, Any]
+        self,
+        base_dataset: Dataset,
+        strategy_names: list[str] | None = None,
     ) -> tuple[Dataset | None, list[str]]:
-        """Apply a single random mutation to dataset.
+        """Apply a single mutation to dataset via DicomMutator.
 
-        Selects exactly one fuzzer per file for clean crash attribution.
+        Delegates to DicomMutator which handles strategy selection,
+        application, and tracking. Configured with max_mutations_per_file=1
+        for clean crash attribution.
 
         Returns (dataset, strategies) or (None, []).
         """
-        mutated_dataset = base_dataset.copy()
-
-        if not active_fuzzers:
-            return mutated_dataset, []
-
-        # Select exactly one fuzzer per file for clean crash attribution
-        fuzzer_name = random.choice(list(active_fuzzers.keys()))
-        fuzzer = active_fuzzers[fuzzer_name]
-
         try:
-            mutated_dataset = self._apply_single_fuzzer(
-                fuzzer_name, fuzzer, mutated_dataset
+            mutated_dataset = self.mutator.apply_mutations(
+                base_dataset,
+                num_mutations=1,
+                strategy_names=strategy_names,
             )
         except (ValueError, TypeError, AttributeError) as e:
             return self._handle_mutation_error(e)
 
-        return mutated_dataset, [fuzzer_name]
+        # Get applied strategy names from session for stats
+        strategies: list[str] = []
+        if self.mutator.current_session and self.mutator.current_session.mutations:
+            last_mutation = self.mutator.current_session.mutations[-1]
+            if last_mutation.success:
+                strategies = [last_mutation.strategy_name]
 
-    def _apply_single_fuzzer(
-        self, fuzzer_type: str, fuzzer: Any, dataset: Dataset
-    ) -> Dataset:
-        """Apply a single fuzzer to the dataset."""
-        fuzzer_methods: dict[str, Any] = {
-            "metadata": lambda: fuzzer.mutate_patient_info(dataset),
-            "header": lambda: fuzzer.mutate_tags(dataset),
-            "pixel": lambda: fuzzer.mutate_pixels(dataset),
-            "structure": lambda: fuzzer.mutate_structure(dataset),
-        }
-        result: Dataset = fuzzer_methods.get(fuzzer_type, lambda: dataset)()
-        return result
+        return mutated_dataset, strategies
 
     def _handle_mutation_error(self, error: Exception) -> tuple[None, list[str]]:
         """Handle errors during mutation."""
@@ -256,15 +228,29 @@ class DICOMGenerator:
     def _save_mutated_file(
         self, mutated_dataset: Dataset, strategies_applied: list[str]
     ) -> Path | None:
-        """Save mutated dataset to file. Returns path or None on error."""
+        """Save mutated dataset to file. Returns path or None on error.
+
+        Temporarily increases the recursion limit because deeply nested
+        sequence mutations (e.g. depth-500) exceed the default limit
+        during pydicom serialization.
+        """
         filename = f"fuzzed_{generate_short_id()}.dcm"
         output_path = self.output_dir / filename
 
+        old_limit = sys.getrecursionlimit()
+        sys.setrecursionlimit(max(old_limit, 10000))
         try:
             mutated_dataset.save_as(output_path, enforce_file_format=False)
             self.stats.record_success(strategies_applied)
             return output_path
-        except (OSError, struct.error, ValueError, TypeError, AttributeError) as e:
+        except (
+            RecursionError,
+            OSError,
+            struct.error,
+            ValueError,
+            TypeError,
+            AttributeError,
+        ) as e:
             if self.skip_write_errors:
                 self.stats.skipped_due_to_write_errors += 1
                 return None
@@ -273,3 +259,5 @@ class DICOMGenerator:
         except Exception as e:
             self.stats.record_failure(type(e).__name__)
             raise
+        finally:
+            sys.setrecursionlimit(old_limit)

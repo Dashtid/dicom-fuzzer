@@ -8,8 +8,11 @@ Targets the DICOM file structure itself to test parser robustness:
 - VM (Value Multiplicity) mismatches
 """
 
+from __future__ import annotations
+
 import random
 import struct
+from typing import TYPE_CHECKING
 
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
@@ -17,6 +20,9 @@ from pydicom.tag import Tag
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+
+if TYPE_CHECKING:
+    from dicom_fuzzer.core.types import MutationSeverity
 
 logger = get_logger(__name__)
 
@@ -46,7 +52,9 @@ class StructureFuzzer(FormatFuzzerBase):
         """Return the strategy name for identification."""
         return "structure"
 
-    def mutate(self, dataset: Dataset) -> Dataset:
+    def mutate(
+        self, dataset: Dataset, severity: MutationSeverity | None = None
+    ) -> Dataset:
         """Apply structure-level mutations to the dataset.
 
         Randomly selects 1-2 corruption strategies, each targeting
@@ -54,6 +62,7 @@ class StructureFuzzer(FormatFuzzerBase):
 
         Args:
             dataset: The DICOM dataset to mutate
+            severity: Optional mutation severity level (unused)
 
         Returns:
             Mutated dataset with structure corruptions

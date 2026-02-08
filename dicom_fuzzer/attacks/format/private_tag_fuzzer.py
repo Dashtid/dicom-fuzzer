@@ -12,7 +12,10 @@ Private tag vulnerabilities:
 - Injection of malicious data in private elements
 """
 
+from __future__ import annotations
+
 import random
+from typing import TYPE_CHECKING
 
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
@@ -20,6 +23,9 @@ from pydicom.tag import Tag
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+
+if TYPE_CHECKING:
+    from dicom_fuzzer.core.types import MutationSeverity
 
 logger = get_logger(__name__)
 
@@ -84,11 +90,14 @@ class PrivateTagFuzzer(FormatFuzzerBase):
         """Return the strategy name for identification."""
         return "private_tag"
 
-    def mutate(self, dataset: Dataset) -> Dataset:
+    def mutate(
+        self, dataset: Dataset, severity: MutationSeverity | None = None
+    ) -> Dataset:
         """Apply private tag mutations.
 
         Args:
             dataset: The DICOM dataset to mutate
+            severity: Optional mutation severity level (unused)
 
         Returns:
             Mutated dataset with private tag corruptions

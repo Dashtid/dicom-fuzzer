@@ -29,14 +29,19 @@ USAGE:
     fuzzed_ds = fuzzer.fuzz_hounsfield_rescale(dataset)
 """
 
+from __future__ import annotations
+
 import random
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.serialization import SerializableMixin
 from dicom_fuzzer.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from dicom_fuzzer.core.types import MutationSeverity
 
 from .base import FormatFuzzerBase
 
@@ -652,13 +657,16 @@ class CalibrationFuzzer(FormatFuzzerBase):
 
         return dataset, all_records
 
-    def mutate(self, dataset: Dataset) -> Dataset:
+    def mutate(
+        self, dataset: Dataset, severity: MutationSeverity | None = None
+    ) -> Dataset:
         """Apply calibration mutations (FormatFuzzerBase interface).
 
         Wraps fuzz_all() and returns just the mutated dataset.
 
         Args:
             dataset: DICOM dataset to mutate
+            severity: Optional mutation severity level (unused)
 
         Returns:
             Mutated dataset

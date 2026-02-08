@@ -16,14 +16,20 @@ Common vulnerabilities:
 - Unicode handling errors in multi-byte patient names
 """
 
+from __future__ import annotations
+
 import random
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+
+if TYPE_CHECKING:
+    from dicom_fuzzer.core.types import MutationSeverity
 
 logger = get_logger(__name__)
 
@@ -127,7 +133,9 @@ class MetadataFuzzer(FormatFuzzerBase):
             self._institution_personnel_attack,
         ]
 
-    def mutate(self, dataset: Dataset) -> Dataset:
+    def mutate(
+        self, dataset: Dataset, severity: MutationSeverity | None = None
+    ) -> Dataset:
         """Apply random metadata mutations across 1-3 attack categories.
 
         This is the FormatFuzzerBase interface method. It applies broader
@@ -135,6 +143,7 @@ class MetadataFuzzer(FormatFuzzerBase):
 
         Args:
             dataset: DICOM dataset to mutate
+            severity: Optional mutation severity level (unused)
 
         Returns:
             Mutated dataset

@@ -92,7 +92,9 @@ def _add_basic_args(parser: argparse.ArgumentParser) -> None:
         metavar="STRAT",
         help=(
             "Comma-separated list of fuzzing strategies: "
-            "metadata,header,pixel,structure (default: all)"
+            "metadata,header,pixel,structure,conformance,encoding,"
+            "sequence,compressed_pixel,reference,calibration,"
+            "dictionary,private_tag (default: all)"
         ),
     )
     parser.add_argument(

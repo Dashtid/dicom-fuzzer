@@ -188,38 +188,51 @@ class TestGenerateBatch:
         assert gen.stats.successful >= 0
 
 
-class TestFuzzerSelection:
-    """Test fuzzer selection logic."""
+class TestStrategyRegistration:
+    """Test strategy registration in mutator."""
 
-    def test_select_all_fuzzers(self, tmp_path):
-        """Test selecting all fuzzers by default."""
+    def test_all_strategies_registered(self, tmp_path):
+        """Test all 12 format fuzzers are registered."""
         gen = DICOMGenerator(output_dir=str(tmp_path))
 
-        fuzzers = gen._select_fuzzers(None)
+        assert len(gen.mutator.strategies) == 12
 
-        # By default, metadata, header, pixel (not structure)
-        assert "metadata" in fuzzers
-        assert "header" in fuzzers
-        assert "pixel" in fuzzers
-
-    def test_select_specific_fuzzers(self, tmp_path):
-        """Test selecting specific fuzzers."""
+    def test_strategy_names(self, tmp_path):
+        """Test registered strategy names."""
         gen = DICOMGenerator(output_dir=str(tmp_path))
 
-        fuzzers = gen._select_fuzzers(["metadata", "header"])
+        names = sorted(s.get_strategy_name() for s in gen.mutator.strategies)
+        expected = sorted(
+            [
+                "calibration",
+                "compressed_pixel",
+                "conformance",
+                "dictionary",
+                "encoding",
+                "header",
+                "metadata",
+                "pixel",
+                "private_tag",
+                "reference",
+                "sequence",
+                "structure",
+            ]
+        )
+        assert names == expected
 
-        assert "metadata" in fuzzers
-        assert "header" in fuzzers
-        assert "pixel" not in fuzzers
-
-    def test_select_single_fuzzer(self, tmp_path):
-        """Test selecting single fuzzer."""
+    def test_strategy_filtering_via_generate_batch(self, real_dicom_file, tmp_path):
+        """Test that strategy filtering works through generate_batch."""
         gen = DICOMGenerator(output_dir=str(tmp_path))
 
-        fuzzers = gen._select_fuzzers(["metadata"])
+        result = gen.generate_batch(
+            original_file=str(real_dicom_file),
+            count=5,
+            strategies=["metadata"],
+        )
 
-        assert "metadata" in fuzzers
-        assert len(fuzzers) == 1
+        # If any files generated successfully, they should only use metadata
+        for name in gen.stats.strategies_used:
+            assert name == "metadata"
 
 
 class TestMutationHandling:

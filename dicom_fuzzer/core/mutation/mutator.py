@@ -133,22 +133,43 @@ class DicomMutator:
                 self.config[key] = value
 
     def _register_default_strategies(self) -> None:
-        """Register default fuzzing strategies.
+        """Register all format fuzzing strategies.
 
         Uses lazy imports to avoid circular dependencies.
         """
-        try:
-            # Lazy import to avoid circular dependency
-            from dicom_fuzzer.attacks.format.dictionary_fuzzer import (
-                DictionaryFuzzer,
-            )
+        from dicom_fuzzer.attacks.format.calibration_fuzzer import CalibrationFuzzer
+        from dicom_fuzzer.attacks.format.compressed_pixel_fuzzer import (
+            CompressedPixelFuzzer,
+        )
+        from dicom_fuzzer.attacks.format.conformance_fuzzer import ConformanceFuzzer
+        from dicom_fuzzer.attacks.format.dictionary_fuzzer import DictionaryFuzzer
+        from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
+        from dicom_fuzzer.attacks.format.header_fuzzer import HeaderFuzzer
+        from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
+        from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
+        from dicom_fuzzer.attacks.format.private_tag_fuzzer import PrivateTagFuzzer
+        from dicom_fuzzer.attacks.format.reference_fuzzer import ReferenceFuzzer
+        from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
+        from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
 
-            # Register dictionary fuzzer for intelligent mutations
-            dict_fuzzer = DictionaryFuzzer()
-            self.register_strategy(dict_fuzzer)
-            logger.info("Registered dictionary fuzzer strategy")
-        except Exception as e:
-            logger.warning(f"Could not register dictionary fuzzer: {e}")
+        for fuzzer_cls in [
+            CalibrationFuzzer,
+            CompressedPixelFuzzer,
+            ConformanceFuzzer,
+            DictionaryFuzzer,
+            EncodingFuzzer,
+            HeaderFuzzer,
+            MetadataFuzzer,
+            PixelFuzzer,
+            PrivateTagFuzzer,
+            ReferenceFuzzer,
+            SequenceFuzzer,
+            StructureFuzzer,
+        ]:
+            try:
+                self.register_strategy(fuzzer_cls())
+            except Exception as e:
+                logger.warning(f"Could not register {fuzzer_cls.__name__}: {e}")
 
     def register_strategy(self, strategy: MutationStrategy) -> None:
         """Add a new fuzzing strategy to the collection.

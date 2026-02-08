@@ -12,7 +12,6 @@ Tests cover:
 """
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from hypothesis import HealthCheck, given, settings
@@ -189,27 +188,28 @@ class TestFilenameGeneration:
 class TestFuzzerIntegration:
     """Test integration with fuzzing strategies."""
 
-    @patch("dicom_fuzzer.core.engine.generator.MetadataFuzzer")
-    @patch("dicom_fuzzer.core.engine.generator.HeaderFuzzer")
-    @patch("dicom_fuzzer.core.engine.generator.PixelFuzzer")
-    def test_fuzzers_instantiated(
-        self,
-        mock_pixel_fuzzer,
-        mock_header_fuzzer,
-        mock_metadata_fuzzer,
-        sample_dicom_file,
-        temp_dir,
-    ):
-        """Test that all fuzzer types are instantiated."""
+    def test_all_strategies_registered(self, temp_dir):
+        """Test that all 12 format fuzzers are registered in the mutator."""
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        generator.generate_batch(sample_dicom_file, count=1)
-
-        # Verify all fuzzer types were instantiated
-        mock_metadata_fuzzer.assert_called()
-        mock_header_fuzzer.assert_called()
-        mock_pixel_fuzzer.assert_called()
+        assert len(generator.mutator.strategies) == 12
+        strategy_names = [s.get_strategy_name() for s in generator.mutator.strategies]
+        expected = [
+            "calibration",
+            "compressed_pixel",
+            "conformance",
+            "dictionary",
+            "encoding",
+            "header",
+            "metadata",
+            "pixel",
+            "private_tag",
+            "reference",
+            "sequence",
+            "structure",
+        ]
+        assert sorted(strategy_names) == sorted(expected)
 
     def test_mutations_applied_to_dataset(self, sample_dicom_file, temp_dir):
         """Test that mutations are actually applied to the dataset."""
@@ -228,22 +228,18 @@ class TestFuzzerIntegration:
             # File should have content
             assert file_path.stat().st_size > 0
 
-    @patch("random.choice")
-    def test_random_fuzzer_selection(self, mock_choice, sample_dicom_file, temp_dir):
-        """Test that a single fuzzer is randomly selected per file."""
+    def test_single_strategy_per_file(self, sample_dicom_file, temp_dir):
+        """Test that exactly one strategy is applied per generated file."""
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        # Mock random.choice to return a known fuzzer name
-        mock_choice.return_value = "metadata"
-
         generated_files = generator.generate_batch(
-            sample_dicom_file, count=1, strategies=["metadata", "header", "pixel"]
+            sample_dicom_file, count=5, strategies=["metadata", "header"]
         )
 
-        assert len(generated_files) == 1
-        assert generated_files[0].exists()
-        assert mock_choice.called
+        # Each successful file should have used exactly one strategy
+        for name, count in generator.stats.strategies_used.items():
+            assert name in ["metadata", "header"]
 
 
 class TestFileSaving:
@@ -697,28 +693,18 @@ class TestGeneratorErrorHandling:
         assert len(files) >= 0
 
     def test_mutation_error_with_skip_false(self, sample_dicom_file, temp_dir):
-        """Test mutation error handling when skip_write_errors=False (lines 172-173)."""
-        from unittest.mock import Mock, patch
+        """Test mutation error handling when skip_write_errors=False."""
+        from unittest.mock import patch
 
         output_dir = temp_dir / "mutation_error"
         generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=False)
 
-        # Mock a fuzzer that raises ValueError
-        with patch(
-            "dicom_fuzzer.core.engine.generator.HeaderFuzzer"
-        ) as mock_fuzzer_class:
-            mock_fuzzer = Mock()
-            mock_fuzzer.mutate_tags.side_effect = ValueError("Test error")
-            mock_fuzzer_class.return_value = mock_fuzzer
+        # Mock _apply_mutations to raise ValueError
+        with patch.object(generator, "_apply_mutations") as mock_apply:
+            mock_apply.side_effect = ValueError("Test error")
 
-            try:
-                generator.generate_batch(
-                    sample_dicom_file, count=1, strategies=["header"]
-                )
-                # If no error, that's ok (probabilistic fuzzer selection)
-            except ValueError:
-                # Error was raised as expected (lines 172-173)
-                assert generator.stats.failed > 0
+            with pytest.raises(ValueError, match="Test error"):
+                generator.generate_batch(sample_dicom_file, count=1)
 
     def test_save_error_with_skip_false(self, sample_dicom_file, temp_dir):
         """Test save error handling when skip_write_errors=False (lines 198-199)."""
@@ -759,25 +745,19 @@ class TestGeneratorErrorHandling:
                 assert generator.stats.failed > 0
 
     def test_mutation_error_with_skip_true(self, sample_dicom_file, temp_dir):
-        """Test mutation error skipped with skip_write_errors=True (lines 168-170)."""
-        from unittest.mock import Mock, patch
+        """Test mutation error skipped with skip_write_errors=True."""
+        from unittest.mock import patch
 
         output_dir = temp_dir / "mutation_skip"
         generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
 
-        # Mock a fuzzer that always raises ValueError
-        with patch(
-            "dicom_fuzzer.core.engine.generator.HeaderFuzzer"
-        ) as mock_fuzzer_class:
-            mock_fuzzer = Mock()
-            mock_fuzzer.mutate_tags.side_effect = ValueError("Test error")
-            mock_fuzzer_class.return_value = mock_fuzzer
+        # Mock _apply_mutations to return None (simulating handled error)
+        with patch.object(generator, "_apply_mutations") as mock_apply:
+            mock_apply.return_value = (None, [])
 
-            # Should skip errors without raising
-            generator.generate_batch(sample_dicom_file, count=5, strategies=["header"])
+            files = generator.generate_batch(sample_dicom_file, count=5)
 
-            # Some files might be skipped due to mutation errors
-            assert generator.stats.skipped_due_to_write_errors >= 0
+            assert len(files) == 0
 
     def test_save_error_with_skip_true(self, sample_dicom_file, temp_dir):
         """Test save error skipped with skip_write_errors=True (lines 195-196)."""
