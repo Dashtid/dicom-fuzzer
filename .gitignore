@@ -441,3 +441,6 @@ TESTING_SESSION*.md
 mutation-results.txt
 mutation-report/
 .mutmut-cache
+
+# Personal study notes
+STUDY_PLAN.md
