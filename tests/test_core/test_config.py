@@ -63,7 +63,7 @@ class TestFuzzingConfig:
         assert config.metadata_probability == 0.8
         assert config.header_probability == 0.6
         assert config.pixel_probability == 0.3
-        assert config.max_mutations_per_file == 3
+        assert config.max_mutations_per_file == 1
         assert config.max_files_per_campaign == 1000
         assert config.max_campaign_duration_minutes == 60
         assert config.batch_size == 10

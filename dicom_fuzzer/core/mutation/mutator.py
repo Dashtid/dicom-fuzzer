@@ -119,8 +119,8 @@ class DicomMutator:
     def _load_default_config(self) -> None:
         """Set up default configuration values."""
         default_config = {
-            "max_mutations_per_file": 3,
-            "mutation_probability": 0.7,
+            "max_mutations_per_file": 1,
+            "mutation_probability": 1.0,
             "default_severity": MutationSeverity.MODERATE,
             "preserve_critical_elements": True,
             "enable_mutation_tracking": True,
@@ -247,7 +247,7 @@ class DicomMutator:
 
         """
         # Use defaults from config if not specified
-        num_mutations = num_mutations or self.config.get("max_mutations_per_file", 3)
+        num_mutations = num_mutations or self.config.get("max_mutations_per_file", 1)
         severity = severity or self.config.get(
             "default_severity", MutationSeverity.MODERATE
         )
@@ -278,7 +278,7 @@ class DicomMutator:
             # Check probability to see if we should apply this mutation
             # Skip mutation if random value is greater than probability threshold
             # e.g., if probability=0.7, skip when random() > 0.7 (30% skip rate)
-            if random.random() > self.config.get("mutation_probability", 0.7):
+            if random.random() > self.config.get("mutation_probability", 1.0):
                 logger.debug(f"Skipping mutation {i + 1} due to probability")
                 continue
 

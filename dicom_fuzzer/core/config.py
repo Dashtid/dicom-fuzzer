@@ -58,7 +58,7 @@ class FuzzingConfig(BaseSettings):
 
     # Campaign limits
     max_mutations_per_file: int = Field(
-        default=3, ge=1, le=100, description="Maximum mutations per DICOM file"
+        default=1, ge=1, le=100, description="Maximum mutations per DICOM file"
     )
     max_files_per_campaign: int = Field(
         default=1000, ge=1, description="Maximum files to generate per campaign"

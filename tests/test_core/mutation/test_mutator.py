@@ -197,8 +197,8 @@ class TestDicomMutatorInit:
         """Test default configuration values are correct."""
         mutator = DicomMutator()
 
-        assert mutator.config["max_mutations_per_file"] == 3
-        assert mutator.config["mutation_probability"] == 0.7
+        assert mutator.config["max_mutations_per_file"] == 1
+        assert mutator.config["mutation_probability"] == 1.0
         assert mutator.config["default_severity"] == MutationSeverity.MODERATE
         assert mutator.config["preserve_critical_elements"] is True
         assert mutator.config["enable_mutation_tracking"] is True
@@ -212,7 +212,7 @@ class TestDicomMutatorInit:
         # Custom value should be used
         assert mutator.config["max_mutations_per_file"] == 10
         # Other defaults should still be present
-        assert mutator.config["mutation_probability"] == 0.7
+        assert mutator.config["mutation_probability"] == 1.0
 
 
 class TestStrategyRegistration:

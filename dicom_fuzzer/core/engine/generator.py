@@ -62,13 +62,7 @@ class DICOMGenerator:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.skip_write_errors = skip_write_errors
         self.stats = GenerationStats()
-        self.mutator = DicomMutator(
-            config={
-                "max_mutations_per_file": 1,
-                "mutation_probability": 1.0,
-                "auto_register_strategies": True,
-            }
-        )
+        self.mutator = DicomMutator()
 
     def generate(self, output_path: str, tags: dict[str, Any] | None = None) -> Path:
         """Generate a single DICOM file from scratch.
@@ -193,7 +187,7 @@ class DICOMGenerator:
         """Apply a single mutation to dataset via DicomMutator.
 
         Delegates to DicomMutator which handles strategy selection,
-        application, and tracking. Configured with max_mutations_per_file=1
+        application, and tracking. Default is one strategy per file
         for clean crash attribution.
 
         Returns (dataset, strategies) or (None, []).

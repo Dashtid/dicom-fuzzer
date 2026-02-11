@@ -18,6 +18,9 @@ from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
 from dicom_fuzzer.core.engine.generator import DICOMGenerator
 
+# Fuzzers intentionally create invalid encodings; suppress pydicom decode warnings.
+pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
+
 # ---------------------------------------------------------------------------
 # All 12 registered format fuzzer strategy names
 # ---------------------------------------------------------------------------
