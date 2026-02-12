@@ -30,8 +30,6 @@ TRANSFER_SYNTAXES = [
 ]
 
 # SOP Class UIDs (Service-Object Pair)
-# CONCEPT: These define what type of DICOM object this is
-# WHY FUZZ: Applications handle different SOP classes differently
 SOP_CLASS_UIDS = [
     # Computed Radiography
     "1.2.840.10008.5.1.4.1.1.1",  # CR Image Storage
@@ -63,7 +61,6 @@ SOP_CLASS_UIDS = [
 ]
 
 # Modality Codes
-# CONCEPT: These are standard codes for imaging equipment types
 MODALITY_CODES = [
     "CR",  # Computed Radiography
     "CT",  # Computed Tomography
@@ -135,8 +132,6 @@ MANUFACTURER_NAMES = [
 ]
 
 # Photometric Interpretation Values
-# CONCEPT: Describes how pixel data should be interpreted
-# WHY FUZZ: Mismatches between photometric interpretation and actual data cause crashes
 PHOTOMETRIC_INTERPRETATION = [
     "MONOCHROME1",  # Min value = white
     "MONOCHROME2",  # Min value = black
@@ -304,7 +299,6 @@ CHARACTER_SETS = [
 ]
 
 # UID Prefixes (organization roots)
-# CONCEPT: UIDs should start with registered organization roots
 COMMON_UID_ROOTS = [
     "1.2.840.10008",  # DICOM Standard
     "1.2.840.113619",  # GE Medical Systems
@@ -322,10 +316,8 @@ COMMON_UID_ROOTS = [
 class DICOMDictionaries:
     """Central repository of DICOM-specific dictionaries for intelligent fuzzing.
 
-    CONCEPT: This class provides easy access to all DICOM value dictionaries
-    and helper methods for generating valid-looking but potentially malicious values.
-
-    WHY: Centralized management makes it easy to maintain and extend dictionaries.
+    Provides access to all DICOM value dictionaries and helper methods for
+    generating valid-looking but potentially malicious values.
     """
 
     # All dictionaries in one place
@@ -390,8 +382,7 @@ class DICOMDictionaries:
     def generate_random_uid(root: str = "1.2.840.10008.5") -> str:
         """Generate a random but valid-looking UID.
 
-        CONCEPT: UIDs in DICOM follow a specific format: root.numbers.numbers
-        We generate syntactically valid but potentially problematic UIDs.
+        Generates syntactically valid but potentially problematic UIDs.
 
         Args:
             root: UID root (organization identifier)
@@ -414,13 +405,6 @@ class DICOMDictionaries:
     @staticmethod
     def get_edge_cases() -> dict[str, list[str]]:
         """Get common edge cases that are useful for fuzzing.
-
-        CONCEPT: These are values that often cause problems in software:
-        - Empty strings
-        - Very long strings
-        - Special characters
-        - Null bytes
-        - Format violations
 
         Returns:
             Dictionary of edge case categories

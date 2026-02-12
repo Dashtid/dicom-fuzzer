@@ -12,7 +12,6 @@ from dicom_fuzzer.core.mutation.mutator import (
     DicomMutator,
     MutationRecord,
     MutationSession,
-    MutationSeverity,
 )
 
 
@@ -25,7 +24,7 @@ class MockStrategy:
         self.mutate_called = False
         self.last_dataset = None
 
-    def mutate(self, dataset: Dataset, severity: MutationSeverity) -> Dataset:
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply test mutation."""
         self.mutate_called = True
         self.last_dataset = dataset
@@ -44,7 +43,7 @@ class MockStrategy:
 class FailingStrategy:
     """Strategy that fails during mutation."""
 
-    def mutate(self, dataset: Dataset, severity: MutationSeverity) -> Dataset:
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Raise error during mutation."""
         raise ValueError("Intentional mutation failure")
 
@@ -60,7 +59,7 @@ class FailingStrategy:
 class ConditionalStrategy:
     """Strategy that only mutates certain datasets."""
 
-    def mutate(self, dataset: Dataset, severity: MutationSeverity) -> Dataset:
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply mutation."""
         dataset.PatientName = "CONDITIONAL_MUTATED"
         return dataset
@@ -270,25 +269,6 @@ class TestMutationApplication:
         assert len(mutator.current_session.mutations) > 0
         assert isinstance(mutator.current_session.mutations[0], MutationRecord)
 
-    def test_apply_mutations_with_severity(self, basic_dataset):
-        """Test applying mutations with specific severity."""
-        mutator = DicomMutator(config={"auto_register_strategies": False})
-        strategy = MockStrategy()
-        mutator.register_strategy(strategy)
-
-        mutator.start_session(basic_dataset)
-        result = mutator.apply_mutations(
-            basic_dataset, num_mutations=1, severity=MutationSeverity.EXTREME
-        )
-
-        assert result is not None
-        # Check that mutation was recorded with correct severity
-        if mutator.current_session.mutations:
-            assert (
-                mutator.current_session.mutations[0].severity
-                == MutationSeverity.EXTREME
-            )
-
     def test_apply_mutations_without_session(self, basic_dataset):
         """Test that applying mutations without session raises error."""
         mutator = DicomMutator(config={"auto_register_strategies": False})
@@ -335,11 +315,10 @@ class TestMutationRecords:
     def test_mutation_record_creation(self):
         """Test creating mutation record."""
         record = MutationRecord(
-            strategy_name="test_strategy", severity=MutationSeverity.MINIMAL
+            strategy_name="test_strategy",
         )
 
         assert record.strategy_name == "test_strategy"
-        assert record.severity == MutationSeverity.MINIMAL
         assert record.mutation_id is not None
         assert isinstance(record.timestamp, datetime)
 
@@ -349,7 +328,6 @@ class TestMutationRecords:
 
         assert record.mutation_id is not None
         assert record.strategy_name == ""
-        assert record.severity == MutationSeverity.MINIMAL
         assert isinstance(record.timestamp, datetime)
 
     def test_mutation_record_unique_ids(self):
@@ -587,28 +565,3 @@ class TestConfigurationHandling:
 
         assert "custom_key" in mutator.config
         assert "max_mutations_per_file" in mutator.config  # Default should still exist
-
-
-class TestMutationSeverity:
-    """Test mutation severity handling."""
-
-    def test_mutation_severity_enum_values(self):
-        """Test that MutationSeverity enum has expected values."""
-        assert hasattr(MutationSeverity, "MINIMAL")
-        assert hasattr(MutationSeverity, "MODERATE")
-        assert hasattr(MutationSeverity, "AGGRESSIVE")
-        assert hasattr(MutationSeverity, "EXTREME")
-
-    def test_severity_in_mutation_record(self):
-        """Test severity is properly stored in mutation record."""
-        record = MutationRecord(
-            strategy_name="test", severity=MutationSeverity.AGGRESSIVE
-        )
-
-        assert record.severity == MutationSeverity.AGGRESSIVE
-
-    def test_default_severity_is_minimal(self):
-        """Test that default severity is MINIMAL."""
-        record = MutationRecord(strategy_name="test")
-
-        assert record.severity == MutationSeverity.MINIMAL

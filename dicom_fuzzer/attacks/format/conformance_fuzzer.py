@@ -17,7 +17,6 @@ Mismatches can cause:
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING
 
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.tag import Tag
@@ -33,9 +32,6 @@ from .base import FormatFuzzerBase
 from .uid_attacks import INVALID_UIDS
 
 logger = get_logger(__name__)
-
-if TYPE_CHECKING:
-    from dicom_fuzzer.core.types import MutationSeverity
 
 # Common SOP Class UIDs
 SOP_CLASSES = {
@@ -106,14 +102,11 @@ class ConformanceFuzzer(FormatFuzzerBase):
         """Return the strategy name for identification."""
         return "conformance"
 
-    def mutate(
-        self, dataset: Dataset, severity: MutationSeverity | None = None
-    ) -> Dataset:
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply conformance-related mutations.
 
         Args:
             dataset: The DICOM dataset to mutate
-            severity: Optional mutation severity level (unused)
 
         Returns:
             Mutated dataset with conformance violations

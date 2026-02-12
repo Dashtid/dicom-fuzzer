@@ -12,7 +12,6 @@ import random
 
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.types import MutationSeverity
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
@@ -93,31 +92,23 @@ class DictionaryFuzzer(FormatFuzzerBase):
             edge_cases=len(self.edge_cases),
         )
 
-    def mutate(
-        self, dataset: Dataset, severity: MutationSeverity | None = None
-    ) -> Dataset:
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply dictionary-based mutations to a DICOM dataset.
 
-        Severity levels control mutation strategy:
-        - MINIMAL: Valid dictionary values only
-        - MODERATE: Mix valid values with edge cases
-        - AGGRESSIVE: Edge cases and malicious values
-        - EXTREME: Malicious values and format violations
+        Replaces 2-5 tag values (~10% of dataset) with a mix of valid
+        dictionary values (70%) and edge cases (30%). This produces files
+        that slip past basic validation but trigger deeper parser bugs.
 
         Args:
             dataset: DICOM dataset to mutate
-            severity: Mutation severity level
 
         Returns:
             Mutated dataset
 
         """
-        if severity is None:
-            severity = MutationSeverity.MODERATE
         mutated = copy.deepcopy(dataset)
 
-        # Determine number of mutations based on severity
-        num_mutations = self._get_num_mutations(severity, len(dataset))
+        num_mutations = self._get_num_mutations(len(dataset))
 
         # Select tags to mutate
         available_tags = [tag for tag in dataset.keys() if tag in mutated]
@@ -130,31 +121,25 @@ class DictionaryFuzzer(FormatFuzzerBase):
 
         # Apply mutations
         for tag in tags_to_mutate:
-            self._mutate_tag(mutated, tag, severity)
+            self._mutate_tag(mutated, tag)
 
         logger.debug(
             "Applied dictionary mutations",
             num_mutations=len(tags_to_mutate),
-            severity=severity.value,
         )
 
         return mutated
 
-    def _get_value_for_severity(
-        self, tag_int: int, severity: MutationSeverity
-    ) -> str | int | float:
-        """Get a mutation value based on severity level."""
-        if severity == MutationSeverity.MINIMAL:
+    def _get_mutation_value(self, tag_int: int) -> str | int | float:
+        """Get a mutation value: 70% valid dictionary values, 30% edge cases.
+
+        Valid values are realistic-but-wrong (e.g., swapping "CT" for "MR").
+        Edge cases are tricky strings (empty, overlong, null bytes, special chars).
+        This mix produces files that pass initial validation but stress deeper code.
+        """
+        if random.random() < 0.7:
             return self._get_valid_value(tag_int)
-        elif severity == MutationSeverity.MODERATE:
-            if random.random() < 0.7:
-                return self._get_valid_value(tag_int)
-            return self._get_edge_case_value()
-        elif severity == MutationSeverity.AGGRESSIVE:
-            if random.random() < 0.5:
-                return self._get_edge_case_value()
-            return self._get_malicious_value()
-        return self._get_malicious_value()  # EXTREME
+        return self._get_edge_case_value()
 
     def _convert_to_int_vr(self, value: str, vr: str) -> int:
         """Convert string value to integer for integer VR types."""
@@ -201,12 +186,10 @@ class DictionaryFuzzer(FormatFuzzerBase):
             logger.debug(f"Skipped tag {tag:08X}: cannot convert '{value}' to {vr}")
             return None
 
-    def _mutate_tag(
-        self, dataset: Dataset, tag: int, severity: MutationSeverity
-    ) -> None:
+    def _mutate_tag(self, dataset: Dataset, tag: int) -> None:
         """Mutate a specific tag using dictionary values."""
         tag_int = int(tag)
-        value: str | int | float = self._get_value_for_severity(tag_int, severity)
+        value: str | int | float = self._get_mutation_value(tag_int)
 
         try:
             vr = dataset[tag].VR
@@ -283,25 +266,21 @@ class DictionaryFuzzer(FormatFuzzerBase):
         values = self.malicious_values[category]
         return random.choice(values)
 
-    def _get_num_mutations(self, severity: MutationSeverity, dataset_size: int) -> int:
-        """Determine how many mutations to apply based on severity.
+    def _get_num_mutations(self, dataset_size: int) -> int:
+        """Determine how many tags to mutate.
+
+        Mutates ~10% of the dataset (2-5 tags minimum). This is enough
+        to inject meaningful corruption without making the file so broken
+        that it fails at the parser level before reaching deeper code.
 
         Args:
-            severity: Mutation severity
             dataset_size: Number of tags in dataset
 
         Returns:
             Number of mutations to apply
 
         """
-        if severity == MutationSeverity.MINIMAL:
-            return random.randint(1, max(2, dataset_size // 20))
-        elif severity == MutationSeverity.MODERATE:
-            return random.randint(2, max(5, dataset_size // 10))
-        elif severity == MutationSeverity.AGGRESSIVE:
-            return random.randint(5, max(10, dataset_size // 5))
-        else:  # EXTREME
-            return random.randint(10, max(20, dataset_size // 2))
+        return random.randint(2, max(5, dataset_size // 10))
 
     def get_strategy_name(self) -> str:
         """Get the strategy name."""

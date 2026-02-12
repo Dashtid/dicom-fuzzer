@@ -1,16 +1,11 @@
 """
 Error Scenario Testing Suite
 
-CONCEPT: Error scenario tests validate graceful handling of adverse conditions:
-- Corrupted DICOM files
-- Disk full conditions
-- Permission errors
-- Missing dependencies
-- Network failures
-- System resource exhaustion
-- Invalid input data
+Validates graceful handling of adverse conditions such as corrupted DICOM files,
+disk full conditions, permission errors, missing dependencies, network failures,
+system resource exhaustion, and invalid input data.
 
-PURPOSE: Ensure the fuzzer fails gracefully and provides helpful error messages
+Ensures the fuzzer fails gracefully and provides helpful error messages
 rather than crashing when encountering real-world error conditions.
 """
 

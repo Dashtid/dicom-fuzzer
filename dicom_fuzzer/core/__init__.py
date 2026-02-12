@@ -159,7 +159,7 @@ from .reporting.series_reporter import (
 from .session.resource_manager import ResourceLimits, ResourceManager
 
 # Protocol types
-from .types import DICOMCommand, DIMSECommand, MutationSeverity, PDUType
+from .types import DICOMCommand, DIMSECommand, PDUType
 
 # Backward compatibility alias
 FuzzingConfig = DIMSEFuzzingConfig
@@ -201,7 +201,6 @@ __all__ = [
     "DicomMutator",
     "DICOMGenerator",
     "DicomValidator",
-    "MutationSeverity",
     # Protocol types (v1.7.0)
     "DICOMCommand",
     "DIMSECommand",

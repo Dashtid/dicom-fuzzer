@@ -11,7 +11,6 @@ This test suite verifies the dictionary fuzzer's ability to:
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.attacks.format.dictionary_fuzzer import DictionaryFuzzer
-from dicom_fuzzer.core.types import MutationSeverity
 
 
 class TestDictionaryFuzzerInit:
@@ -53,59 +52,6 @@ class TestDictionaryFuzzerBasics:
         fuzzer = DictionaryFuzzer()
         ds = Dataset()
         assert fuzzer.can_mutate(ds) is True
-
-
-class TestMutationSeverity:
-    """Test mutations at different severity levels."""
-
-    def test_minimal_mutations(self):
-        """Test minimal severity produces small changes."""
-        fuzzer = DictionaryFuzzer()
-        ds = Dataset()
-        ds.PatientName = "Original"
-        ds.PatientID = "12345"
-        ds.Modality = "CT"
-
-        mutated = fuzzer.mutate(ds, MutationSeverity.MINIMAL)
-        # Minimal may mutate 0-2 tags, so just check it didn't break
-        assert hasattr(mutated, "PatientName")
-        assert hasattr(mutated, "Modality")
-
-    def test_moderate_mutations(self):
-        """Test moderate severity produces moderate changes."""
-        fuzzer = DictionaryFuzzer()
-        ds = Dataset()
-        for i in range(10):
-            setattr(ds, f"Tag{i}", f"Value{i}")
-
-        mutated = fuzzer.mutate(ds, MutationSeverity.MODERATE)
-        # Check dataset wasn't broken
-        for i in range(10):
-            assert hasattr(mutated, f"Tag{i}")
-
-    def test_aggressive_mutations(self):
-        """Test aggressive severity produces many changes."""
-        fuzzer = DictionaryFuzzer()
-        ds = Dataset()
-        for i in range(20):
-            setattr(ds, f"Tag{i}", f"Value{i}")
-
-        mutated = fuzzer.mutate(ds, MutationSeverity.AGGRESSIVE)
-        # Check dataset wasn't broken
-        for i in range(20):
-            assert hasattr(mutated, f"Tag{i}")
-
-    def test_extreme_mutations(self):
-        """Test extreme severity produces maximum changes."""
-        fuzzer = DictionaryFuzzer()
-        ds = Dataset()
-        for i in range(20):
-            setattr(ds, f"Tag{i}", f"Value{i}")
-
-        mutated = fuzzer.mutate(ds, MutationSeverity.EXTREME)
-        # Check dataset wasn't broken
-        for i in range(20):
-            assert hasattr(mutated, f"Tag{i}")
 
 
 class TestTagMapping:
@@ -366,7 +312,7 @@ class TestEdgeCases:
         fuzzer = DictionaryFuzzer()
         ds = Dataset()
 
-        mutated = fuzzer.mutate(ds, MutationSeverity.MODERATE)
+        mutated = fuzzer.mutate(ds)
         # Should return empty dataset unchanged
         assert len(mutated) == 0
 
@@ -379,7 +325,7 @@ class TestEdgeCases:
         ds.PatientName = "Test"
         ds.ReferencedImageSequence = Sequence([])
 
-        mutated = fuzzer.mutate(ds, MutationSeverity.MODERATE)
+        mutated = fuzzer.mutate(ds)
         # Should handle sequences gracefully
         assert hasattr(mutated, "ReferencedImageSequence")
 
@@ -391,7 +337,7 @@ class TestEdgeCases:
         ds.PatientID = "12345"
         ds.Modality = "CT"
 
-        mutated = fuzzer.mutate(ds, MutationSeverity.MODERATE)
+        mutated = fuzzer.mutate(ds)
 
         # Original dataset should be unchanged
         assert ds.PatientName == "Test"
@@ -413,7 +359,7 @@ class TestPerformance:
         for i in range(50):
             setattr(ds, f"Tag{i}", f"Value{i}")
 
-        result = fuzzer.mutate(ds, MutationSeverity.MODERATE)
+        result = fuzzer.mutate(ds)
         assert result is not None
 
     def test_systematic_injection_performance(self):

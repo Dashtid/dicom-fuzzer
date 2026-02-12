@@ -1,11 +1,7 @@
 """
 Real-object tests for DICOM Validator module.
 
-LEARNING OBJECTIVE: This test suite demonstrates comprehensive validation testing
-using actual DICOM datasets and real file I/O operations.
-
-CONCEPT: These are "real-object" tests that use actual pydicom Dataset objects
-and real DICOM files, not mocks or stubs.
+Uses actual pydicom Dataset objects and real DICOM files, not mocks or stubs.
 """
 
 import pytest

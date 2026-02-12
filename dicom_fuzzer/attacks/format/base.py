@@ -13,8 +13,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pydicom.dataset import Dataset
 
-    from dicom_fuzzer.core.types import MutationSeverity
-
 
 class FormatFuzzerBase(ABC):
     """Abstract base class for DICOM format fuzzers.
@@ -29,14 +27,11 @@ class FormatFuzzerBase(ABC):
     """
 
     @abstractmethod
-    def mutate(
-        self, dataset: Dataset, severity: MutationSeverity | None = None
-    ) -> Dataset:
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply mutations to a DICOM dataset.
 
         Args:
             dataset: pydicom Dataset to mutate
-            severity: Optional mutation severity level (unused by most fuzzers)
 
         Returns:
             The mutated Dataset (same object, modified in place)

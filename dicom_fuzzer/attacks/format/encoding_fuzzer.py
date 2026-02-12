@@ -23,7 +23,6 @@ Common vulnerabilities:
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING
 
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
@@ -31,9 +30,6 @@ from pydicom.tag import Tag
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
-
-if TYPE_CHECKING:
-    from dicom_fuzzer.core.types import MutationSeverity
 
 logger = get_logger(__name__)
 
@@ -116,14 +112,11 @@ class EncodingFuzzer(FormatFuzzerBase):
         """Return the strategy name for identification."""
         return "encoding"
 
-    def mutate(
-        self, dataset: Dataset, severity: MutationSeverity | None = None
-    ) -> Dataset:
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply encoding-related mutations to the dataset.
 
         Args:
             dataset: The DICOM dataset to mutate
-            severity: Optional mutation severity level (unused)
 
         Returns:
             Mutated dataset with encoding corruptions

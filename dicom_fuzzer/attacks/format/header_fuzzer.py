@@ -12,15 +12,11 @@ from __future__ import annotations
 
 import random
 import struct
-from typing import TYPE_CHECKING
 
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
 from .base import FormatFuzzerBase
-
-if TYPE_CHECKING:
-    from dicom_fuzzer.core.types import MutationSeverity
 from .uid_attacks import INVALID_UIDS, UID_TAG_NAMES
 
 # VR-specific invalid values for comprehensive testing
@@ -288,14 +284,11 @@ class HeaderFuzzer(FormatFuzzerBase):
         """Return the strategy name for identification."""
         return "header"
 
-    def mutate(
-        self, dataset: Dataset, severity: MutationSeverity | None = None
-    ) -> Dataset:
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Mutate DICOM tags with edge cases.
 
         Args:
             dataset: DICOM dataset to mutate
-            severity: Optional mutation severity level (unused)
 
         Returns:
             Mutated dataset

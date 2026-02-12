@@ -75,14 +75,13 @@ See [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE.md) for full command documentatio
 
 ```python
 from dicom_fuzzer.core.mutation.mutator import DicomMutator
-from dicom_fuzzer.core.types import MutationSeverity
 import pydicom
 
 mutator = DicomMutator()
 dataset = pydicom.dcmread("input.dcm")
 
 for i in range(100):
-    fuzzed = mutator.mutate(dataset.copy(), severity=MutationSeverity.MODERATE)
+    fuzzed = mutator.apply_mutations(dataset)
     fuzzed.save_as(f"artifacts/output/fuzz_{i:04d}.dcm")
 ```
 

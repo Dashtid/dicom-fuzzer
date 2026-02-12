@@ -11,7 +11,6 @@ Targets pixel data with various corruptions to test parser robustness:
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING
 
 import numpy as np
 from pydicom.dataset import Dataset
@@ -22,9 +21,6 @@ from pydicom.uid import (
 )
 
 from .base import FormatFuzzerBase
-
-if TYPE_CHECKING:
-    from dicom_fuzzer.core.types import MutationSeverity
 
 
 class PixelFuzzer(FormatFuzzerBase):
@@ -50,14 +46,11 @@ class PixelFuzzer(FormatFuzzerBase):
         """Return the strategy name for identification."""
         return "pixel"
 
-    def mutate(
-        self, dataset: Dataset, severity: MutationSeverity | None = None
-    ) -> Dataset:
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply pixel data mutations to the dataset.
 
         Args:
             dataset: DICOM dataset to mutate.
-            severity: Optional mutation severity level (unused).
 
         Returns:
             Mutated dataset.

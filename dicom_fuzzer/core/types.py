@@ -9,23 +9,6 @@ from __future__ import annotations
 from enum import Enum
 
 # =============================================================================
-# Mutation Severity
-# =============================================================================
-
-
-class MutationSeverity(Enum):
-    """Mutation severity levels controlling how aggressive mutations are.
-
-    Used to control the intensity of fuzzing operations across the framework.
-    """
-
-    MINIMAL = "minimal"  # Very small changes, unlikely to break anything
-    MODERATE = "moderate"  # Medium changes, might cause some issues
-    AGGRESSIVE = "aggressive"  # Large changes, likely to break things
-    EXTREME = "extreme"  # Maximum changes, definitely will break things
-
-
-# =============================================================================
 # DICOM Protocol Enums (Consolidated from network_fuzzer_base.py and dimse_fuzzer.py)
 # =============================================================================
 

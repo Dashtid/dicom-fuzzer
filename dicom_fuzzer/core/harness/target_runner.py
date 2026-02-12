@@ -39,11 +39,7 @@ class ExecutionStatus(Enum):
 
 @dataclass
 class ExecutionResult:
-    """Results from executing target application with a test file.
-
-    CONCEPT: Captures all relevant information about how the target
-    application behaved when processing a fuzzed DICOM file.
-    """
+    """Results from executing target application with a test file."""
 
     test_file: Path
     result: ExecutionStatus
@@ -74,7 +70,7 @@ class ExecutionResult:
 class CircuitBreakerState:
     """Circuit breaker state for failing target applications.
 
-    CONCEPT: If target consistently fails, temporarily stop testing it
+    If target consistently fails, temporarily stops testing it
     to avoid wasting resources on a broken target.
     """
 
@@ -90,17 +86,12 @@ class CircuitBreakerState:
 class TargetRunner:
     """Runs target application with fuzzed files and detects anomalies.
 
-    CONCEPT: This class acts as the bridge between the fuzzer and the
-    target application being tested. It handles:
-    - Launching the target application
-    - Feeding it test files
-    - Monitoring for crashes/hangs
-    - Collecting diagnostic information
-    - Enforcing resource limits
-    - Retry logic for transient failures
-    - Circuit breaker for consistently failing targets
+    Handles launching the target application, feeding it test files,
+    monitoring for crashes/hangs, collecting diagnostic information,
+    enforcing resource limits, retry logic for transient failures,
+    and circuit breaker for consistently failing targets.
 
-    SECURITY: Runs target in isolated process to contain potential exploits.
+    Runs target in isolated process to contain potential exploits.
     """
 
     def __init__(
@@ -677,9 +668,6 @@ class TargetRunner:
 
         Returns:
             Dictionary mapping ExecutionStatus to list of ExecutionResults
-
-        CONCEPT: Batch testing mode - feed all fuzzed files to target
-        and collect comprehensive results for analysis.
 
         """
         results: dict[ExecutionStatus, list[ExecutionResult]] = {

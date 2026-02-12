@@ -2,7 +2,6 @@
 Comprehensive tests for DICOM Mutation Engine.
 
 Tests cover:
-- MutationSeverity enum
 - MutationRecord dataclass
 - MutationSession dataclass
 - DicomMutator initialization and configuration
@@ -26,34 +25,7 @@ from dicom_fuzzer.core.mutation.mutator import (
     DicomMutator,
     MutationRecord,
     MutationSession,
-    MutationSeverity,
 )
-
-
-class TestMutationSeverity:
-    """Test MutationSeverity enum."""
-
-    def test_severity_values_exist(self):
-        """Test that all severity levels are defined."""
-        assert MutationSeverity.MINIMAL.value == "minimal"
-        assert MutationSeverity.MODERATE.value == "moderate"
-        assert MutationSeverity.AGGRESSIVE.value == "aggressive"
-        assert MutationSeverity.EXTREME.value == "extreme"
-
-    def test_severity_count(self):
-        """Test that exactly 4 severity levels exist."""
-        severities = list(MutationSeverity)
-        assert len(severities) == 4
-
-    def test_severity_membership(self):
-        """Test severity level membership checks."""
-        assert MutationSeverity.MINIMAL in MutationSeverity
-        assert MutationSeverity.MODERATE in MutationSeverity
-
-    def test_severity_comparison(self):
-        """Test severity levels are distinct."""
-        assert MutationSeverity.MINIMAL != MutationSeverity.MODERATE
-        assert MutationSeverity.AGGRESSIVE != MutationSeverity.EXTREME
 
 
 class TestMutationRecord:
@@ -66,7 +38,6 @@ class TestMutationRecord:
         assert record.mutation_id != ""
         assert len(record.mutation_id) == 8  # UUID prefix
         assert record.strategy_name == ""
-        assert record.severity == MutationSeverity.MINIMAL
         assert isinstance(record.timestamp, datetime)
         assert record.description == ""
         assert record.parameters == {}
@@ -80,7 +51,6 @@ class TestMutationRecord:
         record = MutationRecord(
             mutation_id="test123",
             strategy_name="metadata_fuzzer",
-            severity=MutationSeverity.AGGRESSIVE,
             timestamp=timestamp,
             description="Test mutation",
             parameters={"key": "value"},
@@ -90,7 +60,6 @@ class TestMutationRecord:
 
         assert record.mutation_id == "test123"
         assert record.strategy_name == "metadata_fuzzer"
-        assert record.severity == MutationSeverity.AGGRESSIVE
         assert record.timestamp == timestamp
         assert record.description == "Test mutation"
         assert record.parameters == {"key": "value"}
@@ -188,7 +157,6 @@ class TestDicomMutatorInit:
 
         assert "max_mutations_per_file" in mutator.config
         assert "mutation_probability" in mutator.config
-        assert "default_severity" in mutator.config
         assert "preserve_critical_elements" in mutator.config
         assert "enable_mutation_tracking" in mutator.config
         assert "safety_checks" in mutator.config
@@ -199,7 +167,6 @@ class TestDicomMutatorInit:
 
         assert mutator.config["max_mutations_per_file"] == 1
         assert mutator.config["mutation_probability"] == 1.0
-        assert mutator.config["default_severity"] == MutationSeverity.MODERATE
         assert mutator.config["preserve_critical_elements"] is True
         assert mutator.config["enable_mutation_tracking"] is True
         assert mutator.config["safety_checks"] is True
@@ -272,7 +239,7 @@ class TestStrategyRegistration:
 
         # Create object without get_strategy_name method
         class InvalidStrategy:
-            def mutate(self, dataset, severity):
+            def mutate(self, dataset):
                 return dataset
 
         strategy = InvalidStrategy()
@@ -428,29 +395,6 @@ class TestMutationApplication:
         # Should be called 3 times
         assert strategy.mutate.call_count == 3
 
-    def test_apply_mutations_with_severity(self, sample_dicom_dataset):
-        """Test that severity parameter is passed to strategy."""
-        mutator = DicomMutator(
-            config={"mutation_probability": 1.0, "auto_register_strategies": False}
-        )
-
-        strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test")
-        strategy.can_mutate = Mock(return_value=True)
-        strategy.mutate = Mock(return_value=sample_dicom_dataset)
-
-        mutator.register_strategy(strategy)
-        mutator.start_session(sample_dicom_dataset)
-
-        mutator.apply_mutations(
-            sample_dicom_dataset, num_mutations=1, severity=MutationSeverity.AGGRESSIVE
-        )
-
-        # Check that severity was passed
-        strategy.mutate.assert_called_with(
-            sample_dicom_dataset, MutationSeverity.AGGRESSIVE
-        )
-
     def test_apply_mutations_filters_by_strategy_name(self, sample_dicom_dataset):
         """Test filtering strategies by name."""
         mutator = DicomMutator(config={"mutation_probability": 1.0})
@@ -526,7 +470,7 @@ class TestMutationTracking:
         strategy = Mock()
         strategy.get_strategy_name = Mock(return_value="test_strategy")
 
-        mutator._record_mutation(strategy, MutationSeverity.MODERATE, success=True)
+        mutator._record_mutation(strategy, success=True)
 
         assert len(mutator.current_session.mutations) == 1
         assert mutator.current_session.total_mutations == 1
@@ -534,7 +478,6 @@ class TestMutationTracking:
 
         mutation = mutator.current_session.mutations[0]
         assert mutation.strategy_name == "test_strategy"
-        assert mutation.severity == MutationSeverity.MODERATE
         assert mutation.success is True
         assert mutation.error_message is None
 
@@ -548,7 +491,6 @@ class TestMutationTracking:
 
         mutator._record_mutation(
             strategy,
-            MutationSeverity.AGGRESSIVE,
             success=False,
             error="Test error",
         )
@@ -569,7 +511,7 @@ class TestMutationTracking:
         strategy.get_strategy_name = Mock(return_value="test")
 
         # Should not raise exception
-        mutator._record_mutation(strategy, MutationSeverity.MINIMAL)
+        mutator._record_mutation(strategy)
 
         # Verify mutator is still functional
         assert mutator is not None
@@ -660,7 +602,6 @@ class TestIntegration:
         result = mutator.apply_mutations(
             sample_dicom_dataset,
             num_mutations=2,
-            severity=MutationSeverity.MODERATE,
         )
         assert result is not None
 
@@ -768,9 +709,7 @@ class TestMutatorExceptionHandling:
 
         # Should raise ValueError due to failed safety check
         with pytest.raises(ValueError, match="Safety check failed"):
-            mutator._apply_single_mutation(
-                sample_dicom_dataset, mock_strategy, MutationSeverity.MINIMAL
-            )
+            mutator._apply_single_mutation(sample_dicom_dataset, mock_strategy)
 
 
 class TestAdditionalCoverage:
@@ -779,10 +718,9 @@ class TestAdditionalCoverage:
     def test_start_session_with_file_info_and_severity_config(
         self, sample_dicom_dataset
     ):
-        """Test start_session with file_info and MutationSeverity in config."""
+        """Test start_session with file_info and custom config."""
         mutator = DicomMutator(
             config={
-                "default_severity": MutationSeverity.AGGRESSIVE,
                 "auto_register_strategies": False,
             }
         )

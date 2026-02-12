@@ -14,7 +14,6 @@ from dicom_fuzzer.core.mutation.mutator import (
     DicomMutator,
     MutationRecord,
     MutationSession,
-    MutationSeverity,
 )
 
 
@@ -26,13 +25,11 @@ class TestMutationRecordAndSession:
         record = MutationRecord(
             mutation_id="test123",
             strategy_name="test_strategy",
-            severity=MutationSeverity.MODERATE,
             description="Test mutation",
             success=True,
         )
         assert record.mutation_id == "test123"
         assert record.strategy_name == "test_strategy"
-        assert record.severity == MutationSeverity.MODERATE
         assert record.description == "Test mutation"
         assert record.success is True
 
@@ -54,13 +51,11 @@ class TestMutatorConfigAndDefaults:
         """Test mutator with custom configuration."""
         custom_config = {
             "max_mutations_per_file": 50,
-            "default_severity": MutationSeverity.AGGRESSIVE,
             "mutation_probability": 0.9,
         }
 
         mutator = DicomMutator(config=custom_config)
         assert mutator.config["max_mutations_per_file"] == 50
-        assert mutator.config["default_severity"] == MutationSeverity.AGGRESSIVE
 
     def test_mutator_default_config(self):
         """Test mutator with default configuration."""
@@ -172,19 +167,6 @@ class TestMutationApplication:
         # Verify mutations were applied
         assert isinstance(mutated_ds, Dataset)
         assert mutated_ds is not None
-
-    def test_apply_mutations_with_severity(self):
-        """Test applying mutations with severity filter."""
-        ds = Dataset()
-        ds.PatientName = "Test"
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        ds.SOPInstanceUID = "1.2.3"
-
-        mutator = DicomMutator()
-        mutated_ds = mutator.apply_mutations(ds, severity=MutationSeverity.MINIMAL)
-
-        # Verify mutations were applied
-        assert isinstance(mutated_ds, Dataset)
 
     def test_apply_mutations_with_specific_strategies(self):
         """Test applying mutations with specific strategy names."""
@@ -380,19 +362,6 @@ class TestEdgeCases:
         mutated_ds = mutator.apply_mutations(ds, num_mutations=0)
 
         # Should return dataset unchanged
-        assert isinstance(mutated_ds, Dataset)
-
-    def test_severity_string_handling(self):
-        """Test handling of severity as string value."""
-        ds = Dataset()
-        ds.PatientName = "Test"
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        ds.SOPInstanceUID = "1.2.3"
-
-        mutator = DicomMutator()
-        # Pass severity as string (should be handled by mutator)
-        mutated_ds = mutator.apply_mutations(ds, severity="moderate")
-
         assert isinstance(mutated_ds, Dataset)
 
 

@@ -10,14 +10,7 @@ from datetime import datetime
 
 @dataclass
 class IterationData:
-    """Data for a single fuzzing iteration.
-
-    CONCEPT: Track per-iteration metrics for fine-grained analysis:
-    - Which file was fuzzed?
-    - How many mutations were applied?
-    - What was the severity level?
-    - When did it occur?
-    """
+    """Data for a single fuzzing iteration."""
 
     iteration_number: int
     file_path: str
@@ -28,14 +21,7 @@ class IterationData:
 
 @dataclass
 class MutationStatistics:
-    """Statistics for a specific mutation strategy.
-
-    CONCEPT: Track both usage and effectiveness:
-    - How often was this mutation used?
-    - How many unique outputs did it create?
-    - Did it find any crashes?
-    - How long did it take?
-    """
+    """Statistics for a specific mutation strategy."""
 
     strategy_name: str = ""
     times_used: int = 0
@@ -50,12 +36,6 @@ class MutationStatistics:
 
     def effectiveness_score(self) -> float:
         """Calculate effectiveness score (0-1).
-
-        CONCEPT: Weighted score considering:
-        - Crash discovery (most important)
-        - Validation failures (interesting edge cases)
-        - Unique outputs (diversity)
-        - Performance (speed)
 
         Returns:
             Effectiveness score between 0 and 1

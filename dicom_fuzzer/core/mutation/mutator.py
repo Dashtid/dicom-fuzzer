@@ -28,15 +28,6 @@ except ImportError:
 # Import DICOM libraries
 from pydicom.dataset import Dataset
 
-# Import shared types
-try:
-    from dicom_fuzzer.core.types import MutationSeverity
-except ImportError:
-    import sys
-
-    sys.path.append(str(Path(__file__).parent.parent))
-    from dicom_fuzzer.core.types import MutationSeverity
-
 # Get a logger for this module
 logger = get_logger(__name__)
 security_logger = SecurityEventLogger(logger)
@@ -45,7 +36,7 @@ security_logger = SecurityEventLogger(logger)
 class MutationStrategy(Protocol):
     """Protocol defining required methods for mutation strategies."""
 
-    def mutate(self, dataset: Dataset, severity: MutationSeverity) -> Dataset:
+    def mutate(self, dataset: Dataset) -> Dataset:
         """Apply mutation to the dataset"""
         raise NotImplementedError("Subclasses must implement mutate()")
 
@@ -64,7 +55,6 @@ class MutationRecord:
 
     mutation_id: str = field(default_factory=generate_short_id)
     strategy_name: str = ""
-    severity: MutationSeverity = MutationSeverity.MINIMAL
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     description: str = ""
     parameters: dict[str, Any] = field(default_factory=dict)
@@ -121,7 +111,6 @@ class DicomMutator:
         default_config = {
             "max_mutations_per_file": 1,
             "mutation_probability": 1.0,
-            "default_severity": MutationSeverity.MODERATE,
             "preserve_critical_elements": True,
             "enable_mutation_tracking": True,
             "safety_checks": True,
@@ -208,20 +197,12 @@ class DicomMutator:
         )
 
         # Log security event for audit trail
-        # Convert config to JSON-safe format
-        safe_config = {}
-        for key, value in self.config.items():
-            if isinstance(value, MutationSeverity):
-                safe_config[key] = value.value  # Convert enum to string
-            else:
-                safe_config[key] = value
-
         logger.info(
             "mutation_session_started",
             security_event=True,
             session_id=self.current_session.session_id,
             file_info=file_info,
-            config=safe_config,
+            config=self.config,
         )
 
         logger.info(f"Started mutation session: {self.current_session.session_id}")
@@ -231,7 +212,6 @@ class DicomMutator:
         self,
         dataset: Dataset,
         num_mutations: int | None = None,
-        severity: MutationSeverity | None = None,
         strategy_names: list[str] | None = None,
     ) -> Dataset:
         """Apply mutations to a DICOM dataset.
@@ -239,7 +219,6 @@ class DicomMutator:
         Args:
             dataset: The DICOM dataset to mutate
             num_mutations: How many mutations to apply (optional)
-            severity: How aggressive the mutations should be (optional)
             strategy_names: Specific strategies to use (optional)
 
         Returns:
@@ -248,16 +227,8 @@ class DicomMutator:
         """
         # Use defaults from config if not specified
         num_mutations = num_mutations or self.config.get("max_mutations_per_file", 1)
-        severity = severity or self.config.get(
-            "default_severity", MutationSeverity.MODERATE
-        )
 
-        # Handle both enum and string severity values
-        severity_str = (
-            severity.value if isinstance(severity, MutationSeverity) else severity
-        )
-
-        logger.info(f"Applying {num_mutations} mutations with {severity_str} severity")
+        logger.info(f"Applying {num_mutations} mutations")
 
         # OPTIMIZATION: Use Dataset.copy() instead of deepcopy for better performance
         # pydicom's copy() is optimized for DICOM datasets and 2-3x faster than deepcopy
@@ -287,15 +258,13 @@ class DicomMutator:
 
             try:
                 # Apply the mutation and track it
-                mutated_dataset = self._apply_single_mutation(
-                    mutated_dataset, strategy, severity
-                )
+                mutated_dataset = self._apply_single_mutation(mutated_dataset, strategy)
                 mutations_applied += 1
 
             except Exception as e:
                 logger.error(f"Mutation failed: {e}")
                 # Record the failed mutation
-                self._record_mutation(strategy, severity, success=False, error=str(e))
+                self._record_mutation(strategy, success=False, error=str(e))
 
         logger.info(f"Successfully applied {mutations_applied} mutations")
         return mutated_dataset
@@ -355,7 +324,7 @@ class DicomMutator:
         return applicable
 
     def _apply_single_mutation(
-        self, dataset: Dataset, strategy: MutationStrategy, severity: MutationSeverity
+        self, dataset: Dataset, strategy: MutationStrategy
     ) -> Dataset:
         """Apply a single mutation and track the results."""
         logger.debug(f"Applying {strategy.get_strategy_name()} mutation")
@@ -368,10 +337,10 @@ class DicomMutator:
                 )
 
         # Apply the mutation
-        mutated_dataset = strategy.mutate(dataset, severity)
+        mutated_dataset = strategy.mutate(dataset)
 
         # Record what we did
-        self._record_mutation(strategy, severity, success=True)
+        self._record_mutation(strategy, success=True)
 
         return mutated_dataset
 
@@ -388,7 +357,6 @@ class DicomMutator:
     def _record_mutation(
         self,
         strategy: MutationStrategy,
-        severity: MutationSeverity,
         success: bool = True,
         error: str | None = None,
     ) -> None:
@@ -397,16 +365,9 @@ class DicomMutator:
             logger.warning("No active session - cannot record mutation")
             return
 
-        # Create a mutation record
-        # Handle both enum and string severity values
-        severity_str = (
-            severity.value if isinstance(severity, MutationSeverity) else severity
-        )
-
         mutation_record = MutationRecord(
             strategy_name=strategy.get_strategy_name(),
-            severity=severity,
-            description=f"Applied {strategy.get_strategy_name()} with {severity_str} severity",
+            description=f"Applied {strategy.get_strategy_name()}",
             success=success,
             error_message=error,
         )

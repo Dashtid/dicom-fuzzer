@@ -27,9 +27,6 @@ logger = get_logger(__name__)
 class CorpusEntry(SerializableMixin):
     """Represents a single test case in the corpus.
 
-    CONCEPT: Each entry is like a record card that stores not just the test case,
-    but also metadata about why it's valuable (coverage, crashes, etc.).
-
     OPTIMIZATION: Uses lazy loading for datasets - stores the path and only loads
     the DICOM data when actually accessed. This reduces memory by 50-70% and speeds
     up corpus initialization by 3-5x.
@@ -156,15 +153,8 @@ class CorpusEntry(SerializableMixin):
 class CorpusManager:
     """Manages the corpus of interesting test cases for coverage-guided fuzzing.
 
-    LEARNING: The corpus manager is like a curator of a museum. It decides which
-    test cases are worth keeping, which should be prioritized, and which can be
-    discarded.
-
-    CONCEPT: We keep a "working set" of the most interesting test cases and
-    continuously mutate them to explore new code paths.
-
-    WHY: A good corpus manager dramatically improves fuzzing efficiency by
-    focusing effort on valuable test cases.
+    Keeps a working set of the most interesting test cases and continuously
+    mutates them to explore new code paths.
     """
 
     def __init__(
@@ -255,8 +245,8 @@ class CorpusManager:
     ) -> bool:
         """Add a test case to the corpus.
 
-        CONCEPT: We only add test cases that provide value - either new coverage,
-        or crash-triggering capabilities.
+        Only adds test cases that provide value -- either new coverage or
+        crash-triggering capabilities.
 
         Supports both new API (individual parameters) and old API (CorpusEntry object).
 
@@ -347,9 +337,6 @@ class CorpusManager:
     def get_best_entries(self, count: int = 10) -> list[CorpusEntry]:
         """Get the highest fitness entries from the corpus.
 
-        CONCEPT: We prioritize mutating the most valuable test cases.
-        These are the ones most likely to lead to new discoveries.
-
         Args:
             count: Number of entries to return
 
@@ -366,9 +353,6 @@ class CorpusManager:
     def get_best_seed(self) -> CorpusEntry | None:
         """Get the best seed for mutation.
 
-        CONCEPT: Returns the single best entry for mutation purposes.
-        Used in fuzzing workflows.
-
         Returns:
             Best corpus entry, or None if corpus is empty
 
@@ -378,8 +362,6 @@ class CorpusManager:
 
     def get_random_entry(self) -> CorpusEntry | None:
         """Get a random entry from the corpus.
-
-        CONCEPT: Sometimes randomness helps explore different paths.
 
         Returns:
             Random corpus entry, or None if corpus is empty
@@ -415,7 +397,6 @@ class CorpusManager:
     ) -> float:
         """Calculate fitness score for a test case.
 
-        CONCEPT: Fitness is a measure of how valuable a test case is.
         Crash-triggering cases are most valuable. Cases with new coverage
         are also valuable. The more unique coverage, the better.
 
@@ -453,12 +434,7 @@ class CorpusManager:
         return min(base_fitness, 1.0)
 
     def _evict_lowest_fitness(self) -> None:
-        """Remove the lowest fitness entries when corpus is too large.
-
-        CONCEPT: We have limited resources, so we keep only the best test cases.
-        This is like pruning a garden - removing weaker plants so stronger ones
-        can thrive.
-        """
+        """Remove the lowest fitness entries when corpus is too large."""
         if len(self.corpus) <= self.max_corpus_size:
             return
 

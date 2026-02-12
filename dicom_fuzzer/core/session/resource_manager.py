@@ -86,11 +86,9 @@ class ResourceUsage:
 class ResourceManager:
     """Manages and enforces resource limits during fuzzing operations.
 
-    CONCEPT: Provides context managers and utilities to:
-    1. Set resource limits before operations
-    2. Monitor resource usage during execution
-    3. Prevent resource exhaustion
-    4. Provide graceful degradation
+    Provides context managers and utilities to set resource limits before
+    operations, monitor resource usage during execution, prevent resource
+    exhaustion, and provide graceful degradation.
 
     PLATFORM SUPPORT:
     - Linux/Unix: Full support via resource module

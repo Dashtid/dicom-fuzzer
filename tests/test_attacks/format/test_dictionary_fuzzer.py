@@ -3,7 +3,6 @@
 Focuses on:
 - Numeric VR conversion methods (_convert_to_int_vr, _convert_to_float_vr, etc.)
 - Tag mutation special cases (binary VR, UI VR, numeric VR)
-- Severity branch coverage
 - Exception handling paths
 """
 
@@ -14,7 +13,6 @@ from pydicom.dataelem import DataElement
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.attacks.format.dictionary_fuzzer import DictionaryFuzzer
-from dicom_fuzzer.core.types import MutationSeverity
 
 
 class TestConvertToIntVR:
@@ -290,7 +288,7 @@ class TestMutateTagSpecialCases:
         ds.add(DataElement(0x7FE00010, "OB", b"\x00\x01\x02"))
         original_value = ds[0x7FE00010].value
 
-        fuzzer._mutate_tag(ds, 0x7FE00010, MutationSeverity.MODERATE)
+        fuzzer._mutate_tag(ds, 0x7FE00010)
 
         assert ds is not None
         assert isinstance(ds, Dataset)
@@ -302,7 +300,7 @@ class TestMutateTagSpecialCases:
         ds.add(DataElement(0x7FE00010, "OW", b"\x00\x01"))
         original_value = ds[0x7FE00010].value
 
-        fuzzer._mutate_tag(ds, 0x7FE00010, MutationSeverity.AGGRESSIVE)
+        fuzzer._mutate_tag(ds, 0x7FE00010)
 
         assert ds is not None
         assert isinstance(ds, Dataset)
@@ -313,7 +311,7 @@ class TestMutateTagSpecialCases:
         ds = Dataset()
         ds.add(DataElement(0x00080018, "UI", "1.2.3.4.5"))
 
-        fuzzer._mutate_tag(ds, 0x00080018, MutationSeverity.MODERATE)
+        fuzzer._mutate_tag(ds, 0x00080018)
 
         # Should be a new UID (different from original)
         value = ds[0x00080018].value
@@ -328,8 +326,8 @@ class TestMutateTagSpecialCases:
         ds.add(DataElement(0x00280010, "US", 512))  # Rows
 
         # Mock to return a string value that needs conversion
-        with patch.object(fuzzer, "_get_value_for_severity", return_value="256"):
-            fuzzer._mutate_tag(ds, 0x00280010, MutationSeverity.MODERATE)
+        with patch.object(fuzzer, "_get_mutation_value", return_value="256"):
+            fuzzer._mutate_tag(ds, 0x00280010)
 
         # Should have converted to int
         assert ds[0x00280010].value is not None
@@ -343,7 +341,7 @@ class TestMutateTagSpecialCases:
         # Mock to cause an exception
         with patch.object(ds, "__getitem__", side_effect=Exception("test error")):
             # Should not raise, just log and return
-            fuzzer._mutate_tag(ds, 0x00100010, MutationSeverity.MODERATE)
+            fuzzer._mutate_tag(ds, 0x00100010)
 
         # Verify fuzzer is still functional
         assert fuzzer is not None
@@ -354,96 +352,11 @@ class TestMutateTagSpecialCases:
         ds = Dataset()
         ds.add(DataElement(0x00080070, "LO", "Original Manufacturer"))
 
-        fuzzer._mutate_tag(ds, 0x00080070, MutationSeverity.MODERATE)
+        fuzzer._mutate_tag(ds, 0x00080070)
 
         # Value should be present (may have changed)
         assert ds[0x00080070].value is not None
         assert isinstance(ds, Dataset)
-
-
-class TestGetValueForSeverity:
-    """Test _get_value_for_severity method branches."""
-
-    @pytest.fixture
-    def fuzzer(self) -> DictionaryFuzzer:
-        """Create a DictionaryFuzzer instance."""
-        return DictionaryFuzzer()
-
-    def test_minimal_gets_valid_value(self, fuzzer: DictionaryFuzzer) -> None:
-        """Test MINIMAL severity gets valid dictionary values."""
-        with patch.object(fuzzer, "_get_valid_value", return_value="CT") as mock:
-            result = fuzzer._get_value_for_severity(
-                0x00080060, MutationSeverity.MINIMAL
-            )
-            mock.assert_called_once_with(0x00080060)
-            assert result is not None
-            assert isinstance(result, str)
-            assert result == "CT"
-
-    def test_moderate_mostly_valid(self, fuzzer: DictionaryFuzzer) -> None:
-        """Test MODERATE severity mostly gets valid values (70%)."""
-        with patch("random.random", return_value=0.5):  # < 0.7 = valid
-            with patch.object(fuzzer, "_get_valid_value", return_value="MR") as mock:
-                result = fuzzer._get_value_for_severity(
-                    0x00080060, MutationSeverity.MODERATE
-                )
-                mock.assert_called_once()
-                assert result is not None
-                assert isinstance(result, str)
-                assert result == "MR"
-
-    def test_moderate_sometimes_edge_case(self, fuzzer: DictionaryFuzzer) -> None:
-        """Test MODERATE severity sometimes gets edge cases (30%)."""
-        with patch("random.random", return_value=0.8):  # >= 0.7 = edge case
-            with patch.object(fuzzer, "_get_edge_case_value", return_value="") as mock:
-                result = fuzzer._get_value_for_severity(
-                    0x00080060, MutationSeverity.MODERATE
-                )
-                mock.assert_called_once()
-                assert result is not None
-                assert isinstance(result, str)
-                assert result == ""
-
-    def test_aggressive_mixed_values(self, fuzzer: DictionaryFuzzer) -> None:
-        """Test AGGRESSIVE severity gets edge cases or malicious (50/50)."""
-        with patch("random.random", return_value=0.3):  # < 0.5 = edge case
-            with patch.object(
-                fuzzer, "_get_edge_case_value", return_value="\x00"
-            ) as mock:
-                result = fuzzer._get_value_for_severity(
-                    0x00080060, MutationSeverity.AGGRESSIVE
-                )
-                mock.assert_called_once()
-                assert result is not None
-                assert isinstance(result, str)
-                assert result == "\x00"
-
-    def test_aggressive_malicious(self, fuzzer: DictionaryFuzzer) -> None:
-        """Test AGGRESSIVE can get malicious values."""
-        with patch("random.random", return_value=0.6):  # >= 0.5 = malicious
-            with patch.object(
-                fuzzer, "_get_malicious_value", return_value="'; DROP"
-            ) as mock:
-                result = fuzzer._get_value_for_severity(
-                    0x00080060, MutationSeverity.AGGRESSIVE
-                )
-                mock.assert_called_once()
-                assert result is not None
-                assert isinstance(result, str)
-                assert result == "'; DROP"
-
-    def test_extreme_always_malicious(self, fuzzer: DictionaryFuzzer) -> None:
-        """Test EXTREME severity always gets malicious values."""
-        with patch.object(
-            fuzzer, "_get_malicious_value", return_value="<script>"
-        ) as mock:
-            result = fuzzer._get_value_for_severity(
-                0x00080060, MutationSeverity.EXTREME
-            )
-            mock.assert_called_once()
-            assert result is not None
-            assert isinstance(result, str)
-            assert result == "<script>"
 
 
 class TestGetNumMutations:
@@ -454,51 +367,23 @@ class TestGetNumMutations:
         """Create a DictionaryFuzzer instance."""
         return DictionaryFuzzer()
 
-    def test_minimal_small_mutations(self, fuzzer: DictionaryFuzzer) -> None:
-        """Test MINIMAL produces 1-2 mutations for small datasets."""
-        with patch("random.randint", return_value=1) as mock:
-            result = fuzzer._get_num_mutations(MutationSeverity.MINIMAL, 20)
-            mock.assert_called_once_with(1, 2)  # max(2, 20//20) = 2
-            assert result is not None
-            assert isinstance(result, int)
-            assert result == 1
-
-    def test_moderate_more_mutations(self, fuzzer: DictionaryFuzzer) -> None:
-        """Test MODERATE produces more mutations."""
+    def test_returns_moderate_range(self, fuzzer: DictionaryFuzzer) -> None:
+        """Test small dataset uses base range (2, max(5, 50//10))."""
         with patch("random.randint", return_value=3) as mock:
-            result = fuzzer._get_num_mutations(MutationSeverity.MODERATE, 50)
+            result = fuzzer._get_num_mutations(50)
             mock.assert_called_once_with(2, 5)  # max(5, 50//10) = 5
             assert result is not None
             assert isinstance(result, int)
             assert result == 3
 
-    def test_aggressive_many_mutations(self, fuzzer: DictionaryFuzzer) -> None:
-        """Test AGGRESSIVE produces many mutations."""
-        with patch("random.randint", return_value=8) as mock:
-            result = fuzzer._get_num_mutations(MutationSeverity.AGGRESSIVE, 50)
-            mock.assert_called_once_with(5, 10)  # max(10, 50//5) = 10
-            assert result is not None
-            assert isinstance(result, int)
-            assert result == 8
-
-    def test_extreme_maximum_mutations(self, fuzzer: DictionaryFuzzer) -> None:
-        """Test EXTREME produces maximum mutations."""
+    def test_scales_with_dataset_size(self, fuzzer: DictionaryFuzzer) -> None:
+        """Test larger dataset scales the upper bound (2, max(5, 200//10))."""
         with patch("random.randint", return_value=15) as mock:
-            result = fuzzer._get_num_mutations(MutationSeverity.EXTREME, 50)
-            mock.assert_called_once_with(10, 25)  # max(20, 50//2) = 25
+            result = fuzzer._get_num_mutations(200)
+            mock.assert_called_once_with(2, 20)  # max(5, 200//10) = 20
             assert result is not None
             assert isinstance(result, int)
             assert result == 15
-
-    def test_large_dataset_scales(self, fuzzer: DictionaryFuzzer) -> None:
-        """Test mutation count scales with dataset size."""
-        with patch("random.randint", return_value=50) as mock:
-            result = fuzzer._get_num_mutations(MutationSeverity.EXTREME, 200)
-            # max(20, 200//2) = 100
-            mock.assert_called_once_with(10, 100)
-            assert result is not None
-            assert isinstance(result, int)
-            assert result == 50
 
 
 class TestGetApplicableTagsEdgeCases:
@@ -655,7 +540,7 @@ class TestMutateIntegration:
         ds.add(DataElement(0x00280011, "US", 512))  # Columns
         ds.add(DataElement(0x00280100, "US", 16))  # BitsAllocated
 
-        mutated = fuzzer.mutate(ds, MutationSeverity.MODERATE)
+        mutated = fuzzer.mutate(ds)
 
         # All tags should still be present
         assert mutated is not None
@@ -670,7 +555,7 @@ class TestMutateIntegration:
         ds.PatientName = "Original"
         ds.PatientID = "12345"
 
-        result = fuzzer.mutate(ds, MutationSeverity.EXTREME)
+        result = fuzzer.mutate(ds)
 
         assert result is not None
         assert isinstance(result, Dataset)
@@ -682,18 +567,6 @@ class TestMutateIntegration:
         ds = Dataset()
         ds.PatientName = "Test"
 
-        result = fuzzer.mutate(ds, MutationSeverity.MINIMAL)
-        assert result is not None
-        assert isinstance(result, Dataset)
-
-        result = fuzzer.mutate(ds, MutationSeverity.MODERATE)
-        assert result is not None
-        assert isinstance(result, Dataset)
-
-        result = fuzzer.mutate(ds, MutationSeverity.AGGRESSIVE)
-        assert result is not None
-        assert isinstance(result, Dataset)
-
-        result = fuzzer.mutate(ds, MutationSeverity.EXTREME)
+        result = fuzzer.mutate(ds)
         assert result is not None
         assert isinstance(result, Dataset)

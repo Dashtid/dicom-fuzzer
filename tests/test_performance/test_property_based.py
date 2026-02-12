@@ -20,7 +20,6 @@ from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.mutation.mutator import DicomMutator
 from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
-from dicom_fuzzer.core.types import MutationSeverity
 
 
 # Custom strategies for DICOM-specific data
@@ -61,12 +60,6 @@ def dicom_date_strategy(draw):
     return f"{year:04d}{month:02d}{day:02d}"
 
 
-@composite
-def mutation_severity_strategy(draw):
-    """Generate mutation severity levels."""
-    return draw(st.sampled_from(list(MutationSeverity)))
-
-
 class TestMutatorProperties:
     """Property-based tests for DicomMutator."""
 
@@ -100,12 +93,11 @@ class TestMutatorProperties:
         assert isinstance(result, Dataset)
 
     @given(
-        severity=mutation_severity_strategy(),
         strategy_names=st.lists(
             st.text(min_size=1, max_size=20), min_size=0, max_size=5
         ),
     )
-    def test_mutation_parameters_preserved(self, severity, strategy_names):
+    def test_mutation_parameters_preserved(self, strategy_names):
         """Property: Mutation parameters are correctly preserved."""
         mutator = DicomMutator()
 
@@ -116,11 +108,9 @@ class TestMutatorProperties:
 
         # Apply mutations with specific parameters
         if strategy_names:
-            result = mutator.apply_mutations(
-                ds, severity=severity, strategy_names=strategy_names
-            )
+            result = mutator.apply_mutations(ds, strategy_names=strategy_names)
         else:
-            result = mutator.apply_mutations(ds, severity=severity)
+            result = mutator.apply_mutations(ds)
 
         # Property: result is always a Dataset
         assert isinstance(result, Dataset)

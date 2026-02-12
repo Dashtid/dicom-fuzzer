@@ -240,8 +240,8 @@ def minimize_corpus_for_campaign(
 ) -> list[Path]:
     """Minimize corpus before fuzzing campaign.
 
-    CONCEPT: Keep only inputs that contribute unique coverage.
-    Remove redundant seeds that don't add new code paths.
+    Keeps only inputs that contribute unique coverage and removes
+    redundant seeds that don't add new code paths.
 
     Args:
         corpus_dir: Directory containing seed corpus
