@@ -14,7 +14,6 @@ import random
 import struct
 
 from pydicom.dataset import Dataset
-from pydicom.tag import Tag
 
 from .base import FormatFuzzerBase
 from .uid_attacks import INVALID_UIDS, UID_TAG_NAMES
@@ -392,7 +391,7 @@ class HeaderFuzzer(FormatFuzzerBase):
             ]
             value = random.choice(invalid_integers)
             # Bypass validation by setting the internal _value directly
-            elem = dataset[Tag(0x0020, 0x0011)]  # SeriesNumber
+            elem = dataset["SeriesNumber"]
             elem._value = value
 
         # Test invalid decimal string (DS VR) - bypass validation
@@ -406,7 +405,7 @@ class HeaderFuzzer(FormatFuzzerBase):
             ]
             value = random.choice(invalid_decimals)
             # Bypass validation by setting the internal _value directly
-            elem = dataset[Tag(0x0018, 0x0050)]  # SliceThickness
+            elem = dataset["SliceThickness"]
             elem._value = value
 
         return dataset
