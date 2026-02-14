@@ -22,6 +22,7 @@ from pydicom.tag import Tag
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+from .dicom_dictionaries import BINARY_FILE_HEADERS, INJECTION_PAYLOADS
 
 logger = get_logger(__name__)
 
@@ -291,34 +292,7 @@ class PrivateTagFuzzer(FormatFuzzerBase):
             group = random.choice(PRIVATE_GROUPS)
             dataset.add_new(Tag(group, 0x0010), "LO", "INJECTION_TEST")
 
-            payloads = [
-                # Path traversal
-                "../../../etc/passwd",
-                "..\\..\\..\\windows\\system32\\config\\sam",
-                # Command injection
-                "; rm -rf /",
-                "| cat /etc/passwd",
-                "$(whoami)",
-                "`id`",
-                # SQL injection
-                "'; DROP TABLE patients; --",
-                "1' OR '1'='1",
-                # XSS
-                "<script>alert(document.cookie)</script>",
-                "<img src=x onerror=alert(1)>",
-                # XML injection
-                "<?xml version='1.0'?><!DOCTYPE foo [<!ENTITY xxe SYSTEM 'file:///etc/passwd'>]>",
-                # LDAP injection
-                "*)(uid=*))(|(uid=*",
-                # Format string
-                "%s%s%s%s%s%s%s%s%s%s",
-                "%n%n%n%n%n",
-                # Buffer overflow attempts
-                "A" * 1000,
-                "\x00" * 100 + "PAYLOAD",
-            ]
-
-            for i, payload in enumerate(payloads[:10]):
+            for i, payload in enumerate(INJECTION_PAYLOADS[:10]):
                 element = 0x1010 + i
                 try:
                     dataset.add_new(Tag(group, element), "LO", payload)
@@ -462,30 +436,7 @@ class PrivateTagFuzzer(FormatFuzzerBase):
             group = random.choice(PRIVATE_GROUPS)
             dataset.add_new(Tag(group, 0x0010), "LO", "BINARY_BLOB_TEST")
 
-            blobs = [
-                # PE header
-                b"MZ" + b"\x00" * 100,
-                # ELF header
-                b"\x7fELF" + b"\x00" * 100,
-                # ZIP/JAR header
-                b"PK\x03\x04" + b"\x00" * 100,
-                # PDF header
-                b"%PDF-1.4\n" + b"\x00" * 100,
-                # GIF header
-                b"GIF89a" + b"\x00" * 100,
-                # PNG header
-                b"\x89PNG\r\n\x1a\n" + b"\x00" * 100,
-                # DICOM-like header (nested)
-                b"DICM" + b"\x00" * 100,
-                # XML
-                b"<?xml version='1.0'?><root></root>",
-                # JSON
-                b'{"key": "value", "exploit": true}',
-                # Shell script
-                b"#!/bin/bash\nrm -rf /\n",
-            ]
-
-            for i, blob in enumerate(blobs):
+            for i, blob in enumerate(BINARY_FILE_HEADERS):
                 element = 0x1010 + i
                 try:
                     dataset.add_new(Tag(group, element), "OB", blob)

@@ -5,9 +5,13 @@ functionality with actual usage patterns.
 """
 
 from dicom_fuzzer.attacks.format.dicom_dictionaries import (
+    BINARY_FILE_HEADERS,
+    BUFFER_OVERFLOW_STRINGS,
     CHARACTER_SETS,
     COMMON_UID_ROOTS,
+    INJECTION_PAYLOADS,
     INSTITUTION_NAMES,
+    INTEGER_BOUNDARY_STRINGS,
     MANUFACTURER_NAMES,
     MODALITY_CODES,
     PATIENT_SEX_CODES,
@@ -116,6 +120,88 @@ class TestConstantDictionaries:
         """Test UID roots list is not empty."""
         assert len(COMMON_UID_ROOTS) > 0
         assert "1.2.840.10008" in COMMON_UID_ROOTS
+
+
+class TestSharedAttackPayloads:
+    """Test shared attack payload constants used by multiple fuzzers."""
+
+    def test_injection_payloads_not_empty(self):
+        """Test injection payloads list is populated."""
+        assert len(INJECTION_PAYLOADS) > 0
+
+    def test_injection_payloads_has_sql(self):
+        """Test injection payloads contains SQL injection."""
+        assert any("DROP TABLE" in p for p in INJECTION_PAYLOADS)
+
+    def test_injection_payloads_has_xss(self):
+        """Test injection payloads contains XSS."""
+        assert any("<script>" in p for p in INJECTION_PAYLOADS)
+
+    def test_injection_payloads_has_command_injection(self):
+        """Test injection payloads contains command injection."""
+        assert any(p.startswith("; ") or p.startswith("$(") for p in INJECTION_PAYLOADS)
+
+    def test_injection_payloads_has_path_traversal(self):
+        """Test injection payloads contains path traversal."""
+        assert any("../" in p for p in INJECTION_PAYLOADS)
+
+    def test_injection_payloads_has_format_strings(self):
+        """Test injection payloads contains format strings."""
+        assert any(p.startswith("%s") or p.startswith("%n") for p in INJECTION_PAYLOADS)
+
+    def test_integer_boundary_strings_not_empty(self):
+        """Test integer boundary strings list is populated."""
+        assert len(INTEGER_BOUNDARY_STRINGS) > 0
+
+    def test_integer_boundary_strings_has_int32_max(self):
+        """Test integer boundary strings contains INT32_MAX."""
+        assert "2147483647" in INTEGER_BOUNDARY_STRINGS
+
+    def test_integer_boundary_strings_has_uint32_max(self):
+        """Test integer boundary strings contains UINT32_MAX."""
+        assert "4294967295" in INTEGER_BOUNDARY_STRINGS
+
+    def test_integer_boundary_strings_has_negative(self):
+        """Test integer boundary strings contains negative values."""
+        assert "-1" in INTEGER_BOUNDARY_STRINGS
+        assert "-2147483648" in INTEGER_BOUNDARY_STRINGS
+
+    def test_buffer_overflow_strings_not_empty(self):
+        """Test buffer overflow strings list is populated."""
+        assert len(BUFFER_OVERFLOW_STRINGS) > 0
+
+    def test_buffer_overflow_strings_has_short(self):
+        """Test buffer overflow strings has entries at common VR limit."""
+        assert any(len(s) == 64 for s in BUFFER_OVERFLOW_STRINGS)
+
+    def test_buffer_overflow_strings_has_large(self):
+        """Test buffer overflow strings has entries >= 1 KB."""
+        assert any(len(s) >= 1024 for s in BUFFER_OVERFLOW_STRINGS)
+
+    def test_buffer_overflow_strings_has_very_large(self):
+        """Test buffer overflow strings has entries >= 64 KB."""
+        assert any(len(s) >= 65536 for s in BUFFER_OVERFLOW_STRINGS)
+
+    def test_binary_file_headers_not_empty(self):
+        """Test binary file headers list is populated."""
+        assert len(BINARY_FILE_HEADERS) > 0
+
+    def test_binary_file_headers_all_bytes(self):
+        """Test all binary file headers are bytes."""
+        for header in BINARY_FILE_HEADERS:
+            assert isinstance(header, bytes)
+
+    def test_binary_file_headers_has_pe(self):
+        """Test binary file headers contains PE signature."""
+        assert any(h.startswith(b"MZ") for h in BINARY_FILE_HEADERS)
+
+    def test_binary_file_headers_has_elf(self):
+        """Test binary file headers contains ELF signature."""
+        assert any(h.startswith(b"\x7fELF") for h in BINARY_FILE_HEADERS)
+
+    def test_binary_file_headers_has_pdf(self):
+        """Test binary file headers contains PDF signature."""
+        assert any(h.startswith(b"%PDF") for h in BINARY_FILE_HEADERS)
 
 
 class TestDICOMDictionariesClass:

