@@ -3,6 +3,9 @@
 Uses real DICOM values to bypass input validation and reach deeper code paths.
 """
 
+import random
+import time
+
 # DICOM Transfer Syntax UIDs - define encoding (compression, etc.)
 TRANSFER_SYNTAXES = [
     # Uncompressed
@@ -371,8 +374,6 @@ class DICOMDictionaries:
             Random value from that dictionary
 
         """
-        import random
-
         values = DICOMDictionaries.get_dictionary(dictionary_name)
         if not values:
             return ""
@@ -391,9 +392,6 @@ class DICOMDictionaries:
             Generated UID string
 
         """
-        import random
-        import time
-
         # Add timestamp component
         timestamp = int(time.time())
 
