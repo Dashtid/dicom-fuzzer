@@ -5,7 +5,6 @@ Targets pixel data with various corruptions to test parser robustness:
 - Dimension mismatches
 - Bit depth inconsistencies
 - Photometric interpretation violations
-- Multi-frame inconsistencies
 """
 
 from __future__ import annotations
@@ -14,11 +13,6 @@ import random
 
 import numpy as np
 from pydicom.dataset import Dataset
-from pydicom.uid import (
-    JPEG2000,
-    JPEGBaseline8Bit,
-    RLELossless,
-)
 
 from .base import FormatFuzzerBase
 
@@ -35,11 +29,7 @@ class PixelFuzzer(FormatFuzzerBase):
 
     def __init__(self) -> None:
         """Initialize pixel fuzzer with attack patterns."""
-        self.encapsulated_syntaxes = [
-            JPEGBaseline8Bit,
-            JPEG2000,
-            RLELossless,
-        ]
+        super().__init__()
 
     @property
     def strategy_name(self) -> str:
