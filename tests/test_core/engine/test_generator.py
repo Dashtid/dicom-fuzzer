@@ -194,7 +194,7 @@ class TestFuzzerIntegration:
         generator = DICOMGenerator(output_dir=str(output_dir))
 
         assert len(generator.mutator.strategies) == 12
-        strategy_names = [s.get_strategy_name() for s in generator.mutator.strategies]
+        strategy_names = [s.strategy_name for s in generator.mutator.strategies]
         expected = [
             "calibration",
             "compressed_pixel",

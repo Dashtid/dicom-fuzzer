@@ -31,7 +31,8 @@ class MockStrategy:
         dataset.PatientID = "MUTATED_123"
         return dataset
 
-    def get_strategy_name(self) -> str:
+    @property
+    def strategy_name(self) -> str:
         """Return strategy name."""
         return self.name
 
@@ -47,7 +48,8 @@ class FailingStrategy:
         """Raise error during mutation."""
         raise ValueError("Intentional mutation failure")
 
-    def get_strategy_name(self) -> str:
+    @property
+    def strategy_name(self) -> str:
         """Return strategy name."""
         return "failing_strategy"
 
@@ -64,7 +66,8 @@ class ConditionalStrategy:
         dataset.PatientName = "CONDITIONAL_MUTATED"
         return dataset
 
-    def get_strategy_name(self) -> str:
+    @property
+    def strategy_name(self) -> str:
         """Return strategy name."""
         return "conditional_strategy"
 

@@ -81,7 +81,7 @@ class TestStrategyRegistration:
 
         # Create a mock strategy
         mock_strategy = Mock()
-        mock_strategy.get_strategy_name = Mock(return_value="custom_strategy")
+        mock_strategy.strategy_name = "custom_strategy"
         mock_strategy.can_mutate = Mock(return_value=True)
         mock_strategy.mutate = Mock(return_value=Dataset())
 
@@ -89,7 +89,7 @@ class TestStrategyRegistration:
         mutator.register_strategy(mock_strategy)
 
         # Verify strategy is registered
-        strategy_names = [s.get_strategy_name() for s in mutator.strategies]
+        strategy_names = [s.strategy_name for s in mutator.strategies]
         assert "custom_strategy" in strategy_names
 
     def test_register_strategy_validation_error(self):
@@ -97,10 +97,8 @@ class TestStrategyRegistration:
         mutator = DicomMutator()
 
         # Try to register invalid strategy (missing mutate method)
-        invalid_strategy = Mock(
-            spec=["get_strategy_name"]
-        )  # Only has get_strategy_name
-        invalid_strategy.get_strategy_name = Mock(return_value="invalid")
+        invalid_strategy = Mock(spec=["strategy_name"])  # Only has strategy_name
+        invalid_strategy.strategy_name = "invalid"
 
         # Should raise ValueError when trying to register
         with pytest.raises(ValueError):
@@ -206,7 +204,7 @@ class TestMutationApplication:
 
         # Create a strategy that raises an error
         error_strategy = Mock()
-        error_strategy.get_strategy_name = Mock(return_value="error_strategy")
+        error_strategy.strategy_name = "error_strategy"
         error_strategy.can_mutate = Mock(return_value=True)
         error_strategy.mutate = Mock(side_effect=ValueError("Test error"))
 
@@ -219,22 +217,6 @@ class TestMutationApplication:
 
         # Should still return a dataset (error handled)
         assert isinstance(mutated_ds, Dataset)
-
-
-class TestSafetyChecks:
-    """Test safety check functionality."""
-
-    def test_is_safe_to_mutate(self):
-        """Test safety checks for tag mutation."""
-        ds = Dataset()
-        ds.PatientName = "Test"
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        ds.SOPInstanceUID = "1.2.3"
-
-        mutator = DicomMutator()
-
-        # Test that _is_safe_to_mutate method exists
-        assert hasattr(mutator, "_is_safe_to_mutate")
 
 
 class TestStrategyFiltering:
@@ -263,12 +245,12 @@ class TestStrategyFiltering:
 
         # Register custom strategies
         strategy1 = Mock()
-        strategy1.get_strategy_name = Mock(return_value="strategy1")
+        strategy1.strategy_name = "strategy1"
         strategy1.can_mutate = Mock(return_value=True)
         strategy1.mutate = Mock(return_value=ds)
 
         strategy2 = Mock()
-        strategy2.get_strategy_name = Mock(return_value="strategy2")
+        strategy2.strategy_name = "strategy2"
         strategy2.can_mutate = Mock(return_value=True)
         strategy2.mutate = Mock(return_value=ds)
 
@@ -387,7 +369,7 @@ class TestMutatorMethods:
 
         # Create valid strategy
         strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test_strategy")
+        strategy.strategy_name = "test_strategy"
         strategy.can_mutate = Mock(return_value=True)
         strategy.mutate = Mock(return_value=Dataset())
 

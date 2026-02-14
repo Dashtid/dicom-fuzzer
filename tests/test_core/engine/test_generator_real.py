@@ -201,7 +201,7 @@ class TestStrategyRegistration:
         """Test registered strategy names."""
         gen = DICOMGenerator(output_dir=str(tmp_path))
 
-        names = sorted(s.get_strategy_name() for s in gen.mutator.strategies)
+        names = sorted(s.strategy_name for s in gen.mutator.strategies)
         expected = sorted(
             [
                 "calibration",

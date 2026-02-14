@@ -4,29 +4,16 @@ Orchestrates mutation strategies to systematically test DICOM files.
 Includes dictionary-based fuzzing for domain-aware mutations.
 """
 
-# Import necessary modules
 import random
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, Protocol
-
-# Import logging system with fallback for direct execution
-try:
-    # Try relative import first (when imported as a module)
-    from ..utils.identifiers import generate_short_id
-    from ..utils.logger import SecurityEventLogger, get_logger
-except ImportError:
-    # Fall back to absolute import (when running directly)
-    import sys
-
-    # Add the parent directory to the path so we can import utils
-    sys.path.append(str(Path(__file__).parent.parent))
-    from dicom_fuzzer.utils.identifiers import generate_short_id
-    from dicom_fuzzer.utils.logger import SecurityEventLogger, get_logger
 
 # Import DICOM libraries
 from pydicom.dataset import Dataset
+
+from dicom_fuzzer.utils.identifiers import generate_short_id
+from dicom_fuzzer.utils.logger import SecurityEventLogger, get_logger
 
 # Get a logger for this module
 logger = get_logger(__name__)
@@ -36,17 +23,18 @@ security_logger = SecurityEventLogger(logger)
 class MutationStrategy(Protocol):
     """Protocol defining required methods for mutation strategies."""
 
-    def mutate(self, dataset: Dataset) -> Dataset:
-        """Apply mutation to the dataset"""
-        raise NotImplementedError("Subclasses must implement mutate()")
+    @property
+    def strategy_name(self) -> str:
+        """Return the strategy name for identification."""
+        ...
 
-    def get_strategy_name(self) -> str:
-        """Get the name of this strategy"""
-        raise NotImplementedError("Subclasses must implement get_strategy_name()")
+    def mutate(self, dataset: Dataset) -> Dataset:
+        """Apply mutation to the dataset."""
+        ...
 
     def can_mutate(self, dataset: Dataset) -> bool:
-        """Check if this strategy can be applied to this dataset"""
-        raise NotImplementedError("Subclasses must implement can_mutate()")
+        """Check if this strategy can be applied to this dataset."""
+        ...
 
 
 @dataclass
@@ -111,9 +99,7 @@ class DicomMutator:
         default_config = {
             "max_mutations_per_file": 1,
             "mutation_probability": 1.0,
-            "preserve_critical_elements": True,
             "enable_mutation_tracking": True,
-            "safety_checks": True,
         }
 
         # Update config with defaults for missing keys
@@ -167,16 +153,13 @@ class DicomMutator:
             strategy: A fuzzing strategy implementing MutationStrategy protocol
 
         """
-        # Check if strategy follows protocol
-        if not hasattr(strategy, "mutate") or not hasattr(
-            strategy, "get_strategy_name"
-        ):
+        if not hasattr(strategy, "mutate") or not hasattr(strategy, "strategy_name"):
             raise ValueError(
                 f"Strategy {strategy} does not implement MutationStrategy protocol"
             )
 
         self.strategies.append(strategy)
-        logger.debug(f"Registered mutation strategy: {strategy.get_strategy_name()}")
+        logger.debug(f"Registered mutation strategy: {strategy.strategy_name}")
 
     def start_session(
         self, original_dataset: Dataset | None, file_info: dict[str, Any] | None = None
@@ -301,21 +284,16 @@ class DicomMutator:
 
         for strategy in self.strategies:
             # Check if specific strategies were requested
-            if strategy_names and strategy.get_strategy_name() not in strategy_names:
+            if strategy_names and strategy.strategy_name not in strategy_names:
                 continue
 
-            # Check if strategy can handle this dataset
             try:
                 if strategy.can_mutate(dataset):
                     applicable.append(strategy)
                 else:
-                    logger.debug(
-                        f"Strategy {strategy.get_strategy_name()} not applicable"
-                    )
+                    logger.debug(f"Strategy {strategy.strategy_name} not applicable")
             except Exception as e:
-                logger.warning(
-                    f"Error checking strategy {strategy.get_strategy_name()}: {e}"
-                )
+                logger.warning(f"Error checking strategy {strategy.strategy_name}: {e}")
 
         # Store in cache for future use
         self._strategy_cache[cache_key] = applicable
@@ -327,32 +305,12 @@ class DicomMutator:
         self, dataset: Dataset, strategy: MutationStrategy
     ) -> Dataset:
         """Apply a single mutation and track the results."""
-        logger.debug(f"Applying {strategy.get_strategy_name()} mutation")
+        logger.debug(f"Applying {strategy.strategy_name} mutation")
 
-        # Perform safety checks if enabled
-        if self.config.get("safety_checks", True):
-            if not self._is_safe_to_mutate(dataset, strategy):
-                raise ValueError(
-                    f"Safety check failed for {strategy.get_strategy_name()}"
-                )
-
-        # Apply the mutation
         mutated_dataset = strategy.mutate(dataset)
-
-        # Record what we did
         self._record_mutation(strategy, success=True)
 
         return mutated_dataset
-
-    def _is_safe_to_mutate(self, dataset: Dataset, strategy: MutationStrategy) -> bool:
-        """Safety check to prevent dangerous mutations."""
-        # Check if we should preserve critical elements
-        if self.config.get("preserve_critical_elements", True):
-            # This would check for critical DICOM tags that shouldn't be modified
-            pass
-
-        # For now, always return True (we'll enhance this later)
-        return True
 
     def _record_mutation(
         self,
@@ -366,8 +324,8 @@ class DicomMutator:
             return
 
         mutation_record = MutationRecord(
-            strategy_name=strategy.get_strategy_name(),
-            description=f"Applied {strategy.get_strategy_name()}",
+            strategy_name=strategy.strategy_name,
+            description=f"Applied {strategy.strategy_name}",
             success=success,
             error_message=error,
         )
@@ -432,26 +390,3 @@ class DicomMutator:
             "successful_mutations": session.successful_mutations,
             "strategies_used": list({m.strategy_name for m in session.mutations}),
         }
-
-
-# Basic testing when run directly
-if __name__ == "__main__":
-    print("Testing DICOM Mutator...")
-
-    # Create a test mutator
-    mutator = DicomMutator()
-
-    # Test configuration
-    print(f"Default config: {mutator.config}")
-
-    # Test session management
-    session_id = mutator.start_session(None, {"test": True})
-    print(f"Started session: {session_id}")
-
-    summary = mutator.get_session_summary()
-    print(f"Session summary: {summary}")
-
-    completed = mutator.end_session()
-    print(f"Completed session: {completed.session_id if completed else 'None'}")
-
-    print("Mutator testing complete!")

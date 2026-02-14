@@ -282,10 +282,6 @@ class DictionaryFuzzer(FormatFuzzerBase):
         """
         return random.randint(2, max(5, dataset_size // 10))
 
-    def get_strategy_name(self) -> str:
-        """Get the strategy name."""
-        return "dictionary"
-
     def can_mutate(self, dataset: Dataset) -> bool:
         """Check if this strategy can mutate the dataset.
 

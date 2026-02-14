@@ -9,7 +9,6 @@ Tests cover:
 - Session lifecycle management
 - Mutation application logic
 - Mutation tracking and recording
-- Safety checks
 - Integration workflows
 """
 
@@ -157,9 +156,7 @@ class TestDicomMutatorInit:
 
         assert "max_mutations_per_file" in mutator.config
         assert "mutation_probability" in mutator.config
-        assert "preserve_critical_elements" in mutator.config
         assert "enable_mutation_tracking" in mutator.config
-        assert "safety_checks" in mutator.config
 
     def test_mutator_default_values(self):
         """Test default configuration values are correct."""
@@ -167,9 +164,7 @@ class TestDicomMutatorInit:
 
         assert mutator.config["max_mutations_per_file"] == 1
         assert mutator.config["mutation_probability"] == 1.0
-        assert mutator.config["preserve_critical_elements"] is True
         assert mutator.config["enable_mutation_tracking"] is True
-        assert mutator.config["safety_checks"] is True
 
     def test_mutator_config_override(self):
         """Test that custom config overrides defaults."""
@@ -193,7 +188,7 @@ class TestStrategyRegistration:
         # Create a mock strategy
         strategy = Mock()
         strategy.mutate = Mock()
-        strategy.get_strategy_name = Mock(return_value="test_strategy")
+        strategy.strategy_name = "test_strategy"
         strategy.can_mutate = Mock(return_value=True)
 
         mutator.register_strategy(strategy)
@@ -208,11 +203,11 @@ class TestStrategyRegistration:
 
         strategy1 = Mock()
         strategy1.mutate = Mock()
-        strategy1.get_strategy_name = Mock(return_value="strategy1")
+        strategy1.strategy_name = "strategy1"
 
         strategy2 = Mock()
         strategy2.mutate = Mock()
-        strategy2.get_strategy_name = Mock(return_value="strategy2")
+        strategy2.strategy_name = "strategy2"
 
         mutator.register_strategy(strategy1)
         mutator.register_strategy(strategy2)
@@ -225,7 +220,8 @@ class TestStrategyRegistration:
 
         # Create object without mutate method
         class InvalidStrategy:
-            def get_strategy_name(self):
+            @property
+            def strategy_name(self):
                 return "invalid"
 
         strategy = InvalidStrategy()
@@ -234,10 +230,10 @@ class TestStrategyRegistration:
             mutator.register_strategy(strategy)
 
     def test_register_invalid_strategy_no_name(self):
-        """Test registering strategy without get_strategy_name fails."""
+        """Test registering strategy without strategy_name fails."""
         mutator = DicomMutator()
 
-        # Create object without get_strategy_name method
+        # Create object without strategy_name
         class InvalidStrategy:
             def mutate(self, dataset):
                 return dataset
@@ -360,7 +356,7 @@ class TestMutationApplication:
 
         # Create mock strategy
         strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test_strategy")
+        strategy.strategy_name = "test_strategy"
         strategy.can_mutate = Mock(return_value=True)
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
 
@@ -383,7 +379,7 @@ class TestMutationApplication:
         )
 
         strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test")
+        strategy.strategy_name = "test"
         strategy.can_mutate = Mock(return_value=True)
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
 
@@ -400,12 +396,12 @@ class TestMutationApplication:
         mutator = DicomMutator(config={"mutation_probability": 1.0})
 
         strategy1 = Mock()
-        strategy1.get_strategy_name = Mock(return_value="strategy1")
+        strategy1.strategy_name = "strategy1"
         strategy1.can_mutate = Mock(return_value=True)
         strategy1.mutate = Mock(return_value=sample_dicom_dataset)
 
         strategy2 = Mock()
-        strategy2.get_strategy_name = Mock(return_value="strategy2")
+        strategy2.strategy_name = "strategy2"
         strategy2.can_mutate = Mock(return_value=True)
         strategy2.mutate = Mock(return_value=sample_dicom_dataset)
 
@@ -426,7 +422,7 @@ class TestMutationApplication:
         mutator = DicomMutator()
 
         strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test")
+        strategy.strategy_name = "test"
         strategy.can_mutate = Mock(return_value=False)  # Cannot mutate this dataset
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
 
@@ -446,7 +442,7 @@ class TestMutationApplication:
         mutator = DicomMutator(config={"mutation_probability": 0.7})
 
         strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test")
+        strategy.strategy_name = "test"
         strategy.can_mutate = Mock(return_value=True)
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
 
@@ -468,7 +464,7 @@ class TestMutationTracking:
         mutator.start_session(sample_dicom_dataset)
 
         strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test_strategy")
+        strategy.strategy_name = "test_strategy"
 
         mutator._record_mutation(strategy, success=True)
 
@@ -487,7 +483,7 @@ class TestMutationTracking:
         mutator.start_session(sample_dicom_dataset)
 
         strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test_strategy")
+        strategy.strategy_name = "test_strategy"
 
         mutator._record_mutation(
             strategy,
@@ -508,46 +504,13 @@ class TestMutationTracking:
         mutator = DicomMutator()
 
         strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test")
+        strategy.strategy_name = "test"
 
         # Should not raise exception
         mutator._record_mutation(strategy)
 
         # Verify mutator is still functional
         assert mutator is not None
-
-
-class TestSafetyChecks:
-    """Test safety check functionality."""
-
-    def test_safety_check_always_true(self, sample_dicom_dataset):
-        """Test that safety check currently always returns True."""
-        mutator = DicomMutator()
-
-        strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test")
-
-        result = mutator._is_safe_to_mutate(sample_dicom_dataset, strategy)
-
-        assert result is True
-
-    def test_safety_checks_disabled(self, sample_dicom_dataset):
-        """Test that safety checks can be disabled."""
-        mutator = DicomMutator(config={"safety_checks": False})
-
-        strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test")
-        strategy.can_mutate = Mock(return_value=True)
-        strategy.mutate = Mock(return_value=sample_dicom_dataset)
-
-        mutator.register_strategy(strategy)
-        mutator.start_session(sample_dicom_dataset)
-
-        # Should not raise exception even if safety check would fail
-        result = mutator.apply_mutations(sample_dicom_dataset, num_mutations=1)
-
-        # Verify mutation was applied
-        assert result is not None
 
 
 class TestPropertyBasedTesting:
@@ -566,7 +529,7 @@ class TestPropertyBasedTesting:
         mutator = DicomMutator(config={"mutation_probability": 1.0})
 
         strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test")
+        strategy.strategy_name = "test"
         strategy.can_mutate = Mock(return_value=True)
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
 
@@ -588,7 +551,7 @@ class TestIntegration:
 
         # Register strategy
         strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test_strategy")
+        strategy.strategy_name = "test_strategy"
         strategy.can_mutate = Mock(return_value=True)
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
 
@@ -626,7 +589,7 @@ class TestIntegration:
         # Register multiple strategies
         for i in range(3):
             strategy = Mock()
-            strategy.get_strategy_name = Mock(return_value=f"strategy{i}")
+            strategy.strategy_name = f"strategy{i}"
             strategy.can_mutate = Mock(return_value=True)
             strategy.mutate = Mock(return_value=sample_dicom_dataset)
             mutator.register_strategy(strategy)
@@ -646,15 +609,13 @@ class TestMutatorExceptionHandling:
     """Test exception handling in mutator."""
 
     def test_apply_mutations_with_mutation_failure(self, sample_dicom_dataset):
-        """Test mutation failure exception handling (lines 294-297)."""
-        from unittest.mock import Mock
-
+        """Test mutation failure exception handling."""
         mutator = DicomMutator()
         mutator.start_session(sample_dicom_dataset)
 
         # Create a mock strategy that raises an exception
         mock_strategy = Mock()
-        mock_strategy.get_strategy_name.return_value = "failing_strategy"
+        mock_strategy.strategy_name = "failing_strategy"
         mock_strategy.can_mutate.return_value = True
         mock_strategy.mutate.side_effect = ValueError("Test mutation error")
 
@@ -672,44 +633,22 @@ class TestMutatorExceptionHandling:
         assert result is not None
 
     def test_get_applicable_strategies_with_exception(self, sample_dicom_dataset):
-        """Test strategy checking exception handling (lines 326-327)."""
-        from unittest.mock import Mock
-
+        """Test strategy checking exception handling."""
         mutator = DicomMutator()
 
         # Create a mock strategy that raises exception during can_mutate
         mock_strategy = Mock()
-        mock_strategy.get_strategy_name.return_value = "error_strategy"
+        mock_strategy.strategy_name = "error_strategy"
         mock_strategy.can_mutate.side_effect = RuntimeError("Check error")
 
         # Add to strategies list
         mutator.strategies.append(mock_strategy)
 
         # Should handle exception and log warning
-        # The function will catch the exception but continue
         applicable = mutator._get_applicable_strategies(sample_dicom_dataset)
 
         # Test passes if no crash occurred
         assert isinstance(applicable, list)
-
-    def test_apply_single_mutation_safety_check_failure(self, sample_dicom_dataset):
-        """Test safety check failure (line 347)."""
-        from unittest.mock import Mock
-
-        # Create mutator with safety checks enabled
-        config = {"safety_checks": True}
-        mutator = DicomMutator(config=config)
-
-        # Create a mock strategy
-        mock_strategy = Mock()
-        mock_strategy.get_strategy_name.return_value = "unsafe_strategy"
-
-        # Mock _is_safe_to_mutate to return False
-        mutator._is_safe_to_mutate = Mock(return_value=False)
-
-        # Should raise ValueError due to failed safety check
-        with pytest.raises(ValueError, match="Safety check failed"):
-            mutator._apply_single_mutation(sample_dicom_dataset, mock_strategy)
 
 
 class TestAdditionalCoverage:
@@ -747,7 +686,7 @@ class TestAdditionalCoverage:
         )
 
         strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test")
+        strategy.strategy_name = "test"
         strategy.can_mutate = Mock(return_value=True)
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
 
@@ -765,12 +704,12 @@ class TestAdditionalCoverage:
         mutator = DicomMutator(config={"auto_register_strategies": False})
 
         strategy1 = Mock()
-        strategy1.get_strategy_name = Mock(return_value="wanted")
+        strategy1.strategy_name = "wanted"
         strategy1.can_mutate = Mock(return_value=True)
         strategy1.mutate = Mock(return_value=sample_dicom_dataset)
 
         strategy2 = Mock()
-        strategy2.get_strategy_name = Mock(return_value="unwanted")
+        strategy2.strategy_name = "unwanted"
         strategy2.can_mutate = Mock(return_value=True)
         strategy2.mutate = Mock(return_value=sample_dicom_dataset)
 
@@ -803,7 +742,7 @@ class TestAdditionalCoverage:
         mutator = DicomMutator(config={"auto_register_strategies": False})
 
         strategy = Mock()
-        strategy.get_strategy_name = Mock(return_value="test")
+        strategy.strategy_name = "test"
         strategy.can_mutate = Mock(return_value=True)
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
 

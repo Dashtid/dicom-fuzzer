@@ -38,7 +38,7 @@ class TestDictionaryFuzzerBasics:
     def test_strategy_name(self):
         """Test strategy returns correct name."""
         fuzzer = DictionaryFuzzer()
-        assert fuzzer.get_strategy_name() == "dictionary"
+        assert fuzzer.strategy_name == "dictionary"
 
     def test_can_mutate_any_dataset(self):
         """Test fuzzer works with any DICOM dataset."""
@@ -300,7 +300,7 @@ class TestIntegrationWithMutator:
         mutator = DicomMutator({"auto_register_strategies": True})
 
         # Should have dictionary strategy registered
-        strategy_names = [s.get_strategy_name() for s in mutator.strategies]
+        strategy_names = [s.strategy_name for s in mutator.strategies]
         assert "dictionary" in strategy_names
 
 
