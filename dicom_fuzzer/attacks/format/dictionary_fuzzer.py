@@ -71,6 +71,9 @@ class DictionaryFuzzer(FormatFuzzerBase):
     # VR types that require binary data (skip mutation)
     _BINARY_VRS = frozenset({"OB", "OW", "OD", "OF", "OL", "OV", "UN"})
 
+    # Numeric VR types that need string-to-number conversion
+    _NUMERIC_VRS = frozenset({"US", "SS", "UL", "SL", "IS", "DS", "FL", "FD", "AT"})
+
     # Integer VR types with their valid ranges: (min, max, wrap_or_clamp)
     # wrap_or_clamp: "wrap" = modulo, "clamp" = min/max
     _INT_VR_RANGES: dict[str, tuple[int, int, str]] = {
@@ -82,9 +85,8 @@ class DictionaryFuzzer(FormatFuzzerBase):
 
     def __init__(self) -> None:
         """Initialize the dictionary fuzzer."""
-        self.dictionaries = DICOMDictionaries()
+        super().__init__()
         self.edge_cases = DICOMDictionaries.get_edge_cases()
-        self.malicious_values = DICOMDictionaries.get_malicious_values()
 
         logger.info(
             "Dictionary fuzzer initialized",
@@ -111,7 +113,7 @@ class DictionaryFuzzer(FormatFuzzerBase):
         num_mutations = self._get_num_mutations(len(dataset))
 
         # Select tags to mutate
-        available_tags = [tag for tag in dataset.keys() if tag in mutated]
+        available_tags = list(dataset.keys())
         if not available_tags:
             return mutated
 
@@ -201,15 +203,20 @@ class DictionaryFuzzer(FormatFuzzerBase):
 
             # Handle UI (Unique Identifier) VR specially
             if vr == "UI":
-                root = random.choice(DICOMDictionaries.get_dictionary("uid_roots"))
-                value = DICOMDictionaries.generate_random_uid(root)
+                if tag_int in self.TAG_TO_DICTIONARY:
+                    # Use specific dictionary (e.g., transfer syntaxes, SOP class UIDs)
+                    value = DICOMDictionaries.get_random_value(
+                        self.TAG_TO_DICTIONARY[tag_int]
+                    )
+                else:
+                    root = random.choice(DICOMDictionaries.get_dictionary("uid_roots"))
+                    value = DICOMDictionaries.generate_random_uid(root)
                 dataset[tag].value = value
                 logger.debug(f"Mutated UI tag {tag:08X}", new_value=str(value)[:50])
                 return
 
             # Convert string values to appropriate numeric types
-            numeric_vrs = {"US", "SS", "UL", "SL", "IS", "DS", "FL", "FD", "AT"}
-            if vr in numeric_vrs and isinstance(value, str):
+            if vr in self._NUMERIC_VRS and isinstance(value, str):
                 converted = self._convert_numeric_value(value, vr, tag)
                 if converted is None:
                     return
@@ -253,17 +260,6 @@ class DictionaryFuzzer(FormatFuzzerBase):
         """
         category = random.choice(list(self.edge_cases.keys()))
         values = self.edge_cases[category]
-        return random.choice(values)
-
-    def _get_malicious_value(self) -> str:
-        """Get a value targeting common vulnerability types.
-
-        Returns:
-            Malicious value (buffer overflow, injection, format string)
-
-        """
-        category = random.choice(list(self.malicious_values.keys()))
-        values = self.malicious_values[category]
         return random.choice(values)
 
     def _get_num_mutations(self, dataset_size: int) -> int:
@@ -375,7 +371,7 @@ class DictionaryFuzzer(FormatFuzzerBase):
         mutated_datasets = []
 
         # Get mutable tags
-        applicable_tags = [tag for tag in dataset.keys() if tag in dataset]
+        applicable_tags = list(dataset.keys())
 
         # For each tag, try each edge case value
         for tag in applicable_tags:

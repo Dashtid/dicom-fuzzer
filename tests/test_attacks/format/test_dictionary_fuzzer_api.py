@@ -19,17 +19,13 @@ class TestDictionaryFuzzerInit:
     def test_initialization(self):
         """Test fuzzer initializes with dictionaries loaded."""
         fuzzer = DictionaryFuzzer()
-        assert fuzzer.dictionaries is not None
         assert fuzzer.edge_cases is not None
-        assert fuzzer.malicious_values is not None
 
     def test_dictionaries_loaded(self):
         """Test that dictionaries contain expected data."""
         fuzzer = DictionaryFuzzer()
         assert len(fuzzer.edge_cases) > 0
-        assert len(fuzzer.malicious_values) > 0
         assert "empty" in fuzzer.edge_cases
-        assert "buffer_overflow" in fuzzer.malicious_values
 
 
 class TestDictionaryFuzzerBasics:
@@ -116,15 +112,6 @@ class TestValueSelection:
         assert isinstance(value, str)
         # Edge cases include empty strings, long strings, etc.
         assert value in [v for vals in fuzzer.edge_cases.values() for v in vals]
-
-    def test_get_malicious_value(self):
-        """Test malicious value selection."""
-        fuzzer = DictionaryFuzzer()
-        value = fuzzer._get_malicious_value()
-        assert isinstance(value, str)
-        # Should be from malicious values dictionary
-        malicious_all = [v for vals in fuzzer.malicious_values.values() for v in vals]
-        assert value in malicious_all
 
 
 class TestSpecificDictionary:
