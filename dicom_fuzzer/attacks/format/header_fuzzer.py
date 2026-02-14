@@ -270,6 +270,7 @@ class HeaderFuzzer(FormatFuzzerBase):
 
     def __init__(self) -> None:
         """Initialize header fuzzer with attack patterns."""
+        super().__init__()
         # DICOM required tags that can be safely removed for testing
         # Note: We exclude SOPClassUID and SOPInstanceUID as they break parsing
         self.required_tags = [
@@ -443,11 +444,9 @@ class HeaderFuzzer(FormatFuzzerBase):
 
         # Test string length boundaries
         if hasattr(dataset, "PatientName"):
-            # Exactly at VR limit (64 chars for LO)
-            dataset.PatientName = "X" * 64
-            # Or one character over
-            if random.random() > 0.5:
-                dataset.PatientName = "X" * 65
+            dataset.PatientName = random.choice(
+                ["X" * 64, "X" * 65]  # At VR limit or one over
+            )
 
         # Test empty strings
         empty_test_tags = ["Manufacturer", "ModelName", "SoftwareVersions"]
@@ -484,11 +483,7 @@ class HeaderFuzzer(FormatFuzzerBase):
             mutation = random.choice(mutations)
 
             try:
-                # For binary VRs, set value directly
-                if isinstance(mutation, bytes):
-                    elem._value = mutation
-                else:
-                    elem._value = mutation
+                elem._value = mutation
             except Exception:
                 # Some mutations may fail - that's expected
                 pass
