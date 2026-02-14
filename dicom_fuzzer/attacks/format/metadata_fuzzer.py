@@ -118,6 +118,7 @@ class MetadataFuzzer(FormatFuzzerBase):
 
     def __init__(self) -> None:
         """Initialize with fake patient data for realistic mutations."""
+        super().__init__()
         self.fake_names = ["Smith^John", "Doe^Jane", "Johnson^Mike"]
         self.fake_ids = [f"PAT{i:06d}" for i in range(1000, 9999)]
 
@@ -431,10 +432,6 @@ class MetadataFuzzer(FormatFuzzerBase):
             days=random.randint(0, (end_date - start_date).days)
         )
         return random_date.strftime("%Y%m%d")
-
-    def _random_invalid_date(self) -> str:
-        """Generate a date that violates DICOM DA format rules."""
-        return random.choice(_INVALID_DATES)
 
     def _random_pn_attack(self) -> str:
         """Generate a malformed Person Name (PN) value.
