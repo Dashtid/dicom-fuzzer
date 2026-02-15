@@ -789,7 +789,7 @@ class TestGeneratorBatchProcessing:
         generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
 
         files = generator.generate_batch(
-            sample_dicom_file, count=5, strategies=["metadata", "pixel", "reference"]
+            sample_dicom_file, count=10, strategies=["metadata", "pixel", "reference"]
         )
 
         assert len(files) >= 1
