@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from pydicom.dataset import Dataset
+from pydicom.sequence import Sequence
 from pydicom.tag import Tag
 
 from dicom_fuzzer.utils.logger import SecurityEventLogger, get_logger
@@ -330,12 +331,14 @@ class DicomValidator:
             if elem.value is None or elem.value == "":
                 continue
 
+            # Skip Sequence and bytes values -- str() on deeply nested
+            # sequences causes RecursionError / hangs in pydicom.
+            if isinstance(elem.value, (bytes, Sequence)):
+                continue
+
             # Convert pydicom value types to string for checking
             # (pydicom uses PersonName, etc. which are not str instances)
-            str_value = str(elem.value) if not isinstance(elem.value, bytes) else None
-
-            if str_value is None:
-                continue
+            str_value = str(elem.value)
 
             # Check for extremely long strings (potential attack)
             if len(str_value) > 10000:

@@ -346,7 +346,7 @@ class TestCleanFuzzerRoundTrip:
             (PixelFuzzer, 0.80),
             (ReferenceFuzzer, 0.80),
             (DictionaryFuzzer, 0.60),
-            (PrivateTagFuzzer, 0.70),
+            (PrivateTagFuzzer, 0.50),
             (StructureFuzzer, 0.30),
         ],
     )

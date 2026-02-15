@@ -738,10 +738,14 @@ class TestIntegration:
         # Generate mutated file
         output_dir = Path(sample_dicom_file).parent / "validator_test_output"
         generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
-        mutated_files = generator.generate_batch(sample_dicom_file, count=10)
+        mutated_files = generator.generate_batch(
+            sample_dicom_file,
+            count=25,
+            strategies=["metadata", "pixel", "reference"],
+        )
 
         assert len(mutated_files) >= 1, (
-            "Expected at least 1 mutated file from 10 attempts"
+            "Expected at least 1 mutated file from 25 attempts"
         )
 
         # Validate each mutated file
