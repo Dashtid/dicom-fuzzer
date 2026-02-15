@@ -198,7 +198,7 @@ class DICOMGenerator:
                 num_mutations=1,
                 strategy_names=strategy_names,
             )
-        except (ValueError, TypeError, AttributeError) as e:
+        except (ValueError, TypeError, AttributeError, IndexError) as e:
             return self._handle_mutation_error(e)
 
         # Get applied strategy names from session for stats
@@ -244,6 +244,10 @@ class DICOMGenerator:
             ValueError,
             TypeError,
             AttributeError,
+            IndexError,
+            OverflowError,
+            UnicodeEncodeError,
+            UnicodeDecodeError,
         ) as e:
             if self.skip_write_errors:
                 self.stats.skipped_due_to_write_errors += 1

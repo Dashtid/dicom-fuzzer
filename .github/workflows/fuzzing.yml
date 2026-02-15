@@ -466,7 +466,7 @@ jobs:
 
       - name: Run CVE generator tests
         run: |
-          uv run pytest tests/test_cve/ -v --tb=short --timeout=120
+          uv run pytest tests/test_attacks/cve/ -v --tb=short --timeout=120
         timeout-minutes: 10
 
       - name: Run security tests

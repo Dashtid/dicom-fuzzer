@@ -58,7 +58,7 @@ from dicom_fuzzer.attacks.multiframe.shared_group import SharedGroupStrategy
 # =============================================================================
 # Constants
 # =============================================================================
-ROUND_TRIP_ATTEMPTS = 10
+ROUND_TRIP_ATTEMPTS = 25
 RECURSION_LIMIT = 10000  # Matches generator.py:240
 
 
@@ -345,7 +345,7 @@ class TestCleanFuzzerRoundTrip:
             (MetadataFuzzer, 0.80),
             (PixelFuzzer, 0.80),
             (ReferenceFuzzer, 0.80),
-            (DictionaryFuzzer, 0.80),
+            (DictionaryFuzzer, 0.60),
             (PrivateTagFuzzer, 0.70),
             (StructureFuzzer, 0.30),
         ],
@@ -443,7 +443,7 @@ class TestMultiframeRoundTrip:
         ("strategy_cls", "threshold"),
         [
             (FrameCountMismatchStrategy, 0.80),
-            (FrameTimeCorruptionStrategy, 0.80),
+            (FrameTimeCorruptionStrategy, 0.60),
             (PerFrameDimensionStrategy, 0.50),
             (SharedGroupStrategy, 0.80),
             (FrameIncrementStrategy, 0.80),

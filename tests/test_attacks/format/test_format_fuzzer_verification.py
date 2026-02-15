@@ -896,7 +896,7 @@ class TestInvalidCharsetValue:
             result = enc_fuzzer._invalid_charset_value(ds)
             cs = result.SpecificCharacterSet
             # Invalid if: not in valid set, is a list, is empty with unicode, has \x00
-            if isinstance(cs, list):
+            if hasattr(cs, "__iter__") and not isinstance(cs, str):
                 any_invalid = True
                 break
             if cs not in valid_single and cs != "":

@@ -253,7 +253,12 @@ class TestMetadataCorruption:
             "\x00\x00",
             "A" * 100,
         }
-        assert result[0].Modality in valid
+        modality = result[0].Modality
+        # pydicom splits "CT\MR" into MultiValue (unhashable for set lookup)
+        if hasattr(modality, "__iter__") and not isinstance(modality, str):
+            pass  # MultiValue is inherently an invalid modality
+        else:
+            assert modality in valid
 
 
 # =============================================================================

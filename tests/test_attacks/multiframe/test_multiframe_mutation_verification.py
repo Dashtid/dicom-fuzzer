@@ -172,7 +172,10 @@ class TestFrameTimeCorruption:
         with patch("random.choice", side_effect=_force_attack("invalid_time_vector")):
             result, records = strategy.mutate(ds, mutation_count=1)
         assert hasattr(result, "FrameTimeVector")
-        assert len(result.FrameTimeVector) != 10
+        ftv = result.FrameTimeVector
+        # pydicom returns scalar DSfloat for single-element sequences
+        length = len(ftv) if hasattr(ftv, "__len__") else 1
+        assert length != 10
 
     def test_corrupt_temporal_index(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
