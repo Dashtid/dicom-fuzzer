@@ -39,6 +39,7 @@ class ReferenceFuzzer(FormatFuzzerBase):
 
     def __init__(self) -> None:
         """Initialize the reference fuzzer."""
+        super().__init__()
         self.mutation_strategies = [
             self._orphan_reference,
             self._circular_reference,

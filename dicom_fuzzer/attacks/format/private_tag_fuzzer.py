@@ -69,6 +69,7 @@ class PrivateTagFuzzer(FormatFuzzerBase):
 
     def __init__(self) -> None:
         """Initialize the private tag fuzzer."""
+        super().__init__()
         self.mutation_strategies = [
             self._missing_creator,
             self._wrong_creator,

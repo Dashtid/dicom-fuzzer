@@ -86,6 +86,7 @@ class CalibrationFuzzer(FormatFuzzerBase):
             seed: Random seed for reproducibility
 
         """
+        super().__init__()
         if severity not in ["minimal", "moderate", "aggressive", "extreme"]:
             raise ValueError(f"Invalid severity: {severity}")
 

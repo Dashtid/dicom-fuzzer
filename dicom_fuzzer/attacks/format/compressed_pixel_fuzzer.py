@@ -62,6 +62,7 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
 
     def __init__(self) -> None:
         """Initialize the compressed pixel fuzzer."""
+        super().__init__()
         self.mutation_strategies = [
             self._corrupt_jpeg_markers,
             self._corrupt_jpeg_dimensions,
