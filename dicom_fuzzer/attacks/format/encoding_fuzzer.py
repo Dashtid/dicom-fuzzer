@@ -33,29 +33,6 @@ from .base import FormatFuzzerBase
 
 logger = get_logger(__name__)
 
-# Valid DICOM character set values
-VALID_CHARSETS = [
-    "",  # Default (ISO-IR 6)
-    "ISO_IR 6",
-    "ISO_IR 100",  # Latin-1
-    "ISO_IR 101",  # Latin-2
-    "ISO_IR 109",  # Latin-3
-    "ISO_IR 110",  # Latin-4
-    "ISO_IR 144",  # Cyrillic
-    "ISO_IR 127",  # Arabic
-    "ISO_IR 126",  # Greek
-    "ISO_IR 138",  # Hebrew
-    "ISO_IR 148",  # Latin-5 (Turkish)
-    "ISO_IR 166",  # Thai
-    "ISO_IR 192",  # UTF-8
-    "ISO 2022 IR 6",
-    "ISO 2022 IR 87",  # JIS X 0208 (Japanese)
-    "ISO 2022 IR 149",  # KS X 1001 (Korean)
-    "ISO 2022 IR 58",  # GB 2312 (Chinese)
-    "GB18030",
-    "GBK",
-]
-
 # Invalid/problematic character set values
 INVALID_CHARSETS = [
     "INVALID_CHARSET",
@@ -68,9 +45,6 @@ INVALID_CHARSETS = [
     "\x00",  # Null
     "A" * 100,  # Overlong
 ]
-
-# Text VRs that use character encoding
-TEXT_VRS = ["LO", "LT", "PN", "SH", "ST", "UC", "UT"]
 
 # Tags commonly containing text
 TEXT_TAGS = [
@@ -94,6 +68,7 @@ class EncodingFuzzer(FormatFuzzerBase):
 
     def __init__(self) -> None:
         """Initialize the encoding fuzzer."""
+        super().__init__()
         self.mutation_strategies = [
             self._invalid_charset_value,
             self._charset_data_mismatch,
@@ -302,7 +277,7 @@ class EncodingFuzzer(FormatFuzzerBase):
                 value = bom + b"PatientName"
             elif attack == "bom_in_middle":
                 value = b"Patient" + bom + b"Name"
-            elif attack == "multiple_boms":
+            else:  # multiple_boms
                 value = bom + b"Patient" + bom + b"Name" + bom
 
             dataset.add_new(Tag(0x0010, 0x0010), "PN", value)
@@ -335,7 +310,7 @@ class EncodingFuzzer(FormatFuzzerBase):
                 value = "PatientName\x00"
             elif attack == "multiple_nulls":
                 value = "Pat\x00ient\x00Na\x00me"
-            elif attack == "null_padding":
+            else:  # null_padding
                 value = "PatientName" + "\x00" * 100
 
             # Apply to multiple text fields
@@ -391,7 +366,7 @@ class EncodingFuzzer(FormatFuzzerBase):
                 chars = random.sample(control_chars, 5)
                 value = "Patient" + "".join(chars) + "Name"
 
-            elif attack == "control_sequence":
+            else:  # control_sequence
                 # ANSI escape sequence (terminal control)
                 value = "Patient\x1b[31mRED\x1b[0mName"
 
@@ -492,7 +467,7 @@ class EncodingFuzzer(FormatFuzzerBase):
                 value = b"Patient" + surrogates[2] + b"Name"
             elif attack == "reversed_pair":
                 value = b"Patient" + surrogates[2] + surrogates[0] + b"Name"
-            elif attack == "double_high":
+            else:  # double_high
                 value = b"Patient" + surrogates[0] + surrogates[1] + b"Name"
 
             dataset.add_new(Tag(0x0010, 0x0010), "PN", value)
