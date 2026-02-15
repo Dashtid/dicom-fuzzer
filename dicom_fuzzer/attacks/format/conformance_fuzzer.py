@@ -84,6 +84,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
 
     def __init__(self) -> None:
         """Initialize the conformance fuzzer."""
+        super().__init__()
         self.mutation_strategies = [
             self._invalid_sop_class,
             self._invalid_transfer_syntax,
@@ -129,7 +130,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
         """Ensure dataset has file_meta."""
         if not hasattr(dataset, "file_meta") or dataset.file_meta is None:
             dataset.file_meta = FileMetaDataset()
-            dataset.file_meta.MediaStorageSOPClassUID = SOP_CLASSES["CT"]
+            dataset.file_meta.MediaStorageSOPClassUID = SOP_CLASSES["CT"]  # pyright: ignore[reportAttributeAccessIssue]
             dataset.file_meta.MediaStorageSOPInstanceUID = generate_uid()
             dataset.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
 
@@ -168,11 +169,11 @@ class ConformanceFuzzer(FormatFuzzerBase):
                 ]
                 uid = random.choice(retired)
 
-            elif attack == "private_sop_class":
+            else:  # private_sop_class
                 # Private/vendor-specific SOP class
                 uid = "1.3.6.1.4.1.12345.1.2.3.4"  # Fake vendor
 
-            dataset.file_meta.MediaStorageSOPClassUID = uid
+            dataset.file_meta.MediaStorageSOPClassUID = uid  # pyright: ignore[reportAttributeAccessIssue]
             dataset.SOPClassUID = uid
 
         except Exception as e:
@@ -215,10 +216,10 @@ class ConformanceFuzzer(FormatFuzzerBase):
                 ]
                 uid = random.choice(retired)
 
-            elif attack == "private_syntax":
+            else:  # private_syntax
                 uid = "1.3.6.1.4.1.12345.1.2"
 
-            dataset.file_meta.TransferSyntaxUID = uid
+            dataset.file_meta.TransferSyntaxUID = uid  # pyright: ignore[reportAttributeAccessIssue]
 
         except Exception as e:
             logger.debug(f"Invalid transfer syntax attack failed: {e}")
@@ -242,9 +243,9 @@ class ConformanceFuzzer(FormatFuzzerBase):
 
         try:
             sop, ts = random.choice(mismatches)
-            dataset.file_meta.MediaStorageSOPClassUID = sop
+            dataset.file_meta.MediaStorageSOPClassUID = sop  # pyright: ignore[reportAttributeAccessIssue]
             dataset.SOPClassUID = sop
-            dataset.file_meta.TransferSyntaxUID = ts
+            dataset.file_meta.TransferSyntaxUID = ts  # pyright: ignore[reportAttributeAccessIssue]
 
         except Exception as e:
             logger.debug(f"SOP/Transfer mismatch attack failed: {e}")
@@ -269,7 +270,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
         try:
             if attack == "remove_all":
                 if hasattr(dataset, "file_meta"):
-                    dataset.file_meta = None
+                    dataset.file_meta = None  # pyright: ignore[reportAttributeAccessIssue]
 
             elif attack == "remove_sop_class":
                 self._ensure_file_meta(dataset)
@@ -392,17 +393,17 @@ class ConformanceFuzzer(FormatFuzzerBase):
                     ("1.2.840.113619.6.5", "GE_GENESIS"),
                 ]
                 uid, version = random.choice(implementations)
-                dataset.file_meta.ImplementationClassUID = uid
+                dataset.file_meta.ImplementationClassUID = uid  # pyright: ignore[reportAttributeAccessIssue]
                 dataset.file_meta.ImplementationVersionName = version
 
             elif attack == "invalid_format":
-                dataset.file_meta.ImplementationClassUID = random.choice(INVALID_UIDS)
+                dataset.file_meta.ImplementationClassUID = random.choice(INVALID_UIDS)  # pyright: ignore[reportAttributeAccessIssue]
 
             elif attack == "very_long":
                 dataset.file_meta.ImplementationVersionName = "V" * 100
 
             elif attack == "empty":
-                dataset.file_meta.ImplementationClassUID = ""
+                dataset.file_meta.ImplementationClassUID = ""  # pyright: ignore[reportAttributeAccessIssue]
                 dataset.file_meta.ImplementationVersionName = ""
 
         except Exception as e:
@@ -431,7 +432,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
         try:
             modality, sop = random.choice(mismatches)
             dataset.Modality = modality
-            dataset.file_meta.MediaStorageSOPClassUID = sop
+            dataset.file_meta.MediaStorageSOPClassUID = sop  # pyright: ignore[reportAttributeAccessIssue]
             dataset.SOPClassUID = sop
 
         except Exception as e:
@@ -450,11 +451,10 @@ class ConformanceFuzzer(FormatFuzzerBase):
             (Tag(0x0008, 0x0018), "SOPInstanceUID"),
             (Tag(0x0020, 0x000D), "StudyInstanceUID"),
             (Tag(0x0020, 0x000E), "SeriesInstanceUID"),
-            (Tag(0x0008, 0x0020), "StudyDate"),  # Not a UID but test wrong VR
         ]
 
         try:
-            tag, name = random.choice(uid_tags[:4])  # Only actual UID tags
+            tag, name = random.choice(uid_tags)
             dataset.add_new(tag, "UI", random.choice(INVALID_UIDS))
         except Exception as e:
             logger.debug(f"UID format violation attack failed: {e}")
@@ -485,12 +485,12 @@ class ConformanceFuzzer(FormatFuzzerBase):
                     "1.2.840.10008.1.2.4.53",
                     "1.2.840.10008.1.2.4.54",
                 ]
-                dataset.file_meta.TransferSyntaxUID = random.choice(retired_ts)
+                dataset.file_meta.TransferSyntaxUID = random.choice(retired_ts)  # pyright: ignore[reportAttributeAccessIssue]
 
             elif attack == "retired_sop_with_modern_syntax":
                 # Old SOP class with new transfer syntax
-                dataset.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.5"
-                dataset.file_meta.TransferSyntaxUID = TRANSFER_SYNTAXES[
+                dataset.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.5"  # pyright: ignore[reportAttributeAccessIssue]
+                dataset.file_meta.TransferSyntaxUID = TRANSFER_SYNTAXES[  # pyright: ignore[reportAttributeAccessIssue]
                     "jpeg2000_lossless"
                 ]
 
