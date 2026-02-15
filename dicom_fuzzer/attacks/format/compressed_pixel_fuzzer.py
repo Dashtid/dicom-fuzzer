@@ -102,25 +102,6 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
 
     mutate_compressed_pixels = mutate
 
-    def _has_pixel_data(self, dataset: Dataset) -> bool:
-        """Check if dataset has pixel data."""
-        return Tag(0x7FE0, 0x0010) in dataset
-
-    def _get_pixel_data(self, dataset: Dataset) -> bytes | None:
-        """Get pixel data as bytes."""
-        if self._has_pixel_data(dataset):
-            elem = dataset[Tag(0x7FE0, 0x0010)]
-            if hasattr(elem, "value"):
-                if isinstance(elem.value, bytes):
-                    return elem.value
-                elif hasattr(elem.value, "__iter__"):
-                    # Encapsulated - get first fragment
-                    try:
-                        return next(iter(elem.value))
-                    except (StopIteration, TypeError):
-                        pass
-        return None
-
     def _corrupt_jpeg_markers(self, dataset: Dataset) -> Dataset:
         """Corrupt JPEG markers in compressed pixel data.
 
@@ -508,7 +489,7 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
                 frames = [frame] * 10
                 dataset.NumberOfFrames = 1  # Claims 1, has 10
 
-            elif attack == "zero_frames_claimed":
+            else:  # zero_frames_claimed
                 frames = [frame] * 5
                 dataset.NumberOfFrames = 0  # Claims 0
 
