@@ -65,16 +65,16 @@ class TestSequenceFuzzerInit:
 
 
 # =============================================================================
-# mutate_sequences Tests
+# mutate Tests
 # =============================================================================
 class TestMutateSequences:
-    """Tests for mutate_sequences method."""
+    """Tests for mutate method."""
 
     def test_returns_dataset(
         self, fuzzer: SequenceFuzzer, sample_dataset: Dataset
     ) -> None:
-        """Test that mutate_sequences returns a Dataset."""
-        result = fuzzer.mutate_sequences(sample_dataset)
+        """Test that mutate returns a Dataset."""
+        result = fuzzer.mutate(sample_dataset)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -83,7 +83,7 @@ class TestMutateSequences:
     ) -> None:
         """Test that mutations are applied to the dataset."""
         random.seed(42)
-        result = fuzzer.mutate_sequences(minimal_dataset)
+        result = fuzzer.mutate(minimal_dataset)
         # Should have added some sequences
         assert result is not None
         assert isinstance(result, Dataset)
@@ -91,7 +91,7 @@ class TestMutateSequences:
     def test_handles_empty_dataset(self, fuzzer: SequenceFuzzer) -> None:
         """Test handling of empty dataset."""
         ds = Dataset()
-        result = fuzzer.mutate_sequences(ds)
+        result = fuzzer.mutate(ds)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -324,7 +324,7 @@ class TestSequenceFuzzerIntegration:
     ) -> None:
         """Test a full mutation cycle produces valid output."""
         random.seed(42)
-        result = fuzzer.mutate_sequences(sample_dataset)
+        result = fuzzer.mutate(sample_dataset)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -333,12 +333,12 @@ class TestSequenceFuzzerIntegration:
         random.seed(123)
         ds1 = Dataset()
         ds1.PatientName = "Test"
-        result1 = fuzzer.mutate_sequences(ds1)
+        result1 = fuzzer.mutate(ds1)
 
         random.seed(123)
         ds2 = Dataset()
         ds2.PatientName = "Test"
-        result2 = fuzzer.mutate_sequences(ds2)
+        result2 = fuzzer.mutate(ds2)
 
         # Both should have same structure
         assert set(result1.keys()) == set(result2.keys())
@@ -349,5 +349,5 @@ class TestSequenceFuzzerIntegration:
         """Test that original data is preserved."""
         original_name = sample_dataset.PatientName
         random.seed(42)
-        result = fuzzer.mutate_sequences(sample_dataset)
+        result = fuzzer.mutate(sample_dataset)
         assert result.PatientName == original_name

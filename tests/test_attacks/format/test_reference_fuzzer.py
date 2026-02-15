@@ -60,23 +60,23 @@ class TestReferenceFuzzerInit:
 
 
 # =============================================================================
-# mutate_references Tests
+# mutate Tests
 # =============================================================================
 class TestMutateReferences:
-    """Tests for mutate_references method."""
+    """Tests for mutate method."""
 
     def test_returns_dataset(
         self, fuzzer: ReferenceFuzzer, sample_dataset: Dataset
     ) -> None:
-        """Test that mutate_references returns a Dataset."""
-        result = fuzzer.mutate_references(sample_dataset)
+        """Test that mutate returns a Dataset."""
+        result = fuzzer.mutate(sample_dataset)
         assert result is not None
         assert isinstance(result, Dataset)
 
     def test_handles_empty_dataset(self, fuzzer: ReferenceFuzzer) -> None:
         """Test handling of empty dataset."""
         ds = Dataset()
-        result = fuzzer.mutate_references(ds)
+        result = fuzzer.mutate(ds)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -349,7 +349,7 @@ class TestReferenceFuzzerIntegration:
     ) -> None:
         """Test a full mutation cycle produces valid output."""
         random.seed(42)
-        result = fuzzer.mutate_references(sample_dataset)
+        result = fuzzer.mutate(sample_dataset)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -359,7 +359,7 @@ class TestReferenceFuzzerIntegration:
             random.seed(i)
             ds = Dataset()
             ds.PatientName = "Test"
-            result = fuzzer.mutate_references(ds)
+            result = fuzzer.mutate(ds)
             assert isinstance(result, Dataset)
 
     def test_preserves_patient_data(
@@ -368,5 +368,5 @@ class TestReferenceFuzzerIntegration:
         """Test that patient data is preserved."""
         original_name = sample_dataset.PatientName
         random.seed(42)
-        result = fuzzer.mutate_references(sample_dataset)
+        result = fuzzer.mutate(sample_dataset)
         assert result.PatientName == original_name

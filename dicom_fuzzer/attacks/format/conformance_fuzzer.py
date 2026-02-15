@@ -124,8 +124,6 @@ class ConformanceFuzzer(FormatFuzzerBase):
 
         return dataset
 
-    mutate_conformance = mutate
-
     def _ensure_file_meta(self, dataset: Dataset) -> None:
         """Ensure dataset has file_meta."""
         if not hasattr(dataset, "file_meta") or dataset.file_meta is None:

@@ -64,8 +64,6 @@ class PixelFuzzer(FormatFuzzerBase):
 
         return dataset
 
-    mutate_pixels = mutate
-
     def _samples_per_pixel_attack(self, dataset: Dataset) -> Dataset:
         """Attack SamplesPerPixel field.
 

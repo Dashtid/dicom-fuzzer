@@ -61,23 +61,23 @@ class TestPrivateTagFuzzerInit:
 
 
 # =============================================================================
-# mutate_private_tags Tests
+# mutate Tests
 # =============================================================================
 class TestMutatePrivateTags:
-    """Tests for mutate_private_tags method."""
+    """Tests for mutate method."""
 
     def test_returns_dataset(
         self, fuzzer: PrivateTagFuzzer, sample_dataset: Dataset
     ) -> None:
-        """Test that mutate_private_tags returns a Dataset."""
-        result = fuzzer.mutate_private_tags(sample_dataset)
+        """Test that mutate returns a Dataset."""
+        result = fuzzer.mutate(sample_dataset)
         assert result is not None
         assert isinstance(result, Dataset)
 
     def test_handles_empty_dataset(self, fuzzer: PrivateTagFuzzer) -> None:
         """Test handling of empty dataset."""
         ds = Dataset()
-        result = fuzzer.mutate_private_tags(ds)
+        result = fuzzer.mutate(ds)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -319,7 +319,7 @@ class TestPrivateTagFuzzerIntegration:
     ) -> None:
         """Test a full mutation cycle produces valid output."""
         random.seed(42)
-        result = fuzzer.mutate_private_tags(sample_dataset)
+        result = fuzzer.mutate(sample_dataset)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -329,7 +329,7 @@ class TestPrivateTagFuzzerIntegration:
             random.seed(i)
             ds = Dataset()
             ds.PatientName = "Test"
-            result = fuzzer.mutate_private_tags(ds)
+            result = fuzzer.mutate(ds)
             assert isinstance(result, Dataset)
 
     def test_preserves_standard_tags(
@@ -339,7 +339,7 @@ class TestPrivateTagFuzzerIntegration:
         original_name = sample_dataset.PatientName
         original_modality = sample_dataset.Modality
         random.seed(42)
-        result = fuzzer.mutate_private_tags(sample_dataset)
+        result = fuzzer.mutate(sample_dataset)
         assert result.PatientName == original_name
         assert result.Modality == original_modality
 

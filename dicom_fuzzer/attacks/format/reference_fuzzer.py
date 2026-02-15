@@ -79,8 +79,6 @@ class ReferenceFuzzer(FormatFuzzerBase):
 
         return dataset
 
-    mutate_references = mutate
-
     def _orphan_reference(self, dataset: Dataset) -> Dataset:
         """Create references to non-existent objects.
 

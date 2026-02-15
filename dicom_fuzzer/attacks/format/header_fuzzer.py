@@ -308,8 +308,6 @@ class HeaderFuzzer(FormatFuzzerBase):
             dataset = mutation(dataset)
         return dataset
 
-    mutate_tags = mutate
-
     def _overlong_strings(self, dataset: Dataset) -> Dataset:
         """Insert extremely long strings to test buffer handling.
 

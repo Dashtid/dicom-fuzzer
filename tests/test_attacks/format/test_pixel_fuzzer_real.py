@@ -63,14 +63,14 @@ class TestPixelFuzzerInitialization:
 
 
 class TestMutatePixels:
-    """Test mutate_pixels method."""
+    """Test mutate method."""
 
-    def test_mutate_pixels_with_pixel_data(self, dataset_with_pixels):
+    def test_mutate_with_pixel_data(self, dataset_with_pixels):
         """Test mutating dataset with pixel data."""
         fuzzer = PixelFuzzer()
         _ = dataset_with_pixels.PixelData  # Access to ensure it exists
 
-        result = fuzzer.mutate_pixels(dataset_with_pixels)
+        result = fuzzer.mutate(dataset_with_pixels)
 
         assert result is dataset_with_pixels
         assert hasattr(result, "PixelData")
@@ -78,21 +78,21 @@ class TestMutatePixels:
         # We just verify it exists and is bytes
         assert isinstance(result.PixelData, bytes)
 
-    def test_mutate_pixels_returns_dataset(self, dataset_with_pixels):
+    def test_mutate_returns_dataset(self, dataset_with_pixels):
         """Test that method returns the dataset."""
         fuzzer = PixelFuzzer()
 
-        result = fuzzer.mutate_pixels(dataset_with_pixels)
+        result = fuzzer.mutate(dataset_with_pixels)
 
         assert result is not None
         assert result is dataset_with_pixels
         assert isinstance(result, Dataset)
 
-    def test_mutate_pixels_without_pixel_data(self, dataset_no_pixels):
+    def test_mutate_without_pixel_data(self, dataset_no_pixels):
         """Test mutating dataset without pixel data."""
         fuzzer = PixelFuzzer()
 
-        result = fuzzer.mutate_pixels(dataset_no_pixels)
+        result = fuzzer.mutate(dataset_no_pixels)
 
         # Should return dataset unchanged
         assert result is not None
@@ -100,7 +100,7 @@ class TestMutatePixels:
         assert isinstance(result, Dataset)
         assert not hasattr(result, "PixelData")
 
-    def test_mutate_pixels_with_invalid_dimensions(self):
+    def test_mutate_with_invalid_dimensions(self):
         """Test handling dataset with invalid pixel dimensions."""
         fuzzer = PixelFuzzer()
 
@@ -111,36 +111,36 @@ class TestMutatePixels:
         ds.PixelData = b"fake_pixel_data"
 
         # Should handle gracefully without crashing
-        result = fuzzer.mutate_pixels(ds)
+        result = fuzzer.mutate(ds)
 
         assert result is not None
         assert result is ds
         assert isinstance(result, Dataset)
 
-    def test_mutate_pixels_preserves_other_attributes(self, dataset_with_pixels):
+    def test_mutate_preserves_other_attributes(self, dataset_with_pixels):
         """Test that mutation preserves other dataset attributes."""
         fuzzer = PixelFuzzer()
         dataset_with_pixels.PatientName = "Test^Patient"
         dataset_with_pixels.StudyDescription = "CT HEAD"
 
-        result = fuzzer.mutate_pixels(dataset_with_pixels)
+        result = fuzzer.mutate(dataset_with_pixels)
 
         assert result is not None
         assert isinstance(result, Dataset)
         assert result.PatientName == "Test^Patient"
         assert result.StudyDescription == "CT HEAD"
 
-    def test_mutate_pixels_multiple_times(self, dataset_with_pixels):
+    def test_mutate_multiple_times(self, dataset_with_pixels):
         """Test mutating pixels multiple times."""
         fuzzer = PixelFuzzer()
 
         for _ in range(5):
-            result = fuzzer.mutate_pixels(dataset_with_pixels)
+            result = fuzzer.mutate(dataset_with_pixels)
             assert result is not None
             assert hasattr(result, "PixelData")
             assert isinstance(result.PixelData, bytes)
 
-    def test_mutate_pixels_with_corrupted_pixel_data(self):
+    def test_mutate_with_corrupted_pixel_data(self):
         """Test handling dataset with corrupted PixelData tag."""
         fuzzer = PixelFuzzer()
 
@@ -149,7 +149,7 @@ class TestMutatePixels:
         ds.PixelData = b"invalid"
 
         # Should handle exception gracefully
-        result = fuzzer.mutate_pixels(ds)
+        result = fuzzer.mutate(ds)
 
         assert result is not None
         assert result is ds
@@ -169,7 +169,7 @@ class TestPixelMutationBehavior:
         # Track if any mutation occurred across multiple tries
         for _ in range(10):
             ds_copy = dataset_with_pixels
-            fuzzer.mutate_pixels(ds_copy)
+            fuzzer.mutate(ds_copy)
 
             try:
                 new_pixels = ds_copy.pixel_array
@@ -190,7 +190,7 @@ class TestPixelMutationBehavior:
         # Get original pixels
         original_pixels = dataset_with_pixels.pixel_array.copy()
 
-        fuzzer.mutate_pixels(dataset_with_pixels)
+        fuzzer.mutate(dataset_with_pixels)
 
         try:
             new_pixels = dataset_with_pixels.pixel_array
@@ -216,7 +216,7 @@ class TestEdgeCases:
         fuzzer = PixelFuzzer()
         ds = Dataset()
 
-        result = fuzzer.mutate_pixels(ds)
+        result = fuzzer.mutate(ds)
 
         assert result is not None
         assert result is ds
@@ -230,7 +230,7 @@ class TestEdgeCases:
         ds.PixelData = b"x"  # Too small to be valid
 
         # Should not crash
-        result = fuzzer.mutate_pixels(ds)
+        result = fuzzer.mutate(ds)
         assert result is not None
         assert result is ds
         assert isinstance(result, Dataset)
@@ -240,8 +240,8 @@ class TestEdgeCases:
         fuzzer1 = PixelFuzzer()
         fuzzer2 = PixelFuzzer()
 
-        result1 = fuzzer1.mutate_pixels(dataset_with_pixels)
-        result2 = fuzzer2.mutate_pixels(dataset_with_pixels)
+        result1 = fuzzer1.mutate(dataset_with_pixels)
+        result2 = fuzzer2.mutate(dataset_with_pixels)
 
         assert result1 is not None
         assert result2 is not None
@@ -260,7 +260,7 @@ class TestIntegrationScenarios:
         assert "PixelData" in dataset_with_pixels
 
         # Fuzz
-        result = fuzzer.mutate_pixels(dataset_with_pixels)
+        result = fuzzer.mutate(dataset_with_pixels)
 
         # Verify still has pixel data
         assert "PixelData" in result
@@ -282,7 +282,7 @@ class TestIntegrationScenarios:
 
         # Fuzz all
         for ds in datasets:
-            fuzzer.mutate_pixels(ds)
+            fuzzer.mutate(ds)
 
         # All should still have PixelData
         for ds in datasets:
@@ -292,8 +292,8 @@ class TestIntegrationScenarios:
         """Test fuzzer with mix of datasets with/without pixels."""
         fuzzer = PixelFuzzer()
 
-        result1 = fuzzer.mutate_pixels(dataset_with_pixels)
-        result2 = fuzzer.mutate_pixels(dataset_no_pixels)
+        result1 = fuzzer.mutate(dataset_with_pixels)
+        result2 = fuzzer.mutate(dataset_no_pixels)
 
         assert result1 is not None
         assert result2 is not None

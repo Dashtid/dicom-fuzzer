@@ -81,16 +81,16 @@ class TestHeaderFuzzerInit:
 
 
 # =============================================================================
-# mutate_tags Tests
+# mutate Tests
 # =============================================================================
 class TestMutateTags:
-    """Tests for mutate_tags method."""
+    """Tests for mutate method."""
 
     def test_returns_dataset(
         self, fuzzer: HeaderFuzzer, sample_dataset: Dataset
     ) -> None:
-        """Test that mutate_tags returns a Dataset."""
-        result = fuzzer.mutate_tags(sample_dataset)
+        """Test that mutate returns a Dataset."""
+        result = fuzzer.mutate(sample_dataset)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -109,7 +109,7 @@ class TestMutateTags:
             ds.PatientName = "Test^Patient"
             ds.InstitutionName = "Hospital"
             ds.Rows = 512
-            result = fuzzer.mutate_tags(ds)
+            result = fuzzer.mutate(ds)
             if (
                 (
                     hasattr(result, "InstitutionName")
@@ -133,7 +133,7 @@ class TestMutateTags:
             ds_copy = Dataset()
             ds_copy.PatientName = "Test"
             ds_copy.InstitutionName = "Hospital"
-            result = fuzzer.mutate_tags(ds_copy)
+            result = fuzzer.mutate(ds_copy)
             results.append(str(result))
 
         # Results should vary with different seeds
@@ -416,7 +416,7 @@ class TestHeaderFuzzerIntegration:
     ) -> None:
         """Test a full mutation cycle produces valid output."""
         random.seed(42)
-        result = fuzzer.mutate_tags(sample_dataset)
+        result = fuzzer.mutate(sample_dataset)
 
         # Result should be a valid Dataset
         assert result is not None
@@ -432,13 +432,13 @@ class TestHeaderFuzzerIntegration:
         ds1 = Dataset()
         ds1.PatientName = "Test"
         ds1.InstitutionName = "Hospital"
-        result1 = fuzzer.mutate_tags(ds1)
+        result1 = fuzzer.mutate(ds1)
 
         random.seed(123)
         ds2 = Dataset()
         ds2.PatientName = "Test"
         ds2.InstitutionName = "Hospital"
-        result2 = fuzzer.mutate_tags(ds2)
+        result2 = fuzzer.mutate(ds2)
 
         # Results should be the same with same seed
         assert str(result1) == str(result2)
@@ -446,7 +446,7 @@ class TestHeaderFuzzerIntegration:
     def test_empty_dataset(self, fuzzer: HeaderFuzzer) -> None:
         """Test handling of empty dataset."""
         ds = Dataset()
-        result = fuzzer.mutate_tags(ds)
+        result = fuzzer.mutate(ds)
         # Should not raise
         assert result is not None
         assert isinstance(result, Dataset)
@@ -459,7 +459,7 @@ class TestHeaderFuzzerIntegration:
         original_sop_instance = sample_dataset.SOPInstanceUID
 
         random.seed(42)
-        result = fuzzer.mutate_tags(sample_dataset)
+        result = fuzzer.mutate(sample_dataset)
 
         # SOP tags should remain unchanged
         assert result.SOPClassUID == original_sop_class

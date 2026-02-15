@@ -57,23 +57,23 @@ class TestEncodingFuzzerInit:
 
 
 # =============================================================================
-# mutate_encoding Tests
+# mutate Tests
 # =============================================================================
 class TestMutateEncoding:
-    """Tests for mutate_encoding method."""
+    """Tests for mutate method."""
 
     def test_returns_dataset(
         self, fuzzer: EncodingFuzzer, sample_dataset: Dataset
     ) -> None:
-        """Test that mutate_encoding returns a Dataset."""
-        result = fuzzer.mutate_encoding(sample_dataset)
+        """Test that mutate returns a Dataset."""
+        result = fuzzer.mutate(sample_dataset)
         assert result is not None
         assert isinstance(result, Dataset)
 
     def test_handles_empty_dataset(self, fuzzer: EncodingFuzzer) -> None:
         """Test handling of empty dataset."""
         ds = Dataset()
-        result = fuzzer.mutate_encoding(ds)
+        result = fuzzer.mutate(ds)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -339,7 +339,7 @@ class TestEncodingFuzzerIntegration:
     ) -> None:
         """Test a full mutation cycle produces valid output."""
         random.seed(42)
-        result = fuzzer.mutate_encoding(sample_dataset)
+        result = fuzzer.mutate(sample_dataset)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -349,5 +349,5 @@ class TestEncodingFuzzerIntegration:
             random.seed(i)
             ds = Dataset()
             ds.PatientName = "Test"
-            result = fuzzer.mutate_encoding(ds)
+            result = fuzzer.mutate(ds)
             assert isinstance(result, Dataset)

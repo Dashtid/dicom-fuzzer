@@ -152,8 +152,8 @@ class TestEndToEndFuzzingWorkflow:
 
         mutated_dataset = original_dataset.copy()
         mutated_dataset = metadata_fuzzer.mutate_patient_info(mutated_dataset)
-        mutated_dataset = header_fuzzer.mutate_tags(mutated_dataset)
-        mutated_dataset = pixel_fuzzer.mutate_pixels(mutated_dataset)
+        mutated_dataset = header_fuzzer.mutate(mutated_dataset)
+        mutated_dataset = pixel_fuzzer.mutate(mutated_dataset)
 
         assert mutated_dataset is not None
 

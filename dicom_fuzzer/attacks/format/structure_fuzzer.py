@@ -71,8 +71,6 @@ class StructureFuzzer(FormatFuzzerBase):
 
         return dataset
 
-    mutate_structure = mutate
-
     def _corrupt_tag_ordering(self, dataset: Dataset) -> Dataset:
         """Rebuild dataset from shuffled element list.
 

@@ -64,23 +64,23 @@ class TestCompressedPixelFuzzerInit:
 
 
 # =============================================================================
-# mutate_compressed_pixels Tests
+# mutate Tests
 # =============================================================================
 class TestMutateCompressedPixels:
-    """Tests for mutate_compressed_pixels method."""
+    """Tests for mutate method."""
 
     def test_returns_dataset(
         self, fuzzer: CompressedPixelFuzzer, sample_dataset: Dataset
     ) -> None:
-        """Test that mutate_compressed_pixels returns a Dataset."""
-        result = fuzzer.mutate_compressed_pixels(sample_dataset)
+        """Test that mutate returns a Dataset."""
+        result = fuzzer.mutate(sample_dataset)
         assert result is not None
         assert isinstance(result, Dataset)
 
     def test_handles_empty_dataset(self, fuzzer: CompressedPixelFuzzer) -> None:
         """Test handling of empty dataset."""
         ds = Dataset()
-        result = fuzzer.mutate_compressed_pixels(ds)
+        result = fuzzer.mutate(ds)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -334,7 +334,7 @@ class TestCompressedPixelFuzzerIntegration:
     ) -> None:
         """Test a full mutation cycle produces valid output."""
         random.seed(42)
-        result = fuzzer.mutate_compressed_pixels(sample_dataset)
+        result = fuzzer.mutate(sample_dataset)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -348,5 +348,5 @@ class TestCompressedPixelFuzzerIntegration:
             ds.PatientName = "Test"
             ds.file_meta = FileMetaDataset()
             ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
-            result = fuzzer.mutate_compressed_pixels(ds)
+            result = fuzzer.mutate(ds)
             assert isinstance(result, Dataset)

@@ -100,8 +100,6 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
 
         return dataset
 
-    mutate_compressed_pixels = mutate
-
     def _corrupt_jpeg_markers(self, dataset: Dataset) -> Dataset:
         """Corrupt JPEG markers in compressed pixel data.
 

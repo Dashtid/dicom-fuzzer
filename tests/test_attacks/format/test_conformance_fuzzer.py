@@ -68,23 +68,23 @@ class TestConformanceFuzzerInit:
 
 
 # =============================================================================
-# mutate_conformance Tests
+# mutate Tests
 # =============================================================================
 class TestMutateConformance:
-    """Tests for mutate_conformance method."""
+    """Tests for mutate method."""
 
     def test_returns_dataset(
         self, fuzzer: ConformanceFuzzer, sample_dataset: Dataset
     ) -> None:
-        """Test that mutate_conformance returns a Dataset."""
-        result = fuzzer.mutate_conformance(sample_dataset)
+        """Test that mutate returns a Dataset."""
+        result = fuzzer.mutate(sample_dataset)
         assert result is not None
         assert isinstance(result, Dataset)
 
     def test_handles_empty_dataset(self, fuzzer: ConformanceFuzzer) -> None:
         """Test handling of empty dataset."""
         ds = Dataset()
-        result = fuzzer.mutate_conformance(ds)
+        result = fuzzer.mutate(ds)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -375,7 +375,7 @@ class TestConformanceFuzzerIntegration:
     ) -> None:
         """Test a full mutation cycle produces valid output."""
         random.seed(42)
-        result = fuzzer.mutate_conformance(sample_dataset)
+        result = fuzzer.mutate(sample_dataset)
         assert result is not None
         assert isinstance(result, Dataset)
 
@@ -385,5 +385,5 @@ class TestConformanceFuzzerIntegration:
             random.seed(i)
             ds = Dataset()
             ds.PatientName = "Test"
-            result = fuzzer.mutate_conformance(ds)
+            result = fuzzer.mutate(ds)
             assert isinstance(result, Dataset)

@@ -79,8 +79,6 @@ class SequenceFuzzer(FormatFuzzerBase):
 
         return dataset
 
-    mutate_sequences = mutate
-
     def _find_sequences(self, dataset: Dataset) -> list[tuple[Tag, Any]]:
         """Find all sequence elements in the dataset."""
         sequences = []

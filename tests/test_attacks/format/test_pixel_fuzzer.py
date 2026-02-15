@@ -17,13 +17,13 @@ class TestPixelFuzzerInit:
         """Test that PixelFuzzer can be instantiated."""
         fuzzer = PixelFuzzer()
         assert fuzzer is not None
-        assert hasattr(fuzzer, "mutate_pixels")
+        assert hasattr(fuzzer, "mutate")
 
 
 class TestMutatePixels:
-    """Test mutate_pixels method."""
+    """Test mutate method."""
 
-    def test_mutate_pixels_with_valid_data(self):
+    def test_mutate_with_valid_data(self):
         """Test pixel mutation with valid pixel data."""
         fuzzer = PixelFuzzer()
 
@@ -35,26 +35,26 @@ class TestMutatePixels:
         original_pixels = np.zeros((10, 10), dtype=np.uint8)
         dataset.pixel_array = original_pixels
 
-        result = fuzzer.mutate_pixels(dataset)
+        result = fuzzer.mutate(dataset)
 
         # Should have assigned new PixelData
         assert result is dataset
         assert dataset.PixelData is not None
 
-    def test_mutate_pixels_no_pixel_data(self):
+    def test_mutate_no_pixel_data(self):
         """Test mutation when dataset has no PixelData."""
         fuzzer = PixelFuzzer()
 
         dataset = MagicMock()
         dataset.__contains__ = MagicMock(return_value=False)
 
-        result = fuzzer.mutate_pixels(dataset)
+        result = fuzzer.mutate(dataset)
 
         # Should return dataset unchanged
         assert result is dataset
         assert result is not None
 
-    def test_mutate_pixels_value_error(self):
+    def test_mutate_value_error(self):
         """Test mutation handles ValueError from invalid dimensions."""
         fuzzer = PixelFuzzer()
 
@@ -64,13 +64,13 @@ class TestMutatePixels:
             side_effect=ValueError("Invalid dimensions")
         )
 
-        result = fuzzer.mutate_pixels(dataset)
+        result = fuzzer.mutate(dataset)
 
         # Should return dataset without crashing
         assert result is dataset
         assert result is not None
 
-    def test_mutate_pixels_attribute_error(self):
+    def test_mutate_attribute_error(self):
         """Test mutation handles AttributeError."""
         fuzzer = PixelFuzzer()
 
@@ -80,13 +80,13 @@ class TestMutatePixels:
             side_effect=AttributeError("No pixel_array")
         )
 
-        result = fuzzer.mutate_pixels(dataset)
+        result = fuzzer.mutate(dataset)
 
         # Should return dataset without crashing
         assert result is dataset
         assert result is not None
 
-    def test_mutate_pixels_type_error(self):
+    def test_mutate_type_error(self):
         """Test mutation handles TypeError."""
         fuzzer = PixelFuzzer()
 
@@ -94,7 +94,7 @@ class TestMutatePixels:
         dataset.__contains__ = MagicMock(return_value=True)
         type(dataset).pixel_array = PropertyMock(side_effect=TypeError("Type mismatch"))
 
-        result = fuzzer.mutate_pixels(dataset)
+        result = fuzzer.mutate(dataset)
 
         # Should return dataset without crashing
         assert result is dataset
@@ -128,7 +128,7 @@ class TestMutatePixels:
         dataset = MagicMock()
         dataset.__contains__ = MagicMock(return_value=False)
 
-        result = fuzzer.mutate_pixels(dataset)
+        result = fuzzer.mutate(dataset)
 
         assert result is dataset
         assert result is not None

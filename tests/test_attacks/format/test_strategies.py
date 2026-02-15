@@ -110,7 +110,7 @@ class TestHeaderFuzzer:
             f"Should be HeaderFuzzer, got {type(fuzzer)}"
         )
 
-    def test_mutate_tags(self, sample_dicom_dataset):
+    def test_mutate(self, sample_dicom_dataset):
         """Test tag mutation."""
         fuzzer = HeaderFuzzer()
 
@@ -118,9 +118,9 @@ class TestHeaderFuzzer:
         sample_dicom_dataset.InstitutionName = "Test Hospital"
         original_tag_count = len(list(sample_dicom_dataset.keys()))
 
-        mutated = fuzzer.mutate_tags(sample_dicom_dataset)
+        mutated = fuzzer.mutate(sample_dicom_dataset)
 
-        assert mutated is not None, "mutate_tags should return a dataset"
+        assert mutated is not None, "mutate should return a dataset"
         # Dataset should still have tags
         assert len(list(mutated.keys())) > 0, "Mutated dataset should have tags"
 
@@ -161,13 +161,13 @@ class TestHeaderFuzzer:
         assert mutated is not None
 
     def test_multiple_mutations_applied(self, sample_dicom_dataset):
-        """Test that mutate_tags applies 1-3 mutations."""
+        """Test that mutate applies 1-3 mutations."""
         fuzzer = HeaderFuzzer()
         sample_dicom_dataset.InstitutionName = "Test"
 
         # Run multiple times to test randomness
         for _ in range(5):
-            mutated = fuzzer.mutate_tags(sample_dicom_dataset.copy())
+            mutated = fuzzer.mutate(sample_dicom_dataset.copy())
             assert mutated is not None
 
 
@@ -182,16 +182,16 @@ class TestPixelFuzzer:
             f"Should be PixelFuzzer, got {type(fuzzer)}"
         )
 
-    def test_mutate_pixels_with_pixel_data(self, dicom_with_pixels):
+    def test_mutate_with_pixel_data(self, dicom_with_pixels):
         """Test pixel mutation with actual pixel data."""
         from dicom_fuzzer.core.dicom.parser import DicomParser
 
         parser = DicomParser(dicom_with_pixels)
         fuzzer = PixelFuzzer()
 
-        mutated = fuzzer.mutate_pixels(parser.dataset)
+        mutated = fuzzer.mutate(parser.dataset)
 
-        assert mutated is not None, "mutate_pixels should return a dataset"
+        assert mutated is not None, "mutate should return a dataset"
         assert hasattr(mutated, "PixelData"), "Mutated dataset should have PixelData"
         assert len(mutated.PixelData) > 0, "PixelData should not be empty"
 
@@ -206,7 +206,7 @@ class TestPixelFuzzer:
         original_shape = original_pixels.shape
         total_pixels = original_pixels.size
 
-        mutated = fuzzer.mutate_pixels(parser.dataset)
+        mutated = fuzzer.mutate(parser.dataset)
 
         # Verify mutation returned valid dataset
         assert mutated is not None, "Mutate should return a dataset"
@@ -244,7 +244,7 @@ class TestPixelFuzzer:
         fuzzer = PixelFuzzer()
 
         # Dataset without pixel_array attribute
-        mutated = fuzzer.mutate_pixels(sample_dicom_dataset)
+        mutated = fuzzer.mutate(sample_dicom_dataset)
 
         # Should return dataset unchanged
         assert mutated is not None
@@ -258,7 +258,7 @@ class TestPixelFuzzer:
         fuzzer = PixelFuzzer()
 
         original_shape = parser.dataset.pixel_array.shape
-        mutated = fuzzer.mutate_pixels(parser.dataset)
+        mutated = fuzzer.mutate(parser.dataset)
 
         # Mutation may create invalid pixel metadata, which is intentional
         # for fuzzing but prevents pixel_array decoding.
@@ -277,7 +277,7 @@ class TestPixelFuzzer:
         parser = DicomParser(dicom_with_pixels)
         fuzzer = PixelFuzzer()
 
-        mutated = fuzzer.mutate_pixels(parser.dataset)
+        mutated = fuzzer.mutate(parser.dataset)
 
         # After mutation, pixel data is stored as bytes
         assert mutated.PixelData is not None
@@ -301,14 +301,14 @@ class TestStructureFuzzer:
             "Should have at least one corruption strategy"
         )
 
-    def test_mutate_structure(self, sample_dicom_dataset):
+    def test_mutate(self, sample_dicom_dataset):
         """Test structure mutation."""
         fuzzer = StructureFuzzer()
         original_tag_count = len(list(sample_dicom_dataset.keys()))
 
-        mutated = fuzzer.mutate_structure(sample_dicom_dataset)
+        mutated = fuzzer.mutate(sample_dicom_dataset)
 
-        assert mutated is not None, "mutate_structure should return a dataset"
+        assert mutated is not None, "mutate should return a dataset"
         # Dataset should still be valid
         assert len(list(mutated.keys())) > 0, "Mutated dataset should have tags"
 
@@ -363,7 +363,7 @@ class TestStructureFuzzer:
         # Apply mutations multiple times
         dataset = sample_dicom_dataset
         for _ in range(3):
-            dataset = fuzzer.mutate_structure(dataset)
+            dataset = fuzzer.mutate(dataset)
 
         assert dataset is not None
 
@@ -467,8 +467,8 @@ class TestIntegration:
         pixel_fuzzer = PixelFuzzer()
 
         dataset = metadata_fuzzer.mutate_patient_info(dataset)
-        dataset = header_fuzzer.mutate_tags(dataset)
-        dataset = pixel_fuzzer.mutate_pixels(dataset)
+        dataset = header_fuzzer.mutate(dataset)
+        dataset = pixel_fuzzer.mutate(dataset)
 
         # All mutations should have been applied
         assert dataset is not None
@@ -484,10 +484,10 @@ class TestIntegration:
         # Try different orders
         ds1 = sample_dicom_dataset.copy()
         ds1 = metadata_fuzzer.mutate_patient_info(ds1)
-        ds1 = header_fuzzer.mutate_tags(ds1)
+        ds1 = header_fuzzer.mutate(ds1)
 
         ds2 = sample_dicom_dataset.copy()
-        ds2 = header_fuzzer.mutate_tags(ds2)
+        ds2 = header_fuzzer.mutate(ds2)
         ds2 = metadata_fuzzer.mutate_patient_info(ds2)
 
         # Both should complete without error
@@ -501,7 +501,7 @@ class TestIntegration:
 
         dataset = sample_dicom_dataset.copy()
         dataset = metadata_fuzzer.mutate_patient_info(dataset)
-        dataset = structure_fuzzer.mutate_structure(dataset)
+        dataset = structure_fuzzer.mutate(dataset)
 
         assert dataset is not None
 
@@ -519,9 +519,9 @@ class TestIntegration:
         structure_fuzzer = StructureFuzzer()
 
         dataset = metadata_fuzzer.mutate_patient_info(dataset)
-        dataset = header_fuzzer.mutate_tags(dataset)
-        dataset = pixel_fuzzer.mutate_pixels(dataset)
-        dataset = structure_fuzzer.mutate_structure(dataset)
+        dataset = header_fuzzer.mutate(dataset)
+        dataset = pixel_fuzzer.mutate(dataset)
+        dataset = structure_fuzzer.mutate(dataset)
 
         # All mutations should complete
         assert dataset is not None

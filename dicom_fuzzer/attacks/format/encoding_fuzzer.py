@@ -108,8 +108,6 @@ class EncodingFuzzer(FormatFuzzerBase):
 
         return dataset
 
-    mutate_encoding = mutate
-
     def _invalid_charset_value(self, dataset: Dataset) -> Dataset:
         """Set invalid SpecificCharacterSet values.
 

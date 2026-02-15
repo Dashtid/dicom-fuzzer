@@ -30,21 +30,21 @@ class TestStructureFuzzerInit:
 
 
 class TestMutateStructure:
-    """Test mutate_structure method."""
+    """Test mutate method."""
 
-    def test_mutate_structure_returns_dataset(self):
-        """Test that mutate_structure returns a dataset."""
+    def test_mutate_returns_dataset(self):
+        """Test that mutate returns a dataset."""
         fuzzer = StructureFuzzer()
         dataset = Dataset()
         dataset.PatientID = "12345"
         dataset.PatientName = "Test^Patient"
 
-        result = fuzzer.mutate_structure(dataset)
+        result = fuzzer.mutate(dataset)
         assert isinstance(result, Dataset)
         assert result is not None
 
-    def test_mutate_structure_applies_strategies(self):
-        """Test that mutate_structure applies corruption strategies."""
+    def test_mutate_applies_strategies(self):
+        """Test that mutate applies corruption strategies."""
         fuzzer = StructureFuzzer()
 
         # Track which strategies were called
@@ -64,7 +64,7 @@ class TestMutateStructure:
             with patch.object(
                 random, "sample", return_value=[mock_strategy, mock_strategy]
             ):
-                fuzzer.mutate_structure(dataset)
+                fuzzer.mutate(dataset)
 
         assert call_count[0] == 2
 
@@ -524,10 +524,10 @@ class TestCorruptLengthFieldsExtended:
 
 
 class TestMutateStructureIntegration:
-    """Integration tests for mutate_structure."""
+    """Integration tests for mutate."""
 
-    def test_mutate_structure_comprehensive(self):
-        """Test mutate_structure with comprehensive dataset."""
+    def test_mutate_comprehensive(self):
+        """Test mutate with comprehensive dataset."""
         fuzzer = StructureFuzzer()
         dataset = Dataset()
         dataset.PatientName = "Test^Patient"
@@ -539,17 +539,17 @@ class TestMutateStructureIntegration:
 
         # Run multiple times
         for _ in range(10):
-            result = fuzzer.mutate_structure(dataset)
+            result = fuzzer.mutate(dataset)
             assert isinstance(result, Dataset)
 
-    def test_mutate_structure_single_strategy(self):
-        """Test mutate_structure with single strategy selection."""
+    def test_mutate_single_strategy(self):
+        """Test mutate with single strategy selection."""
         fuzzer = StructureFuzzer()
         dataset = Dataset()
         dataset.PatientName = "Test"
 
         with patch.object(random, "randint", return_value=1):
-            result = fuzzer.mutate_structure(dataset)
+            result = fuzzer.mutate(dataset)
 
         assert isinstance(result, Dataset)
         assert result is not None

@@ -109,8 +109,6 @@ class PrivateTagFuzzer(FormatFuzzerBase):
 
         return dataset
 
-    mutate_private_tags = mutate
-
     def _missing_creator(self, dataset: Dataset) -> Dataset:
         """Add private data tags without Private Creator.
 
