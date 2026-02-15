@@ -34,6 +34,7 @@ class StructureFuzzer(FormatFuzzerBase):
 
     def __init__(self) -> None:
         """Initialize the structure fuzzer with attack patterns."""
+        super().__init__()
         self.corruption_strategies = [
             self._corrupt_tag_ordering,
             self._corrupt_length_fields,
@@ -73,16 +74,18 @@ class StructureFuzzer(FormatFuzzerBase):
     mutate_structure = mutate
 
     def _corrupt_tag_ordering(self, dataset: Dataset) -> Dataset:
-        """Corrupt the ordering of DICOM tags.
+        """Rebuild dataset from shuffled element list.
 
-        DICOM tags must be in ascending numerical order per the spec.
-        Breaking this order tests parser assumptions about tag ordering.
+        Note: pydicom re-sorts elements by tag number on insertion, so
+        the output tag order is unchanged. The mutation still rebuilds
+        the Dataset object, which may lose non-tag metadata. For true
+        tag-order corruption, operate on raw bytes (see backlog).
 
         Args:
             dataset: Dataset to corrupt
 
         Returns:
-            Dataset with potentially scrambled tag order
+            Rebuilt dataset (tag order preserved by pydicom)
 
         """
         # Get all data elements as a list
@@ -105,17 +108,19 @@ class StructureFuzzer(FormatFuzzerBase):
         return dataset
 
     def _corrupt_length_fields(self, dataset: Dataset) -> Dataset:
-        """Corrupt length fields in DICOM data elements.
+        """Mutate string element values with overflow/underflow/null patterns.
 
-        Each DICOM element has a length field indicating data size.
-        Incorrect lengths can cause buffer overflows, integer overflow,
-        or parser loops.
+        Note: pydicom recalculates length fields from actual values on
+        write, so the output file has correct lengths for the new values.
+        The mutations still stress parsers via extreme-length strings,
+        empty required fields, and embedded null bytes. For true
+        length-field corruption, operate on raw bytes (see backlog).
 
         Args:
             dataset: Dataset to corrupt
 
         Returns:
-            Dataset with corrupted length indicators
+            Dataset with mutated string values
 
         """
         # Target string-type elements for length corruption
@@ -188,16 +193,18 @@ class StructureFuzzer(FormatFuzzerBase):
         return dataset
 
     def _duplicate_tags(self, dataset: Dataset) -> Dataset:
-        """Create duplicate DICOM tags.
+        """Overwrite a random tag's value with a modified copy.
 
-        DICOM specifies each tag should appear once. Parsers may use
-        first occurrence, last occurrence, or crash on duplicates.
+        Note: pydicom cannot hold two elements with the same tag, so
+        add_new overwrites the existing value. The mutation appends
+        "_DUPLICATE" to the original value, producing a malformed string.
+        For true duplicate-tag testing, operate on raw bytes (see backlog).
 
         Args:
             dataset: Dataset to modify
 
         Returns:
-            Dataset with duplicated tags
+            Dataset with one tag value modified
 
         """
         # Get existing tags
@@ -250,7 +257,7 @@ class StructureFuzzer(FormatFuzzerBase):
         if not elements:
             return dataset
 
-        tag, element = random.choice(elements)
+        _, element = random.choice(elements)
 
         try:
             if attack == "extreme_length_value":
@@ -271,7 +278,6 @@ class StructureFuzzer(FormatFuzzerBase):
                 required_vrs = ["UI", "DA", "TM", "PN"]
                 if hasattr(element, "VR") and element.VR in required_vrs:
                     element._value = ""
-
             elif attack == "negative_interpreted_as_large":
                 # For numeric elements, set values that when interpreted
                 # as lengths in other contexts cause issues
@@ -367,7 +373,7 @@ class StructureFuzzer(FormatFuzzerBase):
                 # Give fewer values than VM requires
                 targets = [(t, vm) for t, vm, a in vm_targets if a == "too_few"]
                 if targets:
-                    tag, expected_vm = random.choice(targets)
+                    tag, _ = random.choice(targets)
                     if tag in dataset:
                         # Set only one value when more expected
                         elem = dataset[tag]
@@ -375,12 +381,11 @@ class StructureFuzzer(FormatFuzzerBase):
                             elem._value = "1.0"  # Only 1 value
                         elif hasattr(elem, "VR") and elem.VR == "FL":
                             elem._value = struct.pack("<f", 1.0)
-
             elif attack == "too_many_values":
                 # Give more values than VM allows
                 targets = [(t, vm) for t, vm, a in vm_targets if a == "too_many"]
                 if targets:
-                    tag, expected_vm = random.choice(targets)
+                    tag, _ = random.choice(targets)
                     if tag in dataset:
                         elem = dataset[tag]
                         if hasattr(elem, "VR"):
@@ -389,7 +394,6 @@ class StructureFuzzer(FormatFuzzerBase):
                                 elem._value = "\\".join(["1.0"] * 10)
                             elif elem.VR == "UI":
                                 elem._value = "\\".join(["1.2.3.4"] * 5)
-
             elif attack == "empty_multivalue":
                 # Empty string where multiple values expected
                 for tag, vm, _ in vm_targets:
@@ -470,5 +474,5 @@ class StructureFuzzer(FormatFuzzerBase):
             return output_path
 
         except Exception as e:
-            print(f"Header corruption failed: {e}")
+            logger.error(f"Header corruption failed: {e}")
             return None
