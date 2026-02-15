@@ -271,7 +271,7 @@ class StructureFuzzer(FormatFuzzerBase):
                     size = random.choice(sizes)
                     # Can't actually create 2GB strings, but we set metadata
                     if size <= 100000:  # Only actually create up to 100KB
-                        element.value = "X" * size
+                        element.value = "X" * size  # pyright: ignore[reportAttributeAccessIssue]
 
             elif attack == "zero_length_required":
                 # Set zero-length value for elements that shouldn't be empty
@@ -330,7 +330,7 @@ class StructureFuzzer(FormatFuzzerBase):
                     size = random.choice(boundary_sizes)
                     if size <= 100000:  # Only create reasonable sized data
                         if isinstance(element.value, str):
-                            element.value = "X" * size
+                            element.value = "X" * size  # pyright: ignore[reportAttributeAccessIssue]
                         else:
                             element._value = b"\x00" * size  # pyright: ignore[reportAttributeAccessIssue]
 
