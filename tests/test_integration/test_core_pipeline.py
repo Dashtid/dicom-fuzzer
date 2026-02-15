@@ -234,10 +234,15 @@ class TestModuleInteractionAndDataFlow:
         assert result is not None
 
     def test_mutator_preserves_required_tags(self, sample_dicom_file):
-        """Test that mutator preserves required DICOM tags."""
+        """Test that safe strategies preserve required DICOM tags."""
         mutator = DicomMutator()
         dataset = pydicom.dcmread(str(sample_dicom_file))
-        mutated_ds = mutator.apply_mutations(dataset)
+        # Use strategies that modify values but don't delete required tags.
+        # Aggressive strategies (structure, header, conformance) intentionally
+        # remove/corrupt fundamental tags and would fail this test by design.
+        mutated_ds = mutator.apply_mutations(
+            dataset, strategy_names=["metadata", "pixel", "calibration"]
+        )
 
         assert hasattr(mutated_ds, "StudyInstanceUID")
         assert hasattr(mutated_ds, "SeriesInstanceUID")
