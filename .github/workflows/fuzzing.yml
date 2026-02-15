@@ -150,7 +150,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: Download corpus (if available)
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb  # v4
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306  # v4
         with:
           path: ./corpus
           key: fuzz-corpus-${{ github.base_ref }}-${{ hashFiles('dicom_fuzzer/**') }}
@@ -248,7 +248,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: Download corpus cache
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb  # v4
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306  # v4
         with:
           path: ./corpus
           key: fuzz-corpus-nightly-${{ github.run_number }}
@@ -358,7 +358,7 @@ jobs:
           retention-days: 30
 
       - name: Update corpus cache
-        uses: actions/cache/save@9255dc7a253b0ccc959486e2bca901246202afeb  # v4
+        uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306  # v4
         if: always()
         with:
           path: ./corpus
