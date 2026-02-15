@@ -166,18 +166,28 @@ class DICOMGenerator:
     def _generate_single_file(
         self, base_dataset: Dataset, strategy_names: list[str] | None = None
     ) -> Path | None:
-        """Generate a single fuzzed file. Returns None if generation fails."""
+        """Generate a single fuzzed file. Returns None if generation fails.
+
+        Temporarily increases the recursion limit because deeply nested
+        sequence mutations (e.g. depth-500) can exceed the default limit
+        during both mutation (deepcopy) and pydicom serialization.
+        """
         self.stats.total_attempted += 1
 
-        # Create mutated dataset
-        mutated_dataset, strategies_applied = self._apply_mutations(
-            base_dataset, strategy_names
-        )
-        if mutated_dataset is None:
-            return None
+        old_limit = sys.getrecursionlimit()
+        sys.setrecursionlimit(max(old_limit, 10000))
+        try:
+            # Create mutated dataset
+            mutated_dataset, strategies_applied = self._apply_mutations(
+                base_dataset, strategy_names
+            )
+            if mutated_dataset is None:
+                return None
 
-        # Save to file
-        return self._save_mutated_file(mutated_dataset, strategies_applied)
+            # Save to file
+            return self._save_mutated_file(mutated_dataset, strategies_applied)
+        finally:
+            sys.setrecursionlimit(old_limit)
 
     def _apply_mutations(
         self,
@@ -198,7 +208,13 @@ class DICOMGenerator:
                 num_mutations=1,
                 strategy_names=strategy_names,
             )
-        except (ValueError, TypeError, AttributeError, IndexError) as e:
+        except (
+            ValueError,
+            TypeError,
+            AttributeError,
+            IndexError,
+            RecursionError,
+        ) as e:
             return self._handle_mutation_error(e)
 
         # Get applied strategy names from session for stats
@@ -222,17 +238,10 @@ class DICOMGenerator:
     def _save_mutated_file(
         self, mutated_dataset: Dataset, strategies_applied: list[str]
     ) -> Path | None:
-        """Save mutated dataset to file. Returns path or None on error.
-
-        Temporarily increases the recursion limit because deeply nested
-        sequence mutations (e.g. depth-500) exceed the default limit
-        during pydicom serialization.
-        """
+        """Save mutated dataset to file. Returns path or None on error."""
         filename = f"fuzzed_{generate_short_id()}.dcm"
         output_path = self.output_dir / filename
 
-        old_limit = sys.getrecursionlimit()
-        sys.setrecursionlimit(max(old_limit, 10000))
         try:
             mutated_dataset.save_as(output_path, enforce_file_format=False)
             self.stats.record_success(strategies_applied)
@@ -257,5 +266,3 @@ class DICOMGenerator:
         except Exception as e:
             self.stats.record_failure(type(e).__name__)
             raise
-        finally:
-            sys.setrecursionlimit(old_limit)

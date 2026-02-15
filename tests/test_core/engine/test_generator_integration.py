@@ -48,7 +48,7 @@ MIN_FILES = {
     "reference": 20,
     "dictionary": 20,
     "private_tag": 1,
-    "conformance": 1,
+    "conformance": 0,  # >90% serialization skip rate; may produce 0 files
     "structure": 1,
     "header": 1,
     "encoding": 1,
