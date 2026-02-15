@@ -277,16 +277,16 @@ class StructureFuzzer(FormatFuzzerBase):
                 # Set zero-length value for elements that shouldn't be empty
                 required_vrs = ["UI", "DA", "TM", "PN"]
                 if hasattr(element, "VR") and element.VR in required_vrs:
-                    element._value = ""
+                    element._value = ""  # pyright: ignore[reportAttributeAccessIssue]
             elif attack == "negative_interpreted_as_large":
                 # For numeric elements, set values that when interpreted
                 # as lengths in other contexts cause issues
                 if hasattr(element, "VR") and element.VR in ["UL", "US"]:
                     # -1 as unsigned = MAX value
                     if element.VR == "UL":
-                        element.value = 4294967295  # 0xFFFFFFFF
+                        element.value = 4294967295  # pyright: ignore[reportAttributeAccessIssue]  # 0xFFFFFFFF
                     else:
-                        element.value = 65535  # 0xFFFF
+                        element.value = 65535  # pyright: ignore[reportAttributeAccessIssue]  # 0xFFFF
 
             elif attack == "odd_length_word_aligned":
                 # Set odd-length data for VRs that require even length
@@ -309,13 +309,11 @@ class StructureFuzzer(FormatFuzzerBase):
                     if hasattr(elem, "VR") and elem.VR in word_aligned_vrs:
                         # Set odd-length bytes that violate alignment
                         if elem.VR in ["OW", "US", "SS"]:
-                            elem._value = b"\x00\x00\x00"  # 3 bytes, should be 2
+                            elem._value = b"\x00\x00\x00"  # pyright: ignore[reportAttributeAccessIssue]  # 3 bytes, should be 2
                         elif elem.VR in ["OF", "FL", "UL", "SL", "OL"]:
-                            elem._value = (
-                                b"\x00\x00\x00\x00\x00"  # 5 bytes, should be 4
-                            )
+                            elem._value = b"\x00\x00\x00\x00\x00"  # pyright: ignore[reportAttributeAccessIssue]  # 5 bytes, should be 4
                         elif elem.VR in ["OD", "FD"]:
-                            elem._value = b"\x00" * 7  # 7 bytes, should be 8
+                            elem._value = b"\x00" * 7  # pyright: ignore[reportAttributeAccessIssue]  # 7 bytes, should be 8
                         break
 
             elif attack == "boundary_length_values":
@@ -334,7 +332,7 @@ class StructureFuzzer(FormatFuzzerBase):
                         if isinstance(element.value, str):
                             element.value = "X" * size
                         else:
-                            element._value = b"\x00" * size
+                            element._value = b"\x00" * size  # pyright: ignore[reportAttributeAccessIssue]
 
         except Exception:
             pass  # Length field attacks may fail on some element types
@@ -378,9 +376,9 @@ class StructureFuzzer(FormatFuzzerBase):
                         # Set only one value when more expected
                         elem = dataset[tag]
                         if hasattr(elem, "VR") and elem.VR == "DS":
-                            elem._value = "1.0"  # Only 1 value
+                            elem._value = "1.0"  # pyright: ignore[reportAttributeAccessIssue]  # Only 1 value
                         elif hasattr(elem, "VR") and elem.VR == "FL":
-                            elem._value = struct.pack("<f", 1.0)
+                            elem._value = struct.pack("<f", 1.0)  # pyright: ignore[reportAttributeAccessIssue]
             elif attack == "too_many_values":
                 # Give more values than VM allows
                 targets = [(t, vm) for t, vm, a in vm_targets if a == "too_many"]
@@ -391,14 +389,14 @@ class StructureFuzzer(FormatFuzzerBase):
                         if hasattr(elem, "VR"):
                             if elem.VR == "DS":
                                 # Multiple values separated by backslash
-                                elem._value = "\\".join(["1.0"] * 10)
+                                elem._value = "\\".join(["1.0"] * 10)  # pyright: ignore[reportAttributeAccessIssue]
                             elif elem.VR == "UI":
-                                elem._value = "\\".join(["1.2.3.4"] * 5)
+                                elem._value = "\\".join(["1.2.3.4"] * 5)  # pyright: ignore[reportAttributeAccessIssue]
             elif attack == "empty_multivalue":
                 # Empty string where multiple values expected
                 for tag, vm, _ in vm_targets:
                     if tag in dataset and vm > 1:
-                        dataset[tag]._value = ""
+                        dataset[tag]._value = ""  # pyright: ignore[reportAttributeAccessIssue]
                         break
 
         except Exception:

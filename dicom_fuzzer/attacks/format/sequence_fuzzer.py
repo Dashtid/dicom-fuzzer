@@ -31,26 +31,6 @@ from .base import FormatFuzzerBase
 
 logger = get_logger(__name__)
 
-# Tags that commonly contain sequences
-SEQUENCE_TAGS = [
-    Tag(0x0008, 0x1115),  # ReferencedSeriesSequence
-    Tag(0x0008, 0x1140),  # ReferencedImageSequence
-    Tag(0x0008, 0x1199),  # ReferencedSOPSequence
-    Tag(0x0008, 0x9121),  # ReferencedRawDataSequence
-    Tag(0x0010, 0x0101),  # PatientsPrimaryLanguageCodeSequence
-    Tag(0x0018, 0x0012),  # ContrastBolusAgentSequence
-    Tag(0x0020, 0x4000),  # ImageComments (often has sequences in RT)
-    Tag(0x0032, 0x1064),  # RequestedProcedureCodeSequence
-    Tag(0x0040, 0x0260),  # PerformedProtocolCodeSequence
-    Tag(0x0040, 0x0275),  # RequestAttributesSequence
-    Tag(0x0040, 0xA730),  # ContentSequence
-    Tag(0x0054, 0x0016),  # RadiopharmaceuticalInformationSequence
-    Tag(0x0070, 0x0001),  # GraphicAnnotationSequence
-    Tag(0x3006, 0x0080),  # ReferencedFrameOfReferenceSequence
-    Tag(0x5200, 0x9229),  # SharedFunctionalGroupsSequence
-    Tag(0x5200, 0x9230),  # PerFrameFunctionalGroupsSequence
-]
-
 
 class SequenceFuzzer(FormatFuzzerBase):
     """Fuzzes DICOM Sequence (SQ) and Item structures.
@@ -61,6 +41,7 @@ class SequenceFuzzer(FormatFuzzerBase):
 
     def __init__(self) -> None:
         """Initialize the sequence fuzzer with attack patterns."""
+        super().__init__()
         self.mutation_strategies = [
             self._deep_nesting_attack,
             self._item_length_mismatch,
@@ -113,6 +94,11 @@ class SequenceFuzzer(FormatFuzzerBase):
 
         Many parsers use recursive descent for sequences. Deep nesting
         can exceed stack limits or cause excessive memory allocation.
+
+        Note: depth=1000 intentionally approaches Python's default recursion
+        limit (~1000). This may raise RecursionError ~25% of the time, which
+        the outer try/except catches silently. Do not "fix" by raising
+        sys.setrecursionlimit -- the silent failure is acceptable here.
         """
         # Create a deeply nested sequence structure
         depth = random.choice([50, 100, 500, 1000])
@@ -138,12 +124,12 @@ class SequenceFuzzer(FormatFuzzerBase):
         return dataset
 
     def _item_length_mismatch(self, dataset: Dataset) -> Dataset:
-        """Create items with length fields that don't match content.
+        """Add items with extreme-length string data to sequence elements.
 
-        Length mismatches can cause:
-        - Buffer overread (length > actual data)
-        - Truncation (length < actual data)
-        - Integer overflow (very large lengths)
+        Note: pydicom recalculates length fields on write, so true
+        length/content mismatches require binary-level manipulation.
+        The extreme-length values (64KB, 100KB strings) still stress
+        parsers that assume bounded item sizes.
         """
         sequences = self._find_sequences(dataset)
 
@@ -231,10 +217,11 @@ class SequenceFuzzer(FormatFuzzerBase):
         return dataset
 
     def _orphan_item_attack(self, dataset: Dataset) -> Dataset:
-        """Create Item elements outside of sequences.
+        """Embed Item-tag-like bytes in private element data.
 
-        Item and ItemDelimiter tags should only appear within
-        sequences. Orphaned items test parser error handling.
+        Inserts raw Item tag bytes (FFFE,E000) into a private element's
+        value. Parsers that scan for Item delimiters without respecting
+        element boundaries may misinterpret these as real Items.
         """
         try:
             # Add item-related data as regular elements (invalid)
