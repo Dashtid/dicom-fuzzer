@@ -346,11 +346,13 @@ class ReferenceFuzzer(FormatFuzzerBase):
                 shared_series_uid = generate_uid()
                 dataset.SeriesInstanceUID = shared_series_uid
 
+                ref_items = []
                 for _i in range(3):
                     ref_item = Dataset()
                     ref_item.StudyInstanceUID = generate_uid()
                     ref_item.SeriesInstanceUID = shared_series_uid
-                    dataset.add_new(Tag(0x0008, 0x1115), "SQ", Sequence([ref_item]))
+                    ref_items.append(ref_item)
+                dataset.add_new(Tag(0x0008, 0x1115), "SQ", Sequence(ref_items))
 
         except Exception as e:
             logger.debug(f"Mismatched study reference attack failed: {e}")
