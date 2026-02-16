@@ -20,7 +20,7 @@ from typing import Any
 
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
-from pydicom.tag import Tag
+from pydicom.tag import BaseTag, Tag
 
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -76,7 +76,7 @@ class SequenceFuzzer(FormatFuzzerBase):
 
         return dataset
 
-    def _find_sequences(self, dataset: Dataset) -> list[tuple[Tag, Any]]:
+    def _find_sequences(self, dataset: Dataset) -> list[tuple[BaseTag, Any]]:
         """Find all sequence elements in the dataset."""
         sequences = []
         for tag, elem in dataset.items():
