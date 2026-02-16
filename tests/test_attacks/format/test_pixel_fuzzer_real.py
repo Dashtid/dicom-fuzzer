@@ -156,58 +156,6 @@ class TestMutatePixels:
         assert isinstance(result, Dataset)
 
 
-class TestPixelMutationBehavior:
-    """Test specific pixel mutation behaviors."""
-
-    def test_mutation_introduces_noise(self, dataset_with_pixels):
-        """Test that mutation introduces some changes."""
-        fuzzer = PixelFuzzer()
-
-        # Get original pixels
-        original_pixels = dataset_with_pixels.pixel_array.copy()
-
-        # Track if any mutation occurred across multiple tries
-        for _ in range(10):
-            ds_copy = dataset_with_pixels
-            fuzzer.mutate(ds_copy)
-
-            try:
-                new_pixels = ds_copy.pixel_array
-                if not np.array_equal(original_pixels, new_pixels):
-                    break
-            except Exception:
-                # If pixel access fails, that's okay
-                pass
-
-        # With 10 tries and 1% corruption rate, should see some mutations
-        # (Not guaranteed due to randomness, so we just verify no crash)
-        assert True  # Test passes if no exceptions
-
-    def test_mutation_affects_small_percentage(self, dataset_with_pixels):
-        """Test that mutation affects small percentage of pixels."""
-        fuzzer = PixelFuzzer()
-
-        # Get original pixels
-        original_pixels = dataset_with_pixels.pixel_array.copy()
-
-        fuzzer.mutate(dataset_with_pixels)
-
-        try:
-            new_pixels = dataset_with_pixels.pixel_array
-
-            # Count differences
-            differences = np.sum(original_pixels != new_pixels)
-            total_pixels = original_pixels.size
-
-            # Should affect small percentage (around 1% based on code)
-            # Allow up to 20% for randomness
-            percent_changed = (differences / total_pixels) * 100
-            assert percent_changed <= 20
-        except Exception:
-            # If pixel access fails, that's okay
-            pass
-
-
 class TestEdgeCases:
     """Test edge cases and error handling."""
 

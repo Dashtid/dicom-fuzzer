@@ -5,7 +5,6 @@ Category: generic
 Attacks:
 - SamplesPerPixel mismatch and invalid values
 - PlanarConfiguration manipulation
-- Random noise injection into pixel data
 - Row/column dimension mismatch with pixel data size
 - Bit depth inconsistencies (BitsAllocated, BitsStored, HighBit)
 - Photometric interpretation confusion (MONOCHROME1/2, RGB, YBR)
@@ -15,7 +14,6 @@ from __future__ import annotations
 
 import random
 
-import numpy as np
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.utils.logger import get_logger
@@ -26,13 +24,12 @@ logger = get_logger(__name__)
 
 
 class PixelFuzzer(FormatFuzzerBase):
-    """Fuzzes DICOM pixel data to test image handling robustness.
+    """Fuzzes DICOM pixel data metadata to test image handling robustness.
 
     Tests application handling of:
-    - Corrupted pixel values
-    - Encapsulated (compressed) pixel data malformations
-    - Multi-frame inconsistencies
     - Dimension/bit depth mismatches
+    - Photometric interpretation confusion
+    - SamplesPerPixel and PlanarConfiguration manipulation
     """
 
     def __init__(self) -> None:
@@ -55,7 +52,6 @@ class PixelFuzzer(FormatFuzzerBase):
 
         """
         mutations = [
-            self._noise_injection,
             self._dimension_mismatch,
             self._bit_depth_attack,
             self._photometric_confusion,
@@ -142,25 +138,6 @@ class PixelFuzzer(FormatFuzzerBase):
 
         except Exception as e:
             logger.debug("Planar configuration attack failed: %s", e)
-
-        return dataset
-
-    def _noise_injection(self, dataset: Dataset) -> Dataset:
-        """Introduce random noise into pixel data.
-
-        Original mutation - injects random values into pixel array.
-        """
-        if "PixelData" not in dataset:
-            return dataset
-
-        try:
-            pixels = dataset.pixel_array.copy()
-            noise_mask = np.random.random(pixels.shape) < 0.01
-            noise_count = int(np.sum(noise_mask))
-            pixels[noise_mask] = np.random.randint(0, 255, noise_count)
-            dataset.PixelData = pixels.tobytes()
-        except (ValueError, AttributeError, TypeError) as e:
-            logger.debug("Noise injection failed: %s", e)
 
         return dataset
 

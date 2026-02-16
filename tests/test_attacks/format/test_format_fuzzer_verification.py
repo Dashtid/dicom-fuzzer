@@ -140,41 +140,7 @@ def pixel_dataset() -> Dataset:
 
 
 # ---------------------------------------------------------------------------
-# 1. _noise_injection
-# ---------------------------------------------------------------------------
-class TestNoiseInjection:
-    """Verify _noise_injection modifies pixel data bytes."""
-
-    def test_pixel_data_bytes_differ(self, fuzzer, pixel_dataset):
-        """Injected noise must produce different pixel bytes."""
-        original_pixels = pixel_dataset.PixelData
-        any_changed = False
-        for _ in range(20):
-            ds = copy.deepcopy(pixel_dataset)
-            result = fuzzer._noise_injection(ds)
-            if result.PixelData != original_pixels:
-                any_changed = True
-                break
-        assert any_changed, "_noise_injection never modified pixel data bytes"
-
-    def test_pixel_data_length_preserved(self, fuzzer, pixel_dataset):
-        """Noise injection must not change pixel data length."""
-        ds = copy.deepcopy(pixel_dataset)
-        original_length = len(ds.PixelData)
-        result = fuzzer._noise_injection(ds)
-        assert len(result.PixelData) == original_length
-
-    def test_no_pixel_data_returns_unchanged(self, fuzzer):
-        """Without PixelData, dataset returned unchanged."""
-        ds = Dataset()
-        ds.PatientName = "NoPixels"
-        original = copy.deepcopy(ds)
-        result = fuzzer._noise_injection(ds)
-        assert result == original
-
-
-# ---------------------------------------------------------------------------
-# 2. _dimension_mismatch
+# 1. _dimension_mismatch
 # ---------------------------------------------------------------------------
 class TestDimensionMismatch:
     """Verify _dimension_mismatch breaks Rows*Columns vs PixelData size."""
