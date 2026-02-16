@@ -167,7 +167,11 @@ class DicomMutator:
             strategy: A fuzzing strategy implementing MutationStrategy protocol
 
         """
-        if not hasattr(strategy, "mutate") or not hasattr(strategy, "strategy_name"):
+        if (
+            not hasattr(strategy, "mutate")
+            or not hasattr(strategy, "strategy_name")
+            or not hasattr(strategy, "can_mutate")
+        ):
             raise ValueError(
                 f"Strategy {strategy} does not implement MutationStrategy protocol"
             )

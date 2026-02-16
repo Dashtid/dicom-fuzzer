@@ -190,23 +190,29 @@ class TestFuzzerIntegration:
     """Test integration with fuzzing strategies."""
 
     def test_all_strategies_registered(self, temp_dir):
-        """Test that all 12 format fuzzers are registered in the mutator."""
+        """Test that all 18 format fuzzers are registered in the mutator."""
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        assert len(generator.mutator.strategies) == 12
+        assert len(generator.mutator.strategies) == 18
         strategy_names = [s.strategy_name for s in generator.mutator.strategies]
         expected = [
             "calibration",
             "compressed_pixel",
             "conformance",
             "dictionary",
+            "encapsulated_pdf",
             "encoding",
             "header",
             "metadata",
+            "nuclear_medicine",
+            "pet",
             "pixel",
             "private_tag",
             "reference",
+            "rt_dose",
+            "rt_structure_set",
+            "segmentation",
             "sequence",
             "structure",
         ]
