@@ -5,7 +5,7 @@ Category: generic
 Attacks:
 - Overlong string values exceeding VR maximum lengths
 - Missing required tags
-- Invalid values for all 27 DICOM VRs (AE through UV)
+- Comprehensive VR-specific mutations (all 27 DICOM VRs)
 - Numeric boundary values (min/max/overflow for US, SS, UL, SL, FL, FD)
 - UID format violations
 """
@@ -257,6 +257,8 @@ VR_MUTATIONS = {
         "INVALID",  # Non-numeric
         "1.2.3",  # Multiple decimals
         "NaN",  # Not a number string
+        "Infinity",  # Infinity string
+        "1e999",  # Exponent overflow
         "9" * 17,  # Over 16 char limit
         "",  # Empty
     ],
@@ -303,7 +305,6 @@ class HeaderFuzzer(FormatFuzzerBase):
         mutations = [
             self._overlong_strings,
             self._missing_required_tags,
-            self._invalid_vr_values,
             self._boundary_values,
             self._comprehensive_vr_mutations,
             self._numeric_vr_mutations,
@@ -349,67 +350,6 @@ class HeaderFuzzer(FormatFuzzerBase):
                     delattr(dataset, tag)
                 except Exception as e:
                     logger.debug("Failed to delete tag %s: %s", tag, e)
-
-        return dataset
-
-    def _invalid_vr_values(self, dataset: Dataset) -> Dataset:
-        """Insert invalid Value Representation (VR) values.
-
-        Each DICOM tag has a specific VR (DA: YYYYMMDD, TM: HHMMSS,
-        IS: numeric string, DS: decimal string). Tests parser handling
-        of VR constraint violations.
-        """
-        # Test invalid date format (should be YYYYMMDD)
-        if hasattr(dataset, "StudyDate"):
-            invalid_dates = [
-                "INVALID",  # Non-numeric
-                "99999999",  # Invalid date
-                "20251332",  # Month > 12
-                "20250145",  # Day > 31
-                "2025-01-01",  # Wrong format (has dashes)
-                "",  # Empty
-                "1",  # Too short
-            ]
-            dataset.StudyDate = random.choice(invalid_dates)
-
-        # Test invalid time format (should be HHMMSS)
-        if hasattr(dataset, "StudyTime"):
-            invalid_times = [
-                "999999",  # Hours > 23
-                "126000",  # Minutes > 59
-                "120075",  # Seconds > 59
-                "ABCDEF",  # Non-numeric
-                "12:30:45",  # Wrong format (has colons)
-            ]
-            dataset.StudyTime = random.choice(invalid_times)
-
-        # Test invalid integer string (IS VR) - bypass validation
-        if hasattr(dataset, "SeriesNumber"):
-            invalid_integers = [
-                "NOT_A_NUMBER",  # Non-numeric
-                "3.14159",  # Decimal (should be integer)
-                "999999999999",  # Way too large
-                "-999999999",  # Very negative
-                "",  # Empty
-            ]
-            value = random.choice(invalid_integers)
-            # Bypass validation by setting the internal _value directly
-            elem = dataset["SeriesNumber"]
-            elem._value = value
-
-        # Test invalid decimal string (DS VR) - bypass validation
-        if hasattr(dataset, "SliceThickness"):
-            invalid_decimals = [
-                "INVALID",  # Non-numeric
-                "1.2.3",  # Multiple decimals
-                "NaN",  # Not a number
-                "Infinity",  # Infinity
-                "1e999",  # Too large
-            ]
-            value = random.choice(invalid_decimals)
-            # Bypass validation by setting the internal _value directly
-            elem = dataset["SliceThickness"]
-            elem._value = value
 
         return dataset
 

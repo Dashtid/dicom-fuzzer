@@ -6,7 +6,6 @@ import random
 
 import pytest
 from pydicom.dataset import Dataset
-from pydicom.tag import Tag
 
 from dicom_fuzzer.attacks.format.header_fuzzer import HeaderFuzzer
 
@@ -241,82 +240,6 @@ class TestMissingRequiredTags:
         ds = Dataset()
         ds.Modality = "CT"  # Not in required_tags
         result = fuzzer._missing_required_tags(ds)
-        # Should not raise
-        assert result is not None
-        assert isinstance(result, Dataset)
-
-
-# =============================================================================
-# _invalid_vr_values Tests
-# =============================================================================
-class TestInvalidVrValues:
-    """Tests for _invalid_vr_values method."""
-
-    def test_invalid_study_date(
-        self, fuzzer: HeaderFuzzer, sample_dataset: Dataset
-    ) -> None:
-        """Test StudyDate receives invalid value."""
-        random.seed(42)
-        result = fuzzer._invalid_vr_values(sample_dataset)
-        assert isinstance(result, Dataset)
-        # Should be one of the invalid date formats
-        invalid_dates = [
-            "INVALID",
-            "99999999",
-            "20251332",
-            "20250145",
-            "2025-01-01",
-            "",
-            "1",
-        ]
-        assert result.StudyDate in invalid_dates
-
-    def test_invalid_study_time(
-        self, fuzzer: HeaderFuzzer, sample_dataset: Dataset
-    ) -> None:
-        """Test StudyTime receives invalid value."""
-        random.seed(42)
-        result = fuzzer._invalid_vr_values(sample_dataset)
-        assert isinstance(result, Dataset)
-        invalid_times = ["999999", "126000", "120075", "ABCDEF", "12:30:45"]
-        assert result.StudyTime in invalid_times
-
-    def test_invalid_series_number(
-        self, fuzzer: HeaderFuzzer, sample_dataset: Dataset
-    ) -> None:
-        """Test SeriesNumber receives invalid IS value."""
-        random.seed(42)
-        result = fuzzer._invalid_vr_values(sample_dataset)
-        assert isinstance(result, Dataset)
-        # Check internal value was set
-        elem = result[Tag(0x0020, 0x0011)]
-        assert elem is not None
-        invalid_integers = [
-            "NOT_A_NUMBER",
-            "3.14159",
-            "999999999999",
-            "-999999999",
-            "",
-        ]
-        assert elem._value in invalid_integers
-
-    def test_invalid_slice_thickness(
-        self, fuzzer: HeaderFuzzer, sample_dataset: Dataset
-    ) -> None:
-        """Test SliceThickness receives invalid DS value."""
-        random.seed(42)
-        result = fuzzer._invalid_vr_values(sample_dataset)
-        assert isinstance(result, Dataset)
-        elem = result[Tag(0x0018, 0x0050)]
-        assert elem is not None
-        invalid_decimals = ["INVALID", "1.2.3", "NaN", "Infinity", "1e999"]
-        assert elem._value in invalid_decimals
-
-    def test_handles_missing_date_time(self, fuzzer: HeaderFuzzer) -> None:
-        """Test handles dataset without date/time tags."""
-        ds = Dataset()
-        ds.PatientName = "Test"
-        result = fuzzer._invalid_vr_values(ds)
         # Should not raise
         assert result is not None
         assert isinstance(result, Dataset)

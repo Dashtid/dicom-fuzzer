@@ -1305,75 +1305,7 @@ class TestMissingRequiredTags:
 
 
 # ---------------------------------------------------------------------------
-# 27. _invalid_vr_values
-# ---------------------------------------------------------------------------
-class TestInvalidVrValues:
-    """Verify _invalid_vr_values injects VR-violating values."""
-
-    INVALID_DATES = {
-        "INVALID",
-        "99999999",
-        "20251332",
-        "20250145",
-        "2025-01-01",
-        "",
-        "1",
-    }
-    INVALID_TIMES = {"999999", "126000", "120075", "ABCDEF", "12:30:45"}
-    INVALID_IS = {"NOT_A_NUMBER", "3.14159", "999999999999", "-999999999", ""}
-    INVALID_DS = {"INVALID", "1.2.3", "NaN", "Infinity", "1e999"}
-
-    def test_study_date_invalid(self, hdr_fuzzer, header_dataset):
-        """StudyDate must be set to a known invalid date value."""
-        any_invalid = False
-        for _ in range(10):
-            ds = copy.deepcopy(header_dataset)
-            result = hdr_fuzzer._invalid_vr_values(ds)
-            if result.StudyDate in self.INVALID_DATES:
-                any_invalid = True
-                break
-        assert any_invalid, "StudyDate was never set to an invalid value"
-
-    def test_study_time_invalid(self, hdr_fuzzer, header_dataset):
-        """StudyTime must be set to a known invalid time value."""
-        any_invalid = False
-        for _ in range(10):
-            ds = copy.deepcopy(header_dataset)
-            result = hdr_fuzzer._invalid_vr_values(ds)
-            if result.StudyTime in self.INVALID_TIMES:
-                any_invalid = True
-                break
-        assert any_invalid, "StudyTime was never set to an invalid value"
-
-    def test_series_number_invalid_is(self, hdr_fuzzer, header_dataset):
-        """SeriesNumber internal value must be set to invalid IS string."""
-        any_invalid = False
-        for _ in range(10):
-            ds = copy.deepcopy(header_dataset)
-            result = hdr_fuzzer._invalid_vr_values(ds)
-            elem = result[Tag(0x0020, 0x0011)]  # SeriesNumber
-            val = getattr(elem, "_value", None)
-            if val in self.INVALID_IS:
-                any_invalid = True
-                break
-        assert any_invalid, "SeriesNumber was never set to an invalid IS value"
-
-    def test_slice_thickness_invalid_ds(self, hdr_fuzzer, header_dataset):
-        """SliceThickness internal value must be an invalid decimal string."""
-        any_invalid = False
-        for _ in range(10):
-            ds = copy.deepcopy(header_dataset)
-            result = hdr_fuzzer._invalid_vr_values(ds)
-            elem = result[Tag(0x0018, 0x0050)]  # SliceThickness
-            val = getattr(elem, "_value", None)
-            if val in self.INVALID_DS:
-                any_invalid = True
-                break
-        assert any_invalid, "SliceThickness was never set to an invalid DS value"
-
-
-# ---------------------------------------------------------------------------
-# 28. _boundary_values
+# 27. _boundary_values
 # ---------------------------------------------------------------------------
 class TestBoundaryValues:
     """Verify _boundary_values sets numeric fields to edge case values."""

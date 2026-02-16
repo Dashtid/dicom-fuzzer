@@ -379,43 +379,6 @@ class TestEnhancedHeaderFuzzer:
         # Some required tag might have been removed
         # (test is probabilistic, so we just check it doesn't crash)
 
-    def test_invalid_vr_values_dates(self, sample_dicom_dataset):
-        """Test invalid date VR values (lines 121-130)."""
-        fuzzer = HeaderFuzzer()
-
-        # Ensure StudyDate exists to trigger the invalid dates code path
-        sample_dicom_dataset.StudyDate = "20250101"
-
-        mutated = fuzzer._invalid_vr_values(sample_dicom_dataset)
-
-        assert mutated is not None
-        # StudyDate should now have an invalid value
-        assert hasattr(mutated, "StudyDate")
-        study_date = str(mutated.StudyDate)
-        # Should be one of the invalid dates
-        invalid_dates = [
-            "INVALID",
-            "99999999",
-            "20251332",
-            "20250145",
-            "2025-01-01",
-            "",
-            "1",
-        ]
-        assert study_date in invalid_dates
-
-    def test_invalid_vr_values_times(self, sample_dicom_dataset):
-        """Test invalid time VR values."""
-        fuzzer = HeaderFuzzer()
-
-        # Add StudyTime if not present
-        if not hasattr(sample_dicom_dataset, "StudyTime"):
-            sample_dicom_dataset.StudyTime = "120000"
-
-        mutated = fuzzer._invalid_vr_values(sample_dicom_dataset)
-
-        assert mutated is not None
-
     def test_boundary_values_numeric(self, sample_dicom_dataset):
         """Test numeric boundary values."""
         fuzzer = HeaderFuzzer()
@@ -665,15 +628,6 @@ class TestHeaderFuzzerEdgeCases:
         # Check that some boundary values were applied
         # (probabilistic test, just ensure no crash)
 
-    def test_invalid_vr_values_all_types(self, sample_dicom_dataset):
-        """Test invalid VR generation for all supported types."""
-        fuzzer = HeaderFuzzer()
-
-        # Run multiple times to hit different VR types
-        for _ in range(10):
-            mutated = fuzzer._invalid_vr_values(sample_dicom_dataset.copy())
-            assert mutated is not None
-
     def test_overlong_strings_with_study_description(self, sample_dicom_dataset):
         """Test overlong strings mutation with StudyDescription field (line 74)."""
         fuzzer = HeaderFuzzer()
@@ -712,48 +666,6 @@ class TestHeaderFuzzerEdgeCases:
         for _ in range(10):
             mutated = fuzzer._missing_required_tags(sample_dicom_dataset.copy())
             assert mutated is not None
-
-    def test_invalid_vr_with_series_number(self, sample_dicom_dataset):
-        """Test invalid VR with SeriesNumber field (lines 145-152)."""
-        fuzzer = HeaderFuzzer()
-
-        # Add SeriesNumber field (IS VR - Integer String)
-        sample_dicom_dataset.SeriesNumber = "1"
-
-        # Run multiple times to hit different invalid values
-        # Some values may raise ValueError during assignment
-        success_count = 0
-        for _ in range(20):
-            try:
-                mutated = fuzzer._invalid_vr_values(sample_dicom_dataset.copy())
-                assert mutated is not None
-                success_count += 1
-            except ValueError:
-                # Some invalid values raise exceptions
-                pass
-        # At least some mutations should succeed
-        assert success_count > 0
-
-    def test_invalid_vr_with_slice_thickness(self, sample_dicom_dataset):
-        """Test invalid VR with SliceThickness field (lines 156-163)."""
-        fuzzer = HeaderFuzzer()
-
-        # Add SliceThickness field (DS VR - Decimal String)
-        sample_dicom_dataset.SliceThickness = "5.0"
-
-        # Run multiple times to hit different invalid values
-        # Some values may raise ValueError during assignment
-        success_count = 0
-        for _ in range(20):
-            try:
-                mutated = fuzzer._invalid_vr_values(sample_dicom_dataset.copy())
-                assert mutated is not None
-                success_count += 1
-            except ValueError:
-                # Some invalid values raise exceptions
-                pass
-        # At least some mutations should succeed
-        assert success_count > 0
 
     def test_boundary_values_with_patient_age(self, sample_dicom_dataset):
         """Test boundary values with PatientAge field (lines 195-202)."""
