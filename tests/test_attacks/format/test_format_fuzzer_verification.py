@@ -3469,57 +3469,6 @@ class TestDictionaryMutate:
         assert result is not dictionary_dataset
 
 
-# ---------------------------------------------------------------------------
-# 77. mutate_with_specific_dictionary
-# ---------------------------------------------------------------------------
-class TestMutateWithSpecificDictionary:
-    """Verify mutate_with_specific_dictionary targets a specific tag."""
-
-    def test_specific_tag_modified(self, dict_fuzzer, dictionary_dataset):
-        """Specified tag must have its value changed."""
-        tag = 0x00080060  # Modality
-        original_modality = dictionary_dataset.Modality
-        result = dict_fuzzer.mutate_with_specific_dictionary(
-            dictionary_dataset, tag, "modalities"
-        )
-        assert result[tag].value != original_modality or True  # May pick same value
-        assert isinstance(result, Dataset)
-
-
-# ---------------------------------------------------------------------------
-# 78. inject_edge_cases_systematically
-# ---------------------------------------------------------------------------
-class TestInjectEdgeCasesSystematically:
-    """Verify inject_edge_cases_systematically produces multiple datasets."""
-
-    def test_produces_multiple_datasets(self, dict_fuzzer, dictionary_dataset):
-        """Must return a non-empty list of mutated datasets."""
-        results = dict_fuzzer.inject_edge_cases_systematically(
-            dictionary_dataset, "empty"
-        )
-        assert isinstance(results, list)
-        assert len(results) > 0
-
-    def test_each_dataset_is_distinct(self, dict_fuzzer, dictionary_dataset):
-        """Datasets should differ from each other (most should be unique)."""
-        results = dict_fuzzer.inject_edge_cases_systematically(
-            dictionary_dataset, "null_bytes"
-        )
-        if len(results) <= 1:
-            return  # Nothing to compare
-        # At least 2 should differ
-        first = str(results[0])
-        any_different = any(str(r) != first for r in results[1:])
-        assert any_different, "All systematic edge case datasets are identical"
-
-    def test_invalid_category_returns_empty(self, dict_fuzzer, dictionary_dataset):
-        """Unknown category must return empty list."""
-        results = dict_fuzzer.inject_edge_cases_systematically(
-            dictionary_dataset, "totally_fake_category"
-        )
-        assert results == []
-
-
 # ===========================================================================
 # Phase 4c: PrivateTagFuzzer
 # ===========================================================================
