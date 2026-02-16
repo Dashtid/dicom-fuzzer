@@ -652,8 +652,11 @@ class CalibrationFuzzer(FormatFuzzerBase):
 
         for fuzzer in fuzzers:
             if random.random() < 0.5:  # 50% chance for each category
-                dataset, records = fuzzer(dataset)
-                all_records.extend(records)
+                try:
+                    dataset, records = fuzzer(dataset)
+                    all_records.extend(records)
+                except Exception as e:
+                    logger.debug("Calibration %s failed: %s", fuzzer.__name__, e)
 
         return dataset, all_records
 
