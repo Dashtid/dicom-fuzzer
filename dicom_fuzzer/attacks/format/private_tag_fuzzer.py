@@ -2,16 +2,16 @@
 
 Category: generic
 
-Targets DICOM private tags used by vendors for proprietary data.
-Private tags use odd group numbers (0009, 0011, 0019, etc.) and
-require a "Private Creator" element to identify the vendor.
-
-Private tag vulnerabilities:
-- Missing Private Creator causes unknown tag handling
-- Wrong VR for private data
-- Collisions between vendors using same tag
-- Buffer overflows in vendor-specific parsers
-- Injection of malicious data in private elements
+Attacks:
+- Missing or wrong Private Creator elements
+- Private Creator collision between vendor blocks
+- Invalid VR on private data elements
+- Oversized private data payloads
+- Private tag injection into standard group ranges
+- Private Creator overwrite
+- Reserved group number attacks
+- Private sequence nesting attacks
+- Binary blob injection
 """
 
 from __future__ import annotations

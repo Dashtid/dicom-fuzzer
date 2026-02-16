@@ -2,18 +2,14 @@
 
 Category: generic
 
-Targets DICOM conformance requirements including:
-- SOP Class UIDs (what type of object this is)
-- Transfer Syntax UIDs (how data is encoded)
-- Meta Information version
-- Implementation identifiers
-
-These elements define how DICOM data should be interpreted.
-Mismatches can cause:
-- Wrong modality-specific processing
-- Encoding/decoding failures
-- Interoperability issues between systems
-- Security vulnerabilities from unexpected code paths
+Attacks:
+- Invalid and retired SOP Class UIDs
+- Invalid and retired Transfer Syntax UIDs
+- SOP Class vs Transfer Syntax mismatch
+- Missing or corrupted File Meta Information
+- Meta Information version mismatch
+- Implementation UID format violations
+- Modality vs SOP Class mismatch
 """
 
 from __future__ import annotations

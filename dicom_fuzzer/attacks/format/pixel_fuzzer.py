@@ -2,11 +2,13 @@
 
 Category: generic
 
-Targets pixel data with various corruptions to test parser robustness:
-- Random noise injection
-- Dimension mismatches
-- Bit depth inconsistencies
-- Photometric interpretation violations
+Attacks:
+- SamplesPerPixel mismatch and invalid values
+- PlanarConfiguration manipulation
+- Random noise injection into pixel data
+- Row/column dimension mismatch with pixel data size
+- Bit depth inconsistencies (BitsAllocated, BitsStored, HighBit)
+- Photometric interpretation confusion (MONOCHROME1/2, RGB, YBR)
 """
 
 from __future__ import annotations

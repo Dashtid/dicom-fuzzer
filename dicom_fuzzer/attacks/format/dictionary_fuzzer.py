@@ -1,10 +1,14 @@
-"""Dictionary-Based DICOM Fuzzing Strategy.
+"""Dictionary Fuzzer - Domain-Aware DICOM Value Mutations.
 
 Category: generic
 
-Uses domain knowledge to generate intelligent mutations by replacing DICOM
-values with entries from curated dictionaries. This produces inputs that
-pass initial validation but may trigger edge cases in deeper code paths.
+Attacks:
+- SOP Class and Transfer Syntax UID replacement from curated dictionaries
+- Modality, character set, photometric interpretation swaps
+- Patient demographics injection (names, IDs, dates, times)
+- Institution and manufacturer value substitution
+- VR-aware numeric boundary mutations (US, SS, UL, SL)
+- UID format and structure violations
 """
 
 from __future__ import annotations

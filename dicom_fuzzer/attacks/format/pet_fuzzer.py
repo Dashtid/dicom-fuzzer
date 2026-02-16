@@ -2,14 +2,10 @@
 
 Category: modality-specific (PET)
 
-Targets Positron Emission Tomography Image Storage
-(1.2.840.10008.5.1.4.1.1.128) objects with mutations specific to
-SUV calibration, radiopharmaceutical decay, and temporal parameters.
-
-Attack surfaces:
-- SUV calibration chain (Units, DecayCorrection, PatientWeight, PatientSize)
-- RadiopharmaceuticalInformationSequence decay parameters
-- Temporal parameters (DecayFactor, FrameReferenceTime, ActualFrameDuration)
+Attacks:
+- SUV calibration chain corruption (Units, DecayCorrection, weight, size)
+- Radiopharmaceutical decay parameter manipulation
+- Temporal parameter corruption (DecayFactor, FrameReferenceTime)
 - CorrectedImage flag combinations
 """
 

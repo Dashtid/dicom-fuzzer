@@ -2,20 +2,13 @@
 
 Category: generic
 
-Targets compressed pixel data formats commonly used in medical imaging:
-- JPEG Baseline (Transfer Syntax 1.2.840.10008.1.2.4.50)
-- JPEG Lossless (Transfer Syntax 1.2.840.10008.1.2.4.70)
-- JPEG 2000 (Transfer Syntax 1.2.840.10008.1.2.4.90/91)
-- RLE Lossless (Transfer Syntax 1.2.840.10008.1.2.5)
-
-Encapsulated data is wrapped in fragment items. Corrupting the structure
-or codec-specific data can trigger vulnerabilities in image decoders.
-
-Common vulnerabilities:
-- Buffer overflow in JPEG marker parsing
-- Integer overflow in JPEG2000 tile dimensions
-- RLE segment count mismatches
+Attacks:
+- JPEG marker corruption and dimension manipulation
+- JPEG 2000 codestream corruption
+- RLE segment corruption
 - Fragment offset table corruption
+- Encapsulation structure violations (missing delimiters, wrong tags, nesting)
+- Malformed frame injection and frame count mismatch
 """
 
 from __future__ import annotations

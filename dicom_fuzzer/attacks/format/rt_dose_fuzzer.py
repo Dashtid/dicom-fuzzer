@@ -2,16 +2,12 @@
 
 Category: modality-specific (RT Dose)
 
-Targets RT Dose Storage (1.2.840.10008.5.1.4.1.1.481.2) objects
-with mutations specific to dose grid scaling, DVH structures, and
-treatment plan references.
-
-Attack surfaces:
-- DoseGridScaling zero/negative/NaN/extreme values
+Attacks:
+- DoseGridScaling zero, negative, NaN, extreme values
 - DVHSequence with malformed DVHData arrays
 - GridFrameOffsetVector length mismatches and non-monotonic values
-- DoseType / DoseSummationType invalid enumeration values
-- ReferencedRTPlanSequence link corruption
+- DoseType/DoseSummationType invalid enumeration values
+- Referenced RT Plan link corruption
 """
 
 from __future__ import annotations

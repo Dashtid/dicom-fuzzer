@@ -1,34 +1,12 @@
-"""Calibration and Measurement Fuzzing Strategies.
+"""Calibration Fuzzer - DICOM Measurement and Calibration Mutations.
 
 Category: generic
 
-This module provides CalibrationFuzzer for targeting measurement and calibration
-vulnerabilities in DICOM viewers and analysis applications.
-
-MUTATION CATEGORIES:
-1. PixelSpacing Attacks - Corrupt distance measurements
-2. Hounsfield Unit Attacks - Corrupt density/intensity calculations
-3. Window/Level Attacks - Corrupt display and visibility
-4. Calibration Consistency - Cross-slice calibration mismatches
-
-SECURITY RATIONALE:
-Medical imaging applications rely on calibration data for:
-- Distance and area measurements
-- Volume calculations
-- Density analysis (CT Hounsfield units)
-- SUV calculations (PET)
-- Treatment planning doses
-
-Incorrect calibration can lead to:
-- Misdiagnosis from wrong measurements
-- Treatment planning errors
-- Crashes from divide-by-zero or overflow
-- Display corruption
-
-USAGE:
-    fuzzer = CalibrationFuzzer(severity="aggressive")
-    fuzzed_ds = fuzzer.fuzz_pixel_spacing(dataset)
-    fuzzed_ds = fuzzer.fuzz_hounsfield_rescale(dataset)
+Attacks:
+- PixelSpacing zero, negative, extreme, NaN, mismatch with ImagerPixelSpacing
+- RescaleSlope/Intercept zero, negative, extreme, NaN, infinity, HU overflow
+- WindowCenter/Width zero, negative, extreme, NaN, conflicting presets
+- SliceThickness zero, negative, extreme, mismatch with SpacingBetweenSlices
 """
 
 from __future__ import annotations
@@ -56,24 +34,17 @@ class CalibrationFuzzer(FormatFuzzerBase):
         """Return the strategy name for identification."""
         return "calibration"
 
-    def __init__(self, severity: str = "moderate", seed: int | None = None):
+    def __init__(self, seed: int | None = None):
         """Initialize CalibrationFuzzer.
 
         Args:
-            severity: Mutation severity (minimal, moderate, aggressive, extreme)
             seed: Random seed for reproducibility
 
         """
         super().__init__()
-        if severity not in ["minimal", "moderate", "aggressive", "extreme"]:
-            raise ValueError(f"Invalid severity: {severity}")
-
-        self.severity = severity
         self.seed = seed
         if seed is not None:
             random.seed(seed)
-
-        logger.info(f"CalibrationFuzzer initialized (severity={severity})")
 
     # --- PixelSpacing Attack Handlers ---
 

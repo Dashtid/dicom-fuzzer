@@ -2,12 +2,12 @@
 
 Category: generic
 
-Targets DICOM tags, Value Representations (VRs), and metadata fields
-with edge cases and invalid data to test parser robustness.
-
-Covers all 27 DICOM VRs with appropriate invalid values including:
-- Overlong strings, boundary values, format violations
-- Invalid encoding, null bytes, empty values
+Attacks:
+- Overlong string values exceeding VR maximum lengths
+- Missing required tags
+- Invalid values for all 27 DICOM VRs (AE through UV)
+- Numeric boundary values (min/max/overflow for US, SS, UL, SL, FL, FD)
+- UID format violations
 """
 
 from __future__ import annotations

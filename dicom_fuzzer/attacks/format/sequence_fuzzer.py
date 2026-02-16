@@ -2,20 +2,15 @@
 
 Category: generic
 
-Targets DICOM Sequences (SQ VR) and nested Item structures to test parser
-robustness against malformed hierarchical data.
-
-Sequences are used in ~40% of DICOM structure for:
-- Referenced images/series
-- Procedure codes
-- Measurement data
-- Frame-level metadata
-
-Common vulnerabilities:
-- Deep nesting causing stack overflow
-- Item length mismatches causing buffer overflows
-- Missing delimiters causing infinite loops
-- Empty required sequences causing null pointer dereference
+Attacks:
+- Deep nesting (stack overflow via recursive sequences)
+- Item length field mismatch with actual data
+- Empty required sequences
+- Orphan items outside sequence containers
+- Circular sequence references
+- Sequence delimiter corruption
+- Mixed encoding within sequence items
+- Massive item count (memory exhaustion)
 """
 
 from __future__ import annotations

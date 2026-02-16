@@ -2,14 +2,11 @@
 
 Category: modality-specific (SEG)
 
-Targets Segmentation Storage (1.2.840.10008.5.1.4.1.1.66.4) objects
-with mutations specific to segment metadata and binary mask structures.
-
-Attack surfaces:
-- SegmentSequence item count and numbering mismatches
-- SegmentIdentificationSequence cross-reference integrity
+Attacks:
+- Segment sequence item count and numbering mismatches
+- Segment cross-reference integrity violations
 - SegmentationType vs BitsAllocated pixel encoding mismatches
-- ReferencedSeriesSequence link corruption
+- Referenced series link corruption
 """
 
 from __future__ import annotations

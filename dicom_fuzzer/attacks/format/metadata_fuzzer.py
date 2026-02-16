@@ -2,20 +2,12 @@
 
 Category: generic
 
-Targets DICOM metadata fields across the entire metadata hierarchy:
-- Patient identifiers (PatientID, PatientName, PatientBirthDate)
-- Patient demographics (PatientSex, PatientAge, PatientWeight, PatientSize)
-- Study-level metadata (StudyDate, StudyTime, StudyID, AccessionNumber)
-- Series-level metadata (SeriesDate, SeriesDescription, BodyPartExamined)
-- Institution and personnel (InstitutionName, StationName, Operators)
-
-Common vulnerabilities:
-- SQL injection via metadata fields displayed in web viewers
-- XSS via patient name in HTML-based PACS interfaces
-- Buffer overflow from overlong metadata values
-- Format string attacks in logging systems
-- Path traversal in report generation using patient data
-- Unicode handling errors in multi-byte patient names
+Attacks:
+- Patient identifier injection (SQL, XSS, path traversal in PatientID/Name)
+- Patient demographics boundary values (age, weight, size, sex)
+- Study metadata corruption (dates, times, IDs, accession numbers)
+- Series metadata injection (descriptions, body part, modality)
+- Institution and personnel name injection
 """
 
 from __future__ import annotations

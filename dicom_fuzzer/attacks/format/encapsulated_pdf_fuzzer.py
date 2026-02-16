@@ -2,15 +2,11 @@
 
 Category: modality-specific (Encapsulated PDF)
 
-Targets Encapsulated PDF Storage (1.2.840.10008.5.1.4.1.1.104.1)
-objects with mutations specific to the embedded PDF payload and
-document metadata.
-
-Attack surfaces:
-- EncapsulatedDocument (0042,0011) byte corruption and truncation
-- MIMETypeOfEncapsulatedDocument (0042,0012) mismatches
-- Malformed PDF content inside valid DICOM wrapper
-- Document metadata (DocumentTitle, ConceptNameCodeSequence)
+Attacks:
+- EncapsulatedDocument byte corruption and truncation
+- MIME type mismatch
+- Malformed PDF payload injection
+- Document metadata corruption (DocumentTitle, ConceptNameCodeSequence)
 """
 
 from __future__ import annotations

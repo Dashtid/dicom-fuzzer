@@ -2,15 +2,12 @@
 
 Category: modality-specific (RTSS)
 
-Targets RT Structure Set Storage (1.2.840.10008.5.1.4.1.1.481.3)
-objects with mutations specific to contour data and ROI structures.
-
-Attack surfaces:
+Attacks:
 - ContourData float array corruption (NaN, Inf, truncated triplets)
-- NumberOfContourPoints vs actual ContourData length mismatches
-- ROINumber / ReferencedROINumber cross-reference integrity
+- Contour point count vs actual data length mismatches
+- ROI cross-reference integrity violations
 - ContourGeometricType mismatches with actual geometry
-- ReferencedFrameOfReferenceSequence corruption
+- Frame of Reference corruption
 """
 
 from __future__ import annotations

@@ -2,16 +2,12 @@
 
 Category: modality-specific (NM)
 
-Targets Nuclear Medicine Image Storage (1.2.840.10008.5.1.4.1.1.20)
-objects with mutations specific to energy window, detector, rotation,
-and radiopharmaceutical structures.
-
-Attack surfaces:
-- EnergyWindowInformationSequence keV range corruption
-- DetectorInformationSequence geometry mismatches
-- RotationInformationSequence SPECT parameter inconsistencies
-- RadiopharmaceuticalInformationSequence (shared with PET)
-- NumberOfSlices / NumberOfTimeSlices vs frame count mismatches
+Attacks:
+- Energy window keV range corruption
+- Detector geometry mismatches
+- SPECT rotation parameter inconsistencies
+- Radiopharmaceutical data corruption
+- Slice/time slice count vs frame count mismatches
 """
 
 from __future__ import annotations

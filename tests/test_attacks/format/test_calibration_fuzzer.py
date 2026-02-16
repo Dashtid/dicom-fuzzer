@@ -14,23 +14,12 @@ class TestCalibrationFuzzer:
     def test_init_default(self):
         """Test default initialization."""
         fuzzer = CalibrationFuzzer()
-        assert fuzzer.severity == "moderate"
         assert fuzzer.seed is None
-
-    def test_init_with_severity(self):
-        """Test initialization with custom severity."""
-        fuzzer = CalibrationFuzzer(severity="aggressive")
-        assert fuzzer.severity == "aggressive"
 
     def test_init_with_seed(self):
         """Test initialization with random seed."""
         fuzzer = CalibrationFuzzer(seed=42)
         assert fuzzer.seed == 42
-
-    def test_init_invalid_severity(self):
-        """Test initialization with invalid severity raises error."""
-        with pytest.raises(ValueError, match="Invalid severity"):
-            CalibrationFuzzer(severity="invalid")
 
 
 class TestPixelSpacingFuzzing:

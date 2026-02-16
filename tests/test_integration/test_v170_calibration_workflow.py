@@ -109,7 +109,7 @@ class TestCalibrationFuzzerIntegration:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-        fuzzer = CalibrationFuzzer(severity="aggressive")
+        fuzzer = CalibrationFuzzer()
         fuzzed_ds = fuzzer.fuzz_pixel_spacing(ds)
         assert fuzzed_ds is not None
 
@@ -122,7 +122,7 @@ class TestCalibrationFuzzerIntegration:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-        fuzzer = CalibrationFuzzer(severity="extreme")
+        fuzzer = CalibrationFuzzer()
         fuzzed_ds = fuzzer.fuzz_hounsfield_rescale(ds)
         assert fuzzed_ds is not None
 
@@ -135,7 +135,7 @@ class TestCalibrationFuzzerIntegration:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-        fuzzer = CalibrationFuzzer(severity="moderate")
+        fuzzer = CalibrationFuzzer()
         fuzzed_ds = fuzzer.fuzz_window_level(ds)
         assert fuzzed_ds is not None
 
@@ -148,7 +148,7 @@ class TestCalibrationFuzzerIntegration:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-        fuzzer = CalibrationFuzzer(severity="aggressive")
+        fuzzer = CalibrationFuzzer()
         fuzzed_ds = fuzzer.fuzz_slice_thickness(ds)
         assert fuzzed_ds is not None
 
@@ -161,7 +161,7 @@ class TestCalibrationFuzzerIntegration:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-        fuzzer = CalibrationFuzzer(severity="moderate")
+        fuzzer = CalibrationFuzzer()
 
         # Apply all calibration attacks
         ds = fuzzer.fuzz_pixel_spacing(ds)
@@ -192,7 +192,7 @@ class TestCalibrationAttackTypes:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-        fuzzer = CalibrationFuzzer(severity="aggressive")
+        fuzzer = CalibrationFuzzer()
         fuzzed_ds = fuzzer.fuzz_pixel_spacing(ds, attack_type=attack_type)
         assert fuzzed_ds is not None
 
@@ -209,38 +209,13 @@ class TestCalibrationAttackTypes:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-        fuzzer = CalibrationFuzzer(severity="extreme")
+        fuzzer = CalibrationFuzzer()
         fuzzed_ds = fuzzer.fuzz_hounsfield_rescale(ds, attack_type=attack_type)
         assert fuzzed_ds is not None
 
 
-class TestCalibrationSeverityLevels:
-    """Test severity levels affect mutation intensity."""
-
-    @pytest.mark.parametrize(
-        "severity", ["minimal", "moderate", "aggressive", "extreme"]
-    )
-    def test_severity_levels_accepted(self, ct_dicom_file, severity):
-        """Test all severity levels are accepted."""
-        import pydicom
-
-        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
-            CalibrationFuzzer,
-        )
-
-        ds = pydicom.dcmread(str(ct_dicom_file))
-        fuzzer = CalibrationFuzzer(severity=severity)
-        fuzzed_ds = fuzzer.fuzz_pixel_spacing(ds)
-        assert fuzzed_ds is not None
-
-    def test_invalid_severity_rejected(self):
-        """Test invalid severity raises error."""
-        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
-            CalibrationFuzzer,
-        )
-
-        with pytest.raises(ValueError):
-            CalibrationFuzzer(severity="invalid")
+class TestCalibrationSeedReproducibility:
+    """Test seed-based reproducibility."""
 
     def test_seed_reproducibility(self, ct_dicom_file):
         """Test that seed parameter enables reproducible mutations."""
@@ -253,9 +228,8 @@ class TestCalibrationSeverityLevels:
         ds1 = pydicom.dcmread(str(ct_dicom_file))
         ds2 = pydicom.dcmread(str(ct_dicom_file))
 
-        # Use explicit attack type to ensure consistency
-        fuzzer1 = CalibrationFuzzer(severity="moderate", seed=12345)
-        fuzzer2 = CalibrationFuzzer(severity="moderate", seed=12345)
+        fuzzer1 = CalibrationFuzzer(seed=12345)
+        fuzzer2 = CalibrationFuzzer(seed=12345)
 
         result1 = fuzzer1.fuzz_pixel_spacing(ds1, attack_type="mismatch")
         result2 = fuzzer2.fuzz_pixel_spacing(ds2, attack_type="mismatch")

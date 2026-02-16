@@ -2,12 +2,12 @@
 
 Category: generic
 
-Targets the DICOM file structure itself to test parser robustness:
-- Preamble and DICM prefix corruption
-- Tag ordering violations
-- Length field edge cases
-- Transfer syntax handling
-- VM (Value Multiplicity) mismatches
+Attacks:
+- Tag ordering violations (out-of-order group/element)
+- Length field corruption (truncated, oversized, undefined)
+- Unexpected tag insertion
+- Duplicate tag entries
+- Value Multiplicity (VM) violations
 """
 
 from __future__ import annotations

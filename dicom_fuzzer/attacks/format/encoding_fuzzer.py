@@ -2,24 +2,15 @@
 
 Category: generic
 
-Targets DICOM SpecificCharacterSet (0008,0005) and text encoding to test
-parser robustness against malformed character data.
-
-DICOM supports multiple character sets:
-- ISO-IR 6 (ASCII, default)
-- ISO-IR 100 (Latin-1)
-- ISO-IR 192 (UTF-8)
-- ISO 2022 escape sequences for multi-byte encodings
-- GB18030, GBK for Chinese
-- ISO-IR 13/14 for Japanese (Katakana)
-- ISO-IR 149 for Korean
-
-Common vulnerabilities:
-- Buffer overflow from multi-byte character expansion
-- Invalid UTF-8 sequences causing crashes
-- Escape sequence injection
-- Mixed encoding confusion
-- BOM handling issues
+Attacks:
+- Invalid SpecificCharacterSet values
+- Character set vs actual data encoding mismatch
+- Invalid UTF-8 sequences and overlong encodings
+- ISO 2022 escape sequence injection
+- BOM injection across text fields
+- Null byte and control character injection
+- Mixed encoding within single dataset
+- UTF-16 surrogate pair injection
 """
 
 from __future__ import annotations

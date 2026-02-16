@@ -2,18 +2,14 @@
 
 Category: generic
 
-Targets DICOM references between objects to test link resolution:
-- Referenced SOP Instance UIDs
-- Referenced Series/Study UIDs
-- Frame references in multi-frame objects
-- Spatial references (Frame of Reference)
-
-DICOM objects often reference other objects for context. Broken or
-malicious references can cause:
-- Null pointer dereference when reference not found
-- Infinite loops in circular references
-- Wrong data association
-- Memory exhaustion following reference chains
+Attacks:
+- Orphan references to nonexistent SOP instances, series, studies
+- Circular and self-referencing UIDs
+- Invalid frame number references
+- Mismatched study/series cross-references
+- Frame of Reference UID corruption
+- Duplicate reference entries
+- Massive reference chain (memory exhaustion)
 """
 
 from __future__ import annotations

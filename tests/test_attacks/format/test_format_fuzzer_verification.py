@@ -3222,7 +3222,7 @@ class TestReferenceTypeMismatch:
 @pytest.fixture
 def cal_fuzzer() -> CalibrationFuzzer:
     """Return CalibrationFuzzer instance."""
-    return CalibrationFuzzer(severity="moderate", seed=42)
+    return CalibrationFuzzer(seed=42)
 
 
 @pytest.fixture
