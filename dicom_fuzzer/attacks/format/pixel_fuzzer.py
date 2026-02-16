@@ -159,8 +159,8 @@ class PixelFuzzer(FormatFuzzerBase):
             noise_count = int(np.sum(noise_mask))
             pixels[noise_mask] = np.random.randint(0, 255, noise_count)
             dataset.PixelData = pixels.tobytes()
-        except (ValueError, AttributeError, TypeError):
-            pass  # Pixel array may be unreadable or incompatible
+        except (ValueError, AttributeError, TypeError) as e:
+            logger.debug("Noise injection failed: %s", e)
 
         return dataset
 

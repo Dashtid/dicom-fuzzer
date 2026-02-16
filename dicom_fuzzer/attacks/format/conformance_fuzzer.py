@@ -50,6 +50,7 @@ SOP_CLASSES = {
     "PDF": "1.2.840.10008.5.1.4.1.1.104.1",
     "RAW": "1.2.840.10008.5.1.4.1.1.66",
     "SC": "1.2.840.10008.5.1.4.1.1.7",  # Secondary Capture
+    "SC_TRUECOLOR_MF": "1.2.840.10008.5.1.4.1.1.7.4",  # Multi-frame True Color SC
     "ENCAPSULATED_PDF": "1.2.840.10008.5.1.4.1.1.104.1",
     "ENCAPSULATED_CDA": "1.2.840.10008.5.1.4.1.1.104.2",
 }
