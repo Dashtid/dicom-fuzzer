@@ -34,75 +34,53 @@ class CalibrationFuzzer(FormatFuzzerBase):
         """Return the strategy name for identification."""
         return "calibration"
 
-    def __init__(self, seed: int | None = None):
-        """Initialize CalibrationFuzzer.
-
-        Args:
-            seed: Random seed for reproducibility
-
-        """
+    def __init__(self) -> None:
+        """Initialize CalibrationFuzzer."""
         super().__init__()
-        self.seed = seed
-        if seed is not None:
-            random.seed(seed)
-
-    # --- PixelSpacing Attack Handlers ---
-
-    def _ps_mismatch(self, dataset: Dataset) -> bool:
-        """PixelSpacing different from ImagerPixelSpacing."""
-        if not hasattr(dataset, "PixelSpacing"):
-            return False
-        dataset.PixelSpacing = [1.0, 1.0]
-        dataset.ImagerPixelSpacing = [0.5, 0.5]
-        return True
-
-    def _ps_simple(self, dataset: Dataset, value: list[float]) -> bool:
-        """Apply simple PixelSpacing mutation."""
-        if not hasattr(dataset, "PixelSpacing"):
-            return False
-        dataset.PixelSpacing = value
-        return True
-
-    def _ps_calibration_type(self, dataset: Dataset) -> None:
-        """Invalid calibration type."""
-        invalid_types = ["", "INVALID", "GEOMETRY" * 10, "\x00\x00"]
-        dataset.PixelSpacingCalibrationType = random.choice(invalid_types)
-
-    # Attack type specifications: (value, display_string)
-    _PS_SIMPLE_ATTACKS: dict[str, tuple[list[float], str]] = {
-        "zero": ([0.0, 0.0], "[0.0, 0.0]"),
-        "negative": ([-1.0, -1.0], "[-1.0, -1.0]"),
-        "extreme_small": ([1e-10, 1e-10], "[1e-10, 1e-10]"),
-        "extreme_large": ([1e10, 1e10], "[1e10, 1e10]"),
-        "nan": ([float("nan"), float("nan")], "[NaN, NaN]"),
-        "inconsistent": ([0.1, 100.0], "[0.1, 100.0] (1000:1 ratio)"),
-    }
-
-    _PS_ATTACK_TYPES = [
-        "mismatch",
-        "zero",
-        "negative",
-        "extreme_small",
-        "extreme_large",
-        "nan",
-        "inconsistent",
-        "calibration_type",
-    ]
 
     def fuzz_pixel_spacing(
         self, dataset: Dataset, attack_type: str | None = None
     ) -> Dataset:
         """Fuzz PixelSpacing and related calibration tags."""
         if attack_type is None:
-            attack_type = random.choice(self._PS_ATTACK_TYPES)
+            attack_type = random.choice(
+                [
+                    "mismatch",
+                    "zero",
+                    "negative",
+                    "extreme_small",
+                    "extreme_large",
+                    "nan",
+                    "inconsistent",
+                    "calibration_type",
+                ]
+            )
 
         if attack_type == "mismatch":
-            self._ps_mismatch(dataset)
+            dataset.PixelSpacing = [1.0, 1.0]
+            dataset.ImagerPixelSpacing = [0.5, 0.5]
+
+        elif attack_type == "zero":
+            dataset.PixelSpacing = [0.0, 0.0]
+
+        elif attack_type == "negative":
+            dataset.PixelSpacing = [-1.0, -1.0]
+
+        elif attack_type == "extreme_small":
+            dataset.PixelSpacing = [1e-10, 1e-10]
+
+        elif attack_type == "extreme_large":
+            dataset.PixelSpacing = [1e10, 1e10]
+
+        elif attack_type == "nan":
+            dataset.PixelSpacing = [float("nan"), float("nan")]
+
+        elif attack_type == "inconsistent":
+            dataset.PixelSpacing = [0.1, 100.0]
+
         elif attack_type == "calibration_type":
-            self._ps_calibration_type(dataset)
-        elif attack_type in self._PS_SIMPLE_ATTACKS:
-            value, _display = self._PS_SIMPLE_ATTACKS[attack_type]
-            self._ps_simple(dataset, value)
+            invalid_types = ["", "INVALID", "GEOMETRY" * 10, "\x00\x00"]
+            dataset.PixelSpacingCalibrationType = random.choice(invalid_types)
 
         return dataset
 
@@ -298,17 +276,8 @@ class CalibrationFuzzer(FormatFuzzerBase):
 
         return dataset
 
-    def fuzz_all(self, dataset: Dataset) -> Dataset:
-        """Apply random calibration fuzzing across all categories.
-
-        Args:
-            dataset: DICOM dataset to mutate
-
-        Returns:
-            Mutated dataset
-
-        """
-        # Apply each fuzzer category with some probability
+    def mutate(self, dataset: Dataset) -> Dataset:
+        """Apply calibration mutations (FormatFuzzerBase interface)."""
         fuzzers = [
             self.fuzz_pixel_spacing,
             self.fuzz_hounsfield_rescale,
@@ -317,22 +286,10 @@ class CalibrationFuzzer(FormatFuzzerBase):
         ]
 
         for fuzzer in fuzzers:
-            if random.random() < 0.5:  # 50% chance for each category
+            if random.random() < 0.5:
                 try:
                     dataset = fuzzer(dataset)
                 except Exception as e:
                     logger.debug("Calibration %s failed: %s", fuzzer.__name__, e)
 
         return dataset
-
-    def mutate(self, dataset: Dataset) -> Dataset:
-        """Apply calibration mutations (FormatFuzzerBase interface).
-
-        Args:
-            dataset: DICOM dataset to mutate
-
-        Returns:
-            Mutated dataset
-
-        """
-        return self.fuzz_all(dataset)

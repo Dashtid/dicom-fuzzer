@@ -14,12 +14,7 @@ class TestCalibrationFuzzer:
     def test_init_default(self):
         """Test default initialization."""
         fuzzer = CalibrationFuzzer()
-        assert fuzzer.seed is None
-
-    def test_init_with_seed(self):
-        """Test initialization with random seed."""
-        fuzzer = CalibrationFuzzer(seed=42)
-        assert fuzzer.seed == 42
+        assert fuzzer.strategy_name == "calibration"
 
 
 class TestPixelSpacingFuzzing:
@@ -214,11 +209,11 @@ class TestSliceThicknessFuzzing:
         assert ds.SliceThickness != ds.SpacingBetweenSlices
 
 
-class TestFuzzAll:
-    """Test fuzz_all combined fuzzing."""
+class TestMutate:
+    """Test mutate (FormatFuzzerBase interface)."""
 
-    def test_fuzz_all_returns_dataset(self):
-        """Test fuzz_all returns a dataset."""
+    def test_mutate_returns_dataset(self):
+        """Test mutate returns a dataset."""
         ds = pydicom.Dataset()
         ds.PixelSpacing = [0.5, 0.5]
         ds.RescaleSlope = 1.0
@@ -227,6 +222,6 @@ class TestFuzzAll:
         ds.WindowWidth = 400
         ds.SliceThickness = 5.0
 
-        fuzzer = CalibrationFuzzer(seed=42)
-        result = fuzzer.fuzz_all(ds)
+        fuzzer = CalibrationFuzzer()
+        result = fuzzer.mutate(ds)
         assert isinstance(result, pydicom.Dataset)

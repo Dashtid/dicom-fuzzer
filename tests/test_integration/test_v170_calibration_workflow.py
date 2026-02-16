@@ -214,11 +214,11 @@ class TestCalibrationAttackTypes:
         assert fuzzed_ds is not None
 
 
-class TestCalibrationSeedReproducibility:
-    """Test seed-based reproducibility."""
+class TestCalibrationDeterministicAttacks:
+    """Test that attack_type parameter produces deterministic results."""
 
-    def test_seed_reproducibility(self, ct_dicom_file):
-        """Test that seed parameter enables reproducible mutations."""
+    def test_deterministic_mismatch(self, ct_dicom_file):
+        """Test that same attack_type produces same mutations."""
         import pydicom
 
         from dicom_fuzzer.attacks.format.calibration_fuzzer import (
@@ -228,12 +228,11 @@ class TestCalibrationSeedReproducibility:
         ds1 = pydicom.dcmread(str(ct_dicom_file))
         ds2 = pydicom.dcmread(str(ct_dicom_file))
 
-        fuzzer1 = CalibrationFuzzer(seed=12345)
-        fuzzer2 = CalibrationFuzzer(seed=12345)
+        fuzzer1 = CalibrationFuzzer()
+        fuzzer2 = CalibrationFuzzer()
 
         result1 = fuzzer1.fuzz_pixel_spacing(ds1, attack_type="mismatch")
         result2 = fuzzer2.fuzz_pixel_spacing(ds2, attack_type="mismatch")
 
-        # Same attack type should produce same mutations
         assert list(result1.PixelSpacing) == list(result2.PixelSpacing)
         assert list(result1.ImagerPixelSpacing) == list(result2.ImagerPixelSpacing)

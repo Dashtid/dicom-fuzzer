@@ -31,7 +31,7 @@ from dicom_fuzzer.attacks.format.base import FormatFuzzerBase
 
 # All format fuzzers, instantiated with default args
 ALL_FUZZERS = [
-    CalibrationFuzzer(seed=42),
+    CalibrationFuzzer(),
     CompressedPixelFuzzer(),
     ConformanceFuzzer(),
     DictionaryFuzzer(),

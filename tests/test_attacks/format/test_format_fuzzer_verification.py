@@ -3222,7 +3222,7 @@ class TestReferenceTypeMismatch:
 @pytest.fixture
 def cal_fuzzer() -> CalibrationFuzzer:
     """Return CalibrationFuzzer instance."""
-    return CalibrationFuzzer(seed=42)
+    return CalibrationFuzzer()
 
 
 @pytest.fixture
@@ -3366,13 +3366,13 @@ class TestFuzzSliceThickness:
 
 
 # ---------------------------------------------------------------------------
-# 75. fuzz_all
+# 75. mutate (FormatFuzzerBase interface)
 # ---------------------------------------------------------------------------
-class TestFuzzAll:
-    """Verify fuzz_all applies at least one calibration mutation."""
+class TestMutateInterface:
+    """Verify mutate applies at least one calibration mutation."""
 
     def test_at_least_one_field_modified(self, cal_fuzzer, calibration_dataset):
-        """fuzz_all must modify at least one calibration field."""
+        """mutate must modify at least one calibration field."""
         orig = {
             "ps": list(calibration_dataset.PixelSpacing),
             "slope": calibration_dataset.RescaleSlope,
@@ -3384,7 +3384,7 @@ class TestFuzzAll:
         found = False
         for _ in range(20):
             ds = copy.deepcopy(calibration_dataset)
-            result = cal_fuzzer.fuzz_all(ds)
+            result = cal_fuzzer.mutate(ds)
             changed = (
                 list(result.PixelSpacing) != orig["ps"]
                 or result.RescaleSlope != orig["slope"]
@@ -3396,7 +3396,7 @@ class TestFuzzAll:
             if changed:
                 found = True
                 break
-        assert found, "fuzz_all never modified any calibration field"
+        assert found, "mutate never modified any calibration field"
 
 
 # ===========================================================================
