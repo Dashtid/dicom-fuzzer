@@ -1,4 +1,6 @@
-"""Calibration and Measurement Fuzzing Strategies
+"""Calibration and Measurement Fuzzing Strategies.
+
+Category: generic
 
 This module provides CalibrationFuzzer for targeting measurement and calibration
 vulnerabilities in DICOM viewers and analysis applications.

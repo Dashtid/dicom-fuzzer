@@ -1,5 +1,7 @@
 """Compressed Pixel Data Fuzzer - JPEG/JPEG2000/RLE Encapsulation Mutations.
 
+Category: generic
+
 Targets compressed pixel data formats commonly used in medical imaging:
 - JPEG Baseline (Transfer Syntax 1.2.840.10008.1.2.4.50)
 - JPEG Lossless (Transfer Syntax 1.2.840.10008.1.2.4.70)

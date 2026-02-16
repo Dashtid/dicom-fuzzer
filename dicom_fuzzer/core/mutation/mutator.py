@@ -118,12 +118,20 @@ class DicomMutator:
         )
         from dicom_fuzzer.attacks.format.conformance_fuzzer import ConformanceFuzzer
         from dicom_fuzzer.attacks.format.dictionary_fuzzer import DictionaryFuzzer
+        from dicom_fuzzer.attacks.format.encapsulated_pdf_fuzzer import (
+            EncapsulatedPdfFuzzer,
+        )
         from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
         from dicom_fuzzer.attacks.format.header_fuzzer import HeaderFuzzer
         from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
+        from dicom_fuzzer.attacks.format.nm_fuzzer import NuclearMedicineFuzzer
+        from dicom_fuzzer.attacks.format.pet_fuzzer import PetFuzzer
         from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
         from dicom_fuzzer.attacks.format.private_tag_fuzzer import PrivateTagFuzzer
         from dicom_fuzzer.attacks.format.reference_fuzzer import ReferenceFuzzer
+        from dicom_fuzzer.attacks.format.rt_dose_fuzzer import RTDoseFuzzer
+        from dicom_fuzzer.attacks.format.rtss_fuzzer import RTStructureSetFuzzer
+        from dicom_fuzzer.attacks.format.seg_fuzzer import SegmentationFuzzer
         from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
         from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
 
@@ -132,12 +140,18 @@ class DicomMutator:
             CompressedPixelFuzzer,
             ConformanceFuzzer,
             DictionaryFuzzer,
+            EncapsulatedPdfFuzzer,
             EncodingFuzzer,
             HeaderFuzzer,
             MetadataFuzzer,
+            NuclearMedicineFuzzer,
+            PetFuzzer,
             PixelFuzzer,
             PrivateTagFuzzer,
+            RTDoseFuzzer,
+            RTStructureSetFuzzer,
             ReferenceFuzzer,
+            SegmentationFuzzer,
             SequenceFuzzer,
             StructureFuzzer,
         ]:

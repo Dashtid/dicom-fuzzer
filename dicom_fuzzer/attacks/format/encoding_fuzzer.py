@@ -1,5 +1,7 @@
 """Encoding Fuzzer - Character Set and Text Encoding Mutations.
 
+Category: generic
+
 Targets DICOM SpecificCharacterSet (0008,0005) and text encoding to test
 parser robustness against malformed character data.
 

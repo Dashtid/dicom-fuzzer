@@ -1,5 +1,7 @@
 """Private Tag Fuzzer - Vendor-Specific Tag Mutations.
 
+Category: generic
+
 Targets DICOM private tags used by vendors for proprietary data.
 Private tags use odd group numbers (0009, 0011, 0019, etc.) and
 require a "Private Creator" element to identify the vendor.

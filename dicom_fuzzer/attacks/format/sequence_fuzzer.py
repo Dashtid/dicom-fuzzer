@@ -1,5 +1,7 @@
 """Sequence Fuzzer - DICOM Sequence and Item Structure Mutations.
 
+Category: generic
+
 Targets DICOM Sequences (SQ VR) and nested Item structures to test parser
 robustness against malformed hierarchical data.
 

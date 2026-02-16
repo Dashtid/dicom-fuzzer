@@ -1,5 +1,7 @@
 """Conformance Fuzzer - DICOM Conformance and Interoperability Mutations.
 
+Category: generic
+
 Targets DICOM conformance requirements including:
 - SOP Class UIDs (what type of object this is)
 - Transfer Syntax UIDs (how data is encoded)

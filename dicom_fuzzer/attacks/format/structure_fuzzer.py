@@ -1,5 +1,7 @@
 """Structure Fuzzer - DICOM File Structure Mutations.
 
+Category: generic
+
 Targets the DICOM file structure itself to test parser robustness:
 - Preamble and DICM prefix corruption
 - Tag ordering violations

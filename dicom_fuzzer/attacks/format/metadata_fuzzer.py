@@ -1,5 +1,7 @@
 """Metadata Fuzzer - Patient, Study, Series, and Institution Metadata Mutations.
 
+Category: generic
+
 Targets DICOM metadata fields across the entire metadata hierarchy:
 - Patient identifiers (PatientID, PatientName, PatientBirthDate)
 - Patient demographics (PatientSex, PatientAge, PatientWeight, PatientSize)

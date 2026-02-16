@@ -1,5 +1,7 @@
 """Reference Fuzzer - DICOM Reference and Link Integrity Mutations.
 
+Category: generic
+
 Targets DICOM references between objects to test link resolution:
 - Referenced SOP Instance UIDs
 - Referenced Series/Study UIDs

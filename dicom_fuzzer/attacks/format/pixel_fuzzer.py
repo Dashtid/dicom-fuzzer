@@ -1,5 +1,7 @@
 """Pixel Fuzzer - DICOM Pixel Data Mutations.
 
+Category: generic
+
 Targets pixel data with various corruptions to test parser robustness:
 - Random noise injection
 - Dimension mismatches
@@ -14,7 +16,11 @@ import random
 import numpy as np
 from pydicom.dataset import Dataset
 
+from dicom_fuzzer.utils.logger import get_logger
+
 from .base import FormatFuzzerBase
+
+logger = get_logger(__name__)
 
 
 class PixelFuzzer(FormatFuzzerBase):

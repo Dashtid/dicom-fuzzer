@@ -1,5 +1,7 @@
 """Dictionary-Based DICOM Fuzzing Strategy.
 
+Category: generic
+
 Uses domain knowledge to generate intelligent mutations by replacing DICOM
 values with entries from curated dictionaries. This produces inputs that
 pass initial validation but may trigger edge cases in deeper code paths.

@@ -1,5 +1,7 @@
 """Header Fuzzer - DICOM Tag and Header Mutations.
 
+Category: generic
+
 Targets DICOM tags, Value Representations (VRs), and metadata fields
 with edge cases and invalid data to test parser robustness.
 
@@ -15,8 +17,12 @@ import struct
 
 from pydicom.dataset import Dataset
 
+from dicom_fuzzer.utils.logger import get_logger
+
 from .base import FormatFuzzerBase
 from .uid_attacks import INVALID_UIDS, UID_TAG_NAMES
+
+logger = get_logger(__name__)
 
 # VR-specific invalid values for comprehensive testing
 # Based on DICOM PS3.5 VR definitions
