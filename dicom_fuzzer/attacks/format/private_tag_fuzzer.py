@@ -297,9 +297,8 @@ class PrivateTagFuzzer(FormatFuzzerBase):
                 element = 0x1010 + i
                 try:
                     dataset.add_new(Tag(group, element), "LO", payload)
-                except Exception:
-                    # Some payloads may fail, that's okay
-                    pass
+                except Exception as e:
+                    logger.debug("Injection payload %d rejected: %s", i, e)
 
         except Exception as e:
             logger.debug(f"Private tag injection attack failed: {e}")
@@ -319,16 +318,16 @@ class PrivateTagFuzzer(FormatFuzzerBase):
             try:
                 dataset.add_new(Tag(group, 0x0010), "LO", "HijackedCreator")
                 dataset.add_new(Tag(group, 0x1010), "LO", "HijackedData")
-            except Exception:
-                pass  # Expected to fail
+            except Exception as e:
+                logger.debug("Standard group hijack rejected for %04X: %s", group, e)
 
             # Also try odd groups in standard range
             for g in [0x0007, 0x000F, 0x0017]:
                 try:
                     dataset.add_new(Tag(g, 0x0010), "LO", "OddGroupCreator")
                     dataset.add_new(Tag(g, 0x1010), "LO", "OddGroupData")
-                except Exception:
-                    pass  # Some groups may be rejected by pydicom
+                except Exception as e:
+                    logger.debug("Odd group %04X rejected: %s", g, e)
 
         except Exception as e:
             logger.debug(f"Creator overwrite attack failed: {e}")
@@ -348,14 +347,14 @@ class PrivateTagFuzzer(FormatFuzzerBase):
                 try:
                     dataset.add_new(Tag(group, 0x0010), "LO", f"Reserved_{group:04X}")
                     dataset.add_new(Tag(group, 0x1010), "LO", f"Data_{group:04X}")
-                except Exception:
-                    pass  # Reserved groups may be rejected by pydicom
+                except Exception as e:
+                    logger.debug("Reserved group %04X rejected: %s", group, e)
 
             # Also try group 0x0000 (Command group, not for data)
             try:
                 dataset.add_new(Tag(0x0000, 0x0010), "LO", "CommandGroupData")
-            except Exception:
-                pass  # Command group tags may be rejected
+            except Exception as e:
+                logger.debug("Command group tag rejected: %s", e)
 
         except Exception as e:
             logger.debug(f"Reserved group attack failed: {e}")
@@ -441,8 +440,8 @@ class PrivateTagFuzzer(FormatFuzzerBase):
                 element = 0x1010 + i
                 try:
                     dataset.add_new(Tag(group, element), "OB", blob)
-                except Exception:
-                    pass  # Some blob payloads may be rejected
+                except Exception as e:
+                    logger.debug("Blob payload %d rejected: %s", i, e)
 
         except Exception as e:
             logger.debug(f"Binary blob injection failed: {e}")

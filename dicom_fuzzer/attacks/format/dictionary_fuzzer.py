@@ -382,9 +382,8 @@ class DictionaryFuzzer(FormatFuzzerBase):
                 try:
                     mutated[tag].value = edge_value
                     mutated_datasets.append(mutated)
-                except Exception:
-                    # Some mutations might fail, that's OK
-                    pass
+                except Exception as e:
+                    logger.debug("Edge case mutation failed for tag %08X: %s", tag, e)
 
         logger.info(
             f"Generated {len(mutated_datasets)} systematic mutations",

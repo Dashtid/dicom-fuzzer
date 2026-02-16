@@ -347,9 +347,8 @@ class HeaderFuzzer(FormatFuzzerBase):
             if hasattr(dataset, tag):
                 try:
                     delattr(dataset, tag)
-                except Exception:
-                    # Some tags can't be deleted, that's fine
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to delete tag %s: %s", tag, e)
 
         return dataset
 
@@ -487,9 +486,8 @@ class HeaderFuzzer(FormatFuzzerBase):
 
             try:
                 elem._value = mutation
-            except Exception:
-                # Some mutations may fail - that's expected
-                pass
+            except Exception as e:
+                logger.debug("VR mutation failed for %s: %s", vr, e)
 
         return dataset
 
@@ -520,8 +518,8 @@ class HeaderFuzzer(FormatFuzzerBase):
                 try:
                     attack_value = random.choice(numeric_attacks[vr])
                     elem.value = attack_value
-                except Exception:
-                    pass  # Some VR types may reject the attack value
+                except Exception as e:
+                    logger.debug("Numeric VR attack rejected for %s: %s", vr, e)
 
         return dataset
 
@@ -542,7 +540,7 @@ class HeaderFuzzer(FormatFuzzerBase):
                     elem = dataset.data_element(tag)
                     if elem:
                         elem._value = random.choice(INVALID_UIDS)
-                except Exception:
-                    pass  # UID element may reject invalid format
+                except Exception as e:
+                    logger.debug("UID mutation rejected for %s: %s", tag, e)
 
         return dataset

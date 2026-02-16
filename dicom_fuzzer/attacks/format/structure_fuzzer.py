@@ -334,8 +334,8 @@ class StructureFuzzer(FormatFuzzerBase):
                         else:
                             element._value = b"\x00" * size  # pyright: ignore[reportAttributeAccessIssue]
 
-        except Exception:
-            pass  # Length field attacks may fail on some element types
+        except Exception as e:
+            logger.debug("Length field attack failed: %s", e)
 
         return dataset
 
@@ -399,8 +399,8 @@ class StructureFuzzer(FormatFuzzerBase):
                         dataset[tag]._value = ""  # pyright: ignore[reportAttributeAccessIssue]
                         break
 
-        except Exception:
-            pass  # VM mismatch attacks may fail on some element types
+        except Exception as e:
+            logger.debug("VM mismatch attack failed: %s", e)
 
         return dataset
 

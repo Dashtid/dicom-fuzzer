@@ -65,8 +65,8 @@ class PixelFuzzer(FormatFuzzerBase):
         for mutation in random.sample(mutations, k=random.randint(1, 2)):
             try:
                 dataset = mutation(dataset)
-            except Exception:
-                pass  # Individual mutations may fail on incompatible datasets
+            except Exception as e:
+                logger.debug("Pixel mutation %s failed: %s", mutation.__name__, e)
 
         return dataset
 
@@ -101,8 +101,8 @@ class PixelFuzzer(FormatFuzzerBase):
             elif attack == "extreme_samples":
                 dataset.SamplesPerPixel = random.choice([65535, 256, 128])
 
-        except Exception:
-            pass  # Mutation may fail on incompatible datasets
+        except Exception as e:
+            logger.debug("Samples per pixel attack failed: %s", e)
 
         return dataset
 
@@ -138,8 +138,8 @@ class PixelFuzzer(FormatFuzzerBase):
                 dataset.SamplesPerPixel = 1
                 dataset.PlanarConfiguration = 1
 
-        except Exception:
-            pass  # Mutation may fail on incompatible datasets
+        except Exception as e:
+            logger.debug("Planar configuration attack failed: %s", e)
 
         return dataset
 
@@ -207,8 +207,8 @@ class PixelFuzzer(FormatFuzzerBase):
                     dataset.Rows = extreme
                 else:
                     dataset.Columns = extreme
-        except Exception:
-            pass  # Mutation may fail on incompatible datasets
+        except Exception as e:
+            logger.debug("Dimension mismatch attack failed: %s", e)
 
         return dataset
 
@@ -249,8 +249,8 @@ class PixelFuzzer(FormatFuzzerBase):
                 dataset.BitsStored = 0
             elif attack == "extreme_bits":
                 dataset.BitsAllocated = random.choice([1, 64, 128, 255])
-        except Exception:
-            pass  # Mutation may fail on incompatible datasets
+        except Exception as e:
+            logger.debug("Bit depth attack failed: %s", e)
 
         return dataset
 
@@ -273,7 +273,7 @@ class PixelFuzzer(FormatFuzzerBase):
 
         try:
             dataset.PhotometricInterpretation = random.choice(invalid_photometrics)
-        except Exception:
-            pass  # Mutation may fail on incompatible datasets
+        except Exception as e:
+            logger.debug("Photometric confusion attack failed: %s", e)
 
         return dataset

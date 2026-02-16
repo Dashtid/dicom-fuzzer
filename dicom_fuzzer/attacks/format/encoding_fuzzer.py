@@ -317,8 +317,8 @@ class EncodingFuzzer(FormatFuzzerBase):
             for tag in random.sample(TEXT_TAGS, min(3, len(TEXT_TAGS))):
                 try:
                     dataset.add_new(tag, "LO", value)
-                except Exception:
-                    pass  # Some tags may reject null byte values
+                except Exception as e:
+                    logger.debug("Null byte injection rejected for tag %s: %s", tag, e)
 
         except Exception as e:
             logger.debug(f"Null byte injection failed: {e}")
