@@ -48,7 +48,7 @@ _PN_ATTACKS = [
     "^",  # Single caret
     "^^^",  # Just carets
     "Name^Given=Ideographic=Phonetic",  # PN with all 3 groups
-    "\xe4\xb8\xad\xe6\x96\x87^ChineseName",  # UTF-8 Chinese chars
+    "\xe4\xb8\xad\xe6\x96\x87^ChineseName",  # Latin codepoints mimicking UTF-8 byte sequence
     "Smith^John" * 20,  # Repeated name exceeding length
     "DROP^TABLE^patients",  # SQL in name components
 ]
@@ -79,12 +79,17 @@ _INVALID_TIMES = [
     "250000",  # Hour 25
     "006100",  # Minute 61
     "000061",  # Second 61
+    "240000",  # Midnight boundary (technically valid, many parsers reject)
+    "235960",  # Leap second
     "999999.999999",  # Max boundary
     "-10000",  # Negative
     "12:30:00",  # Colons (wrong format)
     "",  # Empty
     "NOON",  # Text
     "000000.0000001",  # Too many fraction digits
+    "120000.1",  # 1-digit fraction
+    "120000.123456",  # 6-digit fraction (max valid)
+    "120000.1234567",  # 7-digit fraction (over max)
 ]
 
 
@@ -95,16 +100,10 @@ class MetadataFuzzer(FormatFuzzerBase):
     with injection payloads, boundary values, and format violations.
     """
 
-    @property
-    def strategy_name(self) -> str:
-        """Return the strategy name for identification."""
-        return "metadata"
-
     def __init__(self) -> None:
         """Initialize with fake patient data for realistic mutations."""
         super().__init__()
         self.fake_names = ["Smith^John", "Doe^Jane", "Johnson^Mike"]
-        self.fake_ids = [f"PAT{i:06d}" for i in range(1000, 9999)]
 
         self._attack_categories = [
             self._patient_identifier_attack,
@@ -113,6 +112,11 @@ class MetadataFuzzer(FormatFuzzerBase):
             self._series_metadata_attack,
             self._institution_personnel_attack,
         ]
+
+    @property
+    def strategy_name(self) -> str:
+        """Return the strategy name for identification."""
+        return "metadata"
 
     def mutate(self, dataset: Dataset) -> Dataset:
         """Apply random metadata mutations across 1-3 attack categories.
@@ -136,8 +140,8 @@ class MetadataFuzzer(FormatFuzzerBase):
         for attack in selected:
             try:
                 attack(dataset)
-            except Exception:
-                pass  # Mutation failures are expected in fuzzing
+            except Exception as e:
+                logger.debug("Mutation %s failed: %s", attack.__name__, e)
 
         return dataset
 
@@ -155,7 +159,7 @@ class MetadataFuzzer(FormatFuzzerBase):
             Mutated dataset (same object)
 
         """
-        dataset.PatientID = random.choice(self.fake_ids)
+        dataset.PatientID = f"PAT{random.randint(1000, 9999):06d}"
         dataset.PatientName = random.choice(self.fake_names)
         dataset.PatientBirthDate = self._random_date()
         return dataset
@@ -245,6 +249,7 @@ class MetadataFuzzer(FormatFuzzerBase):
                     0.0001,  # Near zero
                     999999.99,  # Extremely heavy
                     float("inf"),  # Infinity
+                    float("nan"),  # NaN (breaks == comparisons)
                     1e308,  # Near max float
                     1e-308,  # Near min float
                 ]
@@ -258,6 +263,7 @@ class MetadataFuzzer(FormatFuzzerBase):
                     0.001,  # Near zero
                     100.0,  # 100 meters
                     float("inf"),  # Infinity
+                    float("nan"),  # NaN (breaks == comparisons)
                     1e308,  # Near max float
                 ]
             )

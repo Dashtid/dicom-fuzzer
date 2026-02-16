@@ -24,9 +24,7 @@ class TestMetadataFuzzer:
         fuzzer = MetadataFuzzer()
 
         assert hasattr(fuzzer, "fake_names")
-        assert hasattr(fuzzer, "fake_ids")
         assert len(fuzzer.fake_names) > 0
-        assert len(fuzzer.fake_ids) > 0
 
     def test_mutate_patient_info(self, sample_dicom_dataset):
         """Test patient info mutation."""

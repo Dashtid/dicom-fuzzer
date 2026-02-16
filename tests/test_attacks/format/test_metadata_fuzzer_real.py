@@ -20,7 +20,6 @@ class TestMetadataFuzzerInitialization:
 
         assert fuzzer is not None
         assert hasattr(fuzzer, "fake_names")
-        assert hasattr(fuzzer, "fake_ids")
 
     def test_fake_names_populated(self):
         """Test that fake names list is populated."""
@@ -30,21 +29,16 @@ class TestMetadataFuzzerInitialization:
         assert "Smith^John" in fuzzer.fake_names
         assert "Doe^Jane" in fuzzer.fake_names
 
-    def test_fake_ids_populated(self):
-        """Test that fake IDs list is populated."""
+    def test_patient_id_generated_format(self):
+        """Test that generated patient IDs follow correct format."""
         fuzzer = MetadataFuzzer()
+        dataset = Dataset()
 
-        assert len(fuzzer.fake_ids) > 0
-        # Should have IDs from PAT001000 to PAT009998
-        assert fuzzer.fake_ids[0].startswith("PAT")
-
-    def test_fake_ids_format(self):
-        """Test that fake IDs follow correct format."""
-        fuzzer = MetadataFuzzer()
-
-        for fake_id in fuzzer.fake_ids[:10]:  # Check first 10
-            assert fake_id.startswith("PAT")
-            assert len(fake_id) == 9  # PAT + 6 digits
+        result = fuzzer.mutate_patient_info(dataset)
+        patient_id = str(result.PatientID)
+        assert patient_id.startswith("PAT")
+        assert len(patient_id) == 9  # PAT + 6 digits
+        assert patient_id[3:].isdigit()
 
 
 class TestMutatePatientInfo:
@@ -85,14 +79,17 @@ class TestMutatePatientInfo:
         assert hasattr(result, "PatientName")
         assert hasattr(result, "PatientBirthDate")
 
-    def test_mutate_patient_info_id_from_fake_list(self):
-        """Test that PatientID comes from fake_ids list."""
+    def test_mutate_patient_info_id_format(self):
+        """Test that PatientID follows PAT+6digit format."""
         fuzzer = MetadataFuzzer()
         dataset = Dataset()
 
         result = fuzzer.mutate_patient_info(dataset)
+        patient_id = str(result.PatientID)
 
-        assert result.PatientID in fuzzer.fake_ids
+        assert patient_id.startswith("PAT")
+        assert len(patient_id) == 9
+        assert patient_id[3:].isdigit()
 
     def test_mutate_patient_info_name_from_fake_list(self):
         """Test that PatientName comes from fake_names list."""
@@ -234,7 +231,8 @@ class TestIntegrationScenarios:
 
         # All should have fake patient info
         for ds in datasets:
-            assert ds.PatientID in fuzzer.fake_ids
+            patient_id = str(ds.PatientID)
+            assert patient_id.startswith("PAT") and len(patient_id) == 9
             assert ds.PatientName in fuzzer.fake_names
 
     def test_fuzzer_independence(self):
@@ -244,7 +242,6 @@ class TestIntegrationScenarios:
 
         # Both should have same fake data
         assert fuzzer1.fake_names == fuzzer2.fake_names
-        assert fuzzer1.fake_ids == fuzzer2.fake_ids
 
 
 class TestMutateMethod:
