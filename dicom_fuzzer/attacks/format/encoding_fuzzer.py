@@ -97,7 +97,7 @@ class EncodingFuzzer(FormatFuzzerBase):
             try:
                 dataset = strategy(dataset)
             except Exception as e:
-                logger.debug(f"Encoding mutation failed: {e}")
+                logger.debug("Encoding mutation failed: %s", e)
 
         return dataset
 
@@ -134,7 +134,7 @@ class EncodingFuzzer(FormatFuzzerBase):
                 dataset.SpecificCharacterSet = ["ISO_IR 100", "ISO_IR 192", "GB18030"]
 
         except Exception as e:
-            logger.debug(f"Invalid charset attack failed: {e}")
+            logger.debug("Invalid charset attack failed: %s", e)
 
         return dataset
 
@@ -173,7 +173,7 @@ class EncodingFuzzer(FormatFuzzerBase):
                 dataset.PatientName = "Здравствуйте"  # Cyrillic
 
         except Exception as e:
-            logger.debug(f"Charset mismatch attack failed: {e}")
+            logger.debug("Charset mismatch attack failed: %s", e)
 
         return dataset
 
@@ -208,7 +208,7 @@ class EncodingFuzzer(FormatFuzzerBase):
             value = b"Patient" + invalid_seq + b"Name"
             dataset.add_new(Tag(0x0010, 0x0010), "PN", value)
         except Exception as e:
-            logger.debug(f"Invalid UTF-8 injection failed: {e}")
+            logger.debug("Invalid UTF-8 injection failed: %s", e)
 
         return dataset
 
@@ -236,7 +236,7 @@ class EncodingFuzzer(FormatFuzzerBase):
             value = b"Test" + escape + b"Value" + b"\x1b(B"
             dataset.add_new(Tag(0x0010, 0x0010), "PN", value)
         except Exception as e:
-            logger.debug(f"Escape sequence injection failed: {e}")
+            logger.debug("Escape sequence injection failed: %s", e)
 
         return dataset
 
@@ -273,7 +273,7 @@ class EncodingFuzzer(FormatFuzzerBase):
 
             dataset.add_new(Tag(0x0010, 0x0010), "PN", value)
         except Exception as e:
-            logger.debug(f"BOM injection failed: {e}")
+            logger.debug("BOM injection failed: %s", e)
 
         return dataset
 
@@ -312,7 +312,7 @@ class EncodingFuzzer(FormatFuzzerBase):
                     logger.debug("Null byte injection rejected for tag %s: %s", tag, e)
 
         except Exception as e:
-            logger.debug(f"Null byte injection failed: {e}")
+            logger.debug("Null byte injection failed: %s", e)
 
         return dataset
 
@@ -364,7 +364,7 @@ class EncodingFuzzer(FormatFuzzerBase):
             dataset.PatientName = value
 
         except Exception as e:
-            logger.debug(f"Control character injection failed: {e}")
+            logger.debug("Control character injection failed: %s", e)
 
         return dataset
 
@@ -393,9 +393,9 @@ class EncodingFuzzer(FormatFuzzerBase):
             encoding, desc = random.choice(overlong_encodings)
             value = b"Patient" + encoding + b"Name"
             dataset.add_new(Tag(0x0010, 0x0010), "PN", value)
-            logger.debug(f"Injected overlong UTF-8: {desc}")
+            logger.debug("Injected overlong UTF-8: %s", desc)
         except Exception as e:
-            logger.debug(f"Overlong UTF-8 injection failed: {e}")
+            logger.debug("Overlong UTF-8 injection failed: %s", e)
 
         return dataset
 
@@ -422,7 +422,7 @@ class EncodingFuzzer(FormatFuzzerBase):
             dataset.add_new(Tag(0x0032, 0x1060), "LO", "中文描述".encode("gb18030"))
 
         except Exception as e:
-            logger.debug(f"Mixed encoding attack failed: {e}")
+            logger.debug("Mixed encoding attack failed: %s", e)
 
         return dataset
 
@@ -463,6 +463,6 @@ class EncodingFuzzer(FormatFuzzerBase):
 
             dataset.add_new(Tag(0x0010, 0x0010), "PN", value)
         except Exception as e:
-            logger.debug(f"Surrogate pair attack failed: {e}")
+            logger.debug("Surrogate pair attack failed: %s", e)
 
         return dataset
