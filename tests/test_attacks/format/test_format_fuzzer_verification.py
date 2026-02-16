@@ -3253,15 +3253,13 @@ class TestFuzzPixelSpacing:
     def test_zero_spacing(self, cal_fuzzer, calibration_dataset):
         """PixelSpacing must be set to [0.0, 0.0] for zero attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="zero")
+        result = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="zero")
         assert list(result.PixelSpacing) == [0.0, 0.0]
-        assert len(records) == 1
-        assert records[0].attack_type == "zero"
 
     def test_negative_spacing(self, cal_fuzzer, calibration_dataset):
         """PixelSpacing must be negative for negative attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="negative")
+        result = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="negative")
         assert list(result.PixelSpacing) == [-1.0, -1.0]
 
     def test_nan_spacing(self, cal_fuzzer, calibration_dataset):
@@ -3269,13 +3267,13 @@ class TestFuzzPixelSpacing:
         import math
 
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="nan")
+        result = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="nan")
         assert math.isnan(result.PixelSpacing[0])
 
     def test_mismatch_with_imager(self, cal_fuzzer, calibration_dataset):
         """PixelSpacing must differ from ImagerPixelSpacing."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="mismatch")
+        result = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="mismatch")
         assert list(result.PixelSpacing) != list(result.ImagerPixelSpacing)
 
 
@@ -3288,17 +3286,13 @@ class TestFuzzHounsfieldRescale:
     def test_zero_slope(self, cal_fuzzer, calibration_dataset):
         """RescaleSlope must be 0 for zero_slope attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_hounsfield_rescale(
-            ds, attack_type="zero_slope"
-        )
+        result = cal_fuzzer.fuzz_hounsfield_rescale(ds, attack_type="zero_slope")
         assert result.RescaleSlope == 0.0
 
     def test_negative_slope(self, cal_fuzzer, calibration_dataset):
         """RescaleSlope must be negative for negative_slope attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_hounsfield_rescale(
-            ds, attack_type="negative_slope"
-        )
+        result = cal_fuzzer.fuzz_hounsfield_rescale(ds, attack_type="negative_slope")
         assert result.RescaleSlope == -1.0
 
     def test_nan_slope(self, cal_fuzzer, calibration_dataset):
@@ -3306,9 +3300,7 @@ class TestFuzzHounsfieldRescale:
         import math
 
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_hounsfield_rescale(
-            ds, attack_type="nan_slope"
-        )
+        result = cal_fuzzer.fuzz_hounsfield_rescale(ds, attack_type="nan_slope")
         assert math.isnan(result.RescaleSlope)
 
     def test_inf_slope(self, cal_fuzzer, calibration_dataset):
@@ -3316,9 +3308,7 @@ class TestFuzzHounsfieldRescale:
         import math
 
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_hounsfield_rescale(
-            ds, attack_type="inf_slope"
-        )
+        result = cal_fuzzer.fuzz_hounsfield_rescale(ds, attack_type="inf_slope")
         assert math.isinf(result.RescaleSlope)
 
 
@@ -3331,13 +3321,13 @@ class TestFuzzWindowLevel:
     def test_zero_width(self, cal_fuzzer, calibration_dataset):
         """WindowWidth must be 0 for zero_width attack (divide-by-zero)."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_window_level(ds, attack_type="zero_width")
+        result = cal_fuzzer.fuzz_window_level(ds, attack_type="zero_width")
         assert result.WindowWidth == 0
 
     def test_negative_width(self, cal_fuzzer, calibration_dataset):
         """WindowWidth must be negative for negative_width attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_window_level(ds, attack_type="negative_width")
+        result = cal_fuzzer.fuzz_window_level(ds, attack_type="negative_width")
         assert result.WindowWidth < 0
 
     def test_nan_values(self, cal_fuzzer, calibration_dataset):
@@ -3345,7 +3335,7 @@ class TestFuzzWindowLevel:
         import math
 
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_window_level(ds, attack_type="nan_values")
+        result = cal_fuzzer.fuzz_window_level(ds, attack_type="nan_values")
         assert math.isnan(result.WindowCenter)
         assert math.isnan(result.WindowWidth)
 
@@ -3359,19 +3349,19 @@ class TestFuzzSliceThickness:
     def test_zero_thickness(self, cal_fuzzer, calibration_dataset):
         """SliceThickness must be 0 for zero attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="zero")
+        result = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="zero")
         assert result.SliceThickness == 0.0
 
     def test_negative_thickness(self, cal_fuzzer, calibration_dataset):
         """SliceThickness must be negative for negative attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="negative")
+        result = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="negative")
         assert result.SliceThickness < 0
 
     def test_mismatch_with_spacing(self, cal_fuzzer, calibration_dataset):
         """SliceThickness must differ from SpacingBetweenSlices."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="mismatch")
+        result = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="mismatch")
         assert result.SliceThickness != result.SpacingBetweenSlices
 
 
@@ -3394,30 +3384,19 @@ class TestFuzzAll:
         found = False
         for _ in range(20):
             ds = copy.deepcopy(calibration_dataset)
-            result, records = cal_fuzzer.fuzz_all(ds)
-            if records:
+            result = cal_fuzzer.fuzz_all(ds)
+            changed = (
+                list(result.PixelSpacing) != orig["ps"]
+                or result.RescaleSlope != orig["slope"]
+                or result.RescaleIntercept != orig["intercept"]
+                or result.WindowCenter != orig["wc"]
+                or result.WindowWidth != orig["ww"]
+                or result.SliceThickness != orig["st"]
+            )
+            if changed:
                 found = True
                 break
-        assert found, "fuzz_all never produced any mutation records"
-
-    def test_records_have_category(self, cal_fuzzer, calibration_dataset):
-        """Mutation records must have valid categories."""
-        valid_cats = {
-            "pixel_spacing",
-            "hounsfield_rescale",
-            "window_level",
-            "slice_thickness",
-        }
-        for _ in range(20):
-            ds = copy.deepcopy(calibration_dataset)
-            _, records = cal_fuzzer.fuzz_all(ds)
-            if records:
-                for rec in records:
-                    assert rec.category in valid_cats, (
-                        f"Unknown category: {rec.category}"
-                    )
-                return
-        pytest.fail("fuzz_all never produced records to check")
+        assert found, "fuzz_all never modified any calibration field"
 
 
 # ===========================================================================
