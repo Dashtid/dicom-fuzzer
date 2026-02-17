@@ -10,9 +10,6 @@ from typing import Any
 class DicomFuzzingError(Exception):
     """Base exception for DICOM fuzzing operations.
 
-    This serves as the root exception for all DICOM fuzzing related errors,
-    providing a common interface for error handling.
-
     Attributes:
         message: Human-readable error description
         error_code: Optional error code for categorization
@@ -33,70 +30,24 @@ class DicomFuzzingError(Exception):
 
 
 class ValidationError(DicomFuzzingError):
-    """Raised when DICOM data validation fails.
-
-    This exception is raised when DICOM data doesn't conform to expected
-    standards or when validation rules are violated.
-    """
+    """Raised when DICOM data validation fails."""
 
     pass
 
 
 class ParsingError(DicomFuzzingError):
-    """Raised when DICOM file parsing fails.
-
-    This exception indicates issues with reading or interpreting DICOM data,
-    including malformed files or unsupported formats.
-    """
-
-    pass
-
-
-class MutationError(DicomFuzzingError):
-    """Raised when DICOM data mutation fails.
-
-    This exception occurs when mutation operations cannot be completed,
-    either due to invalid parameters or data constraints.
-    """
-
-    pass
-
-
-class NetworkTimeoutError(DicomFuzzingError):
-    """Raised when network operations timeout.
-
-    This exception is specific to DICOM network operations that exceed
-    configured timeout limits.
-    """
+    """Raised when DICOM file parsing fails."""
 
     pass
 
 
 class SecurityViolationError(DicomFuzzingError):
-    """Raised when security constraints are violated.
-
-    This exception indicates attempts to perform operations that violate
-    security policies or constraints.
-    """
-
-    pass
-
-
-class ConfigurationError(DicomFuzzingError):
-    """Raised when configuration is invalid or missing.
-
-    This exception occurs when required configuration is missing or
-    contains invalid values.
-    """
+    """Raised when security constraints are violated."""
 
     pass
 
 
 class ResourceExhaustedError(DicomFuzzingError):
-    """Raised when system resources are exhausted.
-
-    This exception occurs when the fuzzer cannot continue due to
-    insufficient system resources (disk space, memory, etc.).
-    """
+    """Raised when system resources are exhausted."""
 
     pass

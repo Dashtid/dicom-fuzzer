@@ -1,23 +1,11 @@
-"""
-Comprehensive tests for custom exception classes.
-
-Tests cover:
-- Exception class hierarchy and inheritance
-- Exception initialization with various parameters
-- Error message handling
-- Error code and context attributes
-- Exception catching and type checking
-- String representation
-"""
+"""Tests for custom exception classes."""
 
 import pytest
 
 from dicom_fuzzer.core.exceptions import (
-    ConfigurationError,
     DicomFuzzingError,
-    MutationError,
-    NetworkTimeoutError,
     ParsingError,
+    ResourceExhaustedError,
     SecurityViolationError,
     ValidationError,
 )
@@ -160,74 +148,6 @@ class TestParsingError:
         assert "parsing error" in str(exc_info.value).lower()
 
 
-class TestMutationError:
-    """Test MutationError exception class."""
-
-    def test_inherits_from_dicom_fuzzing_error(self):
-        """Test that MutationError inherits from DicomFuzzingError."""
-        error = MutationError("Mutation failed")
-
-        assert isinstance(error, DicomFuzzingError)
-        assert isinstance(error, MutationError)
-
-    def test_basic_initialization(self):
-        """Test creating MutationError."""
-        error = MutationError("Failed to mutate dataset")
-
-        assert str(error) == "Failed to mutate dataset"
-        assert error.message == "Failed to mutate dataset"
-
-    def test_with_mutation_context(self):
-        """Test MutationError with mutation context."""
-        context = {"strategy": "header_fuzzer", "tag": "(0008,0016)"}
-        error = MutationError("Mutation failed", context=context)
-
-        assert error.context["strategy"] == "header_fuzzer"
-        assert error.context["tag"] == "(0008,0016)"
-
-    def test_can_be_raised_and_caught(self):
-        """Test raising and catching MutationError."""
-        with pytest.raises(MutationError) as exc_info:
-            raise MutationError("Test mutation error")
-
-        assert "mutation error" in str(exc_info.value).lower()
-
-
-class TestNetworkTimeoutError:
-    """Test NetworkTimeoutError exception class."""
-
-    def test_inherits_from_dicom_fuzzing_error(self):
-        """Test that NetworkTimeoutError inherits from DicomFuzzingError."""
-        error = NetworkTimeoutError("Connection timeout")
-
-        assert isinstance(error, DicomFuzzingError)
-        assert isinstance(error, NetworkTimeoutError)
-
-    def test_basic_initialization(self):
-        """Test creating NetworkTimeoutError."""
-        error = NetworkTimeoutError("Network operation timed out")
-
-        assert str(error) == "Network operation timed out"
-        assert error.message == "Network operation timed out"
-
-    def test_with_network_context(self):
-        """Test NetworkTimeoutError with network context."""
-        context = {"host": "pacs.hospital.com", "port": 11112, "timeout": 30}
-        error = NetworkTimeoutError("Timeout", error_code="NET001", context=context)
-
-        assert error.error_code == "NET001"
-        assert error.context["host"] == "pacs.hospital.com"
-        assert error.context["port"] == 11112
-        assert error.context["timeout"] == 30
-
-    def test_can_be_raised_and_caught(self):
-        """Test raising and catching NetworkTimeoutError."""
-        with pytest.raises(NetworkTimeoutError) as exc_info:
-            raise NetworkTimeoutError("Test timeout error")
-
-        assert "timeout error" in str(exc_info.value).lower()
-
-
 class TestSecurityViolationError:
     """Test SecurityViolationError exception class."""
 
@@ -266,43 +186,6 @@ class TestSecurityViolationError:
         assert "security violation" in str(exc_info.value).lower()
 
 
-class TestConfigurationError:
-    """Test ConfigurationError exception class."""
-
-    def test_inherits_from_dicom_fuzzing_error(self):
-        """Test that ConfigurationError inherits from DicomFuzzingError."""
-        error = ConfigurationError("Invalid configuration")
-
-        assert isinstance(error, DicomFuzzingError)
-        assert isinstance(error, ConfigurationError)
-
-    def test_basic_initialization(self):
-        """Test creating ConfigurationError."""
-        error = ConfigurationError("Missing required configuration")
-
-        assert str(error) == "Missing required configuration"
-        assert error.message == "Missing required configuration"
-
-    def test_with_config_context(self):
-        """Test ConfigurationError with configuration context."""
-        context = {"key": "max_file_size", "expected": "int", "got": "str"}
-        error = ConfigurationError(
-            "Invalid config", error_code="CFG001", context=context
-        )
-
-        assert error.error_code == "CFG001"
-        assert error.context["key"] == "max_file_size"
-        assert error.context["expected"] == "int"
-        assert error.context["got"] == "str"
-
-    def test_can_be_raised_and_caught(self):
-        """Test raising and catching ConfigurationError."""
-        with pytest.raises(ConfigurationError) as exc_info:
-            raise ConfigurationError("Test configuration error")
-
-        assert "configuration error" in str(exc_info.value).lower()
-
-
 class TestExceptionHierarchy:
     """Test exception class hierarchy and relationships."""
 
@@ -311,10 +194,8 @@ class TestExceptionHierarchy:
         exceptions = [
             ValidationError("test"),
             ParsingError("test"),
-            MutationError("test"),
-            NetworkTimeoutError("test"),
             SecurityViolationError("test"),
-            ConfigurationError("test"),
+            ResourceExhaustedError("test"),
         ]
 
         for exc in exceptions:
@@ -353,10 +234,8 @@ class TestExceptionHierarchy:
         exceptions_to_test = [
             ValidationError("test"),
             ParsingError("test"),
-            MutationError("test"),
-            NetworkTimeoutError("test"),
             SecurityViolationError("test"),
-            ConfigurationError("test"),
+            ResourceExhaustedError("test"),
         ]
 
         for exc in exceptions_to_test:
@@ -390,9 +269,8 @@ class TestExceptionUsage:
 
     def test_exception_context_mutation(self):
         """Test modifying exception context after creation."""
-        error = MutationError("Test")
+        error = ValidationError("Test")
 
-        # Add context after creation
         error.context["added_key"] = "added_value"
 
         assert "added_key" in error.context
@@ -406,23 +284,12 @@ class TestExceptionUsage:
                 raise ValidationError("Validation failed")
             elif operation_type == "parse":
                 raise ParsingError("Parsing failed")
-            elif operation_type == "mutate":
-                raise MutationError("Mutation failed")
 
-        # Test catching specific types
         with pytest.raises(ValidationError):
             risky_operation("validate")
 
         with pytest.raises(ParsingError):
             risky_operation("parse")
 
-        with pytest.raises(MutationError):
-            risky_operation("mutate")
-
-        # Test catching with base class
         with pytest.raises(DicomFuzzingError):
             risky_operation("validate")
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
