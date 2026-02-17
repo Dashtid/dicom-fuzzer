@@ -1,8 +1,8 @@
-"""DICOM Series Detection.
+"""DICOM Series Detection -- Group Files into 3D Series by SeriesInstanceUID.
 
-Groups DICOM files into complete 3D series based on SeriesInstanceUID.
-Enables series-level fuzzing to find vulnerabilities that individual
-file fuzzing misses.
+- Scan directories or file lists for DICOM files
+- Group slices by SeriesInstanceUID
+- Sort slices by ImagePositionPatient (spatial ordering)
 - Support both multi-slice and single-slice series
 """
 
