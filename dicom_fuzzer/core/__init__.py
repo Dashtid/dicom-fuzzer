@@ -73,7 +73,7 @@ from .dicom.validator import DicomValidator
 from .engine import DICOMGenerator
 
 # Exceptions
-from .exceptions import DicomFuzzingError, NetworkTimeoutError, ValidationError
+from .exceptions import DicomFuzzingError, ValidationError
 
 # Target harness
 from .harness.target_runner import ExecutionStatus, TargetRunner
@@ -122,7 +122,6 @@ __all__ = [
     "DicomMutator",
     "DicomParser",
     "DicomValidator",
-    "NetworkTimeoutError",
     "ValidationError",
     # Protocol types
     "DICOMCommand",
