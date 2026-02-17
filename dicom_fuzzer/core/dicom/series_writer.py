@@ -26,11 +26,13 @@ Invalid structure causes early rejection, never reaching vulnerable code paths.
 
 import json
 import shutil
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import pydicom
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
@@ -95,7 +97,7 @@ class SeriesWriter:
         """
         self.output_root = Path(output_root)
         self.output_root.mkdir(parents=True, exist_ok=True)
-        logger.info(f"SeriesWriter initialized with output root: {self.output_root}")
+        logger.info("SeriesWriter initialized with output root: %s", self.output_root)
 
     def write_series(
         self,
@@ -125,15 +127,13 @@ class SeriesWriter:
         """
         # Load datasets from series if not provided
         if datasets is None:
-            import pydicom
-
             datasets = []
             for slice_path in series.slices:
                 try:
                     ds = pydicom.dcmread(slice_path)
                     datasets.append(ds)
                 except Exception as e:
-                    logger.error(f"Failed to read slice {slice_path}: {e}")
+                    logger.error("Failed to read slice %s: %s", slice_path, e)
                     raise OSError(f"Failed to read slice {slice_path}: {e}") from e
 
         if len(datasets) != series.slice_count:
@@ -145,8 +145,10 @@ class SeriesWriter:
         # Create series directory
         series_dir = self._create_series_directory(series)
         logger.info(
-            f"Writing {series.slice_count} slices to {series_dir.name}/ "
-            f"({series.modality} series)"
+            "Writing %d slices to %s/ (%s series)",
+            series.slice_count,
+            series_dir.name,
+            series.modality,
         )
 
         # Write all slices
@@ -166,11 +168,13 @@ class SeriesWriter:
                 slice_files.append(slice_filename)
 
                 logger.debug(
-                    f"  Wrote {slice_filename} ({file_size:,} bytes) "
-                    f"[original: {original_path.name}]"
+                    "  Wrote %s (%s bytes) [original: %s]",
+                    slice_filename,
+                    f"{file_size:,}",
+                    original_path.name,
                 )
             except Exception as e:
-                logger.error(f"Failed to write slice {i}: {e}")
+                logger.error("Failed to write slice %d: %s", i, e)
                 raise OSError(f"Failed to write slice {slice_filename}") from e
 
         # Create metadata
@@ -200,8 +204,9 @@ class SeriesWriter:
         self._create_reproduction_script(series_dir, metadata)
 
         logger.info(
-            f"Successfully wrote series to {series_dir.name}/ "
-            f"({total_size:,} bytes total)"
+            "Successfully wrote series to %s/ (%s bytes total)",
+            series_dir.name,
+            f"{total_size:,}",
         )
 
         return metadata
@@ -230,7 +235,9 @@ class SeriesWriter:
         try:
             dataset.save_as(output_path, write_like_original=False)
             file_size = output_path.stat().st_size
-            logger.info(f"Wrote single slice: {output_name} ({file_size:,} bytes)")
+            logger.info(
+                "Wrote single slice: %s (%s bytes)", output_name, f"{file_size:,}"
+            )
 
             # Write simple metadata if mutations provided
             if mutations_applied:
@@ -243,12 +250,12 @@ class SeriesWriter:
                     "mutations_applied": mutations_applied,
                     "file_size_bytes": file_size,
                 }
-                with open(metadata_path, "w") as f:
+                with open(metadata_path, "w", encoding="utf-8") as f:
                     json.dump(metadata, f, indent=2)
 
             return output_path
         except Exception as e:
-            logger.error(f"Failed to write single slice {output_name}: {e}")
+            logger.error("Failed to write single slice %s: %s", output_name, e)
             raise OSError(f"Failed to write {output_name}") from e
 
     def _create_series_directory(self, series: DicomSeries) -> Path:
@@ -289,11 +296,11 @@ class SeriesWriter:
         metadata_path = series_dir / "metadata.json"
 
         try:
-            with open(metadata_path, "w") as f:
+            with open(metadata_path, "w", encoding="utf-8") as f:
                 json.dump(metadata.to_dict(), f, indent=2)
-            logger.debug(f"Wrote metadata.json ({metadata_path.stat().st_size} bytes)")
+            logger.debug("Wrote metadata.json (%d bytes)", metadata_path.stat().st_size)
         except Exception as e:
-            logger.warning(f"Failed to write metadata.json: {e}")
+            logger.warning("Failed to write metadata.json: %s", e)
 
     def _create_reproduction_script(
         self, series_dir: Path, metadata: SeriesMetadata
@@ -367,12 +374,12 @@ if __name__ == "__main__":
 '''
 
         try:
-            with open(script_path, "w") as f:
+            with open(script_path, "w", encoding="utf-8") as f:
                 f.write(script_content)
             script_path.chmod(0o755)  # Make executable
-            logger.debug(f"Created reproduce.py ({script_path.stat().st_size} bytes)")
+            logger.debug("Created reproduce.py (%d bytes)", script_path.stat().st_size)
         except Exception as e:
-            logger.warning(f"Failed to create reproduce.py: {e}")
+            logger.warning("Failed to create reproduce.py: %s", e)
 
     def cleanup_old_series(self, days: int = 7) -> int:
         """Clean up series directories older than specified days.
@@ -384,8 +391,6 @@ if __name__ == "__main__":
             Number of directories deleted
 
         """
-        import time
-
         cutoff_time = time.time() - (days * 86400)
         deleted_count = 0
 
@@ -396,12 +401,12 @@ if __name__ == "__main__":
             if series_dir.stat().st_mtime < cutoff_time:
                 try:
                     shutil.rmtree(series_dir)
-                    logger.info(f"Deleted old series: {series_dir.name}")
+                    logger.info("Deleted old series: %s", series_dir.name)
                     deleted_count += 1
                 except Exception as e:
-                    logger.warning(f"Failed to delete {series_dir.name}: {e}")
+                    logger.warning("Failed to delete %s: %s", series_dir.name, e)
 
         if deleted_count > 0:
-            logger.info(f"Cleaned up {deleted_count} old series directories")
+            logger.info("Cleaned up %d old series directories", deleted_count)
 
         return deleted_count
