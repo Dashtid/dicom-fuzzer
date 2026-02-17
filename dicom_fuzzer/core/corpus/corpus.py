@@ -56,22 +56,17 @@ class CorpusEntry(SerializableMixin):
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    # OPTIMIZATION: Lazy loading fields (not included in repr/init by default)
     _dataset_path: Path | None = field(default=None, repr=False)
     _dataset_cache: Dataset | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
-        """OPTIMIZATION: Handle lazy loading initialization.
-
-        If a dataset is provided directly, cache it.
-        If a path is provided, dataset will be loaded on first access.
-        """
+        """Handle lazy loading initialization."""
         if self.dataset is not None:
             # Dataset provided directly - cache it
             self._dataset_cache = self.dataset
 
     def get_dataset(self) -> Dataset | None:
-        """OPTIMIZATION: Lazy-load dataset on first access.
+        """Lazy-load dataset on first access.
 
         Returns:
             Dataset: The DICOM dataset, loaded from disk if needed
@@ -470,7 +465,6 @@ class CorpusManager:
         # Save DICOM dataset
         dcm_path = self.corpus_dir / f"{entry.entry_id}.dcm"
         try:
-            # OPTIMIZATION: Use get_dataset() for lazy loading compatibility
             dataset = entry.get_dataset()
             if dataset is None:
                 logger.error(f"Cannot save entry {entry.entry_id}: dataset is None")
@@ -478,7 +472,6 @@ class CorpusManager:
 
             dataset.save_as(dcm_path, write_like_original=False)
 
-            # OPTIMIZATION: Update the dataset path for future lazy loading
             entry._dataset_path = dcm_path
         except Exception as e:
             logger.error(f"Failed to save corpus entry {entry.entry_id}: {e}")
@@ -493,14 +486,7 @@ class CorpusManager:
             logger.error(f"Failed to save metadata for {entry.entry_id}: {e}")
 
     def _load_corpus(self) -> None:
-        """OPTIMIZATION: Load corpus metadata from disk using lazy loading.
-
-        Instead of loading all DICOM datasets into memory immediately,
-        this stores only the file paths. Datasets are loaded on-demand
-        when accessed via get_dataset().
-
-        Expected impact: 50-70% memory reduction, 3-5x faster startup
-        """
+        """Load corpus metadata from disk with lazy dataset loading."""
         if not self.corpus_dir.exists():
             return
 
@@ -510,8 +496,6 @@ class CorpusManager:
                 entry_id = dcm_file.stem
                 meta_file = dcm_file.with_suffix(".json")
 
-                # OPTIMIZATION: Validate DICOM file without full load
-                # Quick check: verify it has valid DICOM header (128-byte preamble + 'DICM')
                 with open(dcm_file, "rb") as f:
                     preamble = f.read(132)  # 128 bytes preamble + 4 bytes 'DICM'
                     if len(preamble) < 132 or preamble[128:132] != b"DICM":
@@ -519,9 +503,6 @@ class CorpusManager:
                             f"Invalid DICOM file (missing header): {dcm_file}"
                         )
                         continue
-
-                # OPTIMIZATION: Don't load dataset yet - just store the path
-                # The dataset will be lazy-loaded when get_dataset() is called
 
                 # Load metadata if available
                 metadata = {}

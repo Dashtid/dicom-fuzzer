@@ -114,7 +114,7 @@ class TestIntegrationWithMutator:
         fuzzer = DictionaryFuzzer()
         mutator.register_strategy(fuzzer)
 
-        mutator.start_session(ds)
+        mutator.start_session()
         mutated = mutator.apply_mutations(
             ds, num_mutations=1, strategy_names=["dictionary"]
         )

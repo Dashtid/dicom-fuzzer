@@ -13,11 +13,10 @@ from typing import Any, Protocol
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.utils.identifiers import generate_short_id
-from dicom_fuzzer.utils.logger import SecurityEventLogger, get_logger
+from dicom_fuzzer.utils.logger import get_logger
 
 # Get a logger for this module
 logger = get_logger(__name__)
-security_logger = SecurityEventLogger(logger)
 
 
 class MutationStrategy(Protocol):
@@ -26,15 +25,15 @@ class MutationStrategy(Protocol):
     @property
     def strategy_name(self) -> str:
         """Return the strategy name for identification."""
-        pass
+        ...
 
     def mutate(self, dataset: Dataset) -> Dataset:
         """Apply mutation to the dataset."""
-        pass
+        ...
 
     def can_mutate(self, dataset: Dataset) -> bool:
         """Check if this strategy can be applied to this dataset."""
-        pass
+        ...
 
 
 @dataclass
@@ -81,7 +80,6 @@ class DicomMutator:
         self.strategies: list[MutationStrategy] = []
         self.current_session: MutationSession | None = None
 
-        # OPTIMIZATION: Cache for applicable strategies based on dataset features
         self._strategy_cache: dict[tuple[Any, ...], list[MutationStrategy]] = {}
 
         # Load default configuration
@@ -179,13 +177,10 @@ class DicomMutator:
         self.strategies.append(strategy)
         logger.debug("Registered mutation strategy: %s", strategy.strategy_name)
 
-    def start_session(
-        self, original_dataset: Dataset | None, file_info: dict[str, Any] | None = None
-    ) -> str:
+    def start_session(self, file_info: dict[str, Any] | None = None) -> str:
         """Start a new mutation session for tracking.
 
         Args:
-            original_dataset: The original DICOM dataset to mutate
             file_info: Optional information about the source file
 
         Returns:
@@ -227,12 +222,11 @@ class DicomMutator:
 
         """
         # Use defaults from config if not specified
-        num_mutations = num_mutations or self.config.get("max_mutations_per_file", 1)
+        if num_mutations is None:
+            num_mutations = int(self.config.get("max_mutations_per_file", 1))
 
         logger.info("Applying %s mutations", num_mutations)
 
-        # OPTIMIZATION: Use Dataset.copy() instead of deepcopy for better performance
-        # pydicom's copy() is optimized for DICOM datasets and 2-3x faster than deepcopy
         mutated_dataset = dataset.copy()
 
         # Get available strategies
@@ -277,10 +271,6 @@ class DicomMutator:
 
         Caches results based on dataset features for performance.
         """
-        # OPTIMIZATION: Create cache key from dataset features
-        # This avoids re-checking strategy applicability for similar datasets
-        # NOTE: Convert Modality to str to avoid pydicom MultiValue hashing issues
-        # (MultiValue objects are unhashable in Python 3.11+ / pydicom 3.0+)
         modality_value = dataset.get("Modality", None)
         modality_str = str(modality_value) if modality_value is not None else None
         cache_key = (
@@ -391,22 +381,3 @@ class DicomMutator:
         self.current_session = None
 
         return completed_session
-
-    def get_session_summary(self) -> dict[str, Any] | None:
-        """Get a summary of the current session.
-
-        Returns:
-            dict[str, Any] | None: Summary information about the session
-
-        """
-        if not self.current_session:
-            return None
-
-        session = self.current_session
-        return {
-            "session_id": session.session_id,
-            "start_time": session.start_time.isoformat(),
-            "mutations_applied": len(session.mutations),
-            "successful_mutations": session.successful_mutations,
-            "strategies_used": list({m.strategy_name for m in session.mutations}),
-        }

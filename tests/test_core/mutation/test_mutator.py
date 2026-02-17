@@ -18,7 +18,6 @@ from unittest.mock import Mock, patch
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.mutation.mutator import (
     DicomMutator,
@@ -250,9 +249,8 @@ class TestSessionManagement:
     def test_start_session_creates_session(self):
         """Test starting a session creates session object."""
         mutator = DicomMutator()
-        dataset = Mock(spec=Dataset)
 
-        returned_id = mutator.start_session(dataset)
+        returned_id = mutator.start_session()
 
         assert mutator.current_session is not None
         assert returned_id == mutator.current_session.session_id
@@ -261,42 +259,17 @@ class TestSessionManagement:
     def test_start_session_with_file_info(self):
         """Test starting session with file information."""
         mutator = DicomMutator()
-        dataset = Mock(spec=Dataset)
         file_info = {"path": "test.dcm", "size": 2048}
 
-        mutator.start_session(dataset, file_info)
+        mutator.start_session(file_info)
 
         assert mutator.current_session.original_file_info == file_info
-
-    def test_get_session_summary_active_session(self):
-        """Test getting summary of active session."""
-        mutator = DicomMutator()
-        dataset = Mock(spec=Dataset)
-
-        mutator.start_session(dataset, {"test": "data"})
-        summary = mutator.get_session_summary()
-
-        assert summary is not None
-        assert "session_id" in summary
-        assert "start_time" in summary
-        assert "mutations_applied" in summary
-        assert "successful_mutations" in summary
-        assert "strategies_used" in summary
-
-    def test_get_session_summary_no_session(self):
-        """Test getting summary with no active session."""
-        mutator = DicomMutator()
-
-        summary = mutator.get_session_summary()
-
-        assert summary is None
 
     def test_end_session_returns_completed(self):
         """Test ending session returns completed session."""
         mutator = DicomMutator()
-        dataset = Mock(spec=Dataset)
 
-        session_id = mutator.start_session(dataset)
+        session_id = mutator.start_session()
         completed = mutator.end_session()
 
         assert completed is not None
@@ -315,9 +288,8 @@ class TestSessionManagement:
     def test_session_statistics_updated(self):
         """Test that session statistics are updated correctly."""
         mutator = DicomMutator()
-        dataset = Mock(spec=Dataset)
 
-        mutator.start_session(dataset)
+        mutator.start_session()
 
         # Manually add some mutations for testing
         mutator.current_session.total_mutations = 5
@@ -364,7 +336,7 @@ class TestMutationApplication:
         mock_choice.return_value = strategy
 
         mutator.register_strategy(strategy)
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
 
         result = mutator.apply_mutations(sample_dicom_dataset, num_mutations=1)
 
@@ -384,7 +356,7 @@ class TestMutationApplication:
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
 
         mutator.register_strategy(strategy)
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
 
         mutator.apply_mutations(sample_dicom_dataset, num_mutations=3)
 
@@ -407,7 +379,7 @@ class TestMutationApplication:
 
         mutator.register_strategy(strategy1)
         mutator.register_strategy(strategy2)
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
 
         # Only use strategy1
         mutator.apply_mutations(
@@ -427,7 +399,7 @@ class TestMutationApplication:
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
 
         mutator.register_strategy(strategy)
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
 
         mutator.apply_mutations(sample_dicom_dataset, num_mutations=1)
 
@@ -447,7 +419,7 @@ class TestMutationApplication:
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
 
         mutator.register_strategy(strategy)
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
 
         mutator.apply_mutations(sample_dicom_dataset, num_mutations=1)
 
@@ -461,7 +433,7 @@ class TestMutationTracking:
     def test_record_mutation_success(self, sample_dicom_dataset):
         """Test recording successful mutation."""
         mutator = DicomMutator()
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
 
         strategy = Mock()
         strategy.strategy_name = "test_strategy"
@@ -480,7 +452,7 @@ class TestMutationTracking:
     def test_record_mutation_failure(self, sample_dicom_dataset):
         """Test recording failed mutation."""
         mutator = DicomMutator()
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
 
         strategy = Mock()
         strategy.strategy_name = "test_strategy"
@@ -534,7 +506,7 @@ class TestPropertyBasedTesting:
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
 
         mutator.register_strategy(strategy)
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
 
         mutator.apply_mutations(sample_dicom_dataset, num_mutations=num_mutations)
 
@@ -558,7 +530,7 @@ class TestIntegration:
         mutator.register_strategy(strategy)
 
         # Start session
-        session_id = mutator.start_session(sample_dicom_dataset, {"path": "test.dcm"})
+        session_id = mutator.start_session({"path": "test.dcm"})
         assert session_id is not None
 
         # Apply mutations
@@ -567,11 +539,6 @@ class TestIntegration:
             num_mutations=2,
         )
         assert result is not None
-
-        # Check session summary
-        summary = mutator.get_session_summary()
-        assert summary is not None
-        assert summary["mutations_applied"] == 2
 
         # End session
         completed = mutator.end_session()
@@ -597,7 +564,7 @@ class TestIntegration:
         assert len(mutator.strategies) == 3
 
         # Run mutation session
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
         mutator.apply_mutations(sample_dicom_dataset, num_mutations=5)
         completed = mutator.end_session()
 
@@ -611,7 +578,7 @@ class TestMutatorExceptionHandling:
     def test_apply_mutations_with_mutation_failure(self, sample_dicom_dataset):
         """Test mutation failure exception handling."""
         mutator = DicomMutator()
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
 
         # Create a mock strategy that raises an exception
         mock_strategy = Mock()
@@ -670,7 +637,7 @@ class TestAdditionalCoverage:
             "file_hash": "abc123",
         }
 
-        session_id = mutator.start_session(sample_dicom_dataset, file_info=file_info)
+        session_id = mutator.start_session(file_info=file_info)
 
         assert session_id is not None
         assert mutator.current_session is not None
@@ -691,7 +658,7 @@ class TestAdditionalCoverage:
         strategy.mutate = Mock(return_value=sample_dicom_dataset)
 
         mutator.register_strategy(strategy)
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
 
         result = mutator.apply_mutations(sample_dicom_dataset, num_mutations=3)
 
@@ -715,7 +682,7 @@ class TestAdditionalCoverage:
 
         mutator.register_strategy(strategy1)
         mutator.register_strategy(strategy2)
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
 
         # Apply mutations with strategy filter
         result = mutator.apply_mutations(
@@ -729,7 +696,7 @@ class TestAdditionalCoverage:
         mutator = DicomMutator(config={"auto_register_strategies": True})
 
         # Start session (triggers logging)
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
 
         # Apply mutations (triggers more logging)
         result = mutator.apply_mutations(sample_dicom_dataset, num_mutations=1)
@@ -749,7 +716,7 @@ class TestAdditionalCoverage:
         mutator.register_strategy(strategy)
 
         # Start session
-        mutator.start_session(sample_dicom_dataset)
+        mutator.start_session()
 
         # Apply mutations
         mutator.apply_mutations(sample_dicom_dataset, num_mutations=1)
