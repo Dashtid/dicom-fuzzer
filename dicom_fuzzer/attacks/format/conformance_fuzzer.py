@@ -1,17 +1,15 @@
 """Conformance Fuzzer - DICOM Conformance and Interoperability Mutations.
 
-Targets DICOM conformance requirements including:
-- SOP Class UIDs (what type of object this is)
-- Transfer Syntax UIDs (how data is encoded)
-- Meta Information version
-- Implementation identifiers
+Category: generic
 
-These elements define how DICOM data should be interpreted.
-Mismatches can cause:
-- Wrong modality-specific processing
-- Encoding/decoding failures
-- Interoperability issues between systems
-- Security vulnerabilities from unexpected code paths
+Attacks:
+- Invalid and retired SOP Class UIDs
+- Invalid and retired Transfer Syntax UIDs
+- SOP Class vs Transfer Syntax mismatch
+- Missing or corrupted File Meta Information
+- Meta Information version mismatch
+- Implementation UID format violations
+- Modality vs SOP Class mismatch
 """
 
 from __future__ import annotations
@@ -52,6 +50,7 @@ SOP_CLASSES = {
     "PDF": "1.2.840.10008.5.1.4.1.1.104.1",
     "RAW": "1.2.840.10008.5.1.4.1.1.66",
     "SC": "1.2.840.10008.5.1.4.1.1.7",  # Secondary Capture
+    "SC_TRUECOLOR_MF": "1.2.840.10008.5.1.4.1.1.7.4",  # Multi-frame True Color SC
     "ENCAPSULATED_PDF": "1.2.840.10008.5.1.4.1.1.104.1",
     "ENCAPSULATED_CDA": "1.2.840.10008.5.1.4.1.1.104.2",
 }
@@ -120,7 +119,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
             try:
                 dataset = strategy(dataset)
             except Exception as e:
-                logger.debug(f"Conformance mutation failed: {e}")
+                logger.debug("Conformance mutation failed: %s", e)
 
         return dataset
 
@@ -175,7 +174,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
             dataset.SOPClassUID = uid
 
         except Exception as e:
-            logger.debug(f"Invalid SOP class attack failed: {e}")
+            logger.debug("Invalid SOP class attack failed: %s", e)
 
         return dataset
 
@@ -220,7 +219,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
             dataset.file_meta.TransferSyntaxUID = uid  # pyright: ignore[reportAttributeAccessIssue]
 
         except Exception as e:
-            logger.debug(f"Invalid transfer syntax attack failed: {e}")
+            logger.debug("Invalid transfer syntax attack failed: %s", e)
 
         return dataset
 
@@ -246,7 +245,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
             dataset.file_meta.TransferSyntaxUID = ts  # pyright: ignore[reportAttributeAccessIssue]
 
         except Exception as e:
-            logger.debug(f"SOP/Transfer mismatch attack failed: {e}")
+            logger.debug("SOP/Transfer mismatch attack failed: %s", e)
 
         return dataset
 
@@ -286,7 +285,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
                     del dataset.file_meta.MediaStorageSOPInstanceUID
 
         except Exception as e:
-            logger.debug(f"Missing file meta attack failed: {e}")
+            logger.debug("Missing file meta attack failed: %s", e)
 
         return dataset
 
@@ -327,7 +326,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
                 dataset.file_meta.FileMetaInformationGroupLength = 99999
 
         except Exception as e:
-            logger.debug(f"Corrupted file meta attack failed: {e}")
+            logger.debug("Corrupted file meta attack failed: %s", e)
 
         return dataset
 
@@ -360,7 +359,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
                 dataset.file_meta.FileMetaInformationVersion = b"\xff\xff\xff\xff"
 
         except Exception as e:
-            logger.debug(f"Version mismatch attack failed: {e}")
+            logger.debug("Version mismatch attack failed: %s", e)
 
         return dataset
 
@@ -405,7 +404,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
                 dataset.file_meta.ImplementationVersionName = ""
 
         except Exception as e:
-            logger.debug(f"Implementation UID attack failed: {e}")
+            logger.debug("Implementation UID attack failed: %s", e)
 
         return dataset
 
@@ -434,7 +433,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
             dataset.SOPClassUID = sop
 
         except Exception as e:
-            logger.debug(f"Modality/SOP mismatch attack failed: {e}")
+            logger.debug("Modality/SOP mismatch attack failed: %s", e)
 
         return dataset
 
@@ -455,7 +454,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
             tag, name = random.choice(uid_tags)
             dataset.add_new(tag, "UI", random.choice(INVALID_UIDS))
         except Exception as e:
-            logger.debug(f"UID format violation attack failed: {e}")
+            logger.debug("UID format violation attack failed: %s", e)
 
         return dataset
 
@@ -497,6 +496,6 @@ class ConformanceFuzzer(FormatFuzzerBase):
                 dataset.file_meta.TransferSyntaxUID = ExplicitVRBigEndian
 
         except Exception as e:
-            logger.debug(f"Retired syntax attack failed: {e}")
+            logger.debug("Retired syntax attack failed: %s", e)
 
         return dataset

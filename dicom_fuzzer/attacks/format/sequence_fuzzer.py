@@ -1,19 +1,16 @@
 """Sequence Fuzzer - DICOM Sequence and Item Structure Mutations.
 
-Targets DICOM Sequences (SQ VR) and nested Item structures to test parser
-robustness against malformed hierarchical data.
+Category: generic
 
-Sequences are used in ~40% of DICOM structure for:
-- Referenced images/series
-- Procedure codes
-- Measurement data
-- Frame-level metadata
-
-Common vulnerabilities:
-- Deep nesting causing stack overflow
-- Item length mismatches causing buffer overflows
-- Missing delimiters causing infinite loops
-- Empty required sequences causing null pointer dereference
+Attacks:
+- Deep nesting (stack overflow via recursive sequences)
+- Item length field mismatch with actual data
+- Empty required sequences
+- Orphan items outside sequence containers
+- Circular sequence references
+- Sequence delimiter corruption
+- Mixed encoding within sequence items
+- Massive item count (memory exhaustion)
 """
 
 from __future__ import annotations
@@ -23,7 +20,7 @@ from typing import Any
 
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
-from pydicom.tag import Tag
+from pydicom.tag import BaseTag, Tag
 
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -75,11 +72,11 @@ class SequenceFuzzer(FormatFuzzerBase):
             try:
                 dataset = strategy(dataset)
             except Exception as e:
-                logger.debug(f"Sequence mutation failed: {e}")
+                logger.debug("Sequence mutation failed: %s", e)
 
         return dataset
 
-    def _find_sequences(self, dataset: Dataset) -> list[tuple[Tag, Any]]:
+    def _find_sequences(self, dataset: Dataset) -> list[tuple[BaseTag, Any]]:
         """Find all sequence elements in the dataset."""
         sequences = []
         for tag, elem in dataset.items():
@@ -115,9 +112,9 @@ class SequenceFuzzer(FormatFuzzerBase):
             deep_seq = Sequence([create_nested_item(depth)])
             # Add to a common sequence tag
             dataset.add_new(Tag(0x0040, 0xA730), "SQ", deep_seq)  # ContentSequence
-            logger.debug(f"Created sequence with depth {depth}")
+            logger.debug("Created sequence with depth %s", depth)
         except Exception as e:
-            logger.debug(f"Deep nesting attack failed: {e}")
+            logger.debug("Deep nesting attack failed: %s", e)
 
         return dataset
 
@@ -210,7 +207,7 @@ class SequenceFuzzer(FormatFuzzerBase):
                 dataset.add_new(target, "SQ", Sequence([item]))
 
         except Exception as e:
-            logger.debug(f"Empty sequence attack failed: {e}")
+            logger.debug("Empty sequence attack failed: %s", e)
 
         return dataset
 
@@ -228,7 +225,7 @@ class SequenceFuzzer(FormatFuzzerBase):
             dataset.add_new(Tag(0x0009, 0x0010), "LO", "OrphanItemCreator")
             dataset.add_new(Tag(0x0009, 0x1000), "UN", b"\xfe\xff\x00\xe0" * 10)
         except Exception as e:
-            logger.debug(f"Orphan item attack failed: {e}")
+            logger.debug("Orphan item attack failed: %s", e)
 
         return dataset
 
@@ -256,7 +253,7 @@ class SequenceFuzzer(FormatFuzzerBase):
             dataset.add_new(Tag(0x0008, 0x1140), "SQ", Sequence([item1, item2]))
 
         except Exception as e:
-            logger.debug(f"Circular reference attack failed: {e}")
+            logger.debug("Circular reference attack failed: %s", e)
 
         return dataset
 
@@ -283,7 +280,7 @@ class SequenceFuzzer(FormatFuzzerBase):
                     Tag(0x0008, 0x1030), "LO", "Study\xfe\xff\xdd\xe0Description"
                 )
         except Exception as e:
-            logger.debug(f"Delimiter corruption failed: {e}")
+            logger.debug("Delimiter corruption failed: %s", e)
 
         return dataset
 
@@ -311,7 +308,7 @@ class SequenceFuzzer(FormatFuzzerBase):
             dataset.add_new(Tag(0x0032, 0x1064), "SQ", Sequence([item1, item2, item3]))
 
         except Exception as e:
-            logger.debug(f"Mixed encoding attack failed: {e}")
+            logger.debug("Mixed encoding attack failed: %s", e)
 
         return dataset
 
@@ -367,6 +364,6 @@ class SequenceFuzzer(FormatFuzzerBase):
                 dataset.add_new(Tag(0x0040, 0xA730), "SQ", Sequence(items))
 
         except Exception as e:
-            logger.debug(f"Massive item count attack failed: {e}")
+            logger.debug("Massive item count attack failed: %s", e)
 
         return dataset

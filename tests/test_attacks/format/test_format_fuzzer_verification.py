@@ -140,41 +140,7 @@ def pixel_dataset() -> Dataset:
 
 
 # ---------------------------------------------------------------------------
-# 1. _noise_injection
-# ---------------------------------------------------------------------------
-class TestNoiseInjection:
-    """Verify _noise_injection modifies pixel data bytes."""
-
-    def test_pixel_data_bytes_differ(self, fuzzer, pixel_dataset):
-        """Injected noise must produce different pixel bytes."""
-        original_pixels = pixel_dataset.PixelData
-        any_changed = False
-        for _ in range(20):
-            ds = copy.deepcopy(pixel_dataset)
-            result = fuzzer._noise_injection(ds)
-            if result.PixelData != original_pixels:
-                any_changed = True
-                break
-        assert any_changed, "_noise_injection never modified pixel data bytes"
-
-    def test_pixel_data_length_preserved(self, fuzzer, pixel_dataset):
-        """Noise injection must not change pixel data length."""
-        ds = copy.deepcopy(pixel_dataset)
-        original_length = len(ds.PixelData)
-        result = fuzzer._noise_injection(ds)
-        assert len(result.PixelData) == original_length
-
-    def test_no_pixel_data_returns_unchanged(self, fuzzer):
-        """Without PixelData, dataset returned unchanged."""
-        ds = Dataset()
-        ds.PatientName = "NoPixels"
-        original = copy.deepcopy(ds)
-        result = fuzzer._noise_injection(ds)
-        assert result == original
-
-
-# ---------------------------------------------------------------------------
-# 2. _dimension_mismatch
+# 1. _dimension_mismatch
 # ---------------------------------------------------------------------------
 class TestDimensionMismatch:
     """Verify _dimension_mismatch breaks Rows*Columns vs PixelData size."""
@@ -1305,75 +1271,7 @@ class TestMissingRequiredTags:
 
 
 # ---------------------------------------------------------------------------
-# 27. _invalid_vr_values
-# ---------------------------------------------------------------------------
-class TestInvalidVrValues:
-    """Verify _invalid_vr_values injects VR-violating values."""
-
-    INVALID_DATES = {
-        "INVALID",
-        "99999999",
-        "20251332",
-        "20250145",
-        "2025-01-01",
-        "",
-        "1",
-    }
-    INVALID_TIMES = {"999999", "126000", "120075", "ABCDEF", "12:30:45"}
-    INVALID_IS = {"NOT_A_NUMBER", "3.14159", "999999999999", "-999999999", ""}
-    INVALID_DS = {"INVALID", "1.2.3", "NaN", "Infinity", "1e999"}
-
-    def test_study_date_invalid(self, hdr_fuzzer, header_dataset):
-        """StudyDate must be set to a known invalid date value."""
-        any_invalid = False
-        for _ in range(10):
-            ds = copy.deepcopy(header_dataset)
-            result = hdr_fuzzer._invalid_vr_values(ds)
-            if result.StudyDate in self.INVALID_DATES:
-                any_invalid = True
-                break
-        assert any_invalid, "StudyDate was never set to an invalid value"
-
-    def test_study_time_invalid(self, hdr_fuzzer, header_dataset):
-        """StudyTime must be set to a known invalid time value."""
-        any_invalid = False
-        for _ in range(10):
-            ds = copy.deepcopy(header_dataset)
-            result = hdr_fuzzer._invalid_vr_values(ds)
-            if result.StudyTime in self.INVALID_TIMES:
-                any_invalid = True
-                break
-        assert any_invalid, "StudyTime was never set to an invalid value"
-
-    def test_series_number_invalid_is(self, hdr_fuzzer, header_dataset):
-        """SeriesNumber internal value must be set to invalid IS string."""
-        any_invalid = False
-        for _ in range(10):
-            ds = copy.deepcopy(header_dataset)
-            result = hdr_fuzzer._invalid_vr_values(ds)
-            elem = result[Tag(0x0020, 0x0011)]  # SeriesNumber
-            val = getattr(elem, "_value", None)
-            if val in self.INVALID_IS:
-                any_invalid = True
-                break
-        assert any_invalid, "SeriesNumber was never set to an invalid IS value"
-
-    def test_slice_thickness_invalid_ds(self, hdr_fuzzer, header_dataset):
-        """SliceThickness internal value must be an invalid decimal string."""
-        any_invalid = False
-        for _ in range(10):
-            ds = copy.deepcopy(header_dataset)
-            result = hdr_fuzzer._invalid_vr_values(ds)
-            elem = result[Tag(0x0018, 0x0050)]  # SliceThickness
-            val = getattr(elem, "_value", None)
-            if val in self.INVALID_DS:
-                any_invalid = True
-                break
-        assert any_invalid, "SliceThickness was never set to an invalid DS value"
-
-
-# ---------------------------------------------------------------------------
-# 28. _boundary_values
+# 27. _boundary_values
 # ---------------------------------------------------------------------------
 class TestBoundaryValues:
     """Verify _boundary_values sets numeric fields to edge case values."""
@@ -3222,7 +3120,7 @@ class TestReferenceTypeMismatch:
 @pytest.fixture
 def cal_fuzzer() -> CalibrationFuzzer:
     """Return CalibrationFuzzer instance."""
-    return CalibrationFuzzer(severity="moderate", seed=42)
+    return CalibrationFuzzer()
 
 
 @pytest.fixture
@@ -3253,15 +3151,13 @@ class TestFuzzPixelSpacing:
     def test_zero_spacing(self, cal_fuzzer, calibration_dataset):
         """PixelSpacing must be set to [0.0, 0.0] for zero attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="zero")
+        result = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="zero")
         assert list(result.PixelSpacing) == [0.0, 0.0]
-        assert len(records) == 1
-        assert records[0].attack_type == "zero"
 
     def test_negative_spacing(self, cal_fuzzer, calibration_dataset):
         """PixelSpacing must be negative for negative attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="negative")
+        result = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="negative")
         assert list(result.PixelSpacing) == [-1.0, -1.0]
 
     def test_nan_spacing(self, cal_fuzzer, calibration_dataset):
@@ -3269,13 +3165,13 @@ class TestFuzzPixelSpacing:
         import math
 
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="nan")
+        result = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="nan")
         assert math.isnan(result.PixelSpacing[0])
 
     def test_mismatch_with_imager(self, cal_fuzzer, calibration_dataset):
         """PixelSpacing must differ from ImagerPixelSpacing."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="mismatch")
+        result = cal_fuzzer.fuzz_pixel_spacing(ds, attack_type="mismatch")
         assert list(result.PixelSpacing) != list(result.ImagerPixelSpacing)
 
 
@@ -3288,17 +3184,13 @@ class TestFuzzHounsfieldRescale:
     def test_zero_slope(self, cal_fuzzer, calibration_dataset):
         """RescaleSlope must be 0 for zero_slope attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_hounsfield_rescale(
-            ds, attack_type="zero_slope"
-        )
+        result = cal_fuzzer.fuzz_hounsfield_rescale(ds, attack_type="zero_slope")
         assert result.RescaleSlope == 0.0
 
     def test_negative_slope(self, cal_fuzzer, calibration_dataset):
         """RescaleSlope must be negative for negative_slope attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_hounsfield_rescale(
-            ds, attack_type="negative_slope"
-        )
+        result = cal_fuzzer.fuzz_hounsfield_rescale(ds, attack_type="negative_slope")
         assert result.RescaleSlope == -1.0
 
     def test_nan_slope(self, cal_fuzzer, calibration_dataset):
@@ -3306,9 +3198,7 @@ class TestFuzzHounsfieldRescale:
         import math
 
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_hounsfield_rescale(
-            ds, attack_type="nan_slope"
-        )
+        result = cal_fuzzer.fuzz_hounsfield_rescale(ds, attack_type="nan_slope")
         assert math.isnan(result.RescaleSlope)
 
     def test_inf_slope(self, cal_fuzzer, calibration_dataset):
@@ -3316,9 +3206,7 @@ class TestFuzzHounsfieldRescale:
         import math
 
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_hounsfield_rescale(
-            ds, attack_type="inf_slope"
-        )
+        result = cal_fuzzer.fuzz_hounsfield_rescale(ds, attack_type="inf_slope")
         assert math.isinf(result.RescaleSlope)
 
 
@@ -3331,13 +3219,13 @@ class TestFuzzWindowLevel:
     def test_zero_width(self, cal_fuzzer, calibration_dataset):
         """WindowWidth must be 0 for zero_width attack (divide-by-zero)."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_window_level(ds, attack_type="zero_width")
+        result = cal_fuzzer.fuzz_window_level(ds, attack_type="zero_width")
         assert result.WindowWidth == 0
 
     def test_negative_width(self, cal_fuzzer, calibration_dataset):
         """WindowWidth must be negative for negative_width attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_window_level(ds, attack_type="negative_width")
+        result = cal_fuzzer.fuzz_window_level(ds, attack_type="negative_width")
         assert result.WindowWidth < 0
 
     def test_nan_values(self, cal_fuzzer, calibration_dataset):
@@ -3345,7 +3233,7 @@ class TestFuzzWindowLevel:
         import math
 
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_window_level(ds, attack_type="nan_values")
+        result = cal_fuzzer.fuzz_window_level(ds, attack_type="nan_values")
         assert math.isnan(result.WindowCenter)
         assert math.isnan(result.WindowWidth)
 
@@ -3359,30 +3247,30 @@ class TestFuzzSliceThickness:
     def test_zero_thickness(self, cal_fuzzer, calibration_dataset):
         """SliceThickness must be 0 for zero attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="zero")
+        result = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="zero")
         assert result.SliceThickness == 0.0
 
     def test_negative_thickness(self, cal_fuzzer, calibration_dataset):
         """SliceThickness must be negative for negative attack."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="negative")
+        result = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="negative")
         assert result.SliceThickness < 0
 
     def test_mismatch_with_spacing(self, cal_fuzzer, calibration_dataset):
         """SliceThickness must differ from SpacingBetweenSlices."""
         ds = copy.deepcopy(calibration_dataset)
-        result, records = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="mismatch")
+        result = cal_fuzzer.fuzz_slice_thickness(ds, attack_type="mismatch")
         assert result.SliceThickness != result.SpacingBetweenSlices
 
 
 # ---------------------------------------------------------------------------
-# 75. fuzz_all
+# 75. mutate (FormatFuzzerBase interface)
 # ---------------------------------------------------------------------------
-class TestFuzzAll:
-    """Verify fuzz_all applies at least one calibration mutation."""
+class TestMutateInterface:
+    """Verify mutate applies at least one calibration mutation."""
 
     def test_at_least_one_field_modified(self, cal_fuzzer, calibration_dataset):
-        """fuzz_all must modify at least one calibration field."""
+        """mutate must modify at least one calibration field."""
         orig = {
             "ps": list(calibration_dataset.PixelSpacing),
             "slope": calibration_dataset.RescaleSlope,
@@ -3394,30 +3282,19 @@ class TestFuzzAll:
         found = False
         for _ in range(20):
             ds = copy.deepcopy(calibration_dataset)
-            result, records = cal_fuzzer.fuzz_all(ds)
-            if records:
+            result = cal_fuzzer.mutate(ds)
+            changed = (
+                list(result.PixelSpacing) != orig["ps"]
+                or result.RescaleSlope != orig["slope"]
+                or result.RescaleIntercept != orig["intercept"]
+                or result.WindowCenter != orig["wc"]
+                or result.WindowWidth != orig["ww"]
+                or result.SliceThickness != orig["st"]
+            )
+            if changed:
                 found = True
                 break
-        assert found, "fuzz_all never produced any mutation records"
-
-    def test_records_have_category(self, cal_fuzzer, calibration_dataset):
-        """Mutation records must have valid categories."""
-        valid_cats = {
-            "pixel_spacing",
-            "hounsfield_rescale",
-            "window_level",
-            "slice_thickness",
-        }
-        for _ in range(20):
-            ds = copy.deepcopy(calibration_dataset)
-            _, records = cal_fuzzer.fuzz_all(ds)
-            if records:
-                for rec in records:
-                    assert rec.category in valid_cats, (
-                        f"Unknown category: {rec.category}"
-                    )
-                return
-        pytest.fail("fuzz_all never produced records to check")
+        assert found, "mutate never modified any calibration field"
 
 
 # ===========================================================================
@@ -3488,57 +3365,6 @@ class TestDictionaryMutate:
         result = dict_fuzzer.mutate(dictionary_dataset)
         # The method does deepcopy internally
         assert result is not dictionary_dataset
-
-
-# ---------------------------------------------------------------------------
-# 77. mutate_with_specific_dictionary
-# ---------------------------------------------------------------------------
-class TestMutateWithSpecificDictionary:
-    """Verify mutate_with_specific_dictionary targets a specific tag."""
-
-    def test_specific_tag_modified(self, dict_fuzzer, dictionary_dataset):
-        """Specified tag must have its value changed."""
-        tag = 0x00080060  # Modality
-        original_modality = dictionary_dataset.Modality
-        result = dict_fuzzer.mutate_with_specific_dictionary(
-            dictionary_dataset, tag, "modalities"
-        )
-        assert result[tag].value != original_modality or True  # May pick same value
-        assert isinstance(result, Dataset)
-
-
-# ---------------------------------------------------------------------------
-# 78. inject_edge_cases_systematically
-# ---------------------------------------------------------------------------
-class TestInjectEdgeCasesSystematically:
-    """Verify inject_edge_cases_systematically produces multiple datasets."""
-
-    def test_produces_multiple_datasets(self, dict_fuzzer, dictionary_dataset):
-        """Must return a non-empty list of mutated datasets."""
-        results = dict_fuzzer.inject_edge_cases_systematically(
-            dictionary_dataset, "empty"
-        )
-        assert isinstance(results, list)
-        assert len(results) > 0
-
-    def test_each_dataset_is_distinct(self, dict_fuzzer, dictionary_dataset):
-        """Datasets should differ from each other (most should be unique)."""
-        results = dict_fuzzer.inject_edge_cases_systematically(
-            dictionary_dataset, "null_bytes"
-        )
-        if len(results) <= 1:
-            return  # Nothing to compare
-        # At least 2 should differ
-        first = str(results[0])
-        any_different = any(str(r) != first for r in results[1:])
-        assert any_different, "All systematic edge case datasets are identical"
-
-    def test_invalid_category_returns_empty(self, dict_fuzzer, dictionary_dataset):
-        """Unknown category must return empty list."""
-        results = dict_fuzzer.inject_edge_cases_systematically(
-            dictionary_dataset, "totally_fake_category"
-        )
-        assert results == []
 
 
 # ===========================================================================

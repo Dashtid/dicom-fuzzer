@@ -1,19 +1,14 @@
 """Compressed Pixel Data Fuzzer - JPEG/JPEG2000/RLE Encapsulation Mutations.
 
-Targets compressed pixel data formats commonly used in medical imaging:
-- JPEG Baseline (Transfer Syntax 1.2.840.10008.1.2.4.50)
-- JPEG Lossless (Transfer Syntax 1.2.840.10008.1.2.4.70)
-- JPEG 2000 (Transfer Syntax 1.2.840.10008.1.2.4.90/91)
-- RLE Lossless (Transfer Syntax 1.2.840.10008.1.2.5)
+Category: generic
 
-Encapsulated data is wrapped in fragment items. Corrupting the structure
-or codec-specific data can trigger vulnerabilities in image decoders.
-
-Common vulnerabilities:
-- Buffer overflow in JPEG marker parsing
-- Integer overflow in JPEG2000 tile dimensions
-- RLE segment count mismatches
+Attacks:
+- JPEG marker corruption and dimension manipulation
+- JPEG 2000 codestream corruption
+- RLE segment corruption
 - Fragment offset table corruption
+- Encapsulation structure violations (missing delimiters, wrong tags, nesting)
+- Malformed frame injection and frame count mismatch
 """
 
 from __future__ import annotations
@@ -40,10 +35,7 @@ logger = get_logger(__name__)
 JPEG_SOI = b"\xff\xd8"  # Start of Image
 JPEG_EOI = b"\xff\xd9"  # End of Image
 JPEG_SOF0 = b"\xff\xc0"  # Baseline DCT
-JPEG_SOF2 = b"\xff\xc2"  # Progressive DCT
 JPEG_DHT = b"\xff\xc4"  # Define Huffman Table
-JPEG_DQT = b"\xff\xdb"  # Define Quantization Table
-JPEG_SOS = b"\xff\xda"  # Start of Scan
 JPEG_APP0 = b"\xff\xe0"  # JFIF marker
 
 # JPEG 2000 markers
@@ -96,7 +88,7 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
             try:
                 dataset = strategy(dataset)
             except Exception as e:
-                logger.debug(f"Compressed pixel mutation failed: {e}")
+                logger.debug("Compressed pixel mutation failed: %s", e)
 
         return dataset
 
@@ -120,6 +112,8 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
         )
 
         try:
+            frames: list[bytes] = []
+
             if attack == "missing_eoi":
                 # Create JPEG without End of Image marker
                 fake_jpeg = JPEG_SOI + JPEG_APP0 + b"\x00\x10JFIF\x00" + b"\x00" * 100
@@ -152,9 +146,6 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
                 fake_jpeg = JPEG_SOI + JPEG_DHT + b"\x00"  # Length incomplete
                 frames = [fake_jpeg]
 
-            else:
-                return dataset
-
             # Encapsulate and set as pixel data
             encapsulated = encapsulate(frames)
             dataset.add_new(Tag(0x7FE0, 0x0010), "OB", encapsulated)
@@ -164,7 +155,7 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
                 dataset.file_meta.TransferSyntaxUID = JPEGBaseline8Bit
 
         except Exception as e:
-            logger.debug(f"JPEG marker corruption failed: {e}")
+            logger.debug("JPEG marker corruption failed: %s", e)
 
         return dataset
 
@@ -198,7 +189,7 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
                 dataset.file_meta.TransferSyntaxUID = JPEGBaseline8Bit
 
         except Exception as e:
-            logger.debug(f"JPEG dimension corruption failed: {e}")
+            logger.debug("JPEG dimension corruption failed: %s", e)
 
         return dataset
 
@@ -219,6 +210,8 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
         )
 
         try:
+            frames: list[bytes] = []
+
             if attack == "invalid_siz_dimensions":
                 # SIZ marker with extreme dimensions
                 siz_data = struct.pack(
@@ -250,9 +243,6 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
                 fake_jp2 = JP2_SOC + JP2_COD + b"\x00\x05\xff\xff\xff" + JP2_EOC
                 frames = [fake_jp2]
 
-            else:
-                return dataset
-
             encapsulated = encapsulate(frames)
             dataset.add_new(Tag(0x7FE0, 0x0010), "OB", encapsulated)
 
@@ -260,7 +250,7 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
                 dataset.file_meta.TransferSyntaxUID = JPEG2000Lossless
 
         except Exception as e:
-            logger.debug(f"JPEG2000 corruption failed: {e}")
+            logger.debug("JPEG2000 corruption failed: %s", e)
 
         return dataset
 
@@ -280,6 +270,8 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
         )
 
         try:
+            frames: list[bytes] = []
+
             if attack == "wrong_segment_count":
                 # RLE header claims more segments than present
                 # Header: 4-byte segment count + 15 segment offsets (4 bytes each)
@@ -313,9 +305,6 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
                 rle_data = header + b"\x00" * 100
                 frames = [rle_data]
 
-            else:
-                return dataset
-
             encapsulated = encapsulate(frames)
             dataset.add_new(Tag(0x7FE0, 0x0010), "OB", encapsulated)
 
@@ -323,7 +312,7 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
                 dataset.file_meta.TransferSyntaxUID = RLELossless
 
         except Exception as e:
-            logger.debug(f"RLE corruption failed: {e}")
+            logger.debug("RLE corruption failed: %s", e)
 
         return dataset
 
@@ -361,7 +350,7 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
                 dataset.file_meta.TransferSyntaxUID = JPEGBaseline8Bit
 
         except Exception as e:
-            logger.debug(f"Fragment offset corruption failed: {e}")
+            logger.debug("Fragment offset corruption failed: %s", e)
 
         return dataset
 
@@ -381,6 +370,8 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
         )
 
         try:
+            encapsulated = b""
+
             if attack == "missing_delimiter":
                 # Encapsulated data without SequenceDelimiter
                 frame = JPEG_SOI + b"\x00" * 50 + JPEG_EOI
@@ -417,16 +408,13 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
                 delimiter = b"\xfe\xff\xdd\xe0\x00\x00\x00\x00"
                 encapsulated = bot_item + frame_item + delimiter
 
-            else:
-                return dataset
-
             dataset.add_new(Tag(0x7FE0, 0x0010), "OB", encapsulated)
 
             if hasattr(dataset, "file_meta"):
                 dataset.file_meta.TransferSyntaxUID = JPEGBaseline8Bit
 
         except Exception as e:
-            logger.debug(f"Encapsulation structure corruption failed: {e}")
+            logger.debug("Encapsulation structure corruption failed: %s", e)
 
         return dataset
 
@@ -438,7 +426,6 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
         try:
             valid_frame = JPEG_SOI + JPEG_EOI
             malformed_frames = [
-                b"",  # Empty
                 b"\x00" * 100,  # No JPEG structure
                 JPEG_SOI + b"\xff\x00" * 50,  # Escape sequences only
                 b"\xff" * 200,  # All 0xFF (ambiguous markers)
@@ -458,7 +445,7 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
                 dataset.file_meta.TransferSyntaxUID = JPEGBaseline8Bit
 
         except Exception as e:
-            logger.debug(f"Malformed frame injection failed: {e}")
+            logger.debug("Malformed frame injection failed: %s", e)
 
         return dataset
 
@@ -498,6 +485,6 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
                 dataset.file_meta.TransferSyntaxUID = JPEGBaseline8Bit
 
         except Exception as e:
-            logger.debug(f"Frame count mismatch failed: {e}")
+            logger.debug("Frame count mismatch failed: %s", e)
 
         return dataset

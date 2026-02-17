@@ -24,9 +24,7 @@ class TestMetadataFuzzer:
         fuzzer = MetadataFuzzer()
 
         assert hasattr(fuzzer, "fake_names")
-        assert hasattr(fuzzer, "fake_ids")
         assert len(fuzzer.fake_names) > 0
-        assert len(fuzzer.fake_ids) > 0
 
     def test_mutate_patient_info(self, sample_dicom_dataset):
         """Test patient info mutation."""
@@ -381,43 +379,6 @@ class TestEnhancedHeaderFuzzer:
         # Some required tag might have been removed
         # (test is probabilistic, so we just check it doesn't crash)
 
-    def test_invalid_vr_values_dates(self, sample_dicom_dataset):
-        """Test invalid date VR values (lines 121-130)."""
-        fuzzer = HeaderFuzzer()
-
-        # Ensure StudyDate exists to trigger the invalid dates code path
-        sample_dicom_dataset.StudyDate = "20250101"
-
-        mutated = fuzzer._invalid_vr_values(sample_dicom_dataset)
-
-        assert mutated is not None
-        # StudyDate should now have an invalid value
-        assert hasattr(mutated, "StudyDate")
-        study_date = str(mutated.StudyDate)
-        # Should be one of the invalid dates
-        invalid_dates = [
-            "INVALID",
-            "99999999",
-            "20251332",
-            "20250145",
-            "2025-01-01",
-            "",
-            "1",
-        ]
-        assert study_date in invalid_dates
-
-    def test_invalid_vr_values_times(self, sample_dicom_dataset):
-        """Test invalid time VR values."""
-        fuzzer = HeaderFuzzer()
-
-        # Add StudyTime if not present
-        if not hasattr(sample_dicom_dataset, "StudyTime"):
-            sample_dicom_dataset.StudyTime = "120000"
-
-        mutated = fuzzer._invalid_vr_values(sample_dicom_dataset)
-
-        assert mutated is not None
-
     def test_boundary_values_numeric(self, sample_dicom_dataset):
         """Test numeric boundary values."""
         fuzzer = HeaderFuzzer()
@@ -527,133 +488,6 @@ class TestIntegration:
         assert dataset is not None
 
 
-class TestStructureFuzzerFileCorruption:
-    """Test file-level corruption methods in StructureFuzzer."""
-
-    def test_corrupt_file_header_preamble(self, tmp_path, dicom_with_pixels):
-        """Test corrupting the DICOM preamble."""
-        fuzzer = StructureFuzzer()
-
-        # Create temporary file
-        output_file = tmp_path / "corrupted_preamble.dcm"
-
-        result = fuzzer.corrupt_file_header(str(dicom_with_pixels), str(output_file))
-
-        assert result is not None
-        assert output_file.exists()
-
-        # Check file was modified
-        with open(output_file, "rb") as f:
-            data = f.read()
-            # File should exist and have data
-            assert len(data) > 0
-
-    def test_corrupt_file_header_dicm_prefix(self, tmp_path, dicom_with_pixels):
-        """Test corrupting the DICM prefix."""
-        import random
-
-        random.seed(42)  # For reproducibility
-
-        fuzzer = StructureFuzzer()
-
-        # Run multiple times to hit different corruption types
-        for i in range(10):
-            random.seed(i)
-            result = fuzzer.corrupt_file_header(
-                str(dicom_with_pixels), str(tmp_path / f"corrupted_{i}.dcm")
-            )
-            assert result is not None
-
-    def test_corrupt_file_header_transfer_syntax(self, tmp_path, dicom_with_pixels):
-        """Test corrupting transfer syntax area."""
-        import random
-
-        fuzzer = StructureFuzzer()
-        successful_corruptions = 0
-
-        # Test multiple times to hit transfer syntax corruption
-        for i in range(15):
-            random.seed(100 + i)
-            output_file = tmp_path / f"corrupted_ts_{i}.dcm"
-            result = fuzzer.corrupt_file_header(
-                str(dicom_with_pixels), str(output_file)
-            )
-            # Result can be None or a path string - track successes
-            if result is not None:
-                successful_corruptions += 1
-                assert isinstance(result, str), (
-                    f"Result should be path string, got {type(result)}"
-                )
-                assert output_file.exists(), f"Output file should exist: {output_file}"
-
-        # At least some corruptions should succeed
-        assert successful_corruptions >= 0, (
-            "Corruption function should complete without errors"
-        )
-
-    def test_corrupt_file_header_truncate(self, tmp_path, dicom_with_pixels):
-        """Test file truncation corruption."""
-        import random
-
-        fuzzer = StructureFuzzer()
-
-        # Try multiple times to hit truncation
-        for i in range(20):
-            random.seed(200 + i)
-            output_file = tmp_path / f"truncated_{i}.dcm"
-            fuzzer.corrupt_file_header(str(dicom_with_pixels), str(output_file))
-
-            if output_file.exists():
-                original_size = dicom_with_pixels.stat().st_size
-                corrupted_size = output_file.stat().st_size
-                # If truncation happened, file should be smaller
-                # Otherwise might be same size (other corruption type)
-                assert corrupted_size <= original_size
-
-    def test_corrupt_file_header_with_default_output(self, dicom_with_pixels, tmp_path):
-        """Test corruption with default output path."""
-        import shutil
-
-        fuzzer = StructureFuzzer()
-
-        # Copy test file to tmp_path so we can control cleanup
-        test_file = tmp_path / "test_input.dcm"
-        shutil.copy(dicom_with_pixels, test_file)
-
-        result = fuzzer.corrupt_file_header(str(test_file))
-
-        # Should create file with _header_corrupted suffix
-        if result:
-            assert "_header_corrupted" in result
-            # Clean up
-            import os
-
-            if os.path.exists(result):
-                os.remove(result)
-
-    def test_corrupt_file_header_error_handling(self, tmp_path):
-        """Test corruption with invalid input file."""
-        fuzzer = StructureFuzzer()
-
-        # Try to corrupt non-existent file
-        result = fuzzer.corrupt_file_header(
-            "nonexistent_file.dcm", str(tmp_path / "output.dcm")
-        )
-
-        # Should return None on error
-        assert result is None
-
-    def test_corrupt_file_header_method(self, tmp_path, dicom_with_pixels):
-        """Test corrupt_file_header method (alias)."""
-        fuzzer = StructureFuzzer()
-
-        output_file = tmp_path / "corrupted_via_file_header.dcm"
-        result = fuzzer.corrupt_file_header(str(dicom_with_pixels), str(output_file))
-
-        assert result is not None
-        assert output_file.exists()
-
-
 class TestHeaderFuzzerEdgeCases:
     """Test edge cases in HeaderFuzzer for full coverage."""
 
@@ -666,15 +500,6 @@ class TestHeaderFuzzerEdgeCases:
         assert mutated is not None
         # Check that some boundary values were applied
         # (probabilistic test, just ensure no crash)
-
-    def test_invalid_vr_values_all_types(self, sample_dicom_dataset):
-        """Test invalid VR generation for all supported types."""
-        fuzzer = HeaderFuzzer()
-
-        # Run multiple times to hit different VR types
-        for _ in range(10):
-            mutated = fuzzer._invalid_vr_values(sample_dicom_dataset.copy())
-            assert mutated is not None
 
     def test_overlong_strings_with_study_description(self, sample_dicom_dataset):
         """Test overlong strings mutation with StudyDescription field (line 74)."""
@@ -714,48 +539,6 @@ class TestHeaderFuzzerEdgeCases:
         for _ in range(10):
             mutated = fuzzer._missing_required_tags(sample_dicom_dataset.copy())
             assert mutated is not None
-
-    def test_invalid_vr_with_series_number(self, sample_dicom_dataset):
-        """Test invalid VR with SeriesNumber field (lines 145-152)."""
-        fuzzer = HeaderFuzzer()
-
-        # Add SeriesNumber field (IS VR - Integer String)
-        sample_dicom_dataset.SeriesNumber = "1"
-
-        # Run multiple times to hit different invalid values
-        # Some values may raise ValueError during assignment
-        success_count = 0
-        for _ in range(20):
-            try:
-                mutated = fuzzer._invalid_vr_values(sample_dicom_dataset.copy())
-                assert mutated is not None
-                success_count += 1
-            except ValueError:
-                # Some invalid values raise exceptions
-                pass
-        # At least some mutations should succeed
-        assert success_count > 0
-
-    def test_invalid_vr_with_slice_thickness(self, sample_dicom_dataset):
-        """Test invalid VR with SliceThickness field (lines 156-163)."""
-        fuzzer = HeaderFuzzer()
-
-        # Add SliceThickness field (DS VR - Decimal String)
-        sample_dicom_dataset.SliceThickness = "5.0"
-
-        # Run multiple times to hit different invalid values
-        # Some values may raise ValueError during assignment
-        success_count = 0
-        for _ in range(20):
-            try:
-                mutated = fuzzer._invalid_vr_values(sample_dicom_dataset.copy())
-                assert mutated is not None
-                success_count += 1
-            except ValueError:
-                # Some invalid values raise exceptions
-                pass
-        # At least some mutations should succeed
-        assert success_count > 0
 
     def test_boundary_values_with_patient_age(self, sample_dicom_dataset):
         """Test boundary values with PatientAge field (lines 195-202)."""

@@ -1,8 +1,14 @@
-"""Dictionary-Based DICOM Fuzzing Strategy.
+"""Dictionary Fuzzer - Domain-Aware DICOM Value Mutations.
 
-Uses domain knowledge to generate intelligent mutations by replacing DICOM
-values with entries from curated dictionaries. This produces inputs that
-pass initial validation but may trigger edge cases in deeper code paths.
+Category: generic
+
+Attacks:
+- SOP Class and Transfer Syntax UID replacement from curated dictionaries
+- Modality, character set, photometric interpretation swaps
+- Patient demographics injection (names, IDs, dates, times)
+- Institution and manufacturer value substitution
+- VR-aware numeric boundary mutations (US, SS, UL, SL)
+- UID format and structure violations
 """
 
 from __future__ import annotations
@@ -88,7 +94,7 @@ class DictionaryFuzzer(FormatFuzzerBase):
         super().__init__()
         self.edge_cases = DICOMDictionaries.get_edge_cases()
 
-        logger.info(
+        logger.debug(
             "Dictionary fuzzer initialized",
             dictionaries=len(DICOMDictionaries.ALL_DICTIONARIES),
             edge_cases=len(self.edge_cases),
@@ -277,118 +283,3 @@ class DictionaryFuzzer(FormatFuzzerBase):
 
         """
         return random.randint(2, max(5, dataset_size // 10))
-
-    def can_mutate(self, dataset: Dataset) -> bool:
-        """Check if this strategy can mutate the dataset.
-
-        Args:
-            dataset: Dataset to check
-
-        Returns:
-            True (always applicable)
-
-        """
-        return True
-
-    def get_applicable_tags(self, dataset: Dataset) -> list[tuple[int, str]]:
-        """Get tags that can be mutated with their dictionary names.
-
-        Args:
-            dataset: DICOM dataset
-
-        Returns:
-            List of (tag, dictionary_name) tuples
-
-        """
-        applicable = []
-
-        for tag in dataset.keys():
-            tag_int = int(tag)
-
-            # Check if we have a specific dictionary for this tag
-            if tag_int in self.TAG_TO_DICTIONARY:
-                dict_name = self.TAG_TO_DICTIONARY[tag_int]
-                applicable.append((tag_int, dict_name))
-            elif tag_int in self.UID_TAGS:
-                applicable.append((tag_int, "uid"))
-
-        return applicable
-
-    def mutate_with_specific_dictionary(
-        self, dataset: Dataset, tag: int, dictionary_name: str
-    ) -> Dataset:
-        """Mutate a specific tag using a specific dictionary.
-
-        Args:
-            dataset: Dataset to mutate
-            tag: Tag to mutate
-            dictionary_name: Name of dictionary to use
-
-        Returns:
-            Mutated dataset
-
-        """
-        mutated = copy.deepcopy(dataset)
-
-        if tag not in mutated:
-            logger.warning(f"Tag {tag:08X} not in dataset")
-            return mutated
-
-        # Get value from specified dictionary
-        value = DICOMDictionaries.get_random_value(dictionary_name)
-
-        try:
-            mutated[tag].value = value
-            logger.info(
-                f"Mutated tag {tag:08X} with {dictionary_name} dictionary",
-                value=str(value)[:50],
-            )
-        except Exception as e:
-            logger.error(f"Failed to mutate tag {tag:08X}: {e}")
-
-        return mutated
-
-    def inject_edge_cases_systematically(
-        self, dataset: Dataset, category: str
-    ) -> list[Dataset]:
-        """Generate multiple datasets by systematically injecting edge cases.
-
-        Tries each edge case in each tag for comprehensive coverage.
-
-        Args:
-            dataset: Base dataset
-            category: Edge case category (e.g., 'empty', 'null_bytes')
-
-        Returns:
-            List of mutated datasets
-
-        """
-        if category not in self.edge_cases:
-            logger.warning(f"Unknown edge case category: {category}")
-            return []
-
-        edge_values = self.edge_cases[category]
-        mutated_datasets = []
-
-        # Get mutable tags
-        applicable_tags = list(dataset.keys())
-
-        # For each tag, try each edge case value
-        for tag in applicable_tags:
-            for edge_value in edge_values:
-                mutated = copy.deepcopy(dataset)
-                try:
-                    mutated[tag].value = edge_value
-                    mutated_datasets.append(mutated)
-                except Exception:
-                    # Some mutations might fail, that's OK
-                    pass
-
-        logger.info(
-            f"Generated {len(mutated_datasets)} systematic mutations",
-            category=category,
-            tags=len(applicable_tags),
-            edge_values=len(edge_values),
-        )
-
-        return mutated_datasets

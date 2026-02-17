@@ -1,17 +1,15 @@
 """Reference Fuzzer - DICOM Reference and Link Integrity Mutations.
 
-Targets DICOM references between objects to test link resolution:
-- Referenced SOP Instance UIDs
-- Referenced Series/Study UIDs
-- Frame references in multi-frame objects
-- Spatial references (Frame of Reference)
+Category: generic
 
-DICOM objects often reference other objects for context. Broken or
-malicious references can cause:
-- Null pointer dereference when reference not found
-- Infinite loops in circular references
-- Wrong data association
-- Memory exhaustion following reference chains
+Attacks:
+- Orphan references to nonexistent SOP instances, series, studies
+- Circular and self-referencing UIDs
+- Invalid frame number references
+- Mismatched study/series cross-references
+- Frame of Reference UID corruption
+- Duplicate reference entries
+- Massive reference chain (memory exhaustion)
 """
 
 from __future__ import annotations
@@ -75,7 +73,7 @@ class ReferenceFuzzer(FormatFuzzerBase):
             try:
                 dataset = strategy(dataset)
             except Exception as e:
-                logger.debug(f"Reference mutation failed: {e}")
+                logger.debug("Reference mutation failed: %s", e)
 
         return dataset
 
@@ -123,7 +121,7 @@ class ReferenceFuzzer(FormatFuzzerBase):
                 dataset.FrameOfReferenceUID = "1.2.3.4.5.6.7.8.9.NOFRAME"
 
         except Exception as e:
-            logger.debug(f"Orphan reference attack failed: {e}")
+            logger.debug("Orphan reference attack failed: %s", e)
 
         return dataset
 
@@ -199,7 +197,7 @@ class ReferenceFuzzer(FormatFuzzerBase):
                 dataset.add_new(Tag(0x0008, 0x1140), "SQ", Sequence([current]))
 
         except Exception as e:
-            logger.debug(f"Circular reference attack failed: {e}")
+            logger.debug("Circular reference attack failed: %s", e)
 
         return dataset
 
@@ -256,7 +254,7 @@ class ReferenceFuzzer(FormatFuzzerBase):
                 )
 
         except Exception as e:
-            logger.debug(f"Self reference attack failed: {e}")
+            logger.debug("Self reference attack failed: %s", e)
 
         return dataset
 
@@ -303,7 +301,7 @@ class ReferenceFuzzer(FormatFuzzerBase):
             dataset.add_new(Tag(0x0008, 0x1140), "SQ", Sequence([ref_item]))
 
         except Exception as e:
-            logger.debug(f"Invalid frame reference attack failed: {e}")
+            logger.debug("Invalid frame reference attack failed: %s", e)
 
         return dataset
 
@@ -353,7 +351,7 @@ class ReferenceFuzzer(FormatFuzzerBase):
                 dataset.add_new(Tag(0x0008, 0x1115), "SQ", Sequence(ref_items))
 
         except Exception as e:
-            logger.debug(f"Mismatched study reference attack failed: {e}")
+            logger.debug("Mismatched study reference attack failed: %s", e)
 
         return dataset
 
@@ -396,7 +394,7 @@ class ReferenceFuzzer(FormatFuzzerBase):
             dataset.add_new(Tag(0x0008, 0x1115), "SQ", Sequence(ref_series))
 
         except Exception as e:
-            logger.debug(f"Broken series reference attack failed: {e}")
+            logger.debug("Broken series reference attack failed: %s", e)
 
         return dataset
 
@@ -448,7 +446,7 @@ class ReferenceFuzzer(FormatFuzzerBase):
                 dataset.add_new(Tag(0x3006, 0x0080), "SQ", Sequence(ref_items))
 
         except Exception as e:
-            logger.debug(f"Frame of reference attack failed: {e}")
+            logger.debug("Frame of reference attack failed: %s", e)
 
         return dataset
 
@@ -472,7 +470,7 @@ class ReferenceFuzzer(FormatFuzzerBase):
             dataset.add_new(Tag(0x0008, 0x1140), "SQ", Sequence(ref_items))
 
         except Exception as e:
-            logger.debug(f"Duplicate reference attack failed: {e}")
+            logger.debug("Duplicate reference attack failed: %s", e)
 
         return dataset
 
@@ -500,7 +498,7 @@ class ReferenceFuzzer(FormatFuzzerBase):
             dataset.add_new(Tag(0x0008, 0x1140), "SQ", Sequence([current]))
 
         except Exception as e:
-            logger.debug(f"Massive reference chain attack failed: {e}")
+            logger.debug("Massive reference chain attack failed: %s", e)
 
         return dataset
 
@@ -528,6 +526,6 @@ class ReferenceFuzzer(FormatFuzzerBase):
             dataset[Tag(0x0008, 0x1140)].value.append(non_image_ref)
 
         except Exception as e:
-            logger.debug(f"Reference type mismatch attack failed: {e}")
+            logger.debug("Reference type mismatch attack failed: %s", e)
 
         return dataset

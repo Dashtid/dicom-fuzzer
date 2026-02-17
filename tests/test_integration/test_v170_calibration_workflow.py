@@ -109,18 +109,9 @@ class TestCalibrationFuzzerIntegration:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-        original_spacing = list(ds.PixelSpacing)
-
-        fuzzer = CalibrationFuzzer(severity="aggressive")
-        fuzzed_ds, records = fuzzer.fuzz_pixel_spacing(ds)
-
+        fuzzer = CalibrationFuzzer()
+        fuzzed_ds = fuzzer.fuzz_pixel_spacing(ds)
         assert fuzzed_ds is not None
-        assert len(records) > 0
-
-        # Verify mutation was applied
-        for record in records:
-            assert record.category == "pixel_spacing"
-            assert record.tag is not None
 
     def test_hounsfield_rescale_fuzz_workflow(self, ct_dicom_file):
         """Test Hounsfield unit rescale fuzzing workflow."""
@@ -131,16 +122,9 @@ class TestCalibrationFuzzerIntegration:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-
-        fuzzer = CalibrationFuzzer(severity="extreme")
-        fuzzed_ds, records = fuzzer.fuzz_hounsfield_rescale(ds)
-
+        fuzzer = CalibrationFuzzer()
+        fuzzed_ds = fuzzer.fuzz_hounsfield_rescale(ds)
         assert fuzzed_ds is not None
-        assert len(records) > 0
-
-        # Verify HU-related mutations
-        for record in records:
-            assert record.category == "hounsfield_rescale"
 
     def test_window_level_fuzz_workflow(self, ct_dicom_file):
         """Test window/level parameter fuzzing workflow."""
@@ -151,16 +135,9 @@ class TestCalibrationFuzzerIntegration:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-
-        fuzzer = CalibrationFuzzer(severity="moderate")
-        fuzzed_ds, records = fuzzer.fuzz_window_level(ds)
-
+        fuzzer = CalibrationFuzzer()
+        fuzzed_ds = fuzzer.fuzz_window_level(ds)
         assert fuzzed_ds is not None
-        assert len(records) > 0
-
-        # Verify window/level mutations
-        for record in records:
-            assert record.category == "window_level"
 
     def test_slice_thickness_fuzz_workflow(self, ct_dicom_file):
         """Test slice thickness fuzzing workflow."""
@@ -171,15 +148,9 @@ class TestCalibrationFuzzerIntegration:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-
-        fuzzer = CalibrationFuzzer(severity="aggressive")
-        fuzzed_ds, records = fuzzer.fuzz_slice_thickness(ds)
-
+        fuzzer = CalibrationFuzzer()
+        fuzzed_ds = fuzzer.fuzz_slice_thickness(ds)
         assert fuzzed_ds is not None
-        assert len(records) > 0
-
-        for record in records:
-            assert record.category == "slice_thickness"
 
     def test_combined_calibration_attacks(self, ct_dicom_file, temp_dir):
         """Test applying multiple calibration attacks to same file."""
@@ -190,23 +161,12 @@ class TestCalibrationFuzzerIntegration:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-
-        fuzzer = CalibrationFuzzer(severity="moderate")
-        all_records = []
+        fuzzer = CalibrationFuzzer()
 
         # Apply all calibration attacks
-        ds, records = fuzzer.fuzz_pixel_spacing(ds)
-        all_records.extend(records)
-
-        ds, records = fuzzer.fuzz_hounsfield_rescale(ds)
-        all_records.extend(records)
-
-        ds, records = fuzzer.fuzz_window_level(ds)
-        all_records.extend(records)
-
-        # Verify multiple categories were mutated
-        categories = {r.category for r in all_records}
-        assert len(categories) >= 2
+        ds = fuzzer.fuzz_pixel_spacing(ds)
+        ds = fuzzer.fuzz_hounsfield_rescale(ds)
+        ds = fuzzer.fuzz_window_level(ds)
 
         # Save and verify file is still readable
         output_file = temp_dir / "multi_fuzzed.dcm"
@@ -232,14 +192,9 @@ class TestCalibrationAttackTypes:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-        fuzzer = CalibrationFuzzer(severity="aggressive")
-
-        fuzzed_ds, records = fuzzer.fuzz_pixel_spacing(ds, attack_type=attack_type)
-
+        fuzzer = CalibrationFuzzer()
+        fuzzed_ds = fuzzer.fuzz_pixel_spacing(ds, attack_type=attack_type)
         assert fuzzed_ds is not None
-        # At least one record should have the requested attack type
-        attack_types = [r.attack_type for r in records]
-        assert attack_type in attack_types or len(records) > 0
 
     @pytest.mark.parametrize(
         "attack_type",
@@ -254,90 +209,16 @@ class TestCalibrationAttackTypes:
         )
 
         ds = pydicom.dcmread(str(ct_dicom_file))
-        fuzzer = CalibrationFuzzer(severity="extreme")
-
-        fuzzed_ds, records = fuzzer.fuzz_hounsfield_rescale(ds, attack_type=attack_type)
-
-        assert fuzzed_ds is not None
-        assert len(records) > 0
-
-
-class TestCalibrationMutationRecords:
-    """Test CalibrationMutationRecord serialization."""
-
-    def test_record_to_dict(self, ct_dicom_file):
-        """Test mutation record serialization to dict."""
-        import pydicom
-
-        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
-            CalibrationFuzzer,
-        )
-
-        ds = pydicom.dcmread(str(ct_dicom_file))
-        fuzzer = CalibrationFuzzer(severity="moderate")
-
-        _, records = fuzzer.fuzz_pixel_spacing(ds)
-
-        assert len(records) > 0
-        record_dict = records[0].to_dict()
-
-        assert "category" in record_dict
-        assert "tag" in record_dict
-        assert "attack_type" in record_dict
-        assert "severity" in record_dict
-
-    def test_record_json_serializable(self, ct_dicom_file):
-        """Test mutation records can be JSON serialized."""
-        import json
-
-        import pydicom
-
-        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
-            CalibrationFuzzer,
-        )
-
-        ds = pydicom.dcmread(str(ct_dicom_file))
-        fuzzer = CalibrationFuzzer(severity="moderate")
-
-        _, records = fuzzer.fuzz_hounsfield_rescale(ds)
-
-        for record in records:
-            json_str = json.dumps(record.to_dict())
-            parsed = json.loads(json_str)
-            assert parsed["category"] == "hounsfield_rescale"
-
-
-class TestCalibrationSeverityLevels:
-    """Test severity levels affect mutation intensity."""
-
-    @pytest.mark.parametrize(
-        "severity", ["minimal", "moderate", "aggressive", "extreme"]
-    )
-    def test_severity_levels_accepted(self, ct_dicom_file, severity):
-        """Test all severity levels are accepted."""
-        import pydicom
-
-        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
-            CalibrationFuzzer,
-        )
-
-        ds = pydicom.dcmread(str(ct_dicom_file))
-        fuzzer = CalibrationFuzzer(severity=severity)
-
-        fuzzed_ds, records = fuzzer.fuzz_pixel_spacing(ds)
+        fuzzer = CalibrationFuzzer()
+        fuzzed_ds = fuzzer.fuzz_hounsfield_rescale(ds, attack_type=attack_type)
         assert fuzzed_ds is not None
 
-    def test_invalid_severity_rejected(self):
-        """Test invalid severity raises error."""
-        from dicom_fuzzer.attacks.format.calibration_fuzzer import (
-            CalibrationFuzzer,
-        )
 
-        with pytest.raises(ValueError):
-            CalibrationFuzzer(severity="invalid")
+class TestCalibrationDeterministicAttacks:
+    """Test that attack_type parameter produces deterministic results."""
 
-    def test_seed_reproducibility(self, ct_dicom_file):
-        """Test that seed parameter enables reproducible mutations."""
+    def test_deterministic_mismatch(self, ct_dicom_file):
+        """Test that same attack_type produces same mutations."""
         import pydicom
 
         from dicom_fuzzer.attacks.format.calibration_fuzzer import (
@@ -347,14 +228,11 @@ class TestCalibrationSeverityLevels:
         ds1 = pydicom.dcmread(str(ct_dicom_file))
         ds2 = pydicom.dcmread(str(ct_dicom_file))
 
-        # Use explicit attack type to ensure consistency
-        fuzzer1 = CalibrationFuzzer(severity="moderate", seed=12345)
-        fuzzer2 = CalibrationFuzzer(severity="moderate", seed=12345)
+        fuzzer1 = CalibrationFuzzer()
+        fuzzer2 = CalibrationFuzzer()
 
-        _, records1 = fuzzer1.fuzz_pixel_spacing(ds1, attack_type="mismatch")
-        _, records2 = fuzzer2.fuzz_pixel_spacing(ds2, attack_type="mismatch")
+        result1 = fuzzer1.fuzz_pixel_spacing(ds1, attack_type="mismatch")
+        result2 = fuzzer2.fuzz_pixel_spacing(ds2, attack_type="mismatch")
 
-        # Same attack type should produce same category records
-        assert len(records1) > 0
-        assert len(records2) > 0
-        assert records1[0].attack_type == records2[0].attack_type
+        assert list(result1.PixelSpacing) == list(result2.PixelSpacing)
+        assert list(result1.ImagerPixelSpacing) == list(result2.ImagerPixelSpacing)

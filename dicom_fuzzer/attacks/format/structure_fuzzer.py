@@ -1,11 +1,13 @@
 """Structure Fuzzer - DICOM File Structure Mutations.
 
-Targets the DICOM file structure itself to test parser robustness:
-- Preamble and DICM prefix corruption
-- Tag ordering violations
-- Length field edge cases
-- Transfer syntax handling
-- VM (Value Multiplicity) mismatches
+Category: generic
+
+Attacks:
+- Tag ordering violations (out-of-order group/element)
+- Length field corruption (truncated, oversized, undefined)
+- Unexpected tag insertion
+- Duplicate tag entries
+- Value Multiplicity (VM) violations
 """
 
 from __future__ import annotations
@@ -26,10 +28,8 @@ logger = get_logger(__name__)
 class StructureFuzzer(FormatFuzzerBase):
     """Fuzzes the underlying DICOM file structure.
 
-    Targets the binary structure of DICOM files:
-    - File preamble (128 bytes)
-    - DICOM prefix "DICM" (4 bytes)
-    - Data elements with tags, VRs, and lengths
+    Targets data element structure: tags, VRs, lengths, and value
+    multiplicity within pydicom Dataset objects.
     """
 
     def __init__(self) -> None:
@@ -186,7 +186,7 @@ class StructureFuzzer(FormatFuzzerBase):
                 dataset.add_new(tag, "UN", b"\x00" * 100)
             except Exception as e:
                 # If it fails, that's fine - some tags can't be added
-                logger.debug(f"Failed to add unusual tag {tag}: {e}")
+                logger.debug("Failed to add unusual tag %s: %s", tag, e)
 
         return dataset
 
@@ -224,7 +224,7 @@ class StructureFuzzer(FormatFuzzerBase):
                     dataset.add_new(tag_to_duplicate, original_element.VR, new_value)
             except Exception as e:
                 # If duplication fails, continue
-                logger.debug(f"Failed to duplicate tag {tag_to_duplicate}: {e}")
+                logger.debug("Failed to duplicate tag %s: %s", tag_to_duplicate, e)
 
         return dataset
 
@@ -332,8 +332,8 @@ class StructureFuzzer(FormatFuzzerBase):
                         else:
                             element._value = b"\x00" * size  # pyright: ignore[reportAttributeAccessIssue]
 
-        except Exception:
-            pass  # Length field attacks may fail on some element types
+        except Exception as e:
+            logger.debug("Length field attack failed: %s", e)
 
         return dataset
 
@@ -397,78 +397,7 @@ class StructureFuzzer(FormatFuzzerBase):
                         dataset[tag]._value = ""  # pyright: ignore[reportAttributeAccessIssue]
                         break
 
-        except Exception:
-            pass  # VM mismatch attacks may fail on some element types
+        except Exception as e:
+            logger.debug("VM mismatch attack failed: %s", e)
 
         return dataset
-
-    def _corrupt_preamble(self, file_data: bytearray) -> bytearray:
-        """Corrupt the 128-byte preamble."""
-        if len(file_data) >= 128:
-            for _ in range(10):
-                pos = random.randint(0, 127)
-                file_data[pos] = random.randint(0, 255)
-        return file_data
-
-    def _corrupt_dicm_prefix(self, file_data: bytearray) -> bytearray:
-        """Corrupt the DICM prefix at bytes 128-131."""
-        if len(file_data) >= 132:
-            file_data[128:132] = b"XXXX"
-        return file_data
-
-    def _corrupt_transfer_syntax(self, file_data: bytearray) -> bytearray:
-        """Corrupt transfer syntax UID area."""
-        if len(file_data) >= 200:
-            for _ in range(5):
-                pos = random.randint(132, min(200, len(file_data) - 1))
-                file_data[pos] = random.randint(0, 255)
-        return file_data
-
-    def _truncate_file(self, file_data: bytearray) -> bytearray:
-        """Truncate file at random position."""
-        if len(file_data) > 1000:
-            truncate_pos = random.randint(500, len(file_data) - 1)
-            return file_data[:truncate_pos]
-        return file_data
-
-    def corrupt_file_header(
-        self, file_path: str, output_path: str | None = None
-    ) -> str | None:
-        """Directly corrupt the DICOM file header at binary level.
-
-        Operates on raw bytes to corrupt preamble, DICM prefix, or transfer
-        syntax - bypasses high-level validation.
-
-        Args:
-            file_path: Path to input DICOM file
-            output_path: Path for corrupted output (or auto-generate)
-
-        Returns:
-            Path to corrupted file, or None on failure
-
-        """
-        corruption_handlers = {
-            "corrupt_preamble": self._corrupt_preamble,
-            "corrupt_dicm_prefix": self._corrupt_dicm_prefix,
-            "corrupt_transfer_syntax": self._corrupt_transfer_syntax,
-            "truncate_file": self._truncate_file,
-        }
-
-        try:
-            with open(file_path, "rb") as f:
-                file_data = bytearray(f.read())
-
-            corruption_type = random.choice(list(corruption_handlers.keys()))
-            file_data = corruption_handlers[corruption_type](file_data)
-
-            if output_path is None:
-                output_path = file_path.replace(".dcm", "_header_corrupted.dcm")
-
-            with open(output_path, "wb") as f:
-                f.write(file_data)
-
-            return output_path
-
-        except Exception as e:
-            logger.error(f"Header corruption failed: {e}")
-            return None

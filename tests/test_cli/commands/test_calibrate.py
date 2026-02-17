@@ -28,7 +28,6 @@ class TestCreateParser:
         assert args.list_categories is True
         assert args.category == "all"
         assert args.count == 10
-        assert args.severity == "moderate"
         assert args.output == "./artifacts/calibrate"
         assert args.verbose is False
 
@@ -55,16 +54,6 @@ class TestCreateParser:
         for category in valid_categories:
             args = parser.parse_args(["--input", "test.dcm", "--category", category])
             assert args.category == category
-
-    def test_parser_all_severity_choices(self):
-        """Test all valid severity choices."""
-        parser = create_parser()
-
-        valid_severities = ["minimal", "moderate", "aggressive", "extreme"]
-
-        for severity in valid_severities:
-            args = parser.parse_args(["--input", "test.dcm", "--severity", severity])
-            assert args.severity == severity
 
     def test_parser_mutually_exclusive(self):
         """Test that --input and --list-categories are mutually exclusive."""
@@ -153,7 +142,6 @@ class TestRunCalibrationMutation:
         args = argparse.Namespace(
             input=str(tmp_path / "nonexistent.dcm"),
             category="all",
-            severity="moderate",
             count=5,
             output=str(tmp_path / "output"),
             verbose=False,
@@ -176,10 +164,10 @@ class TestRunCalibrationMutation:
         mock_ds.copy.return_value = mock_ds
 
         mock_fuzzer = MagicMock()
-        mock_fuzzer.fuzz_pixel_spacing.return_value = (mock_ds, [])
-        mock_fuzzer.fuzz_hounsfield_rescale.return_value = (mock_ds, [])
-        mock_fuzzer.fuzz_window_level.return_value = (mock_ds, [])
-        mock_fuzzer.fuzz_slice_thickness.return_value = (mock_ds, [])
+        mock_fuzzer.fuzz_pixel_spacing.return_value = mock_ds
+        mock_fuzzer.fuzz_hounsfield_rescale.return_value = mock_ds
+        mock_fuzzer.fuzz_window_level.return_value = mock_ds
+        mock_fuzzer.fuzz_slice_thickness.return_value = mock_ds
 
         # Patch at the point of import
         with (
@@ -200,7 +188,6 @@ class TestRunCalibrationMutation:
             args = argparse.Namespace(
                 input=str(input_file),
                 category="all",
-                severity="moderate",
                 count=2,
                 output=str(tmp_path / "output"),
                 verbose=False,
@@ -220,7 +207,7 @@ class TestRunCalibrationMutation:
         mock_ds.copy.return_value = mock_ds
 
         mock_fuzzer = MagicMock()
-        mock_fuzzer.fuzz_pixel_spacing.return_value = (mock_ds, [])
+        mock_fuzzer.fuzz_pixel_spacing.return_value = mock_ds
 
         with (
             patch.dict(
@@ -240,7 +227,6 @@ class TestRunCalibrationMutation:
             args = argparse.Namespace(
                 input=str(input_file),
                 category="pixel-spacing",
-                severity="extreme",
                 count=1,
                 output=str(tmp_path / "output"),
                 verbose=False,
@@ -261,13 +247,8 @@ class TestRunCalibrationMutation:
         mock_ds.PatientName = "Test"
         mock_ds.copy.return_value = mock_ds
 
-        mock_record = MagicMock()
-        mock_record.attack_type = "zero"
-        mock_record.original_value = "1.0"
-        mock_record.mutated_value = "0.0"
-
         mock_fuzzer = MagicMock()
-        mock_fuzzer.fuzz_pixel_spacing.return_value = (mock_ds, [mock_record])
+        mock_fuzzer.fuzz_pixel_spacing.return_value = mock_ds
 
         with (
             patch.dict(
@@ -287,7 +268,6 @@ class TestRunCalibrationMutation:
             args = argparse.Namespace(
                 input=str(input_file),
                 category="pixel-spacing",
-                severity="moderate",
                 count=1,
                 output=str(tmp_path / "output"),
                 verbose=True,
@@ -296,7 +276,7 @@ class TestRunCalibrationMutation:
             run_calibration_mutation(args)
 
             captured = capsys.readouterr()
-            assert "zero" in captured.out or "0.0" in captured.out
+            assert "pixel-spacing" in captured.out and "applied" in captured.out
 
     def test_creates_output_directory(self, tmp_path):
         """Test that output directory is created."""
@@ -309,7 +289,7 @@ class TestRunCalibrationMutation:
         mock_ds.copy.return_value = mock_ds
 
         mock_fuzzer = MagicMock()
-        mock_fuzzer.fuzz_pixel_spacing.return_value = (mock_ds, [])
+        mock_fuzzer.fuzz_pixel_spacing.return_value = mock_ds
 
         with (
             patch.dict(
@@ -329,7 +309,6 @@ class TestRunCalibrationMutation:
             args = argparse.Namespace(
                 input=str(input_file),
                 category="pixel-spacing",
-                severity="moderate",
                 count=1,
                 output=str(output_dir),
                 verbose=False,
@@ -374,10 +353,10 @@ class TestMain:
         mock_ds.copy.return_value = mock_ds
 
         mock_fuzzer = MagicMock()
-        mock_fuzzer.fuzz_pixel_spacing.return_value = (mock_ds, [])
-        mock_fuzzer.fuzz_hounsfield_rescale.return_value = (mock_ds, [])
-        mock_fuzzer.fuzz_window_level.return_value = (mock_ds, [])
-        mock_fuzzer.fuzz_slice_thickness.return_value = (mock_ds, [])
+        mock_fuzzer.fuzz_pixel_spacing.return_value = mock_ds
+        mock_fuzzer.fuzz_hounsfield_rescale.return_value = mock_ds
+        mock_fuzzer.fuzz_window_level.return_value = mock_ds
+        mock_fuzzer.fuzz_slice_thickness.return_value = mock_ds
 
         with (
             patch.dict(
@@ -441,7 +420,6 @@ class TestEdgeCases:
             args = argparse.Namespace(
                 input=str(input_file),
                 category="pixel-spacing",
-                severity="moderate",
                 count=1,
                 output=str(tmp_path / "output"),
                 verbose=True,

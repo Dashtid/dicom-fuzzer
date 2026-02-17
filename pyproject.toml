@@ -98,7 +98,6 @@ dev = [
     "pytest-split>=0.9.0",     # Split tests across CI jobs (memory optimization)
     "pytest-timeout>=2.4.0",   # Test timeouts
     "pytest-rerunfailures>=14.0",  # Retry flaky tests (handles xdist race conditions)
-    "pytest-benchmark>=5.0.0", # Performance regression testing
     "pytest-mock>=3.15.0",     # Better mocking utilities
     "fakeredis>=2.20.0",       # In-memory Redis for testing distributed module
     "pytest-snapshot>=0.9.0",  # Snapshot testing for outputs
@@ -239,7 +238,6 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "dicom_fuzzer.adapters.*",
-    "dicom_fuzzer.core.adapters.*",
     "dicom_fuzzer.core.ui_validator",
     "dicom_fuzzer.core.target_harness",
     "dicom_fuzzer.cli.study_campaign",
@@ -327,8 +325,6 @@ filterwarnings = [
     "ignore:.*is_little_endian.*will be removed in v4.0:DeprecationWarning",
     # Ignore pydicom camel case attribute warnings (acceptable in test scenarios)
     "ignore:Camel case attribute.*not in the element keyword data dictionary:UserWarning",
-    # Ignore pytest-benchmark warnings when running with xdist (expected behavior)
-    "ignore:Benchmarks are automatically disabled because xdist plugin is active:pytest_benchmark.logger.PytestBenchmarkWarning",
     # Ignore struct.error during fuzzing (intentional malformed data)
     "ignore:.*struct.*error:UserWarning",
     # Ignore additional pydicom warnings that can occur during fuzzing

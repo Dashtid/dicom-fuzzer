@@ -589,9 +589,3 @@ class TestSkippedCategories:
     )
     def test_compressed_pixel_fuzzer(self):
         pass
-
-    @pytest.mark.skip(
-        reason="StructureFuzzer.corrupt_file_header operates on raw file bytes"
-    )
-    def test_structure_corrupt_file_header(self):
-        pass

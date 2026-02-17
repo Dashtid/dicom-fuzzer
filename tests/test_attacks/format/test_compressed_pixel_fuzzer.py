@@ -284,9 +284,8 @@ class TestInjectMalformedFrame:
         """Test injection of malformed frame."""
         result = fuzzer._inject_malformed_frame(sample_dataset)
         assert isinstance(result, Dataset)
-        # Mutation may fail silently (encapsulate rejects empty frames)
-        if hasattr(result, "NumberOfFrames"):
-            assert result.NumberOfFrames == 3
+        assert result.NumberOfFrames == 3
+        assert Tag(0x7FE0, 0x0010) in result
 
 
 # =============================================================================

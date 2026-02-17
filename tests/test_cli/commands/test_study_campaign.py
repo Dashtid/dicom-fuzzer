@@ -548,29 +548,6 @@ class TestLogFunction:
         assert " - Test" in captured.out
 
 
-class TestListAdapters:
-    """Test run_list_adapters function."""
-
-    def test_list_adapters_basic(self, capsys):
-        """Test run_list_adapters prints header."""
-        from dicom_fuzzer.cli.commands.study_campaign import run_list_adapters
-
-        result = run_list_adapters()
-        assert result == 0
-        captured = capsys.readouterr()
-        assert "Viewer Adapters" in captured.out
-
-    def test_list_adapters_shows_install_hint(self, capsys):
-        """Test list adapters shows pywinauto install hint when no adapters."""
-        from dicom_fuzzer.cli.commands.study_campaign import run_list_adapters
-
-        result = run_list_adapters()
-        assert result == 0
-        captured = capsys.readouterr()
-        # Either shows adapters or shows install hint
-        assert "Viewer Adapters" in captured.out
-
-
 class TestValidateCampaignArgs:
     """Test _validate_campaign_args function."""
 
@@ -808,44 +785,6 @@ class TestLogCampaignSummary:
         assert "Timeout" not in captured.out
 
 
-class TestSetupViewerAdapter:
-    """Test _setup_viewer_adapter function."""
-
-    def test_no_adapter_specified(self, tmp_path):
-        """Test returns None when no adapter specified."""
-        from dicom_fuzzer.cli.commands.study_campaign import _setup_viewer_adapter
-
-        log_file = tmp_path / "test.log"
-        adapter, error = _setup_viewer_adapter(None, log_file)
-        assert adapter is None
-        assert error is None
-
-    def test_adapter_value_error(self, tmp_path, monkeypatch, capsys):
-        """Test handles ValueError when adapter not found."""
-        from unittest.mock import MagicMock, patch
-
-        from dicom_fuzzer.cli.commands.study_campaign import _setup_viewer_adapter
-
-        log_file = tmp_path / "test.log"
-
-        # Create a mock module that raises ValueError on get_adapter
-        mock_adapters = MagicMock()
-        mock_adapters.get_adapter.side_effect = ValueError(
-            "Unknown adapter: nonexistent"
-        )
-
-        # Patch the import by patching sys.modules
-        with patch.dict("sys.modules", {"dicom_fuzzer.adapters": mock_adapters}):
-            adapter, error = _setup_viewer_adapter("nonexistent", log_file)
-            assert adapter is None
-            assert error == 1
-
-        # Check that error was logged (either to stdout or file)
-        captured = capsys.readouterr()
-        log_content = log_file.read_text() if log_file.exists() else ""
-        assert "Unknown adapter" in captured.out or "Unknown adapter" in log_content
-
-
 class TestLogCampaignHeader:
     """Test _log_campaign_header function."""
 
@@ -898,7 +837,6 @@ class TestSaveCampaignResults:
             count=100,
             timeout=15.0,
             memory_limit=2048,
-            adapter=None,
         )
         stats = {"total": 50, "crash": 2, "success": 48}
 
@@ -918,20 +856,6 @@ class TestSaveCampaignResults:
         assert data["config"]["strategy"] == "all"
         assert data["stats"]["total"] == 50
         assert data["stats"]["crash"] == 2
-
-
-class TestMainListAdapters:
-    """Test main() with --list-adapters."""
-
-    def test_main_list_adapters(self, capsys):
-        """Test main() with --list-adapters option."""
-        from dicom_fuzzer.cli.commands.study_campaign import main
-
-        result = main(["--list-adapters"])
-        assert result == 0
-
-        captured = capsys.readouterr()
-        assert "Viewer Adapters" in captured.out
 
 
 class TestMutationsPerTest:
@@ -954,27 +878,3 @@ class TestMutationsPerTest:
         parser = create_parser()
         args = parser.parse_args(["--target", "./app", "--study", "./test"])
         assert args.mutations_per_test == 5
-
-
-class TestAdapterArguments:
-    """Test adapter-related arguments."""
-
-    def test_adapter_argument(self):
-        """Test --adapter argument parsing."""
-        from dicom_fuzzer.cli.commands.study_campaign import create_parser
-
-        parser = create_parser()
-        args = parser.parse_args(
-            ["--target", "./app", "--study", "./test", "--adapter", "affinity"]
-        )
-        assert args.adapter == "affinity"
-
-    def test_series_name_argument(self):
-        """Test --series-name argument parsing."""
-        from dicom_fuzzer.cli.commands.study_campaign import create_parser
-
-        parser = create_parser()
-        args = parser.parse_args(
-            ["--target", "./app", "--study", "./test", "--series-name", "CT Series 1"]
-        )
-        assert args.series_name == "CT Series 1"

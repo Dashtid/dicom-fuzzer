@@ -1,11 +1,13 @@
 """Header Fuzzer - DICOM Tag and Header Mutations.
 
-Targets DICOM tags, Value Representations (VRs), and metadata fields
-with edge cases and invalid data to test parser robustness.
+Category: generic
 
-Covers all 27 DICOM VRs with appropriate invalid values including:
-- Overlong strings, boundary values, format violations
-- Invalid encoding, null bytes, empty values
+Attacks:
+- Overlong string values exceeding VR maximum lengths
+- Missing required tags
+- Comprehensive VR-specific mutations (all 27 DICOM VRs)
+- Numeric boundary values (min/max/overflow for US, SS, UL, SL, FL, FD)
+- UID format violations
 """
 
 from __future__ import annotations
@@ -15,8 +17,12 @@ import struct
 
 from pydicom.dataset import Dataset
 
+from dicom_fuzzer.utils.logger import get_logger
+
 from .base import FormatFuzzerBase
 from .uid_attacks import INVALID_UIDS, UID_TAG_NAMES
+
+logger = get_logger(__name__)
 
 # VR-specific invalid values for comprehensive testing
 # Based on DICOM PS3.5 VR definitions
@@ -251,6 +257,8 @@ VR_MUTATIONS = {
         "INVALID",  # Non-numeric
         "1.2.3",  # Multiple decimals
         "NaN",  # Not a number string
+        "Infinity",  # Infinity string
+        "1e999",  # Exponent overflow
         "9" * 17,  # Over 16 char limit
         "",  # Empty
     ],
@@ -297,7 +305,6 @@ class HeaderFuzzer(FormatFuzzerBase):
         mutations = [
             self._overlong_strings,
             self._missing_required_tags,
-            self._invalid_vr_values,
             self._boundary_values,
             self._comprehensive_vr_mutations,
             self._numeric_vr_mutations,
@@ -341,70 +348,8 @@ class HeaderFuzzer(FormatFuzzerBase):
             if hasattr(dataset, tag):
                 try:
                     delattr(dataset, tag)
-                except Exception:
-                    # Some tags can't be deleted, that's fine
-                    pass
-
-        return dataset
-
-    def _invalid_vr_values(self, dataset: Dataset) -> Dataset:
-        """Insert invalid Value Representation (VR) values.
-
-        Each DICOM tag has a specific VR (DA: YYYYMMDD, TM: HHMMSS,
-        IS: numeric string, DS: decimal string). Tests parser handling
-        of VR constraint violations.
-        """
-        # Test invalid date format (should be YYYYMMDD)
-        if hasattr(dataset, "StudyDate"):
-            invalid_dates = [
-                "INVALID",  # Non-numeric
-                "99999999",  # Invalid date
-                "20251332",  # Month > 12
-                "20250145",  # Day > 31
-                "2025-01-01",  # Wrong format (has dashes)
-                "",  # Empty
-                "1",  # Too short
-            ]
-            dataset.StudyDate = random.choice(invalid_dates)
-
-        # Test invalid time format (should be HHMMSS)
-        if hasattr(dataset, "StudyTime"):
-            invalid_times = [
-                "999999",  # Hours > 23
-                "126000",  # Minutes > 59
-                "120075",  # Seconds > 59
-                "ABCDEF",  # Non-numeric
-                "12:30:45",  # Wrong format (has colons)
-            ]
-            dataset.StudyTime = random.choice(invalid_times)
-
-        # Test invalid integer string (IS VR) - bypass validation
-        if hasattr(dataset, "SeriesNumber"):
-            invalid_integers = [
-                "NOT_A_NUMBER",  # Non-numeric
-                "3.14159",  # Decimal (should be integer)
-                "999999999999",  # Way too large
-                "-999999999",  # Very negative
-                "",  # Empty
-            ]
-            value = random.choice(invalid_integers)
-            # Bypass validation by setting the internal _value directly
-            elem = dataset["SeriesNumber"]
-            elem._value = value
-
-        # Test invalid decimal string (DS VR) - bypass validation
-        if hasattr(dataset, "SliceThickness"):
-            invalid_decimals = [
-                "INVALID",  # Non-numeric
-                "1.2.3",  # Multiple decimals
-                "NaN",  # Not a number
-                "Infinity",  # Infinity
-                "1e999",  # Too large
-            ]
-            value = random.choice(invalid_decimals)
-            # Bypass validation by setting the internal _value directly
-            elem = dataset["SliceThickness"]
-            elem._value = value
+                except Exception as e:
+                    logger.debug("Failed to delete tag %s: %s", tag, e)
 
         return dataset
 
@@ -481,9 +426,8 @@ class HeaderFuzzer(FormatFuzzerBase):
 
             try:
                 elem._value = mutation
-            except Exception:
-                # Some mutations may fail - that's expected
-                pass
+            except Exception as e:
+                logger.debug("VR mutation failed for %s: %s", vr, e)
 
         return dataset
 
@@ -514,8 +458,8 @@ class HeaderFuzzer(FormatFuzzerBase):
                 try:
                     attack_value = random.choice(numeric_attacks[vr])
                     elem.value = attack_value
-                except Exception:
-                    pass  # Some VR types may reject the attack value
+                except Exception as e:
+                    logger.debug("Numeric VR attack rejected for %s: %s", vr, e)
 
         return dataset
 
@@ -536,7 +480,7 @@ class HeaderFuzzer(FormatFuzzerBase):
                     elem = dataset.data_element(tag)
                     if elem:
                         elem._value = random.choice(INVALID_UIDS)
-                except Exception:
-                    pass  # UID element may reject invalid format
+                except Exception as e:
+                    logger.debug("UID mutation rejected for %s: %s", tag, e)
 
         return dataset

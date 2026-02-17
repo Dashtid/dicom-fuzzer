@@ -92,7 +92,7 @@ class DicomMutator:
             self._register_default_strategies()
 
         # Log initialization
-        logger.info(f"DicomMutator initialized with config: {self.config}")
+        logger.info("DicomMutator initialized with config: %s", self.config)
 
     def _load_default_config(self) -> None:
         """Set up default configuration values."""
@@ -118,12 +118,20 @@ class DicomMutator:
         )
         from dicom_fuzzer.attacks.format.conformance_fuzzer import ConformanceFuzzer
         from dicom_fuzzer.attacks.format.dictionary_fuzzer import DictionaryFuzzer
+        from dicom_fuzzer.attacks.format.encapsulated_pdf_fuzzer import (
+            EncapsulatedPdfFuzzer,
+        )
         from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
         from dicom_fuzzer.attacks.format.header_fuzzer import HeaderFuzzer
         from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
+        from dicom_fuzzer.attacks.format.nm_fuzzer import NuclearMedicineFuzzer
+        from dicom_fuzzer.attacks.format.pet_fuzzer import PetFuzzer
         from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
         from dicom_fuzzer.attacks.format.private_tag_fuzzer import PrivateTagFuzzer
         from dicom_fuzzer.attacks.format.reference_fuzzer import ReferenceFuzzer
+        from dicom_fuzzer.attacks.format.rt_dose_fuzzer import RTDoseFuzzer
+        from dicom_fuzzer.attacks.format.rtss_fuzzer import RTStructureSetFuzzer
+        from dicom_fuzzer.attacks.format.seg_fuzzer import SegmentationFuzzer
         from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
         from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
 
@@ -132,19 +140,25 @@ class DicomMutator:
             CompressedPixelFuzzer,
             ConformanceFuzzer,
             DictionaryFuzzer,
+            EncapsulatedPdfFuzzer,
             EncodingFuzzer,
             HeaderFuzzer,
             MetadataFuzzer,
+            NuclearMedicineFuzzer,
+            PetFuzzer,
             PixelFuzzer,
             PrivateTagFuzzer,
+            RTDoseFuzzer,
+            RTStructureSetFuzzer,
             ReferenceFuzzer,
+            SegmentationFuzzer,
             SequenceFuzzer,
             StructureFuzzer,
         ]:
             try:
-                self.register_strategy(fuzzer_cls())
+                self.register_strategy(fuzzer_cls())  # type: ignore[abstract]
             except Exception as e:
-                logger.warning(f"Could not register {fuzzer_cls.__name__}: {e}")
+                logger.warning("Could not register %s: %s", fuzzer_cls.__name__, e)
 
     def register_strategy(self, strategy: MutationStrategy) -> None:
         """Add a new fuzzing strategy to the collection.
@@ -153,13 +167,17 @@ class DicomMutator:
             strategy: A fuzzing strategy implementing MutationStrategy protocol
 
         """
-        if not hasattr(strategy, "mutate") or not hasattr(strategy, "strategy_name"):
+        if (
+            not hasattr(strategy, "mutate")
+            or not hasattr(strategy, "strategy_name")
+            or not hasattr(strategy, "can_mutate")
+        ):
             raise ValueError(
                 f"Strategy {strategy} does not implement MutationStrategy protocol"
             )
 
         self.strategies.append(strategy)
-        logger.debug(f"Registered mutation strategy: {strategy.strategy_name}")
+        logger.debug("Registered mutation strategy: %s", strategy.strategy_name)
 
     def start_session(
         self, original_dataset: Dataset | None, file_info: dict[str, Any] | None = None
@@ -188,7 +206,7 @@ class DicomMutator:
             config=self.config,
         )
 
-        logger.info(f"Started mutation session: {self.current_session.session_id}")
+        logger.info("Started mutation session: %s", self.current_session.session_id)
         return self.current_session.session_id
 
     def apply_mutations(
@@ -211,7 +229,7 @@ class DicomMutator:
         # Use defaults from config if not specified
         num_mutations = num_mutations or self.config.get("max_mutations_per_file", 1)
 
-        logger.info(f"Applying {num_mutations} mutations")
+        logger.info("Applying %s mutations", num_mutations)
 
         # OPTIMIZATION: Use Dataset.copy() instead of deepcopy for better performance
         # pydicom's copy() is optimized for DICOM datasets and 2-3x faster than deepcopy
@@ -233,7 +251,7 @@ class DicomMutator:
             # Skip mutation if random value is greater than probability threshold
             # e.g., if probability=0.7, skip when random() > 0.7 (30% skip rate)
             if random.random() > self.config.get("mutation_probability", 1.0):
-                logger.debug(f"Skipping mutation {i + 1} due to probability")
+                logger.debug("Skipping mutation %s due to probability", i + 1)
                 continue
 
             # Choose a random strategy
@@ -245,11 +263,11 @@ class DicomMutator:
                 mutations_applied += 1
 
             except Exception as e:
-                logger.error(f"Mutation failed: {e}")
+                logger.error("Mutation failed: %s", e)
                 # Record the failed mutation
                 self._record_mutation(strategy, success=False, error=str(e))
 
-        logger.info(f"Successfully applied {mutations_applied} mutations")
+        logger.info("Successfully applied %s mutations", mutations_applied)
         return mutated_dataset
 
     def _get_applicable_strategies(
@@ -291,13 +309,15 @@ class DicomMutator:
                 if strategy.can_mutate(dataset):
                     applicable.append(strategy)
                 else:
-                    logger.debug(f"Strategy {strategy.strategy_name} not applicable")
+                    logger.debug("Strategy %s not applicable", strategy.strategy_name)
             except Exception as e:
-                logger.warning(f"Error checking strategy {strategy.strategy_name}: {e}")
+                logger.warning(
+                    "Error checking strategy %s: %s", strategy.strategy_name, e
+                )
 
         # Store in cache for future use
         self._strategy_cache[cache_key] = applicable
-        logger.debug(f"Cached {len(applicable)} applicable strategies")
+        logger.debug("Cached %s applicable strategies", len(applicable))
 
         return applicable
 
@@ -305,7 +325,7 @@ class DicomMutator:
         self, dataset: Dataset, strategy: MutationStrategy
     ) -> Dataset:
         """Apply a single mutation and track the results."""
-        logger.debug(f"Applying {strategy.strategy_name} mutation")
+        logger.debug("Applying %s mutation", strategy.strategy_name)
 
         mutated_dataset = strategy.mutate(dataset)
         self._record_mutation(strategy, success=True)
@@ -337,7 +357,7 @@ class DicomMutator:
             self.current_session.successful_mutations += 1
 
         # Log for debugging
-        logger.debug(f"Recorded mutation: {mutation_record.mutation_id}")
+        logger.debug("Recorded mutation: %s", mutation_record.mutation_id)
 
     def end_session(self) -> MutationSession | None:
         """End the current mutation session and return statistics.

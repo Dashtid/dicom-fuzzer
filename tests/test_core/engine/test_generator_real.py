@@ -192,10 +192,10 @@ class TestStrategyRegistration:
     """Test strategy registration in mutator."""
 
     def test_all_strategies_registered(self, tmp_path):
-        """Test all 12 format fuzzers are registered."""
+        """Test all 18 format fuzzers are registered."""
         gen = DICOMGenerator(output_dir=str(tmp_path))
 
-        assert len(gen.mutator.strategies) == 12
+        assert len(gen.mutator.strategies) == 18
 
     def test_strategy_names(self, tmp_path):
         """Test registered strategy names."""
@@ -208,12 +208,18 @@ class TestStrategyRegistration:
                 "compressed_pixel",
                 "conformance",
                 "dictionary",
+                "encapsulated_pdf",
                 "encoding",
                 "header",
                 "metadata",
+                "nuclear_medicine",
+                "pet",
                 "pixel",
                 "private_tag",
                 "reference",
+                "rt_dose",
+                "rt_structure_set",
+                "segmentation",
                 "sequence",
                 "structure",
             ]

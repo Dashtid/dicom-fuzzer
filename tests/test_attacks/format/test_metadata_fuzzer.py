@@ -23,32 +23,28 @@ class TestMetadataFuzzerInit:
         assert "Doe^Jane" in fuzzer.fake_names
         assert "Johnson^Mike" in fuzzer.fake_names
 
-    def test_init_fake_ids(self):
-        """Test that fake IDs are initialized."""
+    def test_patient_id_generated_on_demand(self):
+        """Test that patient IDs are generated on demand with correct format."""
         fuzzer = MetadataFuzzer()
-        assert len(fuzzer.fake_ids) == 8999  # 9999 - 1000
-        assert "PAT001000" in fuzzer.fake_ids
-        assert "PAT009998" in fuzzer.fake_ids
-
-    def test_fake_id_format(self):
-        """Test that fake IDs have correct format."""
-        fuzzer = MetadataFuzzer()
-        for fake_id in fuzzer.fake_ids[:10]:
-            assert fake_id.startswith("PAT")
-            assert len(fake_id) == 9
-            assert fake_id[3:].isdigit()
+        dataset = Dataset()
+        result = fuzzer.mutate_patient_info(dataset)
+        patient_id = str(result.PatientID)
+        assert patient_id.startswith("PAT")
+        assert len(patient_id) == 9
+        assert patient_id[3:].isdigit()
 
 
 class TestMutatePatientInfo:
     """Test mutate_patient_info method."""
 
     def test_mutate_patient_id(self):
-        """Test that PatientID is mutated."""
+        """Test that PatientID is mutated with correct format."""
         fuzzer = MetadataFuzzer()
         dataset = MagicMock()
 
-        with patch.object(random, "choice", side_effect=["PAT005000", "Smith^John"]):
-            result = fuzzer.mutate_patient_info(dataset)
+        with patch.object(random, "randint", return_value=5000):
+            with patch.object(random, "choice", return_value="Smith^John"):
+                result = fuzzer.mutate_patient_info(dataset)
 
         assert result.PatientID == "PAT005000"
 
@@ -57,10 +53,9 @@ class TestMutatePatientInfo:
         fuzzer = MetadataFuzzer()
         dataset = MagicMock()
 
-        with patch.object(random, "choice", side_effect=["PAT001234", "Doe^Jane"]):
-            result = fuzzer.mutate_patient_info(dataset)
+        result = fuzzer.mutate_patient_info(dataset)
 
-        assert result.PatientName == "Doe^Jane"
+        assert str(result.PatientName) in fuzzer.fake_names
 
     def test_mutate_patient_birth_date(self):
         """Test that PatientBirthDate is mutated."""

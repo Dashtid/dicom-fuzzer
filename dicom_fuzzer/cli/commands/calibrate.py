@@ -32,8 +32,8 @@ Examples:
   # List calibration categories
   dicom-fuzzer calibrate --list-categories
 
-  # Fuzz Hounsfield unit rescale with extreme severity
-  dicom-fuzzer calibrate --input ct.dcm --category hounsfield --severity extreme
+  # Fuzz Hounsfield unit rescale parameters
+  dicom-fuzzer calibrate --input ct.dcm --category hounsfield
 
 For advanced usage, use the Python API:
   from dicom_fuzzer.attacks.format.calibration_fuzzer import CalibrationFuzzer
@@ -75,14 +75,6 @@ For advanced usage, use the Python API:
         metavar="N",
         help="Number of mutations (default: 10)",
     )
-    mutation_group.add_argument(
-        "--severity",
-        type=str,
-        choices=["minimal", "moderate", "aggressive", "extreme"],
-        default="moderate",
-        help="Mutation severity (default: moderate)",
-    )
-
     output_group = parser.add_argument_group("output options")
     output_group.add_argument(
         "-o",
@@ -177,13 +169,9 @@ def _apply_category_mutations(
     for category in categories:
         method = category_methods[category]
         try:
-            fuzzed_ds, records = method(ds_copy)
-            ds_copy = fuzzed_ds
+            ds_copy = method(ds_copy)
             if verbose:
-                for record in records:
-                    print(
-                        f"  [{category}] {record.attack_type}: {record.original_value} -> {record.mutated_value}"
-                    )
+                print(f"  [+] {category} applied")
         except Exception as e:
             if verbose:
                 print(f"  [!] {category} skipped: {e}")
@@ -197,7 +185,6 @@ def run_calibration_mutation(args: argparse.Namespace) -> int:
     print("=" * 70)
     print(f"  Input:    {args.input}")
     print(f"  Category: {args.category}")
-    print(f"  Severity: {args.severity}")
     print(f"  Count:    {args.count}")
     print(f"  Output:   {args.output}")
     print("=" * 70 + "\n")
@@ -224,7 +211,7 @@ def run_calibration_mutation(args: argparse.Namespace) -> int:
             f"[+] Loaded: {dataset.PatientName if hasattr(dataset, 'PatientName') else 'Unknown'}"
         )
 
-        fuzzer = CalibrationFuzzer(severity=args.severity)
+        fuzzer = CalibrationFuzzer()
         category_methods = {
             "pixel-spacing": fuzzer.fuzz_pixel_spacing,
             "hounsfield": fuzzer.fuzz_hounsfield_rescale,

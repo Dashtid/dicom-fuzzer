@@ -1,30 +1,35 @@
 """Pixel Fuzzer - DICOM Pixel Data Mutations.
 
-Targets pixel data with various corruptions to test parser robustness:
-- Random noise injection
-- Dimension mismatches
-- Bit depth inconsistencies
-- Photometric interpretation violations
+Category: generic
+
+Attacks:
+- SamplesPerPixel mismatch and invalid values
+- PlanarConfiguration manipulation
+- Row/column dimension mismatch with pixel data size
+- Bit depth inconsistencies (BitsAllocated, BitsStored, HighBit)
+- Photometric interpretation confusion (MONOCHROME1/2, RGB, YBR)
 """
 
 from __future__ import annotations
 
 import random
 
-import numpy as np
 from pydicom.dataset import Dataset
+
+from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
 
+logger = get_logger(__name__)
+
 
 class PixelFuzzer(FormatFuzzerBase):
-    """Fuzzes DICOM pixel data to test image handling robustness.
+    """Fuzzes DICOM pixel data metadata to test image handling robustness.
 
     Tests application handling of:
-    - Corrupted pixel values
-    - Encapsulated (compressed) pixel data malformations
-    - Multi-frame inconsistencies
     - Dimension/bit depth mismatches
+    - Photometric interpretation confusion
+    - SamplesPerPixel and PlanarConfiguration manipulation
     """
 
     def __init__(self) -> None:
@@ -47,7 +52,6 @@ class PixelFuzzer(FormatFuzzerBase):
 
         """
         mutations = [
-            self._noise_injection,
             self._dimension_mismatch,
             self._bit_depth_attack,
             self._photometric_confusion,
@@ -59,8 +63,8 @@ class PixelFuzzer(FormatFuzzerBase):
         for mutation in random.sample(mutations, k=random.randint(1, 2)):
             try:
                 dataset = mutation(dataset)
-            except Exception:
-                pass  # Individual mutations may fail on incompatible datasets
+            except Exception as e:
+                logger.debug("Pixel mutation %s failed: %s", mutation.__name__, e)
 
         return dataset
 
@@ -95,8 +99,8 @@ class PixelFuzzer(FormatFuzzerBase):
             elif attack == "extreme_samples":
                 dataset.SamplesPerPixel = random.choice([65535, 256, 128])
 
-        except Exception:
-            pass  # Mutation may fail on incompatible datasets
+        except Exception as e:
+            logger.debug("Samples per pixel attack failed: %s", e)
 
         return dataset
 
@@ -132,27 +136,8 @@ class PixelFuzzer(FormatFuzzerBase):
                 dataset.SamplesPerPixel = 1
                 dataset.PlanarConfiguration = 1
 
-        except Exception:
-            pass  # Mutation may fail on incompatible datasets
-
-        return dataset
-
-    def _noise_injection(self, dataset: Dataset) -> Dataset:
-        """Introduce random noise into pixel data.
-
-        Original mutation - injects random values into pixel array.
-        """
-        if "PixelData" not in dataset:
-            return dataset
-
-        try:
-            pixels = dataset.pixel_array.copy()
-            noise_mask = np.random.random(pixels.shape) < 0.01
-            noise_count = int(np.sum(noise_mask))
-            pixels[noise_mask] = np.random.randint(0, 255, noise_count)
-            dataset.PixelData = pixels.tobytes()
-        except (ValueError, AttributeError, TypeError):
-            pass  # Pixel array may be unreadable or incompatible
+        except Exception as e:
+            logger.debug("Planar configuration attack failed: %s", e)
 
         return dataset
 
@@ -201,8 +186,8 @@ class PixelFuzzer(FormatFuzzerBase):
                     dataset.Rows = extreme
                 else:
                     dataset.Columns = extreme
-        except Exception:
-            pass  # Mutation may fail on incompatible datasets
+        except Exception as e:
+            logger.debug("Dimension mismatch attack failed: %s", e)
 
         return dataset
 
@@ -243,8 +228,8 @@ class PixelFuzzer(FormatFuzzerBase):
                 dataset.BitsStored = 0
             elif attack == "extreme_bits":
                 dataset.BitsAllocated = random.choice([1, 64, 128, 255])
-        except Exception:
-            pass  # Mutation may fail on incompatible datasets
+        except Exception as e:
+            logger.debug("Bit depth attack failed: %s", e)
 
         return dataset
 
@@ -267,7 +252,7 @@ class PixelFuzzer(FormatFuzzerBase):
 
         try:
             dataset.PhotometricInterpretation = random.choice(invalid_photometrics)
-        except Exception:
-            pass  # Mutation may fail on incompatible datasets
+        except Exception as e:
+            logger.debug("Photometric confusion attack failed: %s", e)
 
         return dataset
