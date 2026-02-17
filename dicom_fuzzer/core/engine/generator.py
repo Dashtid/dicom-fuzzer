@@ -84,7 +84,7 @@ class DICOMGenerator:
 
         generated_files = []
         self.stats = GenerationStats()
-        self.mutator.start_session(base_dataset)
+        self.mutator.start_session()
 
         for _i in range(count):
             result = self._generate_single_file(base_dataset, strategies)

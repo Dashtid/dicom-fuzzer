@@ -82,7 +82,7 @@ class TestMutatorProperties:
         ds.PatientName = "Test^Patient"
         ds.PatientID = "12345"
 
-        mutator.start_session(ds)
+        mutator.start_session()
         result = mutator.apply_mutations(ds, num_mutations=num_mutations)
 
         # Property: mutations applied <= mutations requested
@@ -104,7 +104,7 @@ class TestMutatorProperties:
         ds = Dataset()
         ds.PatientName = "Test"
 
-        mutator.start_session(ds)
+        mutator.start_session()
 
         # Apply mutations with specific parameters
         if strategy_names:
@@ -135,7 +135,7 @@ class TestMutatorProperties:
         ds.PatientID = patient_id
         ds.StudyDate = study_date
 
-        mutator.start_session(ds)
+        mutator.start_session()
         result = mutator.apply_mutations(ds, num_mutations=1)
 
         # Property: Result is still a Dataset
