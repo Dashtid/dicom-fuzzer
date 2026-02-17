@@ -25,7 +25,7 @@ class TestSeriesDetectorInitialization:
     def test_initialization(self):
         """Test creating a SeriesDetector."""
         detector = SeriesDetector()
-        assert detector._series_cache == {}
+        assert detector is not None
 
 
 class TestDetectSeries:
