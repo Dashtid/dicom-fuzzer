@@ -3,7 +3,7 @@ Comprehensive test suite for DicomSeries
 
 Tests the DicomSeries dataclass including:
 - Initialization and validation
-- Properties (slice_count, is_3d, is_multislice)
+- Properties (slice_count, is_3d)
 - Slice position extraction
 - Slice spacing calculation
 - Dimensions retrieval
@@ -138,17 +138,6 @@ class TestDicomSeriesProperties:
             slices=[Path("/tmp/slice1.dcm"), Path("/tmp/slice2.dcm")],
         )
         assert series.is_3d is True
-
-    def test_is_multislice_alias(self):
-        """Test that is_multislice is an alias for is_3d."""
-        series = DicomSeries(
-            series_uid="1.2.3.4.5",
-            study_uid="1.2.3.4",
-            modality="CT",
-            slices=[Path("/tmp/slice1.dcm"), Path("/tmp/slice2.dcm")],
-        )
-        assert series.is_multislice == series.is_3d
-        assert series.is_multislice is True
 
 
 class TestGetSlicePositions:
