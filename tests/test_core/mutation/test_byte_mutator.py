@@ -580,7 +580,6 @@ class TestByteMutationTypeEnum:
             "BYTE_FLIP_1",
             "ARITH_8",
             "INTEREST_8",
-            "HAVOC",
             "SPLICE",
         ]
 

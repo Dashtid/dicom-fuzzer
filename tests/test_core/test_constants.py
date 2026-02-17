@@ -5,38 +5,15 @@ from __future__ import annotations
 from dicom_fuzzer.core.constants import (
     ARITH_MAX,
     INTERESTING_8,
-    INTERESTING_8_UNSIGNED,
     INTERESTING_16,
-    INTERESTING_16_UNSIGNED,
     INTERESTING_32,
-    INTERESTING_32_UNSIGNED,
-    MAP_SIZE,
-    MAP_SIZE_POW2,
-    SEVERITY_SCORES,
     BugSeverity,
     ByteMutationType,
     CrashSeverity,
-    GUIResponseType,
     MutationType,
-    ProtocolResponseType,
-    ResponseType,
     Severity,
     SeverityLevel,
 )
-
-
-class TestCoverageConstants:
-    """Tests for coverage tracking constants."""
-
-    def test_map_size_is_power_of_two(self) -> None:
-        """Test MAP_SIZE is 2^16 (AFL default)."""
-        assert MAP_SIZE == 65536
-        assert MAP_SIZE == 2**16
-
-    def test_map_size_pow2_matches(self) -> None:
-        """Test MAP_SIZE_POW2 is log2(MAP_SIZE)."""
-        assert MAP_SIZE_POW2 == 16
-        assert 2**MAP_SIZE_POW2 == MAP_SIZE
 
 
 class TestArithmeticConstants:
@@ -59,16 +36,9 @@ class TestInteresting8:
         assert 1 in INTERESTING_8
         assert -1 in INTERESTING_8  # All bits set
 
-    def test_unsigned_variant_positive_only(self) -> None:
-        """Test unsigned variant has no negative values."""
-        assert all(v >= 0 for v in INTERESTING_8_UNSIGNED)
-        assert 0 in INTERESTING_8_UNSIGNED
-        assert 255 in INTERESTING_8_UNSIGNED  # UINT8_MAX
-
     def test_no_duplicates(self) -> None:
         """Test no duplicate values."""
         assert len(INTERESTING_8) == len(set(INTERESTING_8))
-        assert len(INTERESTING_8_UNSIGNED) == len(set(INTERESTING_8_UNSIGNED))
 
 
 class TestInteresting16:
@@ -82,15 +52,9 @@ class TestInteresting16:
         assert 0 in INTERESTING_16
         assert -1 in INTERESTING_16
 
-    def test_unsigned_variant_positive_only(self) -> None:
-        """Test unsigned variant has no negative values."""
-        assert all(v >= 0 for v in INTERESTING_16_UNSIGNED)
-        assert 65535 in INTERESTING_16_UNSIGNED  # UINT16_MAX
-
     def test_no_duplicates(self) -> None:
         """Test no duplicate values."""
         assert len(INTERESTING_16) == len(set(INTERESTING_16))
-        assert len(INTERESTING_16_UNSIGNED) == len(set(INTERESTING_16_UNSIGNED))
 
 
 class TestInteresting32:
@@ -104,35 +68,22 @@ class TestInteresting32:
         assert 0 in INTERESTING_32
         assert -1 in INTERESTING_32
 
-    def test_unsigned_variant_positive_only(self) -> None:
-        """Test unsigned variant has no negative values."""
-        assert all(v >= 0 for v in INTERESTING_32_UNSIGNED)
-        assert 4294967295 in INTERESTING_32_UNSIGNED  # UINT32_MAX
-
     def test_no_duplicates(self) -> None:
         """Test no duplicate values."""
         assert len(INTERESTING_32) == len(set(INTERESTING_32))
-        assert len(INTERESTING_32_UNSIGNED) == len(set(INTERESTING_32_UNSIGNED))
 
 
 class TestMutationType:
-    """Tests for unified MutationType enum."""
+    """Tests for MutationType enum."""
 
     def test_inherits_from_str(self) -> None:
         """Test MutationType inherits from str for serialization."""
-        # MutationType inherits from str, so it can be used where str is expected
-        assert isinstance(MutationType.HAVOC, str)
-        # The .value attribute gives the string value
-        assert MutationType.HAVOC.value == "havoc"
-        # Direct comparison with str works due to str inheritance
-        assert MutationType.HAVOC == "havoc"
+        assert isinstance(MutationType.SPLICE, str)
+        assert MutationType.SPLICE.value == "splice"
+        assert MutationType.SPLICE == "splice"
 
     def test_afl_mutations_exist(self) -> None:
         """Test AFL-style mutations are defined."""
-        # General bit/byte flips
-        assert MutationType.BIT_FLIP.value == "bit_flip"
-        assert MutationType.BYTE_FLIP.value == "byte_flip"
-        # Specific sizes (ByteMutator)
         assert MutationType.BIT_FLIP_1.value == "bit_flip_1"
         assert MutationType.BIT_FLIP_2.value == "bit_flip_2"
         assert MutationType.BIT_FLIP_4.value == "bit_flip_4"
@@ -148,51 +99,18 @@ class TestMutationType:
 
     def test_interesting_value_mutations_exist(self) -> None:
         """Test interesting value mutations are defined."""
-        # Standardized naming
-        assert MutationType.INTERESTING_8.value == "interesting_8"
-        assert MutationType.INTERESTING_16.value == "interesting_16"
-        assert MutationType.INTERESTING_32.value == "interesting_32"
-        # Legacy naming (backward compatibility)
         assert MutationType.INTEREST_8.value == "interest_8"
         assert MutationType.INTEREST_16.value == "interest_16"
         assert MutationType.INTEREST_32.value == "interest_32"
-
-    def test_havoc_and_splice_exist(self) -> None:
-        """Test havoc and splice mutations are defined."""
-        assert MutationType.HAVOC.value == "havoc"
-        assert MutationType.SPLICE.value == "splice"
-
-    def test_dicom_specific_mutations_exist(self) -> None:
-        """Test DICOM-specific mutations are defined."""
-        assert MutationType.DICOM_TAG_CORRUPT.value == "dicom_tag_corrupt"
-        assert MutationType.DICOM_VR_MISMATCH.value == "dicom_vr_mismatch"
-        assert MutationType.DICOM_LENGTH_OVERFLOW.value == "dicom_length_overflow"
-        assert MutationType.DICOM_SEQUENCE_NEST.value == "dicom_sequence_nest"
-        assert MutationType.DICOM_TRANSFER_SYNTAX.value == "dicom_transfer_syntax"
-
-    def test_cve_mutations_exist(self) -> None:
-        """Test CVE-based security mutations are defined."""
-        assert MutationType.CVE_INTEGER_OVERFLOW.value == "cve_integer_overflow"
-        assert MutationType.CVE_PATH_TRAVERSAL.value == "cve_path_traversal"
-        assert MutationType.CVE_HEAP_OVERFLOW.value == "cve_heap_overflow"
-        assert MutationType.CVE_RANDOM.value == "cve_random"
 
     def test_byte_mutation_type_alias(self) -> None:
         """Test ByteMutationType is alias to MutationType."""
         assert ByteMutationType is MutationType
         assert ByteMutationType.BIT_FLIP_1 == MutationType.BIT_FLIP_1
 
-    def test_mutation_type_iteration(self) -> None:
-        """Test all mutation types can be iterated."""
-        all_types = list(MutationType)
-        assert len(all_types) >= 40  # Core mutation types
-        assert MutationType.HAVOC in all_types
-        assert MutationType.CVE_RANDOM in all_types
-
-    def test_enum_membership(self) -> None:
-        """Test enum membership checking."""
-        assert "havoc" in [m.value for m in MutationType]
-        assert MutationType("havoc") == MutationType.HAVOC
+    def test_mutation_type_count(self) -> None:
+        """Test expected member count."""
+        assert len(list(MutationType)) == 13
 
 
 class TestMutationTypeBackwardCompatibility:
@@ -226,24 +144,11 @@ class TestSeverity:
         assert Severity.INFO.value == "info"
         assert Severity.UNKNOWN.value == "unknown"
 
-    def test_severity_scores_mapping(self) -> None:
-        """Test SEVERITY_SCORES provides correct numeric ordering."""
-        assert SEVERITY_SCORES[Severity.CRITICAL] == 5
-        assert SEVERITY_SCORES[Severity.HIGH] == 4
-        assert SEVERITY_SCORES[Severity.MEDIUM] == 3
-        assert SEVERITY_SCORES[Severity.LOW] == 2
-        assert SEVERITY_SCORES[Severity.INFO] == 1
-        assert SEVERITY_SCORES[Severity.UNKNOWN] == 0
-        # Test ordering
-        assert SEVERITY_SCORES[Severity.CRITICAL] > SEVERITY_SCORES[Severity.HIGH]
-        assert SEVERITY_SCORES[Severity.HIGH] > SEVERITY_SCORES[Severity.MEDIUM]
-
     def test_backward_compatibility_aliases(self) -> None:
         """Test backward compatibility aliases."""
         assert CrashSeverity is Severity
         assert BugSeverity is Severity
         assert SeverityLevel is Severity
-        # Can use any alias to access values
         assert CrashSeverity.CRITICAL == Severity.CRITICAL
         assert BugSeverity.HIGH == Severity.HIGH
         assert SeverityLevel.MEDIUM == Severity.MEDIUM
@@ -258,46 +163,6 @@ class TestSeverityBackwardCompatibility:
 
         assert SeverityTriage is Severity
         assert SeverityTriage.INFO.value == "info"
-
-
-class TestGUIResponseType:
-    """Tests for GUIResponseType enum."""
-
-    def test_inherits_from_str(self) -> None:
-        """Test GUIResponseType inherits from str."""
-        assert isinstance(GUIResponseType.NORMAL, str)
-        assert GUIResponseType.NORMAL.value == "normal"
-
-    def test_response_type_values_exist(self) -> None:
-        """Test all GUI response type values are defined."""
-        assert GUIResponseType.NORMAL.value == "normal"
-        assert GUIResponseType.ERROR_DIALOG.value == "error_dialog"
-        assert GUIResponseType.CRASH.value == "crash"
-        assert GUIResponseType.HANG.value == "hang"
-        assert GUIResponseType.MEMORY_SPIKE.value == "memory_spike"
-
-    def test_response_type_alias(self) -> None:
-        """Test ResponseType is alias to GUIResponseType."""
-        assert ResponseType is GUIResponseType
-        assert ResponseType.CRASH == GUIResponseType.CRASH
-
-
-class TestProtocolResponseType:
-    """Tests for ProtocolResponseType enum."""
-
-    def test_inherits_from_str(self) -> None:
-        """Test ProtocolResponseType inherits from str."""
-        assert isinstance(ProtocolResponseType.ACCEPT, str)
-        assert ProtocolResponseType.ACCEPT.value == "accept"
-
-    def test_protocol_response_values_exist(self) -> None:
-        """Test all protocol response type values are defined."""
-        assert ProtocolResponseType.ACCEPT.value == "accept"
-        assert ProtocolResponseType.REJECT.value == "reject"
-        assert ProtocolResponseType.ABORT.value == "abort"
-        assert ProtocolResponseType.DATA.value == "data"
-        assert ProtocolResponseType.TIMEOUT.value == "timeout"
-        assert ProtocolResponseType.CRASH.value == "crash"
 
 
 class TestDICOMState:
@@ -320,12 +185,10 @@ class TestDICOMState:
         """Test DIMSE operation pending states are defined."""
         from dicom_fuzzer.core.constants import DICOMState
 
-        # C-Services
         assert DICOMState.C_STORE_PENDING is not None
         assert DICOMState.C_FIND_PENDING is not None
         assert DICOMState.C_MOVE_PENDING is not None
         assert DICOMState.C_GET_PENDING is not None
-        # N-Services
         assert DICOMState.N_CREATE_PENDING is not None
         assert DICOMState.N_SET_PENDING is not None
         assert DICOMState.N_DELETE_PENDING is not None
