@@ -128,7 +128,7 @@ For study mutation only (no target testing), use:
         """,
     )
 
-    # Action group - either run campaign or list strategies/adapters
+    # Action group - either run campaign or list strategies
     action_group = parser.add_mutually_exclusive_group(required=True)
     action_group.add_argument(
         "--target",
@@ -140,11 +140,6 @@ For study mutation only (no target testing), use:
         "--list-strategies",
         action="store_true",
         help="List available study mutation strategies",
-    )
-    action_group.add_argument(
-        "--list-adapters",
-        action="store_true",
-        help="List available viewer adapters",
     )
 
     # Study input
@@ -223,22 +218,6 @@ For study mutation only (no target testing), use:
         help="Stop campaign on first crash",
     )
 
-    # Adapter options (viewer-specific automation)
-    adapter_group = parser.add_argument_group("adapter options")
-    adapter_group.add_argument(
-        "--adapter",
-        type=str,
-        metavar="NAME",
-        help="Viewer adapter for UI automation (e.g., 'affinity'). "
-        "Enables study loading into viewport and validation.",
-    )
-    adapter_group.add_argument(
-        "--series-name",
-        type=str,
-        metavar="NAME",
-        help="Series name to search for when using adapter",
-    )
-
     # Output options
     output_group = parser.add_argument_group("output options")
     output_group.add_argument(
@@ -280,39 +259,6 @@ def run_list_strategies() -> int:
 
     print("\n[i] Use --strategy <name> to select a specific strategy")
     print("[i] Campaign cycles through severities: moderate -> aggressive -> extreme")
-    return 0
-
-
-def run_list_adapters() -> int:
-    """List available viewer adapters."""
-    print("\n" + "=" * 70)
-    print("  DICOM Fuzzer - Available Viewer Adapters")
-    print("=" * 70 + "\n")
-
-    try:
-        from dicom_fuzzer.core.adapters import get_adapter, list_adapters
-
-        adapters = list_adapters()
-        if adapters:
-            print("Available adapters:\n")
-            for name in adapters:
-                try:
-                    adapter = get_adapter(name)
-                    viewers = ", ".join(adapter.supported_viewers)
-                    print(f"  {name:15} - {adapter.name} ({viewers})")
-                except Exception:
-                    print(f"  {name:15} - (error loading)")
-        else:
-            print("No adapters available.")
-            print("\n[i] Install pywinauto for Windows UI automation:")
-            print("    pip install pywinauto")
-
-        print("\n[i] Use --adapter <name> to enable viewer-specific automation")
-        print("[i] Adapters load studies into viewport and can extract patient info")
-
-    except ImportError:
-        print("No adapters available (adapters module not found).")
-
     return 0
 
 
@@ -468,7 +414,6 @@ def _save_campaign_results(
                     "count": args.count,
                     "timeout": args.timeout,
                     "memory_limit": args.memory_limit,
-                    "adapter": args.adapter,
                 },
                 "stats": stats,
             },
@@ -538,32 +483,6 @@ def _log_campaign_header(
     log(f"Severity: {args.severity}", log_file)
     log(f"Total tests planned: {args.count}", log_file)
     log("=" * 70, log_file)
-
-
-def _setup_viewer_adapter(
-    adapter_name: str | None, log_file: Path
-) -> tuple[object | None, int | None]:
-    """Setup viewer adapter if specified.
-
-    Returns:
-        Tuple of (adapter, error_code). error_code is None if successful.
-
-    """
-    if not adapter_name:
-        return None, None
-
-    try:
-        from dicom_fuzzer.core.adapters import get_adapter
-
-        adapter = get_adapter(adapter_name)
-        log(f"[+] Using adapter: {adapter.name}", log_file)
-        return adapter, None
-    except ImportError:
-        log("[-] Adapters module not available", log_file)
-        return None, 1
-    except ValueError as e:
-        log(f"[-] {e}", log_file)
-        return None, 1
 
 
 def _get_strategies(strategy_arg: str, strategy_map: dict[str, Any]) -> list[Any]:
@@ -907,8 +826,6 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.list_strategies:
         return run_list_strategies()
-    elif args.list_adapters:
-        return run_list_adapters()
     elif args.target:
         return run_campaign(args)
     else:
