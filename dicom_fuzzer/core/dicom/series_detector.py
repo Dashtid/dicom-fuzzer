@@ -27,7 +27,6 @@ class SeriesDetector:
 
     def __init__(self) -> None:
         """Initialize the series detector."""
-        self._series_cache: dict[str, DicomSeries] = {}
 
     def detect_series(
         self, dicom_files: list[Path] | Path, validate: bool = True
@@ -52,7 +51,7 @@ class SeriesDetector:
             logger.warning("No DICOM files provided to detect_series")
             return []
 
-        logger.info(f"Detecting series in {len(dicom_files)} DICOM files...")
+        logger.info("Detecting series in %d DICOM files...", len(dicom_files))
 
         # Group files by SeriesInstanceUID
         series_groups = self._group_by_series_uid(dicom_files)
@@ -73,23 +72,26 @@ class SeriesDetector:
                     errors = series.validate_series_consistency()
                     if errors:
                         logger.warning(
-                            f"Series {series_uid[:16]}... has validation errors: "
-                            f"{len(errors)} issues"
+                            "Series %s... has validation errors: %d issues",
+                            series_uid[:16],
+                            len(errors),
                         )
                         for error in errors[:3]:  # Log first 3 errors
-                            logger.warning(f"  - {error}")
+                            logger.warning("  - %s", error)
 
                 series_list.append(series)
                 logger.info(
-                    f"Detected series: {series.modality} with {series.slice_count} slices "
-                    f"(UID: {series_uid[:16]}...)"
+                    "Detected series: %s with %d slices (UID: %s...)",
+                    series.modality,
+                    series.slice_count,
+                    series_uid[:16],
                 )
 
             except Exception as e:
-                logger.error(f"Error creating series {series_uid[:16]}...: {e}")
+                logger.error("Error creating series %s...: %s", series_uid[:16], e)
                 continue
 
-        logger.info(f"Detected {len(series_list)} series total")
+        logger.info("Detected %d series total", len(series_list))
         return series_list
 
     def detect_series_in_directory(
@@ -109,13 +111,13 @@ class SeriesDetector:
         if not directory.exists():
             raise FileNotFoundError(f"Directory not found: {directory}")
 
-        logger.info(f"Scanning directory for DICOM files: {directory}")
+        logger.info("Scanning directory for DICOM files: %s", directory)
 
         # Find all DICOM files
         dicom_files = self._find_dicom_files(directory, recursive=recursive)
 
         if not dicom_files:
-            logger.warning(f"No DICOM files found in {directory}")
+            logger.warning("No DICOM files found in %s", directory)
             return []
 
         return self.detect_series(dicom_files, validate=validate)
@@ -189,7 +191,7 @@ class SeriesDetector:
         self._scan_extensionless_files(directory, dicom_files_set, recursive)
 
         dicom_files = list(dicom_files_set)
-        logger.info(f"Found {len(dicom_files)} DICOM files")
+        logger.info("Found %d DICOM files", len(dicom_files))
         return dicom_files
 
     def _is_dicom_file(self, file_path: Path) -> bool:
@@ -239,13 +241,9 @@ class SeriesDetector:
 
                 # Extract required attributes
                 if not hasattr(ds, "SeriesInstanceUID"):
-                    file_name = (
-                        file_path.name
-                        if isinstance(file_path, Path)
-                        else Path(file_path).name
-                    )
                     logger.warning(
-                        f"File {file_name} missing SeriesInstanceUID, skipping"
+                        "File %s missing SeriesInstanceUID, skipping",
+                        file_path.name,
                     )
                     continue
 
@@ -267,12 +265,7 @@ class SeriesDetector:
                     series_groups[series_uid]["modality"] = modality
 
             except Exception as e:
-                file_name = (
-                    file_path.name
-                    if isinstance(file_path, Path)
-                    else Path(file_path).name
-                )
-                logger.warning(f"Error reading {file_name}: {e}")
+                logger.warning("Error reading %s: %s", file_path.name, e)
                 continue
 
         return dict(series_groups)
@@ -315,7 +308,7 @@ class SeriesDetector:
                 if hasattr(first_ds, "ImageOrientationPatient"):
                     series.orientation = tuple(first_ds.ImageOrientationPatient)
             except Exception as e:
-                logger.warning(f"Could not extract orientation: {e}")
+                logger.warning("Could not extract orientation: %s", e)
 
         return series
 
@@ -357,12 +350,7 @@ class SeriesDetector:
                 file_positions.append((file_path, z_pos, instance_num))
 
             except Exception as e:
-                file_name = (
-                    file_path.name
-                    if isinstance(file_path, Path)
-                    else Path(file_path).name
-                )
-                logger.warning(f"Error reading position for {file_name}: {e}")
+                logger.warning("Error reading position for %s: %s", file_path.name, e)
                 file_positions.append((file_path, 0.0, 0))
 
         # Sort by z_position (descending for superior to inferior)
