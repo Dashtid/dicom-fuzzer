@@ -16,16 +16,6 @@ from enum import Enum, auto
 from typing import Final
 
 # =============================================================================
-# Coverage Tracking Constants
-# =============================================================================
-
-#: Coverage bitmap size (matches AFL default)
-MAP_SIZE: Final[int] = 65536
-
-#: log2(MAP_SIZE) for bit operations
-MAP_SIZE_POW2: Final[int] = 16
-
-# =============================================================================
 # Arithmetic Mutation Constants
 # =============================================================================
 
@@ -85,83 +75,18 @@ INTERESTING_32: Final[list[int]] = [
 ]
 
 # =============================================================================
-# Unsigned Variants for VR Encoding
-# Some DICOM Value Representations reject negative values, use these instead
-# =============================================================================
-
-#: 8-bit unsigned interesting values
-INTERESTING_8_UNSIGNED: Final[list[int]] = [
-    0,
-    1,
-    16,
-    32,
-    64,
-    100,
-    127,
-    128,
-    255,
-]
-
-#: 16-bit unsigned interesting values
-INTERESTING_16_UNSIGNED: Final[list[int]] = [
-    0,
-    1,
-    128,
-    255,
-    256,
-    512,
-    1000,
-    1024,
-    4096,
-    32767,
-    32768,
-    65535,
-]
-
-#: 32-bit unsigned interesting values
-INTERESTING_32_UNSIGNED: Final[list[int]] = [
-    0,
-    1,
-    32768,
-    65535,
-    65536,
-    100663045,
-    2147483647,
-    4294967295,
-]
-
-
-# =============================================================================
 # Mutation Type Enum
 # Unified enum consolidating ByteMutationType, MutationType from multiple modules
 # =============================================================================
 
 
 class MutationType(str, Enum):
-    """Unified mutation type enum for all fuzzing operations.
+    """Mutation type labels used by ByteMutator.
 
     Inherits from str for easy serialization and logging.
-    Used by ByteMutator and other mutation engines.
-
-    Categories:
-    - AFL-style bit/byte mutations (general and specific sizes)
-    - Arithmetic mutations (8/16/32-bit and directional)
-    - Interesting value mutations
-    - Havoc/Splice mutations
-    - Block mutations
-    - DICOM-specific mutations
-    - CVE-based security mutations
     """
 
-    # -------------------------------------------------------------------------
-    # AFL-style bit/byte mutations - general
-    # -------------------------------------------------------------------------
-    BIT_FLIP = "bit_flip"
-    BYTE_FLIP = "byte_flip"
-
-    # -------------------------------------------------------------------------
-    # AFL-style bit/byte mutations - specific sizes
-    # -------------------------------------------------------------------------
+    # AFL-style bit/byte mutations
     BIT_FLIP_1 = "bit_flip_1"
     BIT_FLIP_2 = "bit_flip_2"
     BIT_FLIP_4 = "bit_flip_4"
@@ -169,82 +94,18 @@ class MutationType(str, Enum):
     BYTE_FLIP_2 = "byte_flip_2"
     BYTE_FLIP_4 = "byte_flip_4"
 
-    # -------------------------------------------------------------------------
     # Arithmetic mutations
-    # -------------------------------------------------------------------------
     ARITH_8 = "arith_8"
     ARITH_16 = "arith_16"
     ARITH_32 = "arith_32"
 
-    # -------------------------------------------------------------------------
     # Interesting value mutations
-    # -------------------------------------------------------------------------
-    INTERESTING_8 = "interesting_8"
-    INTERESTING_16 = "interesting_16"
-    INTERESTING_32 = "interesting_32"
-
-    # -------------------------------------------------------------------------
-    # Interesting value mutations - legacy naming
-    # -------------------------------------------------------------------------
     INTEREST_8 = "interest_8"
     INTEREST_16 = "interest_16"
     INTEREST_32 = "interest_32"
 
-    # -------------------------------------------------------------------------
-    # Havoc/Splice mutations
-    # -------------------------------------------------------------------------
-    HAVOC = "havoc"
+    # Splice
     SPLICE = "splice"
-
-    # -------------------------------------------------------------------------
-    # Byte mutations
-    # -------------------------------------------------------------------------
-    RANDOM_BYTE = "random_byte"
-    BYTE_INSERT = "byte_insert"
-    BYTE_DELETE = "byte_delete"
-
-    # -------------------------------------------------------------------------
-    # Arithmetic mutations - directional
-    # -------------------------------------------------------------------------
-    ARITHMETIC_INC = "arithmetic_inc"
-    ARITHMETIC_DEC = "arithmetic_dec"
-    ARITHMETIC_RANDOM = "arithmetic_random"
-
-    # -------------------------------------------------------------------------
-    # Block mutations
-    # -------------------------------------------------------------------------
-    BLOCK_REMOVE = "block_remove"
-    BLOCK_DUPLICATE = "block_duplicate"
-    BLOCK_SHUFFLE = "block_shuffle"
-
-    # -------------------------------------------------------------------------
-    # Interesting value mutations - named
-    # -------------------------------------------------------------------------
-    INTERESTING_BYTES = "interesting_bytes"
-    INTERESTING_INTS = "interesting_ints"
-    BOUNDARY_VALUES = "boundary_values"
-
-    # -------------------------------------------------------------------------
-    # DICOM-specific mutations
-    # -------------------------------------------------------------------------
-    DICOM_TAG_CORRUPT = "dicom_tag_corrupt"
-    DICOM_VR_MISMATCH = "dicom_vr_mismatch"
-    DICOM_LENGTH_OVERFLOW = "dicom_length_overflow"
-    DICOM_SEQUENCE_NEST = "dicom_sequence_nest"
-    DICOM_TRANSFER_SYNTAX = "dicom_transfer_syntax"
-
-    # -------------------------------------------------------------------------
-    # CVE-based security mutations
-    # -------------------------------------------------------------------------
-    CVE_INTEGER_OVERFLOW = "cve_integer_overflow"
-    CVE_PATH_TRAVERSAL = "cve_path_traversal"
-    CVE_HEAP_OVERFLOW = "cve_heap_overflow"
-    CVE_MALFORMED_LENGTH = "cve_malformed_length"
-    CVE_DEEP_NESTING = "cve_deep_nesting"
-    CVE_POLYGLOT = "cve_polyglot"
-    CVE_ENCAPSULATED_PIXEL = "cve_encapsulated_pixel"
-    CVE_JPEG_CODEC = "cve_jpeg_codec"
-    CVE_RANDOM = "cve_random"
 
 
 # Backward compatibility alias
@@ -280,65 +141,10 @@ class Severity(str, Enum):
     UNKNOWN = "unknown"
 
 
-# Severity scores for numeric comparisons (used by semantic_bucketer.py)
-SEVERITY_SCORES: Final[dict[Severity, int]] = {
-    Severity.CRITICAL: 5,
-    Severity.HIGH: 4,
-    Severity.MEDIUM: 3,
-    Severity.LOW: 2,
-    Severity.INFO: 1,
-    Severity.UNKNOWN: 0,
-}
-
 # Backward compatibility aliases
 CrashSeverity = Severity
 BugSeverity = Severity
 SeverityLevel = Severity
-
-
-# =============================================================================
-# Response Type Enums
-# Unified response types for GUI and protocol monitoring
-# =============================================================================
-
-
-class GUIResponseType(str, Enum):
-    """Response types from GUI application monitoring.
-
-    Used to classify responses detected during GUI fuzzing and monitoring.
-    """
-
-    NORMAL = "normal"
-    ERROR_DIALOG = "error_dialog"
-    WARNING_DIALOG = "warning_dialog"
-    CRASH = "crash"
-    HANG = "hang"
-    MEMORY_SPIKE = "memory_spike"
-    RENDER_ANOMALY = "render_anomaly"
-    RESOURCE_EXHAUSTION = "resource_exhaustion"
-
-
-class ProtocolResponseType(str, Enum):
-    """Response types from DICOM protocol communication.
-
-    Used to classify responses from DICOM network protocol interactions.
-    """
-
-    ACCEPT = "accept"
-    REJECT = "reject"
-    ABORT = "abort"
-    DATA = "data"
-    RELEASE = "release"
-    TIMEOUT = "timeout"
-    DISCONNECT = "disconnect"
-    MALFORMED = "malformed"
-    CRASH = "crash"
-    HANG = "hang"
-    ERROR = "error"
-
-
-# Default ResponseType alias for backward compatibility
-ResponseType = GUIResponseType
 
 
 # =============================================================================
