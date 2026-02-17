@@ -10,21 +10,15 @@ Subpackages:
 - dicom/: DICOM file I/O -- parsing, validation, series
 - engine/: Fuzzing engines and orchestrators
 - harness/: Target execution and monitoring
-- mutation/: Mutation primitives -- byte, multiframe, orchestration
+- mutation/: Mutation primitives -- multiframe and orchestration
 - reporting/: Reports, analytics, templates
 - session/: Runtime and session management
 """
 
 from .constants import (
-    ARITH_MAX,
-    INTERESTING_8,
-    INTERESTING_16,
-    INTERESTING_32,
     BugSeverity,
-    ByteMutationType,
     CrashSeverity,
     DICOMState,
-    MutationType,
     Severity,
     SeverityLevel,
     StateTransitionType,
@@ -102,14 +96,7 @@ from .session.resource_manager import ResourceLimits, ResourceManager
 from .types import DICOMCommand, DIMSECommand, PDUType
 
 __all__ = [
-    # Fuzzing constants (AFL-inspired boundary values)
-    "ARITH_MAX",
-    "INTERESTING_8",
-    "INTERESTING_16",
-    "INTERESTING_32",
     # Enums
-    "ByteMutationType",
-    "MutationType",
     "BugSeverity",
     "CrashSeverity",
     "DICOMState",

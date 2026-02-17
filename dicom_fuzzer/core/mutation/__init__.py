@@ -1,6 +1,5 @@
-"""Mutation primitives -- byte, multiframe, and orchestration."""
+"""Mutation primitives -- multiframe and orchestration."""
 
-from .byte_mutator import ByteMutator, DICOMByteMutator
 from .multiframe_handler import (
     FrameInfo,
     MultiFrameHandler,
@@ -11,8 +10,6 @@ from .multiframe_handler import (
 from .mutator import DicomMutator
 
 __all__ = [
-    "ByteMutator",
-    "DICOMByteMutator",
     "DicomMutator",
     "FrameInfo",
     "MultiFrameHandler",
