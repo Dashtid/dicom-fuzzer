@@ -6,6 +6,7 @@ Validates DICOM files for correctness, compliance, and security issues.
 from pathlib import Path
 from typing import Any
 
+import pydicom
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 from pydicom.tag import Tag
@@ -242,8 +243,6 @@ class DicomValidator:
         # Try to parse the file
         if parse_dataset:
             try:
-                import pydicom
-
                 dataset = pydicom.dcmread(file_path, force=True)
 
                 # Check if file has valid DICOM structure (preamble + file_meta)
@@ -467,18 +466,20 @@ class DicomValidator:
         results = []
 
         for i, dataset in enumerate(datasets):
-            logger.debug(f"Validating dataset {i + 1}/{len(datasets)}")
+            logger.debug("Validating dataset %d/%d", i + 1, len(datasets))
             result = self.validate(dataset)
             results.append(result)
 
             if stop_on_first_error and not result.is_valid:
-                logger.warning(f"Stopping validation at dataset {i + 1} due to error")
+                logger.warning("Stopping validation at dataset %d due to error", i + 1)
                 break
 
         # Summary statistics
         valid_count = sum(1 for r in results if r.is_valid)
         logger.info(
-            f"Batch validation complete: {valid_count}/{len(results)} valid",
+            "Batch validation complete: %d/%d valid",
+            valid_count,
+            len(results),
             valid=valid_count,
             total=len(results),
             success_rate=valid_count / len(results) if results else 0,
