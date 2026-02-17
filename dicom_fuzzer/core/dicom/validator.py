@@ -1,6 +1,9 @@
-"""DICOM Validator Module.
+"""DICOM Validator -- Dataset Correctness and Security Checks.
 
-Validates DICOM files for correctness, compliance, and security issues.
+- Structure: non-empty dataset, file meta information present
+- Required tags: Patient, Study, Series, Image module tags
+- Tag values: string length limits, null byte detection
+- Security: element count, sequence nesting depth, private tag anomalies
 """
 
 from pathlib import Path

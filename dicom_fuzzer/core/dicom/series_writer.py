@@ -1,27 +1,10 @@
-"""DICOM Series Writer
+"""DICOM Series Writer -- Write Fuzzed Series to Disk with Metadata Tracking.
 
-This module provides SeriesWriter for writing fuzzed DICOM series to disk with
-comprehensive metadata tracking and reproduction capabilities.
-
-KEY FEATURES:
-- Write complete 3D series (all slices) to organized directory structure
+- Write complete 3D series to organized directory structure
 - Preserve SeriesInstanceUID relationships between slices
-- Generate detailed metadata JSON comparing original vs fuzzed series
-- Create reproduction scripts for debugging and verification
-- Support both 2D (single slice) and 3D (multi-slice) series
-
-DIRECTORY STRUCTURE:
-output_dir/
-+-- series_<series_uid>/
-    +-- slice_001.dcm
-    +-- slice_002.dcm
-    +-- ...
-    +-- metadata.json
-    +-- reproduce.py
-
-SECURITY NOTE: Based on CVE-2025-35975, CVE-2025-36521, CVE-2025-5943,
-fuzzed series must maintain valid DICOM structure to reach parser vulnerabilities.
-Invalid structure causes early rejection, never reaching vulnerable code paths.
+- Generate metadata JSON comparing original vs fuzzed series
+- Create reproduction scripts for debugging
+- Clean up old series output by age
 """
 
 import json

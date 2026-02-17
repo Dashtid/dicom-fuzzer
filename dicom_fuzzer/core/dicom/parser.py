@@ -1,7 +1,10 @@
-"""DICOM file parsing module with comprehensive validation and security features.
+"""DICOM Parser -- Secure File Parsing with Validation and Safety Checks.
 
-This module provides secure parsing capabilities for DICOM files,
-with extensive validation, error handling, and security considerations.
+- Parse DICOM files via pydicom with force-read for malformed inputs
+- Validate file size, structure, and transfer syntax
+- Extract pixel data as numpy arrays (deferred import)
+- Context-managed temporary dataset modifications
+- Deep copy support for safe mutation workflows
 """
 
 import copy

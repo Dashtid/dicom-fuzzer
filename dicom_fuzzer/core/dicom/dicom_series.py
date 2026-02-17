@@ -1,7 +1,9 @@
-"""DICOM Series Data Structure.
+"""DICOM Series Data Structure -- DicomSeries Dataclass.
 
-Defines the DicomSeries dataclass representing a complete 3D DICOM series.
-A series is a collection of related slices sharing a SeriesInstanceUID.
+- Ordered slice paths sorted by ImagePositionPatient
+- Series-level metadata (modality, study UID, slice spacing, orientation)
+- Pixel data loading into numpy volume arrays
+- Slice-level metadata extraction for mutation tracking
 """
 
 from dataclasses import dataclass, field
