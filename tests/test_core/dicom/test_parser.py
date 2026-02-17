@@ -165,27 +165,6 @@ class TestTransferSyntax:
         assert parser.is_compressed() is False
 
 
-class TestCriticalTags:
-    """Test critical DICOM tag extraction."""
-
-    def test_get_critical_tags(self, sample_dicom_file):
-        """Test extraction of critical DICOM tags."""
-        parser = DicomParser(sample_dicom_file)
-        critical_tags = parser.get_critical_tags()
-
-        assert isinstance(critical_tags, dict)
-        assert len(critical_tags) > 0
-
-    def test_critical_tags_include_sop_class(self, sample_dicom_file):
-        """Test that critical tags include SOP Class UID."""
-        parser = DicomParser(sample_dicom_file)
-        critical_tags = parser.get_critical_tags()
-
-        # SOPClassUID should be in critical tags (Tag 0008,0016)
-        # Keys are in format "(0008, 0016)"
-        assert any("0008" in key and "0016" in key for key in critical_tags.keys())
-
-
 class TestTemporaryMutation:
     """Test temporary mutation context manager."""
 
@@ -303,10 +282,6 @@ class TestIntegration:
         transfer_syntax = parser.get_transfer_syntax()
         assert transfer_syntax is not None
 
-        # Get critical tags
-        critical_tags = parser.get_critical_tags()
-        assert critical_tags is not None
-
         # Check compression status
         is_compressed = parser.is_compressed()
         assert isinstance(is_compressed, bool)
@@ -341,36 +316,6 @@ class TestParserErrorPaths:
 
         with pytest.raises(ParsingError):
             DicomParser(corrupted_file)
-
-    def test_get_critical_tags_with_missing_tags(self, tmp_path):
-        """Test get_critical_tags when some tags are missing."""
-        import pydicom
-        from pydicom.uid import ExplicitVRLittleEndian
-
-        # Create a file with minimal tags
-        file_meta = pydicom.Dataset()
-        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
-        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
-
-        ds = pydicom.Dataset()
-        ds.file_meta = file_meta
-        ds.PatientID = "12345"
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        ds.SOPInstanceUID = "1.2.3.4.5"
-        # Missing: StudyInstanceUID, SeriesInstanceUID
-
-        minimal_file = tmp_path / "minimal_tags.dcm"
-        ds.save_as(minimal_file, enforce_file_format=True)
-
-        parser = DicomParser(minimal_file)
-        critical_tags = parser.get_critical_tags()
-
-        # critical_tags uses tag notation like "(0008,0018)" (no spaces after comma)
-        assert len(critical_tags) > 0
-        # Check that some critical tags are present (note: no space after comma)
-        assert "(0008,0018)" in critical_tags  # SOPInstanceUID
-        assert "(0008,0016)" in critical_tags  # SOPClassUID
 
     def test_extract_metadata_with_minimal_dataset(self, tmp_path):
         """Test extract_metadata with minimal dataset."""
@@ -882,27 +827,6 @@ class TestCoverageMissingLines:
             result = parser.is_compressed()
             assert result is False  # Line 357
 
-    def test_get_critical_tags_exception_lines_390_391(self, sample_dicom_file):
-        """Test exception handling in get_critical_tags (lines 390-391)."""
-        parser = DicomParser(sample_dicom_file)
-
-        # Mock dataset.__getitem__ to raise exception for critical tag
-        original_getitem = parser.dataset.__getitem__
-
-        def mock_getitem(key):
-            from pydicom.tag import Tag
-
-            # Raise exception for SOPClassUID
-            if key == Tag(0x0008, 0x0016):
-                raise ValueError("Mock error")
-            return original_getitem(key)
-
-        parser.dataset.__getitem__ = mock_getitem
-
-        # Should handle exception gracefully (lines 390-391)
-        critical_tags = parser.get_critical_tags()
-        assert isinstance(critical_tags, dict)
-
     def test_private_tag_extraction_exception_lines_274_275(self, sample_dicom_file):
         """Test exception handling in private tag extraction (lines 274-275)."""
         from unittest.mock import Mock
@@ -951,36 +875,6 @@ class TestCoverageMissingLines:
         parser = DicomParser(sample_dicom_file)
         assert parser is not None
         assert parser.dataset is not None
-
-    def test_critical_tags_extraction_exception_lines_390_391(self, sample_dicom_file):
-        """Test exception handling in critical tags extraction (lines 390-391)."""
-        from unittest.mock import PropertyMock, patch
-
-        parser = DicomParser(sample_dicom_file)
-
-        # Mock dataset[tag].value to raise exception for critical tags
-        original_getitem = parser.dataset.__getitem__
-
-        def mock_getitem(key):
-            elem = original_getitem(key)
-            # Check if this is a critical tag
-            if key in parser.CRITICAL_TAGS:
-                # Create a mock that raises on value access
-                with patch.object(
-                    type(elem), "value", new_callable=PropertyMock
-                ) as mock_val:
-                    mock_val.side_effect = RuntimeError("Value access failed")
-                    return elem
-            return elem
-
-        parser.dataset.__getitem__ = mock_getitem
-
-        # Should handle exception gracefully (lines 390-391)
-        critical_tags = parser.get_critical_tags()
-        assert isinstance(critical_tags, dict)
-
-        # Restore
-        parser.dataset.__getitem__ = original_getitem
 
 
 # =============================================================================
@@ -1095,37 +989,6 @@ class TestExtractMetadataMutationKilling:
         metadata = parser.extract_metadata(include_private=True)
         assert "private_tags" in metadata
         assert "XXprivate_tagsXX" not in metadata
-
-
-class TestGetCriticalTagsMutationKilling:
-    """Tests targeting get_critical_tags mutations.
-
-    Keys are in format '(XXXX,YYYY)' from str(tag).
-    """
-
-    def test_critical_tags_returns_dict(self, sample_dicom_file):
-        """Verify get_critical_tags returns a dict."""
-        parser = DicomParser(sample_dicom_file)
-        tags = parser.get_critical_tags()
-        assert isinstance(tags, dict)
-
-    def test_critical_tags_keys_are_tag_format(self, sample_dicom_file):
-        """Verify keys are in DICOM tag format (XXXX,YYYY)."""
-        parser = DicomParser(sample_dicom_file)
-        tags = parser.get_critical_tags()
-
-        for key in tags.keys():
-            # Keys should be like '(0008,0016)'
-            assert key.startswith("("), f"Key should start with '(': {key}"
-            assert key.endswith(")"), f"Key should end with ')': {key}"
-            assert "," in key, f"Key should contain ',': {key}"
-
-    def test_sop_class_uid_tag_present(self, sample_dicom_file):
-        """Verify SOPClassUID tag (0008,0016) is in critical tags."""
-        parser = DicomParser(sample_dicom_file)
-        tags = parser.get_critical_tags()
-        # SOPClassUID = (0008,0016)
-        assert "(0008, 0016)" in tags or "(0008,0016)" in tags
 
 
 class TestExtractMetadataTagMappingMutationKilling:

@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 from pydicom.dataset import Dataset, FileDataset
-from pydicom.tag import Tag
 from pydicom.uid import generate_uid
 
 from dicom_fuzzer.core.dicom.parser import DicomParser
@@ -161,25 +160,6 @@ class TestDatasetAccess:
         ds2 = parser.dataset
 
         assert ds1 is ds2  # Same object reference
-
-
-class TestCriticalTags:
-    """Test critical tag handling."""
-
-    def test_critical_tags_defined(self):
-        """Test critical tags are defined."""
-        assert len(DicomParser.CRITICAL_TAGS) > 0
-        assert Tag(0x0008, 0x0016) in DicomParser.CRITICAL_TAGS  # SOPClassUID
-        assert Tag(0x0008, 0x0018) in DicomParser.CRITICAL_TAGS  # SOPInstanceUID
-
-    def test_critical_tags_present_in_valid_file(self, real_dicom_file):
-        """Test critical tags are present in valid file."""
-        parser = DicomParser(str(real_dicom_file))
-
-        for tag in DicomParser.CRITICAL_TAGS:
-            if tag in parser.dataset:
-                value = parser.dataset.get(tag)
-                assert value is not None
 
 
 class TestFilePathHandling:
