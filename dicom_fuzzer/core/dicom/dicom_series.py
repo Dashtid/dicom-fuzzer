@@ -62,7 +62,7 @@ class DicomSeries:
             self._slice_cache[slice_path] = ds
             return ds
         except Exception as e:
-            logger.error(f"Error reading slice {slice_path}: {e}")
+            logger.error("Error reading slice %s: %s", slice_path, e)
             return None
 
     @property
@@ -74,11 +74,6 @@ class DicomSeries:
     def is_3d(self) -> bool:
         """True if series contains more than one slice."""
         return self.slice_count > 1
-
-    @property
-    def is_multislice(self) -> bool:
-        """Alias for is_3d for clarity."""
-        return self.is_3d
 
     def get_slice_positions(self) -> list[tuple[float, float, float]]:
         """Extract ImagePositionPatient for all slices.
@@ -101,7 +96,7 @@ class DicomSeries:
                 pos = ds.ImagePositionPatient
                 positions.append((float(pos[0]), float(pos[1]), float(pos[2])))
             else:
-                logger.warning(f"Slice {slice_path.name} missing ImagePositionPatient")
+                logger.warning("Slice %s missing ImagePositionPatient", slice_path.name)
                 positions.append((0.0, 0.0, 0.0))
         return positions
 
@@ -142,8 +137,9 @@ class DicomSeries:
             return float(mean_spacing)
         else:
             logger.warning(
-                f"Non-uniform slice spacing detected: mean={mean_spacing:.2f}mm, "
-                f"std={std_spacing:.2f}mm"
+                "Non-uniform slice spacing detected: mean=%.2fmm, std=%.2fmm",
+                mean_spacing,
+                std_spacing,
             )
             return None
 
@@ -166,7 +162,7 @@ class DicomSeries:
             cols = int(first_slice.Columns) if hasattr(first_slice, "Columns") else 0
             return (rows, cols, self.slice_count)
         except (TypeError, ValueError) as e:
-            logger.error(f"Error reading dimensions: {e}")
+            logger.error("Error reading dimensions: %s", e)
             return None
 
     def load_first_slice(self) -> Dataset | None:
@@ -184,7 +180,7 @@ class DicomSeries:
         try:
             return pydicom.dcmread(self.slices[0])
         except Exception as e:
-            logger.error(f"Error loading first slice: {e}")
+            logger.error("Error loading first slice: %s", e)
             return None
 
     def validate_series_consistency(self) -> list[str]:
