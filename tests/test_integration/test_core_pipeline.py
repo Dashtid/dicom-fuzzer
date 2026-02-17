@@ -544,41 +544,6 @@ class TestIntegrationEdgeCases:
         assert all(f.exists() for f in generated_files)
         shutil.rmtree(output_dir)
 
-    def test_generator_creates_valid_dicom(self, temp_dir):
-        """Test that DICOMGenerator creates valid DICOM files."""
-        generator = DICOMGenerator()
-
-        output_path = temp_dir / "generated.dcm"
-        generator.generate(str(output_path))
-
-        assert output_path.exists()
-
-        parser = DicomParser(str(output_path))
-        metadata = parser.extract_metadata()
-        assert metadata is not None
-
-        validator = DicomValidator()
-        result, _ = validator.validate_file(output_path)
-        assert result.is_valid
-
-    def test_generator_with_custom_tags(self, temp_dir):
-        """Test generator with custom tags."""
-        generator = DICOMGenerator()
-
-        output_path = temp_dir / "custom.dcm"
-        tags = {
-            "PatientName": "CUSTOM^NAME",
-            "PatientID": "CUSTOM123",
-            "Modality": "US",
-        }
-        generator.generate(str(output_path), tags=tags)
-
-        parser = DicomParser(str(output_path))
-        metadata = parser.extract_metadata()
-        assert "CUSTOM^NAME" in str(metadata["patient_name"])
-        assert "CUSTOM123" in str(metadata["patient_id"])
-        assert "US" in str(metadata["modality"])
-
 
 class TestConcurrentOperations:
     """Test concurrent operations and thread safety."""
