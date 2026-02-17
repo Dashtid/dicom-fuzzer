@@ -42,14 +42,6 @@ class DicomParser:
 
     """
 
-    # Critical DICOM tags that should never be mutated for safety
-    CRITICAL_TAGS = {
-        Tag(0x0008, 0x0016),  # SOPClassUID
-        Tag(0x0008, 0x0018),  # SOPInstanceUID
-        Tag(0x0020, 0x000D),  # StudyInstanceUID
-        Tag(0x0020, 0x000E),  # SeriesInstanceUID
-    }
-
     # Maximum safe file size (100MB)
     MAX_FILE_SIZE = 100 * 1024 * 1024
 
@@ -410,28 +402,6 @@ class DicomParser:
         }
 
         return transfer_syntax in compressed_syntaxes
-
-    def get_critical_tags(self) -> dict[str, Any]:
-        """Extract critical DICOM tags that should not be mutated.
-
-        Returns:
-            Dictionary of critical tag values
-
-        Security:
-            These tags are essential for DICOM functionality and should
-            be preserved during fuzzing operations.
-
-        """
-        critical_data = {}
-
-        for tag in self.CRITICAL_TAGS:
-            try:
-                if tag in self.dataset:
-                    critical_data[str(tag)] = str(self.dataset[tag].value)
-            except Exception as e:
-                logger.warning("Failed to extract critical tag %s: %s", tag, e)
-
-        return critical_data
 
     @contextmanager
     def temporary_mutation(self) -> Generator[Dataset, None, None]:
