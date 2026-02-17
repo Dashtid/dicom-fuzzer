@@ -15,57 +15,6 @@ Subpackages:
 - session/: Runtime and session management
 """
 
-# Shared fuzzing constants (v1.7.0)
-# Network re-exports (backward compatibility -- canonical location is attacks.network)
-from dicom_fuzzer.attacks.network import (
-    DICOMNetworkConfig,
-    DICOMNetworkFuzzer,
-    DICOMProtocolBuilder,
-    FuzzingStrategy,
-    NetworkFuzzResult,
-    PDUFuzzingMixin,
-    TLSFuzzingMixin,
-)
-from dicom_fuzzer.attacks.network.dimse import (
-    DICOMElement,
-    DIMSEFuzzingConfig,
-    DIMSEMessage,
-    QueryRetrieveLevel,
-    SOPClass,
-    UIDGenerator,
-)
-from dicom_fuzzer.attacks.network.stateful.coverage import StateCoverageTracker
-
-# State-Aware Fuzzer (moved to attacks/network/stateful/)
-from dicom_fuzzer.attacks.network.stateful.state_aware_fuzzer import (
-    MessageSequence,
-    ProtocolMessage,
-    StateAwareFuzzer,
-    StateGuidedHavoc,
-    StateInferenceEngine,
-    StateMutator,
-)
-from dicom_fuzzer.attacks.network.tls import (
-    COMMON_AE_TITLES,
-    INJECTION_PAYLOADS,
-    SOP_CLASS_UIDS,
-    SSL_VERSIONS,
-    WEAK_CIPHERS,
-    AuthBypassType,
-    DICOMAuthTester,
-    DICOMTLSFuzzer,
-    DICOMTLSFuzzerConfig,
-    PACSQueryInjector,
-    QueryInjectionType,
-    TLSFuzzResult,
-    TLSSecurityTester,
-    TLSVulnerability,
-)
-from dicom_fuzzer.attacks.network.tls.fuzzer import (
-    create_dicom_tls_fuzzer,
-    quick_scan,
-)
-
 from .constants import (
     ARITH_MAX,
     INTERESTING_8,
@@ -161,11 +110,8 @@ from .session.resource_manager import ResourceLimits, ResourceManager
 # Protocol types
 from .types import DICOMCommand, DIMSECommand, PDUType
 
-# Backward compatibility alias
-FuzzingConfig = DIMSEFuzzingConfig
-
 __all__ = [
-    # Shared fuzzing constants (v1.7.0)
+    # Fuzzing constants (AFL-inspired boundary values)
     "ARITH_MAX",
     "INTERESTING_8",
     "INTERESTING_8_UNSIGNED",
@@ -175,101 +121,57 @@ __all__ = [
     "INTERESTING_32_UNSIGNED",
     "MAP_SIZE",
     "MAP_SIZE_POW2",
-    # Unified Mutation Type Enum (v1.8.0)
+    # Enums
     "ByteMutationType",
     "MutationType",
-    # Unified Severity and Response Type Enums (v1.8.0)
     "BugSeverity",
     "CrashSeverity",
+    "DICOMState",
     "GUIResponseType",
     "ProtocolResponseType",
     "ResponseType",
     "Severity",
     "SeverityLevel",
     "SEVERITY_SCORES",
-    # State tracking types (for GUI/protocol fuzzing)
+    "StateTransitionType",
+    # Core functionality
+    "DICOMGenerator",
+    "DicomFuzzingError",
+    "DicomMutator",
+    "DicomParser",
+    "DicomValidator",
+    "NetworkTimeoutError",
+    "ValidationError",
+    # Protocol types
+    "DICOMCommand",
+    "DIMSECommand",
+    "PDUType",
+    # Target harness
+    "ExecutionStatus",
+    "TargetRunner",
+    # Session management
+    "ResourceLimits",
+    "ResourceManager",
+    # Crash intelligence
+    "CrashTriage",
+    "CrashTriageEngine",
+    "ExploitabilityRating",
+    # DICOM series
+    "DicomSeries",
+    "SeriesDetector",
+    "SeriesMetadata",
+    "SeriesWriter",
+    # Reporting
+    "Series3DReport",
+    "Series3DReportGenerator",
+    "SeriesMutationSummary",
+    # Coverage types
     "GUIStateTransition",
     "ProtocolStateTransition",
     "StateCoverage",
     "StateFingerprint",
     "StateTransition",
-    # Core functionality
-    "DicomFuzzingError",
-    "NetworkTimeoutError",
-    "ValidationError",
-    "DicomParser",
-    "DicomMutator",
-    "DICOMGenerator",
-    "DicomValidator",
-    # Protocol types (v1.7.0)
-    "DICOMCommand",
-    "DIMSECommand",
-    "PDUType",
-    # Network Protocol Fuzzer (canonical: attacks.network)
-    "DICOMNetworkConfig",
-    "DICOMNetworkFuzzer",
-    "DICOMProtocolBuilder",
-    "FuzzingStrategy",
-    "NetworkFuzzResult",
-    "PDUFuzzingMixin",
-    "TLSFuzzingMixin",
-    # DIMSE Protocol Types (v1.7.0)
-    "DICOMElement",
-    "DIMSEFuzzingConfig",
-    "DIMSEMessage",
-    "FuzzingConfig",
-    "QueryRetrieveLevel",
-    "SOPClass",
-    "UIDGenerator",
-    # Target testing
-    "TargetRunner",
-    "ExecutionStatus",
-    # Session management
-    "ResourceManager",
-    "ResourceLimits",
-    # Crash intelligence
-    "CrashTriageEngine",
-    "CrashTriage",
-    "ExploitabilityRating",
-    # 3D Series support
-    "DicomSeries",
-    "SeriesDetector",
-    "SeriesWriter",
-    "SeriesMetadata",
-    # Enhanced Reporting & Analytics
-    "Series3DReport",
-    "Series3DReportGenerator",
-    "SeriesMutationSummary",
-    # Response-Aware Fuzzing with State Coverage
-    "StateCoverageTracker",
-    # State-Aware Protocol Fuzzing
-    "DICOMState",
-    "StateTransitionType",
-    "MessageSequence",
-    "ProtocolMessage",
-    "StateAwareFuzzer",
-    "StateGuidedHavoc",
-    "StateInferenceEngine",
-    "StateMutator",
-    # DICOM TLS Security Fuzzer
-    "COMMON_AE_TITLES",
-    "INJECTION_PAYLOADS",
-    "SOP_CLASS_UIDS",
-    "SSL_VERSIONS",
-    "WEAK_CIPHERS",
-    "AuthBypassType",
-    "DICOMAuthTester",
-    "DICOMTLSFuzzer",
-    "DICOMTLSFuzzerConfig",
-    "PACSQueryInjector",
-    "PDUType",
-    "QueryInjectionType",
-    "TLSFuzzResult",
-    "TLSSecurityTester",
-    "TLSVulnerability",
-    "create_dicom_tls_fuzzer",
-    "quick_scan",
-    # Corpus Minimization & Multi-Fuzzer Sync
+    # Corpus management
     "CorpusMinimizer",
     "CorpusStats",
     "CorpusSynchronizer",
@@ -282,7 +184,7 @@ __all__ = [
     "TargetCoverageCollector",
     "create_sync_node",
     "minimize_corpus",
-    # Multi-Frame Handler
+    # Multi-frame handler
     "FrameInfo",
     "MultiFrameHandler",
     "MultiFrameMutationRecord",

@@ -133,19 +133,3 @@ class TestBackwardCompatibility:
         assert VERSIONS is SSL_VERSIONS
         assert CIPHERS is WEAK_CIPHERS
         assert Tester is TLSSecurityTester
-
-    def test_imports_from_core(self) -> None:
-        """Verify types can be imported from core __init__."""
-        from dicom_fuzzer.core import (
-            SSL_VERSIONS as VERSIONS,
-        )
-        from dicom_fuzzer.core import (
-            WEAK_CIPHERS as CIPHERS,
-        )
-        from dicom_fuzzer.core import (
-            TLSSecurityTester as Tester,
-        )
-
-        assert VERSIONS is SSL_VERSIONS
-        assert CIPHERS is WEAK_CIPHERS
-        assert Tester is TLSSecurityTester

@@ -147,15 +147,3 @@ class TestBackwardCompatibility:
 
         assert PAYLOADS is INJECTION_PAYLOADS
         assert Injector is PACSQueryInjector
-
-    def test_imports_from_core(self) -> None:
-        """Verify types can be imported from core __init__."""
-        from dicom_fuzzer.core import (
-            INJECTION_PAYLOADS as PAYLOADS,
-        )
-        from dicom_fuzzer.core import (
-            PACSQueryInjector as Injector,
-        )
-
-        assert PAYLOADS is INJECTION_PAYLOADS
-        assert Injector is PACSQueryInjector
