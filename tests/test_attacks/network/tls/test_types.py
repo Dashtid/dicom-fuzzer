@@ -249,34 +249,5 @@ class TestBackwardCompatibility:
         assert AE_TITLES is COMMON_AE_TITLES
         assert SOP_UIDS is SOP_CLASS_UIDS
 
-    def test_imports_from_core(self) -> None:
-        """Verify types can be imported from core __init__."""
-        from dicom_fuzzer.core import (
-            COMMON_AE_TITLES as AE_TITLES,
-        )
-        from dicom_fuzzer.core import (
-            SOP_CLASS_UIDS as SOP_UIDS,
-        )
-        from dicom_fuzzer.core import (
-            AuthBypassType as AuthType,
-        )
-        from dicom_fuzzer.core import (
-            DICOMTLSFuzzerConfig as Config,
-        )
-        from dicom_fuzzer.core import (
-            QueryInjectionType as InjType,
-        )
-        from dicom_fuzzer.core import (
-            TLSFuzzResult as Result,
-        )
-        from dicom_fuzzer.core import (
-            TLSVulnerability as Vuln,
-        )
-
-        assert Vuln is TLSVulnerability
-        assert AuthType is AuthBypassType
-        assert InjType is QueryInjectionType
-        assert Result is TLSFuzzResult
-        assert Config is DICOMTLSFuzzerConfig
         assert AE_TITLES is COMMON_AE_TITLES
         assert SOP_UIDS is SOP_CLASS_UIDS

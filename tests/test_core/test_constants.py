@@ -115,26 +115,6 @@ class TestInteresting32:
         assert len(INTERESTING_32_UNSIGNED) == len(set(INTERESTING_32_UNSIGNED))
 
 
-class TestConstantsImportFromCore:
-    """Test constants can be imported from dicom_fuzzer.core."""
-
-    def test_import_from_core(self) -> None:
-        """Test constants are exported from core package."""
-        from dicom_fuzzer.core import (
-            ARITH_MAX as ARITH_MAX_CORE,
-        )
-        from dicom_fuzzer.core import (
-            INTERESTING_8 as INTERESTING_8_CORE,
-        )
-        from dicom_fuzzer.core import (
-            MAP_SIZE as MAP_SIZE_CORE,
-        )
-
-        assert ARITH_MAX_CORE == ARITH_MAX
-        assert INTERESTING_8_CORE == INTERESTING_8
-        assert MAP_SIZE_CORE == MAP_SIZE
-
-
 class TestMutationType:
     """Tests for unified MutationType enum."""
 
@@ -218,15 +198,6 @@ class TestMutationType:
 class TestMutationTypeBackwardCompatibility:
     """Test backward compatibility for MutationType imports."""
 
-    def test_import_from_core(self) -> None:
-        """Test MutationType can be imported from core."""
-        from dicom_fuzzer.core import ByteMutationType as ByteMutationTypeCore
-        from dicom_fuzzer.core import MutationType as MutationTypeCore
-
-        assert MutationTypeCore is MutationType
-        assert ByteMutationTypeCore is ByteMutationType
-        assert MutationTypeCore.HAVOC.value == "havoc"
-
     def test_import_from_byte_mutator(self) -> None:
         """Test ByteMutationType import from byte_mutator still works."""
         from dicom_fuzzer.core.mutation.byte_mutator import (
@@ -280,15 +251,6 @@ class TestSeverity:
 
 class TestSeverityBackwardCompatibility:
     """Test backward compatibility for Severity imports."""
-
-    def test_import_from_core(self) -> None:
-        """Test Severity can be imported from core."""
-        from dicom_fuzzer.core import CrashSeverity as CrashSeverityCore
-        from dicom_fuzzer.core import Severity as SeverityCore
-
-        assert SeverityCore is Severity
-        assert CrashSeverityCore is Severity
-        assert SeverityCore.CRITICAL.value == "critical"
 
     def test_import_from_crash_triage(self) -> None:
         """Test Severity import from crash_triage still works."""
@@ -413,18 +375,3 @@ class TestStateTransitionType:
         assert len(all_types) == 5
         assert StateTransitionType.VALID in all_types
         assert StateTransitionType.CRASH in all_types
-
-
-class TestProtocolEnumsBackwardCompatibility:
-    """Test backward compatibility for protocol enum imports."""
-
-    def test_import_from_core(self) -> None:
-        """Test enums can be imported from core."""
-        from dicom_fuzzer.core import DICOMState as DICOMStateCore
-        from dicom_fuzzer.core import StateTransitionType as StateTransitionTypeCore
-        from dicom_fuzzer.core.constants import DICOMState, StateTransitionType
-
-        assert DICOMStateCore is DICOMState
-        assert StateTransitionTypeCore is StateTransitionType
-        assert DICOMStateCore.IDLE is not None
-        assert StateTransitionTypeCore.VALID.value == "valid"

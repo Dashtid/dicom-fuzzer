@@ -211,15 +211,3 @@ class TestBackwardCompatibilityImports:
         assert FrameInfo is not None
         assert MultiFrameMutationRecord is not None
         assert MultiFrameMutationStrategy is not None
-
-    def test_import_from_core(self) -> None:
-        """Verify imports from core still work."""
-        from dicom_fuzzer.core import (
-            FrameInfo,
-            MultiFrameMutationRecord,
-            MultiFrameMutationStrategy,
-        )
-
-        assert FrameInfo is not None
-        assert MultiFrameMutationRecord is not None
-        assert MultiFrameMutationStrategy is not None

@@ -539,30 +539,6 @@ class TestStateCoverage:
 class TestCoverageTypesBackwardCompatibility:
     """Test backward compatibility for coverage type imports."""
 
-    def test_import_from_core(self) -> None:
-        """Test key types can be imported from core."""
-        from dicom_fuzzer.core import (
-            GUIStateTransition as GUIStateTransitionCore,
-        )
-        from dicom_fuzzer.core import (
-            ProtocolStateTransition as ProtocolStateTransitionCore,
-        )
-        from dicom_fuzzer.core import (
-            StateCoverage as StateCoverageCore,
-        )
-        from dicom_fuzzer.core import (
-            StateFingerprint as StateFingerprintCore,
-        )
-        from dicom_fuzzer.core import (
-            StateTransition as StateTransitionCore,
-        )
-
-        assert GUIStateTransitionCore is GUIStateTransition
-        assert ProtocolStateTransitionCore is ProtocolStateTransition
-        assert StateCoverageCore is StateCoverage
-        assert StateFingerprintCore is StateFingerprint
-        assert StateTransitionCore is GUIStateTransition
-
     def test_import_from_corpus_minimizer(self) -> None:
         """Test imports from corpus_minimizer."""
         from dicom_fuzzer.core.corpus.corpus_minimizer import (

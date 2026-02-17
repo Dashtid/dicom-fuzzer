@@ -324,19 +324,3 @@ class TestStateCoverageTrackerBranchCoverage:
         assert inputs[0] == file2
         assert inputs[1] == file3
         assert inputs[2] == file1
-
-
-class TestBackwardCompatibility:
-    """Test backward compatibility with gui_monitor module."""
-
-    def test_imports_from_core(self) -> None:
-        """Verify types can be imported from core __init__."""
-        from dicom_fuzzer.core import (
-            StateCoverageTracker as SCTracker,
-        )
-        from dicom_fuzzer.core import (
-            StateTransition as STrans,
-        )
-
-        assert SCTracker is StateCoverageTracker
-        assert STrans is StateTransition

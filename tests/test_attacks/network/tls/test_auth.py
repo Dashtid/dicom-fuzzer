@@ -163,9 +163,3 @@ class TestBackwardCompatibility:
         from dicom_fuzzer.attacks.network.tls.fuzzer import DICOMAuthTester as Tester
 
         assert Tester is DICOMAuthTester
-
-    def test_imports_from_core(self) -> None:
-        """Verify DICOMAuthTester can be imported from core __init__."""
-        from dicom_fuzzer.core import DICOMAuthTester as Tester
-
-        assert Tester is DICOMAuthTester
