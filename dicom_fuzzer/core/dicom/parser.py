@@ -8,12 +8,15 @@ import copy
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import numpy as np
 import pydicom
 from pydicom.dataset import Dataset
+from pydicom.errors import InvalidDicomError
 from pydicom.tag import Tag
+
+if TYPE_CHECKING:
+    import numpy as np
 
 from dicom_fuzzer.core.exceptions import (
     ParsingError,
@@ -82,7 +85,7 @@ class DicomParser:
         try:
             self._parse_dicom_file()
         except Exception as e:
-            logger.error(f"Failed to parse DICOM file {self.file_path}: {e}")
+            logger.error("Failed to parse DICOM file %s: %s", self.file_path, e)
             raise ParsingError(
                 f"Failed to parse DICOM file: {e}",
                 error_code="PARSE_FAILED",
@@ -119,7 +122,7 @@ class DicomParser:
 
         # Check for suspicious file extensions
         if self.file_path.suffix.lower() not in {".dcm", ".dicom", ""}:
-            logger.warning(f"Unusual file extension: {self.file_path.suffix}")
+            logger.warning("Unusual file extension: %s", self.file_path.suffix)
 
     def _parse_dicom_file(self) -> None:
         """Parse the DICOM file with comprehensive error handling."""
@@ -133,7 +136,7 @@ class DicomParser:
             # Validate dataset structure
             self._validate_dataset()
 
-        except (OSError, pydicom.errors.InvalidDicomError) as e:
+        except (OSError, InvalidDicomError) as e:
             raise ParsingError(
                 f"Invalid DICOM file format: {e}", error_code="INVALID_DICOM_FORMAT"
             ) from e
@@ -229,7 +232,7 @@ class DicomParser:
                 else:
                     metadata[field_name] = ""
             except Exception as e:
-                logger.warning(f"Failed to extract {field_name}: {e}")
+                logger.warning("Failed to extract %s: %s", field_name, e)
                 metadata[field_name] = ""
 
         # Add image-specific metadata if present
@@ -256,7 +259,7 @@ class DicomParser:
                     )
                 except Exception as e:
                     # PixelData exists but can't be decoded
-                    logger.warning(f"PixelData exists but can't be decoded: {e}")
+                    logger.warning("PixelData exists but can't be decoded: %s", e)
                     metadata["has_pixel_data"] = True
                     metadata["rows"] = getattr(self.dataset, "Rows", None)
                     metadata["columns"] = getattr(self.dataset, "Columns", None)
@@ -270,7 +273,7 @@ class DicomParser:
             else:
                 metadata["has_pixel_data"] = False
         except Exception as e:
-            logger.warning(f"Failed to extract pixel metadata: {e}")
+            logger.warning("Failed to extract pixel metadata: %s", e)
             metadata["has_pixel_data"] = False
 
         # Include private tags if requested
@@ -301,7 +304,7 @@ class DicomParser:
                         "keyword": getattr(element, "keyword", ""),
                     }
                 except Exception as e:
-                    logger.warning(f"Failed to extract private tag {tag}: {e}")
+                    logger.warning("Failed to extract private tag %s: %s", tag, e)
 
         return private_tags
 
@@ -330,7 +333,7 @@ class DicomParser:
             return pixel_array
 
         except Exception as e:
-            logger.error(f"Failed to extract pixel data: {e}")
+            logger.error("Failed to extract pixel data: %s", e)
             if validate:
                 raise ValidationError(
                     f"Pixel data validation failed: {e}",
@@ -379,7 +382,7 @@ class DicomParser:
             transfer_syntax = file_meta.get("TransferSyntaxUID", None)
             return str(transfer_syntax) if transfer_syntax is not None else None
         except Exception as e:
-            logger.warning(f"Failed to get transfer syntax: {e}")
+            logger.warning("Failed to get transfer syntax: %s", e)
             return None
 
     def is_compressed(self) -> bool:
@@ -426,7 +429,7 @@ class DicomParser:
                 if tag in self.dataset:
                     critical_data[str(tag)] = str(self.dataset[tag].value)
             except Exception as e:
-                logger.warning(f"Failed to extract critical tag {tag}: {e}")
+                logger.warning("Failed to extract critical tag %s: %s", tag, e)
 
         return critical_data
 
