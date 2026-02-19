@@ -1,13 +1,15 @@
 """Mutation primitives -- multiframe and orchestration."""
 
 from .multiframe_handler import (
-    FrameInfo,
     MultiFrameHandler,
-    MultiFrameMutationRecord,
-    MultiFrameMutationStrategy,
     create_multiframe_mutator,
 )
-from .mutator import DicomMutator
+from .multiframe_types import (
+    FrameInfo,
+    MultiFrameMutationRecord,
+    MultiFrameMutationStrategy,
+)
+from .mutator import DicomMutator, MutationRecord, MutationSession, MutationStrategy
 
 __all__ = [
     "DicomMutator",
@@ -15,5 +17,8 @@ __all__ = [
     "MultiFrameHandler",
     "MultiFrameMutationRecord",
     "MultiFrameMutationStrategy",
+    "MutationRecord",
+    "MutationSession",
+    "MutationStrategy",
     "create_multiframe_mutator",
 ]
