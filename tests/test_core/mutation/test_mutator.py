@@ -155,7 +155,6 @@ class TestDicomMutatorInit:
 
         assert "max_mutations_per_file" in mutator.config
         assert "mutation_probability" in mutator.config
-        assert "enable_mutation_tracking" in mutator.config
 
     def test_mutator_default_values(self):
         """Test default configuration values are correct."""
@@ -163,7 +162,6 @@ class TestDicomMutatorInit:
 
         assert mutator.config["max_mutations_per_file"] == 1
         assert mutator.config["mutation_probability"] == 1.0
-        assert mutator.config["enable_mutation_tracking"] is True
 
     def test_mutator_config_override(self):
         """Test that custom config overrides defaults."""

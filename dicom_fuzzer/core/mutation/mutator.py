@@ -9,13 +9,11 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
-# Import DICOM libraries
 from pydicom.dataset import Dataset
 
 from dicom_fuzzer.utils.identifiers import generate_short_id
 from dicom_fuzzer.utils.logger import get_logger
 
-# Get a logger for this module
 logger = get_logger(__name__)
 
 
@@ -75,32 +73,25 @@ class DicomMutator:
             config: Optional configuration dictionary for customizing behavior
 
         """
-        # Set up instance variables with default values
         self.config = config or {}
         self.strategies: list[MutationStrategy] = []
         self.current_session: MutationSession | None = None
-
         self._strategy_cache: dict[tuple[Any, ...], list[MutationStrategy]] = {}
 
-        # Load default configuration
         self._load_default_config()
 
-        # Register default strategies if enabled
         if self.config.get("auto_register_strategies", True):
             self._register_default_strategies()
 
-        # Log initialization
         logger.info("DicomMutator initialized with config: %s", self.config)
 
     def _load_default_config(self) -> None:
-        """Set up default configuration values."""
+        """Fill in default values for any missing config keys."""
         default_config = {
             "max_mutations_per_file": 1,
             "mutation_probability": 1.0,
-            "enable_mutation_tracking": True,
         }
 
-        # Update config with defaults for missing keys
         for key, value in default_config.items():
             if key not in self.config:
                 self.config[key] = value
@@ -175,6 +166,7 @@ class DicomMutator:
             )
 
         self.strategies.append(strategy)
+        self._strategy_cache.clear()
         logger.debug("Registered mutation strategy: %s", strategy.strategy_name)
 
     def start_session(self, file_info: dict[str, Any] | None = None) -> str:
@@ -187,18 +179,8 @@ class DicomMutator:
             str: Session ID for tracking
 
         """
-        # Create a new session object
         self.current_session = MutationSession(
             original_file_info=file_info or {},
-        )
-
-        # Log security event for audit trail
-        logger.info(
-            "mutation_session_started",
-            security_event=True,
-            session_id=self.current_session.session_id,
-            file_info=file_info,
-            config=self.config,
         )
 
         logger.info("Started mutation session: %s", self.current_session.session_id)
@@ -360,24 +342,15 @@ class DicomMutator:
             logger.warning("No active session to end")
             return None
 
-        # Mark the end time
-        end_time = datetime.now(UTC)
-        self.current_session.end_time = end_time
+        self.current_session.end_time = datetime.now(UTC)
 
-        # Log session summary
-        session = self.current_session
+        completed_session = self.current_session
         logger.info(
-            "mutation_session_completed",
-            security_event=True,
-            session_id=session.session_id,
-            total_mutations=session.total_mutations,
-            successful_mutations=session.successful_mutations,
-            duration_seconds=(end_time - session.start_time).total_seconds(),
-            success_rate=session.successful_mutations / max(session.total_mutations, 1),
+            "Mutation session %s completed: %d/%d mutations successful",
+            completed_session.session_id,
+            completed_session.successful_mutations,
+            completed_session.total_mutations,
         )
 
-        # Return the session and clear current
-        completed_session = self.current_session
         self.current_session = None
-
         return completed_session
