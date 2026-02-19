@@ -2,7 +2,6 @@
 
 This module provides types for:
 - Corpus seed coverage metadata (SeedCoverageInfo)
-- Coverage snapshots for comparison (CoverageSnapshot)
 - GUI state transitions (GUIStateTransition)
 - DICOM protocol state tracking (ProtocolStateTransition, StateCoverage)
 
@@ -14,11 +13,9 @@ import hashlib
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 
 from dicom_fuzzer.core.constants import DICOMState, StateTransitionType
-from dicom_fuzzer.utils.hashing import hash_string
 
 # =============================================================================
 # Corpus Coverage Types
@@ -55,58 +52,6 @@ class SeedCoverageInfo:
             self.coverage_hash = hashlib.sha256(self.bitmap).hexdigest()[:16]
         if self.seed_path and self.seed_path.exists():
             self.file_size = self.seed_path.stat().st_size
-
-
-@dataclass
-class CoverageSnapshot:
-    """Point-in-time coverage state for comparison.
-
-    Represents a snapshot of coverage that can be compared with others
-    to find new coverage.
-
-    Attributes:
-        lines_covered: Set of (filename, line_number) tuples executed
-        branches_covered: Set of (filename, line_number, branch_id) tuples
-        timestamp: When this snapshot was taken
-        test_case_id: Identifier for the test case
-        total_lines: Count of lines covered
-        total_branches: Count of branches covered
-
-    """
-
-    lines_covered: set[tuple[str, int]] = field(default_factory=set)
-    branches_covered: set[tuple[str, int, int]] = field(default_factory=set)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
-    test_case_id: str = ""
-    total_lines: int = 0
-    total_branches: int = 0
-
-    def __post_init__(self) -> None:
-        """Calculate totals after initialization."""
-        self.total_lines = len(self.lines_covered)
-        self.total_branches = len(self.branches_covered)
-
-    def coverage_hash(self) -> str:
-        """Generate a unique hash for this coverage pattern."""
-        lines_str = ",".join(
-            f"{filename}:{line}" for filename, line in sorted(self.lines_covered)
-        )
-        branches_str = ",".join(
-            f"{filename}:{line}:{branch}"
-            for filename, line, branch in sorted(self.branches_covered)
-        )
-        combined = f"{lines_str}|{branches_str}"
-        return hash_string(combined)
-
-    def new_coverage_vs(self, other: CoverageSnapshot) -> set[tuple[str, int]]:
-        """Find lines covered by this snapshot but not the other."""
-        return self.lines_covered - other.lines_covered
-
-    def coverage_percentage(self, total_possible_lines: int) -> float:
-        """Calculate coverage as a percentage."""
-        if total_possible_lines == 0:
-            return 0.0
-        return (self.total_lines / total_possible_lines) * 100.0
 
 
 # =============================================================================
@@ -315,7 +260,6 @@ class StateCoverage:
 __all__ = [
     # Corpus coverage
     "SeedCoverageInfo",
-    "CoverageSnapshot",
     # State transitions
     "GUIStateTransition",
     "StateTransition",  # Alias
