@@ -14,20 +14,6 @@ logger = get_logger(__name__)
 
 # DICOM tags to strip for corpus optimization
 # These contain bulk data that isn't relevant for metadata/parser fuzzing
-STRIP_TAGS = [
-    (0x7FE0, 0x0010),  # PixelData
-    (0x7FE0, 0x0008),  # FloatPixelData
-    (0x7FE0, 0x0009),  # DoubleFloatPixelData
-    (0x7FE0, 0x0001),  # ExtendedOffsetTable
-    (0x7FE0, 0x0002),  # ExtendedOffsetTableLengths
-    # OverlayData: groups 6000-601E, element 3000 - handled via OVERLAY_GROUP range
-    (0x5400, 0x0100),  # WaveformData
-]
-
-# Overlay data group range
-OVERLAY_GROUP_START = 0x6000
-OVERLAY_GROUP_END = 0x601E
-
 # Tags to strip for pixel data reduction
 _PIXEL_DATA_TAGS = [
     (0x7FE0, 0x0010),  # PixelData
@@ -37,6 +23,14 @@ _PIXEL_DATA_TAGS = [
     (0x7FE0, 0x0002),  # ExtendedOffsetTableLengths
 ]
 _WAVEFORM_TAG = (0x5400, 0x0100)
+
+# Public constant: all bulk data tags (pixel + waveform)
+# Overlay data (groups 6000-601E) handled separately via OVERLAY_GROUP range
+STRIP_TAGS = [*_PIXEL_DATA_TAGS, _WAVEFORM_TAG]
+
+# Overlay data group range
+OVERLAY_GROUP_START = 0x6000
+OVERLAY_GROUP_END = 0x601E
 
 
 def _delete_tag_if_present(ds: Any, tag: tuple[int, int]) -> None:
@@ -108,7 +102,7 @@ def strip_pixel_data(
         return True, bytes_saved
 
     except Exception as e:
-        logger.debug(f"Failed to strip pixel data from {input_path.name}: {e}")
+        logger.debug("Failed to strip pixel data", file=input_path.name, error=str(e))
         return _fallback_copy(input_path, output_path)
 
 
@@ -157,7 +151,7 @@ def optimize_corpus(
     }
 
     if not corpus_dir.exists():
-        logger.error(f"Corpus directory not found: {corpus_dir}")
+        logger.error("Corpus directory not found", corpus_dir=str(corpus_dir))
         return stats
 
     # Find all DICOM files
@@ -165,10 +159,10 @@ def optimize_corpus(
     dicom_files.extend(corpus_dir.glob("**/*.dicom"))
 
     if not dicom_files:
-        logger.warning(f"No DICOM files found in: {corpus_dir}")
+        logger.warning("No DICOM files found", corpus_dir=str(corpus_dir))
         return stats
 
-    logger.info(f"Optimizing corpus: {len(dicom_files)} files")
+    logger.info("Optimizing corpus", file_count=len(dicom_files))
 
     if not dry_run:
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -224,9 +218,10 @@ def optimize_corpus(
         stats["reduction_percent"] = 100 * stats["bytes_saved"] / total_original
 
     logger.info(
-        f"Corpus optimization complete: "
-        f"{stats['original_size_mb']:.2f}MB -> {stats['optimized_size_mb']:.2f}MB "
-        f"({stats['reduction_percent']:.1f}% reduction)"
+        "Corpus optimization complete",
+        original_size_mb=round(stats["original_size_mb"], 2),
+        optimized_size_mb=round(stats["optimized_size_mb"], 2),
+        reduction_percent=round(stats["reduction_percent"], 1),
     )
 
     return stats
@@ -254,16 +249,16 @@ def minimize_corpus_for_campaign(
 
     """
     if not corpus_dir.exists():
-        logger.error(f"Corpus directory not found: {corpus_dir}")
+        logger.error("Corpus directory not found", corpus_dir=str(corpus_dir))
         return []
 
     # Get all seed files
     seed_files = list(corpus_dir.glob("*.dcm"))
     if not seed_files:
-        logger.warning(f"No DICOM files found in corpus: {corpus_dir}")
+        logger.warning("No DICOM files found in corpus", corpus_dir=str(corpus_dir))
         return []
 
-    logger.info(f"Minimizing corpus: {len(seed_files)} seeds")
+    logger.info("Minimizing corpus", seed_count=len(seed_files))
 
     # Sort by file size (smaller files first - faster to process)
     seed_files.sort(key=lambda f: f.stat().st_size)
@@ -286,13 +281,17 @@ def minimize_corpus_for_campaign(
                     minimized_corpus.append(seed_file)
                     total_coverage |= new_coverage
                     logger.debug(
-                        f"Kept {seed_file.name}: +{len(unique_coverage)} unique edges"
+                        "Kept seed",
+                        file=seed_file.name,
+                        unique_edges=len(unique_coverage),
                     )
                 else:
-                    logger.debug(f"Skipped {seed_file.name}: no new coverage")
+                    logger.debug("Skipped seed, no new coverage", file=seed_file.name)
 
             except Exception as e:
-                logger.warning(f"Error processing {seed_file.name}: {e}")
+                logger.warning(
+                    "Error processing seed", file=seed_file.name, error=str(e)
+                )
                 # Keep seed if we can't determine coverage
                 minimized_corpus.append(seed_file)
 
@@ -302,7 +301,7 @@ def minimize_corpus_for_campaign(
 
         # Respect max corpus size
         if max_corpus_size and len(minimized_corpus) >= max_corpus_size:
-            logger.info(f"Reached max corpus size ({max_corpus_size})")
+            logger.info("Reached max corpus size", max_corpus_size=max_corpus_size)
             break
 
     # Copy minimized corpus to output directory
@@ -319,12 +318,14 @@ def minimize_corpus_for_campaign(
     )
 
     logger.info(
-        f"Corpus minimized: {len(seed_files)} -> {len(minimized_corpus)} seeds "
-        f"({reduction_pct:.1f}% reduction)"
+        "Corpus minimized",
+        original_seeds=len(seed_files),
+        minimized_seeds=len(minimized_corpus),
+        reduction_percent=round(reduction_pct, 1),
     )
 
     if coverage_tracker:
-        logger.info(f"Total unique coverage: {len(total_coverage)} edges")
+        logger.info("Total unique coverage", edges=len(total_coverage))
 
     return copied_files
 
@@ -514,10 +515,16 @@ class MoonLightMinimizer:
             remaining_seeds.remove(best_seed)
 
         logger.info(
-            f"MoonLight minimization: {len(seeds)} -> {len(selected)} seeds "
-            f"({100 * (len(seeds) - len(selected)) / len(seeds):.1f}% reduction)"
+            "MoonLight minimization complete",
+            original_seeds=len(seeds),
+            selected_seeds=len(selected),
+            reduction_percent=round(100 * (len(seeds) - len(selected)) / len(seeds), 1),
         )
-        logger.debug(f"Coverage preserved: {len(covered)}/{len(target_coverage)} edges")
+        logger.debug(
+            "Coverage preserved",
+            covered=len(covered),
+            total=len(target_coverage),
+        )
 
         return selected
 

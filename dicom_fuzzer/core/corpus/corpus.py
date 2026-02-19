@@ -80,11 +80,13 @@ class CorpusEntry(SerializableMixin):
         if self._dataset_path is not None and self._dataset_path.exists():
             try:
                 self._dataset_cache = pydicom.dcmread(self._dataset_path)
-                logger.debug(f"Lazy-loaded dataset for entry {self.entry_id}")
+                logger.debug("Lazy-loaded dataset for entry", entry_id=self.entry_id)
                 return self._dataset_cache
             except Exception as e:
                 logger.error(
-                    f"Failed to lazy-load dataset from {self._dataset_path}: {e}"
+                    "Failed to lazy-load dataset",
+                    dataset_path=str(self._dataset_path),
+                    error=str(e),
                 )
                 return None
 
@@ -224,7 +226,8 @@ class CorpusManager:
         if existing_entry.fitness_score >= fitness:
             self.total_rejected += 1
             logger.debug(
-                f"Rejected duplicate coverage {entry_id}",
+                "Rejected duplicate coverage",
+                entry_id=entry_id,
                 existing_entry=list(existing_ids)[0],
             )
             return True
@@ -272,7 +275,8 @@ class CorpusManager:
             if fitness < self.min_fitness_threshold and not crash_triggered:
                 self.total_rejected += 1
                 logger.debug(
-                    f"Rejected corpus entry {entry_id}",
+                    "Rejected corpus entry",
+                    entry_id=entry_id,
                     fitness=fitness,
                     threshold=self.min_fitness_threshold,
                 )
@@ -458,7 +462,7 @@ class CorpusManager:
             del self.corpus[entry_id]
             self.total_evicted += 1
 
-        logger.info(f"Evicted {num_to_evict} low-fitness entries from corpus")
+        logger.info("Evicted low-fitness entries from corpus", count=num_to_evict)
 
     def _save_entry(self, entry: CorpusEntry) -> None:
         """Save a corpus entry to disk."""
@@ -467,14 +471,18 @@ class CorpusManager:
         try:
             dataset = entry.get_dataset()
             if dataset is None:
-                logger.error(f"Cannot save entry {entry.entry_id}: dataset is None")
+                logger.error(
+                    "Cannot save entry, dataset is None", entry_id=entry.entry_id
+                )
                 return
 
             dataset.save_as(dcm_path, write_like_original=False)
 
             entry._dataset_path = dcm_path
         except Exception as e:
-            logger.error(f"Failed to save corpus entry {entry.entry_id}: {e}")
+            logger.error(
+                "Failed to save corpus entry", entry_id=entry.entry_id, error=str(e)
+            )
             return
 
         # Save metadata
@@ -483,7 +491,9 @@ class CorpusManager:
             with open(meta_path, "w") as f:
                 json.dump(entry.to_dict(), f, indent=2)
         except Exception as e:
-            logger.error(f"Failed to save metadata for {entry.entry_id}: {e}")
+            logger.error(
+                "Failed to save metadata", entry_id=entry.entry_id, error=str(e)
+            )
 
     def _load_corpus(self) -> None:
         """Load corpus metadata from disk with lazy dataset loading."""
@@ -500,7 +510,7 @@ class CorpusManager:
                     preamble = f.read(132)  # 128 bytes preamble + 4 bytes 'DICM'
                     if len(preamble) < 132 or preamble[128:132] != b"DICM":
                         logger.warning(
-                            f"Invalid DICOM file (missing header): {dcm_file}"
+                            "Invalid DICOM file (missing header)", file=str(dcm_file)
                         )
                         continue
 
@@ -525,11 +535,15 @@ class CorpusManager:
                 loaded += 1
 
             except Exception as e:
-                logger.warning(f"Failed to load corpus entry {dcm_file}: {e}")
+                logger.warning(
+                    "Failed to load corpus entry", file=str(dcm_file), error=str(e)
+                )
 
         if loaded > 0:
             logger.info(
-                f"Loaded {loaded} corpus entries from disk (lazy loading enabled)"
+                "Loaded corpus entries from disk",
+                count=loaded,
+                lazy_loading=True,
             )
 
     def get_statistics(self) -> dict[str, Any]:

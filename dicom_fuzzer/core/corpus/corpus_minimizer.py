@@ -21,7 +21,6 @@ Features:
 from __future__ import annotations
 
 import hashlib
-import logging
 import os
 import shutil
 import time
@@ -34,8 +33,9 @@ from typing import Any
 # Import unified types from central location
 from dicom_fuzzer.core.constants import CoverageType
 from dicom_fuzzer.core.corpus.coverage_types import SeedCoverageInfo
+from dicom_fuzzer.utils.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Backward compatibility alias
 CoverageInfo = SeedCoverageInfo
@@ -217,7 +217,7 @@ class TargetCoverageCollector(CoverageCollector):
             )
 
         except Exception as e:
-            logger.error(f"Coverage collection failed: {e}")
+            logger.error("Coverage collection failed", error=str(e))
             return CoverageInfo(seed_path=seed_path)
 
     def _read_coverage_bitmap(self) -> bytes:
@@ -321,15 +321,21 @@ class CorpusMinimizer:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Minimizing corpus from {input_dir} to {output_dir}")
+        logger.info(
+            "Minimizing corpus", input_dir=str(input_dir), output_dir=str(output_dir)
+        )
 
         # Collect all seeds
         seeds = list(input_dir.glob(pattern))
         if not seeds:
-            logger.warning(f"No seeds found matching {pattern} in {input_dir}")
+            logger.warning(
+                "No seeds found matching pattern",
+                pattern=pattern,
+                input_dir=str(input_dir),
+            )
             return CorpusStats()
 
-        logger.info(f"Found {len(seeds)} seeds to process")
+        logger.info("Found seeds to process", count=len(seeds))
 
         # Collect coverage for all seeds
         coverages = self._collect_all_coverage(seeds)
@@ -346,7 +352,9 @@ class CorpusMinimizer:
         # Compute statistics
         stats = self._compute_stats(coverages, selected)
         logger.info(
-            f"Minimization complete: {stats.total_seeds} -> {stats.minimized_seeds} seeds"
+            "Minimization complete",
+            total_seeds=stats.total_seeds,
+            minimized_seeds=stats.minimized_seeds,
         )
 
         return stats
@@ -357,7 +365,7 @@ class CorpusMinimizer:
 
         for i, seed in enumerate(seeds):
             if i % 100 == 0:
-                logger.info(f"Processing seed {i + 1}/{len(seeds)}")
+                logger.info("Processing seed", current=i + 1, total=len(seeds))
 
             cov = self.collector.get_coverage(seed)
             coverages.append(cov)
@@ -526,9 +534,9 @@ class CorpusSynchronizer:
         peer_dir = Path(peer_corpus_dir)
         if peer_dir.exists():
             self.peers.append(peer_dir)
-            logger.info(f"Added peer corpus: {peer_dir}")
+            logger.info("Added peer corpus", peer_dir=str(peer_dir))
         else:
-            logger.warning(f"Peer corpus not found: {peer_dir}")
+            logger.warning("Peer corpus not found", peer_dir=str(peer_dir))
 
     def sync_once(self) -> dict[str, int]:
         """Perform one synchronization cycle.
@@ -613,7 +621,7 @@ class CorpusSynchronizer:
             stop_event: Threading event to signal stop
 
         """
-        logger.info(f"Starting sync loop with interval {self.config.sync_interval}s")
+        logger.info("Starting sync loop", interval_seconds=self.config.sync_interval)
 
         while True:
             if stop_event and stop_event.is_set():
@@ -622,11 +630,13 @@ class CorpusSynchronizer:
             try:
                 stats = self.sync_once()
                 logger.info(
-                    f"Sync complete: pulled={stats['pulled']}, "
-                    f"pushed={stats['pushed']}, dupes={stats['duplicates']}"
+                    "Sync complete",
+                    pulled=stats["pulled"],
+                    pushed=stats["pushed"],
+                    duplicates=stats["duplicates"],
                 )
             except Exception as e:
-                logger.error(f"Sync error: {e}")
+                logger.error("Sync error", error=str(e))
 
             time.sleep(self.config.sync_interval)
 
