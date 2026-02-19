@@ -1,3 +1,5 @@
+"""Batch generation of fuzzed DICOM files for security testing."""
+
 import struct
 import sys
 from pathlib import Path
@@ -7,6 +9,9 @@ from pydicom.dataset import Dataset
 from dicom_fuzzer.core.dicom.parser import DicomParser
 from dicom_fuzzer.core.mutation.mutator import DicomMutator
 from dicom_fuzzer.utils.identifiers import generate_short_id
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class GenerationStats:
@@ -86,12 +91,27 @@ class DICOMGenerator:
         self.stats = GenerationStats()
         self.mutator.start_session()
 
+        logger.info(
+            "Starting batch generation: count=%d, strategies=%s, output=%s",
+            count,
+            strategies,
+            self.output_dir,
+        )
+
         for _i in range(count):
             result = self._generate_single_file(base_dataset, strategies)
             if result is not None:
                 generated_files.append(result)
 
         self.mutator.end_session()
+
+        logger.info(
+            "Batch complete: %d generated, %d failed, %d skipped (write errors)",
+            self.stats.successful,
+            self.stats.failed,
+            self.stats.skipped_due_to_write_errors,
+        )
+
         return generated_files
 
     def _generate_single_file(
@@ -159,11 +179,14 @@ class DICOMGenerator:
 
     def _handle_mutation_error(self, error: Exception) -> tuple[None, list[str]]:
         """Handle errors during mutation."""
+        error_name = type(error).__name__
         if self.skip_write_errors:
+            self.stats.record_failure(error_name)
             self.stats.skipped_due_to_write_errors += 1
+            logger.debug("Mutation error skipped: %s: %s", error_name, error)
             return None, []
 
-        self.stats.record_failure(type(error).__name__)
+        self.stats.record_failure(error_name)
         raise error
 
     def _save_mutated_file(
@@ -189,10 +212,12 @@ class DICOMGenerator:
             UnicodeEncodeError,
             UnicodeDecodeError,
         ) as e:
+            error_name = type(e).__name__
+            self.stats.record_failure(error_name)
             if self.skip_write_errors:
                 self.stats.skipped_due_to_write_errors += 1
+                logger.debug("Save error skipped: %s: %s", error_name, e)
                 return None
-            self.stats.record_failure(type(e).__name__)
             raise
         except Exception as e:
             self.stats.record_failure(type(e).__name__)
