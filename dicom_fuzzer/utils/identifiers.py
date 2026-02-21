@@ -5,7 +5,7 @@ identifiers used throughout the fuzzing framework.
 """
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 def generate_short_id(length: int = 8) -> str:
@@ -94,7 +94,7 @@ def generate_timestamp_id(prefix: str = "", include_microseconds: bool = False) 
 
     """
     fmt = "%Y%m%d_%H%M%S_%f" if include_microseconds else "%Y%m%d_%H%M%S"
-    timestamp = datetime.now().strftime(fmt)
+    timestamp = datetime.now(tz=UTC).strftime(fmt)
 
     if prefix:
         return f"{prefix}_{timestamp}"
