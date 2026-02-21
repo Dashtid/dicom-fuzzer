@@ -20,7 +20,6 @@ from dicom_fuzzer.core.harness.process_monitor import (
     MonitorResult,
     ProcessMetrics,
     ProcessMonitor,
-    get_process_monitor,
     is_psutil_available,
 )
 
@@ -524,27 +523,6 @@ class TestProcessTermination:
 
 class TestFactoryFunctions:
     """Test factory functions."""
-
-    def test_get_process_monitor_default(self):
-        """Test get_process_monitor with defaults."""
-        monitor = get_process_monitor()
-
-        assert isinstance(monitor, ProcessMonitor)
-        assert monitor.timeout == 30.0
-        assert monitor.idle_threshold == 5.0
-        assert monitor.memory_limit_mb is None
-
-    def test_get_process_monitor_custom(self):
-        """Test get_process_monitor with custom values."""
-        monitor = get_process_monitor(
-            timeout=60.0,
-            idle_threshold=10.0,
-            memory_limit_mb=4096,
-        )
-
-        assert monitor.timeout == 60.0
-        assert monitor.idle_threshold == 10.0
-        assert monitor.memory_limit_mb == 4096
 
     def test_is_psutil_available(self):
         """Test is_psutil_available function."""

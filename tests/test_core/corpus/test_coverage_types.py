@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime
 from pathlib import Path
 
 from dicom_fuzzer.core.constants import CoverageType
 from dicom_fuzzer.core.corpus.coverage_types import (
-    CoverageSnapshot,
     GUIStateTransition,
     ProtocolStateTransition,
     SeedCoverageInfo,
@@ -112,69 +110,6 @@ class TestSeedCoverageInfo:
         """Test SeedCoverageInfo with nonexistent file (no size calculation)."""
         info = SeedCoverageInfo(seed_path=Path("/nonexistent/path.dcm"))
         assert info.file_size == 0
-
-
-class TestCoverageSnapshot:
-    """Tests for CoverageSnapshot dataclass."""
-
-    def test_default_values(self) -> None:
-        """Test default initialization."""
-        snapshot = CoverageSnapshot()
-        assert snapshot.lines_covered == set()
-        assert snapshot.branches_covered == set()
-        assert snapshot.test_case_id == ""
-        assert snapshot.total_lines == 0
-        assert snapshot.total_branches == 0
-        assert isinstance(snapshot.timestamp, datetime)
-
-    def test_post_init_calculates_totals(self) -> None:
-        """Test __post_init__ calculates totals."""
-        lines = {("a.py", 1), ("a.py", 2), ("b.py", 3)}
-        branches = {("a.py", 1, 0), ("a.py", 1, 1)}
-
-        snapshot = CoverageSnapshot(lines_covered=lines, branches_covered=branches)
-
-        assert snapshot.total_lines == 3
-        assert snapshot.total_branches == 2
-
-    def test_coverage_hash(self) -> None:
-        """Test coverage hash generation."""
-        snapshot = CoverageSnapshot(
-            lines_covered={("file.py", 10), ("file.py", 20)},
-            branches_covered={("file.py", 15, 0)},
-        )
-
-        hash_val = snapshot.coverage_hash()
-        assert isinstance(hash_val, str)
-        assert len(hash_val) > 0
-
-        # Same coverage should give same hash
-        snapshot2 = CoverageSnapshot(
-            lines_covered={("file.py", 10), ("file.py", 20)},
-            branches_covered={("file.py", 15, 0)},
-        )
-        assert snapshot.coverage_hash() == snapshot2.coverage_hash()
-
-    def test_new_coverage_vs(self) -> None:
-        """Test finding new coverage between snapshots."""
-        snapshot1 = CoverageSnapshot(
-            lines_covered={("a.py", 1), ("a.py", 2), ("b.py", 3)}
-        )
-        snapshot2 = CoverageSnapshot(lines_covered={("a.py", 1)})
-
-        new_lines = snapshot1.new_coverage_vs(snapshot2)
-        assert new_lines == {("a.py", 2), ("b.py", 3)}
-
-    def test_coverage_percentage(self) -> None:
-        """Test coverage percentage calculation."""
-        snapshot = CoverageSnapshot(
-            lines_covered={("a.py", 1), ("a.py", 2)},  # 2 lines
-        )
-
-        # 2 out of 10 = 20%
-        assert snapshot.coverage_percentage(10) == 20.0
-        # Handle zero case
-        assert snapshot.coverage_percentage(0) == 0.0
 
 
 class TestGUIStateTransition:
@@ -534,16 +469,3 @@ class TestStateCoverage:
         # Add again with lower depth - should update
         cov.add_state("STATE_A", depth=1)
         assert cov.state_depths["STATE_A"] == 1
-
-
-class TestCoverageTypesBackwardCompatibility:
-    """Test backward compatibility for coverage type imports."""
-
-    def test_import_from_corpus_minimizer(self) -> None:
-        """Test imports from corpus_minimizer."""
-        from dicom_fuzzer.core.corpus.corpus_minimizer import (
-            CoverageInfo as CoverageInfoMinimizer,
-        )
-
-        # corpus_minimizer has backward compatibility alias
-        assert CoverageInfoMinimizer is SeedCoverageInfo

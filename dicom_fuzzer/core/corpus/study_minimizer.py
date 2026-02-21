@@ -120,7 +120,9 @@ class StudyMinimizer:
             raise ValueError(f"No DICOM files found in {study_dir}")
 
         logger.info(
-            f"Starting study minimization: {original_count} slices in {study_dir}"
+            "Starting study minimization",
+            slice_count=original_count,
+            study_dir=str(study_dir),
         )
 
         # Verify crash reproduces with full study
@@ -178,8 +180,11 @@ class StudyMinimizer:
             )
 
             logger.info(
-                f"Minimization complete: {original_count} -> {minimal_count} slices "
-                f"({reduction_ratio:.1%} of original, {self._iteration_count} iterations)"
+                "Minimization complete",
+                original_slices=original_count,
+                minimal_slices=minimal_count,
+                reduction_ratio=round(reduction_ratio, 3),
+                iterations=self._iteration_count,
             )
 
             return MinimizedStudy(
@@ -235,13 +240,17 @@ class StudyMinimizer:
         self._iteration_count += 1
 
         if self._iteration_count > self.config.max_iterations:
-            logger.warning(f"Max iterations ({self.config.max_iterations}) reached")
+            logger.warning(
+                "Max iterations reached", max_iterations=self.config.max_iterations
+            )
             return False
 
         try:
             return self.crash_test_func(study_dir)
         except Exception as e:
-            logger.warning(f"Error testing {study_dir}: {e}")
+            logger.warning(
+                "Error testing study", study_dir=str(study_dir), error=str(e)
+            )
             return False
 
     def _create_temp_study(self, slices: list[Path]) -> Path:
@@ -286,18 +295,20 @@ class StudyMinimizer:
         first_half = slices[:mid]
         second_half = slices[mid:]
 
-        logger.debug(f"Testing halves: {len(first_half)} + {len(second_half)} slices")
+        logger.debug(
+            "Testing halves", first_half=len(first_half), second_half=len(second_half)
+        )
 
         # Test first half
         first_temp = self._create_temp_study(first_half)
         if self._test_crash(first_temp):
-            logger.debug(f"First half crashes ({len(first_half)} slices)")
+            logger.debug("First half crashes", slice_count=len(first_half))
             return self._binary_reduce(first_half)
 
         # Test second half
         second_temp = self._create_temp_study(second_half)
         if self._test_crash(second_temp):
-            logger.debug(f"Second half crashes ({len(second_half)} slices)")
+            logger.debug("Second half crashes", slice_count=len(second_half))
             return self._binary_reduce(second_half)
 
         # Neither half crashes alone - need elements from both
@@ -326,7 +337,7 @@ class StudyMinimizer:
             if self._test_crash(test_temp):
                 # Can remove this slice
                 logger.debug(
-                    f"Removed slice {current[i].name}, {len(test_set)} remaining"
+                    "Removed slice", slice_name=current[i].name, remaining=len(test_set)
                 )
                 current = test_set
                 # Don't increment i - next slice is now at position i
@@ -356,13 +367,13 @@ class StudyMinimizer:
             # Already down to one slice
             return slices[0]
 
-        logger.debug(f"Testing {len(slices)} slices individually")
+        logger.debug("Testing slices individually", count=len(slices))
 
         for slice_path in slices:
             temp_dir = self._create_temp_study([slice_path])
 
             if self._test_crash(temp_dir):
-                logger.info(f"Found trigger slice: {slice_path.name}")
+                logger.info("Found trigger slice", slice_name=slice_path.name)
                 return slice_path
 
             if self._iteration_count >= self.config.max_iterations:
@@ -377,7 +388,7 @@ class StudyMinimizer:
             try:
                 shutil.rmtree(temp_dir, ignore_errors=True)
             except Exception as e:
-                logger.debug(f"Cleanup failed for {temp_dir}: {e}")
+                logger.debug("Cleanup failed", temp_dir=str(temp_dir), error=str(e))
         self._temp_dirs.clear()
 
 
@@ -410,26 +421,3 @@ def create_crash_test_from_runner(
         return result.result == ExecutionStatus.CRASH
 
     return test_crash
-
-
-def minimize_crashing_study(
-    study_dir: Path,
-    output_dir: Path,
-    target_runner: TargetRunner,
-    config: MinimizationConfig | None = None,
-) -> MinimizedStudy:
-    """Convenience function to minimize a crashing study.
-
-    Args:
-        study_dir: Directory containing crash-triggering study
-        output_dir: Directory to save minimized study
-        target_runner: TargetRunner configured for target application
-        config: Minimization configuration
-
-    Returns:
-        MinimizedStudy result
-
-    """
-    crash_test = create_crash_test_from_runner(target_runner)
-    minimizer = StudyMinimizer(crash_test, config)
-    return minimizer.minimize(study_dir, output_dir)

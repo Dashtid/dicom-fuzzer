@@ -5,7 +5,6 @@ to prevent resource exhaustion during fuzzing campaigns.
 """
 
 import os
-import platform
 import shutil
 import sys
 import time
@@ -103,7 +102,7 @@ class ResourceManager:
 
         """
         self.limits = limits or ResourceLimits()
-        self.is_windows = platform.system() == "Windows"
+        self.is_windows = IS_WINDOWS
 
         if self.is_windows:
             logger.warning(
@@ -112,9 +111,10 @@ class ResourceManager:
             )
 
         logger.info(
-            f"Resource limits: memory={self.limits.max_memory_mb}MB, "
-            f"cpu={self.limits.max_cpu_seconds}s, "
-            f"disk={self.limits.min_disk_space_mb}MB"
+            "Resource limits configured",
+            memory_mb=self.limits.max_memory_mb,
+            cpu_seconds=self.limits.max_cpu_seconds,
+            disk_mb=self.limits.min_disk_space_mb,
         )
 
     def check_available_resources(self, output_dir: Path | None = None) -> bool:
@@ -140,7 +140,7 @@ class ResourceManager:
                 f"need {self.limits.min_disk_space_mb}MB"
             )
 
-        logger.debug(f"Disk space check passed: {disk_free_mb:.0f}MB available")
+        logger.debug("Disk space check passed", available_mb=f"{disk_free_mb:.0f}")
         return True
 
     def get_current_usage(self, output_dir: Path | None = None) -> ResourceUsage:
@@ -232,11 +232,12 @@ class ResourceManager:
                 saved_limits["as"] = sys_resource.getrlimit(sys_resource.RLIMIT_AS)
                 sys_resource.setrlimit(sys_resource.RLIMIT_AS, (soft_bytes, hard_bytes))
                 logger.debug(
-                    f"Set memory limit: soft={self.limits.max_memory_mb}MB, "
-                    f"hard={self.limits.max_memory_mb_hard}MB"
+                    "Set memory limit",
+                    soft_mb=self.limits.max_memory_mb,
+                    hard_mb=self.limits.max_memory_mb_hard,
                 )
             except (ValueError, OSError) as e:
-                logger.warning(f"Could not set memory limit: {e}")
+                logger.warning("Could not set memory limit", error=str(e))
 
             # Set CPU time limit
             try:
@@ -245,9 +246,9 @@ class ResourceManager:
                     sys_resource.RLIMIT_CPU,
                     (self.limits.max_cpu_seconds, self.limits.max_cpu_seconds + 5),
                 )
-                logger.debug(f"Set CPU limit: {self.limits.max_cpu_seconds}s")
+                logger.debug("Set CPU limit", cpu_seconds=self.limits.max_cpu_seconds)
             except (ValueError, OSError) as e:
-                logger.warning(f"Could not set CPU limit: {e}")
+                logger.warning("Could not set CPU limit", error=str(e))
 
             # Set file descriptor limit
             try:
@@ -258,9 +259,12 @@ class ResourceManager:
                     sys_resource.RLIMIT_NOFILE,
                     (self.limits.max_open_files, self.limits.max_open_files + 100),
                 )
-                logger.debug(f"Set file descriptor limit: {self.limits.max_open_files}")
+                logger.debug(
+                    "Set file descriptor limit",
+                    max_open_files=self.limits.max_open_files,
+                )
             except (ValueError, OSError) as e:
-                logger.warning(f"Could not set file descriptor limit: {e}")
+                logger.warning("Could not set file descriptor limit", error=str(e))
 
             yield
 
@@ -275,7 +279,11 @@ class ResourceManager:
                     elif resource_type == "nofile":
                         sys_resource.setrlimit(sys_resource.RLIMIT_NOFILE, (soft, hard))
                 except (ValueError, OSError) as e:
-                    logger.warning(f"Could not restore {resource_type} limit: {e}")
+                    logger.warning(
+                        "Could not restore resource limit",
+                        resource_type=resource_type,
+                        error=str(e),
+                    )
 
     def _get_disk_space_mb(self, path: Path) -> float:
         """Get free disk space in megabytes for given path.
@@ -295,7 +303,7 @@ class ResourceManager:
             stat = shutil.disk_usage(str(path))
             return stat.free / (1024 * 1024)
         except Exception as e:
-            logger.warning(f"Could not get disk space for {path}: {e}")
+            logger.warning("Could not get disk space", path=str(path), error=str(e))
             return float("inf")  # Assume infinite if we can't check
 
     def estimate_required_disk_space(
@@ -345,8 +353,9 @@ class ResourceManager:
             )
 
         logger.info(
-            f"Campaign resource check passed: {required_mb:.0f}MB required, "
-            f"{available_mb:.0f}MB available"
+            "Campaign resource check passed",
+            required_mb=f"{required_mb:.0f}",
+            available_mb=f"{available_mb:.0f}",
         )
         return True
 

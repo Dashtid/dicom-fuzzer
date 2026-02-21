@@ -7,7 +7,7 @@ multi-slice mutations and spatial integrity issues.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -31,7 +31,7 @@ class SeriesMutationSummary:
     strategies_used: dict[str, int] = field(default_factory=dict)
     affected_slices: list[int] = field(default_factory=list)
     severity_distribution: dict[str, int] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def add_mutation(self, record: SeriesMutationRecord) -> None:
         """Add a mutation record to the summary."""
@@ -74,7 +74,7 @@ class Series3DReport:
     total_mutations_applied: int = 0
     total_crashes: int = 0
     crash_details: list[dict[str, Any]] = field(default_factory=list)
-    generated_at: datetime = field(default_factory=datetime.now)
+    generated_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def add_series_summary(self, summary: SeriesMutationSummary) -> None:
         """Add a series mutation summary to the report."""

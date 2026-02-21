@@ -15,15 +15,9 @@ Example usage:
     result = runner.execute_with_monitoring(Path("./mutated_study"))
 """
 
-from dicom_fuzzer.core.harness.process_monitor import (
-    ProcessMonitor,
-    terminate_process_tree,
-)
 from dicom_fuzzer.core.harness.target_runner import ExecutionStatus, TargetRunner
 
 __all__ = [
     "ExecutionStatus",
     "TargetRunner",
-    "ProcessMonitor",
-    "terminate_process_tree",
 ]

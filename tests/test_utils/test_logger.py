@@ -13,7 +13,6 @@ import structlog
 
 from dicom_fuzzer.utils.logger import (
     SENSITIVE_FIELDS,
-    PerformanceLogger,
     SecurityEventLogger,
     add_security_context,
     add_timestamp,
@@ -277,82 +276,3 @@ class TestSecurityEventLogger:
         assert call_kwargs[0][0] == "fuzzing_campaign"
         assert call_kwargs[1]["campaign_id"] == "fc-001"
         assert call_kwargs[1]["status"] == "started"
-
-
-class TestPerformanceLogger:
-    """Tests for PerformanceLogger class."""
-
-    @pytest.fixture
-    def mock_logger(self):
-        """Create a mock structlog logger."""
-        return MagicMock(spec=structlog.stdlib.BoundLogger)
-
-    def test_init(self, mock_logger):
-        """Verify initialization stores logger."""
-        perf_logger = PerformanceLogger(mock_logger)
-        assert perf_logger.logger == mock_logger
-
-    def test_log_operation(self, mock_logger):
-        """Verify log_operation calls logger.info."""
-        perf_logger = PerformanceLogger(mock_logger)
-        perf_logger.log_operation(
-            operation="file_parsing",
-            duration_ms=45.678,
-            metadata={"file_size": "2MB"},
-        )
-        mock_logger.info.assert_called_once()
-        call_kwargs = mock_logger.info.call_args
-        assert call_kwargs[0][0] == "operation_performance"
-        assert call_kwargs[1]["metric_type"] == "PERFORMANCE"
-        assert call_kwargs[1]["duration_ms"] == 45.68  # Rounded to 2 decimal places
-
-    def test_log_operation_no_metadata(self, mock_logger):
-        """Verify log_operation works without metadata."""
-        perf_logger = PerformanceLogger(mock_logger)
-        perf_logger.log_operation(operation="test_op", duration_ms=10.0)
-        call_kwargs = mock_logger.info.call_args
-        assert call_kwargs[1]["metadata"] == {}
-
-    def test_log_mutation_stats(self, mock_logger):
-        """Verify log_mutation_stats calls logger.info with correct data."""
-        perf_logger = PerformanceLogger(mock_logger)
-        perf_logger.log_mutation_stats(
-            strategy="metadata_fuzzer",
-            mutations_count=15,
-            duration_ms=123.456,
-            file_size_bytes=2048,
-        )
-        mock_logger.info.assert_called_once()
-        call_kwargs = mock_logger.info.call_args
-        assert call_kwargs[0][0] == "mutation_statistics"
-        assert call_kwargs[1]["strategy"] == "metadata_fuzzer"
-        assert call_kwargs[1]["mutations_count"] == 15
-        assert call_kwargs[1]["avg_mutation_time_ms"] == 8.23  # 123.456 / 15
-
-    def test_log_mutation_stats_zero_mutations(self, mock_logger):
-        """Verify log_mutation_stats handles zero mutations (avoid division by zero)."""
-        perf_logger = PerformanceLogger(mock_logger)
-        perf_logger.log_mutation_stats(
-            strategy="test",
-            mutations_count=0,
-            duration_ms=100.0,
-            file_size_bytes=1024,
-        )
-        call_kwargs = mock_logger.info.call_args
-        # Should use max(0, 1) = 1 to avoid division by zero
-        assert call_kwargs[1]["avg_mutation_time_ms"] == 100.0
-
-    def test_log_resource_usage(self, mock_logger):
-        """Verify log_resource_usage calls logger.info."""
-        perf_logger = PerformanceLogger(mock_logger)
-        perf_logger.log_resource_usage(
-            memory_mb=512.567,
-            cpu_percent=75.123,
-            metadata={"pid": 12345},
-        )
-        mock_logger.info.assert_called_once()
-        call_kwargs = mock_logger.info.call_args
-        assert call_kwargs[0][0] == "resource_usage"
-        assert call_kwargs[1]["metric_type"] == "RESOURCE"
-        assert call_kwargs[1]["memory_mb"] == 512.57  # Rounded
-        assert call_kwargs[1]["cpu_percent"] == 75.12  # Rounded

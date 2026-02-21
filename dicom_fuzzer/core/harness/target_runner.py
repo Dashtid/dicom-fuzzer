@@ -174,8 +174,9 @@ class TargetRunner:
                     memory_limit_mb=memory_limit_mb,
                 )
                 logger.debug(
-                    f"Enhanced monitoring enabled: idle_threshold={idle_threshold}s, "
-                    f"memory_limit={memory_limit_mb}MB"
+                    "enhanced monitoring enabled",
+                    idle_threshold=idle_threshold,
+                    memory_limit_mb=memory_limit_mb,
                 )
             else:
                 logger.warning(
@@ -184,8 +185,10 @@ class TargetRunner:
                 )
 
         logger.info(
-            f"Initialized TargetRunner: target={target_executable}, "
-            f"timeout={timeout}s, max_retries={max_retries}"
+            "initialized TargetRunner",
+            target=str(target_executable),
+            timeout=timeout,
+            max_retries=max_retries,
         )
 
     def _check_circuit_breaker(self) -> bool:
@@ -202,8 +205,8 @@ class TargetRunner:
             current_time = time.time()
             if current_time < self.circuit_breaker.open_until:
                 logger.warning(
-                    f"Circuit breaker OPEN - target failing consistently. "
-                    f"Retry in {self.circuit_breaker.open_until - current_time:.0f}s"
+                    "circuit breaker OPEN - target failing consistently",
+                    retry_in_seconds=self.circuit_breaker.open_until - current_time,
                 )
                 return False
             else:
@@ -241,8 +244,8 @@ class TargetRunner:
                     time.time() + self.circuit_breaker.reset_timeout
                 )
                 logger.warning(
-                    f"Circuit breaker OPENED - {self.circuit_breaker.consecutive_failures} "
-                    f"consecutive failures detected"
+                    "circuit breaker OPENED",
+                    consecutive_failures=self.circuit_breaker.consecutive_failures,
                 )
 
     def _classify_error(self, stderr: str, returncode: int | None) -> ExecutionStatus:
@@ -305,8 +308,10 @@ class TargetRunner:
         )
         self.windows_crash_handler.save_crash_report(info, test_file)
         logger.warning(
-            f"Windows crash: {info.exception_name} "
-            f"(0x{info.exception_code:08X}) - {info.severity}"
+            "Windows crash detected",
+            exception_name=info.exception_name,
+            exception_code=f"0x{info.exception_code:08X}",
+            severity=info.severity,
         )
         return info
 
@@ -353,7 +358,7 @@ class TargetRunner:
             )
 
         start_time = time.time()
-        logger.debug(f"Testing file: {test_file_path.name} (attempt {retry_count + 1})")
+        logger.debug("testing file", file=test_file_path.name, attempt=retry_count + 1)
 
         try:
             result = subprocess.run(
@@ -442,7 +447,7 @@ class TargetRunner:
     ) -> ExecutionResult:
         """Handle OOM exception."""
         execution_time = time.time() - start_time
-        logger.error(f"Fuzzer OOM while testing {test_file.name}: {e}")
+        logger.error("fuzzer OOM while testing", file=test_file.name, error=str(e))
         self._update_circuit_breaker(success=False)
         return ExecutionResult(
             test_file=test_file,
@@ -460,7 +465,7 @@ class TargetRunner:
     ) -> ExecutionResult:
         """Handle unexpected exception."""
         execution_time = time.time() - start_time
-        logger.error(f"Unexpected error testing {test_file.name}: {e}")
+        logger.error("unexpected error testing", file=test_file.name, error=str(e))
         self._update_circuit_breaker(success=False)
 
         if retry < self.max_retries:
@@ -489,13 +494,13 @@ class TargetRunner:
                 raw_stdout = process.stdout.read()
                 stdout_val = raw_stdout.decode("utf-8", errors="replace")
             except Exception as e:
-                logger.debug(f"Error reading stdout: {e}")
+                logger.debug("error reading stdout", error=str(e))
         if process.stderr and self.collect_stderr:
             try:
                 raw_stderr = process.stderr.read()
                 stderr_val = raw_stderr.decode("utf-8", errors="replace")
             except Exception as e:
-                logger.debug(f"Error reading stderr: {e}")
+                logger.debug("error reading stderr", error=str(e))
         return stdout_val, stderr_val
 
     def _handle_completed_process(
@@ -562,17 +567,19 @@ class TargetRunner:
         if monitor_result.hang_reason == HangReason.CPU_IDLE:
             hang_reason_str = "cpu_idle"
             logger.warning(
-                f"CPU idle hang: {test_file_path.name} "
-                f"(idle for {monitor_result.metrics.idle_duration_seconds:.1f}s)"
+                "CPU idle hang detected",
+                file=test_file_path.name,
+                idle_seconds=monitor_result.metrics.idle_duration_seconds,
             )
         elif monitor_result.hang_reason == HangReason.MEMORY_SPIKE:
             hang_reason_str = "memory_spike"
             logger.warning(
-                f"Memory spike: {test_file_path.name} "
-                f"(peak {monitor_result.metrics.peak_memory_mb:.1f}MB)"
+                "memory spike detected",
+                file=test_file_path.name,
+                peak_memory_mb=monitor_result.metrics.peak_memory_mb,
             )
         else:
-            logger.warning(f"Timeout: {test_file_path.name}")
+            logger.warning("timeout detected", file=test_file_path.name)
 
         test_result = (
             ExecutionStatus.OOM
@@ -613,7 +620,7 @@ class TargetRunner:
             return self.execute_test(test_file_path, retry_count)
 
         start_time = time.time()
-        logger.debug(f"Testing with monitoring: {test_file_path.name}")
+        logger.debug("testing with monitoring", file=test_file_path.name)
 
         try:
             process: subprocess.Popen[bytes] = subprocess.Popen(
@@ -639,7 +646,7 @@ class TargetRunner:
 
         except Exception as e:
             execution_time = time.time() - start_time
-            logger.error(f"Monitoring error for {test_file_path.name}: {e}")
+            logger.error("monitoring error", file=test_file_path.name, error=str(e))
             self._update_circuit_breaker(success=False)
 
             if retry_count < self.max_retries:
@@ -675,17 +682,17 @@ class TargetRunner:
         }
 
         total = len(test_files)
-        logger.info(f"Starting fuzzing campaign with {total} test files")
+        logger.info("starting fuzzing campaign", total_files=total)
 
         # Pre-flight resource check
         try:
             self.resource_manager.check_available_resources(output_dir=self.crash_dir)
         except Exception as e:
-            logger.error(f"Pre-flight resource check failed: {e}")
+            logger.error("pre-flight resource check failed", error=str(e))
             logger.warning("Proceeding anyway - resource limits may not be enforced")
 
         for i, test_file in enumerate(test_files, 1):
-            logger.debug(f"[{i}/{total}] Testing {test_file.name}")
+            logger.debug("testing file", progress=f"{i}/{total}", file=test_file.name)
 
             # Use monitoring if enabled, otherwise basic execution
             if self.process_monitor:
@@ -701,9 +708,12 @@ class TargetRunner:
                 ExecutionStatus.OOM,
             ):
                 logger.warning(
-                    f"[{i}/{total}] {exec_result.result.value.upper()}: "
-                    f"{test_file.name} (exit_code={exec_result.exit_code}, "
-                    f"retries={exec_result.retry_count})"
+                    "notable result detected",
+                    progress=f"{i}/{total}",
+                    result=exec_result.result.value,
+                    file=test_file.name,
+                    exit_code=exec_result.exit_code,
+                    retries=exec_result.retry_count,
                 )
 
                 if stop_on_crash and exec_result.result == ExecutionStatus.CRASH:
@@ -713,7 +723,8 @@ class TargetRunner:
             # Check circuit breaker - if open, skip remaining tests
             if self.circuit_breaker.is_open:
                 logger.warning(
-                    f"Circuit breaker open - skipping remaining {total - i} tests"
+                    "circuit breaker open - skipping remaining tests",
+                    remaining=total - i,
                 )
                 break
 
@@ -721,13 +732,16 @@ class TargetRunner:
         logger.info("Campaign complete. Results:")
         for result_type, exec_results in results.items():
             if exec_results:
-                logger.info(f"  {result_type.value}: {len(exec_results)}")
+                logger.info(
+                    "campaign result", status=result_type.value, count=len(exec_results)
+                )
 
         # Print circuit breaker stats
         if self.enable_circuit_breaker:
             logger.info(
-                f"Circuit breaker: {self.circuit_breaker.success_count} successes, "
-                f"{self.circuit_breaker.failure_count} failures"
+                "circuit breaker stats",
+                successes=self.circuit_breaker.success_count,
+                failures=self.circuit_breaker.failure_count,
             )
 
         return results
@@ -739,7 +753,7 @@ class TargetRunner:
             crash_line = (
                 f"    - {exec_result.test_file.name}: "
                 f"{wci.exception_name} (0x{wci.exception_code:08X}) "
-                f"[{wci.severity.upper()}]"
+                f"[{wci.severity.value.upper()}]"
             )
             if wci.is_exploitable:
                 crash_line += " [EXPLOITABLE]"

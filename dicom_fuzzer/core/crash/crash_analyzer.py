@@ -7,13 +7,16 @@ and reproducible test case generation.
 
 import traceback
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
 from dicom_fuzzer.core.constants import Severity
 from dicom_fuzzer.utils.hashing import hash_string
 from dicom_fuzzer.utils.identifiers import generate_crash_id
+from dicom_fuzzer.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class CrashType(Enum):
@@ -108,7 +111,7 @@ class CrashAnalyzer:
         # Create crash report
         report = CrashReport(
             crash_id=crash_id,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
             crash_type=crash_type,
             severity=severity,
             test_case_path=test_case_path,
@@ -288,13 +291,22 @@ class CrashAnalyzer:
 
         # Check if unique
         if not self.is_unique_crash(report.crash_hash):
-            return None  # Duplicate crash
+            logger.debug("Duplicate crash skipped", crash_hash=report.crash_hash)
+            return None
 
         # Save report
         self.save_crash_report(report)
 
         # Store in memory
         self.crashes.append(report)
+
+        logger.info(
+            "Crash recorded",
+            crash_id=report.crash_id,
+            crash_type=report.crash_type.value,
+            severity=report.severity.value,
+            test_case=report.test_case_path,
+        )
 
         return report
 
