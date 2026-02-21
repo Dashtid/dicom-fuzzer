@@ -6,7 +6,7 @@ performance profiling, and strategy effectiveness scoring.
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -459,7 +459,7 @@ class CampaignAnalyzer:
         """
         data: dict[str, Any] = {
             "campaign_name": self.campaign_name,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": datetime.now(tz=UTC).isoformat(),
             "coverage_correlation": {
                 strategy: {
                     "coverage_increase": corr.coverage_increase,
