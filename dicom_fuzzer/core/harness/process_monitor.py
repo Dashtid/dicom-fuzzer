@@ -207,7 +207,7 @@ class ProcessMonitor:
             # Prime CPU percent (first call returns 0)
             ps_process.cpu_percent(interval=None)
         except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
-            logger.warning(f"Cannot attach to process {process.pid}: {e}")
+            logger.warning("cannot attach to process", pid=process.pid, error=str(e))
             return self._basic_monitor(process)
 
         while True:
@@ -230,7 +230,7 @@ class ProcessMonitor:
 
             # Check timeout
             if elapsed >= self.timeout:
-                logger.debug(f"Process timeout after {elapsed:.1f}s")
+                logger.debug("process timeout", elapsed_seconds=elapsed)
                 self._terminate_process_tree(ps_process)
                 metrics.total_duration_seconds = elapsed
                 metrics.calculate_averages()
@@ -258,8 +258,9 @@ class ProcessMonitor:
                         idle_start = time.time()
                     elif time.time() - idle_start >= self.idle_threshold:
                         logger.debug(
-                            f"CPU idle hang detected: {cpu_percent}% CPU "
-                            f"for {time.time() - idle_start:.1f}s"
+                            "CPU idle hang detected",
+                            cpu_percent=cpu_percent,
+                            idle_seconds=time.time() - idle_start,
                         )
                         self._terminate_process_tree(ps_process)
                         metrics.idle_duration_seconds = time.time() - idle_start
@@ -280,8 +281,9 @@ class ProcessMonitor:
                 # Check memory limit
                 if self.memory_limit_mb and memory_mb > self.memory_limit_mb:
                     logger.debug(
-                        f"Memory spike detected: {memory_mb:.1f}MB > "
-                        f"{self.memory_limit_mb}MB limit"
+                        "memory spike detected",
+                        memory_mb=memory_mb,
+                        limit_mb=self.memory_limit_mb,
                     )
                     self._terminate_process_tree(ps_process)
                     metrics.total_duration_seconds = elapsed
@@ -337,7 +339,7 @@ class ProcessMonitor:
                 except Exception:
                     process.kill()
         except Exception as e:
-            logger.warning(f"Error terminating process: {e}")
+            logger.warning("error terminating process", error=str(e))
 
     def _terminate_process_tree(self, ps_process: psutil.Process) -> None:
         """Terminate process and all child processes.
@@ -358,13 +360,15 @@ class ProcessMonitor:
                 try:
                     child.terminate()
                 except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
-                    logger.debug(f"Child process already gone or inaccessible: {e}")
+                    logger.debug(
+                        "child process already gone or inaccessible", error=str(e)
+                    )
 
             # Terminate main process
             try:
                 ps_process.terminate()
             except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
-                logger.debug(f"Main process already gone or inaccessible: {e}")
+                logger.debug("main process already gone or inaccessible", error=str(e))
 
             # Wait briefly for graceful termination
             _, alive = psutil.wait_procs([ps_process] + children, timeout=2.0)
@@ -374,85 +378,17 @@ class ProcessMonitor:
                 try:
                     proc.kill()
                 except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
-                    logger.debug(f"Survivor process already gone or inaccessible: {e}")
+                    logger.debug(
+                        "survivor process already gone or inaccessible", error=str(e)
+                    )
 
             logger.debug(
-                f"Terminated process tree: 1 parent + {len(children)} children"
+                "terminated process tree",
+                children_count=len(children),
             )
 
         except Exception as e:
-            logger.warning(f"Error terminating process tree: {e}")
-
-
-def terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
-    """Terminate a process and all its children (graceful, then force).
-
-    Standalone utility that can be used without a ProcessMonitor instance.
-    Attempts graceful termination first, then force-kills survivors.
-
-    Args:
-        process: subprocess.Popen to terminate with its children
-
-    """
-    if not PSUTIL_AVAILABLE:
-        try:
-            process.kill()
-        except Exception as e:
-            logger.warning(f"Error killing process: {e}")
-        return
-
-    try:
-        ps_process = psutil.Process(process.pid)
-        children = ps_process.children(recursive=True)
-
-        for child in children:
-            try:
-                child.terminate()
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass  # Process may have already exited
-
-        try:
-            ps_process.terminate()
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            pass  # Process may have already exited
-
-        _, alive = psutil.wait_procs([ps_process] + children, timeout=2.0)
-
-        for proc in alive:
-            try:
-                proc.kill()
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass  # Process may have already exited
-
-        logger.debug(f"Terminated process tree: 1 parent + {len(children)} children")
-
-    except psutil.NoSuchProcess:
-        logger.debug("Process already terminated")
-    except Exception as e:
-        logger.warning(f"Error terminating process tree: {e}")
-
-
-def get_process_monitor(
-    timeout: float = 30.0,
-    idle_threshold: float = 5.0,
-    memory_limit_mb: float | None = None,
-) -> ProcessMonitor:
-    """Create a process monitor with specified settings.
-
-    Args:
-        timeout: Maximum process runtime
-        idle_threshold: Seconds of idle CPU before killing
-        memory_limit_mb: Memory limit in MB
-
-    Returns:
-        ProcessMonitor instance
-
-    """
-    return ProcessMonitor(
-        timeout=timeout,
-        idle_threshold=idle_threshold,
-        memory_limit_mb=memory_limit_mb,
-    )
+            logger.warning("error terminating process tree", error=str(e))
 
 
 def is_psutil_available() -> bool:

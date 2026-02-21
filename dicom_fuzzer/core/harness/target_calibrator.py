@@ -245,7 +245,7 @@ class TargetCalibrator:
 
         """
         start_time = time.time()
-        logger.info(f"[i] Starting calibration for: {self.target}")
+        logger.info("starting calibration", target=str(self.target))
 
         # Phase 1: Target Detection
         self._phase1_detect_target_type()
@@ -254,8 +254,8 @@ class TargetCalibrator:
         if self.result.target_type == TargetType.GUI:
             self.result.recommended_timeout = self.DEFAULT_GUI_TIMEOUT
             logger.info(
-                f"[i] Phase 2: Skipped for GUI app "
-                f"(using default {self.DEFAULT_GUI_TIMEOUT:.0f}s timeout)"
+                "phase 2: skipped for GUI app",
+                default_timeout=self.DEFAULT_GUI_TIMEOUT,
             )
         else:
             self._phase2_calibrate_timeout()
@@ -274,7 +274,9 @@ class TargetCalibrator:
         self._cleanup_temp_files()
 
         self.result.calibration_time = time.time() - start_time
-        logger.info(f"[+] Calibration complete in {self.result.calibration_time:.1f}s")
+        logger.info(
+            "calibration complete", elapsed_seconds=self.result.calibration_time
+        )
 
         return self.result
 
@@ -285,9 +287,11 @@ class TargetCalibrator:
                 if temp_file.exists():
                     temp_file.unlink()
                     if self.verbose:
-                        logger.debug(f"  Cleaned up: {temp_file}")
+                        logger.debug("cleaned up temp file", file=str(temp_file))
             except Exception as e:
-                logger.debug(f"Failed to clean up {temp_file}: {e}")
+                logger.debug(
+                    "failed to clean up temp file", file=str(temp_file), error=str(e)
+                )
         self._temp_files.clear()
 
     def _get_test_file(self) -> Path | None:
@@ -362,7 +366,7 @@ class TargetCalibrator:
                     process.wait(timeout=1.0)
 
         except Exception as e:
-            logger.debug(f"Error running target: {e}")
+            logger.debug("error running target", error=str(e))
             exit_code = -1
 
         execution_time = time.time() - start_time
@@ -409,8 +413,11 @@ class TargetCalibrator:
 
             if self.verbose:
                 logger.debug(
-                    f"  Run {i + 1}: exit={exit_code}, time={exec_time:.2f}s, "
-                    f"timeout={timed_out}"
+                    "detection run",
+                    run=i + 1,
+                    exit_code=exit_code,
+                    exec_time=exec_time,
+                    timed_out=timed_out,
                 )
 
             if timed_out:
@@ -450,7 +457,7 @@ class TargetCalibrator:
                 execution_times.append(exec_time)
 
             if self.verbose:
-                logger.debug(f"  Run {i + 1}: {exec_time:.3f}s")
+                logger.debug("calibration run", run=i + 1, exec_time=exec_time)
 
         if execution_times:
             self.result.execution_times = execution_times
@@ -470,8 +477,8 @@ class TargetCalibrator:
                 self.result.is_stable = variance_ratio <= 0.2
                 if not self.result.is_stable:
                     logger.warning(
-                        f"[!] Target appears unstable "
-                        f"(variance {variance_ratio:.1%} of mean)"
+                        "target appears unstable",
+                        variance_ratio=variance_ratio,
                     )
 
             # Calculate timeout based on target type
@@ -492,8 +499,9 @@ class TargetCalibrator:
             self.result.recommended_timeout = self.DEFAULT_GUI_TIMEOUT
 
         logger.info(
-            f"[+] Recommended timeout: {self.result.recommended_timeout:.1f}s "
-            f"(avg exec: {self.result.avg_execution_time:.3f}s)"
+            "recommended timeout calculated",
+            timeout=self.result.recommended_timeout,
+            avg_exec_time=self.result.avg_execution_time,
         )
 
     def _phase3_validate_crash_detection(self) -> None:
@@ -527,7 +535,7 @@ class TargetCalibrator:
             try:
                 truncated_file.unlink()
             except Exception as e:
-                logger.debug(f"Cleanup failed for calibration file: {e}")
+                logger.debug("cleanup failed for calibration file", error=str(e))
 
             if exit_code in self.CRASH_EXIT_CODES:
                 logger.warning(
@@ -576,7 +584,9 @@ class TargetCalibrator:
         )
         sample = random.sample(all_seeds, min(sample_size, len(all_seeds)))
 
-        logger.info(f"[i] Testing {len(sample)} of {len(all_seeds)} seeds...")
+        logger.info(
+            "testing corpus sample", sample_size=len(sample), total_seeds=len(all_seeds)
+        )
 
         valid = 0
         errors = 0
@@ -602,13 +612,17 @@ class TargetCalibrator:
         self.result.corpus_crashes = int(crashes * sample_ratio)
 
         logger.info(
-            f"[+] Corpus health: {valid}/{len(sample)} valid in sample "
-            f"(~{self.result.corpus_valid}/{self.result.corpus_total} estimated)"
+            "corpus health check complete",
+            valid_in_sample=valid,
+            sample_size=len(sample),
+            estimated_valid=self.result.corpus_valid,
+            estimated_total=self.result.corpus_total,
         )
 
         if crashes > 0:
             logger.warning(
-                f"[!] {crashes} seeds cause crashes - prioritize these for testing"
+                "seeds cause crashes - prioritize for testing",
+                crash_count=crashes,
             )
 
     def _generate_recommendations(self) -> None:
