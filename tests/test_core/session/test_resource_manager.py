@@ -4,7 +4,7 @@ This test suite provides thorough coverage of resource management functionality,
 including resource limits, usage tracking, disk space checks, and execution contexts.
 """
 
-import platform
+import sys
 import time
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -103,7 +103,7 @@ class TestResourceManagerInitialization:
 
         assert isinstance(manager.limits, ResourceLimits)
         assert manager.limits.max_memory_mb == 1024
-        assert manager.is_windows == (platform.system() == "Windows")
+        assert manager.is_windows == (sys.platform == "win32")
 
     def test_custom_limits(self):
         """Test ResourceManager with custom limits."""
@@ -117,10 +117,7 @@ class TestResourceManagerInitialization:
         """Test Windows platform detection."""
         manager = ResourceManager()
 
-        if platform.system() == "Windows":
-            assert manager.is_windows is True
-        else:
-            assert manager.is_windows is False
+        assert manager.is_windows == (sys.platform == "win32")
 
 
 class TestDiskSpaceChecks:
