@@ -24,21 +24,7 @@ from .constants import (
     StateTransitionType,
 )
 
-# Corpus management & minimization
-from .corpus.corpus_minimizer import (
-    CorpusMinimizer,
-    CorpusStats,
-    CorpusSynchronizer,
-    CoverageCollector,
-    FuzzerNode,
-    MinimizationConfig,
-    SimpleCoverageCollector,
-    SyncConfig,
-    SyncMode,
-    TargetCoverageCollector,
-    create_sync_node,
-    minimize_corpus,
-)
+# Coverage & state types (used by network/stateful fuzzing)
 from .corpus.coverage_types import (
     GUIStateTransition,
     ProtocolStateTransition,
@@ -133,25 +119,12 @@ __all__ = [
     "Series3DReport",
     "Series3DReportGenerator",
     "SeriesMutationSummary",
-    # Coverage types
+    # Coverage & state types
     "GUIStateTransition",
     "ProtocolStateTransition",
     "StateCoverage",
     "StateFingerprint",
     "StateTransition",
-    # Corpus management
-    "CorpusMinimizer",
-    "CorpusStats",
-    "CorpusSynchronizer",
-    "CoverageCollector",
-    "FuzzerNode",
-    "MinimizationConfig",
-    "SimpleCoverageCollector",
-    "SyncConfig",
-    "SyncMode",
-    "TargetCoverageCollector",
-    "create_sync_node",
-    "minimize_corpus",
     # Multi-frame handler
     "FrameInfo",
     "MultiFrameHandler",

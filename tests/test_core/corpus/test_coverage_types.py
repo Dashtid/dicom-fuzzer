@@ -469,16 +469,3 @@ class TestStateCoverage:
         # Add again with lower depth - should update
         cov.add_state("STATE_A", depth=1)
         assert cov.state_depths["STATE_A"] == 1
-
-
-class TestCoverageTypesBackwardCompatibility:
-    """Test backward compatibility for coverage type imports."""
-
-    def test_import_from_corpus_minimizer(self) -> None:
-        """Test imports from corpus_minimizer."""
-        from dicom_fuzzer.core.corpus.corpus_minimizer import (
-            CoverageInfo as CoverageInfoMinimizer,
-        )
-
-        # corpus_minimizer has backward compatibility alias
-        assert CoverageInfoMinimizer is SeedCoverageInfo

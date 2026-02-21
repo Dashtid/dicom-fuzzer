@@ -421,26 +421,3 @@ def create_crash_test_from_runner(
         return result.result == ExecutionStatus.CRASH
 
     return test_crash
-
-
-def minimize_crashing_study(
-    study_dir: Path,
-    output_dir: Path,
-    target_runner: TargetRunner,
-    config: MinimizationConfig | None = None,
-) -> MinimizedStudy:
-    """Convenience function to minimize a crashing study.
-
-    Args:
-        study_dir: Directory containing crash-triggering study
-        output_dir: Directory to save minimized study
-        target_runner: TargetRunner configured for target application
-        config: Minimization configuration
-
-    Returns:
-        MinimizedStudy result
-
-    """
-    crash_test = create_crash_test_from_runner(target_runner)
-    minimizer = StudyMinimizer(crash_test, config)
-    return minimizer.minimize(study_dir, output_dir)
