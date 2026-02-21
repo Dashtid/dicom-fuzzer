@@ -5,18 +5,6 @@ bugs and optimize fuzzing efficiency.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
-
-
-@dataclass
-class IterationData:
-    """Data for a single fuzzing iteration."""
-
-    iteration_number: int
-    file_path: str
-    mutations_applied: int
-    severity: str
-    timestamp: datetime = field(default_factory=datetime.now)
 
 
 @dataclass
@@ -30,7 +18,6 @@ class MutationStatistics:
     validation_failures: int = 0
     total_duration: float = 0.0
     file_sizes: list[int] = field(default_factory=list)
-    # For compatibility with test expectations
     total_mutations: int = 0
     total_executions: int = 0
 
@@ -69,7 +56,7 @@ class MutationStatistics:
         return 0
 
     def record_mutation(self, strategy: str) -> None:
-        """Record a mutation operation (for test compatibility).
+        """Record a mutation operation.
 
         Args:
             strategy: Name of mutation strategy used
@@ -80,7 +67,7 @@ class MutationStatistics:
         self.total_mutations += 1
 
     def record_execution(self, duration: float) -> None:
-        """Record an execution (for test compatibility).
+        """Record an execution.
 
         Args:
             duration: Execution duration in seconds
