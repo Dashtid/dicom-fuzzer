@@ -34,13 +34,14 @@ USAGE:
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING
 
 from pydicom.dataset import Dataset
 
 # Import strategies from multiframe_strategies
 from dicom_fuzzer.attacks.multiframe import (
+    DimensionIndexStrategy,
     DimensionOverflowStrategy,
+    EncapsulatedPixelStrategy,
     FrameCountMismatchStrategy,
     FrameIncrementStrategy,
     FrameTimeCorruptionStrategy,
@@ -58,9 +59,6 @@ from dicom_fuzzer.core.mutation.multiframe_types import (
     MultiFrameMutationStrategy,
 )
 from dicom_fuzzer.utils.logger import get_logger
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_logger(__name__)
 
@@ -85,8 +83,7 @@ class MultiFrameHandler:
 
         self.severity = severity
         self.seed = seed
-        if seed is not None:
-            random.seed(seed)
+        self._rng = random.Random(seed)
 
         self._mutation_counts = {
             "minimal": (1, 2),
@@ -121,9 +118,15 @@ class MultiFrameHandler:
             MultiFrameMutationStrategy.PIXEL_DATA_TRUNCATION.value: PixelDataTruncationStrategy(
                 severity
             ),
+            MultiFrameMutationStrategy.ENCAPSULATED_PIXEL_DATA.value: EncapsulatedPixelStrategy(
+                severity
+            ),
+            MultiFrameMutationStrategy.DIMENSION_INDEX_ATTACK.value: DimensionIndexStrategy(
+                severity
+            ),
         }
 
-        logger.info(f"MultiFrameHandler initialized (severity={severity})")
+        logger.info("MultiFrameHandler initialized (severity=%s)", severity)
 
     def is_multiframe(self, dataset: Dataset) -> bool:
         """Check if dataset is a multi-frame instance.
@@ -260,21 +263,23 @@ class MultiFrameHandler:
         """
         # Select strategy
         if strategy is None:
-            strategy = random.choice(list(MultiFrameMutationStrategy)).value
+            strategy = self._rng.choice(list(self._strategies.keys()))
         elif not isinstance(strategy, str):
             strategy = strategy.value
 
-        if strategy not in [s.value for s in MultiFrameMutationStrategy]:
+        if strategy not in self._strategies:
             raise ValueError(f"Invalid strategy: {strategy}")
 
         # Determine mutation count
         if mutation_count is None:
             min_count, max_count = self._mutation_counts[self.severity]
-            mutation_count = random.randint(min_count, max_count)
+            mutation_count = self._rng.randint(min_count, max_count)
 
         logger.info(
-            f"Mutating multi-frame with {mutation_count} mutations "
-            f"(strategy={strategy}, severity={self.severity})"
+            "Mutating multi-frame with %d mutations (strategy=%s, severity=%s)",
+            mutation_count,
+            strategy,
+            self.severity,
         )
 
         # Dispatch to strategy
