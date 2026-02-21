@@ -1,6 +1,6 @@
 """Unit Tests for MultiFrameHandler.
 
-Tests the MultiFrameHandler class and its 8 mutation strategies
+Tests the MultiFrameHandler class and its 10 mutation strategies
 for multi-frame DICOM (NumberOfFrames > 1) fuzzing.
 """
 
@@ -346,6 +346,8 @@ class TestAllStrategies:
             "dimension_overflow",
             "functional_group_attack",
             "pixel_data_truncation",
+            "encapsulated_pixel_data",
+            "dimension_index_attack",
         ],
     )
     def test_all_strategies_work(self, sample_multiframe_dataset, strategy):
