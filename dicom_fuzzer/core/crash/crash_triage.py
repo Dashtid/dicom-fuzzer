@@ -477,25 +477,3 @@ class CrashTriageEngine:
         ]
         id_str = "|".join(id_parts)
         return md5_hash(id_str)
-
-
-def triage_session_crashes(crashes: list[CrashRecord]) -> dict[str, Any]:
-    """Triage all crashes from a fuzzing session.
-
-    Args:
-        crashes: List of crash records from session
-
-    Returns:
-        Dictionary with triage results and statistics
-
-    """
-    engine = CrashTriageEngine()
-    triages = engine.triage_crashes(crashes)
-    summary = engine.get_triage_summary(triages)
-
-    return {
-        "triages": triages,
-        "summary": summary,
-        "high_priority": [t for t in triages if t.priority_score >= 70],
-        "critical_crashes": [t for t in triages if t.severity == Severity.CRITICAL],
-    }

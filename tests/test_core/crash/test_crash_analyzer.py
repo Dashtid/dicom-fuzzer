@@ -211,9 +211,9 @@ class TestCrashReportGeneration:
 
             assert report.timestamp is not None
             # Should be recent (within last minute)
-            from datetime import datetime, timedelta
+            from datetime import UTC, datetime, timedelta
 
-            assert report.timestamp > datetime.now() - timedelta(minutes=1)
+            assert report.timestamp > datetime.now(UTC) - timedelta(minutes=1)
 
 
 class TestCrashReportPersistence:

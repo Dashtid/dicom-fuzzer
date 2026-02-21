@@ -20,8 +20,6 @@ from dicom_fuzzer.core.crash.windows_crash_handler import (
     WindowsCrashHandler,
     WindowsCrashInfo,
     WindowsExceptionCode,
-    get_crash_handler,
-    is_windows,
 )
 
 
@@ -580,45 +578,6 @@ class TestMinidumpParsing:
                 assert (
                     result is not None or result is None
                 )  # Either way is valid for this test
-
-
-class TestPlatformFunctions:
-    """Test platform detection functions."""
-
-    def test_is_windows_on_windows(self):
-        """Test is_windows returns True on Windows."""
-        with patch("sys.platform", "win32"):
-            assert is_windows() is True
-
-    def test_is_windows_on_linux(self):
-        """Test is_windows returns False on Linux."""
-        with patch("sys.platform", "linux"):
-            assert is_windows() is False
-
-    def test_is_windows_on_macos(self):
-        """Test is_windows returns False on macOS."""
-        with patch("sys.platform", "darwin"):
-            assert is_windows() is False
-
-    def test_get_crash_handler_on_windows(self, tmp_path):
-        """Test get_crash_handler returns handler on Windows."""
-        with patch(
-            "dicom_fuzzer.core.crash.windows_crash_handler.is_windows",
-            return_value=True,
-        ):
-            handler = get_crash_handler(tmp_path)
-
-            assert isinstance(handler, WindowsCrashHandler)
-
-    def test_get_crash_handler_on_linux(self, tmp_path):
-        """Test get_crash_handler returns None on Linux."""
-        with patch(
-            "dicom_fuzzer.core.crash.windows_crash_handler.is_windows",
-            return_value=False,
-        ):
-            handler = get_crash_handler(tmp_path)
-
-            assert handler is None
 
 
 class TestIntegration:

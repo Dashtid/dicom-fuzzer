@@ -8,7 +8,6 @@ from dicom_fuzzer.core.crash.crash_triage import (
     CrashTriageEngine,
     ExploitabilityRating,
     Severity,
-    triage_session_crashes,
 )
 from dicom_fuzzer.core.session.fuzzing_session import CrashRecord
 
@@ -303,32 +302,6 @@ class TestCrashTriageEngine:
 
         # Critical should be higher than low
         assert critical_triage.priority_score > low_triage.priority_score
-
-
-class TestTriageSessionFunction:
-    """Test the triage_session_crashes convenience function."""
-
-    def test_triage_session_crashes(self, critical_crash, high_crash, medium_crash):
-        """Test triaging session crashes."""
-        crashes = [critical_crash, high_crash, medium_crash]
-        result = triage_session_crashes(crashes)
-
-        assert "triages" in result
-        assert "summary" in result
-        assert "high_priority" in result
-        assert "critical_crashes" in result
-
-        assert len(result["triages"]) == 3
-        assert len(result["high_priority"]) >= 2  # At least critical and high
-        assert len(result["critical_crashes"]) == 1  # One critical crash
-
-    def test_triage_empty_list(self):
-        """Test triaging empty crash list."""
-        result = triage_session_crashes([])
-
-        assert result["summary"]["total_crashes"] == 0
-        assert len(result["triages"]) == 0
-        assert len(result["high_priority"]) == 0
 
 
 class TestCrashTriageStringRepresentation:

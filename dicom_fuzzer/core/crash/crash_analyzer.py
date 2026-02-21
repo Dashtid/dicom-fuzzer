@@ -7,7 +7,7 @@ and reproducible test case generation.
 
 import traceback
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
@@ -108,7 +108,7 @@ class CrashAnalyzer:
         # Create crash report
         report = CrashReport(
             crash_id=crash_id,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
             crash_type=crash_type,
             severity=severity,
             test_case_path=test_case_path,

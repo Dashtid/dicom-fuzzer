@@ -14,9 +14,8 @@ identify exploitable vulnerabilities vs. benign errors.
 from __future__ import annotations
 
 import re
-import sys
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import IntEnum
 from pathlib import Path
 from typing import Any
@@ -126,7 +125,7 @@ class WindowsCrashInfo:
     registers: dict[str, int] = field(default_factory=dict)
     crash_hash: str | None = None
     minidump_path: Path | None = None
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 class WindowsCrashHandler:
@@ -280,7 +279,10 @@ class WindowsCrashHandler:
         )
 
         logger.info(
-            f"Windows crash detected: {exception_name} (0x{unsigned_code:08X}) - {severity}"
+            "Windows crash detected",
+            exception=exception_name,
+            code=f"0x{unsigned_code:08X}",
+            severity=severity.value,
         )
 
         return crash_info
@@ -360,7 +362,7 @@ class WindowsCrashHandler:
             return None
 
         if not dump_path.exists():
-            logger.warning(f"Minidump file not found: {dump_path}")
+            logger.warning("Minidump file not found", path=str(dump_path))
             return None
 
         try:
@@ -426,7 +428,9 @@ class WindowsCrashHandler:
                 )
 
         except Exception as e:
-            logger.warning(f"Failed to parse minidump {dump_path}: {e}")
+            logger.warning(
+                "Failed to parse minidump", path=str(dump_path), error=str(e)
+            )
 
         return None
 
@@ -455,7 +459,7 @@ class WindowsCrashHandler:
             f.write(f"Exception Code:   0x{crash_info.exception_code:08X}\n")
             f.write(f"Exception Name:   {crash_info.exception_name}\n")
             f.write(f"Description:      {crash_info.description}\n")
-            f.write(f"Severity:         {crash_info.severity.upper()}\n")
+            f.write(f"Severity:         {crash_info.severity.value.upper()}\n")
             f.write(
                 f"Exploitable:      {'Yes' if crash_info.is_exploitable else 'No'}\n"
             )
@@ -486,7 +490,7 @@ class WindowsCrashHandler:
 
             f.write("\n" + "=" * 80 + "\n")
 
-        logger.info(f"Crash report saved: {report_path}")
+        logger.info("Crash report saved", path=str(report_path))
         return report_path
 
     def classify_for_triage(self, crash_info: WindowsCrashInfo) -> dict[str, Any]:
@@ -510,25 +514,3 @@ class WindowsCrashHandler:
             "windows_specific": True,
             "exception_code": crash_info.exception_code,
         }
-
-
-def is_windows() -> bool:
-    """Check if running on Windows."""
-    return sys.platform == "win32"
-
-
-def get_crash_handler(
-    crash_dir: Path | str = "./artifacts/crashes",
-) -> WindowsCrashHandler | None:
-    """Get Windows crash handler if on Windows platform.
-
-    Args:
-        crash_dir: Directory for crash reports
-
-    Returns:
-        WindowsCrashHandler on Windows, None on other platforms
-
-    """
-    if is_windows():
-        return WindowsCrashHandler(crash_dir)
-    return None
