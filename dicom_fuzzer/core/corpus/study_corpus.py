@@ -14,7 +14,7 @@ import hashlib
 import json
 import shutil
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -70,7 +70,7 @@ class StudyCorpusEntry(SerializableMixin):
     priority: int = 3  # 1=highest, 5=lowest
     test_count: int = 0
     last_tested: str | None = None  # ISO format datetime string
-    added_timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    added_timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     @property
     def study_path(self) -> Path:
@@ -119,7 +119,9 @@ class StudyCorpusManager:
             self.load_index()
 
         logger.info(
-            f"StudyCorpusManager initialized: {corpus_dir} ({len(self.studies)} studies)"
+            "StudyCorpusManager initialized",
+            corpus_dir=str(corpus_dir),
+            study_count=len(self.studies),
         )
 
     def add_study(
@@ -151,7 +153,7 @@ class StudyCorpusManager:
 
         # Check for duplicate
         if entry.study_id in self.studies:
-            logger.warning(f"Study already in corpus: {entry.study_id}")
+            logger.warning("Study already in corpus", study_id=entry.study_id)
             return self.studies[entry.study_id]
 
         # Copy to corpus if requested
@@ -160,13 +162,15 @@ class StudyCorpusManager:
             if not dest_dir.exists():
                 shutil.copytree(study_dir, dest_dir)
                 entry.study_dir = str(dest_dir)
-                logger.info(f"Copied study to corpus: {dest_dir}")
+                logger.info("Copied study to corpus", dest_dir=str(dest_dir))
 
         # Add to index
         self.studies[entry.study_id] = entry
         logger.info(
-            f"Added study: {entry.study_id} "
-            f"({entry.total_slices} slices, {len(entry.series_list)} series)"
+            "Added study",
+            study_id=entry.study_id,
+            total_slices=entry.total_slices,
+            series_count=len(entry.series_list),
         )
 
         return entry
@@ -203,10 +207,10 @@ class StudyCorpusManager:
             study_path = Path(entry.study_dir)
             if study_path.exists() and study_path.is_relative_to(self.corpus_dir):
                 shutil.rmtree(study_path, ignore_errors=True)
-                logger.info(f"Deleted study files: {study_path}")
+                logger.info("Deleted study files", study_path=str(study_path))
 
         del self.studies[study_id]
-        logger.info(f"Removed study from corpus: {study_id}")
+        logger.info("Removed study from corpus", study_id=study_id)
         return True
 
     def get_next_study(self) -> StudyCorpusEntry | None:
@@ -241,7 +245,10 @@ class StudyCorpusManager:
             if entry.last_tested:
                 try:
                     last_dt = datetime.fromisoformat(entry.last_tested)
-                    hours_since = (datetime.now() - last_dt).total_seconds() / 3600
+                    # Handle both naive (legacy) and aware timestamps
+                    if last_dt.tzinfo is None:
+                        last_dt = last_dt.replace(tzinfo=UTC)
+                    hours_since = (datetime.now(UTC) - last_dt).total_seconds() / 3600
                     recency_penalty = max(0, 1 - hours_since / 24)  # Decay over 24h
                 except ValueError:
                     recency_penalty = 0
@@ -280,12 +287,12 @@ class StudyCorpusManager:
 
         """
         if study_id not in self.studies:
-            logger.warning(f"Study not found for priority update: {study_id}")
+            logger.warning("Study not found for priority update", study_id=study_id)
             return
 
         entry = self.studies[study_id]
         entry.test_count += 1
-        entry.last_tested = datetime.now().isoformat()
+        entry.last_tested = datetime.now(UTC).isoformat()
 
         if new_priority is not None:
             entry.priority = max(1, min(5, new_priority))
@@ -293,7 +300,7 @@ class StudyCorpusManager:
             # Boost priority on crash
             entry.priority = max(1, entry.priority - 1)
 
-        logger.debug(f"Updated priority for {study_id}: priority={entry.priority}")
+        logger.debug("Updated priority", study_id=study_id, priority=entry.priority)
 
     def record_crash(
         self,
@@ -321,10 +328,10 @@ class StudyCorpusManager:
 
         crash = CrashInfo(
             crash_id=hashlib.sha256(
-                f"{study_id}-{crash_type}-{datetime.now().isoformat()}".encode()
+                f"{study_id}-{crash_type}-{datetime.now(UTC).isoformat()}".encode()
             ).hexdigest()[:16],
             crash_type=crash_type,
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             trigger_slice=trigger_slice,
             exit_code=exit_code,
             notes=notes,
@@ -333,7 +340,7 @@ class StudyCorpusManager:
         self.studies[study_id].crashes_triggered.append(crash)
         self.update_priority(study_id, crash_found=True)
 
-        logger.info(f"Recorded crash for {study_id}: {crash_type}")
+        logger.info("Recorded crash", study_id=study_id, crash_type=crash_type)
         return crash
 
     def record_mutation(self, study_id: str, mutation_name: str) -> None:
@@ -352,7 +359,7 @@ class StudyCorpusManager:
         """Save corpus index to JSON file."""
         index_data = {
             "version": "1.0",
-            "created": datetime.now().isoformat(),
+            "created": datetime.now(UTC).isoformat(),
             "study_count": len(self.studies),
             "studies": {
                 study_id: entry.to_dict() for study_id, entry in self.studies.items()
@@ -362,12 +369,12 @@ class StudyCorpusManager:
         with open(self.index_path, "w", encoding="utf-8") as f:
             json.dump(index_data, f, indent=2)
 
-        logger.info(f"Saved corpus index: {len(self.studies)} studies")
+        logger.info("Saved corpus index", study_count=len(self.studies))
 
     def load_index(self) -> None:
         """Load corpus index from JSON file."""
         if not self.index_path.exists():
-            logger.warning(f"Index file not found: {self.index_path}")
+            logger.warning("Index file not found", index_path=str(self.index_path))
             return
 
         try:
@@ -398,10 +405,10 @@ class StudyCorpusManager:
                 )
                 self.studies[study_id] = entry
 
-            logger.info(f"Loaded corpus index: {len(self.studies)} studies")
+            logger.info("Loaded corpus index", study_count=len(self.studies))
 
         except (json.JSONDecodeError, KeyError, TypeError) as e:
-            logger.error(f"Failed to load corpus index: {e}")
+            logger.error("Failed to load corpus index", error=str(e))
             raise
 
     def get_modality_distribution(self) -> dict[str, int]:
@@ -486,7 +493,7 @@ class StudyCorpusManager:
             study_date = str(getattr(first_ds, "StudyDate", "")) or None
             study_description = str(getattr(first_ds, "StudyDescription", "")) or None
         except (InvalidDicomError, Exception) as e:
-            logger.warning(f"Could not read study metadata: {e}")
+            logger.warning("Could not read study metadata", error=str(e))
 
         # Analyze series
         series_dict: dict[str, SeriesInfo] = {}
