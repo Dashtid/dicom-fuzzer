@@ -54,6 +54,14 @@ SOP_CLASS_UIDS = [
     "1.2.840.10008.5.1.4.1.1.128",  # Positron Emission Tomography Image Storage
     # Secondary Capture
     "1.2.840.10008.5.1.4.1.1.7",  # Secondary Capture Image Storage
+    "1.2.840.10008.5.1.4.1.1.7.4",  # Multi-frame True Color SC Image Storage
+    # Radiation Therapy
+    "1.2.840.10008.5.1.4.1.1.481.2",  # RT Dose Storage
+    "1.2.840.10008.5.1.4.1.1.481.3",  # RT Structure Set Storage
+    # Segmentation
+    "1.2.840.10008.5.1.4.1.1.66.4",  # Segmentation Storage
+    # Encapsulated Documents
+    "1.2.840.10008.5.1.4.1.1.104.1",  # Encapsulated PDF Storage
     # Structured Reports
     "1.2.840.10008.5.1.4.1.1.88.11",  # Basic Text SR Storage
     "1.2.840.10008.5.1.4.1.1.88.22",  # Enhanced SR Storage
