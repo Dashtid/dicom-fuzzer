@@ -318,6 +318,21 @@ def minimal_dicom_file(temp_dir: Path) -> Path:
     dataset.SOPClassUID = file_meta.MediaStorageSOPClassUID
     dataset.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
 
+    # Patient tags (for metadata fuzzer)
+    dataset.PatientName = "Minimal^Patient"
+    dataset.PatientID = "MIN001"
+
+    # Pixel data (for pixel/header fuzzers)
+    dataset.Rows = 8
+    dataset.Columns = 8
+    dataset.BitsAllocated = 8
+    dataset.BitsStored = 8
+    dataset.HighBit = 7
+    dataset.SamplesPerPixel = 1
+    dataset.PixelRepresentation = 0
+    dataset.PhotometricInterpretation = "MONOCHROME2"
+    dataset.PixelData = b"\x00" * 64
+
     dataset.save_as(str(file_path), write_like_original=False)
     return file_path
 

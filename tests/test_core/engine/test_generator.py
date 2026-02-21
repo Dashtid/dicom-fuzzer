@@ -414,7 +414,7 @@ class TestIntegration:
         assert len(all_filenames) == len(set(all_filenames))
 
     def test_generator_with_different_source_files(
-        self, sample_dicom_file, minimal_dicom_file, temp_dir
+        self, sample_dicom_file, minimal_dicom_file, temp_dir, deterministic_random
     ):
         """Test generator with different source DICOM files."""
         output_dir = temp_dir / "multi_source"

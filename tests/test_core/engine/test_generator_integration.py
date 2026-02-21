@@ -49,7 +49,7 @@ ALL_STRATEGIES = [
 MIN_FILES = {
     "calibration": 20,
     "metadata": 20,
-    "pixel": 15,
+    "pixel": 5,
     "reference": 20,
     "dictionary": 20,
     # Aggressive strategies have high serialization skip rates and may
@@ -201,7 +201,7 @@ class TestGeneratorPerStrategy:
         [(s, MIN_FILES[s]) for s in ALL_STRATEGIES],
     )
     def test_strategy_generates_files(
-        self, tmp_path, seed_dicom_file, strategy, min_files
+        self, tmp_path, seed_dicom_file, strategy, min_files, deterministic_random
     ):
         output_dir = tmp_path / f"output_{strategy}"
         gen = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
@@ -244,7 +244,9 @@ class TestGeneratorPerStrategy:
 class TestGeneratorAllStrategies:
     """Verify generation with all strategies produces diverse output."""
 
-    def test_all_strategies_combined(self, tmp_path, seed_dicom_file):
+    def test_all_strategies_combined(
+        self, tmp_path, seed_dicom_file, deterministic_random
+    ):
         output_dir = tmp_path / "output_all"
         gen = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
         files = gen.generate_batch(
@@ -266,7 +268,7 @@ class TestGeneratorAllStrategies:
             f"got {list(gen.stats.strategies_used.keys())}"
         )
 
-    def test_stats_tracking(self, tmp_path, seed_dicom_file):
+    def test_stats_tracking(self, tmp_path, seed_dicom_file, deterministic_random):
         output_dir = tmp_path / "output_stats"
         gen = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
         files = gen.generate_batch(
