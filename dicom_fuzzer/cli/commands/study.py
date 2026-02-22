@@ -6,6 +6,8 @@ NOTE: This CLI module provides a simplified interface to the core study mutator.
 For advanced usage, import dicom_fuzzer.attacks.series.study_mutator directly.
 """
 
+from __future__ import annotations
+
 import argparse
 import sys
 import traceback
@@ -129,15 +131,6 @@ def run_list_strategies() -> int:
     return 0
 
 
-def _resolve_study_strategies(
-    strategy_name: str, strategy_map: dict[str, Any]
-) -> list[Any]:
-    """Resolve strategy name to list of strategies."""
-    if strategy_name == "all":
-        return list(strategy_map.values())
-    return [strategy_map[strategy_name]]
-
-
 def _save_mutated_study(output_path: Path, fuzzed_study: list[Any]) -> None:
     """Save mutated study datasets to output directory (all series together)."""
     for idx, datasets in enumerate(fuzzed_study):
@@ -223,7 +216,11 @@ def run_study_mutation(args: argparse.Namespace) -> int:
             "study-metadata": StudyMutationStrategy.STUDY_METADATA,
             "mixed-modality": StudyMutationStrategy.MIXED_MODALITY_STUDY,
         }
-        strategies = _resolve_study_strategies(args.strategy, strategy_map)
+        strategies = (
+            list(strategy_map.values())
+            if args.strategy == "all"
+            else [strategy_map[args.strategy]]
+        )
 
         total_records = []
         fuzzed_study = None

@@ -6,6 +6,8 @@ NOTE: This CLI module provides a simplified interface to the core state fuzzer.
 For advanced usage, import dicom_fuzzer.core.state_aware_fuzzer directly.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import sys

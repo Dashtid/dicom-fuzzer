@@ -19,7 +19,7 @@ import tempfile
 import time
 import traceback
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -264,7 +264,7 @@ def run_list_strategies() -> int:
 
 def log(message: str, log_file: Path | None = None) -> None:
     """Log message with timestamp."""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
     formatted = f"{timestamp} - {message}"
     print(formatted)
     if log_file:
@@ -483,13 +483,6 @@ def _log_campaign_header(
     log(f"Severity: {args.severity}", log_file)
     log(f"Total tests planned: {args.count}", log_file)
     log("=" * 70, log_file)
-
-
-def _get_strategies(strategy_arg: str, strategy_map: dict[str, Any]) -> list[Any]:
-    """Get list of strategies based on CLI argument."""
-    if strategy_arg == "all":
-        return list(strategy_map.values())
-    return [strategy_map[strategy_arg]]
 
 
 def _get_severities(severity_arg: str) -> list[str]:
@@ -759,7 +752,11 @@ def run_campaign(args: argparse.Namespace) -> int:
             "mixed-modality": StudyMutationStrategy.MIXED_MODALITY_STUDY,
         }
 
-        strategies = _get_strategies(args.strategy, strategy_map)
+        strategies = (
+            list(strategy_map.values())
+            if args.strategy == "all"
+            else [strategy_map[args.strategy]]
+        )
         severities = _get_severities(args.severity)
 
         # Statistics
@@ -770,7 +767,7 @@ def run_campaign(args: argparse.Namespace) -> int:
             "timeout": 0,
             "memory_exceeded": 0,
             "error": 0,
-            "start_time": datetime.now().isoformat(),
+            "start_time": datetime.now(tz=UTC).isoformat(),
             "end_time": None,
         }
 
@@ -799,7 +796,7 @@ def run_campaign(args: argparse.Namespace) -> int:
 
         # Final summary
         elapsed_total = time.time() - start_campaign
-        stats["end_time"] = datetime.now().isoformat()
+        stats["end_time"] = datetime.now(tz=UTC).isoformat()
         _log_campaign_summary(stats, elapsed_total, log_file)
         _save_campaign_results(
             output_path, target_path, study_path, args, stats, log_file

@@ -7,7 +7,7 @@ Corpus management utilities including:
 - Study-level crash minimization
 
 NOTE: This CLI module provides basic corpus utilities.
-For advanced minimization, import dicom_fuzzer.core.corpus.corpus_minimizer directly.
+For advanced minimization, import dicom_fuzzer.core.corpus.corpus_minimization directly.
 """
 
 from __future__ import annotations
@@ -18,10 +18,7 @@ import json
 import shutil
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -48,7 +45,7 @@ Examples:
       --count 50 --strategy all --severity aggressive
 
 For advanced minimization, use the Python API:
-  from dicom_fuzzer.core.corpus.corpus_minimizer import CorpusMinimizer
+  from dicom_fuzzer.core.corpus.corpus_minimization import optimize_corpus
   from dicom_fuzzer.core.corpus.study_minimizer import StudyMinimizer
         """,
     )

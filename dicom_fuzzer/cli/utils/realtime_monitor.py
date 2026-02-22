@@ -6,11 +6,13 @@ Shows progress, crash detection, and performance metrics in real-time.
 
 Usage:
     # Monitor a fuzzing session
-    python tools/realtime_monitor.py --session-dir ./output
+    python -m dicom_fuzzer.cli.utils.realtime_monitor --session-dir ./artifacts
 
     # Monitor with specific refresh rate
-    python tools/realtime_monitor.py --session-dir ./output --refresh 2
+    python -m dicom_fuzzer.cli.utils.realtime_monitor --session-dir ./artifacts --refresh 2
 """
+
+from __future__ import annotations
 
 import argparse
 import json
@@ -21,23 +23,14 @@ from typing import Any
 # Import rich at module level for test compatibility
 try:
     from rich.console import Console
-    from rich.live import Live
 
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
     Console = None  # type: ignore[assignment,misc]
-    Live = None  # type: ignore[assignment,misc]
 
-# Import canonical FuzzingSession for module users
-from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
-
-# Explicit re-exports for module consumers
 __all__ = [
     "RealtimeMonitor",
-    "FuzzingSession",
-    "Console",
-    "Live",
     "HAS_RICH",
     "main",
     "display_stats",
@@ -210,7 +203,7 @@ def main() -> None:
         "--session-dir",
         type=Path,
         default=Path("./artifacts"),
-        help="Session directory to monitor (default: ./output)",
+        help="Session directory to monitor (default: ./artifacts)",
     )
 
     parser.add_argument(

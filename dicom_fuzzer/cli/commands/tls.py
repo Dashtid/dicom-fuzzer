@@ -11,6 +11,8 @@ NOTE: This CLI module provides a simplified interface to the core TLS fuzzer.
 For advanced usage, import dicom_fuzzer.core.dicom_tls_fuzzer directly.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import sys

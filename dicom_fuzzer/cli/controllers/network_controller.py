@@ -69,9 +69,7 @@ class NetworkFuzzingController:
         """
         if not HAS_NETWORK_FUZZER:
             cli.error("Network fuzzing module not available.")
-            cli.status(
-                "Please check that dicom_fuzzer.core.network_fuzzer is installed."
-            )
+            cli.status("Please check that dicom_fuzzer.attacks.network is installed.")
             return 1
 
         # Display header
@@ -105,7 +103,7 @@ class NetworkFuzzingController:
             return 0
 
         except Exception as e:
-            logger.error(f"Network fuzzing failed: {e}", exc_info=args.verbose)
+            logger.error("Network fuzzing failed: %s", e, exc_info=args.verbose)
             print(f"\n[ERROR] Network fuzzing failed: {e}")
             if args.verbose:
                 import traceback
