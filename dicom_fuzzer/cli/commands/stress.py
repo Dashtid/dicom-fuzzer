@@ -3,6 +3,8 @@
 Lists available stress testing scenarios for DICOM viewers and applications.
 """
 
+from __future__ import annotations
+
 import argparse
 import sys
 

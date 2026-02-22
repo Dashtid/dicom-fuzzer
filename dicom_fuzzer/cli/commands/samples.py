@@ -8,6 +8,8 @@ For CVE replication, use the dedicated 'cve' subcommand:
     dicom-fuzzer cve --help
 """
 
+from __future__ import annotations
+
 import argparse
 import sys
 from pathlib import Path

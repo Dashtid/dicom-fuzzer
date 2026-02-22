@@ -485,13 +485,6 @@ def _log_campaign_header(
     log("=" * 70, log_file)
 
 
-def _get_strategies(strategy_arg: str, strategy_map: dict[str, Any]) -> list[Any]:
-    """Get list of strategies based on CLI argument."""
-    if strategy_arg == "all":
-        return list(strategy_map.values())
-    return [strategy_map[strategy_arg]]
-
-
 def _get_severities(severity_arg: str) -> list[str]:
     """Get list of severities for campaign cycling."""
     severities = ["moderate", "aggressive", "extreme"]
@@ -759,7 +752,11 @@ def run_campaign(args: argparse.Namespace) -> int:
             "mixed-modality": StudyMutationStrategy.MIXED_MODALITY_STUDY,
         }
 
-        strategies = _get_strategies(args.strategy, strategy_map)
+        strategies = (
+            list(strategy_map.values())
+            if args.strategy == "all"
+            else [strategy_map[args.strategy]]
+        )
         severities = _get_severities(args.severity)
 
         # Statistics

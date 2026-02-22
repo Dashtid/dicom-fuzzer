@@ -650,26 +650,6 @@ class TestSetupCampaignDirs:
         assert crashes_dir.exists()
 
 
-class TestGetStrategies:
-    """Test _get_strategies function."""
-
-    def test_all_strategies(self):
-        """Test 'all' returns all strategies."""
-        from dicom_fuzzer.cli.commands.study_campaign import _get_strategies
-
-        strategy_map = {"a": 1, "b": 2, "c": 3}
-        result = _get_strategies("all", strategy_map)
-        assert result == [1, 2, 3]
-
-    def test_single_strategy(self):
-        """Test single strategy selection."""
-        from dicom_fuzzer.cli.commands.study_campaign import _get_strategies
-
-        strategy_map = {"a": 1, "b": 2, "c": 3}
-        result = _get_strategies("b", strategy_map)
-        assert result == [2]
-
-
 class TestGetSeverities:
     """Test _get_severities function."""
 
