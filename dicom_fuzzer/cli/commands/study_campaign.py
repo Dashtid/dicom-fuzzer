@@ -19,7 +19,7 @@ import tempfile
 import time
 import traceback
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -264,7 +264,7 @@ def run_list_strategies() -> int:
 
 def log(message: str, log_file: Path | None = None) -> None:
     """Log message with timestamp."""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
     formatted = f"{timestamp} - {message}"
     print(formatted)
     if log_file:
@@ -770,7 +770,7 @@ def run_campaign(args: argparse.Namespace) -> int:
             "timeout": 0,
             "memory_exceeded": 0,
             "error": 0,
-            "start_time": datetime.now().isoformat(),
+            "start_time": datetime.now(tz=UTC).isoformat(),
             "end_time": None,
         }
 
@@ -799,7 +799,7 @@ def run_campaign(args: argparse.Namespace) -> int:
 
         # Final summary
         elapsed_total = time.time() - start_campaign
-        stats["end_time"] = datetime.now().isoformat()
+        stats["end_time"] = datetime.now(tz=UTC).isoformat()
         _log_campaign_summary(stats, elapsed_total, log_file)
         _save_campaign_results(
             output_path, target_path, study_path, args, stats, log_file
