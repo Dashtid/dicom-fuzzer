@@ -91,7 +91,7 @@ class CampaignRunner:
 
         """
         total_expected = self.num_files_per_input * len(self.input_files)
-        logger.info(f"Generating up to {total_expected} fuzzed files...")
+        logger.info("Generating up to %d fuzzed files...", total_expected)
         start_time = time.time()
 
         generator = DICOMGenerator(self.args.output, skip_write_errors=True)
@@ -143,7 +143,7 @@ class CampaignRunner:
                 )
                 files.extend(batch_files)
             except Exception as e:
-                logger.warning(f"Failed to process {input_file}: {e}")
+                logger.warning("Failed to process %s: %s", input_file, e)
                 if self.args.verbose:
                     print(f"  [!] Skipping {input_file.name}: {e}")
 

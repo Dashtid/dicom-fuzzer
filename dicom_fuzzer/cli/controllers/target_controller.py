@@ -84,16 +84,16 @@ class TargetTestingController:
             return 0
 
         except FileNotFoundError as e:
-            logger.error(f"Target executable not found: {e}")
+            logger.error("Target executable not found: %s", e)
             print(f"\n[ERROR] Target executable not found: {args.target}")
             print("Please verify the path and try again.")
             return 1
         except ImportError as e:
-            logger.error(f"Missing dependency: {e}")
+            logger.error("Missing dependency: %s", e)
             print(f"\n[ERROR] {e}")
             return 1
         except Exception as e:
-            logger.error(f"Target testing failed: {e}", exc_info=args.verbose)
+            logger.error("Target testing failed: %s", e, exc_info=args.verbose)
             print(f"\n[ERROR] Target testing failed: {e}")
             if args.verbose:
                 import traceback
