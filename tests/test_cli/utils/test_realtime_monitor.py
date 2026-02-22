@@ -551,13 +551,13 @@ class TestFuzzingSessionClass:
 
     def test_fuzzing_session_exists(self):
         """Test that FuzzingSession class is importable."""
-        from dicom_fuzzer.cli.utils.realtime_monitor import FuzzingSession
+        from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
 
         assert FuzzingSession is not None
 
     def test_fuzzing_session_instantiation(self):
         """Test that FuzzingSession can be instantiated."""
-        from dicom_fuzzer.cli.utils.realtime_monitor import FuzzingSession
+        from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
 
         session = FuzzingSession()
         assert session is not None

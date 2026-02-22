@@ -4,6 +4,8 @@ This module provides a specialized runner for GUI applications that don't exit
 after processing files, such as DICOM viewers (Hermes Affinity, MicroDicom, etc.).
 """
 
+from __future__ import annotations
+
 import logging
 import subprocess
 import sys
@@ -107,9 +109,11 @@ class GUITargetRunner:
         self.memory_exceeded = 0
 
         logger.info(
-            f"GUITargetRunner initialized: target={target_executable}, "
-            f"timeout={timeout}s, memory_limit={memory_limit_mb}MB, "
-            f"startup_delay={startup_delay}s"
+            "GUITargetRunner initialized: target=%s, timeout=%ss, memory_limit=%sMB, startup_delay=%ss",
+            target_executable,
+            timeout,
+            memory_limit_mb,
+            startup_delay,
         )
 
     def _monitor_process(
@@ -137,8 +141,9 @@ class GUITargetRunner:
                     crashed = True
                     self.crashes += 1
                     logger.warning(
-                        f"GUI app crashed: {test_file_path.name} "
-                        f"(exit_code={exit_code})"
+                        "GUI app crashed: %s (exit_code=%s)",
+                        test_file_path.name,
+                        exit_code,
                     )
                 break
 
@@ -181,7 +186,9 @@ class GUITargetRunner:
 
             if self.memory_limit_mb and mem_mb > self.memory_limit_mb:
                 logger.warning(
-                    f"Memory limit exceeded: {mem_mb:.1f}MB > {self.memory_limit_mb}MB"
+                    "Memory limit exceeded: %.1fMB > %sMB",
+                    mem_mb,
+                    self.memory_limit_mb,
                 )
                 self.memory_exceeded += 1
                 return mem_mb, True
@@ -206,7 +213,7 @@ class GUITargetRunner:
             )
             return stdout, stderr
         except Exception as comm_err:
-            logger.debug(f"Failed to capture process output: {comm_err}")
+            logger.debug("Failed to capture process output: %s", comm_err)
             return "", ""
 
     def execute_test(self, test_file: Path | str) -> GUIExecutionResult:
@@ -220,7 +227,7 @@ class GUITargetRunner:
 
         """
         test_file_path = Path(test_file) if isinstance(test_file, str) else test_file
-        logger.debug(f"Testing file: {test_file_path.name}")
+        logger.debug("Testing file: %s", test_file_path.name)
 
         self.total_tests += 1
         start_time = time.time()
@@ -245,7 +252,7 @@ class GUITargetRunner:
             )
 
             if self.startup_delay > 0:
-                logger.debug(f"Waiting {self.startup_delay}s for app to start...")
+                logger.debug("Waiting %ss for app to start...", self.startup_delay)
                 time.sleep(self.startup_delay)
                 start_time = time.time()
 
@@ -254,7 +261,7 @@ class GUITargetRunner:
             )
 
         except Exception as e:
-            logger.error(f"Error testing {test_file_path.name}: {e}")
+            logger.error("Error testing %s: %s", test_file_path.name, e)
             crashed = True
             stderr_data = str(e)
 
@@ -304,7 +311,7 @@ class GUITargetRunner:
         except psutil.NoSuchProcess:
             logger.debug("Process tree already terminated")
         except Exception as e:
-            logger.warning(f"Failed to kill process tree: {e}")
+            logger.warning("Failed to kill process tree: %s", e)
 
     def run_campaign(
         self, test_files: list[Path], stop_on_crash: bool = False
@@ -323,18 +330,22 @@ class GUITargetRunner:
             status: [] for status in ExecutionStatus
         }
 
-        logger.info(f"Starting GUI fuzzing campaign with {len(test_files)} files")
+        logger.info("Starting GUI fuzzing campaign with %d files", len(test_files))
 
         for i, test_file in enumerate(test_files, 1):
-            logger.debug(f"[{i}/{len(test_files)}] Testing {test_file.name}")
+            logger.debug("[%d/%d] Testing %s", i, len(test_files), test_file.name)
 
             result = self.execute_test(test_file)
             results[result.status].append(result)
 
             if result.crashed:
                 logger.warning(
-                    f"[{i}/{len(test_files)}] CRASH: {test_file.name} "
-                    f"(exit={result.exit_code}, mem={result.peak_memory_mb:.1f}MB)"
+                    "[%d/%d] CRASH: %s (exit=%s, mem=%.1fMB)",
+                    i,
+                    len(test_files),
+                    test_file.name,
+                    result.exit_code,
+                    result.peak_memory_mb,
                 )
                 if stop_on_crash:
                     logger.info("Stopping on first crash")
