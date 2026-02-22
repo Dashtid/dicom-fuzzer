@@ -227,6 +227,7 @@ class GUITargetRunner:
 
         """
         test_file_path = Path(test_file) if isinstance(test_file, str) else test_file
+        test_file_path = test_file_path.resolve()
         logger.debug("Testing file: %s", test_file_path.name)
 
         self.total_tests += 1
