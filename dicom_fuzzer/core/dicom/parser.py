@@ -121,6 +121,11 @@ class DicomParser:
 
     def _parse_dicom_file(self) -> None:
         """Parse the DICOM file with comprehensive error handling."""
+        # Tolerate vendor private tags with wrong-length data (e.g. 6-byte value
+        # in an 8-byte VR). Without this, pydicom raises BytesLengthException
+        # during lazy element conversion at save time.
+        pydicom.config.convert_wrong_length_to_UN = True
+
         try:
             # force=True: seed files may be non-standard DICOM; security checks above
             # handle file-level safety (size, existence), force handles format tolerance
