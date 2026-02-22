@@ -1,6 +1,6 @@
 """Tests for main.py file/path validation functions.
 
-Tests cover validate_input_path, validate_input_file, _is_potential_dicom,
+Tests cover validate_input_path, _is_potential_dicom,
 and parse_target_config functions.
 """
 
@@ -12,7 +12,6 @@ import pytest
 from dicom_fuzzer.cli.main import (
     _is_potential_dicom,
     parse_target_config,
-    validate_input_file,
     validate_input_path,
 )
 
@@ -161,35 +160,6 @@ class TestIsPotentialDicom:
 
         extensions = {".dcm", ".dicom", ".dic", ""}
         assert _is_potential_dicom(test_file, extensions) is False
-
-
-class TestValidateInputFile:
-    """Test validate_input_file function (legacy)."""
-
-    def test_valid_file(self, tmp_path):
-        """Test validating existing file."""
-        test_file = tmp_path / "test.dcm"
-        test_file.write_bytes(b"test")
-
-        result = validate_input_file(str(test_file))
-
-        assert result == test_file
-
-    def test_file_not_found(self, tmp_path):
-        """Test non-existent file raises SystemExit."""
-        nonexistent = tmp_path / "nonexistent.dcm"
-
-        with pytest.raises(SystemExit) as exc_info:
-            validate_input_file(str(nonexistent))
-
-        assert exc_info.value.code == 1
-
-    def test_directory_instead_of_file(self, tmp_path):
-        """Test that directory path raises SystemExit."""
-        with pytest.raises(SystemExit) as exc_info:
-            validate_input_file(str(tmp_path))
-
-        assert exc_info.value.code == 1
 
 
 class TestParseTargetConfig:

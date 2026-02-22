@@ -268,33 +268,6 @@ def _is_potential_dicom(file_path: Path, extensions: set[str]) -> bool:
     return False
 
 
-def validate_input_file(file_path: str) -> Path:
-    """Validate that the input file exists and is a DICOM file.
-
-    Args:
-        file_path: Path to input DICOM file
-
-    Returns:
-        Validated Path object
-
-    Raises:
-        SystemExit: If file doesn't exist or isn't accessible
-
-    Note:
-        This function is kept for backwards compatibility.
-        Use validate_input_path for new code supporting directories.
-
-    """
-    path = Path(file_path)
-    if not path.exists():
-        print(f"Error: Input file '{file_path}' not found")
-        sys.exit(1)
-    if not path.is_file():
-        print(f"Error: '{file_path}' is not a file")
-        sys.exit(1)
-    return path
-
-
 def parse_strategies(strategies_str: str | None) -> list[str]:
     """Parse comma-separated strategy list.
 
@@ -309,7 +282,26 @@ def parse_strategies(strategies_str: str | None) -> list[str]:
         or dicom_fuzzer.cve module for deterministic CVE file generation.
 
     """
-    valid_strategies = {"metadata", "header", "pixel", "structure"}
+    valid_strategies = {
+        "calibration",
+        "compressed_pixel",
+        "conformance",
+        "dictionary",
+        "encapsulated_pdf",
+        "encoding",
+        "header",
+        "metadata",
+        "nuclear_medicine",
+        "pet",
+        "pixel",
+        "private_tag",
+        "reference",
+        "rt_dose",
+        "rt_structure_set",
+        "segmentation",
+        "sequence",
+        "structure",
+    }
 
     # Handle None input - return empty list
     if strategies_str is None:
@@ -548,7 +540,7 @@ def main() -> int:
         print("\n\n[INTERRUPTED] Campaign stopped by user")
         return 130
     except Exception as e:
-        logger.error(f"Fuzzing failed: {e}", exc_info=args.verbose)
+        logger.error("Fuzzing failed: %s", e, exc_info=args.verbose)
         print(f"\n[ERROR] Fuzzing failed: {e}")
         if args.verbose:
             import traceback

@@ -21,7 +21,6 @@ from dicom_fuzzer.cli.main import (
     parse_target_config,
     pre_campaign_health_check,
     setup_logging,
-    validate_input_file,
     validate_strategy,
 )
 from dicom_fuzzer.core.session.resource_manager import ResourceLimits
@@ -248,33 +247,6 @@ class TestSetupLogging:
                 root_logger.removeHandler(handler)
             for handler in original_handlers:
                 root_logger.addHandler(handler)
-
-
-# =============================================================================
-# Tests for validate_input_file
-# =============================================================================
-class TestValidateInputFile:
-    """Tests for validate_input_file function."""
-
-    def test_valid_file(self, tmp_path):
-        """Test with valid existing file."""
-        test_file = tmp_path / "test.dcm"
-        test_file.write_text("test content")
-
-        result = validate_input_file(str(test_file))
-        assert result == test_file
-
-    def test_file_not_found(self, tmp_path):
-        """Test with non-existent file."""
-        with pytest.raises(SystemExit) as exc_info:
-            validate_input_file("/nonexistent/file.dcm")
-        assert exc_info.value.code == 1
-
-    def test_path_is_directory(self, tmp_path):
-        """Test when path is a directory, not a file."""
-        with pytest.raises(SystemExit) as exc_info:
-            validate_input_file(str(tmp_path))
-        assert exc_info.value.code == 1
 
 
 # =============================================================================

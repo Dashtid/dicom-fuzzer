@@ -20,7 +20,6 @@ from dicom_fuzzer.cli.main import (
     main,
     parse_strategies,
     setup_logging,
-    validate_input_file,
 )
 
 
@@ -80,23 +79,6 @@ class TestArgumentParsing:
         strategies = parse_strategies("METADATA,Header")
         assert "metadata" in strategies
         assert "header" in strategies
-
-    def test_validate_input_file_exists(self, sample_dicom):
-        """Test input file validation for existing file."""
-        result = validate_input_file(str(sample_dicom))
-        assert result == sample_dicom
-
-    def test_validate_input_file_not_found(self, tmp_path):
-        """Test input file validation for non-existent file."""
-        fake_file = tmp_path / "nonexistent.dcm"
-
-        with pytest.raises(SystemExit):
-            validate_input_file(str(fake_file))
-
-    def test_validate_input_not_a_file(self, tmp_path):
-        """Test input file validation for directory."""
-        with pytest.raises(SystemExit):
-            validate_input_file(str(tmp_path))
 
 
 class TestLoggingSetup:
