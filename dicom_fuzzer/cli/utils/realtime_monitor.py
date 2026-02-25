@@ -20,14 +20,14 @@ import time
 from pathlib import Path
 from typing import Any
 
-# Import rich at module level for test compatibility
+# Check rich availability -- Console is imported locally where needed
 try:
-    from rich.console import Console
+    import rich
 
     HAS_RICH = True
+    del rich
 except ImportError:
     HAS_RICH = False
-    Console = None  # type: ignore[assignment,misc]
 
 __all__ = [
     "RealtimeMonitor",
