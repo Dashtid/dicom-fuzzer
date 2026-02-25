@@ -23,15 +23,12 @@ class MutationStrategy(Protocol):
     @property
     def strategy_name(self) -> str:
         """Return the strategy name for identification."""
-        ...
 
     def mutate(self, dataset: Dataset) -> Dataset:
         """Apply mutation to the dataset."""
-        ...
 
     def can_mutate(self, dataset: Dataset) -> bool:
         """Check if this strategy can be applied to this dataset."""
-        ...
 
 
 @dataclass

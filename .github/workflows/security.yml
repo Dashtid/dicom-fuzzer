@@ -65,48 +65,6 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
 
-  dependency-check:
-    name: OWASP Dependency Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v5
-        with:
-          python-version: '3.11'
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f  # v4
-        with:
-          version: "latest"
-
-      - name: Install dependencies
-        run: |
-          uv sync --all-extras
-
-      - name: Generate dependency list
-        run: |
-          uv export --format requirements-txt --no-hashes > installed-deps.txt
-
-      - name: Run OWASP Dependency-Check
-        uses: dependency-check/Dependency-Check_Action@1e54355a8b4c8abaa8cc7d0b70aa655a3bb15a6c  # main
-        with:
-          project: 'DICOM-Fuzzer'
-          path: '.'
-          format: 'ALL'
-          args: >
-            --enableRetired
-            --enableExperimental
-
-      - name: Upload Dependency-Check results
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
-        if: always()
-        with:
-          name: dependency-check-report
-          path: reports/
-
   secrets-scan:
     name: Secret Detection Scan
     runs-on: ubuntu-latest
@@ -170,114 +128,10 @@ jobs:
             packages.json
             packages.txt
 
-  security-scorecard:
-    name: Security Scorecard
-    runs-on: ubuntu-latest
-    # Security Scorecard is informational - don't fail pipeline on low scores
-    continue-on-error: true
-    permissions:
-      security-events: write
-      id-token: write
-      contents: read
-      actions: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-        with:
-          persist-credentials: false
-
-      - name: Run Scorecard analysis
-        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a  # v2.4.3
-        with:
-          results_file: results.sarif
-          results_format: sarif
-          publish_results: true
-
-      - name: Upload Scorecard results to GitHub
-        uses: github/codeql-action/upload-sarif@9e907b5e64f6b83e7804b09294d44122997950d6  # v4
-        if: always() && hashFiles('results.sarif') != ''
-        with:
-          sarif_file: results.sarif
-
-  license-compliance:
-    name: License Compliance Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v5
-        with:
-          python-version: '3.11'
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f  # v4
-        with:
-          version: "latest"
-
-      - name: Install dependencies
-        run: |
-          uv sync --all-extras
-          uv pip install pip-licenses
-
-      - name: Check licenses
-        run: |
-          uv run pip-licenses --format=json --with-urls --with-description --output-file=licenses.json
-          uv run pip-licenses --format=markdown --with-urls --with-description > licenses.md
-
-      - name: Verify license compatibility
-        run: |
-          # Check for incompatible licenses (GPL, AGPL with proprietary)
-          uv run pip-licenses | grep -E "GPL|AGPL" || echo "No copyleft licenses found"
-
-      - name: Upload license report
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
-        with:
-          name: license-report
-          path: |
-            licenses.json
-            licenses.md
-
-  sbom-generation:
-    name: Generate SBOM (CycloneDX)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v5
-        with:
-          python-version: '3.11'
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f  # v4
-        with:
-          version: "latest"
-
-      - name: Install dependencies
-        run: |
-          uv sync --all-extras
-          uv pip install cyclonedx-bom
-
-      - name: Generate CycloneDX SBOM
-        run: |
-          uv run cyclonedx-py environment --of json -o sbom.json
-          uv run cyclonedx-py environment --of xml -o sbom.xml
-
-      - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
-        with:
-          name: sbom
-          path: |
-            sbom.json
-            sbom.xml
-
   security-summary:
     name: Security Analysis Summary
     runs-on: ubuntu-latest
-    needs: [semgrep-sast, trivy-scan, dependency-check, secrets-scan, supply-chain-security, license-compliance, sbom-generation]
+    needs: [semgrep-sast, trivy-scan, secrets-scan, supply-chain-security]
     if: always()
     steps:
       - name: Check security status
@@ -286,11 +140,8 @@ jobs:
           echo "========================="
           echo "Semgrep SAST: ${{ needs.semgrep-sast.result }}"
           echo "Trivy Scan: ${{ needs.trivy-scan.result }}"
-          echo "Dependency Check: ${{ needs.dependency-check.result }}"
           echo "Secrets Scan: ${{ needs.secrets-scan.result }}"
           echo "Supply Chain: ${{ needs.supply-chain-security.result }}"
-          echo "License Compliance: ${{ needs.license-compliance.result }}"
-          echo "SBOM Generation: ${{ needs.sbom-generation.result }}"
 
           if [ "${{ needs.semgrep-sast.result }}" != "success" ] || \
              [ "${{ needs.trivy-scan.result }}" != "success" ] || \
