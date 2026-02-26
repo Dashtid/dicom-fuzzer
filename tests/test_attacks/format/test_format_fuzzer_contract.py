@@ -25,6 +25,7 @@ from dicom_fuzzer.attacks.format import (
     PixelFuzzer,
     PrivateTagFuzzer,
     ReferenceFuzzer,
+    SegmentationFuzzer,
     SequenceFuzzer,
     StructureFuzzer,
 )
@@ -38,6 +39,7 @@ ALL_FUZZERS = [
     DictionaryFuzzer(),
     EncapsulatedPdfFuzzer(),
     EncodingFuzzer(),
+    SegmentationFuzzer(),
     HeaderFuzzer(),
     MetadataFuzzer(),
     PixelFuzzer(),
