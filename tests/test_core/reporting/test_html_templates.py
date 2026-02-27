@@ -14,7 +14,6 @@ from dicom_fuzzer.core.reporting.html_templates import (
     render_code_block,
     render_details,
     render_info_row,
-    render_progress_bar,
     render_stat_card,
     render_table_header,
     render_table_row,
@@ -177,26 +176,6 @@ class TestRenderTable:
         """Test table row without escaping."""
         html = render_table_row(['<span class="badge">OK</span>'], escape=False)
         assert '<span class="badge">OK</span>' in html
-
-
-class TestRenderProgressBar:
-    """Tests for progress bar rendering."""
-
-    def test_renders_progress_bar(self) -> None:
-        """Test basic progress bar rendering."""
-        html = render_progress_bar(50, 100, "Progress")
-        assert "Progress" in html
-        assert "50.0%" in html
-
-    def test_custom_color(self) -> None:
-        """Test progress bar with custom color."""
-        html = render_progress_bar(25, 100, "Done", color="#ff0000")
-        assert "#ff0000" in html
-
-    def test_show_count(self) -> None:
-        """Test progress bar with count display."""
-        html = render_progress_bar(25, 100, "Items", show_count=25)
-        assert "25" in html
 
 
 class TestDocumentStructure:
