@@ -198,6 +198,24 @@ class TestExecuteTest:
         assert isinstance(result.exception, subprocess.TimeoutExpired)
 
     @patch("subprocess.run")
+    def test_timeout_calls_record_crash(self, mock_run, target_runner, tmp_path):
+        """Test that timeout calls record_crash to persist the crash report."""
+        test_file = tmp_path / "hang.dcm"
+        test_file.write_text("hangs forever")
+
+        mock_run.side_effect = subprocess.TimeoutExpired(
+            cmd=["test"], timeout=2.0, output=b"", stderr=b""
+        )
+
+        with patch.object(
+            target_runner.crash_analyzer,
+            "record_crash",
+            wraps=target_runner.crash_analyzer.record_crash,
+        ) as mock_record:
+            target_runner.execute_test(test_file)
+            mock_record.assert_called_once()
+
+    @patch("subprocess.run")
     def test_execute_test_exception(self, mock_run, target_runner, tmp_path):
         """Test handling of unexpected exceptions."""
         test_file = tmp_path / "error.dcm"

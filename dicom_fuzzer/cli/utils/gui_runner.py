@@ -10,9 +10,11 @@ import logging
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
+from dicom_fuzzer.core.crash.windows_crash_handler import WindowsCrashHandler
 from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
 
 try:
@@ -44,6 +46,7 @@ class GUIExecutionResult:
     timed_out: bool  # True if we killed it after timeout (normal for GUI)
     stdout: str = ""
     stderr: str = ""
+    windows_crash_info: Any = field(default=None, repr=False)
 
     def __bool__(self) -> bool:
         """Test succeeded if app didn't crash (timeout is OK for GUI apps)."""
@@ -101,6 +104,15 @@ class GUITargetRunner:
         self.crash_dir.mkdir(parents=True, exist_ok=True)
         self.memory_limit_mb = memory_limit_mb
         self.startup_delay = startup_delay
+
+        # Windows crash handler for NTSTATUS classification
+        self.windows_crash_handler: WindowsCrashHandler | None = None
+        if sys.platform == "win32":
+            self.windows_crash_handler = WindowsCrashHandler(crash_dir=self.crash_dir)
+            # Suppress WER dialogs so they don't block crash detection
+            import ctypes
+
+            ctypes.windll.kernel32.SetErrorMode(0x0002)  # SEM_NOGPFAULTERRORBOX
 
         # Statistics
         self.total_tests = 0
@@ -275,6 +287,24 @@ class GUITargetRunner:
 
         status = ExecutionStatus.CRASH if crashed else ExecutionStatus.SUCCESS
 
+        # Classify Windows crashes via NTSTATUS codes
+        crash_info = None
+        if crashed and exit_code is not None and self.windows_crash_handler:
+            if self.windows_crash_handler.is_windows_crash(exit_code):
+                crash_info = self.windows_crash_handler.analyze_crash(
+                    exit_code=exit_code,
+                    test_file=test_file_path,
+                    stdout=stdout_data,
+                    stderr=stderr_data,
+                )
+                self.windows_crash_handler.save_crash_report(crash_info, test_file_path)
+                logger.warning(
+                    "Windows crash classified: %s (0x%08X, severity=%s)",
+                    crash_info.exception_name,
+                    crash_info.exception_code,
+                    crash_info.severity,
+                )
+
         return GUIExecutionResult(
             test_file=test_file_path,
             status=status,
@@ -285,6 +315,7 @@ class GUITargetRunner:
             timed_out=timed_out,
             stdout=stdout_data,
             stderr=stderr_data,
+            windows_crash_info=crash_info,
         )
 
     def _kill_process_tree(self, process: subprocess.Popen[bytes]) -> None:

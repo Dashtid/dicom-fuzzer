@@ -417,7 +417,7 @@ class TargetRunner:
     ) -> ExecutionResult:
         """Handle timeout exception."""
         execution_time = time.time() - start_time
-        crash_report = self.crash_analyzer.analyze_exception(
+        crash_report = self.crash_analyzer.record_crash(
             Exception(f"Timeout after {self.timeout}s"), test_case_path=str(test_file)
         )
         self._update_circuit_breaker(success=False)

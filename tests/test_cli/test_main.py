@@ -663,11 +663,20 @@ class TestMain:
                 mock_generator.stats.strategies_used = {}
                 mock_generator_class.return_value = mock_generator
 
-                with patch(
-                    "dicom_fuzzer.cli.controllers.target_controller.TargetRunner"
-                ) as mock_runner_class:
+                with (
+                    patch(
+                        "dicom_fuzzer.cli.controllers.target_controller.TargetRunner"
+                    ) as mock_runner_class,
+                    patch(
+                        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._record_crashes"
+                    ),
+                    patch(
+                        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._generate_report",
+                        return_value=None,
+                    ),
+                ):
                     mock_runner = MagicMock()
-                    mock_runner.run_campaign.return_value = []
+                    mock_runner.run_campaign.return_value = {MagicMock(): []}
                     mock_runner.get_summary.return_value = "Test Summary"
                     mock_runner_class.return_value = mock_runner
 
@@ -931,11 +940,20 @@ class TestMain:
                 mock_generator.stats.strategies_used = {}
                 mock_generator_class.return_value = mock_generator
 
-                with patch(
-                    "dicom_fuzzer.cli.controllers.target_controller.TargetRunner"
-                ) as mock_runner_class:
+                with (
+                    patch(
+                        "dicom_fuzzer.cli.controllers.target_controller.TargetRunner"
+                    ) as mock_runner_class,
+                    patch(
+                        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._record_crashes"
+                    ),
+                    patch(
+                        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._generate_report",
+                        return_value=None,
+                    ),
+                ):
                     mock_runner = MagicMock()
-                    mock_runner.run_campaign.return_value = []
+                    mock_runner.run_campaign.return_value = {MagicMock(): []}
                     mock_runner.get_summary.return_value = "Test Summary"
                     mock_runner_class.return_value = mock_runner
 
