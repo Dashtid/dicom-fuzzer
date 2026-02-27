@@ -263,11 +263,11 @@ class DicomMutator:
 
         # Check cache first
         if cache_key in self._strategy_cache:
-            logger.debug("Using cached strategies for dataset type")
             return self._strategy_cache[cache_key]
 
         # Cache miss - compute applicable strategies
         applicable = []
+        skipped = []
 
         for strategy in self.strategies:
             # Check if specific strategies were requested
@@ -278,7 +278,7 @@ class DicomMutator:
                 if strategy.can_mutate(dataset):
                     applicable.append(strategy)
                 else:
-                    logger.debug("Strategy %s not applicable", strategy.strategy_name)
+                    skipped.append(strategy.strategy_name)
             except Exception as e:
                 logger.warning(
                     "Error checking strategy %s: %s", strategy.strategy_name, e
@@ -286,7 +286,11 @@ class DicomMutator:
 
         # Store in cache for future use
         self._strategy_cache[cache_key] = applicable
-        logger.debug("Cached %s applicable strategies", len(applicable))
+        logger.debug(
+            "Cached %d applicable strategies (skipped: %s)",
+            len(applicable),
+            ", ".join(skipped) if skipped else "none",
+        )
 
         return applicable
 

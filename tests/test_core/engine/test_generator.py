@@ -549,9 +549,9 @@ class TestGeneratorErrorHandling:
         output_dir = temp_dir / "save_error"
         generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=False)
 
-        # Mock save_as to raise struct.error
-        with patch("pydicom.dataset.Dataset.save_as") as mock_save:
-            mock_save.side_effect = struct.error("Test save error")
+        # Mock dcmwrite to raise struct.error
+        with patch("dicom_fuzzer.core.engine.generator.dcmwrite") as mock_write:
+            mock_write.side_effect = struct.error("Test save error")
 
             try:
                 generator.generate_batch(sample_dicom_file, count=1, strategies=[])
@@ -568,9 +568,9 @@ class TestGeneratorErrorHandling:
         output_dir = temp_dir / "unexpected"
         generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
 
-        # Mock save_as to raise an unexpected exception
-        with patch("pydicom.dataset.Dataset.save_as") as mock_save:
-            mock_save.side_effect = RuntimeError("Unexpected error")
+        # Mock dcmwrite to raise an unexpected exception
+        with patch("dicom_fuzzer.core.engine.generator.dcmwrite") as mock_write:
+            mock_write.side_effect = RuntimeError("Unexpected error")
 
             try:
                 generator.generate_batch(sample_dicom_file, count=1, strategies=[])
@@ -602,9 +602,9 @@ class TestGeneratorErrorHandling:
         output_dir = temp_dir / "save_skip"
         generator = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
 
-        # Mock save_as to raise struct.error
-        with patch("pydicom.dataset.Dataset.save_as") as mock_save:
-            mock_save.side_effect = struct.error("Test save error")
+        # Mock dcmwrite to raise struct.error
+        with patch("dicom_fuzzer.core.engine.generator.dcmwrite") as mock_write:
+            mock_write.side_effect = struct.error("Test save error")
 
             # Should skip errors without raising
             files = generator.generate_batch(sample_dicom_file, count=5, strategies=[])

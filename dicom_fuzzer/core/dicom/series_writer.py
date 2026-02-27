@@ -10,6 +10,7 @@
 import json
 import shutil
 import time
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -134,31 +135,33 @@ class SeriesWriter:
             series.modality,
         )
 
-        # Write all slices
+        # Write all slices (suppress pydicom warnings from fuzzed data)
         slice_files = []
         total_size = 0
-        for i, (dataset, original_path) in enumerate(
-            zip(datasets, series.slices, strict=False), start=1
-        ):
-            slice_filename = f"slice_{i:03d}.dcm"
-            slice_path = series_dir / slice_filename
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", module="pydicom")
+            for i, (dataset, original_path) in enumerate(
+                zip(datasets, series.slices, strict=False), start=1
+            ):
+                slice_filename = f"slice_{i:03d}.dcm"
+                slice_path = series_dir / slice_filename
 
-            try:
-                # Write DICOM file
-                dataset.save_as(slice_path, write_like_original=False)
-                file_size = slice_path.stat().st_size
-                total_size += file_size
-                slice_files.append(slice_filename)
+                try:
+                    # Write DICOM file
+                    dataset.save_as(slice_path, write_like_original=False)
+                    file_size = slice_path.stat().st_size
+                    total_size += file_size
+                    slice_files.append(slice_filename)
 
-                logger.debug(
-                    "  Wrote %s (%s bytes) [original: %s]",
-                    slice_filename,
-                    f"{file_size:,}",
-                    original_path.name,
-                )
-            except Exception as e:
-                logger.error("Failed to write slice %d: %s", i, e)
-                raise OSError(f"Failed to write slice {slice_filename}") from e
+                    logger.debug(
+                        "  Wrote %s (%s bytes) [original: %s]",
+                        slice_filename,
+                        f"{file_size:,}",
+                        original_path.name,
+                    )
+                except Exception as e:
+                    logger.error("Failed to write slice %d: %s", i, e)
+                    raise OSError(f"Failed to write slice {slice_filename}") from e
 
         # Create metadata
         metadata = SeriesMetadata(
@@ -216,7 +219,9 @@ class SeriesWriter:
         output_path = self.output_root / output_name
 
         try:
-            dataset.save_as(output_path, write_like_original=False)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", module="pydicom")
+                dataset.save_as(output_path, write_like_original=False)
             file_size = output_path.stat().st_size
             logger.info(
                 "Wrote single slice: %s (%s bytes)", output_name, f"{file_size:,}"

@@ -10,6 +10,7 @@ from pathlib import Path
 
 from pydicom.dataset import Dataset
 from pydicom.errors import BytesLengthException
+from pydicom.filewriter import dcmwrite
 from pydicom.tag import BaseTag, Tag
 from pydicom.uid import ExplicitVRLittleEndian
 
@@ -205,15 +206,20 @@ class DICOMGenerator:
     _CHARSET_TAG = Tag(0x0008, 0x0005)
 
     @staticmethod
-    def _prepare_dataset_for_save(dataset: Dataset) -> None:
+    def _prepare_dataset_for_save(dataset: Dataset) -> dict[str, bool]:
         """Fix dataset issues that prevent pydicom serialization.
 
-        Applies four fixes so mutated datasets can be written to disk:
+        Applies three fixes so mutated datasets can be written to disk:
         1. Switches compressed transfer syntax to Explicit VR Little Endian
-        2. Syncs endianness attributes to match transfer syntax
-        3. Removes corrupted SpecificCharacterSet that breaks all string encoding
-        4. Strips DICOM Command Set tags (group 0000)
+        2. Removes corrupted SpecificCharacterSet that breaks all string encoding
+        3. Strips DICOM Command Set tags (group 0000)
+
+        Returns dict with ``little_endian`` and ``implicit_vr`` kwargs
+        for ``dcmwrite()``, derived from the dataset's transfer syntax.
         """
+        # Defaults: Explicit VR Little Endian
+        write_kwargs: dict[str, bool] = {"little_endian": True, "implicit_vr": False}
+
         file_meta = getattr(dataset, "file_meta", None)
         if file_meta is not None:
             ts = getattr(file_meta, "TransferSyntaxUID", None)
@@ -229,17 +235,11 @@ class DICOMGenerator:
                     file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
                     ts_str = str(ExplicitVRLittleEndian)
 
-                # Sync endianness attributes to match TS (prevents
-                # "cannot convert between little and big endian" errors)
+                # Derive encoding from transfer syntax
                 if ts_str == "1.2.840.10008.1.2.2":  # Big Endian
-                    dataset.is_little_endian = False
-                    dataset.is_implicit_VR = False
+                    write_kwargs = {"little_endian": False, "implicit_vr": False}
                 elif ts_str == "1.2.840.10008.1.2":  # Implicit VR LE
-                    dataset.is_little_endian = True
-                    dataset.is_implicit_VR = True
-                else:  # Explicit VR Little Endian
-                    dataset.is_little_endian = True
-                    dataset.is_implicit_VR = False
+                    write_kwargs = {"little_endian": True, "implicit_vr": True}
 
         # Remove corrupted SpecificCharacterSet -- when a mutation sets it
         # to a non-string type, pydicom fails to encode every string tag
@@ -253,6 +253,8 @@ class DICOMGenerator:
         command_tags = [tag for tag in dataset if tag.tag.group == 0x0000]
         for tag in command_tags:
             del dataset[tag.tag]
+
+        return write_kwargs
 
     # Regex to extract DICOM tag from pydicom error messages like
     # "With tag (0018,9324) got exception: ..." or "tag (0008,0005)"
@@ -285,12 +287,12 @@ class DICOMGenerator:
         filename = f"fuzzed_{generate_short_id()}.dcm"
         output_path = self.output_dir / filename
 
-        self._prepare_dataset_for_save(mutated_dataset)
+        write_kwargs = self._prepare_dataset_for_save(mutated_dataset)
 
         max_retries = 10
         for attempt in range(max_retries):
             try:
-                mutated_dataset.save_as(output_path, enforce_file_format=False)
+                dcmwrite(output_path, mutated_dataset, **write_kwargs)
                 self.stats.record_success(strategies_applied)
                 return output_path
             except self._SAVE_ERRORS as e:
