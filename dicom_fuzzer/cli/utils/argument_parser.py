@@ -110,6 +110,15 @@ def _add_basic_args(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Output results in JSON format (useful for CI/CD pipelines)",
     )
+    parser.add_argument(
+        "--log-file",
+        type=str,
+        metavar="FILE",
+        help=(
+            "Write logs to FILE in addition to console. "
+            "If not specified, logs are written to {output_dir}/campaign.log automatically."
+        ),
+    )
     parser.add_argument("--version", action="version", version=VERSION)
 
 

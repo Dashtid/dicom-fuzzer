@@ -5,6 +5,7 @@ Uses structlog for consistent, analyzable log output.
 """
 
 import logging
+import re
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -90,6 +91,16 @@ def add_security_context(
     return event_dict
 
 
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+class _PlainFormatter(logging.Formatter):
+    """Formatter that strips ANSI color codes for plain-text log files."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        return _ANSI_RE.sub("", super().format(record))
+
+
 def configure_logging(
     log_level: str = "INFO", json_format: bool = True, log_file: Path | None = None
 ) -> None:
@@ -145,9 +156,9 @@ def configure_logging(
 
     if log_file:
         log_file.parent.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(log_file)
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
         file_handler.setLevel(getattr(logging, log_level.upper()))
-        file_handler.setFormatter(logging.Formatter("%(message)s"))
+        file_handler.setFormatter(_PlainFormatter("%(message)s"))
         logging.root.addHandler(file_handler)
 
 

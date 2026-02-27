@@ -13,6 +13,7 @@ import json
 import logging
 import shutil
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -176,14 +177,31 @@ def apply_resource_limits(
     return None
 
 
-def setup_logging(verbose: bool = False) -> None:
-    """Configure logging based on verbosity level."""
-    level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+def setup_logging(verbose: bool = False, log_file: Path | None = None) -> Path | None:
+    """Configure logging based on verbosity level.
+
+    Sets up both stdlib logging and structlog to share the same handlers.
+    This ensures all log output (from both standard loggers and structlog
+    loggers) is captured in the log file.
+
+    Args:
+        verbose: Enable DEBUG level logging.
+        log_file: Optional path to write logs to (in addition to console).
+
+    Returns:
+        The resolved log file path, or None if no file logging.
+
+    """
+    from dicom_fuzzer.utils.logger import configure_logging
+
+    log_level = "DEBUG" if verbose else "INFO"
+    configure_logging(log_level=log_level, json_format=False, log_file=log_file)
+
+    # Route Python warnings (e.g. pydicom deprecation) through logging
+    # so they're captured in the log file too
+    logging.captureWarnings(True)
+
+    return log_file
 
 
 def _scan_directory_for_dicom(
@@ -502,20 +520,24 @@ def main() -> int:
     quiet_mode = getattr(args, "quiet", False)
     json_mode = getattr(args, "json", False)
 
+    # Resolve log file: explicit --log-file, or auto-generate in output dir
+    output_path = Path(args.output)
+    output_path.mkdir(parents=True, exist_ok=True)
+    log_file = _resolve_log_file(args, output_path)
+
     if quiet_mode and not args.verbose:
         logging.getLogger().setLevel(logging.ERROR)
-        setup_logging(False)
+        setup_logging(False, log_file)
     else:
-        setup_logging(args.verbose)
+        resolved = setup_logging(args.verbose, log_file)
+        if resolved and not quiet_mode:
+            cli.info(f"Logging to {resolved}")
 
     try:
         resource_limits = _create_resource_limits(args)
         recursive = getattr(args, "recursive", False)
         input_files = validate_input_path(args.input_file, recursive)
         selected_strategies = parse_strategies(getattr(args, "strategies", None))
-
-        output_path = Path(args.output)
-        output_path.mkdir(parents=True, exist_ok=True)
 
         passed, _ = pre_campaign_health_check(
             output_path,
@@ -547,6 +569,22 @@ def main() -> int:
 
             traceback.print_exc()
         return 1
+
+
+def _resolve_log_file(args: argparse.Namespace, output_path: Path) -> Path | None:
+    """Resolve the log file path from CLI args or auto-generate one.
+
+    If --log-file is given explicitly, use that. Otherwise auto-generate
+    a timestamped log file in the output directory so campaigns always
+    have a persistent log to review.
+    """
+    explicit = getattr(args, "log_file", None)
+    if explicit:
+        return Path(explicit)
+
+    # Auto-generate: {output_dir}/campaign_{timestamp}.log
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    return output_path / f"campaign_{timestamp}.log"
 
 
 def _create_resource_limits(args: argparse.Namespace) -> ResourceLimits | None:
