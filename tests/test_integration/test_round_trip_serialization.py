@@ -6,7 +6,7 @@ Verifies that mutated DICOM datasets survive the serialize-deserialize round-tri
 This is the actual production code path in DICOMGenerator._save_mutated_file().
 
 Categories:
-- Format fuzzers (11 of 12; CompressedPixelFuzzer skipped -- binary-level)
+- Format fuzzers (17 of 18; CompressedPixelFuzzer skipped -- binary-level)
 - Multiframe strategies (10)
 - Calibration deterministic (8 exact-value tests)
 - NaN/Inf edge cases (4)
@@ -32,12 +32,18 @@ from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 from dicom_fuzzer.attacks.format.calibration_fuzzer import CalibrationFuzzer
 from dicom_fuzzer.attacks.format.conformance_fuzzer import ConformanceFuzzer
 from dicom_fuzzer.attacks.format.dictionary_fuzzer import DictionaryFuzzer
+from dicom_fuzzer.attacks.format.encapsulated_pdf_fuzzer import EncapsulatedPdfFuzzer
 from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
 from dicom_fuzzer.attacks.format.header_fuzzer import HeaderFuzzer
 from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
+from dicom_fuzzer.attacks.format.nm_fuzzer import NuclearMedicineFuzzer
+from dicom_fuzzer.attacks.format.pet_fuzzer import PetFuzzer
 from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
 from dicom_fuzzer.attacks.format.private_tag_fuzzer import PrivateTagFuzzer
 from dicom_fuzzer.attacks.format.reference_fuzzer import ReferenceFuzzer
+from dicom_fuzzer.attacks.format.rt_dose_fuzzer import RTDoseFuzzer
+from dicom_fuzzer.attacks.format.rtss_fuzzer import RTStructureSetFuzzer
+from dicom_fuzzer.attacks.format.seg_fuzzer import SegmentationFuzzer
 from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
 from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
 from dicom_fuzzer.attacks.multiframe.dimension_index import DimensionIndexStrategy
@@ -391,7 +397,43 @@ class TestExpectedFailureFuzzerRoundTrip:
 
 
 # =============================================================================
-# 3. Calibration Deterministic Round-Trip
+# 3. Modality-Specific Format Fuzzers
+# =============================================================================
+class TestModalitySpecificFuzzerRoundTrip:
+    """Modality-specific fuzzers operate at Dataset API level -- should round-trip cleanly.
+
+    These fuzzers check can_mutate() only in the mutator pipeline; mutate()
+    itself applies mutations regardless of SOP class, so the generic
+    serializable_dataset works for round-trip validation.
+    """
+
+    @pytest.mark.parametrize(
+        ("fuzzer_cls", "threshold"),
+        [
+            (EncapsulatedPdfFuzzer, 0.80),
+            (NuclearMedicineFuzzer, 0.80),
+            (PetFuzzer, 0.80),
+            (RTDoseFuzzer, 0.80),
+            (RTStructureSetFuzzer, 0.80),
+            (SegmentationFuzzer, 0.80),
+        ],
+    )
+    def test_round_trip_rate(self, serializable_dataset, fuzzer_cls, threshold):
+        stats = run_statistical_round_trip(
+            fuzzer_cls=fuzzer_cls,
+            dataset=serializable_dataset,
+        )
+        assert stats["success_rate"] >= threshold, (
+            f"{fuzzer_cls.__name__} round-trip {stats['success_rate']:.0%} "
+            f"< {threshold:.0%} ({stats})"
+        )
+        assert stats["mutations_survived"] > 0, (
+            f"{fuzzer_cls.__name__}: no mutations survived round-trip"
+        )
+
+
+# =============================================================================
+# 4. Calibration Deterministic Round-Trip
 # =============================================================================
 class TestCalibrationRoundTrip:
     """CalibrationFuzzer with deterministic attack_type -- exact value assertions."""
@@ -434,7 +476,7 @@ class TestCalibrationRoundTrip:
 
 
 # =============================================================================
-# 4. Multiframe Strategy Round-Trip
+# 5. Multiframe Strategy Round-Trip
 # =============================================================================
 class TestMultiframeRoundTrip:
     """All 10 multiframe strategies -- statistical round-trip."""
@@ -466,7 +508,7 @@ class TestMultiframeRoundTrip:
 
 
 # =============================================================================
-# 5. NaN/Inf Serialization Edge Cases
+# 6. NaN/Inf Serialization Edge Cases
 # =============================================================================
 class TestNaNInfSerialization:
     """Verify NaN/Inf values survive the pydicom round-trip."""
@@ -502,7 +544,7 @@ class TestNaNInfSerialization:
 
 
 # =============================================================================
-# 6. File Format Enforcement
+# 7. File Format Enforcement
 # =============================================================================
 class TestEnforceFileFormat:
     """Verify behavioral difference between enforce_file_format True/False."""
@@ -525,7 +567,7 @@ class TestEnforceFileFormat:
 
 
 # =============================================================================
-# 7. Deep Nesting Boundary
+# 8. Deep Nesting Boundary
 # =============================================================================
 class TestDeepNestingBoundary:
     """Verify recursion limit behavior for nested sequences."""
@@ -575,7 +617,7 @@ class TestDeepNestingBoundary:
 
 
 # =============================================================================
-# 8. Skipped Categories (documentation only)
+# 9. Skipped Categories (documentation only)
 # =============================================================================
 class TestSkippedCategories:
     """Document strategies intentionally excluded from round-trip testing."""

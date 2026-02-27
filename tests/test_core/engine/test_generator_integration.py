@@ -3,7 +3,7 @@
 Tests the full production pipeline:
   seed.dcm -> DICOMGenerator.generate_batch(strategies=[X]) -> output files
 
-Verifies that each of the 12 format fuzzer strategies can produce mutated
+Verifies that each of the 18 format fuzzer strategies can produce mutated
 DICOM files that exist on disk, are parseable, and differ from the seed.
 """
 
@@ -27,19 +27,25 @@ pytestmark = [
 ]
 
 # ---------------------------------------------------------------------------
-# All 12 registered format fuzzer strategy names
+# All 18 registered format fuzzer strategy names
 # ---------------------------------------------------------------------------
 ALL_STRATEGIES = [
     "calibration",
     "compressed_pixel",
     "conformance",
     "dictionary",
+    "encapsulated_pdf",
     "encoding",
     "header",
     "metadata",
+    "nuclear_medicine",
+    "pet",
     "pixel",
     "private_tag",
     "reference",
+    "rt_dose",
+    "rt_structure_set",
+    "segmentation",
     "sequence",
     "structure",
 ]
@@ -62,6 +68,14 @@ MIN_FILES = {
     "encoding": 0,
     "sequence": 0,
     "compressed_pixel": 0,
+    # Modality-specific fuzzers: can_mutate() returns False for the CT seed,
+    # so 0 files expected.  Still validates strategy selection path.
+    "encapsulated_pdf": 0,
+    "nuclear_medicine": 0,
+    "pet": 0,
+    "rt_dose": 0,
+    "rt_structure_set": 0,
+    "segmentation": 0,
 }
 
 GENERATE_COUNT = 50
@@ -250,7 +264,7 @@ class TestGeneratorAllStrategies:
         files = gen.generate_batch(
             original_file=str(seed_dicom_file),
             count=100,
-            strategies=None,  # Use all 12
+            strategies=None,  # Use all 18
         )
 
         assert len(files) >= 1, (
