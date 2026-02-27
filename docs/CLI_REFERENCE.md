@@ -8,14 +8,39 @@ dicom-fuzzer INPUT [OPTIONS]
 
 ### Common Options
 
-| Option                   | Default               | Description                     |
-| ------------------------ | --------------------- | ------------------------------- |
-| `-c, --count N`          | 100                   | Number of fuzzed files          |
-| `-o, --output DIR`       | ./artifacts/campaigns | Output directory                |
-| `-s, --strategies STRAT` | all                   | metadata,header,pixel,structure |
-| `-r, --recursive`        | false                 | Recursive directory scan        |
-| `-v, --verbose`          | false                 | Verbose logging                 |
-| `--json`                 | false                 | JSON output                     |
+| Option                   | Default               | Description                   |
+| ------------------------ | --------------------- | ----------------------------- |
+| `-c, --count N`          | 100                   | Number of fuzzed files        |
+| `-o, --output DIR`       | ./artifacts/campaigns | Output directory              |
+| `-s, --strategies STRAT` | all                   | See [Strategies](#strategies) |
+| `-r, --recursive`        | false                 | Recursive directory scan      |
+| `-v, --verbose`          | false                 | Verbose logging               |
+| `--json`                 | false                 | JSON output                   |
+
+### Strategies
+
+Available format fuzzing strategies for `-s, --strategies`:
+
+| Strategy           | Description                        |
+| ------------------ | ---------------------------------- |
+| `calibration`      | Calibration/measurement corruption |
+| `compressed_pixel` | Compressed pixel data attacks      |
+| `conformance`      | DICOM conformance violations       |
+| `dictionary`       | Data dictionary manipulation       |
+| `encapsulated_pdf` | Encapsulated PDF document attacks  |
+| `encoding`         | Character encoding corruption      |
+| `header`           | DICOM header/preamble attacks      |
+| `metadata`         | Metadata tag manipulation          |
+| `nuclear_medicine` | Nuclear medicine modality attacks  |
+| `pet`              | PET modality attacks               |
+| `pixel`            | Pixel data corruption              |
+| `private_tag`      | Private tag injection/corruption   |
+| `reference`        | UID/reference corruption           |
+| `rt_dose`          | RT Dose modality attacks           |
+| `rt_structure_set` | RT Structure Set modality attacks  |
+| `segmentation`     | Segmentation modality attacks      |
+| `sequence`         | DICOM sequence manipulation        |
+| `structure`        | Dataset structure attacks          |
 
 ### Target Testing
 
