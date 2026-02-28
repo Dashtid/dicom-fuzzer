@@ -74,8 +74,8 @@ class DictionaryFuzzer(FormatFuzzerBase):
         0x00080058,  # Failed SOP Instance UID List
     }
 
-    # VR types that require binary data (skip mutation)
-    _BINARY_VRS = frozenset({"OB", "OW", "OD", "OF", "OL", "OV", "UN"})
+    # VR types that require binary data or structured content (skip mutation)
+    _BINARY_VRS = frozenset({"OB", "OW", "OD", "OF", "OL", "OV", "UN", "SQ"})
 
     # Numeric VR types that need string-to-number conversion
     _NUMERIC_VRS = frozenset({"US", "SS", "UL", "SL", "IS", "DS", "FL", "FD", "AT"})

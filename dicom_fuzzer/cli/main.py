@@ -207,6 +207,11 @@ def setup_logging(log_file: Path, console_level: str = "INFO") -> Path:
     logging.captureWarnings(True)
     warnings.filterwarnings("ignore", module="pydicom")
 
+    # Suppress pydicom's own logging noise (validation warnings, VR parse messages).
+    # These fire hundreds of times per campaign for intentional fuzzer mutations
+    # (oversized values, invalid charsets, bad VRs) and are expected behavior.
+    logging.getLogger("pydicom").setLevel(logging.ERROR)
+
     return log_file
 
 

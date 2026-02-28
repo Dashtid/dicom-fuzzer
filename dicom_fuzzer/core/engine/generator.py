@@ -341,6 +341,21 @@ class DICOMGenerator:
             )
             return True
 
+        # Fallback: remove elements with VR=None (unresolvable private tags).
+        # These cause struct.pack / TypeError failures in dcmwrite()
+        # because pydicom cannot determine how to serialize them.
+        # At runtime, iterating a Dataset can yield RawDataElement with VR=None
+        # even though pydicom's stubs don't reflect this.
+        for elem in list(dataset):
+            if getattr(elem, "VR", "XX") is None:
+                del dataset[elem.tag]
+                logger.debug(
+                    "Removed element with VR=None: %s (attempt %d)",
+                    getattr(elem, "tag", "unknown"),
+                    attempt + 1,
+                )
+                return True
+
         return False
 
     @classmethod
