@@ -252,21 +252,22 @@ class TestBoundaryValues:
     """Tests for _boundary_values method."""
 
     def test_boundary_rows(self, fuzzer: HeaderFuzzer, sample_dataset: Dataset) -> None:
-        """Test Rows receives boundary value."""
+        """Test Rows receives raw-bytes boundary value."""
         random.seed(42)
         result = fuzzer._boundary_values(sample_dataset)
         assert isinstance(result, Dataset)
-        boundary_values = [0, 1, 65535, -1, 2147483647]
-        assert result.Rows in boundary_values
+        elem = result.data_element("Rows")
+        assert elem._value in set(HeaderFuzzer._US_BOUNDARIES)
 
     def test_boundary_columns(
         self, fuzzer: HeaderFuzzer, sample_dataset: Dataset
     ) -> None:
-        """Test Columns receives boundary value."""
+        """Test Columns receives raw-bytes boundary value."""
         random.seed(42)
         result = fuzzer._boundary_values(sample_dataset)
         assert isinstance(result, Dataset)
-        assert result.Columns in [0, 1, 65535, -1]
+        elem = result.data_element("Columns")
+        assert elem._value in set(HeaderFuzzer._US_BOUNDARIES)
 
     def test_boundary_patient_age(
         self, fuzzer: HeaderFuzzer, sample_dataset: Dataset

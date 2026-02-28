@@ -306,6 +306,10 @@ class DICOMGenerator:
                 self.stats.record_failure(error_name)
                 if self.skip_write_errors:
                     self.stats.skipped_due_to_write_errors += 1
+                    # Clean up partial file left by dcmwrite (it writes the
+                    # preamble/meta before serializing elements, so a crash
+                    # mid-write leaves a truncated ghost file on disk).
+                    output_path.unlink(missing_ok=True)
                     logger.debug("Save error skipped: %s: %s", error_name, e)
                     return None
                 raise
@@ -355,6 +359,36 @@ class DICOMGenerator:
                     attempt + 1,
                 )
                 return True
+
+        # Last resort: probe numeric elements for unpackable values.
+        # Catches TypeErrors from C-level struct.pack failures where the
+        # error message lacks a (XXXX,XXXX) tag pattern.
+        pack_fmt = {
+            "US": "<H",
+            "SS": "<h",
+            "UL": "<I",
+            "SL": "<i",
+            "FL": "<f",
+            "FD": "<d",
+        }
+        for elem in list(dataset):
+            vr = getattr(elem, "VR", None)
+            fmt = pack_fmt.get(vr) if vr else None
+            if fmt is None:
+                continue
+            val = getattr(elem, "value", None)
+            if isinstance(val, (int, float)):
+                try:
+                    struct.pack(fmt, val)
+                except (struct.error, TypeError, OverflowError):
+                    del dataset[elem.tag]
+                    logger.debug(
+                        "Removed element with unpackable value: %s=%r (attempt %d)",
+                        elem.tag,
+                        val,
+                        attempt + 1,
+                    )
+                    return True
 
         return False
 

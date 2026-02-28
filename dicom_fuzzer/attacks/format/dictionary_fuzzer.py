@@ -187,7 +187,6 @@ class DictionaryFuzzer(FormatFuzzerBase):
             elif vr in {"IS", "DS"}:
                 return self._convert_to_string_vr(value)
             elif vr == "AT":
-                logger.debug(f"Skipping mutation of AT tag {tag:08X}")
                 return None
             return value
         except (ValueError, AttributeError):
@@ -204,7 +203,6 @@ class DictionaryFuzzer(FormatFuzzerBase):
 
             # Skip binary VR types
             if vr in self._BINARY_VRS:
-                logger.debug(f"Skipping mutation of binary VR tag {tag:08X} (VR={vr})")
                 return
 
             # Handle UI (Unique Identifier) VR specially
@@ -218,7 +216,6 @@ class DictionaryFuzzer(FormatFuzzerBase):
                     root = random.choice(DICOMDictionaries.get_dictionary("uid_roots"))
                     value = DICOMDictionaries.generate_random_uid(root)
                 dataset[tag].value = value
-                logger.debug(f"Mutated UI tag {tag:08X}", new_value=str(value)[:50])
                 return
 
             # Convert string values to appropriate numeric types
@@ -229,7 +226,6 @@ class DictionaryFuzzer(FormatFuzzerBase):
                 value = converted
 
             dataset[tag].value = value
-            logger.debug(f"Mutated tag {tag:08X}", new_value=str(value)[:50])
         except Exception as e:
             logger.debug(f"Failed to mutate tag {tag:08X}: {e}")
 
