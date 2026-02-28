@@ -13,6 +13,7 @@ import json
 import logging
 import shutil
 import sys
+import warnings
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -200,9 +201,11 @@ def setup_logging(log_file: Path, console_level: str = "INFO") -> Path:
         console_level=console_level,
     )
 
-    # Route Python warnings (e.g. pydicom deprecation) through logging
-    # so they're captured in the log file too
+    # Route Python warnings through logging so they're captured in the log file.
+    # Suppress pydicom's duplicate warnings: pydicom's warn_and_log() emits both
+    # warnings.warn() AND logging.warning(), so captureWarnings would double them.
     logging.captureWarnings(True)
+    warnings.filterwarnings("ignore", module="pydicom")
 
     return log_file
 

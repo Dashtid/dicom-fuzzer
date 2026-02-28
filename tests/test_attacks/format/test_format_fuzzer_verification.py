@@ -2189,7 +2189,7 @@ class TestMissingFileMeta:
         for _ in range(20):
             ds = copy.deepcopy(conformance_dataset)
             result = conf_fuzzer._missing_file_meta(ds)
-            if result.file_meta is None:
+            if len(result.file_meta) == 0:
                 any_removed = True
                 break
             if not hasattr(result.file_meta, "MediaStorageSOPClassUID"):
@@ -2209,7 +2209,7 @@ class TestMissingFileMeta:
         for _ in range(100):
             ds = copy.deepcopy(conformance_dataset)
             result = conf_fuzzer._missing_file_meta(ds)
-            if result.file_meta is None:
+            if len(result.file_meta) == 0:
                 removals.add("all")
             elif not hasattr(result.file_meta, "MediaStorageSOPClassUID"):
                 removals.add("sop_class")

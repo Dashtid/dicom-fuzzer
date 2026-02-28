@@ -270,7 +270,7 @@ class ConformanceFuzzer(FormatFuzzerBase):
         try:
             if attack == "remove_all":
                 if hasattr(dataset, "file_meta"):
-                    dataset.file_meta = None  # pyright: ignore[reportAttributeAccessIssue]
+                    dataset.file_meta = FileMetaDataset()
 
             elif attack == "remove_sop_class":
                 self._ensure_file_meta(dataset)

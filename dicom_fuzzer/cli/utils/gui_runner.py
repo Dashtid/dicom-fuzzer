@@ -6,7 +6,6 @@ after processing files, such as DICOM viewers (Hermes Affinity, MicroDicom, etc.
 
 from __future__ import annotations
 
-import logging
 import subprocess
 import sys
 import time
@@ -16,6 +15,7 @@ from typing import Any
 
 from dicom_fuzzer.core.crash.windows_crash_handler import WindowsCrashHandler
 from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
+from dicom_fuzzer.utils.logger import get_logger
 
 try:
     import psutil
@@ -24,7 +24,7 @@ try:
 except ImportError:
     HAS_PSUTIL = False
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass
