@@ -208,40 +208,35 @@ class TestApplyResourceLimits:
 class TestSetupLogging:
     """Tests for setup_logging function."""
 
-    def test_default_logging(self):
-        """Test default (non-verbose) logging setup."""
-        # Store original level
+    def test_default_logging(self, tmp_path):
+        """Test default (INFO console level) logging setup."""
         root_logger = logging.getLogger()
         original_level = root_logger.level
         original_handlers = root_logger.handlers[:]
 
         try:
-            setup_logging(verbose=False)
-            # Function should configure INFO level via basicConfig
-            # Check that the function ran without error
-            assert True
+            log_file = tmp_path / "test.log"
+            setup_logging(log_file)
+            # Root logger should be DEBUG (file handler needs full access)
+            assert root_logger.level == logging.DEBUG
         finally:
-            # Restore original state
             root_logger.setLevel(original_level)
             for handler in root_logger.handlers[:]:
                 root_logger.removeHandler(handler)
             for handler in original_handlers:
                 root_logger.addHandler(handler)
 
-    def test_verbose_logging(self):
-        """Test verbose logging setup."""
-        # Store original level
+    def test_verbose_logging(self, tmp_path):
+        """Test verbose (DEBUG console level) logging setup."""
         root_logger = logging.getLogger()
         original_level = root_logger.level
         original_handlers = root_logger.handlers[:]
 
         try:
-            setup_logging(verbose=True)
-            # Function should configure DEBUG level
-            # Check that the function ran without error
-            assert True
+            log_file = tmp_path / "test.log"
+            setup_logging(log_file, console_level="DEBUG")
+            assert root_logger.level == logging.DEBUG
         finally:
-            # Restore original state
             root_logger.setLevel(original_level)
             for handler in root_logger.handlers[:]:
                 root_logger.removeHandler(handler)

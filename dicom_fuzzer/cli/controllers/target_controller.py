@@ -13,6 +13,7 @@ from argparse import Namespace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from dicom_fuzzer.cli.utils import output as cli
 from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
 from dicom_fuzzer.core.harness.target_runner import ExecutionStatus, TargetRunner
 from dicom_fuzzer.core.reporting.enhanced_reporter import EnhancedReportGenerator
@@ -101,7 +102,7 @@ class TargetTestingController:
             )
             test_elapsed = time.time() - test_start
 
-            # Record crashes into session
+            # Record crashes into session and print crash alerts
             TargetTestingController._record_crashes(
                 session, results, file_id_map, args.target
             )
@@ -109,30 +110,31 @@ class TargetTestingController:
             # Display results
             summary = runner.get_summary(results)  # type: ignore[arg-type]
             print(summary)
-            print(
-                f"\nTarget testing completed in {test_elapsed:.2f}s "
-                f"({len(files) / test_elapsed:.1f} tests/sec)\n"
+            tests_per_sec = len(files) / test_elapsed if test_elapsed > 0 else 0
+            cli.info(
+                f"Target testing completed in {test_elapsed:.2f}s "
+                f"({tests_per_sec:.1f} tests/sec)"
             )
 
             # Generate HTML report
             report_path = TargetTestingController._generate_report(session, output_dir)
             if report_path:
-                print(f"  Report: {report_path}\n")
+                cli.detail("Report", str(report_path))
 
             return 0
 
         except FileNotFoundError as e:
             logger.error("Target executable not found: %s", e)
-            print(f"\n[ERROR] Target executable not found: {args.target}")
-            print("Please verify the path and try again.")
+            cli.error(f"Target executable not found: {args.target}")
+            cli.info("Please verify the path and try again.")
             return 1
         except ImportError as e:
             logger.error("Missing dependency: %s", e)
-            print(f"\n[ERROR] {e}")
+            cli.error(str(e))
             return 1
         except Exception as e:
             logger.error("Target testing failed: %s", e, exc_info=args.verbose)
-            print(f"\n[ERROR] Target testing failed: {e}")
+            cli.error(f"Target testing failed: {e}")
             if args.verbose:
                 import traceback
 
@@ -146,32 +148,26 @@ class TargetTestingController:
         gui_mode: bool,
         memory_limit: int | None,
     ) -> None:
-        """Display test campaign header.
-
-        Args:
-            args: Parsed command-line arguments
-            files: List of test files
-            gui_mode: Whether GUI mode is enabled
-            memory_limit: Memory limit in MB
-
-        """
-        print("\n" + "=" * 70)
+        """Display test campaign header."""
+        title = (
+            "Target Application Testing (GUI mode)"
+            if gui_mode
+            else "Target Application Testing"
+        )
+        cli.section(title)
+        cli.detail("Target", str(args.target))
+        cli.detail("Timeout", f"{args.timeout}s")
+        cli.detail("Files", str(len(files)))
         if gui_mode:
-            print("  GUI Application Testing (--gui-mode)")
-        else:
-            print("  Target Application Testing")
-        print("=" * 70)
-        print(f"  Target:     {args.target}")
-        print(f"  Timeout:    {args.timeout}s")
-        print(f"  Test files: {len(files)}")
-        if gui_mode:
-            print("  Mode:       GUI (app killed after timeout)")
+            cli.detail("Mode", "GUI (app killed after timeout)")
             if memory_limit:
-                print(f"  Mem limit:  {memory_limit}MB")
+                cli.detail("Mem limit", f"{memory_limit}MB")
             startup_delay_display = getattr(args, "startup_delay", 0.0)
             if startup_delay_display > 0:
-                print(f"  Startup:    {startup_delay_display}s delay before monitoring")
-        print("=" * 70 + "\n")
+                cli.detail(
+                    "Startup", f"{startup_delay_display}s delay before monitoring"
+                )
+        cli.divider()
 
     @staticmethod
     def _create_runner(
@@ -201,9 +197,7 @@ class TargetTestingController:
         if gui_mode:
             # Use GUITargetRunner for GUI applications
             if not HAS_PSUTIL:
-                print(
-                    "[ERROR] GUI mode requires psutil. Install with: pip install psutil"
-                )
+                cli.error("GUI mode requires psutil. Install with: pip install psutil")
                 sys.exit(1)
 
             startup_delay = getattr(args, "startup_delay", 0.0)
@@ -233,18 +227,16 @@ class TargetTestingController:
         results: dict[ExecutionStatus, list[Any]],
         file_id_map: dict[Path, str],
         target_path: str,
-    ) -> None:
-        """Record crash results into the fuzzing session.
+    ) -> int:
+        """Record crash results into the fuzzing session and print alerts.
 
-        Args:
-            session: Active fuzzing session
-            results: Campaign results keyed by status
-            file_id_map: Mapping from file path to session file ID
-            target_path: Path to target executable
+        Returns:
+            Total number of crashes + hangs recorded.
 
         """
         crash_results = results.get(ExecutionStatus.CRASH, [])
         hang_results = results.get(ExecutionStatus.HANG, [])
+        alert_num = 0
 
         for result in crash_results:
             test_file = result.test_file.resolve()
@@ -256,7 +248,6 @@ class TargetTestingController:
             exception_type = None
             exception_message = None
 
-            # Extract Windows crash info if available
             crash_info = getattr(result, "windows_crash_info", None)
             if crash_info:
                 exception_type = crash_info.exception_name
@@ -283,6 +274,10 @@ class TargetTestingController:
                 viewer_path=target_path,
             )
 
+            alert_num += 1
+            label = exception_type or "CRASH"
+            cli.warning(f"CRASH #{alert_num}: {test_file.name} ({label}, {severity})")
+
         for result in hang_results:
             test_file = result.test_file.resolve()
             file_id = file_id_map.get(test_file)
@@ -297,6 +292,11 @@ class TargetTestingController:
                 exception_message=f"Process hung (timeout={getattr(result, 'execution_time', 'unknown')}s)",
                 viewer_path=target_path,
             )
+
+            alert_num += 1
+            cli.warning(f"HANG #{alert_num}: {test_file.name} (Timeout, medium)")
+
+        return alert_num
 
     @staticmethod
     def _generate_report(

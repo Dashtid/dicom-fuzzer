@@ -80,7 +80,7 @@ class DicomMutator:
         if self.config.get("auto_register_strategies", True):
             self._register_default_strategies()
 
-        logger.info("DicomMutator initialized with config: %s", self.config)
+        logger.debug("DicomMutator initialized with config: %s", self.config)
 
     def _load_default_config(self) -> None:
         """Fill in default values for any missing config keys."""
@@ -180,7 +180,7 @@ class DicomMutator:
             original_file_info=file_info or {},
         )
 
-        logger.info("Started mutation session: %s", self.current_session.session_id)
+        logger.debug("Started mutation session: %s", self.current_session.session_id)
         return self.current_session.session_id
 
     def apply_mutations(
@@ -204,7 +204,7 @@ class DicomMutator:
         if num_mutations is None:
             num_mutations = int(self.config.get("max_mutations_per_file", 1))
 
-        logger.info("Applying %s mutations", num_mutations)
+        logger.debug("Applying %s mutations", num_mutations)
 
         mutated_dataset = dataset.copy()
 
@@ -240,7 +240,7 @@ class DicomMutator:
                 # Record the failed mutation
                 self._record_mutation(strategy, success=False, error=str(e))
 
-        logger.info("Successfully applied %s mutations", mutations_applied)
+        logger.debug("Successfully applied %s mutations", mutations_applied)
         return mutated_dataset
 
     def _get_applicable_strategies(
@@ -346,7 +346,7 @@ class DicomMutator:
         self.current_session.end_time = datetime.now(UTC)
 
         completed_session = self.current_session
-        logger.info(
+        logger.debug(
             "Mutation session %s completed: %d/%d mutations successful",
             completed_session.session_id,
             completed_session.successful_mutations,

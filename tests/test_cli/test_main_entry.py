@@ -18,30 +18,30 @@ from dicom_fuzzer.cli.main import (
 class TestSetupLogging:
     """Test setup_logging function."""
 
-    def test_setup_verbose(self):
-        """Test logging setup with verbose=True."""
+    def test_setup_verbose(self, tmp_path):
+        """Test logging setup with DEBUG console level."""
         import logging
 
-        # Clear existing handlers to ensure basicConfig takes effect
         root = logging.getLogger()
         for handler in root.handlers[:]:
             root.removeHandler(handler)
 
-        setup_logging(verbose=True)
-        # Check root logger level
+        log_file = tmp_path / "test.log"
+        setup_logging(log_file, console_level="DEBUG")
         assert root.level == logging.DEBUG
 
-    def test_setup_non_verbose(self):
-        """Test logging setup with verbose=False."""
+    def test_setup_non_verbose(self, tmp_path):
+        """Test logging setup with INFO console level."""
         import logging
 
-        # Clear existing handlers
         root = logging.getLogger()
         for handler in root.handlers[:]:
             root.removeHandler(handler)
 
-        setup_logging(verbose=False)
-        assert root.level == logging.INFO
+        log_file = tmp_path / "test.log"
+        setup_logging(log_file)
+        # Root at DEBUG because file handler needs it
+        assert root.level == logging.DEBUG
 
 
 class TestApplyResourceLimits:

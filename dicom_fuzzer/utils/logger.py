@@ -102,31 +102,46 @@ class _PlainFormatter(logging.Formatter):
 
 
 def configure_logging(
-    log_level: str = "INFO", json_format: bool = True, log_file: Path | None = None
+    log_level: str = "INFO",
+    json_format: bool = True,
+    log_file: Path | None = None,
+    console_level: str | None = None,
 ) -> None:
-    """Configure structlog for the application.
+    """Configure dual-channel logging: console (human dashboard) + file (forensic record).
+
+    Console shows ``console_level`` and above (default: same as ``log_level``).
+    File always captures DEBUG so every detail is available for post-mortem.
 
     Args:
-        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        json_format: Whether to output JSON format (True) or human-readable (False)
-        log_file: Optional file path to write logs to
+        log_level: Minimum logging level for the overall system.
+        json_format: Whether to output JSON format (True) or human-readable (False).
+        log_file: Optional file path to write logs to.
+        console_level: Logging level for console output. If None, uses ``log_level``.
 
     Example:
-        >>> configure_logging(log_level="DEBUG", json_format=True)
+        >>> configure_logging(log_level="DEBUG", console_level="INFO", log_file=Path("run.log"))
         >>> logger = structlog.get_logger("dicom_fuzzer")
-        >>> logger.info("fuzzing_started", target="example.dcm")
+        >>> logger.debug("only_in_file")   # appears in run.log only
+        >>> logger.info("both_channels")   # appears on console AND in file
 
     """
+    if console_level is None:
+        console_level = log_level
+
     # Clear existing handlers to allow reconfiguration
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
 
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=getattr(logging, log_level.upper()),
-        force=True,  # Force reconfiguration even if handlers exist
-    )
+    # Root logger at DEBUG so the file handler sees everything.
+    # Console handler level gates what the user sees on screen.
+    root_level = logging.DEBUG if log_file else getattr(logging, console_level.upper())
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(getattr(logging, console_level.upper()))
+    console_handler.setFormatter(logging.Formatter("%(message)s"))
+
+    logging.root.setLevel(root_level)
+    logging.root.addHandler(console_handler)
 
     processors: list[Processor] = [
         structlog.contextvars.merge_contextvars,
@@ -144,11 +159,15 @@ def configure_logging(
     else:
         processors.append(structlog.dev.ConsoleRenderer())
 
+    # structlog filter at DEBUG so it never pre-filters messages
+    # that the file handler needs to capture.
+    structlog_level = (
+        logging.DEBUG if log_file else getattr(logging, console_level.upper())
+    )
+
     structlog.configure(
         processors=processors,
-        wrapper_class=structlog.make_filtering_bound_logger(
-            getattr(logging, log_level.upper())
-        ),
+        wrapper_class=structlog.make_filtering_bound_logger(structlog_level),
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
@@ -157,7 +176,7 @@ def configure_logging(
     if log_file:
         log_file.parent.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(log_file, encoding="utf-8")
-        file_handler.setLevel(getattr(logging, log_level.upper()))
+        file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(_PlainFormatter("%(message)s"))
         logging.root.addHandler(file_handler)
 

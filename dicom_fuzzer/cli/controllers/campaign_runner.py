@@ -152,6 +152,9 @@ class CampaignRunner:
     def _generate_from_single_file(self, generator: DICOMGenerator) -> list[Path]:
         """Generate fuzzed files from single input file.
 
+        In verbose mode, generates one file at a time and prints a clean
+        per-file line with the strategy name. Otherwise uses tqdm progress bar.
+
         Args:
             generator: The DICOM generator instance
 
@@ -161,11 +164,13 @@ class CampaignRunner:
         """
         input_path = self.input_files[0]
 
-        if HAS_TQDM and not self.args.verbose and self.num_files_per_input >= 20:
+        if self.args.verbose:
+            return self._generate_verbose(generator, input_path)
+
+        if HAS_TQDM and self.num_files_per_input >= 20:
             print("Generating fuzzed files...")
             with tqdm(total=self.num_files_per_input, unit="file", ncols=70) as pbar:
-                # Generate in smaller batches to update progress
-                batch_size = max(1, self.num_files_per_input // 20)  # 20 updates
+                batch_size = max(1, self.num_files_per_input // 20)
                 remaining = self.num_files_per_input
                 all_files: list[Path] = []
 
@@ -181,13 +186,50 @@ class CampaignRunner:
                     remaining -= current_batch
 
                 return all_files
-        else:
-            # No progress bar or small file count, generate all at once
-            return generator.generate_batch(
+
+        return generator.generate_batch(
+            str(input_path),
+            count=self.num_files_per_input,
+            strategies=self.selected_strategies,
+        )
+
+    def _generate_verbose(
+        self, generator: DICOMGenerator, input_path: Path
+    ) -> list[Path]:
+        """Generate files one at a time with per-file console output.
+
+        Prints a clean one-liner per file:
+            [1/500] fuzzed_abc123.dcm <- encoding
+
+        """
+        all_files: list[Path] = []
+        total = self.num_files_per_input
+
+        for i in range(total):
+            batch = generator.generate_batch(
                 str(input_path),
-                count=self.num_files_per_input,
+                count=1,
                 strategies=self.selected_strategies,
             )
+            if batch:
+                generated = batch[0]
+                strategy = self._get_last_strategy(generator)
+                print(f"  [{i + 1}/{total}] {generated.name} <- {strategy}")
+                all_files.extend(batch)
+            else:
+                print(f"  [{i + 1}/{total}] (skipped)")
+
+        return all_files
+
+    @staticmethod
+    def _get_last_strategy(generator: DICOMGenerator) -> str:
+        """Extract the strategy name from the most recent mutation."""
+        session = generator.mutator.current_session
+        if session and session.mutations:
+            last = session.mutations[-1]
+            if last.success:
+                return last.strategy_name
+        return "unknown"
 
     def _collect_stats(
         self,

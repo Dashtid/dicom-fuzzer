@@ -30,7 +30,7 @@ class TestDisplayHeader:
         )
 
         captured = capsys.readouterr()
-        assert "GUI Application Testing" in captured.out
+        assert "Target Application Testing (GUI mode)" in captured.out
         assert "GUI (app killed after timeout)" in captured.out
         assert "512MB" in captured.out
         assert "2.0s delay" in captured.out

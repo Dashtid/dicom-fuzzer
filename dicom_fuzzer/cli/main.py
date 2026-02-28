@@ -177,31 +177,48 @@ def apply_resource_limits(
     return None
 
 
-def setup_logging(verbose: bool = False, log_file: Path | None = None) -> Path | None:
-    """Configure logging based on verbosity level.
+def setup_logging(log_file: Path, console_level: str = "INFO") -> Path:
+    """Configure dual-channel logging: console (dashboard) + file (forensic).
 
-    Sets up both stdlib logging and structlog to share the same handlers.
-    This ensures all log output (from both standard loggers and structlog
-    loggers) is captured in the log file.
+    Console shows ``console_level`` and above.
+    File always captures full DEBUG for post-mortem analysis.
 
     Args:
-        verbose: Enable DEBUG level logging.
-        log_file: Optional path to write logs to (in addition to console).
+        log_file: Path to the campaign log file (always created).
+        console_level: Logging level for console output ("INFO" or "DEBUG").
 
     Returns:
-        The resolved log file path, or None if no file logging.
+        The log file path.
 
     """
     from dicom_fuzzer.utils.logger import configure_logging
 
-    log_level = "DEBUG" if verbose else "INFO"
-    configure_logging(log_level=log_level, json_format=False, log_file=log_file)
+    configure_logging(
+        log_level="DEBUG",
+        json_format=False,
+        log_file=log_file,
+        console_level=console_level,
+    )
 
     # Route Python warnings (e.g. pydicom deprecation) through logging
     # so they're captured in the log file too
     logging.captureWarnings(True)
 
     return log_file
+
+
+def _create_run_directory(output_root: Path) -> Path:
+    """Create an isolated run directory for this campaign.
+
+    Returns:
+        Path to the run directory (e.g. ``output_root/runs/20260227_154000/``).
+
+    """
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    run_dir = output_root / "runs" / timestamp
+    (run_dir / "fuzzed").mkdir(parents=True, exist_ok=True)
+    (run_dir / "crashes").mkdir(exist_ok=True)
+    return run_dir
 
 
 def _scan_directory_for_dicom(
@@ -520,18 +537,22 @@ def main() -> int:
     quiet_mode = getattr(args, "quiet", False)
     json_mode = getattr(args, "json", False)
 
-    # Resolve log file: explicit --log-file, or auto-generate in output dir
-    output_path = Path(args.output)
-    output_path.mkdir(parents=True, exist_ok=True)
-    log_file = _resolve_log_file(args, output_path)
+    # Create isolated run directory
+    output_root = Path(args.output)
+    run_dir = _create_run_directory(output_root)
+    log_file = run_dir / "campaign.log"
 
+    # Redirect output to the run's fuzzed/ subdirectory
+    args.output = str(run_dir / "fuzzed")
+
+    # Setup dual-channel logging: console at INFO (or DEBUG with -v), file always DEBUG
+    console_level = "DEBUG" if args.verbose else "INFO"
     if quiet_mode and not args.verbose:
-        logging.getLogger().setLevel(logging.ERROR)
-        setup_logging(False, log_file)
-    else:
-        resolved = setup_logging(args.verbose, log_file)
-        if resolved and not quiet_mode:
-            cli.info(f"Logging to {resolved}")
+        console_level = "ERROR"
+
+    setup_logging(log_file, console_level)
+    if not quiet_mode:
+        cli.info(f"Logging to {log_file}")
 
     try:
         resource_limits = _create_resource_limits(args)
@@ -540,7 +561,7 @@ def main() -> int:
         selected_strategies = parse_strategies(getattr(args, "strategies", None))
 
         passed, _ = pre_campaign_health_check(
-            output_path,
+            run_dir,
             target=getattr(args, "target", None),
             resource_limits=resource_limits,
             verbose=args.verbose,
@@ -555,7 +576,7 @@ def main() -> int:
         runner.display_results(files, results_data, json_mode, quiet_mode)
 
         return _run_optional_controllers(
-            args, files, input_files, output_path, resource_limits
+            args, files, input_files, run_dir, resource_limits
         )
 
     except KeyboardInterrupt:
@@ -569,22 +590,6 @@ def main() -> int:
 
             traceback.print_exc()
         return 1
-
-
-def _resolve_log_file(args: argparse.Namespace, output_path: Path) -> Path | None:
-    """Resolve the log file path from CLI args or auto-generate one.
-
-    If --log-file is given explicitly, use that. Otherwise auto-generate
-    a timestamped log file in the output directory so campaigns always
-    have a persistent log to review.
-    """
-    explicit = getattr(args, "log_file", None)
-    if explicit:
-        return Path(explicit)
-
-    # Auto-generate: {output_dir}/campaign_{timestamp}.log
-    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    return output_path / f"campaign_{timestamp}.log"
 
 
 def _create_resource_limits(args: argparse.Namespace) -> ResourceLimits | None:
