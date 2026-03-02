@@ -15,6 +15,7 @@ from typing import Any
 
 from dicom_fuzzer.cli.utils import output as cli
 from dicom_fuzzer.core.engine import DICOMGenerator
+from dicom_fuzzer.utils.logger import suppress_console
 
 logger = logging.getLogger(__name__)
 
@@ -167,31 +168,37 @@ class CampaignRunner:
         if self.args.verbose:
             return self._generate_verbose(generator, input_path)
 
-        if HAS_TQDM and self.num_files_per_input >= 20:
-            print("Generating fuzzed files...")
-            with tqdm(total=self.num_files_per_input, unit="file", ncols=70) as pbar:
-                batch_size = max(1, self.num_files_per_input // 20)
-                remaining = self.num_files_per_input
-                all_files: list[Path] = []
+        # Suppress console logging during generation so structlog messages
+        # don't interleave with the tqdm progress bar. The file handler
+        # still captures everything at DEBUG level.
+        with suppress_console():
+            if HAS_TQDM and self.num_files_per_input >= 20:
+                print("Generating fuzzed files...")
+                with tqdm(
+                    total=self.num_files_per_input, unit="file", ncols=70
+                ) as pbar:
+                    batch_size = max(1, self.num_files_per_input // 20)
+                    remaining = self.num_files_per_input
+                    all_files: list[Path] = []
 
-                while remaining > 0:
-                    current_batch = min(batch_size, remaining)
-                    batch_files = generator.generate_batch(
-                        str(input_path),
-                        count=current_batch,
-                        strategies=self.selected_strategies,
-                    )
-                    all_files.extend(batch_files)
-                    pbar.update(len(batch_files))
-                    remaining -= current_batch
+                    while remaining > 0:
+                        current_batch = min(batch_size, remaining)
+                        batch_files = generator.generate_batch(
+                            str(input_path),
+                            count=current_batch,
+                            strategies=self.selected_strategies,
+                        )
+                        all_files.extend(batch_files)
+                        pbar.update(len(batch_files))
+                        remaining -= current_batch
 
-                return all_files
+                    return all_files
 
-        return generator.generate_batch(
-            str(input_path),
-            count=self.num_files_per_input,
-            strategies=self.selected_strategies,
-        )
+            return generator.generate_batch(
+                str(input_path),
+                count=self.num_files_per_input,
+                strategies=self.selected_strategies,
+            )
 
     def _generate_verbose(
         self, generator: DICOMGenerator, input_path: Path
@@ -205,19 +212,20 @@ class CampaignRunner:
         all_files: list[Path] = []
         total = self.num_files_per_input
 
-        for i in range(total):
-            batch = generator.generate_batch(
-                str(input_path),
-                count=1,
-                strategies=self.selected_strategies,
-            )
-            if batch:
-                generated = batch[0]
-                strategy = self._get_last_strategy(generator)
-                print(f"  [{i + 1}/{total}] {generated.name} <- {strategy}")
-                all_files.extend(batch)
-            else:
-                print(f"  [{i + 1}/{total}] (skipped)")
+        with suppress_console():
+            for i in range(total):
+                batch = generator.generate_batch(
+                    str(input_path),
+                    count=1,
+                    strategies=self.selected_strategies,
+                )
+                if batch:
+                    generated = batch[0]
+                    strategy = self._get_last_strategy(generator)
+                    print(f"  [{i + 1}/{total}] {generated.name} <- {strategy}")
+                    all_files.extend(batch)
+                else:
+                    print(f"  [{i + 1}/{total}] (skipped)")
 
         return all_files
 

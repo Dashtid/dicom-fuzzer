@@ -394,7 +394,6 @@ class EncodingFuzzer(FormatFuzzerBase):
             encoding, desc = random.choice(overlong_encodings)
             value = b"Patient" + encoding + b"Name"
             dataset.add_new(Tag(0x0010, 0x0010), "PN", value)
-            logger.debug("Injected overlong UTF-8: %s", desc)
         except Exception as e:
             logger.debug("Overlong UTF-8 injection failed: %s", e)
 

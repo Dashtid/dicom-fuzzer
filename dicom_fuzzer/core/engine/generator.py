@@ -99,13 +99,6 @@ class DICOMGenerator:
         self.stats = GenerationStats()
         self.mutator.start_session()
 
-        logger.info(
-            "Starting batch generation: count=%d, strategies=%s, output=%s",
-            count,
-            strategies,
-            self.output_dir,
-        )
-
         # Suppress pydicom warnings during generation -- mutations
         # intentionally create malformed data that triggers warnings
         # (encoding failures, VR mismatches, oversized elements).
@@ -117,13 +110,6 @@ class DICOMGenerator:
                     generated_files.append(result)
 
         self.mutator.end_session()
-
-        logger.info(
-            "Batch complete: %d generated, %d failed, %d skipped (write errors)",
-            self.stats.successful,
-            self.stats.failed,
-            self.stats.skipped_due_to_write_errors,
-        )
 
         return generated_files
 

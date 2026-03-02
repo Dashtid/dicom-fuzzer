@@ -112,7 +112,6 @@ class SequenceFuzzer(FormatFuzzerBase):
             deep_seq = Sequence([create_nested_item(depth)])
             # Add to a common sequence tag
             dataset.add_new(Tag(0x0040, 0xA730), "SQ", deep_seq)  # ContentSequence
-            logger.debug("Created sequence with depth %s", depth)
         except Exception as e:
             logger.debug("Deep nesting attack failed: %s", e)
 

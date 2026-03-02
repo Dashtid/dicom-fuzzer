@@ -131,11 +131,6 @@ class DictionaryFuzzer(FormatFuzzerBase):
         for tag in tags_to_mutate:
             self._mutate_tag(mutated, tag)
 
-        logger.debug(
-            "Applied dictionary mutations",
-            num_mutations=len(tags_to_mutate),
-        )
-
         return mutated
 
     def _get_mutation_value(self, tag_int: int) -> str | int | float:

@@ -7,6 +7,8 @@ Uses structlog for consistent, analyzable log output.
 import logging
 import re
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -179,6 +181,28 @@ def configure_logging(
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(_PlainFormatter("%(message)s"))
         logging.root.addHandler(file_handler)
+
+
+@contextmanager
+def suppress_console() -> Iterator[None]:
+    """Temporarily suppress console logging during noisy phases.
+
+    Raises the console StreamHandler level to CRITICAL so only print()
+    and tqdm output reach stdout. The file handler stays at DEBUG,
+    so all messages are still captured for post-mortem analysis.
+    """
+    for handler in logging.root.handlers:
+        if isinstance(handler, logging.StreamHandler) and not isinstance(
+            handler, logging.FileHandler
+        ):
+            old_level = handler.level
+            handler.setLevel(logging.CRITICAL)
+            try:
+                yield
+            finally:
+                handler.setLevel(old_level)
+            return
+    yield
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
