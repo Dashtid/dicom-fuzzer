@@ -273,7 +273,9 @@ class TestSessionManagement:
         assert completed is not None
         assert completed.session_id == session_id
         assert completed.end_time is not None
-        assert mutator.current_session is None
+        # current_session stays set after end_session() so callers can still read it
+        assert mutator.current_session is not None
+        assert mutator.current_session.end_time is not None
 
     def test_end_session_no_active_session(self):
         """Test ending session when none active."""
@@ -724,7 +726,9 @@ class TestAdditionalCoverage:
 
         assert session_summary is not None
         assert hasattr(session_summary, "session_id")
-        assert mutator.current_session is None
+        # current_session stays set after end_session() so callers can still read it
+        assert mutator.current_session is not None
+        assert mutator.current_session.end_time is not None
 
 
 if __name__ == "__main__":

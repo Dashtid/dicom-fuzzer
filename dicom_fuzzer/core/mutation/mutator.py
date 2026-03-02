@@ -328,6 +328,7 @@ class DicomMutator:
 
         self.current_session.end_time = datetime.now(UTC)
 
-        completed_session = self.current_session
-        self.current_session = None
-        return completed_session
+        # Don't clear current_session -- callers may still need to read it
+        # (e.g. campaign_runner._get_last_strategy). start_session() will
+        # overwrite it when the next session begins.
+        return self.current_session

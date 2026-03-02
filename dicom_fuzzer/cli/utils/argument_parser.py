@@ -159,12 +159,12 @@ def _add_target_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--startup-delay",
         type=float,
-        default=0.0,
+        default=2.0,
         metavar="SEC",
         help=(
             "Delay in seconds after launching GUI app before monitoring starts. "
-            "Use this for applications that need time to load (e.g., 2.0 for Hermes). "
-            "Only used with --gui-mode. (default: 0.0)"
+            "GUI applications need time to initialize before fuzzing begins. "
+            "Only used with --gui-mode. (default: 2.0)"
         ),
     )
 

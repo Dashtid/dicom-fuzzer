@@ -74,7 +74,7 @@ class GUITargetRunner:
         timeout: float = 10.0,
         crash_dir: str = "./artifacts/crashes",
         memory_limit_mb: int | None = None,
-        startup_delay: float = 0.0,
+        startup_delay: float = 2.0,
     ):
         """Initialize GUI target runner.
 
@@ -369,6 +369,10 @@ class GUITargetRunner:
 
             result = self.execute_test(test_file)
             results[result.status].append(result)
+
+            # Brief pause between tests to let the OS clean up process handles
+            if i < len(test_files):
+                time.sleep(0.5)
 
             if result.crashed:
                 logger.warning(

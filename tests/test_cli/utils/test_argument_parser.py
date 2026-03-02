@@ -80,7 +80,7 @@ class TestDefaultValues:
             ("output", "./artifacts/campaigns"),
             ("target", None),
             ("timeout", 5.0),
-            ("startup_delay", 0.0),
+            ("startup_delay", 2.0),
             ("host", "localhost"),
             ("port", 11112),
             ("ae_title", "FUZZ_SCU"),

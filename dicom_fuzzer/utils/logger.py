@@ -112,7 +112,7 @@ def configure_logging(
     """Configure dual-channel logging: console (human dashboard) + file (forensic record).
 
     Console shows ``console_level`` and above (default: same as ``log_level``).
-    File always captures DEBUG so every detail is available for post-mortem.
+    File captures INFO and above for clean post-mortem logs.
 
     Args:
         log_level: Minimum logging level for the overall system.
@@ -178,7 +178,9 @@ def configure_logging(
     if log_file:
         log_file.parent.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(log_file, encoding="utf-8")
-        file_handler.setLevel(logging.DEBUG)
+        # INFO level filters out per-tag recovery noise (debug) while keeping
+        # campaign lifecycle, warnings, and errors for post-mortem analysis.
+        file_handler.setLevel(logging.INFO)
         file_handler.setFormatter(_PlainFormatter("%(message)s"))
         logging.root.addHandler(file_handler)
 
@@ -188,8 +190,8 @@ def suppress_console() -> Iterator[None]:
     """Temporarily suppress console logging during noisy phases.
 
     Raises the console StreamHandler level to CRITICAL so only print()
-    and tqdm output reach stdout. The file handler stays at DEBUG,
-    so all messages are still captured for post-mortem analysis.
+    and tqdm output reach stdout. The file handler stays at INFO,
+    so all meaningful messages are still captured for post-mortem analysis.
     """
     for handler in logging.root.handlers:
         if isinstance(handler, logging.StreamHandler) and not isinstance(

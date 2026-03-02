@@ -182,7 +182,7 @@ def setup_logging(log_file: Path, console_level: str = "INFO") -> Path:
     """Configure dual-channel logging: console (dashboard) + file (forensic).
 
     Console shows ``console_level`` and above.
-    File always captures full DEBUG for post-mortem analysis.
+    File captures INFO and above for clean post-mortem logs.
 
     Args:
         log_file: Path to the campaign log file (always created).
@@ -215,14 +215,39 @@ def setup_logging(log_file: Path, console_level: str = "INFO") -> Path:
     return log_file
 
 
+def _cleanup_empty_runs(output_root: Path) -> int:
+    """Remove run directories that contain no fuzzed files.
+
+    Cleans up orphaned directories from interrupted campaigns or test runs.
+
+    Returns:
+        Count of removed directories.
+
+    """
+    runs_dir = output_root / "runs"
+    if not runs_dir.exists():
+        return 0
+
+    removed = 0
+    for run_dir in runs_dir.iterdir():
+        if not run_dir.is_dir():
+            continue
+        fuzzed_dir = run_dir / "fuzzed"
+        if fuzzed_dir.exists() and any(fuzzed_dir.iterdir()):
+            continue
+        shutil.rmtree(run_dir, ignore_errors=True)
+        removed += 1
+    return removed
+
+
 def _create_run_directory(output_root: Path) -> Path:
     """Create an isolated run directory for this campaign.
 
     Returns:
-        Path to the run directory (e.g. ``output_root/runs/20260227_154000/``).
+        Path to the run directory (e.g. ``output_root/runs/20260227_154000_123456/``).
 
     """
-    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
     run_dir = output_root / "runs" / timestamp
     (run_dir / "fuzzed").mkdir(parents=True, exist_ok=True)
     (run_dir / "crashes").mkdir(exist_ok=True)
@@ -545,8 +570,13 @@ def main() -> int:
     quiet_mode = getattr(args, "quiet", False)
     json_mode = getattr(args, "json", False)
 
-    # Create isolated run directory
+    # Clean up empty/orphaned run directories from previous runs
     output_root = Path(args.output)
+    cleaned = _cleanup_empty_runs(output_root)
+    if cleaned and not quiet_mode:
+        cli.info(f"Cleaned {cleaned} empty run directories")
+
+    # Create isolated run directory
     run_dir = _create_run_directory(output_root)
     log_file = run_dir / "campaign.log"
 
