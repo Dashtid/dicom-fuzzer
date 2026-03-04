@@ -134,6 +134,18 @@ class TestSuvCalibrationChainAttack:
                 return
         pytest.fail("remove_units attack never triggered")
 
+    def test_invalid_decay_correction(
+        self, fuzzer: PetFuzzer, pet_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(pet_dataset)
+            result = fuzzer._suv_calibration_chain_attack(ds)
+            dc = getattr(result, "DecayCorrection", None)
+            if dc is not None and str(dc) not in ("START", "ADMIN", "NONE"):
+                return
+        pytest.fail("invalid_decay_correction attack never triggered")
+
     def test_handles_missing_tags(self, fuzzer: PetFuzzer) -> None:
         ds = Dataset()
         ds.SOPClassUID = _PET_SOP_CLASS_UID
@@ -202,6 +214,19 @@ class TestRadiopharmaceuticalDecayAttack:
             if "RadiopharmaceuticalInformationSequence" not in result:
                 return
         pytest.fail("remove_sequence attack never triggered")
+
+    def test_stop_before_start(self, fuzzer: PetFuzzer, pet_dataset: Dataset) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(pet_dataset)
+            result = fuzzer._radiopharmaceutical_decay_attack(ds)
+            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
+            if seq and len(seq) > 0:
+                start = getattr(seq[0], "RadiopharmaceuticalStartDateTime", None)
+                stop = getattr(seq[0], "RadiopharmaceuticalStopDateTime", None)
+                if start is not None and stop is not None and str(stop) < str(start):
+                    return
+        pytest.fail("stop_before_start attack never triggered")
 
     def test_handles_missing_sequence(self, fuzzer: PetFuzzer) -> None:
         ds = Dataset()

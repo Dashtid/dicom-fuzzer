@@ -84,6 +84,7 @@ class PetFuzzer(FormatFuzzerBase):
                 "zero_weight",
                 "conflicting_suv_type",
                 "remove_units",
+                "invalid_decay_correction",
             ]
         )
 
@@ -104,6 +105,10 @@ class PetFuzzer(FormatFuzzerBase):
                 for tag in ("Units", "DecayCorrection", "SUVType"):
                     if tag in dataset:
                         del dataset[tag]
+            elif attack == "invalid_decay_correction":
+                dataset.DecayCorrection = random.choice(
+                    ["", "INVALID", "START\\ADMIN", "A" * 5000]
+                )
         except Exception as e:
             logger.debug("SUV calibration chain attack failed: %s", e)
 
@@ -118,6 +123,7 @@ class PetFuzzer(FormatFuzzerBase):
                 "future_start_time",
                 "zero_positron_fraction",
                 "remove_sequence",
+                "stop_before_start",
             ]
         )
 
@@ -157,6 +163,16 @@ class PetFuzzer(FormatFuzzerBase):
             elif attack == "remove_sequence":
                 if "RadiopharmaceuticalInformationSequence" in dataset:
                     del dataset.RadiopharmaceuticalInformationSequence
+            elif attack == "stop_before_start":
+                seq = getattr(dataset, "RadiopharmaceuticalInformationSequence", None)
+                if seq and len(seq) > 0:
+                    seq[0].RadiopharmaceuticalStartDateTime = "20240101120000.000000"
+                    seq[0].RadiopharmaceuticalStopDateTime = "20240101060000.000000"
+                else:
+                    item = Dataset()
+                    item.RadiopharmaceuticalStartDateTime = "20240101120000.000000"
+                    item.RadiopharmaceuticalStopDateTime = "20240101060000.000000"
+                    dataset.RadiopharmaceuticalInformationSequence = Sequence([item])
         except Exception as e:
             logger.debug("Radiopharmaceutical decay attack failed: %s", e)
 
