@@ -115,6 +115,7 @@ class RTDoseFuzzer(FormatFuzzerBase):
                 "bin_count_mismatch",
                 "inverted_statistics",
                 "remove_dvh_sequence",
+                "invalid_dvh_type",
             ]
         )
 
@@ -179,6 +180,16 @@ class RTDoseFuzzer(FormatFuzzerBase):
             elif attack == "remove_dvh_sequence":
                 if "DVHSequence" in dataset:
                     del dataset.DVHSequence
+            elif attack == "invalid_dvh_type":
+                dvh_seq = getattr(dataset, "DVHSequence", None)
+                if dvh_seq and len(dvh_seq) > 0:
+                    dvh_seq[0].DVHType = random.choice(["", "INVALID", "DIFFERENTIAL"])
+                else:
+                    item = Dataset()
+                    item.DVHType = random.choice(["", "INVALID", "DIFFERENTIAL"])
+                    item.DVHData = ["1.0", "100.0", "5.0", "80.0"]
+                    item.DVHNumberOfBins = 2
+                    dataset.DVHSequence = Sequence([item])
         except Exception as e:
             logger.debug("DVH sequence corruption failed: %s", e)
 
