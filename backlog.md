@@ -1133,3 +1133,26 @@ Also removed in the same cleanup pass:
 - `CoverageAwarePrioritizer` from `corpus_minimization.py` -- completely dead
 - `minimize_crashing_study` from `study_minimizer.py` -- dead convenience wrapper
 - All `__init__.py` re-exports (no production code used package-level imports)
+
+## Encapsulated PDF fuzzer improvements
+
+**Location:** `dicom_fuzzer/attacks/format/encapsulated_pdf_fuzzer.py`
+
+### Generalize to Encapsulated Document fuzzer
+
+CDA (`1.2.840.10008.5.1.4.1.1.104.2`), STL (`104.3`), OBJ (`104.4`) share
+the same `EncapsulatedDocument` tag and MIME type mechanism. A shared base
+or single fuzzer could cover all encapsulated document SOP classes with
+modality-specific payload tables. Medium effort.
+
+### Add PDF-internal structure attacks
+
+Current `pdf_garbage` payload is just header + nulls. More effective fuzz
+payloads: corrupt xref table, truncated object streams, mismatched
+`startxref` offset, recursive page tree, JavaScript-bearing `/OpenAction`.
+These test the PDF renderer (second parser in the two-parser chain).
+
+### Type confusion attacks
+
+Set `EncapsulatedDocument` to non-bytes types (int, str, Dataset) to test
+pydicom serialization edge cases and viewer robustness.

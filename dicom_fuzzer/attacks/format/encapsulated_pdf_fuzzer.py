@@ -117,7 +117,7 @@ class EncapsulatedPdfFuzzer(FormatFuzzerBase):
             elif attack == "truncated":
                 doc = getattr(dataset, "EncapsulatedDocument", b"%PDF-1.4 test")
                 if isinstance(doc, bytes) and len(doc) > 1:
-                    cut = random.randint(1, max(1, len(doc) // 2))
+                    cut = random.randint(1, len(doc) // 2)
                     dataset.EncapsulatedDocument = doc[:cut]
                 else:
                     dataset.EncapsulatedDocument = b"\x00"
