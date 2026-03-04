@@ -74,7 +74,7 @@ class GUITargetRunner:
         timeout: float = 10.0,
         crash_dir: str = "./artifacts/crashes",
         memory_limit_mb: int | None = None,
-        startup_delay: float = 2.0,
+        startup_delay: float = 3.0,
     ):
         """Initialize GUI target runner.
 

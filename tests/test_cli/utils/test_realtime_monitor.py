@@ -188,21 +188,17 @@ class TestRefreshDisplay:
 
     def test_refresh_display_json_error(self, capsys, tmp_path):
         """Test refresh with invalid JSON file."""
-        reports_dir = Path("./artifacts/reports/json")
+        reports_dir = tmp_path / "reports" / "json"
         reports_dir.mkdir(parents=True, exist_ok=True)
 
         session_file = reports_dir / "session_invalid.json"
         session_file.write_text("invalid json {{{")
 
-        try:
-            monitor = RealtimeMonitor()
-            monitor._refresh_display()
+        monitor = RealtimeMonitor(session_dir=tmp_path)
+        monitor._refresh_display()
 
-            captured = capsys.readouterr()
-            assert "Error reading session" in captured.out
-        finally:
-            if session_file.exists():
-                session_file.unlink()
+        captured = capsys.readouterr()
+        assert "Error reading session" in captured.out
 
 
 class TestPrintWaiting:
@@ -555,11 +551,15 @@ class TestFuzzingSessionClass:
 
         assert FuzzingSession is not None
 
-    def test_fuzzing_session_instantiation(self):
+    def test_fuzzing_session_instantiation(self, tmp_path):
         """Test that FuzzingSession can be instantiated."""
         from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
 
-        session = FuzzingSession()
+        session = FuzzingSession(
+            output_dir=str(tmp_path / "fuzzed"),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
         assert session is not None
 
 

@@ -224,12 +224,11 @@ def _cleanup_empty_runs(output_root: Path) -> int:
         Count of removed directories.
 
     """
-    runs_dir = output_root / "runs"
-    if not runs_dir.exists():
+    if not output_root.exists():
         return 0
 
     removed = 0
-    for run_dir in runs_dir.iterdir():
+    for run_dir in output_root.iterdir():
         if not run_dir.is_dir():
             continue
         fuzzed_dir = run_dir / "fuzzed"
@@ -244,13 +243,14 @@ def _create_run_directory(output_root: Path) -> Path:
     """Create an isolated run directory for this campaign.
 
     Returns:
-        Path to the run directory (e.g. ``output_root/runs/20260227_154000_123456/``).
+        Path to the run directory (e.g. ``artifacts/20260227_154000/``).
 
     """
-    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
-    run_dir = output_root / "runs" / timestamp
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    run_dir = output_root / timestamp
     (run_dir / "fuzzed").mkdir(parents=True, exist_ok=True)
     (run_dir / "crashes").mkdir(exist_ok=True)
+    (run_dir / "reports").mkdir(exist_ok=True)
     return run_dir
 
 

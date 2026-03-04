@@ -476,9 +476,14 @@ class TestMain:
                 main()
             assert exc_info.value.code == 2  # argparse error code
 
-    def test_main_invalid_input_file(self):
+    def test_main_invalid_input_file(self, tmp_path):
         """Test main fails with non-existent input file."""
-        with patch.object(sys, "argv", ["dicom-fuzzer", "/nonexistent/file.dcm"]):
+        output_dir = tmp_path / "output"
+        with patch.object(
+            sys,
+            "argv",
+            ["dicom-fuzzer", "/nonexistent/file.dcm", "-o", str(output_dir)],
+        ):
             with pytest.raises(SystemExit) as exc_info:
                 main()
             assert exc_info.value.code == 1
@@ -569,6 +574,7 @@ class TestMain:
         """Test main fails with only invalid strategies."""
         input_file = tmp_path / "test.dcm"
         input_file.write_bytes(b"DICM" + b"\x00" * 128)
+        output_dir = tmp_path / "output"
 
         with patch.object(
             sys,
@@ -578,6 +584,8 @@ class TestMain:
                 str(input_file),
                 "-s",
                 "invalid1,invalid2",
+                "-o",
+                str(output_dir),
             ],
         ):
             # Invalid strategies cause fallback to defaults, but parsing error returns 1
@@ -685,6 +693,7 @@ class TestMain:
         """Test main fails when target executable not found."""
         input_file = tmp_path / "test.dcm"
         input_file.write_bytes(b"DICM" + b"\x00" * 128)
+        output_dir = tmp_path / "output"
 
         with patch.object(
             sys,
@@ -694,6 +703,8 @@ class TestMain:
                 str(input_file),
                 "-t",
                 "/nonexistent/target.exe",
+                "-o",
+                str(output_dir),
             ],
         ):
             # Health check should catch this and return 1
@@ -885,6 +896,7 @@ class TestMain:
         """Test main exits when health check fails."""
         input_file = tmp_path / "test.dcm"
         input_file.write_bytes(b"DICM" + b"\x00" * 128)
+        output_dir = tmp_path / "output"
 
         with patch.object(
             sys,
@@ -894,6 +906,8 @@ class TestMain:
                 str(input_file),
                 "-t",
                 "/nonexistent/target.exe",
+                "-o",
+                str(output_dir),
             ],
         ):
             result = main()

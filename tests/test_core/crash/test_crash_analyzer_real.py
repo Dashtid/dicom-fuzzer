@@ -17,14 +17,15 @@ from dicom_fuzzer.core.crash.crash_analyzer import (
 class TestCrashAnalyzerInit:
     """Test CrashAnalyzer initialization."""
 
-    def test_default_initialization(self):
+    def test_default_initialization(self, monkeypatch):
         """Test default initialization."""
-        analyzer = CrashAnalyzer()
+        monkeypatch.setattr(Path, "mkdir", lambda *a, **kw: None)
+        a = CrashAnalyzer()
 
-        assert analyzer.crash_dir == Path("./artifacts/crashes")
-        assert analyzer.crashes == []
-        assert isinstance(analyzer.crash_hashes, set)
-        assert len(analyzer.crash_hashes) == 0
+        assert a.crash_dir == Path("./artifacts/crashes")
+        assert a.crashes == []
+        assert isinstance(a.crash_hashes, set)
+        assert len(a.crash_hashes) == 0
 
     def test_custom_crash_directory(self, tmp_path):
         """Test custom crash directory."""
@@ -38,10 +39,8 @@ class TestCrashAnalyzerInit:
 class TestAnalyzeException:
     """Test exception analysis."""
 
-    def test_analyze_value_error(self):
+    def test_analyze_value_error(self, analyzer):
         """Test analyzing ValueError."""
-        analyzer = CrashAnalyzer()
-
         try:
             raise ValueError("Test error")
         except ValueError as e:
@@ -52,10 +51,8 @@ class TestAnalyzeException:
         assert report.additional_info["exception_type"] == "ValueError"
         assert report.stack_trace is not None
 
-    def test_analyze_memory_error(self):
+    def test_analyze_memory_error(self, analyzer):
         """Test analyzing MemoryError."""
-        analyzer = CrashAnalyzer()
-
         try:
             raise MemoryError("Out of memory")
         except MemoryError as e:
@@ -64,10 +61,8 @@ class TestAnalyzeException:
         assert report.crash_type == CrashType.OUT_OF_MEMORY
         assert report.severity == Severity.HIGH
 
-    def test_analyze_recursion_error(self):
+    def test_analyze_recursion_error(self, analyzer):
         """Test analyzing RecursionError."""
-        analyzer = CrashAnalyzer()
-
         try:
             raise RecursionError("Stack overflow")
         except RecursionError as e:
@@ -76,10 +71,8 @@ class TestAnalyzeException:
         assert report.crash_type == CrashType.STACK_OVERFLOW
         assert report.severity == Severity.HIGH
 
-    def test_analyze_assertion_error(self):
+    def test_analyze_assertion_error(self, analyzer):
         """Test analyzing AssertionError."""
-        analyzer = CrashAnalyzer()
-
         try:
             raise AssertionError("Assertion failed")
         except AssertionError as e:
@@ -88,10 +81,8 @@ class TestAnalyzeException:
         assert report.crash_type == CrashType.ASSERTION_FAILURE
         assert report.severity == Severity.MEDIUM
 
-    def test_analyze_timeout_error(self):
+    def test_analyze_timeout_error(self, analyzer):
         """Test analyzing TimeoutError."""
-        analyzer = CrashAnalyzer()
-
         try:
             raise TimeoutError("Operation timed out")
         except TimeoutError as e:
@@ -104,29 +95,23 @@ class TestAnalyzeException:
 class TestCrashHashGeneration:
     """Test crash hash generation."""
 
-    def test_hash_generation(self):
+    def test_hash_generation(self, analyzer):
         """Test crash hash is generated."""
-        analyzer = CrashAnalyzer()
-
         hash1 = analyzer._generate_crash_hash("stack trace 1", "error msg 1")
         hash2 = analyzer._generate_crash_hash("stack trace 2", "error msg 2")
 
         assert hash1 != hash2
         assert len(hash1) == 64  # SHA256 hex digest length
 
-    def test_identical_crashes_same_hash(self):
+    def test_identical_crashes_same_hash(self, analyzer):
         """Test identical crashes produce same hash."""
-        analyzer = CrashAnalyzer()
-
         hash1 = analyzer._generate_crash_hash("same trace", "same message")
         hash2 = analyzer._generate_crash_hash("same trace", "same message")
 
         assert hash1 == hash2
 
-    def test_hash_is_deterministic(self):
+    def test_hash_is_deterministic(self, analyzer):
         """Test hash generation is deterministic."""
-        analyzer = CrashAnalyzer()
-
         # Generate hash multiple times
         hashes = [analyzer._generate_crash_hash("trace", "msg") for _ in range(5)]
 
@@ -137,19 +122,15 @@ class TestCrashHashGeneration:
 class TestUniqueCrashDetection:
     """Test unique crash detection."""
 
-    def test_first_crash_is_unique(self):
+    def test_first_crash_is_unique(self, analyzer):
         """Test first crash is always unique."""
-        analyzer = CrashAnalyzer()
-
         is_unique = analyzer.is_unique_crash("hash123")
 
         assert is_unique is True
         assert "hash123" in analyzer.crash_hashes
 
-    def test_duplicate_crash_detected(self):
+    def test_duplicate_crash_detected(self, analyzer):
         """Test duplicate crash is detected."""
-        analyzer = CrashAnalyzer()
-
         # First occurrence
         is_unique1 = analyzer.is_unique_crash("hash456")
         # Second occurrence
@@ -158,10 +139,8 @@ class TestUniqueCrashDetection:
         assert is_unique1 is True
         assert is_unique2 is False
 
-    def test_multiple_unique_crashes(self):
+    def test_multiple_unique_crashes(self, analyzer):
         """Test multiple unique crashes are tracked."""
-        analyzer = CrashAnalyzer()
-
         unique1 = analyzer.is_unique_crash("hash1")
         unique2 = analyzer.is_unique_crash("hash2")
         unique3 = analyzer.is_unique_crash("hash3")
@@ -279,10 +258,8 @@ class TestRecordCrash:
 class TestCrashSummary:
     """Test crash summary generation."""
 
-    def test_get_crash_summary_empty(self):
+    def test_get_crash_summary_empty(self, analyzer):
         """Test summary with no crashes."""
-        analyzer = CrashAnalyzer()
-
         summary = analyzer.get_crash_summary()
 
         assert summary["total_crashes"] == 0
@@ -334,10 +311,8 @@ class TestCrashSummary:
 class TestGenerateReport:
     """Test report generation."""
 
-    def test_generate_empty_report(self):
+    def test_generate_empty_report(self, analyzer):
         """Test generating report with no crashes."""
-        analyzer = CrashAnalyzer()
-
         report = analyzer.generate_report()
 
         assert "CRASH ANALYSIS SUMMARY" in report
@@ -376,9 +351,8 @@ class TestGenerateReport:
 class TestSeverityDetermination:
     """Test severity determination logic."""
 
-    def test_buffer_keyword_increases_severity(self):
+    def test_buffer_keyword_increases_severity(self, analyzer):
         """Test buffer-related exceptions are CRITICAL."""
-        analyzer = CrashAnalyzer()
 
         class BufferError(Exception):
             def __str__(self):
@@ -391,9 +365,8 @@ class TestSeverityDetermination:
 
         assert report.severity == Severity.CRITICAL
 
-    def test_memory_keyword_increases_severity(self):
+    def test_memory_keyword_increases_severity(self, analyzer):
         """Test memory-related exceptions are CRITICAL."""
-        analyzer = CrashAnalyzer()
 
         class MemoryCorruption(Exception):
             def __str__(self):
@@ -410,10 +383,8 @@ class TestSeverityDetermination:
 class TestAdditionalInfo:
     """Test additional info tracking."""
 
-    def test_exception_type_in_additional_info(self):
+    def test_exception_type_in_additional_info(self, analyzer):
         """Test exception type is recorded in additional info."""
-        analyzer = CrashAnalyzer()
-
         try:
             raise ValueError("Test")
         except ValueError as e:
@@ -422,10 +393,8 @@ class TestAdditionalInfo:
         assert "exception_type" in report.additional_info
         assert report.additional_info["exception_type"] == "ValueError"
 
-    def test_exception_module_in_additional_info(self):
+    def test_exception_module_in_additional_info(self, analyzer):
         """Test exception module is recorded."""
-        analyzer = CrashAnalyzer()
-
         try:
             raise ValueError("Test")
         except ValueError as e:

@@ -81,11 +81,11 @@ def _add_basic_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "-o",
         "--output",
-        default="./artifacts/campaigns",
+        default="./artifacts",
         metavar="DIR",
         help=(
             "Root output directory. Each run creates a timestamped subdirectory "
-            "under {DIR}/runs/ (default: ./artifacts/campaigns)"
+            "(default: ./artifacts)"
         ),
     )
     parser.add_argument(
@@ -159,12 +159,12 @@ def _add_target_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--startup-delay",
         type=float,
-        default=2.0,
+        default=3.0,
         metavar="SEC",
         help=(
             "Delay in seconds after launching GUI app before monitoring starts. "
             "GUI applications need time to initialize before fuzzing begins. "
-            "Only used with --gui-mode. (default: 2.0)"
+            "Only used with --gui-mode. (default: 3.0)"
         ),
     )
 

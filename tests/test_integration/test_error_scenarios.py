@@ -283,6 +283,7 @@ class TestResourceExhaustion:
         runner = TargetRunner(
             target_executable=str(target_exe),
             timeout=1.0,  # 1 second timeout
+            crash_dir=str(temp_dir / "crashes"),
         )
 
         result = runner.execute_test(str(test_file))
@@ -384,7 +385,9 @@ class TestTargetExecutableErrors:
         test_file = temp_dir / "test.dcm"
         test_file.write_bytes(b"dummy")
 
-        runner = TargetRunner(target_executable=str(crash_exe))
+        runner = TargetRunner(
+            target_executable=str(crash_exe), crash_dir=str(temp_dir / "crashes")
+        )
         result = runner.execute_test(str(test_file))
 
         # Should detect crash
@@ -401,7 +404,9 @@ class TestTargetExecutableErrors:
             fail_exe.chmod(0o755)
 
         runner = TargetRunner(
-            target_executable=str(fail_exe), enable_circuit_breaker=True
+            target_executable=str(fail_exe),
+            crash_dir=str(temp_dir / "crashes"),
+            enable_circuit_breaker=True,
         )
 
         test_file = temp_dir / "test.dcm"
@@ -507,7 +512,11 @@ class TestRecoveryMechanisms:
             target_exe.write_text("#!/bin/bash\nexit 0")
             target_exe.chmod(0o755)
 
-        runner = TargetRunner(target_executable=str(target_exe), max_retries=3)
+        runner = TargetRunner(
+            target_executable=str(target_exe),
+            crash_dir=str(temp_dir / "crashes"),
+            max_retries=3,
+        )
 
         test_file = temp_dir / "test.dcm"
         test_file.write_bytes(b"dummy")

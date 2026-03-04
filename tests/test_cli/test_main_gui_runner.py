@@ -91,13 +91,13 @@ class TestGUITargetRunnerInit:
                 timeout=10.0,
                 crash_dir=str(tmp_path / "crashes"),
                 memory_limit_mb=512,
-                startup_delay=2.0,
+                startup_delay=3.0,
             )
 
             assert runner.target_executable == exe_path
             assert runner.timeout == 10.0
             assert runner.memory_limit_mb == 512
-            assert runner.startup_delay == 2.0
+            assert runner.startup_delay == 3.0
             assert runner.total_tests == 0
             assert runner.crashes == 0
 
