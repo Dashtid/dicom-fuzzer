@@ -338,6 +338,20 @@ class TestRotationParameterAttack:
                 return
         pytest.fail("remove_sequence attack never triggered")
 
+    def test_invalid_scan_arc(
+        self, fuzzer: NuclearMedicineFuzzer, nm_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(nm_dataset)
+            result = fuzzer._rotation_parameter_attack(ds)
+            seq = getattr(result, "RotationInformationSequence", None)
+            if seq and len(seq) > 0:
+                arc = getattr(seq[0], "ScanArc", None)
+                if arc is not None and (float(arc) <= 0 or float(arc) > 360):
+                    return
+        pytest.fail("invalid_scan_arc attack never triggered")
+
     def test_handles_missing_sequence(self, fuzzer: NuclearMedicineFuzzer) -> None:
         ds = Dataset()
         ds.SOPClassUID = _NM_SOP_CLASS_UID
@@ -423,6 +437,34 @@ class TestRadiopharmaceuticalCorruption:
                 if not hasattr(seq[0], "RadionuclideCodeSequence"):
                     return
         pytest.fail("remove_nuclide attack never triggered")
+
+    def test_zero_half_life(
+        self, fuzzer: NuclearMedicineFuzzer, nm_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(nm_dataset)
+            result = fuzzer._radiopharmaceutical_corruption(ds)
+            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
+            if seq and len(seq) > 0:
+                hl = getattr(seq[0], "RadionuclideHalfLife", None)
+                if hl is not None and float(hl) == 0.0:
+                    return
+        pytest.fail("zero_half_life attack never triggered")
+
+    def test_negative_total_dose(
+        self, fuzzer: NuclearMedicineFuzzer, nm_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(nm_dataset)
+            result = fuzzer._radiopharmaceutical_corruption(ds)
+            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
+            if seq and len(seq) > 0:
+                dose = getattr(seq[0], "RadionuclideTotalDose", None)
+                if dose is not None and float(dose) < 0:
+                    return
+        pytest.fail("negative_total_dose attack never triggered")
 
     def test_handles_missing_sequence(self, fuzzer: NuclearMedicineFuzzer) -> None:
         ds = Dataset()

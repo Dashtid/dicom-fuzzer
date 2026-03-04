@@ -1156,3 +1156,26 @@ These test the PDF renderer (second parser in the two-parser chain).
 
 Set `EncapsulatedDocument` to non-bytes types (int, str, Dataset) to test
 pydicom serialization edge cases and viewer robustness.
+
+## Share radiopharmaceutical attacks between NM and PET fuzzers
+
+**Location:** `dicom_fuzzer/attacks/format/nm_fuzzer.py`,
+`dicom_fuzzer/attacks/format/pet_fuzzer.py`
+
+Both fuzzers independently attack `RadiopharmaceuticalInformationSequence`
+with complementary but duplicated logic:
+
+- **NM** (7 variants): empty_isotope, negative_dose, time_reversal,
+  invalid_route, remove_nuclide, zero_half_life, negative_total_dose
+- **PET** (5 variants): zero_half_life, negative_dose, future_start_time,
+  zero_positron_fraction, remove_sequence
+
+`zero_half_life` and `negative_dose` overlap directly. The remaining
+variants are complementary and both fuzzers would benefit from having
+all of them.
+
+**Fix:** Extract a shared `_radiopharmaceutical_attacks()` helper (either
+a standalone function in a shared module, or a mixin) that both fuzzers
+call. Each fuzzer can add its own modality-specific variants on top.
+
+Low-medium effort. Touches 2 source files + 2 test files.

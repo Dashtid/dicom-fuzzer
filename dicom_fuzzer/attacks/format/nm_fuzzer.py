@@ -187,6 +187,7 @@ class NuclearMedicineFuzzer(FormatFuzzerBase):
                 "frame_count_mismatch",
                 "invalid_motion",
                 "remove_sequence",
+                "invalid_scan_arc",
             ]
         )
 
@@ -230,6 +231,14 @@ class NuclearMedicineFuzzer(FormatFuzzerBase):
             elif attack == "remove_sequence":
                 if "RotationInformationSequence" in dataset:
                     del dataset.RotationInformationSequence
+            elif attack == "invalid_scan_arc":
+                item = Dataset()
+                item.StartAngle = "0.0"
+                item.AngularStep = "6.0"
+                item.ScanArc = random.choice(["0.0", "-180.0", "720.0", "999999.0"])
+                item.TypeOfDetectorMotion = "STEP"
+                item.NumberOfFramesInRotation = 60
+                dataset.RotationInformationSequence = Sequence([item])
         except Exception as e:
             logger.debug("Rotation parameter attack failed: %s", e)
 
@@ -244,6 +253,8 @@ class NuclearMedicineFuzzer(FormatFuzzerBase):
                 "time_reversal",
                 "invalid_route",
                 "remove_nuclide",
+                "zero_half_life",
+                "negative_total_dose",
             ]
         )
 
@@ -287,6 +298,24 @@ class NuclearMedicineFuzzer(FormatFuzzerBase):
                 else:
                     item = Dataset()
                     item.Radiopharmaceutical = "Tc-99m MIBI"
+                    dataset.RadiopharmaceuticalInformationSequence = Sequence([item])
+            elif attack == "zero_half_life":
+                seq = getattr(dataset, "RadiopharmaceuticalInformationSequence", None)
+                if seq and len(seq) > 0:
+                    seq[0].RadionuclideHalfLife = "0.0"
+                else:
+                    item = Dataset()
+                    item.Radiopharmaceutical = "Tc-99m MIBI"
+                    item.RadionuclideHalfLife = "0.0"
+                    dataset.RadiopharmaceuticalInformationSequence = Sequence([item])
+            elif attack == "negative_total_dose":
+                seq = getattr(dataset, "RadiopharmaceuticalInformationSequence", None)
+                if seq and len(seq) > 0:
+                    seq[0].RadionuclideTotalDose = "-370000000.0"
+                else:
+                    item = Dataset()
+                    item.Radiopharmaceutical = "Tc-99m MIBI"
+                    item.RadionuclideTotalDose = "-370000000.0"
                     dataset.RadiopharmaceuticalInformationSequence = Sequence([item])
         except Exception as e:
             logger.debug("Radiopharmaceutical corruption failed: %s", e)
