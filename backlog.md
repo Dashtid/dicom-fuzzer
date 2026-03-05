@@ -251,7 +251,9 @@ Touches 8+ files, ~200+ lines. Medium effort, low risk.
 - Enables the "attack mode / scope filtering" backlog item (filter by
   category at the source instead of in each fuzzer)
 
-## SEG and RTSS file fuzzing
+## ~~SEG and RTSS file fuzzing~~ [DONE]
+
+**Implemented:** `seg_fuzzer.py` (4 strategies, 20 variants) and `rtss_fuzzer.py` (5 strategies, 26 variants).
 
 **Context:** New attack surface not covered by existing format fuzzers
 
@@ -305,7 +307,9 @@ which is consistent with `can_mutate()` in `FormatFuzzerBase`.
 
 Requires seed SEG and RTSS files for the corpus.
 
-## Encapsulated PDF fuzzing
+## ~~Encapsulated PDF fuzzing~~ [DONE]
+
+**Implemented:** `encapsulated_pdf_fuzzer.py` (5 strategies, 19 variants). See "Encapsulated PDF fuzzer improvements" below for remaining work.
 
 **Context:** New attack surface not covered by existing format fuzzers
 
@@ -596,7 +600,9 @@ Dataset-level and binary-level mutations.
 Medium-high effort, medium risk. Requires updating the engine to
 support a byte-level mutation pass.
 
-## Nuclear Medicine (NM) modality-specific fuzzing
+## ~~Nuclear Medicine (NM) modality-specific fuzzing~~ [DONE]
+
+**Implemented:** `nm_fuzzer.py` (5 strategies, 28 variants).
 
 **Context:** SOP Class `1.2.840.10008.5.1.4.1.1.20` -- not covered by
 any existing fuzzer beyond generic DICOM metadata and pixel data.
@@ -631,7 +637,9 @@ or `Modality == "NM"`. Requires NM seed files.
 
 Medium effort. Requires NM seed file in corpus.
 
-## PET modality-specific fuzzing
+## ~~PET modality-specific fuzzing~~ [DONE]
+
+**Implemented:** `pet_fuzzer.py` (5 strategies, 25 variants).
 
 **Context:** SOP Class `1.2.840.10008.5.1.4.1.1.128` -- SUV
 calibration chain and radiopharmaceutical data not covered.
@@ -665,7 +673,9 @@ Sequence` overlaps. `attacks/format/pet_fuzzer.py` or a combined
 
 Medium effort. Requires PET seed file in corpus.
 
-## RT Dose modality-specific fuzzing
+## ~~RT Dose modality-specific fuzzing~~ [DONE]
+
+**Implemented:** `rt_dose_fuzzer.py` (5 strategies, 26 variants).
 
 **Context:** SOP Class `1.2.840.10008.5.1.4.1.1.481.2` -- dose grid
 scaling and DVH structures not covered.
@@ -1157,6 +1167,43 @@ These test the PDF renderer (second parser in the two-parser chain).
 Set `EncapsulatedDocument` to non-bytes types (int, str, Dataset) to test
 pydicom serialization edge cases and viewer robustness.
 
+### Implementation plan
+
+**Phase 1 -- Generalize to Encapsulated Document fuzzer:**
+
+1. Rename `encapsulated_pdf_fuzzer.py` -> `encapsulated_document_fuzzer.py`
+   (class: `EncapsulatedDocumentFuzzer`, strategy_name: `encapsulated_document`)
+2. Expand `can_mutate()` to accept all 4 SOP classes:
+   - PDF: `1.2.840.10008.5.1.4.1.1.104.1`
+   - CDA: `1.2.840.10008.5.1.4.1.1.104.2`
+   - STL: `1.2.840.10008.5.1.4.1.1.104.3`
+   - OBJ: `1.2.840.10008.5.1.4.1.1.104.4`
+3. Add format-specific garbage payloads:
+   - CDA: malformed XML (`<ClinicalDocument>` with unclosed tags)
+   - STL: invalid STL header + truncated triangle data
+   - OBJ: malformed OBJ lines (`v`, `f` with bad indices)
+4. Existing MIME type attack already covers mismatch -- add correct MIME
+   per SOP class: `application/pdf`, `text/xml`, `model/stl`, `model/obj`
+5. Update `__init__.py` exports, rename test file accordingly
+6. Keep backward-compatible import alias if needed
+
+**Phase 2 -- PDF-internal structure attacks:**
+
+Add new strategy `_pdf_structure_corruption` with variants:
+- `corrupt_xref`: valid PDF header + garbled xref table
+- `truncated_stream`: PDF with `stream`/`endstream` length mismatch
+- `bad_startxref`: valid PDF body but `startxref` pointing past EOF
+- `recursive_pages`: `/Pages` object referencing itself as child
+- `js_openaction`: `/OpenAction` with JavaScript payload
+
+**Phase 3 -- Type confusion attacks:**
+
+Add new strategy `_type_confusion` with variants:
+- `int_document`: `EncapsulatedDocument = 42`
+- `str_document`: `EncapsulatedDocument = "not bytes"`
+- `dataset_document`: `EncapsulatedDocument = Dataset()`
+- `none_document`: `del EncapsulatedDocument` (already partially covered)
+
 ## Share radiopharmaceutical attacks between NM and PET fuzzers
 
 **Location:** `dicom_fuzzer/attacks/format/nm_fuzzer.py`,
@@ -1179,3 +1226,26 @@ a standalone function in a shared module, or a mixin) that both fuzzers
 call. Each fuzzer can add its own modality-specific variants on top.
 
 Low-medium effort. Touches 2 source files + 2 test files.
+
+### Implementation plan
+
+**Phase 1 -- Extract shared helper:**
+
+1. Create `dicom_fuzzer/attacks/format/_radiopharmaceutical.py` with a
+   standalone function `radiopharmaceutical_attacks(dataset) -> Dataset`
+2. Combine all 10 unique variants from both fuzzers:
+   - From NM: empty_isotope, negative_dose, time_reversal, invalid_route,
+     remove_nuclide, zero_half_life, negative_total_dose
+   - From PET: future_start_time, zero_positron_fraction, remove_sequence
+   - Deduplicate: zero_half_life and negative_dose (keep one copy each)
+3. Both fuzzers call the shared helper as one of their strategies
+4. Remove the per-fuzzer `_radiopharmaceutical_corruption` methods
+
+**Phase 2 -- Update tests:**
+
+1. Create `tests/test_attacks/format/test_radiopharmaceutical.py` with
+   tests for all 10 variants using a generic dataset fixture
+2. Remove duplicate radiopharmaceutical tests from `test_nm_fuzzer.py`
+   and `test_pet_fuzzer.py`
+3. Keep integration tests in each fuzzer's test file to verify the
+   shared helper is wired into `mutate()` correctly
