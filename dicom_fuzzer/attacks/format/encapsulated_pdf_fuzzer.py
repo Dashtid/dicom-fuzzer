@@ -7,6 +7,8 @@ Attacks:
 - MIME type mismatch at DICOM-to-renderer handoff
 - Non-PDF payload injection in valid DICOM wrapper
 - Document metadata corruption (DocumentTitle, ConceptNameCodeSequence)
+- PDF-internal structure corruption (xref, streams, startxref, page tree)
+- Type confusion on EncapsulatedDocument (non-bytes types)
 """
 
 from __future__ import annotations
@@ -64,6 +66,8 @@ class EncapsulatedPdfFuzzer(FormatFuzzerBase):
             self._mime_type_mismatch,
             self._malformed_pdf_injection,
             self._pdf_metadata_corruption,
+            self._pdf_structure_corruption,
+            self._type_confusion,
         ]
 
     @property
@@ -248,6 +252,86 @@ class EncapsulatedPdfFuzzer(FormatFuzzerBase):
                 )
         except Exception as e:
             logger.debug("PDF metadata corruption failed: %s", e)
+
+        return dataset
+
+    def _pdf_structure_corruption(self, dataset: Dataset) -> Dataset:
+        """Inject structurally malformed PDF bytes that target the PDF parser."""
+        attack = random.choice(
+            [
+                "corrupt_xref",
+                "truncated_stream",
+                "bad_startxref",
+                "recursive_pages",
+                "js_openaction",
+            ]
+        )
+
+        try:
+            if attack == "corrupt_xref":
+                dataset.EncapsulatedDocument = (
+                    b"%PDF-1.4\n"
+                    b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+                    b"xref\n0 999\nGARBAGE XREF DATA\n"
+                    b"trailer\n<< /Size 999 /Root 1 0 R >>\n"
+                    b"startxref\n42\n%%EOF"
+                )
+            elif attack == "truncated_stream":
+                dataset.EncapsulatedDocument = (
+                    b"%PDF-1.4\n1 0 obj\n<< /Length 99999 >>\nstream\nshort data"
+                    # Missing endstream/endobj
+                )
+            elif attack == "bad_startxref":
+                dataset.EncapsulatedDocument = (
+                    b"%PDF-1.4\n"
+                    b"1 0 obj\n<< /Type /Catalog >>\nendobj\n"
+                    b"xref\n0 1\n0000000000 65535 f \n"
+                    b"trailer\n<< /Size 1 /Root 1 0 R >>\n"
+                    b"startxref\n999999999\n%%EOF"
+                )
+            elif attack == "recursive_pages":
+                dataset.EncapsulatedDocument = (
+                    b"%PDF-1.4\n"
+                    b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+                    b"2 0 obj\n<< /Type /Pages /Kids [2 0 R] /Count 1 >>\n"
+                    b"endobj\n%%EOF"
+                )
+            elif attack == "js_openaction":
+                dataset.EncapsulatedDocument = (
+                    b"%PDF-1.4\n"
+                    b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R "
+                    b"/OpenAction << /S /JavaScript "
+                    b"/JS (app.alert\\('fuzz'\\)) >> >>\nendobj\n"
+                    b"2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\n"
+                    b"endobj\n%%EOF"
+                )
+        except Exception as e:
+            logger.debug("PDF structure corruption failed: %s", e)
+
+        return dataset
+
+    def _type_confusion(self, dataset: Dataset) -> Dataset:
+        """Set EncapsulatedDocument to non-bytes types to test serialization."""
+        attack = random.choice(
+            [
+                "int_document",
+                "str_document",
+                "dataset_document",
+                "none_document",
+            ]
+        )
+
+        try:
+            if attack == "int_document":
+                dataset.EncapsulatedDocument = 42
+            elif attack == "str_document":
+                dataset.EncapsulatedDocument = "not bytes at all"
+            elif attack == "dataset_document":
+                dataset.EncapsulatedDocument = Dataset()
+            elif attack == "none_document":
+                dataset.EncapsulatedDocument = None
+        except Exception as e:
+            logger.debug("Type confusion attack failed: %s", e)
 
         return dataset
 
