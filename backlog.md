@@ -1144,65 +1144,24 @@ Also removed in the same cleanup pass:
 - `minimize_crashing_study` from `study_minimizer.py` -- dead convenience wrapper
 - All `__init__.py` re-exports (no production code used package-level imports)
 
-## Encapsulated PDF fuzzer improvements
+## ~~Encapsulated PDF fuzzer improvements~~ [PARTIALLY DONE]
 
 **Location:** `dicom_fuzzer/attacks/format/encapsulated_pdf_fuzzer.py`
 
-### Generalize to Encapsulated Document fuzzer
+### ~~Generalize to Encapsulated Document fuzzer~~ [DESCOPED]
 
-CDA (`1.2.840.10008.5.1.4.1.1.104.2`), STL (`104.3`), OBJ (`104.4`) share
-the same `EncapsulatedDocument` tag and MIME type mechanism. A shared base
-or single fuzzer could cover all encapsulated document SOP classes with
-modality-specific payload tables. Medium effort.
+CDA, STL, OBJ SOP classes are not in the corpus seed list. Out of scope
+until those SOP classes are added to the fuzzer's target list.
 
-### Add PDF-internal structure attacks
+### ~~Add PDF-internal structure attacks~~ [DONE]
 
-Current `pdf_garbage` payload is just header + nulls. More effective fuzz
-payloads: corrupt xref table, truncated object streams, mismatched
-`startxref` offset, recursive page tree, JavaScript-bearing `/OpenAction`.
-These test the PDF renderer (second parser in the two-parser chain).
+Added `_pdf_structure_corruption` strategy with 5 variants: corrupt_xref,
+truncated_stream, bad_startxref, recursive_pages, js_openaction.
 
-### Type confusion attacks
+### ~~Type confusion attacks~~ [DONE]
 
-Set `EncapsulatedDocument` to non-bytes types (int, str, Dataset) to test
-pydicom serialization edge cases and viewer robustness.
-
-### Implementation plan
-
-**Phase 1 -- Generalize to Encapsulated Document fuzzer:**
-
-1. Rename `encapsulated_pdf_fuzzer.py` -> `encapsulated_document_fuzzer.py`
-   (class: `EncapsulatedDocumentFuzzer`, strategy_name: `encapsulated_document`)
-2. Expand `can_mutate()` to accept all 4 SOP classes:
-   - PDF: `1.2.840.10008.5.1.4.1.1.104.1`
-   - CDA: `1.2.840.10008.5.1.4.1.1.104.2`
-   - STL: `1.2.840.10008.5.1.4.1.1.104.3`
-   - OBJ: `1.2.840.10008.5.1.4.1.1.104.4`
-3. Add format-specific garbage payloads:
-   - CDA: malformed XML (`<ClinicalDocument>` with unclosed tags)
-   - STL: invalid STL header + truncated triangle data
-   - OBJ: malformed OBJ lines (`v`, `f` with bad indices)
-4. Existing MIME type attack already covers mismatch -- add correct MIME
-   per SOP class: `application/pdf`, `text/xml`, `model/stl`, `model/obj`
-5. Update `__init__.py` exports, rename test file accordingly
-6. Keep backward-compatible import alias if needed
-
-**Phase 2 -- PDF-internal structure attacks:**
-
-Add new strategy `_pdf_structure_corruption` with variants:
-- `corrupt_xref`: valid PDF header + garbled xref table
-- `truncated_stream`: PDF with `stream`/`endstream` length mismatch
-- `bad_startxref`: valid PDF body but `startxref` pointing past EOF
-- `recursive_pages`: `/Pages` object referencing itself as child
-- `js_openaction`: `/OpenAction` with JavaScript payload
-
-**Phase 3 -- Type confusion attacks:**
-
-Add new strategy `_type_confusion` with variants:
-- `int_document`: `EncapsulatedDocument = 42`
-- `str_document`: `EncapsulatedDocument = "not bytes"`
-- `dataset_document`: `EncapsulatedDocument = Dataset()`
-- `none_document`: `del EncapsulatedDocument` (already partially covered)
+Added `_type_confusion` strategy with 4 variants: int_document,
+str_document, dataset_document, none_document.
 
 ## Share radiopharmaceutical attacks between NM and PET fuzzers
 
