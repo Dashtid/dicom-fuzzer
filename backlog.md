@@ -1163,7 +1163,7 @@ truncated_stream, bad_startxref, recursive_pages, js_openaction.
 Added `_type_confusion` strategy with 4 variants: int_document,
 str_document, dataset_document, none_document.
 
-## Share radiopharmaceutical attacks between NM and PET fuzzers
+## [DONE] Share radiopharmaceutical attacks between NM and PET fuzzers
 
 **Location:** `dicom_fuzzer/attacks/format/nm_fuzzer.py`,
 `dicom_fuzzer/attacks/format/pet_fuzzer.py`
