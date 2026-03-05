@@ -362,117 +362,28 @@ class TestRotationParameterAttack:
 
 
 # ---------------------------------------------------------------------------
-# _radiopharmaceutical_corruption
+# radiopharmaceutical_attacks (shared helper wiring)
 # ---------------------------------------------------------------------------
 
 
-class TestRadiopharmaceuticalCorruption:
-    def test_empty_isotope(
-        self, fuzzer: NuclearMedicineFuzzer, nm_dataset: Dataset
-    ) -> None:
-        for i in range(50):
-            random.seed(i)
-            ds = copy.deepcopy(nm_dataset)
-            result = fuzzer._radiopharmaceutical_corruption(ds)
-            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
-            if seq and len(seq) > 0:
-                name = getattr(seq[0], "Radiopharmaceutical", None)
-                if name == "":
-                    return
-        pytest.fail("empty_isotope attack never triggered")
+class TestRadiopharmaceuticalWiring:
+    """Verify the shared radiopharmaceutical_attacks helper is wired into mutate()."""
 
-    def test_negative_dose(
-        self, fuzzer: NuclearMedicineFuzzer, nm_dataset: Dataset
-    ) -> None:
-        for i in range(50):
-            random.seed(i)
-            ds = copy.deepcopy(nm_dataset)
-            result = fuzzer._radiopharmaceutical_corruption(ds)
-            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
-            if seq and len(seq) > 0:
-                vol = getattr(seq[0], "RadiopharmaceuticalVolume", None)
-                if vol and float(vol) < 0:
-                    return
-        pytest.fail("negative_dose attack never triggered")
+    def test_shared_helper_in_strategies(self, fuzzer: NuclearMedicineFuzzer) -> None:
+        from dicom_fuzzer.attacks.format._radiopharmaceutical import (
+            radiopharmaceutical_attacks,
+        )
 
-    def test_time_reversal(
-        self, fuzzer: NuclearMedicineFuzzer, nm_dataset: Dataset
-    ) -> None:
-        for i in range(50):
-            random.seed(i)
-            ds = copy.deepcopy(nm_dataset)
-            result = fuzzer._radiopharmaceutical_corruption(ds)
-            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
-            if seq and len(seq) > 0:
-                start = getattr(seq[0], "RadiopharmaceuticalStartTime", None)
-                stop = getattr(seq[0], "RadiopharmaceuticalStopTime", None)
-                if start and stop and str(stop) < str(start):
-                    return
-        pytest.fail("time_reversal attack never triggered")
+        assert radiopharmaceutical_attacks in fuzzer.mutation_strategies
 
-    def test_invalid_route(
-        self, fuzzer: NuclearMedicineFuzzer, nm_dataset: Dataset
-    ) -> None:
-        valid_routes = {"IV", "ORAL", "INHALATION"}
-        for i in range(50):
-            random.seed(i)
-            ds = copy.deepcopy(nm_dataset)
-            result = fuzzer._radiopharmaceutical_corruption(ds)
-            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
-            if seq and len(seq) > 0:
-                route = getattr(seq[0], "RadiopharmaceuticalRoute", None)
-                if route is not None and route not in valid_routes:
-                    return
-        pytest.fail("invalid_route attack never triggered")
+    def test_shared_helper_callable_with_nm_dataset(self, nm_dataset: Dataset) -> None:
+        from dicom_fuzzer.attacks.format._radiopharmaceutical import (
+            radiopharmaceutical_attacks,
+        )
 
-    def test_remove_nuclide(
-        self, fuzzer: NuclearMedicineFuzzer, nm_dataset: Dataset
-    ) -> None:
-        for i in range(50):
-            random.seed(i)
-            ds = copy.deepcopy(nm_dataset)
-            result = fuzzer._radiopharmaceutical_corruption(ds)
-            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
-            if seq and len(seq) > 0:
-                if not hasattr(seq[0], "RadionuclideCodeSequence"):
-                    return
-        pytest.fail("remove_nuclide attack never triggered")
-
-    def test_zero_half_life(
-        self, fuzzer: NuclearMedicineFuzzer, nm_dataset: Dataset
-    ) -> None:
-        for i in range(50):
-            random.seed(i)
-            ds = copy.deepcopy(nm_dataset)
-            result = fuzzer._radiopharmaceutical_corruption(ds)
-            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
-            if seq and len(seq) > 0:
-                hl = getattr(seq[0], "RadionuclideHalfLife", None)
-                if hl is not None and float(hl) == 0.0:
-                    return
-        pytest.fail("zero_half_life attack never triggered")
-
-    def test_negative_total_dose(
-        self, fuzzer: NuclearMedicineFuzzer, nm_dataset: Dataset
-    ) -> None:
-        for i in range(50):
-            random.seed(i)
-            ds = copy.deepcopy(nm_dataset)
-            result = fuzzer._radiopharmaceutical_corruption(ds)
-            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
-            if seq and len(seq) > 0:
-                dose = getattr(seq[0], "RadionuclideTotalDose", None)
-                if dose is not None and float(dose) < 0:
-                    return
-        pytest.fail("negative_total_dose attack never triggered")
-
-    def test_handles_missing_sequence(self, fuzzer: NuclearMedicineFuzzer) -> None:
-        ds = Dataset()
-        ds.SOPClassUID = _NM_SOP_CLASS_UID
-        for i in range(20):
-            random.seed(i)
-            result = fuzzer._radiopharmaceutical_corruption(copy.deepcopy(ds))
-            assert isinstance(result, Dataset)
+        ds = copy.deepcopy(nm_dataset)
+        result = radiopharmaceutical_attacks(ds)
+        assert isinstance(result, Dataset)
 
 
 # ---------------------------------------------------------------------------
