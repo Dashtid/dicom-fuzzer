@@ -220,7 +220,7 @@ class SegmentationFuzzer(FormatFuzzerBase):
                         0,
                         -1,
                         65535,
-                        0,
+                        256,
                     ]
                 )
         except Exception as e:
