@@ -6,14 +6,16 @@ after processing files, such as DICOM viewers (Hermes Affinity, MicroDicom, etc.
 
 from __future__ import annotations
 
-import logging
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
+from dicom_fuzzer.core.crash.windows_crash_handler import WindowsCrashHandler
 from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
+from dicom_fuzzer.utils.logger import get_logger
 
 try:
     import psutil
@@ -22,7 +24,7 @@ try:
 except ImportError:
     HAS_PSUTIL = False
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -44,6 +46,7 @@ class GUIExecutionResult:
     timed_out: bool  # True if we killed it after timeout (normal for GUI)
     stdout: str = ""
     stderr: str = ""
+    windows_crash_info: Any = field(default=None, repr=False)
 
     def __bool__(self) -> bool:
         """Test succeeded if app didn't crash (timeout is OK for GUI apps)."""
@@ -68,10 +71,11 @@ class GUITargetRunner:
     def __init__(
         self,
         target_executable: str,
-        timeout: float = 10.0,
+        timeout: float = 15.0,
         crash_dir: str = "./artifacts/crashes",
         memory_limit_mb: int | None = None,
-        startup_delay: float = 0.0,
+        startup_delay: float = 3.0,
+        warmup_seconds: float = 60.0,
     ):
         """Initialize GUI target runner.
 
@@ -81,6 +85,9 @@ class GUITargetRunner:
             crash_dir: Directory to save crash reports
             memory_limit_mb: Optional memory limit (kills if exceeded)
             startup_delay: Seconds to wait after launch before monitoring starts
+            warmup_seconds: Seconds for one-time warmup launch before campaign.
+                Caches DLLs and runtime libraries in memory for faster subsequent
+                launches. Set to 0 to disable.
 
         Raises:
             FileNotFoundError: If target executable doesn't exist
@@ -101,6 +108,16 @@ class GUITargetRunner:
         self.crash_dir.mkdir(parents=True, exist_ok=True)
         self.memory_limit_mb = memory_limit_mb
         self.startup_delay = startup_delay
+        self.warmup_seconds = warmup_seconds
+
+        # Windows crash handler for NTSTATUS classification
+        self.windows_crash_handler: WindowsCrashHandler | None = None
+        if sys.platform == "win32":
+            self.windows_crash_handler = WindowsCrashHandler(crash_dir=self.crash_dir)
+            # Suppress WER dialogs so they don't block crash detection
+            import ctypes
+
+            ctypes.windll.kernel32.SetErrorMode(0x0002)  # SEM_NOGPFAULTERRORBOX
 
         # Statistics
         self.total_tests = 0
@@ -275,6 +292,24 @@ class GUITargetRunner:
 
         status = ExecutionStatus.CRASH if crashed else ExecutionStatus.SUCCESS
 
+        # Classify Windows crashes via NTSTATUS codes
+        crash_info = None
+        if crashed and exit_code is not None and self.windows_crash_handler:
+            if self.windows_crash_handler.is_windows_crash(exit_code):
+                crash_info = self.windows_crash_handler.analyze_crash(
+                    exit_code=exit_code,
+                    test_file=test_file_path,
+                    stdout=stdout_data,
+                    stderr=stderr_data,
+                )
+                self.windows_crash_handler.save_crash_report(crash_info, test_file_path)
+                logger.warning(
+                    "Windows crash classified: %s (0x%08X, severity=%s)",
+                    crash_info.exception_name,
+                    crash_info.exception_code,
+                    crash_info.severity,
+                )
+
         return GUIExecutionResult(
             test_file=test_file_path,
             status=status,
@@ -285,6 +320,7 @@ class GUITargetRunner:
             timed_out=timed_out,
             stdout=stdout_data,
             stderr=stderr_data,
+            windows_crash_info=crash_info,
         )
 
     def _kill_process_tree(self, process: subprocess.Popen[bytes]) -> None:
@@ -314,6 +350,55 @@ class GUITargetRunner:
         except Exception as e:
             logger.warning("Failed to kill process tree: %s", e)
 
+    def _warmup(self, seed_file: Path) -> None:
+        """Launch the target once to warm the OS file cache.
+
+        GUI applications like Hermes Affinity load .NET runtime, codec
+        DLLs, and GPU drivers on first launch (~30s cold start).  Windows
+        keeps these in the Standby List (RAM cache) so subsequent launches
+        are 5-10x faster.  This one-time warmup ensures the first real
+        test file doesn't get killed before the app even finishes loading.
+        """
+        logger.info(
+            "Warming up target application (%ss with %s)...",
+            self.warmup_seconds,
+            seed_file.name,
+        )
+        process = None
+        try:
+            process = subprocess.Popen(
+                [str(self.target_executable), str(seed_file)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                creationflags=(
+                    getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                    if sys.platform == "win32"
+                    else 0
+                ),
+            )
+            # Wait for warmup period, checking periodically if process crashed
+            poll_interval = 1.0
+            elapsed = 0.0
+            while elapsed < self.warmup_seconds:
+                exit_code = process.poll()
+                if exit_code is not None:
+                    logger.warning(
+                        "Warmup process exited early (exit_code=%s), "
+                        "continuing with campaign",
+                        exit_code,
+                    )
+                    return
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+            logger.info("Warmup complete, killing warmup process")
+        except Exception as e:
+            logger.warning("Warmup failed: %s, continuing with campaign", e)
+        finally:
+            if process and process.poll() is None:
+                self._kill_process_tree(process)
+            # Brief pause to let OS release handles
+            time.sleep(1.0)
+
     def run_campaign(
         self, test_files: list[Path], stop_on_crash: bool = False
     ) -> dict[ExecutionStatus, list[GUIExecutionResult]]:
@@ -331,6 +416,10 @@ class GUITargetRunner:
             status: [] for status in ExecutionStatus
         }
 
+        # Warmup: launch once to cache DLLs in memory
+        if self.warmup_seconds > 0 and test_files:
+            self._warmup(test_files[0])
+
         logger.info("Starting GUI fuzzing campaign with %d files", len(test_files))
 
         for i, test_file in enumerate(test_files, 1):
@@ -338,6 +427,10 @@ class GUITargetRunner:
 
             result = self.execute_test(test_file)
             results[result.status].append(result)
+
+            # Brief pause between tests to let the OS clean up process handles
+            if i < len(test_files):
+                time.sleep(0.5)
 
             if result.crashed:
                 logger.warning(

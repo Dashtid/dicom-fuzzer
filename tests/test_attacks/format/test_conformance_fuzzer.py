@@ -183,7 +183,7 @@ class TestMissingFileMeta:
         with patch.object(random, "choice", return_value="remove_all"):
             result = fuzzer._missing_file_meta(sample_dataset)
         assert isinstance(result, Dataset)
-        assert result.file_meta is None
+        assert len(result.file_meta) == 0
 
     def test_remove_sop_class(
         self, fuzzer: ConformanceFuzzer, sample_dataset: Dataset

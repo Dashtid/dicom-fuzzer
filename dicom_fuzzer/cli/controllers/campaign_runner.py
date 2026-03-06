@@ -15,6 +15,7 @@ from typing import Any
 
 from dicom_fuzzer.cli.utils import output as cli
 from dicom_fuzzer.core.engine import DICOMGenerator
+from dicom_fuzzer.utils.logger import suppress_console
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,9 @@ class CampaignRunner:
         elapsed_time = time.time() - start_time
         results_data = self._collect_stats(generator, files, elapsed_time)
 
+        # Persist mutation map so target testing can link crashes to strategies
+        self._save_mutation_map(generator)
+
         return files, results_data
 
     def _generate_from_directory(self, generator: DICOMGenerator) -> list[Path]:
@@ -152,6 +156,9 @@ class CampaignRunner:
     def _generate_from_single_file(self, generator: DICOMGenerator) -> list[Path]:
         """Generate fuzzed files from single input file.
 
+        In verbose mode, generates one file at a time and prints a clean
+        per-file line with the strategy name. Otherwise uses tqdm progress bar.
+
         Args:
             generator: The DICOM generator instance
 
@@ -161,33 +168,95 @@ class CampaignRunner:
         """
         input_path = self.input_files[0]
 
-        if HAS_TQDM and not self.args.verbose and self.num_files_per_input >= 20:
-            print("Generating fuzzed files...")
-            with tqdm(total=self.num_files_per_input, unit="file", ncols=70) as pbar:
-                # Generate in smaller batches to update progress
-                batch_size = max(1, self.num_files_per_input // 20)  # 20 updates
-                remaining = self.num_files_per_input
-                all_files: list[Path] = []
+        if self.args.verbose:
+            return self._generate_verbose(generator, input_path)
 
-                while remaining > 0:
-                    current_batch = min(batch_size, remaining)
-                    batch_files = generator.generate_batch(
-                        str(input_path),
-                        count=current_batch,
-                        strategies=self.selected_strategies,
-                    )
-                    all_files.extend(batch_files)
-                    pbar.update(len(batch_files))
-                    remaining -= current_batch
+        # Suppress console logging during generation so structlog messages
+        # don't interleave with the tqdm progress bar. The file handler
+        # still captures everything at DEBUG level.
+        with suppress_console():
+            if HAS_TQDM and self.num_files_per_input >= 20:
+                print("Generating fuzzed files...")
+                with tqdm(
+                    total=self.num_files_per_input, unit="file", ncols=70
+                ) as pbar:
+                    batch_size = max(1, self.num_files_per_input // 20)
+                    remaining = self.num_files_per_input
+                    all_files: list[Path] = []
 
-                return all_files
-        else:
-            # No progress bar or small file count, generate all at once
+                    while remaining > 0:
+                        current_batch = min(batch_size, remaining)
+                        batch_files = generator.generate_batch(
+                            str(input_path),
+                            count=current_batch,
+                            strategies=self.selected_strategies,
+                        )
+                        all_files.extend(batch_files)
+                        pbar.update(len(batch_files))
+                        remaining -= current_batch
+
+                    return all_files
+
             return generator.generate_batch(
                 str(input_path),
                 count=self.num_files_per_input,
                 strategies=self.selected_strategies,
             )
+
+    def _generate_verbose(
+        self, generator: DICOMGenerator, input_path: Path
+    ) -> list[Path]:
+        """Generate files one at a time with per-file console output.
+
+        Prints a clean one-liner per file:
+            [1/500] fuzzed_abc123.dcm <- encoding
+
+        """
+        all_files: list[Path] = []
+        total = self.num_files_per_input
+
+        with suppress_console():
+            for i in range(total):
+                batch = generator.generate_batch(
+                    str(input_path),
+                    count=1,
+                    strategies=self.selected_strategies,
+                )
+                if batch:
+                    generated = batch[0]
+                    strategy = self._get_last_strategy(generator)
+                    print(f"  [{i + 1}/{total}] {generated.name} <- {strategy}")
+                    all_files.extend(batch)
+                else:
+                    print(f"  [{i + 1}/{total}] (skipped)")
+
+        return all_files
+
+    @staticmethod
+    def _get_last_strategy(generator: DICOMGenerator) -> str:
+        """Extract the strategy name from the most recent mutation."""
+        session = generator.mutator.current_session
+        if session and session.mutations:
+            last = session.mutations[-1]
+            if last.success:
+                return last.strategy_name
+        return "unknown"
+
+    def _save_mutation_map(self, generator: DICOMGenerator) -> None:
+        """Persist filename->strategy mapping so crash reports include mutation info."""
+        strategy_map = generator.file_strategy_map
+        if not strategy_map:
+            return
+        output_dir = Path(self.args.output)
+        map_path = output_dir / "mutation_map.json"
+        try:
+            with open(map_path, "w") as f:
+                json.dump(strategy_map, f, indent=2)
+            logger.debug(
+                "Mutation map saved: %s (%d entries)", map_path, len(strategy_map)
+            )
+        except Exception as e:
+            logger.warning("Failed to save mutation map: %s", e)
 
     def _collect_stats(
         self,

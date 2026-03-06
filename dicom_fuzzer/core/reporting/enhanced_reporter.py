@@ -1,12 +1,10 @@
 """Enhanced Fuzzing Report Generator.
 
-Generates comprehensive, interactive HTML reports with:
+Generates comprehensive HTML reports with:
 - Complete mutation traceability
 - Crash forensics with drill-down details
-- Interactive visualizations
 - Artifact preservation tracking
 - Automated crash triage and prioritization
-- FDA compliance sections (SBOM, CVE coverage, test coverage)
 
 Note: This module is a facade that coordinates the reporting subpackage
 components. For direct access to individual formatters, import from the
@@ -17,7 +15,6 @@ from pathlib import Path
 from typing import Any
 
 from dicom_fuzzer.core.crash.crash_triage import CrashTriageEngine
-from dicom_fuzzer.core.reporting.compliance import ComplianceFormatter
 from dicom_fuzzer.core.reporting.enrichers import CrashTriageEnricher
 from dicom_fuzzer.core.reporting.formatters import HTMLSectionFormatter
 from dicom_fuzzer.core.reporting.html_templates import (
@@ -55,7 +52,6 @@ class EnhancedReportGenerator:
         )
         self._formatter = HTMLSectionFormatter(enable_triage=enable_triage)
         self._analytics = ReportAnalytics(enable_triage=enable_triage)
-        self._compliance = ComplianceFormatter(enable_triage=enable_triage)
 
     def _enrich_crashes_with_triage(
         self, session_data: dict[str, Any]
@@ -116,10 +112,6 @@ class EnhancedReportGenerator:
         html += self._formatter.format_crash_summary(crashes, fuzzed_files)
         html += self._formatter.format_crash_details(crashes, fuzzed_files)
         html += self._analytics.format_mutation_analysis(fuzzed_files, crashes)
-        # FDA compliance sections
-        html += self._compliance.format_fda_compliance_section(
-            data, crashes, fuzzed_files
-        )
         html += self._html_footer()
 
         return html

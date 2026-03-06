@@ -13,6 +13,8 @@ import json
 import logging
 import shutil
 import sys
+import warnings
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -176,14 +178,80 @@ def apply_resource_limits(
     return None
 
 
-def setup_logging(verbose: bool = False) -> None:
-    """Configure logging based on verbosity level."""
-    level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+def setup_logging(log_file: Path, console_level: str = "INFO") -> Path:
+    """Configure dual-channel logging: console (dashboard) + file (forensic).
+
+    Console shows ``console_level`` and above.
+    File captures INFO and above for clean post-mortem logs.
+
+    Args:
+        log_file: Path to the campaign log file (always created).
+        console_level: Logging level for console output ("INFO" or "DEBUG").
+
+    Returns:
+        The log file path.
+
+    """
+    from dicom_fuzzer.utils.logger import configure_logging
+
+    configure_logging(
+        log_level="DEBUG",
+        json_format=False,
+        log_file=log_file,
+        console_level=console_level,
     )
+
+    # Route Python warnings through logging so they're captured in the log file.
+    # Suppress pydicom's duplicate warnings: pydicom's warn_and_log() emits both
+    # warnings.warn() AND logging.warning(), so captureWarnings would double them.
+    logging.captureWarnings(True)
+    warnings.filterwarnings("ignore", module="pydicom")
+
+    # Suppress pydicom's own logging noise (validation warnings, VR parse messages).
+    # These fire hundreds of times per campaign for intentional fuzzer mutations
+    # (oversized values, invalid charsets, bad VRs) and are expected behavior.
+    logging.getLogger("pydicom").setLevel(logging.ERROR)
+
+    return log_file
+
+
+def _cleanup_empty_runs(output_root: Path) -> int:
+    """Remove run directories that contain no fuzzed files.
+
+    Cleans up orphaned directories from interrupted campaigns or test runs.
+
+    Returns:
+        Count of removed directories.
+
+    """
+    if not output_root.exists():
+        return 0
+
+    removed = 0
+    for run_dir in output_root.iterdir():
+        if not run_dir.is_dir():
+            continue
+        fuzzed_dir = run_dir / "fuzzed"
+        if fuzzed_dir.exists() and any(fuzzed_dir.iterdir()):
+            continue
+        shutil.rmtree(run_dir, ignore_errors=True)
+        removed += 1
+    return removed
+
+
+def _create_run_directory(output_root: Path) -> Path:
+    """Create an isolated run directory for this campaign.
+
+    Returns:
+        Path to the run directory (e.g. ``artifacts/20260227_154000/``).
+
+    """
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    run_dir = output_root / timestamp
+    (run_dir / "fuzzed").mkdir(parents=True, exist_ok=True)
+    (run_dir / "crashes").mkdir(exist_ok=True)
+    (run_dir / "reports").mkdir(exist_ok=True)
+    return run_dir
 
 
 def _scan_directory_for_dicom(
@@ -502,11 +570,27 @@ def main() -> int:
     quiet_mode = getattr(args, "quiet", False)
     json_mode = getattr(args, "json", False)
 
+    # Clean up empty/orphaned run directories from previous runs
+    output_root = Path(args.output)
+    cleaned = _cleanup_empty_runs(output_root)
+    if cleaned and not quiet_mode:
+        cli.info(f"Cleaned {cleaned} empty run directories")
+
+    # Create isolated run directory
+    run_dir = _create_run_directory(output_root)
+    log_file = run_dir / "campaign.log"
+
+    # Redirect output to the run's fuzzed/ subdirectory
+    args.output = str(run_dir / "fuzzed")
+
+    # Setup dual-channel logging: console at INFO (or DEBUG with -v), file always DEBUG
+    console_level = "DEBUG" if args.verbose else "INFO"
     if quiet_mode and not args.verbose:
-        logging.getLogger().setLevel(logging.ERROR)
-        setup_logging(False)
-    else:
-        setup_logging(args.verbose)
+        console_level = "ERROR"
+
+    setup_logging(log_file, console_level)
+    if not quiet_mode:
+        cli.info(f"Logging to {log_file}")
 
     try:
         resource_limits = _create_resource_limits(args)
@@ -514,11 +598,8 @@ def main() -> int:
         input_files = validate_input_path(args.input_file, recursive)
         selected_strategies = parse_strategies(getattr(args, "strategies", None))
 
-        output_path = Path(args.output)
-        output_path.mkdir(parents=True, exist_ok=True)
-
         passed, _ = pre_campaign_health_check(
-            output_path,
+            run_dir,
             target=getattr(args, "target", None),
             resource_limits=resource_limits,
             verbose=args.verbose,
@@ -533,7 +614,7 @@ def main() -> int:
         runner.display_results(files, results_data, json_mode, quiet_mode)
 
         return _run_optional_controllers(
-            args, files, input_files, output_path, resource_limits
+            args, files, input_files, run_dir, resource_limits
         )
 
     except KeyboardInterrupt:

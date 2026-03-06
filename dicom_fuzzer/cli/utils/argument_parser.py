@@ -81,9 +81,12 @@ def _add_basic_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "-o",
         "--output",
-        default="./artifacts/campaigns",
+        default="./artifacts",
         metavar="DIR",
-        help="Output directory for fuzzed files (default: ./artifacts/campaigns)",
+        help=(
+            "Root output directory. Each run creates a timestamped subdirectory "
+            "(default: ./artifacts)"
+        ),
     )
     parser.add_argument(
         "-s",
@@ -92,9 +95,11 @@ def _add_basic_args(parser: argparse.ArgumentParser) -> None:
         metavar="STRAT",
         help=(
             "Comma-separated list of fuzzing strategies: "
-            "metadata,header,pixel,structure,conformance,encoding,"
-            "sequence,compressed_pixel,reference,calibration,"
-            "dictionary,private_tag (default: all)"
+            "calibration,compressed_pixel,conformance,dictionary,"
+            "encapsulated_pdf,encoding,header,metadata,"
+            "nuclear_medicine,pet,pixel,private_tag,reference,"
+            "rt_dose,rt_structure_set,segmentation,"
+            "sequence,structure (default: all)"
         ),
     )
     parser.add_argument(
@@ -123,9 +128,9 @@ def _add_target_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--timeout",
         type=float,
-        default=5.0,
+        default=15.0,
         metavar="SEC",
-        help="Timeout in seconds for target execution (default: 5.0)",
+        help="Timeout in seconds for target execution (default: 15.0)",
     )
     parser.add_argument(
         "--stop-on-crash",
@@ -154,12 +159,12 @@ def _add_target_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--startup-delay",
         type=float,
-        default=0.0,
+        default=3.0,
         metavar="SEC",
         help=(
             "Delay in seconds after launching GUI app before monitoring starts. "
-            "Use this for applications that need time to load (e.g., 2.0 for Hermes). "
-            "Only used with --gui-mode. (default: 0.0)"
+            "GUI applications need time to initialize before fuzzing begins. "
+            "Only used with --gui-mode. (default: 3.0)"
         ),
     )
 

@@ -309,6 +309,144 @@ class TestPdfMetadataCorruption:
 
 
 # ---------------------------------------------------------------------------
+# _pdf_structure_corruption
+# ---------------------------------------------------------------------------
+
+
+class TestPdfStructureCorruption:
+    def test_corrupt_xref(
+        self, fuzzer: EncapsulatedPdfFuzzer, pdf_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(pdf_dataset)
+            result = fuzzer._pdf_structure_corruption(ds)
+            doc = getattr(result, "EncapsulatedDocument", b"")
+            if b"GARBAGE XREF" in doc:
+                return
+        pytest.fail("corrupt_xref attack never triggered")
+
+    def test_truncated_stream(
+        self, fuzzer: EncapsulatedPdfFuzzer, pdf_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(pdf_dataset)
+            result = fuzzer._pdf_structure_corruption(ds)
+            doc = getattr(result, "EncapsulatedDocument", b"")
+            if b"stream\n" in doc and b"endstream" not in doc:
+                return
+        pytest.fail("truncated_stream attack never triggered")
+
+    def test_bad_startxref(
+        self, fuzzer: EncapsulatedPdfFuzzer, pdf_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(pdf_dataset)
+            result = fuzzer._pdf_structure_corruption(ds)
+            doc = getattr(result, "EncapsulatedDocument", b"")
+            if b"startxref\n999999999" in doc:
+                return
+        pytest.fail("bad_startxref attack never triggered")
+
+    def test_recursive_pages(
+        self, fuzzer: EncapsulatedPdfFuzzer, pdf_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(pdf_dataset)
+            result = fuzzer._pdf_structure_corruption(ds)
+            doc = getattr(result, "EncapsulatedDocument", b"")
+            if b"/Kids [2 0 R]" in doc:
+                return
+        pytest.fail("recursive_pages attack never triggered")
+
+    def test_js_openaction(
+        self, fuzzer: EncapsulatedPdfFuzzer, pdf_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(pdf_dataset)
+            result = fuzzer._pdf_structure_corruption(ds)
+            doc = getattr(result, "EncapsulatedDocument", b"")
+            if b"/JavaScript" in doc:
+                return
+        pytest.fail("js_openaction attack never triggered")
+
+    def test_handles_minimal_dataset(self, fuzzer: EncapsulatedPdfFuzzer) -> None:
+        ds = Dataset()
+        ds.SOPClassUID = _ENCAPSULATED_PDF_SOP_CLASS_UID
+        for i in range(20):
+            random.seed(i)
+            result = fuzzer._pdf_structure_corruption(copy.deepcopy(ds))
+            assert isinstance(result, Dataset)
+
+
+# ---------------------------------------------------------------------------
+# _type_confusion
+# ---------------------------------------------------------------------------
+
+
+class TestTypeConfusion:
+    def test_int_document(
+        self, fuzzer: EncapsulatedPdfFuzzer, pdf_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(pdf_dataset)
+            result = fuzzer._type_confusion(ds)
+            doc = getattr(result, "EncapsulatedDocument", None)
+            if isinstance(doc, int):
+                return
+        pytest.fail("int_document attack never triggered")
+
+    def test_str_document(
+        self, fuzzer: EncapsulatedPdfFuzzer, pdf_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(pdf_dataset)
+            result = fuzzer._type_confusion(ds)
+            doc = getattr(result, "EncapsulatedDocument", None)
+            if isinstance(doc, str):
+                return
+        pytest.fail("str_document attack never triggered")
+
+    def test_dataset_document(
+        self, fuzzer: EncapsulatedPdfFuzzer, pdf_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(pdf_dataset)
+            result = fuzzer._type_confusion(ds)
+            doc = getattr(result, "EncapsulatedDocument", None)
+            if isinstance(doc, Dataset):
+                return
+        pytest.fail("dataset_document attack never triggered")
+
+    def test_none_document(
+        self, fuzzer: EncapsulatedPdfFuzzer, pdf_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(pdf_dataset)
+            result = fuzzer._type_confusion(ds)
+            doc = getattr(result, "EncapsulatedDocument", b"sentinel")
+            if doc is None:
+                return
+        pytest.fail("none_document attack never triggered")
+
+    def test_handles_minimal_dataset(self, fuzzer: EncapsulatedPdfFuzzer) -> None:
+        ds = Dataset()
+        ds.SOPClassUID = _ENCAPSULATED_PDF_SOP_CLASS_UID
+        for i in range(20):
+            random.seed(i)
+            result = fuzzer._type_confusion(copy.deepcopy(ds))
+            assert isinstance(result, Dataset)
+
+
+# ---------------------------------------------------------------------------
 # mutate() integration
 # ---------------------------------------------------------------------------
 

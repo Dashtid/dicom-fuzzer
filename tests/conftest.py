@@ -8,6 +8,7 @@ Optimizations for 4k+ tests:
 """
 
 import gc
+import logging
 import random
 import tempfile
 from collections.abc import Generator
@@ -18,6 +19,12 @@ import pydicom
 import pytest
 from pydicom.dataset import Dataset, FileDataset
 from pydicom.uid import generate_uid
+
+# Suppress pydicom's logger during tests. The fuzzer intentionally creates
+# malformed DICOM data, which triggers verbose logging.warning() calls
+# (e.g. "Unknown encoding 'XXXX...'" with multi-KB strings). These are
+# expected noise, not signals. Errors still propagate.
+logging.getLogger("pydicom").setLevel(logging.ERROR)
 
 
 @pytest.fixture(autouse=True)

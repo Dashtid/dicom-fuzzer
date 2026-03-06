@@ -166,6 +166,22 @@ class TestSegmentSequenceCorruption:
                 return
         pytest.fail("remove_sequence attack never triggered")
 
+    def test_invalid_algorithm_type(
+        self, fuzzer: SegmentationFuzzer, seg_dataset: Dataset
+    ) -> None:
+        valid_types = {"AUTOMATIC", "SEMIAUTOMATIC", "MANUAL"}
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(seg_dataset)
+            result = fuzzer._segment_sequence_corruption(ds)
+            seq = getattr(result, "SegmentSequence", None)
+            if seq:
+                for item in seq:
+                    alg = getattr(item, "SegmentAlgorithmType", None)
+                    if alg is not None and str(alg) not in valid_types:
+                        return
+        pytest.fail("invalid_algorithm_type attack never triggered")
+
     def test_handles_missing_sequence(self, fuzzer: SegmentationFuzzer) -> None:
         ds = Dataset()
         ds.SOPClassUID = _SEG_SOP_CLASS_UID
@@ -228,6 +244,26 @@ class TestSegmentFrameMappingAttack:
                     return
         pytest.fail("remove_identification attack never triggered")
 
+    def test_conflicting_frames(
+        self, fuzzer: SegmentationFuzzer, seg_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(seg_dataset)
+            result = fuzzer._segment_frame_mapping_attack(ds)
+            pffgs = getattr(result, "PerFrameFunctionalGroupsSequence", None)
+            if pffgs and len(pffgs) == 3:
+                refs = []
+                for frame in pffgs:
+                    sid_seq = getattr(frame, "SegmentIdentificationSequence", None)
+                    if sid_seq and len(sid_seq) > 0:
+                        refs.append(
+                            getattr(sid_seq[0], "ReferencedSegmentNumber", None)
+                        )
+                if len(refs) == 3 and len(set(refs)) == 1:
+                    return
+        pytest.fail("conflicting_frames attack never triggered")
+
     def test_handles_minimal_dataset(self, fuzzer: SegmentationFuzzer) -> None:
         ds = Dataset()
         ds.SOPClassUID = _SEG_SOP_CLASS_UID
@@ -280,6 +316,23 @@ class TestBinaryPixelTypeMismatch:
             if seg_type not in ("BINARY", "FRACTIONAL", None):
                 return
         pytest.fail("invalid_type attack never triggered")
+
+    def test_fractional_value_mismatch(
+        self, fuzzer: SegmentationFuzzer, seg_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(seg_dataset)
+            result = fuzzer._binary_pixel_type_mismatch(ds)
+            seg_type = getattr(result, "SegmentationType", None)
+            max_frac = getattr(result, "MaximumFractionalValue", None)
+            if (
+                seg_type == "FRACTIONAL"
+                and max_frac is not None
+                and max_frac in (0, -1, 65535, 256)
+            ):
+                return
+        pytest.fail("fractional_value_mismatch attack never triggered")
 
     def test_handles_minimal_dataset(self, fuzzer: SegmentationFuzzer) -> None:
         ds = Dataset()
@@ -336,6 +389,20 @@ class TestReferencedSeriesCorruption:
                 if uid == str(original_series_uid):
                     return
         pytest.fail("self_reference attack never triggered")
+
+    def test_remove_instances(
+        self, fuzzer: SegmentationFuzzer, seg_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(seg_dataset)
+            result = fuzzer._referenced_series_corruption(ds)
+            ref_seq = getattr(result, "ReferencedSeriesSequence", None)
+            if ref_seq and len(ref_seq) > 0:
+                inst_seq = getattr(ref_seq[0], "ReferencedInstanceSequence", None)
+                if inst_seq is not None and len(inst_seq) == 0:
+                    return
+        pytest.fail("remove_instances attack never triggered")
 
     def test_handles_minimal_dataset(self, fuzzer: SegmentationFuzzer) -> None:
         ds = Dataset()

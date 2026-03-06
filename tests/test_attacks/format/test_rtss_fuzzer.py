@@ -368,6 +368,29 @@ class TestRoiCrossReferenceAttack:
                 return
         pytest.fail("remove_observations attack never triggered")
 
+    def test_invalid_interpreted_type(
+        self, fuzzer: RTStructureSetFuzzer, rtss_dataset: Dataset
+    ) -> None:
+        valid_types = {
+            "EXTERNAL",
+            "PTV",
+            "CTV",
+            "GTV",
+            "ORGAN",
+            "AVOIDANCE",
+            "TREATED_VOLUME",
+        }
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(rtss_dataset)
+            result = fuzzer._roi_cross_reference_attack(ds)
+            obs_seq = getattr(result, "RTROIObservationsSequence", None)
+            if obs_seq and len(obs_seq) > 0:
+                roi_type = getattr(obs_seq[0], "RTROIInterpretedType", None)
+                if roi_type is not None and str(roi_type) not in valid_types:
+                    return
+        pytest.fail("invalid_interpreted_type attack never triggered")
+
     def test_handles_missing_sequences(self, fuzzer: RTStructureSetFuzzer) -> None:
         ds = Dataset()
         ds.SOPClassUID = _RTSS_SOP_CLASS_UID

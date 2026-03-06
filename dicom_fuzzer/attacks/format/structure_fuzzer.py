@@ -190,13 +190,16 @@ class StructureFuzzer(FormatFuzzerBase):
 
         return dataset
 
+    # VR types that pydicom validates as numeric
+    _NUMERIC_VRS = frozenset({"DS", "IS", "FL", "FD", "US", "SS", "UL", "SL"})
+
     def _duplicate_tags(self, dataset: Dataset) -> Dataset:
         """Overwrite a random tag's value with a modified copy.
 
         Note: pydicom cannot hold two elements with the same tag, so
-        add_new overwrites the existing value. The mutation appends
-        "_DUPLICATE" to the original value, producing a malformed string.
-        For true duplicate-tag testing, operate on raw bytes (see backlog).
+        add_new overwrites the existing value. For string VRs the mutation
+        appends "_DUPLICATE". For numeric VRs (DS, IS, FL, FD, etc.) it
+        appends "99" to stay valid enough for pydicom to accept.
 
         Args:
             dataset: Dataset to modify
@@ -205,25 +208,26 @@ class StructureFuzzer(FormatFuzzerBase):
             Dataset with one tag value modified
 
         """
-        # Get existing tags
         existing_tags = list(dataset.keys())
 
         if existing_tags:
-            # Pick a random tag to duplicate
             tag_to_duplicate = random.choice(existing_tags)
 
             try:
-                # Get the original element
                 original_element = dataset[tag_to_duplicate]
 
-                # Try to add it again with different value
-                # Note: pydicom may prevent this, but we try anyway
                 if hasattr(original_element, "value"):
-                    # Modify the value slightly
-                    new_value = str(original_element.value) + "_DUPLICATE"
-                    dataset.add_new(tag_to_duplicate, original_element.VR, new_value)
+                    vr = original_element.VR
+                    if vr in self._NUMERIC_VRS:
+                        # Numeric VRs: append digits to stay parseable
+                        new_value = str(original_element.value) + "99"
+                    elif vr == "SQ":
+                        # Skip sequences -- can't assign a string
+                        return dataset
+                    else:
+                        new_value = str(original_element.value) + "_DUPLICATE"
+                    dataset.add_new(tag_to_duplicate, vr, new_value)
             except Exception as e:
-                # If duplication fails, continue
                 logger.debug("Failed to duplicate tag %s: %s", tag_to_duplicate, e)
 
         return dataset

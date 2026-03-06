@@ -80,7 +80,7 @@ class DicomMutator:
         if self.config.get("auto_register_strategies", True):
             self._register_default_strategies()
 
-        logger.info("DicomMutator initialized with config: %s", self.config)
+        logger.debug("DicomMutator initialized with config: %s", self.config)
 
     def _load_default_config(self) -> None:
         """Fill in default values for any missing config keys."""
@@ -180,7 +180,6 @@ class DicomMutator:
             original_file_info=file_info or {},
         )
 
-        logger.info("Started mutation session: %s", self.current_session.session_id)
         return self.current_session.session_id
 
     def apply_mutations(
@@ -204,8 +203,6 @@ class DicomMutator:
         if num_mutations is None:
             num_mutations = int(self.config.get("max_mutations_per_file", 1))
 
-        logger.info("Applying %s mutations", num_mutations)
-
         mutated_dataset = dataset.copy()
 
         # Get available strategies
@@ -219,12 +216,11 @@ class DicomMutator:
 
         # Apply the requested number of mutations
         mutations_applied = 0
-        for i in range(num_mutations):
+        for _i in range(num_mutations):
             # Check probability to see if we should apply this mutation
             # Skip mutation if random value is greater than probability threshold
             # e.g., if probability=0.7, skip when random() > 0.7 (30% skip rate)
             if random.random() > self.config.get("mutation_probability", 1.0):
-                logger.debug("Skipping mutation %s due to probability", i + 1)
                 continue
 
             # Choose a random strategy
@@ -240,7 +236,6 @@ class DicomMutator:
                 # Record the failed mutation
                 self._record_mutation(strategy, success=False, error=str(e))
 
-        logger.info("Successfully applied %s mutations", mutations_applied)
         return mutated_dataset
 
     def _get_applicable_strategies(
@@ -263,11 +258,11 @@ class DicomMutator:
 
         # Check cache first
         if cache_key in self._strategy_cache:
-            logger.debug("Using cached strategies for dataset type")
             return self._strategy_cache[cache_key]
 
         # Cache miss - compute applicable strategies
         applicable = []
+        skipped = []
 
         for strategy in self.strategies:
             # Check if specific strategies were requested
@@ -278,7 +273,7 @@ class DicomMutator:
                 if strategy.can_mutate(dataset):
                     applicable.append(strategy)
                 else:
-                    logger.debug("Strategy %s not applicable", strategy.strategy_name)
+                    skipped.append(strategy.strategy_name)
             except Exception as e:
                 logger.warning(
                     "Error checking strategy %s: %s", strategy.strategy_name, e
@@ -286,19 +281,14 @@ class DicomMutator:
 
         # Store in cache for future use
         self._strategy_cache[cache_key] = applicable
-        logger.debug("Cached %s applicable strategies", len(applicable))
-
         return applicable
 
     def _apply_single_mutation(
         self, dataset: Dataset, strategy: MutationStrategy
     ) -> Dataset:
         """Apply a single mutation and track the results."""
-        logger.debug("Applying %s mutation", strategy.strategy_name)
-
         mutated_dataset = strategy.mutate(dataset)
         self._record_mutation(strategy, success=True)
-
         return mutated_dataset
 
     def _record_mutation(
@@ -325,9 +315,6 @@ class DicomMutator:
         if success:
             self.current_session.successful_mutations += 1
 
-        # Log for debugging
-        logger.debug("Recorded mutation: %s", mutation_record.mutation_id)
-
     def end_session(self) -> MutationSession | None:
         """End the current mutation session and return statistics.
 
@@ -341,13 +328,7 @@ class DicomMutator:
 
         self.current_session.end_time = datetime.now(UTC)
 
-        completed_session = self.current_session
-        logger.info(
-            "Mutation session %s completed: %d/%d mutations successful",
-            completed_session.session_id,
-            completed_session.successful_mutations,
-            completed_session.total_mutations,
-        )
-
-        self.current_session = None
-        return completed_session
+        # Don't clear current_session -- callers may still need to read it
+        # (e.g. campaign_runner._get_last_strategy). start_session() will
+        # overwrite it when the next session begins.
+        return self.current_session

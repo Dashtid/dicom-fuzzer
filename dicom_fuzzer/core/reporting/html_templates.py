@@ -19,8 +19,8 @@ REPORT_CSS: Final[str] = """
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     margin: 0;
-    padding: 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 16px;
+    background: #f5f6f8;
     min-height: 100vh;
 }
 
@@ -28,155 +28,155 @@ body {
     max-width: 1400px;
     margin: 0 auto;
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     overflow: hidden;
 }
 
 .header {
-    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    background: #1a1a2e;
     color: white;
-    padding: 40px;
+    padding: 28px 32px;
 }
 
 .header h1 {
-    margin: 0 0 10px 0;
-    font-size: 2.5em;
-    font-weight: 700;
+    margin: 0 0 6px 0;
+    font-size: 1.8em;
+    font-weight: 600;
 }
 
 .header .subtitle {
-    opacity: 0.9;
-    font-size: 1.1em;
+    opacity: 0.85;
+    font-size: 0.95em;
 }
 
 .content {
-    padding: 40px;
+    padding: 28px 32px;
 }
 
 h2 {
-    color: #2c3e50;
-    border-bottom: 3px solid #3498db;
-    padding-bottom: 10px;
-    margin-top: 40px;
-    font-size: 1.8em;
+    color: #1a1a2e;
+    border-bottom: 2px solid #d0d5dd;
+    padding-bottom: 8px;
+    margin-top: 32px;
+    font-size: 1.4em;
+    font-weight: 600;
 }
 
 h3 {
-    color: #34495e;
-    margin-top: 30px;
-    font-size: 1.4em;
+    color: #344054;
+    margin-top: 24px;
+    font-size: 1.15em;
+    font-weight: 600;
 }
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin: 30px 0;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
 }
 
 .stat-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 25px;
-    border-radius: 10px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    color: #1a1a2e;
+    padding: 20px;
+    border-radius: 6px;
     text-align: center;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    transition: transform 0.2s;
 }
 
-.stat-card:hover {
-    transform: translateY(-5px);
-}
+.stat-card.accent-red { border-left: 4px solid #d32f2f; }
+.stat-card.accent-amber { border-left: 4px solid #f59e0b; }
 
 .stat-value {
-    font-size: 3em;
-    font-weight: bold;
-    margin: 10px 0;
+    font-size: 2em;
+    font-weight: 700;
+    margin: 6px 0;
+    color: #1a1a2e;
 }
 
 .stat-label {
-    opacity: 0.9;
-    font-size: 0.9em;
+    color: #667085;
+    font-size: 0.8em;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
 }
 
 .crash-item {
     background: white;
     border: 1px solid #e0e0e0;
-    border-left: 5px solid #e74c3c;
-    margin: 20px 0;
-    padding: 25px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border-left: 4px solid #e74c3c;
+    margin: 16px 0;
+    padding: 20px;
+    border-radius: 6px;
 }
 
-.crash-item.critical { border-left-color: #c0392b; background: #fff5f5; }
-.crash-item.high { border-left-color: #e74c3c; background: #fff8f8; }
-.crash-item.medium { border-left-color: #f39c12; background: #fffbf0; }
-.crash-item.low { border-left-color: #f1c40f; background: #fffff0; }
+.crash-item.critical { border-left-color: #c0392b; }
+.crash-item.high { border-left-color: #e74c3c; }
+.crash-item.medium { border-left-color: #f39c12; }
+.crash-item.low { border-left-color: #f1c40f; }
 
 .crash-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 15px;
+    gap: 8px;
+    margin-bottom: 12px;
 }
 
 .badge {
     display: inline-block;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 0.85em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.75em;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
 }
 
-.badge.critical { background: #c0392b; color: white; }
-.badge.high { background: #e74c3c; color: white; }
-.badge.medium { background: #f39c12; color: white; }
-.badge.low { background: #f1c40f; color: #333; }
-.badge.crash { background: #e74c3c; color: white; }
-.badge.hang { background: #f39c12; color: white; }
+.badge.critical { background: #fde8e8; color: #c0392b; }
+.badge.high { background: #fde8e8; color: #e74c3c; }
+.badge.medium { background: #fef3cd; color: #b45309; }
+.badge.low { background: #fef9c3; color: #92400e; }
+.badge.crash { background: #fde8e8; color: #e74c3c; }
+.badge.hang { background: #fef3cd; color: #b45309; }
 
 .mutation-list {
-    background: #f8f9fa;
-    border-radius: 6px;
-    padding: 15px;
-    margin: 15px 0;
+    background: #f9fafb;
+    border-radius: 4px;
+    padding: 12px;
+    margin: 12px 0;
 }
 
 .mutation-item {
     background: white;
-    border-left: 3px solid #3498db;
-    padding: 12px;
-    margin: 10px 0;
+    border-left: 3px solid #3b82f6;
+    padding: 10px;
+    margin: 8px 0;
     border-radius: 4px;
-    font-size: 0.95em;
+    font-size: 0.9em;
 }
 
 .mutation-item .mutation-header {
     font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 5px;
+    color: #1a1a2e;
+    margin-bottom: 4px;
 }
 
 .mutation-detail {
     color: #555;
-    margin: 5px 0;
+    margin: 4px 0;
     font-family: 'Courier New', monospace;
-    font-size: 0.9em;
+    font-size: 0.85em;
 }
 
 .code-block {
-    background: #2c3e50;
-    color: #ecf0f1;
-    padding: 15px;
-    border-radius: 6px;
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 12px;
+    border-radius: 4px;
     font-family: 'Courier New', monospace;
-    font-size: 0.9em;
+    font-size: 0.85em;
     overflow-x: auto;
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -184,123 +184,137 @@ h3 {
 
 .info-grid {
     display: grid;
-    grid-template-columns: 200px 1fr;
-    gap: 10px;
-    margin: 15px 0;
+    grid-template-columns: 180px 1fr;
+    gap: 8px;
+    margin: 12px 0;
 }
 
 .info-label {
     font-weight: 600;
     color: #555;
+    font-size: 0.9em;
 }
 
 .info-value {
-    color: #2c3e50;
+    color: #1a1a2e;
     word-break: break-all;
+    font-size: 0.9em;
 }
 
 details {
-    margin: 15px 0;
+    margin: 12px 0;
 }
 
 summary {
     cursor: pointer;
     font-weight: 600;
-    color: #3498db;
-    padding: 10px;
-    background: #f8f9fa;
-    border-radius: 6px;
+    color: #2563eb;
+    padding: 8px 10px;
+    background: #f9fafb;
+    border-radius: 4px;
     user-select: none;
+    font-size: 0.9em;
 }
 
 summary:hover {
-    background: #e9ecef;
+    background: #f0f2f5;
 }
 
 .alert {
-    background: #e74c3c;
-    color: white;
-    padding: 20px;
-    border-radius: 8px;
-    margin: 20px 0;
-    font-size: 1.1em;
+    background: white;
+    border: 1px solid #fca5a5;
+    border-left: 4px solid #dc2626;
+    color: #1a1a2e;
+    padding: 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-size: 0.95em;
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 12px;
 }
 
 .warning {
-    background: #f39c12;
-    color: white;
-    padding: 20px;
-    border-radius: 8px;
-    margin: 20px 0;
-    font-size: 1.1em;
+    background: white;
+    border: 1px solid #fcd34d;
+    border-left: 4px solid #f59e0b;
+    color: #1a1a2e;
+    padding: 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-size: 0.95em;
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 12px;
 }
 
 .success {
-    background: #27ae60;
-    color: white;
-    padding: 20px;
-    border-radius: 8px;
-    margin: 20px 0;
-    font-size: 1.1em;
+    background: white;
+    border: 1px solid #86efac;
+    border-left: 4px solid #16a34a;
+    color: #1a1a2e;
+    padding: 16px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-size: 0.95em;
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 12px;
 }
 
 .file-path {
-    background: #ecf0f1;
-    padding: 3px 8px;
-    border-radius: 4px;
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 3px;
     font-family: 'Courier New', monospace;
-    font-size: 0.9em;
+    font-size: 0.85em;
     word-break: break-all;
 }
 
 .timestamp {
-    color: #95a5a6;
-    font-size: 0.9em;
+    color: #6b7280;
+    font-size: 0.85em;
 }
 
 .repro-command {
-    background: #2c3e50;
-    color: #2ecc71;
-    padding: 15px;
-    border-radius: 6px;
+    background: #1e293b;
+    color: #4ade80;
+    padding: 12px;
+    border-radius: 4px;
     font-family: 'Courier New', monospace;
-    margin: 15px 0;
+    margin: 12px 0;
     cursor: pointer;
+    font-size: 0.85em;
 }
 
 .repro-command:hover {
-    background: #34495e;
+    background: #334155;
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
-    margin: 20px 0;
+    margin: 16px 0;
+    font-size: 0.9em;
 }
 
 th, td {
-    padding: 12px;
+    padding: 10px 12px;
     text-align: left;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 th {
-    background: #34495e;
-    color: white;
+    background: #f0f2f5;
+    color: #333;
     font-weight: 600;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
 tr:hover {
-    background: #f8f9fa;
+    background: #f9fafb;
 }
 """
 
@@ -401,7 +415,7 @@ def render_alert(
     """
     title_html = f"<strong>{escape_html(title)}</strong> " if title else ""
     return f"""<div class="{alert_type}">
-    <span style="font-size: 2em;">{icon}</span>
+    <span style="font-size: 1.4em;">{icon}</span>
     <div>{title_html}{escape_html(message)}</div>
 </div>"""
 
@@ -488,41 +502,6 @@ def render_table_row(cells: list[str], escape: bool = True) -> str:
     else:
         cell_html = "".join(f"<td>{cell}</td>" for cell in cells)
     return f"<tr>{cell_html}</tr>"
-
-
-def render_progress_bar(
-    value: float,
-    max_value: float,
-    label: str,
-    color: str = "#667eea",
-    show_count: int | None = None,
-) -> str:
-    """Render a horizontal progress/bar chart item.
-
-    Args:
-        value: Current value
-        max_value: Maximum value (for percentage calculation)
-        label: Label text
-        color: Bar color
-        show_count: Optional count to display in bar
-
-    Returns:
-        HTML string for the progress bar
-
-    """
-    pct = (value / max_value * 100) if max_value > 0 else 0
-    count_display = str(show_count) if show_count is not None else f"{pct:.1f}%"
-
-    return f"""<div style="margin: 10px 0;">
-    <div style="display: flex; align-items: center; gap: 10px;">
-        <div style="width: 80px; font-weight: 600; text-transform: uppercase;">{escape_html(label)}</div>
-        <div style="flex: 1; background: #e0e0e0; border-radius: 4px; height: 24px;">
-            <div style="width: {pct}%; background: {color}; height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 10px; color: white; font-weight: 600;">
-                {count_display}
-            </div>
-        </div>
-    </div>
-</div>"""
 
 
 # =============================================================================

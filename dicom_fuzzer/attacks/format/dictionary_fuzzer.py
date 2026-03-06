@@ -74,8 +74,8 @@ class DictionaryFuzzer(FormatFuzzerBase):
         0x00080058,  # Failed SOP Instance UID List
     }
 
-    # VR types that require binary data (skip mutation)
-    _BINARY_VRS = frozenset({"OB", "OW", "OD", "OF", "OL", "OV", "UN"})
+    # VR types that require binary data or structured content (skip mutation)
+    _BINARY_VRS = frozenset({"OB", "OW", "OD", "OF", "OL", "OV", "UN", "SQ"})
 
     # Numeric VR types that need string-to-number conversion
     _NUMERIC_VRS = frozenset({"US", "SS", "UL", "SL", "IS", "DS", "FL", "FD", "AT"})
@@ -131,11 +131,6 @@ class DictionaryFuzzer(FormatFuzzerBase):
         for tag in tags_to_mutate:
             self._mutate_tag(mutated, tag)
 
-        logger.debug(
-            "Applied dictionary mutations",
-            num_mutations=len(tags_to_mutate),
-        )
-
         return mutated
 
     def _get_mutation_value(self, tag_int: int) -> str | int | float:
@@ -187,7 +182,6 @@ class DictionaryFuzzer(FormatFuzzerBase):
             elif vr in {"IS", "DS"}:
                 return self._convert_to_string_vr(value)
             elif vr == "AT":
-                logger.debug(f"Skipping mutation of AT tag {tag:08X}")
                 return None
             return value
         except (ValueError, AttributeError):
@@ -204,7 +198,6 @@ class DictionaryFuzzer(FormatFuzzerBase):
 
             # Skip binary VR types
             if vr in self._BINARY_VRS:
-                logger.debug(f"Skipping mutation of binary VR tag {tag:08X} (VR={vr})")
                 return
 
             # Handle UI (Unique Identifier) VR specially
@@ -218,7 +211,6 @@ class DictionaryFuzzer(FormatFuzzerBase):
                     root = random.choice(DICOMDictionaries.get_dictionary("uid_roots"))
                     value = DICOMDictionaries.generate_random_uid(root)
                 dataset[tag].value = value
-                logger.debug(f"Mutated UI tag {tag:08X}", new_value=str(value)[:50])
                 return
 
             # Convert string values to appropriate numeric types
@@ -229,7 +221,6 @@ class DictionaryFuzzer(FormatFuzzerBase):
                 value = converted
 
             dataset[tag].value = value
-            logger.debug(f"Mutated tag {tag:08X}", new_value=str(value)[:50])
         except Exception as e:
             logger.debug(f"Failed to mutate tag {tag:08X}: {e}")
 

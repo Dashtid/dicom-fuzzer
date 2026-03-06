@@ -1,10 +1,7 @@
 """Tests for PetFuzzer -- PET-specific DICOM mutations.
 
-Covers all 4 attack strategies:
-- SUV calibration chain corruption
-- Radiopharmaceutical decay parameter manipulation
-- Temporal parameter corruption
-- CorrectedImage flag combinations
+Covers PET-specific strategies plus wiring of the shared
+radiopharmaceutical helper (see test_radiopharmaceutical.py).
 """
 
 from __future__ import annotations
@@ -134,6 +131,18 @@ class TestSuvCalibrationChainAttack:
                 return
         pytest.fail("remove_units attack never triggered")
 
+    def test_invalid_decay_correction(
+        self, fuzzer: PetFuzzer, pet_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(pet_dataset)
+            result = fuzzer._suv_calibration_chain_attack(ds)
+            dc = getattr(result, "DecayCorrection", None)
+            if dc is not None and str(dc) not in ("START", "ADMIN", "NONE"):
+                return
+        pytest.fail("invalid_decay_correction attack never triggered")
+
     def test_handles_missing_tags(self, fuzzer: PetFuzzer) -> None:
         ds = Dataset()
         ds.SOPClassUID = _PET_SOP_CLASS_UID
@@ -143,73 +152,26 @@ class TestSuvCalibrationChainAttack:
             assert isinstance(result, Dataset)
 
 
-class TestRadiopharmaceuticalDecayAttack:
-    def test_zero_half_life(self, fuzzer: PetFuzzer, pet_dataset: Dataset) -> None:
-        for i in range(50):
-            random.seed(i)
-            ds = copy.deepcopy(pet_dataset)
-            result = fuzzer._radiopharmaceutical_decay_attack(ds)
-            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
-            if seq and len(seq) > 0:
-                hl = getattr(seq[0], "RadionuclideHalfLife", None)
-                if hl is not None and float(hl) == 0.0:
-                    return
-        pytest.fail("zero_half_life attack never triggered")
+class TestRadiopharmaceuticalWiring:
+    """Verify the shared radiopharmaceutical_attacks helper is wired into mutate()."""
 
-    def test_negative_dose(self, fuzzer: PetFuzzer, pet_dataset: Dataset) -> None:
-        for i in range(50):
-            random.seed(i)
-            ds = copy.deepcopy(pet_dataset)
-            result = fuzzer._radiopharmaceutical_decay_attack(ds)
-            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
-            if seq and len(seq) > 0:
-                dose = getattr(seq[0], "RadionuclideTotalDose", None)
-                if dose is not None and float(dose) < 0:
-                    return
-        pytest.fail("negative_dose attack never triggered")
+    def test_shared_helper_in_strategies(self, fuzzer: PetFuzzer) -> None:
+        from dicom_fuzzer.attacks.format._radiopharmaceutical import (
+            radiopharmaceutical_attacks,
+        )
 
-    def test_future_start_time(self, fuzzer: PetFuzzer, pet_dataset: Dataset) -> None:
-        for i in range(50):
-            random.seed(i)
-            ds = copy.deepcopy(pet_dataset)
-            result = fuzzer._radiopharmaceutical_decay_attack(ds)
-            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
-            if seq and len(seq) > 0:
-                dt = getattr(seq[0], "RadiopharmaceuticalStartDateTime", None)
-                if dt is not None and str(dt).startswith("2999"):
-                    return
-        pytest.fail("future_start_time attack never triggered")
+        assert radiopharmaceutical_attacks in fuzzer.mutation_strategies
 
-    def test_zero_positron_fraction(
-        self, fuzzer: PetFuzzer, pet_dataset: Dataset
+    def test_shared_helper_callable_with_pet_dataset(
+        self, pet_dataset: Dataset
     ) -> None:
-        for i in range(50):
-            random.seed(i)
-            ds = copy.deepcopy(pet_dataset)
-            result = fuzzer._radiopharmaceutical_decay_attack(ds)
-            seq = getattr(result, "RadiopharmaceuticalInformationSequence", None)
-            if seq and len(seq) > 0:
-                pf = getattr(seq[0], "RadionuclidePositronFraction", None)
-                if pf is not None and float(pf) == 0.0:
-                    return
-        pytest.fail("zero_positron_fraction attack never triggered")
+        from dicom_fuzzer.attacks.format._radiopharmaceutical import (
+            radiopharmaceutical_attacks,
+        )
 
-    def test_remove_sequence(self, fuzzer: PetFuzzer, pet_dataset: Dataset) -> None:
-        for i in range(50):
-            random.seed(i)
-            ds = copy.deepcopy(pet_dataset)
-            result = fuzzer._radiopharmaceutical_decay_attack(ds)
-            if "RadiopharmaceuticalInformationSequence" not in result:
-                return
-        pytest.fail("remove_sequence attack never triggered")
-
-    def test_handles_missing_sequence(self, fuzzer: PetFuzzer) -> None:
-        ds = Dataset()
-        ds.SOPClassUID = _PET_SOP_CLASS_UID
-        for i in range(20):
-            random.seed(i)
-            result = fuzzer._radiopharmaceutical_decay_attack(copy.deepcopy(ds))
-            assert isinstance(result, Dataset)
+        ds = copy.deepcopy(pet_dataset)
+        result = radiopharmaceutical_attacks(ds)
+        assert isinstance(result, Dataset)
 
 
 class TestTemporalParameterCorruption:

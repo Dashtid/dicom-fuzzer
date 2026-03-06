@@ -223,6 +223,7 @@ class RTStructureSetFuzzer(FormatFuzzerBase):
                 "duplicate_roi_numbers",
                 "missing_roi_sequence",
                 "remove_observations",
+                "invalid_interpreted_type",
             ]
         )
 
@@ -264,6 +265,20 @@ class RTStructureSetFuzzer(FormatFuzzerBase):
             elif attack == "remove_observations":
                 if "RTROIObservationsSequence" in dataset:
                     del dataset.RTROIObservationsSequence
+            elif attack == "invalid_interpreted_type":
+                obs_seq = getattr(dataset, "RTROIObservationsSequence", None)
+                if obs_seq and len(obs_seq) > 0:
+                    obs_seq[0].RTROIInterpretedType = random.choice(
+                        ["", "INVALID", "TUMOR", "A" * 5000]
+                    )
+                else:
+                    item = Dataset()
+                    item.ObservationNumber = 1
+                    item.ReferencedROINumber = 1
+                    item.RTROIInterpretedType = random.choice(
+                        ["", "INVALID", "TUMOR", "A" * 5000]
+                    )
+                    dataset.RTROIObservationsSequence = Sequence([item])
         except Exception as e:
             logger.debug("ROI cross-reference attack failed: %s", e)
 

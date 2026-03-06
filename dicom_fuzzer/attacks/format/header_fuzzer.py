@@ -353,25 +353,31 @@ class HeaderFuzzer(FormatFuzzerBase):
 
         return dataset
 
+    # Boundary values for US VR tags, pre-packed as raw bytes so they
+    # bypass pydicom's range validation and always land in the output file.
+    # Includes intentionally wrong-length values (4 bytes in a 2-byte field)
+    # to trigger buffer overflows in target parsers.
+    _US_BOUNDARIES = [
+        struct.pack("<H", 0),  # Zero (division by zero in area calc?)
+        struct.pack("<H", 1),  # Minimum valid
+        struct.pack("<H", 65535),  # Max unsigned short
+        struct.pack("<H", 65534),  # Near-max
+        struct.pack("<I", 0xFFFFFFFF),  # 4 bytes in 2-byte field (overflow)
+    ]
+
     def _boundary_values(self, dataset: Dataset) -> Dataset:
         """Insert boundary and edge case values.
 
         Tests min/max values that may trigger integer overflow,
-        division by zero, or array index issues.
+        division by zero, or array index issues. Numeric VR tags use
+        raw bytes via ``_value`` to bypass pydicom range validation.
         """
-        # Test numeric boundary values
-        if hasattr(dataset, "Rows"):
-            boundary_values = [
-                0,  # Zero (division by zero?)
-                1,  # Minimum valid
-                65535,  # Max 16-bit unsigned
-                -1,  # Negative (invalid for image size)
-                2147483647,  # Max 32-bit signed int
-            ]
-            dataset.Rows = random.choice(boundary_values)
-
-        if hasattr(dataset, "Columns"):
-            dataset.Columns = random.choice([0, 1, 65535, -1])
+        # Numeric tags: assign raw bytes to guarantee the mutation lands
+        for attr in ("Rows", "Columns"):
+            if hasattr(dataset, attr):
+                elem = dataset.data_element(attr)
+                if elem:
+                    elem._value = random.choice(self._US_BOUNDARIES)
 
         # Test age with boundary values
         if hasattr(dataset, "PatientAge"):
@@ -434,18 +440,14 @@ class HeaderFuzzer(FormatFuzzerBase):
     def _numeric_vr_mutations(self, dataset: Dataset) -> Dataset:
         """Target numeric VRs with boundary values and type confusion.
 
-        Focuses on integer overflow/underflow and float special values
-        that commonly trigger crashes in parsers.
+        Focuses on integer overflow/underflow that commonly trigger crashes
+        in parsers. Values are all within valid range for their VR type so
+        pydicom can serialize them without recovery.
         """
-        # Numeric VRs and their boundary attack values
         numeric_attacks = {
-            # Unsigned short - common for image dimensions
             "US": [0, 1, 65534, 65535],
-            # Signed short
             "SS": [-32768, -1, 0, 32767],
-            # Unsigned long - used for lengths
             "UL": [0, 1, 2147483647, 4294967295],
-            # Signed long
             "SL": [-2147483648, -1, 0, 2147483647],
         }
 

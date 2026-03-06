@@ -35,7 +35,7 @@ INVALID_CHARSETS = [
     "\\ISO_IR 100",  # Backslash prefix
     "ISO_IR 100\\ISO_IR 100",  # Duplicate
     "",  # Empty with multi-byte data
-    "\x00",  # Null
+    "\x01",  # SOH control char (avoid null which breaks Windows file writes)
     "A" * 100,  # Overlong
 ]
 
@@ -120,8 +120,9 @@ class EncodingFuzzer(FormatFuzzerBase):
                 dataset.SpecificCharacterSet = random.choice(INVALID_CHARSETS)
 
             elif attack == "malformed_charset":
-                # Charset with control characters
-                dataset.SpecificCharacterSet = "ISO_IR\x00100"
+                # Charset with control characters (avoid null bytes which
+                # cause ValueError on Windows file writes)
+                dataset.SpecificCharacterSet = "ISO_IR\x01100"
 
             elif attack == "empty_charset_with_unicode":
                 # No charset declared but has Unicode data
@@ -393,7 +394,6 @@ class EncodingFuzzer(FormatFuzzerBase):
             encoding, desc = random.choice(overlong_encodings)
             value = b"Patient" + encoding + b"Name"
             dataset.add_new(Tag(0x0010, 0x0010), "PN", value)
-            logger.debug("Injected overlong UTF-8: %s", desc)
         except Exception as e:
             logger.debug("Overlong UTF-8 injection failed: %s", e)
 

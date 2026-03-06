@@ -14,10 +14,10 @@ from __future__ import annotations
 import random
 
 from pydicom.dataset import Dataset
-from pydicom.sequence import Sequence
 
 from dicom_fuzzer.utils.logger import get_logger
 
+from ._radiopharmaceutical import radiopharmaceutical_attacks
 from .base import FormatFuzzerBase
 
 logger = get_logger(__name__)
@@ -39,7 +39,7 @@ class PetFuzzer(FormatFuzzerBase):
         super().__init__()
         self.mutation_strategies = [
             self._suv_calibration_chain_attack,
-            self._radiopharmaceutical_decay_attack,
+            radiopharmaceutical_attacks,
             self._temporal_parameter_corruption,
             self._corrected_image_flag_attack,
         ]
@@ -84,6 +84,7 @@ class PetFuzzer(FormatFuzzerBase):
                 "zero_weight",
                 "conflicting_suv_type",
                 "remove_units",
+                "invalid_decay_correction",
             ]
         )
 
@@ -104,61 +105,12 @@ class PetFuzzer(FormatFuzzerBase):
                 for tag in ("Units", "DecayCorrection", "SUVType"):
                     if tag in dataset:
                         del dataset[tag]
+            elif attack == "invalid_decay_correction":
+                dataset.DecayCorrection = random.choice(
+                    ["", "INVALID", "START\\ADMIN", "A" * 5000]
+                )
         except Exception as e:
             logger.debug("SUV calibration chain attack failed: %s", e)
-
-        return dataset
-
-    def _radiopharmaceutical_decay_attack(self, dataset: Dataset) -> Dataset:
-        """Corrupt RadionuclideHalfLife, RadionuclideTotalDose, RadiopharmaceuticalStartDateTime."""
-        attack = random.choice(
-            [
-                "zero_half_life",
-                "negative_dose",
-                "future_start_time",
-                "zero_positron_fraction",
-                "remove_sequence",
-            ]
-        )
-
-        try:
-            if attack == "zero_half_life":
-                seq = getattr(dataset, "RadiopharmaceuticalInformationSequence", None)
-                if seq and len(seq) > 0:
-                    seq[0].RadionuclideHalfLife = "0.0"
-                else:
-                    item = Dataset()
-                    item.RadionuclideHalfLife = "0.0"
-                    dataset.RadiopharmaceuticalInformationSequence = Sequence([item])
-            elif attack == "negative_dose":
-                seq = getattr(dataset, "RadiopharmaceuticalInformationSequence", None)
-                if seq and len(seq) > 0:
-                    seq[0].RadionuclideTotalDose = "-370000000.0"
-                else:
-                    item = Dataset()
-                    item.RadionuclideTotalDose = "-370000000.0"
-                    dataset.RadiopharmaceuticalInformationSequence = Sequence([item])
-            elif attack == "future_start_time":
-                seq = getattr(dataset, "RadiopharmaceuticalInformationSequence", None)
-                if seq and len(seq) > 0:
-                    seq[0].RadiopharmaceuticalStartDateTime = "29991231235959.000000"
-                else:
-                    item = Dataset()
-                    item.RadiopharmaceuticalStartDateTime = "29991231235959.000000"
-                    dataset.RadiopharmaceuticalInformationSequence = Sequence([item])
-            elif attack == "zero_positron_fraction":
-                seq = getattr(dataset, "RadiopharmaceuticalInformationSequence", None)
-                if seq and len(seq) > 0:
-                    seq[0].RadionuclidePositronFraction = "0.0"
-                else:
-                    item = Dataset()
-                    item.RadionuclidePositronFraction = "0.0"
-                    dataset.RadiopharmaceuticalInformationSequence = Sequence([item])
-            elif attack == "remove_sequence":
-                if "RadiopharmaceuticalInformationSequence" in dataset:
-                    del dataset.RadiopharmaceuticalInformationSequence
-        except Exception as e:
-            logger.debug("Radiopharmaceutical decay attack failed: %s", e)
 
         return dataset
 

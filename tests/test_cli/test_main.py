@@ -208,40 +208,35 @@ class TestApplyResourceLimits:
 class TestSetupLogging:
     """Tests for setup_logging function."""
 
-    def test_default_logging(self):
-        """Test default (non-verbose) logging setup."""
-        # Store original level
+    def test_default_logging(self, tmp_path):
+        """Test default (INFO console level) logging setup."""
         root_logger = logging.getLogger()
         original_level = root_logger.level
         original_handlers = root_logger.handlers[:]
 
         try:
-            setup_logging(verbose=False)
-            # Function should configure INFO level via basicConfig
-            # Check that the function ran without error
-            assert True
+            log_file = tmp_path / "test.log"
+            setup_logging(log_file)
+            # Root logger should be DEBUG (file handler needs full access)
+            assert root_logger.level == logging.DEBUG
         finally:
-            # Restore original state
             root_logger.setLevel(original_level)
             for handler in root_logger.handlers[:]:
                 root_logger.removeHandler(handler)
             for handler in original_handlers:
                 root_logger.addHandler(handler)
 
-    def test_verbose_logging(self):
-        """Test verbose logging setup."""
-        # Store original level
+    def test_verbose_logging(self, tmp_path):
+        """Test verbose (DEBUG console level) logging setup."""
         root_logger = logging.getLogger()
         original_level = root_logger.level
         original_handlers = root_logger.handlers[:]
 
         try:
-            setup_logging(verbose=True)
-            # Function should configure DEBUG level
-            # Check that the function ran without error
-            assert True
+            log_file = tmp_path / "test.log"
+            setup_logging(log_file, console_level="DEBUG")
+            assert root_logger.level == logging.DEBUG
         finally:
-            # Restore original state
             root_logger.setLevel(original_level)
             for handler in root_logger.handlers[:]:
                 root_logger.removeHandler(handler)
@@ -481,9 +476,14 @@ class TestMain:
                 main()
             assert exc_info.value.code == 2  # argparse error code
 
-    def test_main_invalid_input_file(self):
+    def test_main_invalid_input_file(self, tmp_path):
         """Test main fails with non-existent input file."""
-        with patch.object(sys, "argv", ["dicom-fuzzer", "/nonexistent/file.dcm"]):
+        output_dir = tmp_path / "output"
+        with patch.object(
+            sys,
+            "argv",
+            ["dicom-fuzzer", "/nonexistent/file.dcm", "-o", str(output_dir)],
+        ):
             with pytest.raises(SystemExit) as exc_info:
                 main()
             assert exc_info.value.code == 1
@@ -574,6 +574,7 @@ class TestMain:
         """Test main fails with only invalid strategies."""
         input_file = tmp_path / "test.dcm"
         input_file.write_bytes(b"DICM" + b"\x00" * 128)
+        output_dir = tmp_path / "output"
 
         with patch.object(
             sys,
@@ -583,6 +584,8 @@ class TestMain:
                 str(input_file),
                 "-s",
                 "invalid1,invalid2",
+                "-o",
+                str(output_dir),
             ],
         ):
             # Invalid strategies cause fallback to defaults, but parsing error returns 1
@@ -663,11 +666,20 @@ class TestMain:
                 mock_generator.stats.strategies_used = {}
                 mock_generator_class.return_value = mock_generator
 
-                with patch(
-                    "dicom_fuzzer.cli.controllers.target_controller.TargetRunner"
-                ) as mock_runner_class:
+                with (
+                    patch(
+                        "dicom_fuzzer.cli.controllers.target_controller.TargetRunner"
+                    ) as mock_runner_class,
+                    patch(
+                        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._record_crashes"
+                    ),
+                    patch(
+                        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._generate_report",
+                        return_value=None,
+                    ),
+                ):
                     mock_runner = MagicMock()
-                    mock_runner.run_campaign.return_value = []
+                    mock_runner.run_campaign.return_value = {MagicMock(): []}
                     mock_runner.get_summary.return_value = "Test Summary"
                     mock_runner_class.return_value = mock_runner
 
@@ -681,6 +693,7 @@ class TestMain:
         """Test main fails when target executable not found."""
         input_file = tmp_path / "test.dcm"
         input_file.write_bytes(b"DICM" + b"\x00" * 128)
+        output_dir = tmp_path / "output"
 
         with patch.object(
             sys,
@@ -690,6 +703,8 @@ class TestMain:
                 str(input_file),
                 "-t",
                 "/nonexistent/target.exe",
+                "-o",
+                str(output_dir),
             ],
         ):
             # Health check should catch this and return 1
@@ -881,6 +896,7 @@ class TestMain:
         """Test main exits when health check fails."""
         input_file = tmp_path / "test.dcm"
         input_file.write_bytes(b"DICM" + b"\x00" * 128)
+        output_dir = tmp_path / "output"
 
         with patch.object(
             sys,
@@ -890,6 +906,8 @@ class TestMain:
                 str(input_file),
                 "-t",
                 "/nonexistent/target.exe",
+                "-o",
+                str(output_dir),
             ],
         ):
             result = main()
@@ -931,11 +949,20 @@ class TestMain:
                 mock_generator.stats.strategies_used = {}
                 mock_generator_class.return_value = mock_generator
 
-                with patch(
-                    "dicom_fuzzer.cli.controllers.target_controller.TargetRunner"
-                ) as mock_runner_class:
+                with (
+                    patch(
+                        "dicom_fuzzer.cli.controllers.target_controller.TargetRunner"
+                    ) as mock_runner_class,
+                    patch(
+                        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._record_crashes"
+                    ),
+                    patch(
+                        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._generate_report",
+                        return_value=None,
+                    ),
+                ):
                     mock_runner = MagicMock()
-                    mock_runner.run_campaign.return_value = []
+                    mock_runner.run_campaign.return_value = {MagicMock(): []}
                     mock_runner.get_summary.return_value = "Test Summary"
                     mock_runner_class.return_value = mock_runner
 

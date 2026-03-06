@@ -18,30 +18,30 @@ from dicom_fuzzer.cli.main import (
 class TestSetupLogging:
     """Test setup_logging function."""
 
-    def test_setup_verbose(self):
-        """Test logging setup with verbose=True."""
+    def test_setup_verbose(self, tmp_path):
+        """Test logging setup with DEBUG console level."""
         import logging
 
-        # Clear existing handlers to ensure basicConfig takes effect
         root = logging.getLogger()
         for handler in root.handlers[:]:
             root.removeHandler(handler)
 
-        setup_logging(verbose=True)
-        # Check root logger level
+        log_file = tmp_path / "test.log"
+        setup_logging(log_file, console_level="DEBUG")
         assert root.level == logging.DEBUG
 
-    def test_setup_non_verbose(self):
-        """Test logging setup with verbose=False."""
+    def test_setup_non_verbose(self, tmp_path):
+        """Test logging setup with INFO console level."""
         import logging
 
-        # Clear existing handlers
         root = logging.getLogger()
         for handler in root.handlers[:]:
             root.removeHandler(handler)
 
-        setup_logging(verbose=False)
-        assert root.level == logging.INFO
+        log_file = tmp_path / "test.log"
+        setup_logging(log_file)
+        # Root at DEBUG because file handler needs it
+        assert root.level == logging.DEBUG
 
 
 class TestApplyResourceLimits:
@@ -366,9 +366,13 @@ class TestMainArgumentParsing:
         """Test default argument values are applied."""
         test_file = tmp_path / "test.dcm"
         test_file.write_bytes(b"\x00" * 128 + b"DICM" + b"\x00" * 100)
+        output_dir = tmp_path / "output"
 
         with (
-            patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "1"]),
+            patch(
+                "sys.argv",
+                ["dicom-fuzzer", str(test_file), "-c", "1", "-o", str(output_dir)],
+            ),
             patch(
                 "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_gen,
@@ -389,10 +393,14 @@ class TestMainArgumentParsing:
         """Test -c/--count option."""
         test_file = tmp_path / "test.dcm"
         test_file.write_bytes(b"\x00" * 128 + b"DICM" + b"\x00" * 100)
+        output_dir = tmp_path / "output"
 
         # Use count < 20 to avoid batch splitting
         with (
-            patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "10"]),
+            patch(
+                "sys.argv",
+                ["dicom-fuzzer", str(test_file), "-c", "10", "-o", str(output_dir)],
+            ),
             patch(
                 "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_gen,
@@ -450,11 +458,21 @@ class TestMainArgumentParsing:
         """Test -s/--strategies option."""
         test_file = tmp_path / "test.dcm"
         test_file.write_bytes(b"\x00" * 128 + b"DICM" + b"\x00" * 100)
+        output_dir = tmp_path / "output"
 
         with (
             patch(
                 "sys.argv",
-                ["dicom-fuzzer", str(test_file), "-c", "1", "-s", "metadata,header"],
+                [
+                    "dicom-fuzzer",
+                    str(test_file),
+                    "-c",
+                    "1",
+                    "-s",
+                    "metadata,header",
+                    "-o",
+                    str(output_dir),
+                ],
             ),
             patch(
                 "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
@@ -481,6 +499,7 @@ class TestMainArgumentParsing:
         """Test --json output mode."""
         test_file = tmp_path / "test.dcm"
         test_file.write_bytes(b"\x00" * 128 + b"DICM" + b"\x00" * 100)
+        output_dir = tmp_path / "output"
 
         # Create actual output file path
         out_file = tmp_path / "out.dcm"
@@ -488,7 +507,17 @@ class TestMainArgumentParsing:
 
         with (
             patch(
-                "sys.argv", ["dicom-fuzzer", str(test_file), "-c", "1", "--json", "-q"]
+                "sys.argv",
+                [
+                    "dicom-fuzzer",
+                    str(test_file),
+                    "-c",
+                    "1",
+                    "--json",
+                    "-q",
+                    "-o",
+                    str(output_dir),
+                ],
             ),
             patch(
                 "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
@@ -527,9 +556,21 @@ class TestMainArgumentParsing:
         """Test -q/--quiet mode suppresses output."""
         test_file = tmp_path / "test.dcm"
         test_file.write_bytes(b"\x00" * 128 + b"DICM" + b"\x00" * 100)
+        output_dir = tmp_path / "output"
 
         with (
-            patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "1", "-q"]),
+            patch(
+                "sys.argv",
+                [
+                    "dicom-fuzzer",
+                    str(test_file),
+                    "-c",
+                    "1",
+                    "-q",
+                    "-o",
+                    str(output_dir),
+                ],
+            ),
             patch(
                 "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_gen,
@@ -556,9 +597,13 @@ class TestMainErrorHandling:
         """Test handling of KeyboardInterrupt."""
         test_file = tmp_path / "test.dcm"
         test_file.write_bytes(b"\x00" * 128 + b"DICM" + b"\x00" * 100)
+        output_dir = tmp_path / "output"
 
         with (
-            patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "100"]),
+            patch(
+                "sys.argv",
+                ["dicom-fuzzer", str(test_file), "-c", "100", "-o", str(output_dir)],
+            ),
             patch(
                 "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_gen,
@@ -578,9 +623,13 @@ class TestMainErrorHandling:
         """Test handling of general exceptions."""
         test_file = tmp_path / "test.dcm"
         test_file.write_bytes(b"\x00" * 128 + b"DICM" + b"\x00" * 100)
+        output_dir = tmp_path / "output"
 
         with (
-            patch("sys.argv", ["dicom-fuzzer", str(test_file), "-c", "1"]),
+            patch(
+                "sys.argv",
+                ["dicom-fuzzer", str(test_file), "-c", "1", "-o", str(output_dir)],
+            ),
             patch(
                 "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
             ) as mock_gen,

@@ -234,6 +234,23 @@ class TestDvhSequenceCorruption:
                     return
         pytest.fail("inverted_statistics attack never triggered")
 
+    def test_invalid_dvh_type(
+        self, fuzzer: RTDoseFuzzer, rt_dose_dataset: Dataset
+    ) -> None:
+        for i in range(50):
+            random.seed(i)
+            ds = copy.deepcopy(rt_dose_dataset)
+            result = fuzzer._dvh_sequence_corruption(ds)
+            dvh_seq = getattr(result, "DVHSequence", None)
+            if dvh_seq and len(dvh_seq) > 0:
+                dvh_type = getattr(dvh_seq[0], "DVHType", None)
+                if dvh_type is not None and str(dvh_type) not in (
+                    "CUMULATIVE",
+                    "DIFFERENTIAL",
+                ):
+                    return
+        pytest.fail("invalid_dvh_type attack never triggered")
+
     def test_remove_dvh_sequence(
         self, fuzzer: RTDoseFuzzer, rt_dose_dataset: Dataset
     ) -> None:

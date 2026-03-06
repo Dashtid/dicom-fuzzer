@@ -57,12 +57,10 @@ class TestArgumentParsing:
 
         with patch("sys.argv", ["dicom-fuzzer"] + args):
             with patch("dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"):
-                with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                    try:
-                        main()
-                    except SystemExit as e:
-                        # Verify successful exit (0) or normal completion
-                        assert e.code is None or e.code == 0
+                try:
+                    main()
+                except SystemExit as e:
+                    assert e.code is None or e.code == 0
 
     def test_parse_strategies(self):
         """Test strategy string parsing."""
@@ -84,22 +82,24 @@ class TestArgumentParsing:
 class TestLoggingSetup:
     """Test logging configuration."""
 
-    def test_setup_logging_info_level(self):
-        """Test logging setup with INFO level."""
-        setup_logging(verbose=False)
+    def test_setup_logging_info_level(self, tmp_path):
+        """Test logging setup with INFO console level."""
         import logging
 
+        log_file = tmp_path / "test.log"
+        setup_logging(log_file)
+
         root_logger = logging.getLogger("dicom_fuzzer.cli.main")
-        # Logger should be configured (at least to WARNING)
         assert root_logger.level <= logging.INFO
 
-    def test_setup_logging_debug_level(self):
-        """Test logging setup with DEBUG level."""
-        setup_logging(verbose=True)
+    def test_setup_logging_debug_level(self, tmp_path):
+        """Test logging setup with DEBUG console level."""
         import logging
 
+        log_file = tmp_path / "test.log"
+        setup_logging(log_file, console_level="DEBUG")
+
         root_logger = logging.getLogger("dicom_fuzzer.cli.main")
-        # Should be DEBUG or less
         assert root_logger.level <= logging.DEBUG
 
 
@@ -129,12 +129,10 @@ class TestFileGeneration:
                 mock_gen.stats.strategies_used = {"metadata": 5, "header": 5}
                 mock_gen_class.return_value = mock_gen
 
-                with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                    try:
-                        main()
-                    except SystemExit as e:
-                        # Should exit with success
-                        assert e.code == 0 or e.code is None
+                try:
+                    main()
+                except SystemExit as e:
+                    assert e.code == 0 or e.code is None
 
                 # Verify generator was called once with the batch count
                 assert mock_gen.generate_batch.call_count >= 1
@@ -166,11 +164,10 @@ class TestFileGeneration:
                 mock_gen.stats.strategies_used = {"metadata": 3, "header": 2}
                 mock_gen_class.return_value = mock_gen
 
-                with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                    try:
-                        main()
-                    except SystemExit as e:
-                        assert e.code == 0 or e.code is None
+                try:
+                    main()
+                except SystemExit as e:
+                    assert e.code == 0 or e.code is None
 
                 # Verify strategies were passed
                 call_args = mock_gen.generate_batch.call_args
@@ -202,11 +199,10 @@ class TestFileGeneration:
                 mock_gen.stats.strategies_used = {"metadata": 5}
                 mock_gen_class.return_value = mock_gen
 
-                with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                    try:
-                        main()
-                    except SystemExit:
-                        pass
+                try:
+                    main()
+                except SystemExit:
+                    pass
 
                 # Should still call generator with valid strategies
                 call_args = mock_gen.generate_batch.call_args
@@ -271,11 +267,10 @@ class TestTargetTesting:
                     mock_runner.get_summary.return_value = "Test summary"
                     mock_runner_class.return_value = mock_runner
 
-                    with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                        try:
-                            main()
-                        except SystemExit as e:
-                            assert e.code == 0 or e.code is None
+                    try:
+                        main()
+                    except SystemExit as e:
+                        assert e.code == 0 or e.code is None
 
                     # Verify runner was created with correct params
                     mock_runner_class.assert_called_once()
@@ -347,11 +342,10 @@ class TestTargetTesting:
                     mock_runner.get_summary.return_value = "Summary"
                     mock_runner_class.return_value = mock_runner
 
-                    with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                        try:
-                            main()
-                        except SystemExit:
-                            pass
+                    try:
+                        main()
+                    except SystemExit:
+                        pass
 
                     # Verify stop_on_crash was passed
                     call_args = mock_runner.run_campaign.call_args
@@ -380,10 +374,9 @@ class TestErrorHandling:
                 mock_gen.generate_batch.side_effect = KeyboardInterrupt()
                 mock_gen_class.return_value = mock_gen
 
-                with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                    # Should return 130 (128 + SIGINT)
-                    result = main()
-                    assert result == 130
+                # Should return 130 (128 + SIGINT)
+                result = main()
+                assert result == 130
 
     def test_general_exception_handling(self, sample_dicom, output_dir, capsys):
         """Test handling of unexpected exceptions."""
@@ -404,10 +397,9 @@ class TestErrorHandling:
                 mock_gen.generate_batch.side_effect = RuntimeError("Unexpected error")
                 mock_gen_class.return_value = mock_gen
 
-                with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                    # Should return 1 for error
-                    result = main()
-                    assert result == 1
+                # Should return 1 for error
+                result = main()
+                assert result == 1
 
     def test_verbose_error_output(self, sample_dicom, output_dir):
         """Test that verbose mode shows full tracebacks."""
@@ -429,10 +421,9 @@ class TestErrorHandling:
                 mock_gen.generate_batch.side_effect = RuntimeError("Test error")
                 mock_gen_class.return_value = mock_gen
 
-                with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                    result = main()
-                    # In verbose mode, should show traceback and return 1
-                    assert result == 1
+                result = main()
+                # In verbose mode, should show traceback and return 1
+                assert result == 1
 
 
 class TestOutputFormatting:
@@ -461,11 +452,10 @@ class TestOutputFormatting:
                 mock_gen.stats.strategies_used = {"metadata": 5}
                 mock_gen_class.return_value = mock_gen
 
-                with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                    try:
-                        main()
-                    except SystemExit:
-                        pass
+                try:
+                    main()
+                except SystemExit:
+                    pass
 
                 captured = capsys.readouterr()
                 output = captured.out
@@ -511,11 +501,10 @@ class TestOutputFormatting:
                     pbar_mock.__exit__ = Mock(return_value=False)
                     mock_tqdm.return_value = pbar_mock
 
-                    with patch("dicom_fuzzer.cli.main.Path.mkdir"):
-                        try:
-                            main()
-                        except SystemExit:
-                            pass
+                    try:
+                        main()
+                    except SystemExit:
+                        pass
 
                     # Verify tqdm was used
                     mock_tqdm.assert_called()

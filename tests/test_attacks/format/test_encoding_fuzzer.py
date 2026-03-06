@@ -101,7 +101,7 @@ class TestInvalidCharsetValue:
         with patch.object(random, "choice", return_value="malformed_charset"):
             result = fuzzer._invalid_charset_value(sample_dataset)
         assert isinstance(result, Dataset)
-        assert "\x00" in result.SpecificCharacterSet
+        assert "\x01" in result.SpecificCharacterSet
 
     def test_empty_charset_with_unicode(
         self, fuzzer: EncodingFuzzer, sample_dataset: Dataset

@@ -57,11 +57,11 @@ class HTMLSectionFormatter:
                     <div class="stat-value">{stats.get("mutations_applied", 0)}</div>
                     <div class="stat-label">Mutations Applied</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card accent-red">
                     <div class="stat-value">{stats.get("crashes", 0)}</div>
                     <div class="stat-label">Crashes</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card accent-amber">
                     <div class="stat-value">{stats.get("hangs", 0)}</div>
                     <div class="stat-label">Hangs/Timeouts</div>
                 </div>
@@ -88,7 +88,7 @@ class HTMLSectionFormatter:
         if crash_count > 0:
             html += f"""
             <div class="alert">
-                <span style="font-size: 2em;">[!]</span>
+                <span style="font-size: 1.4em;">[!]</span>
                 <div>
                     <strong>SECURITY FINDING:</strong> {crash_count} crash(es) detected during fuzzing!
                     This indicates potential vulnerabilities that require investigation.
@@ -98,7 +98,7 @@ class HTMLSectionFormatter:
         if hang_count > 0:
             html += f"""
             <div class="warning">
-                <span style="font-size: 2em;">[!]</span>
+                <span style="font-size: 1.4em;">[!]</span>
                 <div>
                     <strong>DoS RISK:</strong> {hang_count} hang(s)/timeout(s) detected!
                     This may indicate Denial of Service vulnerabilities.
@@ -124,7 +124,7 @@ class HTMLSectionFormatter:
         if not crashes:
             return """
             <div class="success">
-                <span style="font-size: 2em;">[OK]</span>
+                <span style="font-size: 1.4em;">[OK]</span>
                 <div><strong>No crashes detected!</strong> All tested files passed successfully.</div>
             </div>
 """
@@ -167,60 +167,6 @@ class HTMLSectionFormatter:
             </table>
 """
 
-        # Add Top 10 Critical Crashes section if triage enabled
-        if self.enable_triage:
-            html += self._format_critical_crashes_table(crashes)
-
-        return html
-
-    def _format_critical_crashes_table(self, crashes: list[dict[str, Any]]) -> str:
-        """Format the critical crashes table.
-
-        Args:
-            crashes: List of crash dictionaries.
-
-        Returns:
-            HTML string for critical crashes table.
-
-        """
-        critical_crashes = [
-            c
-            for c in crashes
-            if c.get("triage", {}).get("severity") in ["critical", "high"]
-        ]
-        if not critical_crashes:
-            return ""
-
-        html = """
-            <h3>Top Critical Crashes</h3>
-            <table>
-                <tr>
-                    <th>Priority</th>
-                    <th>Crash ID</th>
-                    <th>Severity</th>
-                    <th>Exploitability</th>
-                    <th>Summary</th>
-                </tr>
-"""
-        for crash in critical_crashes[:10]:  # Top 10
-            triage = crash.get("triage", {})
-            priority = triage.get("priority_score", 0)
-            severity = triage.get("severity", "unknown")
-            exploitability = triage.get("exploitability", "unknown")
-            summary = triage.get("summary", "No summary available")
-
-            html += f"""
-                <tr>
-                    <td><strong>{priority:.1f}/100</strong></td>
-                    <td><code>{crash["crash_id"]}</code></td>
-                    <td><span class="badge {severity}">{severity.upper()}</span></td>
-                    <td><span class="badge {exploitability.replace("_", "-")}">{exploitability.replace("_", " ").title()}</span></td>
-                    <td>{summary[:100]}</td>
-                </tr>
-"""
-        html += """
-            </table>
-"""
         return html
 
     def format_crash_details(

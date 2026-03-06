@@ -1276,22 +1276,26 @@ class TestMissingRequiredTags:
 class TestBoundaryValues:
     """Verify _boundary_values sets numeric fields to edge case values."""
 
-    ROW_BOUNDARIES = {0, 1, 65535, -1, 2147483647}
-    COL_BOUNDARIES = {0, 1, 65535, -1}
+    from dicom_fuzzer.attacks.format.header_fuzzer import HeaderFuzzer
+
+    # Raw-bytes boundaries that the fuzzer assigns via elem._value
+    US_BOUNDARIES_BYTES = set(HeaderFuzzer._US_BOUNDARIES)
     BOUNDARY_AGES = {"000Y", "999Y", "001D", "999W", "000M"}
 
     def test_rows_set_to_boundary(self, hdr_fuzzer, header_dataset):
-        """Rows must be set to a boundary value."""
+        """Rows must be set to a raw-bytes boundary value."""
         result = hdr_fuzzer._boundary_values(header_dataset)
-        assert result.Rows in self.ROW_BOUNDARIES, (
-            f"Rows={result.Rows} is not a known boundary value"
+        elem = result.data_element("Rows")
+        assert elem._value in self.US_BOUNDARIES_BYTES, (
+            f"Rows._value={elem._value!r} is not a known boundary"
         )
 
     def test_columns_set_to_boundary(self, hdr_fuzzer, header_dataset):
-        """Columns must be set to a boundary value."""
+        """Columns must be set to a raw-bytes boundary value."""
         result = hdr_fuzzer._boundary_values(header_dataset)
-        assert result.Columns in self.COL_BOUNDARIES, (
-            f"Columns={result.Columns} is not a known boundary value"
+        elem = result.data_element("Columns")
+        assert elem._value in self.US_BOUNDARIES_BYTES, (
+            f"Columns._value={elem._value!r} is not a known boundary"
         )
 
     def test_patient_name_at_vr_limit(self, hdr_fuzzer, header_dataset):
@@ -2189,7 +2193,7 @@ class TestMissingFileMeta:
         for _ in range(20):
             ds = copy.deepcopy(conformance_dataset)
             result = conf_fuzzer._missing_file_meta(ds)
-            if result.file_meta is None:
+            if len(result.file_meta) == 0:
                 any_removed = True
                 break
             if not hasattr(result.file_meta, "MediaStorageSOPClassUID"):
@@ -2209,7 +2213,7 @@ class TestMissingFileMeta:
         for _ in range(100):
             ds = copy.deepcopy(conformance_dataset)
             result = conf_fuzzer._missing_file_meta(ds)
-            if result.file_meta is None:
+            if len(result.file_meta) == 0:
                 removals.add("all")
             elif not hasattr(result.file_meta, "MediaStorageSOPClassUID"):
                 removals.add("sop_class")

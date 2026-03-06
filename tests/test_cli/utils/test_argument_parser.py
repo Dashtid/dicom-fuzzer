@@ -77,10 +77,10 @@ class TestDefaultValues:
         ("attr_name", "expected_default"),
         [
             ("count", 100),
-            ("output", "./artifacts/campaigns"),
+            ("output", "./artifacts"),
             ("target", None),
-            ("timeout", 5.0),
-            ("startup_delay", 0.0),
+            ("timeout", 15.0),
+            ("startup_delay", 3.0),
             ("host", "localhost"),
             ("port", 11112),
             ("ae_title", "FUZZ_SCU"),

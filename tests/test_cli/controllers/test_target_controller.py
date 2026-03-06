@@ -14,6 +14,7 @@ from dicom_fuzzer.cli.controllers.target_controller import (
     HAS_PSUTIL,
     TargetTestingController,
 )
+from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
 
 
 class TestDisplayHeader:
@@ -29,7 +30,7 @@ class TestDisplayHeader:
         )
 
         captured = capsys.readouterr()
-        assert "GUI Application Testing" in captured.out
+        assert "Target Application Testing (GUI mode)" in captured.out
         assert "GUI (app killed after timeout)" in captured.out
         assert "512MB" in captured.out
         assert "2.0s delay" in captured.out
@@ -182,13 +183,24 @@ class TestRun:
     """Tests for run method."""
 
     @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._generate_report"
+    )
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._record_crashes"
+    )
+    @patch(
         "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._create_runner"
     )
     @patch(
         "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._display_header"
     )
     def test_run_success(
-        self, mock_header: MagicMock, mock_create_runner: MagicMock, tmp_path: Path
+        self,
+        mock_header: MagicMock,
+        mock_create_runner: MagicMock,
+        mock_record: MagicMock,
+        mock_report: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """Test successful run."""
         args = Namespace(
@@ -205,14 +217,16 @@ class TestRun:
         output_dir.mkdir()
 
         mock_runner = MagicMock()
-        mock_runner.run_campaign.return_value = [{"status": "success"}]
+        mock_runner.run_campaign.return_value = {s: [] for s in ExecutionStatus}
         mock_runner.get_summary.return_value = "Test Summary"
         mock_create_runner.return_value = mock_runner
+        mock_report.return_value = None
 
         result = TargetTestingController.run(args, files, output_dir)
 
         assert result == 0
         mock_runner.run_campaign.assert_called_once()
+        mock_record.assert_called_once()
 
     @patch(
         "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._create_runner"
@@ -327,13 +341,24 @@ class TestRun:
         assert result == 1
 
     @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._generate_report"
+    )
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._record_crashes"
+    )
+    @patch(
         "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._create_runner"
     )
     @patch(
         "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._display_header"
     )
     def test_run_with_resource_limits_logging(
-        self, mock_header: MagicMock, mock_create_runner: MagicMock, tmp_path: Path
+        self,
+        mock_header: MagicMock,
+        mock_create_runner: MagicMock,
+        mock_record: MagicMock,
+        mock_report: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """Test run logs resource limits message."""
         args = Namespace(
@@ -350,9 +375,10 @@ class TestRun:
         output_dir.mkdir()
 
         mock_runner = MagicMock()
-        mock_runner.run_campaign.return_value = []
+        mock_runner.run_campaign.return_value = {s: [] for s in ExecutionStatus}
         mock_runner.get_summary.return_value = "Summary"
         mock_create_runner.return_value = mock_runner
+        mock_report.return_value = None
 
         mock_limits = MagicMock()
 
@@ -367,16 +393,26 @@ class TestGetAttrDefaults:
     """Tests for getattr default value handling."""
 
     @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._generate_report"
+    )
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._record_crashes"
+    )
+    @patch(
         "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._create_runner"
     )
     @patch(
         "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._display_header"
     )
     def test_run_without_gui_mode_attr(
-        self, mock_header: MagicMock, mock_create_runner: MagicMock, tmp_path: Path
+        self,
+        mock_header: MagicMock,
+        mock_create_runner: MagicMock,
+        mock_record: MagicMock,
+        mock_report: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """Test run when gui_mode attr is missing (uses default False)."""
-        # Create args without gui_mode attribute
         args = Namespace(
             target="/path/to/app",
             timeout=5,
@@ -389,17 +425,23 @@ class TestGetAttrDefaults:
         output_dir.mkdir()
 
         mock_runner = MagicMock()
-        mock_runner.run_campaign.return_value = []
+        mock_runner.run_campaign.return_value = {s: [] for s in ExecutionStatus}
         mock_runner.get_summary.return_value = "Summary"
         mock_create_runner.return_value = mock_runner
+        mock_report.return_value = None
 
         result = TargetTestingController.run(args, files, output_dir)
 
         assert result == 0
-        # Should use default gui_mode=False
         call_kwargs = mock_create_runner.call_args[1]
         assert call_kwargs["gui_mode"] is False
 
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._generate_report"
+    )
+    @patch(
+        "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._record_crashes"
+    )
     @patch(
         "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._create_runner"
     )
@@ -407,7 +449,12 @@ class TestGetAttrDefaults:
         "dicom_fuzzer.cli.controllers.target_controller.TargetTestingController._display_header"
     )
     def test_run_without_memory_limit_attr(
-        self, mock_header: MagicMock, mock_create_runner: MagicMock, tmp_path: Path
+        self,
+        mock_header: MagicMock,
+        mock_create_runner: MagicMock,
+        mock_record: MagicMock,
+        mock_report: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """Test run when memory_limit attr is missing (uses default None)."""
         args = Namespace(
@@ -423,13 +470,182 @@ class TestGetAttrDefaults:
         output_dir.mkdir()
 
         mock_runner = MagicMock()
-        mock_runner.run_campaign.return_value = []
+        mock_runner.run_campaign.return_value = {s: [] for s in ExecutionStatus}
         mock_runner.get_summary.return_value = "Summary"
         mock_create_runner.return_value = mock_runner
+        mock_report.return_value = None
 
         result = TargetTestingController.run(args, files, output_dir)
 
         assert result == 0
-        # Should use default memory_limit=None
         call_kwargs = mock_create_runner.call_args[1]
         assert call_kwargs["memory_limit"] is None
+
+
+class TestRecordCrashes:
+    """Tests for _record_crashes method."""
+
+    def test_records_crash_into_session(self, tmp_path: Path) -> None:
+        """Test that crash results are recorded into the session."""
+        from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
+
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(tmp_path / "output"),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
+
+        test_file = tmp_path / "fuzzed.dcm"
+        test_file.write_bytes(b"fake dicom")
+        resolved = test_file.resolve()
+
+        file_id = session.start_file_fuzzing(resolved, resolved, "high")
+        session.end_file_fuzzing(resolved)
+
+        # Create a mock crash result
+        crash_result = MagicMock()
+        crash_result.test_file = resolved
+        crash_result.exit_code = 1
+        crash_result.windows_crash_info = None
+
+        results = {s: [] for s in ExecutionStatus}
+        results[ExecutionStatus.CRASH] = [crash_result]
+
+        TargetTestingController._record_crashes(
+            session, results, {resolved: file_id}, "/path/to/app"
+        )
+
+        assert len(session.crashes) == 1
+        assert session.crashes[0].crash_type == "crash"
+        assert session.crashes[0].severity == "high"
+        assert session.crashes[0].return_code == 1
+        assert '"/path/to/app"' in session.crashes[0].reproduction_command
+
+    def test_records_hang_into_session(self, tmp_path: Path) -> None:
+        """Test that hang results are recorded into the session."""
+        from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
+
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(tmp_path / "output"),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
+
+        test_file = tmp_path / "fuzzed.dcm"
+        test_file.write_bytes(b"fake dicom")
+        resolved = test_file.resolve()
+
+        file_id = session.start_file_fuzzing(resolved, resolved, "medium")
+        session.end_file_fuzzing(resolved)
+
+        hang_result = MagicMock()
+        hang_result.test_file = resolved
+        hang_result.execution_time = 10.0
+
+        results = {s: [] for s in ExecutionStatus}
+        results[ExecutionStatus.HANG] = [hang_result]
+
+        TargetTestingController._record_crashes(
+            session, results, {resolved: file_id}, "/path/to/app"
+        )
+
+        assert len(session.crashes) == 1
+        assert session.crashes[0].crash_type == "hang"
+        assert session.crashes[0].severity == "medium"
+        assert session.crashes[0].exception_type == "Timeout"
+
+    def test_records_windows_crash_info(self, tmp_path: Path) -> None:
+        """Test that Windows NTSTATUS info is captured in crash record."""
+        from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
+
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(tmp_path / "output"),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
+
+        test_file = tmp_path / "fuzzed.dcm"
+        test_file.write_bytes(b"fake dicom")
+        resolved = test_file.resolve()
+
+        file_id = session.start_file_fuzzing(resolved, resolved, "high")
+        session.end_file_fuzzing(resolved)
+
+        # Mock Windows crash info
+        crash_info = MagicMock()
+        crash_info.exception_name = "ACCESS_VIOLATION"
+        crash_info.description = "Memory access violation"
+        crash_info.severity = "CRITICAL"
+
+        crash_result = MagicMock()
+        crash_result.test_file = resolved
+        crash_result.exit_code = -1073741819  # 0xC0000005
+        crash_result.windows_crash_info = crash_info
+
+        results = {s: [] for s in ExecutionStatus}
+        results[ExecutionStatus.CRASH] = [crash_result]
+
+        TargetTestingController._record_crashes(
+            session, results, {resolved: file_id}, "/path/to/app"
+        )
+
+        assert len(session.crashes) == 1
+        assert session.crashes[0].exception_type == "ACCESS_VIOLATION"
+        assert session.crashes[0].severity == "critical"
+
+    def test_skips_unknown_files(self, tmp_path: Path) -> None:
+        """Test that crashes for unregistered files are skipped."""
+        from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
+
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(tmp_path / "output"),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
+
+        unknown_file = (tmp_path / "unknown.dcm").resolve()
+        crash_result = MagicMock()
+        crash_result.test_file = unknown_file
+        crash_result.exit_code = 1
+        crash_result.windows_crash_info = None
+
+        results = {s: [] for s in ExecutionStatus}
+        results[ExecutionStatus.CRASH] = [crash_result]
+
+        TargetTestingController._record_crashes(session, results, {}, "/path/to/app")
+
+        assert len(session.crashes) == 0
+
+
+class TestGenerateReport:
+    """Tests for _generate_report method."""
+
+    def test_generates_html_report(self, tmp_path: Path) -> None:
+        """Test that HTML report is generated from session data."""
+        from dicom_fuzzer.core.session.fuzzing_session import FuzzingSession
+
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(tmp_path / "output"),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
+
+        report_path = TargetTestingController._generate_report(session, tmp_path)
+
+        assert report_path is not None
+        assert report_path.exists()
+        assert report_path.suffix == ".html"
+
+    def test_returns_none_on_failure(self, tmp_path: Path) -> None:
+        """Test that None is returned when report generation fails."""
+        mock_session = MagicMock()
+        mock_session.generate_session_report.side_effect = RuntimeError("fail")
+
+        report_path = TargetTestingController._generate_report(mock_session, tmp_path)
+
+        assert report_path is None
