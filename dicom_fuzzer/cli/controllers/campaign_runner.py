@@ -107,6 +107,9 @@ class CampaignRunner:
         elapsed_time = time.time() - start_time
         results_data = self._collect_stats(generator, files, elapsed_time)
 
+        # Persist mutation map so target testing can link crashes to strategies
+        self._save_mutation_map(generator)
+
         return files, results_data
 
     def _generate_from_directory(self, generator: DICOMGenerator) -> list[Path]:
@@ -238,6 +241,22 @@ class CampaignRunner:
             if last.success:
                 return last.strategy_name
         return "unknown"
+
+    def _save_mutation_map(self, generator: DICOMGenerator) -> None:
+        """Persist filename->strategy mapping so crash reports include mutation info."""
+        strategy_map = generator.file_strategy_map
+        if not strategy_map:
+            return
+        output_dir = Path(self.args.output)
+        map_path = output_dir / "mutation_map.json"
+        try:
+            with open(map_path, "w") as f:
+                json.dump(strategy_map, f, indent=2)
+            logger.debug(
+                "Mutation map saved: %s (%d entries)", map_path, len(strategy_map)
+            )
+        except Exception as e:
+            logger.warning("Failed to save mutation map: %s", e)
 
     def _collect_stats(
         self,

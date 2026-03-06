@@ -266,6 +266,7 @@ class TestGUITargetRunnerCampaign:
                 target_executable=str(exe_path),
                 timeout=0.1,
                 crash_dir=str(tmp_path / "crashes"),
+                warmup_seconds=0,
             )
             return runner
 
@@ -429,6 +430,7 @@ class TestGUITargetRunnerKillProcessTree:
                 target_executable=str(exe_path),
                 timeout=1.0,
                 crash_dir=str(tmp_path / "crashes"),
+                warmup_seconds=0,
             )
             return runner
 
@@ -566,6 +568,7 @@ class TestGUITargetRunnerExecuteEdgeCases:
                 timeout=0.5,
                 crash_dir=str(tmp_path / "crashes"),
                 startup_delay=0.1,
+                warmup_seconds=0,
             )
             return runner
 

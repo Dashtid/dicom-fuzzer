@@ -71,10 +71,11 @@ class GUITargetRunner:
     def __init__(
         self,
         target_executable: str,
-        timeout: float = 10.0,
+        timeout: float = 15.0,
         crash_dir: str = "./artifacts/crashes",
         memory_limit_mb: int | None = None,
         startup_delay: float = 3.0,
+        warmup_seconds: float = 60.0,
     ):
         """Initialize GUI target runner.
 
@@ -84,6 +85,9 @@ class GUITargetRunner:
             crash_dir: Directory to save crash reports
             memory_limit_mb: Optional memory limit (kills if exceeded)
             startup_delay: Seconds to wait after launch before monitoring starts
+            warmup_seconds: Seconds for one-time warmup launch before campaign.
+                Caches DLLs and runtime libraries in memory for faster subsequent
+                launches. Set to 0 to disable.
 
         Raises:
             FileNotFoundError: If target executable doesn't exist
@@ -104,6 +108,7 @@ class GUITargetRunner:
         self.crash_dir.mkdir(parents=True, exist_ok=True)
         self.memory_limit_mb = memory_limit_mb
         self.startup_delay = startup_delay
+        self.warmup_seconds = warmup_seconds
 
         # Windows crash handler for NTSTATUS classification
         self.windows_crash_handler: WindowsCrashHandler | None = None
@@ -345,6 +350,55 @@ class GUITargetRunner:
         except Exception as e:
             logger.warning("Failed to kill process tree: %s", e)
 
+    def _warmup(self, seed_file: Path) -> None:
+        """Launch the target once to warm the OS file cache.
+
+        GUI applications like Hermes Affinity load .NET runtime, codec
+        DLLs, and GPU drivers on first launch (~30s cold start).  Windows
+        keeps these in the Standby List (RAM cache) so subsequent launches
+        are 5-10x faster.  This one-time warmup ensures the first real
+        test file doesn't get killed before the app even finishes loading.
+        """
+        logger.info(
+            "Warming up target application (%ss with %s)...",
+            self.warmup_seconds,
+            seed_file.name,
+        )
+        process = None
+        try:
+            process = subprocess.Popen(
+                [str(self.target_executable), str(seed_file)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                creationflags=(
+                    getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                    if sys.platform == "win32"
+                    else 0
+                ),
+            )
+            # Wait for warmup period, checking periodically if process crashed
+            poll_interval = 1.0
+            elapsed = 0.0
+            while elapsed < self.warmup_seconds:
+                exit_code = process.poll()
+                if exit_code is not None:
+                    logger.warning(
+                        "Warmup process exited early (exit_code=%s), "
+                        "continuing with campaign",
+                        exit_code,
+                    )
+                    return
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+            logger.info("Warmup complete, killing warmup process")
+        except Exception as e:
+            logger.warning("Warmup failed: %s, continuing with campaign", e)
+        finally:
+            if process and process.poll() is None:
+                self._kill_process_tree(process)
+            # Brief pause to let OS release handles
+            time.sleep(1.0)
+
     def run_campaign(
         self, test_files: list[Path], stop_on_crash: bool = False
     ) -> dict[ExecutionStatus, list[GUIExecutionResult]]:
@@ -361,6 +415,10 @@ class GUITargetRunner:
         results: dict[ExecutionStatus, list[GUIExecutionResult]] = {
             status: [] for status in ExecutionStatus
         }
+
+        # Warmup: launch once to cache DLLs in memory
+        if self.warmup_seconds > 0 and test_files:
+            self._warmup(test_files[0])
 
         logger.info("Starting GUI fuzzing campaign with %d files", len(test_files))
 

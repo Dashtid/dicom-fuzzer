@@ -79,7 +79,7 @@ class TestDefaultValues:
             ("count", 100),
             ("output", "./artifacts"),
             ("target", None),
-            ("timeout", 5.0),
+            ("timeout", 15.0),
             ("startup_delay", 3.0),
             ("host", "localhost"),
             ("port", 11112),

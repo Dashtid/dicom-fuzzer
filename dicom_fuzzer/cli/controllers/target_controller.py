@@ -6,6 +6,7 @@ Handles target application testing with fuzzed files.
 from __future__ import annotations
 
 import importlib.util
+import json
 import logging
 import sys
 import time
@@ -83,15 +84,24 @@ class TargetTestingController:
                 },
             )
 
+            # Load mutation map (filename -> strategy) from generation phase
+            mutation_map = TargetTestingController._load_mutation_map(files)
+
             # Register all test files with the session
             file_id_map: dict[Path, str] = {}
             for f in files:
                 resolved = f.resolve()
+                strategy = mutation_map.get(f.name, "")
                 file_id = session.start_file_fuzzing(
                     source_file=resolved,
                     output_file=resolved,
                     severity="unknown",
                 )
+                if strategy:
+                    session.record_mutation(
+                        strategy_name=strategy,
+                        mutation_type="format_fuzzing",
+                    )
                 session.end_file_fuzzing(resolved)
                 file_id_map[resolved] = file_id
 
@@ -168,6 +178,24 @@ class TargetTestingController:
                     "Startup", f"{startup_delay_display}s delay before monitoring"
                 )
         cli.divider()
+
+    @staticmethod
+    def _load_mutation_map(files: list[Path]) -> dict[str, str]:
+        """Load filename->strategy mapping written by the generation phase."""
+        if not files:
+            return {}
+        # mutation_map.json lives in the same directory as the fuzzed files
+        map_path = files[0].parent / "mutation_map.json"
+        if not map_path.exists():
+            return {}
+        try:
+            with open(map_path) as f:
+                data: dict[str, str] = json.load(f)
+            logger.info("Loaded mutation map: %d entries", len(data))
+            return data
+        except Exception as e:
+            logger.warning("Failed to load mutation map: %s", e)
+            return {}
 
     @staticmethod
     def _create_runner(

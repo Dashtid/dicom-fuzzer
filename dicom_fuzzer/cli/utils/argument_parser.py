@@ -128,9 +128,9 @@ def _add_target_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--timeout",
         type=float,
-        default=5.0,
+        default=15.0,
         metavar="SEC",
-        help="Timeout in seconds for target execution (default: 5.0)",
+        help="Timeout in seconds for target execution (default: 15.0)",
     )
     parser.add_argument(
         "--stop-on-crash",

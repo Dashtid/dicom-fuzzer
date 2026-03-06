@@ -74,6 +74,7 @@ class DICOMGenerator:
         self.skip_write_errors = skip_write_errors
         self.stats = GenerationStats()
         self.mutator = DicomMutator()
+        self.file_strategy_map: dict[str, str] = {}
 
     def generate_batch(
         self,
@@ -280,6 +281,8 @@ class DICOMGenerator:
             try:
                 dcmwrite(output_path, mutated_dataset, **write_kwargs)
                 self.stats.record_success(strategies_applied)
+                if strategies_applied:
+                    self.file_strategy_map[output_path.name] = strategies_applied[0]
                 return output_path
             except self._SAVE_ERRORS as e:
                 if attempt < max_retries - 1 and self._try_recover(
