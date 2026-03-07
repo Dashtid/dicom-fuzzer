@@ -829,98 +829,29 @@ was never integrated.
 in `DicomMutator`, pre-write validation in `SeriesWriter`, or CLI `validate`
 command), or remove it if validation is handled differently.
 
-## Wire strategy hit-rate tracking into campaign reports
+## Wire strategy hit-rate tracking into campaign reports [PARTIALLY DONE]
 
-**Context:** `dicom_fuzzer/core/engine/generator.py`,
-`dicom_fuzzer/core/reporting/statistics.py`,
-`dicom_fuzzer/core/analytics/campaign_analytics.py`,
-`dicom_fuzzer/core/analytics/visualization.py`
+**Done:** Fixed data loss bug where `GenerationStats` reset on every
+`generate_batch()` call. Added `DICOMGenerator.cumulative_strategies`
+that accumulates across batches. `CampaignRunner._collect_stats()` now
+reads cumulative data.
 
-After a fuzzing campaign, the operator needs to verify that all 88 mutation
-strategies fired at least once. If some strategies got 0 hits (due to
-stochastic selection or seed incompatibility), the campaign has blind spots
-and needs more runs or weighted selection.
+**Remaining:** Build `MutationStatistics` from accumulated counts and
+feed into `CampaignAnalyzer.analyze_strategy_effectiveness()`. Render
+as text table or chart. The analytics layer components exist but still
+have no production callers.
 
-### What exists
+## Wire unique-crash-over-time curve into campaign reports [PARTIALLY DONE]
 
-- `GenerationStats.strategies_used: dict[str, int]` in `generator.py`
-  already counts hits per strategy during `generate_batch()`
-- `MutationStatistics` in `statistics.py` has `times_used`,
-  `effectiveness_score()`, `crashes_found` -- never populated
-- `CampaignAnalyzer.analyze_strategy_effectiveness()` in
-  `campaign_analytics.py` computes composite scores -- expects
-  pre-built `list[MutationStatistics]`, never receives them
-- `FuzzingVisualizer.plot_strategy_effectiveness()` in `visualization.py`
-  renders a bar chart of strategy scores -- never called
+**Done:** Added `crash_timeline: list[tuple[datetime, int]]` to
+`CrashAnalyzer`. Each unique crash discovery appends
+`(timestamp, cumulative_count)`. Added `get_crash_timeline()` accessor
+compatible with `TrendAnalysis.crashes_over_time` format.
 
-### What's needed
-
-1. **Persist `strategies_used` across batches** -- accumulate into a
-   `dict[str, int]` that survives `generate_batch()` resets
-2. **Build `MutationStatistics` from accumulated counts** -- construct
-   one per strategy at campaign end
-3. **Feed into `CampaignAnalyzer`** -- call
-   `analyze_strategy_effectiveness()` with the built stats
-4. **Render or log** -- either call `FuzzingVisualizer` for a chart,
-   or emit a simple text table of (strategy, hits, hit_rate%)
-
-### Effort
-
-Small-medium. The counting already works. The work is plumbing: persist
-the dict, build the stats objects, and add one call from the CLI/engine
-into the analytics layer.
-
-### Priority
-
-Medium. Directly supports the "all 88 strategies fired" FDA rationale.
-Without this, the operator has no proof that the campaign actually
-exercised every strategy.
-
-## Wire unique-crash-over-time curve into campaign reports
-
-**Context:** `dicom_fuzzer/core/crash/crash_analyzer.py`,
-`dicom_fuzzer/core/analytics/campaign_analytics.py`,
-`dicom_fuzzer/core/analytics/visualization.py`
-
-After a fuzzing campaign, the operator needs to prove diminishing returns
--- that the unique crash discovery rate has plateaued. If the curve is
-still climbing steeply at the end, more runs are needed. If it's flat,
-the campaign has saturated.
-
-### What exists
-
-- `CrashAnalyzer.crash_hashes: set[str]` in `crash_analyzer.py`
-  deduplicates crashes via SHA256(stack_trace + exception_msg).
-  `is_unique_crash()` gates recording correctly
-- `TrendAnalysis` in `campaign_analytics.py` has
-  `crashes_over_time: list[tuple[datetime, int]]` +
-  `crash_discovery_rate()` + `is_plateauing()` -- all implemented,
-  zero callers
-- `FuzzingVisualizer.plot_crash_trend()` in `visualization.py` renders
-  the curve -- never called
-
-### What's needed
-
-1. **Add timestamped discovery log to `CrashAnalyzer`** -- when
-   `is_unique_crash()` returns `True`, append
-   `(datetime.now(), len(crash_hashes))` to a new
-   `crash_timeline: list[tuple[datetime, int]]`
-2. **Feed into `TrendAnalysis`** -- pass the timeline to
-   `CampaignAnalyzer.analyze_trends()` as the `crash_timeline` arg
-3. **Render or log** -- call `FuzzingVisualizer.plot_crash_trend()`
-   for a chart, or emit `is_plateauing()` as a pass/fail verdict
-
-### Effort
-
-Small. The dedup logic works. The analytics and visualization are
-implemented. The work is adding one list + one append to `CrashAnalyzer`
-and wiring it through to the existing analytics.
-
-### Priority
-
-Medium. Directly supports the "diminishing returns" FDA rationale.
-The plateau proof is more convincing than raw case counts for
-demonstrating campaign sufficiency.
+**Remaining:** Feed `crash_timeline` into `CampaignAnalyzer.analyze_trends()`
+at campaign end. Call `FuzzingVisualizer.plot_crash_trend()` or emit
+`is_plateauing()` verdict. The analytics and visualization components
+exist but still have no production callers in the CLI.
 
 ## PyPI publishing pipeline
 

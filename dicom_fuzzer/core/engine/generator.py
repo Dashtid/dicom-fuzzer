@@ -73,6 +73,7 @@ class DICOMGenerator:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.skip_write_errors = skip_write_errors
         self.stats = GenerationStats()
+        self.cumulative_strategies: dict[str, int] = {}
         self.mutator = DicomMutator()
         self.file_strategy_map: dict[str, str] = {}
 
@@ -111,6 +112,13 @@ class DICOMGenerator:
                     generated_files.append(result)
 
         self.mutator.end_session()
+
+        # Accumulate strategy counts across batches so multi-batch
+        # campaigns don't lose data when stats resets on next batch.
+        for strategy, count in self.stats.strategies_used.items():
+            self.cumulative_strategies[strategy] = (
+                self.cumulative_strategies.get(strategy, 0) + count
+            )
 
         return generated_files
 
