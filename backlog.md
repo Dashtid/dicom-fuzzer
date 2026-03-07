@@ -381,9 +381,12 @@ fuzzer self-select based on SOPClassUID. The engine offers every seed
 to every fuzzer; specialized fuzzers skip seeds they don't understand.
 No engine changes needed.
 
-## ~~Expand DictionaryFuzzer TAG_TO_DICTIONARY for CS VR tags~~ [DONE]
+## ~~Expand DictionaryFuzzer TAG_TO_DICTIONARY for CS VR tags~~ [REVERTED]
 
-Added 9 CS tag dictionaries (ImageType, BodyPartExamined, Laterality, PatientPosition, ConversionType, PresentationIntentType, LossyImageCompression, PatientOrientation, ImageLaterality) plus 4 additional date/time tags and 2 physician name tags. TAG_TO_DICTIONARY expanded from 19 to 35 mappings.
+Implemented and reverted. Curated CS tag dictionaries don't meaningfully
+improve crash-finding over the random-dictionary fallback -- the fallback
+already produces invalid values that stress the same code paths. Extra
+code with no gain.
 
 ### Original description
 
