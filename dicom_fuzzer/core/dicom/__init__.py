@@ -8,8 +8,8 @@ Exports:
 - DicomValidator: validate datasets for structural correctness and security
 """
 
-from .dicom_series import DicomSeries
 from .parser import DicomParser
+from .series import DicomSeries
 from .series_detector import SeriesDetector
 from .series_writer import SeriesMetadata, SeriesWriter
 from .validator import DicomValidator

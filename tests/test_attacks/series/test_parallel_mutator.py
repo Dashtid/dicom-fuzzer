@@ -20,7 +20,7 @@ from dicom_fuzzer.attacks.series.parallel_mutator import (
     get_optimal_workers,
 )
 from dicom_fuzzer.attacks.series.series_mutator import SeriesMutationStrategy
-from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.core.dicom.series import DicomSeries
 
 
 @pytest.fixture

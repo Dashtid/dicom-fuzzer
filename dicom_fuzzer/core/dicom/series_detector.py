@@ -12,7 +12,7 @@ from typing import Any
 
 import pydicom
 
-from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.core.dicom.series import DicomSeries
 from dicom_fuzzer.utils.logger import get_logger
 
 logger = get_logger(__name__)

@@ -15,7 +15,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.core.dicom.series import DicomSeries
 from dicom_fuzzer.core.dicom.series_detector import SeriesDetector
 
 

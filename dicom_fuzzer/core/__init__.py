@@ -32,10 +32,10 @@ from .corpus.coverage_types import (
     StateFingerprint,
     StateTransition,
 )
+from .dicom.parser import DicomParser
 
 # DICOM I/O
-from .dicom.dicom_series import DicomSeries
-from .dicom.parser import DicomParser
+from .dicom.series import DicomSeries
 
 # Series detection & writing (in core/dicom/)
 from .dicom.series_detector import SeriesDetector

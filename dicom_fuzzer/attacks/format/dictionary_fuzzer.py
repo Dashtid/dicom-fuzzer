@@ -61,6 +61,24 @@ class DictionaryFuzzer(FormatFuzzerBase):
         0x00281050: "window_centers",  # Window Center
         0x00281051: "window_widths",  # Window Width
         0x00080005: "character_sets",  # Specific Character Set
+        # CS VR tags with enumerated values
+        0x00080008: "image_types",  # Image Type
+        0x00180015: "body_parts",  # Body Part Examined
+        0x00200060: "laterality",  # Laterality
+        0x00185100: "patient_positions",  # Patient Position
+        0x00080064: "conversion_types",  # Conversion Type
+        0x00080068: "presentation_intent_types",  # Presentation Intent Type
+        0x00282110: "lossy_compression",  # Lossy Image Compression
+        0x00200020: "patient_orientations",  # Patient Orientation
+        0x00200062: "image_laterality",  # Image Laterality
+        # Additional date/time tags
+        0x00080022: "dates",  # Acquisition Date
+        0x00080023: "dates",  # Content Date
+        0x00080032: "times",  # Acquisition Time
+        0x00080033: "times",  # Content Time
+        # Additional name tags
+        0x00080090: "patient_names",  # Referring Physician's Name
+        0x00081050: "patient_names",  # Performing Physician's Name
     }
 
     # Tags that should have UID-like values

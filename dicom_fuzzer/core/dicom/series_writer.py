@@ -19,7 +19,7 @@ from typing import Any
 import pydicom
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.core.dicom.series import DicomSeries
 from dicom_fuzzer.core.serialization import SerializableMixin
 from dicom_fuzzer.utils.logger import get_logger
 
