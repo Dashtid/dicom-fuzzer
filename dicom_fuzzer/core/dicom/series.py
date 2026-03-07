@@ -8,7 +8,6 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pydicom
@@ -33,7 +32,6 @@ class DicomSeries:
         slices: List of file paths to DICOM slices (sorted by position)
         slice_spacing: Distance between slices in mm (if uniform)
         orientation: Image orientation patient vector
-        metadata: Series-level metadata extracted from first slice
 
     """
 
@@ -43,7 +41,6 @@ class DicomSeries:
     slices: list[Path] = field(default_factory=list)
     slice_spacing: float | None = None
     orientation: tuple[float, ...] | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate series after initialization."""
