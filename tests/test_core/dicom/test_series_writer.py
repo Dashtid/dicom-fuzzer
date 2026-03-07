@@ -14,7 +14,7 @@ from unittest.mock import patch
 import pytest
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.core.dicom.series import DicomSeries
 from dicom_fuzzer.core.dicom.series_writer import SeriesMetadata, SeriesWriter
 
 

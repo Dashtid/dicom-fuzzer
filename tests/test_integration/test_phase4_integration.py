@@ -15,7 +15,7 @@ from dicom_fuzzer.attacks.series.series_mutator import (
     Series3DMutator,
     SeriesMutationStrategy,
 )
-from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.core.dicom.series import DicomSeries
 from dicom_fuzzer.core.dicom.series_detector import SeriesDetector
 from dicom_fuzzer.core.dicom.series_writer import SeriesWriter
 

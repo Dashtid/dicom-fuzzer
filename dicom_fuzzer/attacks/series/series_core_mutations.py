@@ -23,7 +23,7 @@ from pydicom.uid import generate_uid
 from .series_types import SeriesMutationRecord
 
 if TYPE_CHECKING:
-    from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+    from dicom_fuzzer.core.dicom.series import DicomSeries
 
 
 class CoreMutationsMixin:

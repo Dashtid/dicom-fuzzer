@@ -12,7 +12,7 @@ from dicom_fuzzer.attacks.series.study_mutator import (
     StudyMutationStrategy,
     StudyMutator,
 )
-from dicom_fuzzer.core.dicom.dicom_series import DicomSeries
+from dicom_fuzzer.core.dicom.series import DicomSeries
 
 
 class TestStudyMutator:

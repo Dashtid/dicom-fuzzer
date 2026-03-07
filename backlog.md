@@ -381,7 +381,11 @@ fuzzer self-select based on SOPClassUID. The engine offers every seed
 to every fuzzer; specialized fuzzers skip seeds they don't understand.
 No engine changes needed.
 
-## Expand DictionaryFuzzer TAG_TO_DICTIONARY for CS VR tags
+## ~~Expand DictionaryFuzzer TAG_TO_DICTIONARY for CS VR tags~~ [DONE]
+
+Added 9 CS tag dictionaries (ImageType, BodyPartExamined, Laterality, PatientPosition, ConversionType, PresentationIntentType, LossyImageCompression, PatientOrientation, ImageLaterality) plus 4 additional date/time tags and 2 physician name tags. TAG_TO_DICTIONARY expanded from 19 to 35 mappings.
+
+### Original description
 
 **Context:** `dicom_fuzzer/attacks/format/dictionary_fuzzer.py`
 
@@ -528,35 +532,9 @@ instance of `ReportAnalytics`.
 **Fix:** Pass the `ReportAnalytics` instance to `ComplianceFormatter`
 (via constructor or method parameter) instead of creating a duplicate.
 
-## Add structured logging to HeaderFuzzer and PixelFuzzer
+## ~~Add structured logging to HeaderFuzzer and PixelFuzzer~~ [DONE]
 
-**Context:** `dicom_fuzzer/attacks/format/header_fuzzer.py`,
-`dicom_fuzzer/attacks/format/pixel_fuzzer.py`
-
-10 of 12 format fuzzers use `get_logger(__name__)` for structured
-logging. HeaderFuzzer and PixelFuzzer are the two exceptions.
-
-Without logging, mutations from these two fuzzers are invisible in
-campaign logs. When a fuzzed file crashes the viewer, you can't trace
-which HeaderFuzzer or PixelFuzzer attack method was applied or what
-values were injected.
-
-### What to add
-
-For each fuzzer:
-
-1. Import `from dicom_fuzzer.utils.logger import get_logger`
-2. Add `logger = get_logger(__name__)` at module level
-3. Add `logger.debug(...)` calls in `mutate()` and key attack methods
-   to log which attack was selected and what values were injected
-
-### Scope
-
-- HeaderFuzzer has 8 attack methods -- add logging to `mutate()` and
-  each `_*` method (which attack was chosen, which tags were modified)
-- PixelFuzzer has 7 attack methods -- same pattern
-
-Low effort, no risk. Can be done when reviewing these files.
+Both fuzzers already have `get_logger(__name__)` and `logger.debug()` calls. All 12 format fuzzers now use structured logging.
 
 ## Rewrite StructureFuzzer no-op attacks at binary level
 
@@ -994,18 +972,9 @@ Key decisions for later:
 Low effort to set up once the package metadata is finalized. The existing
 `build` job proves the package already builds and passes `twine check`.
 
-## Rename dicom_series.py to series.py for naming consistency
+## ~~Rename dicom_series.py to series.py for naming consistency~~ [DONE]
 
-**Location:** `dicom_fuzzer/core/dicom/dicom_series.py`
-
-The `core/dicom/` package has inconsistent file naming: `dicom_series.py`
-carries a redundant `dicom_` prefix (the package is already `dicom/`),
-while `series_detector.py` and `series_writer.py` follow a cleaner
-`series_*.py` convention.
-
-Renaming `dicom_series.py` to `series.py` would align all three files,
-but touches 10+ imports across `attacks/series/`, `core/dicom/`, and tests.
-Low priority -- cosmetic only, no behavior change.
+Renamed to `series.py`, updated 17 import sites across `attacks/series/`, `core/dicom/`, `core/__init__.py`, and tests.
 
 ## Merge/disambiguate corpus_minimization.py and corpus_minimizer.py
 
