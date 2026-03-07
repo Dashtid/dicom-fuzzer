@@ -292,11 +292,12 @@ class CampaignRunner:
             "files": [str(f) for f in files[:100]],  # Limit to 100 in JSON
         }
 
-        # Add strategy usage if available
-        if hasattr(generator, "stats") and hasattr(generator.stats, "strategies_used"):
-            strategies_used = generator.stats.strategies_used
-            if isinstance(strategies_used, dict) and strategies_used:
-                results_data["strategies_used"] = strategies_used
+        # Add cumulative strategy usage across all batches
+        if (
+            hasattr(generator, "cumulative_strategies")
+            and generator.cumulative_strategies
+        ):
+            results_data["strategies_used"] = generator.cumulative_strategies
 
         return results_data
 
