@@ -84,10 +84,6 @@ def _mutate_single_slice(
             study_uid=study_uid,
             modality=modality,
             slices=[file_path],
-            metadata={
-                "slice_index": slice_index,
-                "total_slices": kwargs.get("total_slices", 1),
-            },
         )
 
         # Create mutator with per-slice seed

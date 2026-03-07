@@ -22,22 +22,9 @@ inline legacy HTML template to a separate template file.
 
 Medium effort. Touches ~12 files.
 
-## Unify CLI setup_logging() with utils.logger.configure_logging()
+## ~~Unify CLI setup_logging() with utils.logger.configure_logging()~~ [DONE]
 
-**Location:** `dicom_fuzzer/cli/main.py` (lines 179-186)
-
-`setup_logging()` uses `logging.basicConfig()` to configure stdlib logging.
-The project already has `dicom_fuzzer.utils.logger.configure_logging()` with
-structlog, sensitive-data redaction, and security context processors. Two
-competing logging setups coexist -- the CLI uses one, the core modules use
-the other.
-
-**Fix:** Replace `setup_logging()` calls in `main()` with
-`configure_logging()` from utils, then delete `setup_logging()` and its
-tests. Requires verifying that structlog formatting works correctly in
-CLI output (the format strings differ).
-
-Low effort, but needs careful testing of CLI log output.
+`setup_logging()` now delegates to `configure_logging()` from utils.
 
 ## Migrate CLI subcommands to SubcommandBase
 
@@ -107,14 +94,9 @@ attack surface (malformed markers, dimension mismatches, truncation).
 Real re-encoding matters more for testing decoder happy-path robustness,
 which is valuable but secondary to structural fuzzing.
 
-## Remove pydicom MultiValue str() workaround in strategy cache
+## ~~Remove pydicom MultiValue str() workaround in strategy cache~~ [DONE]
 
-**Location:** `dicom_fuzzer/core/mutation/mutator.py` `_get_applicable_strategies()`
-
-The strategy cache key converts `Modality` to `str()` because pydicom
-`MultiValue` objects are unhashable in Python 3.11+ / pydicom 3.0+.
-If pydicom makes `MultiValue` hashable, the `str()` conversion can be
-removed and the raw value used directly in the cache key tuple.
+`str()` workaround removed from `_get_applicable_strategies()`.
 
 ## Pre-mutation safety checks
 
@@ -470,93 +452,28 @@ Current styling is flashy rather than professional:
 subtle borders instead of shadows, standard-sized text, no animations,
 no gradients. Professional enough for FDA submission attachments.
 
-## Adopt or remove dead helper functions in html_templates.py
+## ~~Adopt or remove dead helper functions in html_templates.py~~ [DONE]
 
-**Location:** `dicom_fuzzer/core/reporting/html_templates.py` (lines 344-592)
+Removed 9 dead helpers (`render_badge`, `render_stat_card`, `render_alert`,
+`render_info_row`, `render_code_block`, `render_details`, `render_table_header`,
+`render_table_row`, `html_report_header`) and `SEVERITY_COLORS`. Kept
+`escape_html`, `html_document_start`, `html_document_end` (production callers).
 
-10 helper functions are tested (`test_html_templates.py`) but have zero
-production callers: `render_badge`, `render_stat_card`, `render_alert`,
-`render_info_row`, `render_code_block`, `render_details`,
-`render_table_header`, `render_table_row`, `render_progress_bar`,
-`html_report_header`.
+## ~~Deduplicate critical crashes table~~ [DONE]
 
-Also `SEVERITY_COLORS` dict is tested but unused in production.
+Duplicate `_format_critical_crashes` implementations consolidated.
 
-**Decision:** Either refactor `formatters.py` and `report_analytics.py`
-to use these helpers (reducing inline HTML), or delete the helpers and
-their tests. Currently they're dead weight that creates a false sense
-of abstraction.
+## ~~Fix cross-module HTML nesting~~ [DONE]
 
-## Deduplicate critical crashes table
+Cross-module div nesting fixed -- each module manages its own tags.
 
-**Location:** `dicom_fuzzer/core/reporting/formatters.py` (lines 176-224),
-`dicom_fuzzer/core/reporting/report_analytics.py` (lines 115-163)
+## ~~Fix compliance.py creating duplicate ReportAnalytics instance~~ [DONE]
 
-Two nearly identical implementations of the "Top Critical Crashes" HTML
-table: `HTMLSectionFormatter._format_critical_crashes_table()` and
-`ReportAnalytics._format_critical_crashes_section()`. Both filter by
-severity, sort by priority, render the same columns.
+`compliance.py` removed; duplicate `ReportAnalytics` instantiation eliminated.
 
-**Fix:** Keep one, delete the other, and have the caller reference the
-surviving implementation. Or extract to a shared function.
+## ~~Add structured logging to HeaderFuzzer and PixelFuzzer~~ [DONE]
 
-## Fix cross-module HTML nesting
-
-**Location:** `dicom_fuzzer/core/reporting/formatters.py` (line 48),
-`dicom_fuzzer/core/reporting/enhanced_reporter.py` (line 133)
-
-`formatters.py:format_session_overview()` opens a `<div class="content">`
-tag but never closes it. `enhanced_reporter.py:_html_footer()` closes it
-with a bare `</div>` before the document end. This cross-module tag
-nesting is fragile -- adding or removing sections will break the HTML
-structure silently.
-
-**Fix:** Each module should manage its own tags. Either move the container
-div open/close into `enhanced_reporter.py` (the orchestrator), or have
-each section be self-contained.
-
-## Fix compliance.py creating duplicate ReportAnalytics instance
-
-**Location:** `dicom_fuzzer/core/reporting/compliance.py` (lines 45-47),
-`dicom_fuzzer/core/reporting/enhanced_reporter.py` (line 57)
-
-`ComplianceFormatter.format_fda_compliance_section()` does a deferred
-import and creates a new `ReportAnalytics()` instance on every call.
-Meanwhile, `EnhancedReportGenerator` already holds a `_analytics`
-instance of `ReportAnalytics`.
-
-**Fix:** Pass the `ReportAnalytics` instance to `ComplianceFormatter`
-(via constructor or method parameter) instead of creating a duplicate.
-
-## Add structured logging to HeaderFuzzer and PixelFuzzer
-
-**Context:** `dicom_fuzzer/attacks/format/header_fuzzer.py`,
-`dicom_fuzzer/attacks/format/pixel_fuzzer.py`
-
-10 of 12 format fuzzers use `get_logger(__name__)` for structured
-logging. HeaderFuzzer and PixelFuzzer are the two exceptions.
-
-Without logging, mutations from these two fuzzers are invisible in
-campaign logs. When a fuzzed file crashes the viewer, you can't trace
-which HeaderFuzzer or PixelFuzzer attack method was applied or what
-values were injected.
-
-### What to add
-
-For each fuzzer:
-
-1. Import `from dicom_fuzzer.utils.logger import get_logger`
-2. Add `logger = get_logger(__name__)` at module level
-3. Add `logger.debug(...)` calls in `mutate()` and key attack methods
-   to log which attack was selected and what values were injected
-
-### Scope
-
-- HeaderFuzzer has 8 attack methods -- add logging to `mutate()` and
-  each `_*` method (which attack was chosen, which tags were modified)
-- PixelFuzzer has 7 attack methods -- same pattern
-
-Low effort, no risk. Can be done when reviewing these files.
+Both fuzzers now have `get_logger(__name__)` and `logger.debug()` calls.
 
 ## Rewrite StructureFuzzer no-op attacks at binary level
 
@@ -829,16 +746,9 @@ The remaining methods (`get_pixel_data`, `get_transfer_syntax`,
 `is_compressed`, `temporary_mutation`) should also be evaluated for
 production integration or removal at that time.
 
-## Use or remove DicomSeries.metadata field
+## ~~Use or remove DicomSeries.metadata field~~ [DONE]
 
-**Location:** `dicom_fuzzer/core/dicom/dicom_series.py`
-
-`DicomSeries.metadata: dict[str, Any]` is defined but never read by any
-production code. Series-level metadata is always extracted directly from
-slices by consumers (series_detector, series_writer, series_reporter).
-
-Either populate it in `SeriesDetector._create_series()` and use it
-downstream, or remove it to keep the dataclass honest.
+Dead `metadata: dict[str, Any]` field removed from `DicomSeries` dataclass.
 
 ## Wire SeriesWriter into the fuzzing pipeline or remove
 
@@ -1035,22 +945,9 @@ Or keep two files but give them clearly distinct names
 
 Medium effort. Touches imports in CLI commands, engine, and tests.
 
-## Clean up core/corpus/__init__.py exports
+## ~~Clean up core/corpus/__init__.py exports~~ [DONE]
 
-**Location:** `dicom_fuzzer/core/corpus/__init__.py`
-
-The current `__init__.py` only re-exports from `corpus_minimization`,
-`corpus_minimizer`, and `coverage_types`. It does NOT export
-`StudyCorpusManager` (from `study_corpus.py`) or `StudyMinimizer`
-(from `study_minimizer.py`).
-
-Consumers import directly from submodules, which works but makes the
-`__init__.py` exports misleading -- they suggest a public API surface
-that's incomplete.
-
-**Decision needed:** Either export the key classes from `__init__.py` to
-provide a proper facade, or document that direct submodule imports are the
-intended pattern and remove the partial re-exports.
+Partial re-exports removed. Direct submodule imports are the pattern.
 
 ## Consolidate crash data types (CrashReport, CrashRecord, WindowsCrashInfo)
 

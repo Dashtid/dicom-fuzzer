@@ -35,7 +35,6 @@ class TestDicomSeriesInitialization:
         assert series.slices == []
         assert series.slice_spacing is None
         assert series.orientation is None
-        assert series.metadata == {}
 
     def test_initialization_with_slices(self):
         """Test initialization with slice list."""
