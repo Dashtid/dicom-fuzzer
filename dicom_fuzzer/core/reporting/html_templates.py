@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Final
 
 # =============================================================================
-# CSS Styles
+# CSS Styles -- used by html_document_start() and enhanced_reporter.py
 # =============================================================================
 
 #: Main CSS styles for fuzzing reports
@@ -319,19 +319,6 @@ tr:hover {
 """
 
 # =============================================================================
-# Severity Colors
-# =============================================================================
-
-#: Color mapping for severity levels
-SEVERITY_COLORS: Final[dict[str, str]] = {
-    "critical": "#c0392b",
-    "high": "#e74c3c",
-    "medium": "#f39c12",
-    "low": "#f1c40f",
-    "info": "#3498db",
-}
-
-# =============================================================================
 # HTML Template Functions
 # =============================================================================
 
@@ -353,155 +340,6 @@ def escape_html(text: str) -> str:
         .replace('"', "&quot;")
         .replace("'", "&#39;")
     )
-
-
-def render_badge(text: str, css_class: str = "") -> str:
-    """Render a styled badge element.
-
-    Args:
-        text: Badge text content
-        css_class: Additional CSS classes (e.g., 'critical', 'high')
-
-    Returns:
-        HTML string for the badge
-
-    """
-    return f'<span class="badge {css_class}">{escape_html(text)}</span>'
-
-
-def render_stat_card(
-    value: int | float | str,
-    label: str,
-    background: str | None = None,
-) -> str:
-    """Render a statistics card.
-
-    Args:
-        value: The statistic value to display
-        label: Label describing the statistic
-        background: Optional custom background gradient CSS
-
-    Returns:
-        HTML string for the stat card
-
-    """
-    style = ""
-    if background:
-        style = f' style="background: {background};"'
-
-    return f"""<div class="stat-card"{style}>
-    <div class="stat-value">{value}</div>
-    <div class="stat-label">{escape_html(label)}</div>
-</div>"""
-
-
-def render_alert(
-    message: str,
-    title: str = "",
-    alert_type: str = "alert",
-    icon: str = "[!]",
-) -> str:
-    """Render an alert box.
-
-    Args:
-        message: Alert message content
-        title: Optional bold title prefix
-        alert_type: CSS class ('alert', 'warning', 'success')
-        icon: Icon text to display
-
-    Returns:
-        HTML string for the alert box
-
-    """
-    title_html = f"<strong>{escape_html(title)}</strong> " if title else ""
-    return f"""<div class="{alert_type}">
-    <span style="font-size: 1.4em;">{icon}</span>
-    <div>{title_html}{escape_html(message)}</div>
-</div>"""
-
-
-def render_info_row(label: str, value: str, is_file_path: bool = False) -> str:
-    """Render an info grid row.
-
-    Args:
-        label: Row label
-        value: Row value
-        is_file_path: If True, wraps value in file-path styling
-
-    Returns:
-        HTML string for the info row (label + value divs)
-
-    """
-    value_html = escape_html(value)
-    if is_file_path:
-        value_html = f'<span class="file-path">{value_html}</span>'
-
-    return f"""<div class="info-label">{escape_html(label)}:</div>
-<div class="info-value">{value_html}</div>"""
-
-
-def render_code_block(content: str) -> str:
-    """Render a code block.
-
-    Args:
-        content: Code or text content
-
-    Returns:
-        HTML string for the code block
-
-    """
-    return f'<div class="code-block">{escape_html(content)}</div>'
-
-
-def render_details(summary: str, content: str, open_by_default: bool = False) -> str:
-    """Render a collapsible details element.
-
-    Args:
-        summary: Summary text (clickable)
-        content: Hidden content revealed on expand
-        open_by_default: If True, details starts expanded
-
-    Returns:
-        HTML string for the details element
-
-    """
-    open_attr = " open" if open_by_default else ""
-    return f"""<details{open_attr}>
-    <summary>{escape_html(summary)}</summary>
-    {content}
-</details>"""
-
-
-def render_table_header(columns: list[str]) -> str:
-    """Render a table header row.
-
-    Args:
-        columns: List of column header texts
-
-    Returns:
-        HTML string for the table header
-
-    """
-    headers = "".join(f"<th>{escape_html(col)}</th>" for col in columns)
-    return f"<tr>{headers}</tr>"
-
-
-def render_table_row(cells: list[str], escape: bool = True) -> str:
-    """Render a table data row.
-
-    Args:
-        cells: List of cell contents
-        escape: If True, HTML-escapes cell contents
-
-    Returns:
-        HTML string for the table row
-
-    """
-    if escape:
-        cell_html = "".join(f"<td>{escape_html(str(cell))}</td>" for cell in cells)
-    else:
-        cell_html = "".join(f"<td>{cell}</td>" for cell in cells)
-    return f"<tr>{cell_html}</tr>"
 
 
 # =============================================================================
@@ -545,26 +383,4 @@ def html_document_end() -> str:
     </div>
 </body>
 </html>
-"""
-
-
-def html_report_header(title: str, subtitle: str, metadata: str) -> str:
-    """Generate the report header section.
-
-    Args:
-        title: Main title
-        subtitle: Subtitle text
-        metadata: Additional metadata (session ID, timestamp, etc.)
-
-    Returns:
-        HTML string for the header section
-
-    """
-    return f"""<div class="header">
-    <h1>{escape_html(title)}</h1>
-    <div class="subtitle">{escape_html(subtitle)}</div>
-    <div class="timestamp">{metadata}</div>
-</div>
-
-<div class="content">
 """
