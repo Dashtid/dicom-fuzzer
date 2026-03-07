@@ -75,11 +75,6 @@ def sample_series(tmp_path):
         study_uid=study_uid,
         modality="CT",
         slices=slice_paths,
-        metadata={
-            "StudyInstanceUID": study_uid,
-            "PatientName": "Test^Patient",
-            "PatientID": "12345",
-        },
     )
 
 
@@ -334,7 +329,6 @@ class TestEdgeCases:
             study_uid=ds.StudyInstanceUID,
             modality="CT",
             slices=[file_path],
-            metadata={"StudyInstanceUID": ds.StudyInstanceUID},
         )
 
         mutator = ParallelSeriesMutator(workers=2, seed=42)
