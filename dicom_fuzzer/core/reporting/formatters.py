@@ -45,7 +45,6 @@ class HTMLSectionFormatter:
             </div>
         </div>
 
-        <div class="content">
             <h2>Session Summary</h2>
 
             <div class="stats-grid">

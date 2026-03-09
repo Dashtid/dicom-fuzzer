@@ -519,33 +519,17 @@ Removed 10 dead helper functions (`render_badge`, `render_stat_card`,
 `html_document_start`, `html_document_end`, and `REPORT_CSS` (all have
 production callers).
 
-## Deduplicate critical crashes table
+## ~~Deduplicate critical crashes table~~ [MOOT]
 
-**Location:** `dicom_fuzzer/core/reporting/formatters.py` (lines 176-224),
-`dicom_fuzzer/core/reporting/report_analytics.py` (lines 115-163)
+The duplication described (formatters.py vs report_analytics.py) no longer
+exists. `report_analytics.py` only has mutation analysis -- no critical
+crashes table.
 
-Two nearly identical implementations of the "Top Critical Crashes" HTML
-table: `HTMLSectionFormatter._format_critical_crashes_table()` and
-`ReportAnalytics._format_critical_crashes_section()`. Both filter by
-severity, sort by priority, render the same columns.
+## ~~Fix cross-module HTML nesting~~ [DONE]
 
-**Fix:** Keep one, delete the other, and have the caller reference the
-surviving implementation. Or extract to a shared function.
-
-## Fix cross-module HTML nesting
-
-**Location:** `dicom_fuzzer/core/reporting/formatters.py` (line 48),
-`dicom_fuzzer/core/reporting/enhanced_reporter.py` (line 133)
-
-`formatters.py:format_session_overview()` opens a `<div class="content">`
-tag but never closes it. `enhanced_reporter.py:_html_footer()` closes it
-with a bare `</div>` before the document end. This cross-module tag
-nesting is fragile -- adding or removing sections will break the HTML
-structure silently.
-
-**Fix:** Each module should manage its own tags. Either move the container
-div open/close into `enhanced_reporter.py` (the orchestrator), or have
-each section be self-contained.
+Moved `<div class="content">` open/close from `formatters.py` into
+`enhanced_reporter.py` (the orchestrator). Each formatter now returns
+self-contained HTML without relying on another module to close its tags.
 
 ## ~~Fix compliance.py creating duplicate ReportAnalytics instance~~ [MOOT]
 
