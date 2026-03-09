@@ -15,5 +15,6 @@ __all__ = [
     "study",
     "study_campaign",
     "target",
+    "seeds",
     "tls",
 ]
