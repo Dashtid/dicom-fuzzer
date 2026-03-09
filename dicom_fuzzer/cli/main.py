@@ -55,6 +55,7 @@ SUBCOMMANDS: dict[str, str] = {
     "target": "dicom_fuzzer.cli.commands.target",
     "cve": "dicom_fuzzer.cli.commands.cve",
     "report": "dicom_fuzzer.cli.commands.reports",  # Report generation
+    "generate-seeds": "dicom_fuzzer.cli.commands.seeds",
 }
 
 

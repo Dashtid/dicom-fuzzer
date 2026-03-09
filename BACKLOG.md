@@ -2,7 +2,10 @@
 
 Ideas pruned from the codebase that may be worth implementing later.
 
-## Add seed-corpus generation mode (no network, mutations only)
+## ~~Add seed-corpus generation mode (no network, mutations only)~~ [DONE]
+
+**Implemented:** `dicom-fuzzer generate-seeds` CLI subcommand in `cli/commands/seeds.py`.
+Generates mutated DICOM files to disk without target/harness/network. 11 tests.
 
 **Purpose:** Generate bulk mutated DICOM files to disk without sending them to a
 target. The output serves as a high-quality seed corpus for coverage-guided
