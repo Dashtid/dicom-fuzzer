@@ -108,10 +108,12 @@ class EnhancedReportGenerator:
         fuzzed_files = data.get("fuzzed_files", {})
 
         html = self._html_header(session_info["session_name"])
+        html += '\n        <div class="content">\n'
         html += self._formatter.format_session_overview(session_info, stats)
         html += self._formatter.format_crash_summary(crashes, fuzzed_files)
         html += self._formatter.format_crash_details(crashes, fuzzed_files)
         html += self._analytics.format_mutation_analysis(fuzzed_files, crashes)
+        html += "\n        </div>\n"
         html += self._html_footer()
 
         return html
@@ -122,7 +124,7 @@ class EnhancedReportGenerator:
 
     def _html_footer(self) -> str:
         """Generate HTML footer."""
-        return "    </div>" + html_document_end()
+        return html_document_end()
 
 
 __all__ = ["EnhancedReportGenerator"]
