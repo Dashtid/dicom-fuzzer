@@ -529,6 +529,9 @@ class TestMainArgumentParsing:
             # Return actual Path object, not MagicMock
             mock_gen_instance.generate_batch.return_value = [out_file]
             mock_gen_instance.stats = MagicMock(skipped_due_to_write_errors=0)
+            # Use real dicts so JSON serialization works in display_results
+            mock_gen_instance.cumulative_strategies = {"metadata": 1}
+            mock_gen_instance.file_strategy_map = {}
             mock_gen.return_value = mock_gen_instance
 
             from dicom_fuzzer.cli.main import main
@@ -536,21 +539,17 @@ class TestMainArgumentParsing:
             result = main()
 
             captured = capsys.readouterr()
-            # Output should contain valid JSON (find the JSON block)
             import json
 
-            # Find JSON in output (starts with { and ends with })
             output = captured.out
             json_start = output.find("{")
             json_end = output.rfind("}") + 1
-            if json_start >= 0 and json_end > json_start:
-                json_str = output[json_start:json_end]
-                output_data = json.loads(json_str)
-                assert "status" in output_data
-                assert output_data["status"] == "success"
-            else:
-                # If no JSON found, at least verify return code
-                assert result == 0
+            assert json_start >= 0 and json_end > json_start, (
+                f"No JSON found in output: {output!r}"
+            )
+            json_str = output[json_start:json_end]
+            output_data = json.loads(json_str)
+            assert output_data["status"] == "success"
 
     def test_quiet_mode(self, tmp_path, capsys):
         """Test -q/--quiet mode suppresses output."""

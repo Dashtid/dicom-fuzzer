@@ -75,6 +75,8 @@ class CrashAnalyzer:
         self.crash_dir.mkdir(parents=True, exist_ok=True)
         self.crashes: list[CrashReport] = []
         self.crash_hashes: set[str] = set()  # For deduplication
+        # Timeline of unique crash discoveries: (timestamp, cumulative_count)
+        self.crash_timeline: list[tuple[datetime, int]] = []
 
     def analyze_exception(
         self, exception: Exception, test_case_path: str
@@ -294,6 +296,9 @@ class CrashAnalyzer:
             logger.debug("Duplicate crash skipped", crash_hash=report.crash_hash)
             return None
 
+        # Record discovery timestamp for trend analysis
+        self.crash_timeline.append((datetime.now(UTC), len(self.crash_hashes)))
+
         # Save report
         self.save_crash_report(report)
 
@@ -309,6 +314,19 @@ class CrashAnalyzer:
         )
 
         return report
+
+    def get_crash_timeline(self) -> list[tuple[datetime, int]]:
+        """Get timeline of unique crash discoveries.
+
+        Each entry is (timestamp, cumulative_unique_crash_count) recorded
+        when a new unique crash was first discovered. Compatible with
+        TrendAnalysis.crashes_over_time format.
+
+        Returns:
+            List of (datetime, count) tuples in discovery order
+
+        """
+        return list(self.crash_timeline)
 
     def get_crash_summary(self) -> dict[str, int]:
         """Get summary of crashes found.

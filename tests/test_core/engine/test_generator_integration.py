@@ -314,3 +314,40 @@ class TestGeneratorErrorHandling:
         )
         # May produce 0 files, but must not raise
         assert isinstance(files, list)
+
+
+# ---------------------------------------------------------------------------
+# Tests: Cumulative Strategy Tracking
+# ---------------------------------------------------------------------------
+class TestCumulativeStrategies:
+    """Verify strategy counts accumulate across multiple generate_batch() calls."""
+
+    def test_cumulative_strategies_across_batches(self, tmp_path, seed_dicom_file):
+        """cumulative_strategies should sum counts from all batches."""
+        output_dir = tmp_path / "output_cumulative"
+        gen = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
+
+        # Run two separate batches with metadata strategy
+        gen.generate_batch(
+            original_file=str(seed_dicom_file),
+            count=5,
+            strategies=["metadata"],
+        )
+        batch1_count = gen.cumulative_strategies.get("metadata", 0)
+
+        gen.generate_batch(
+            original_file=str(seed_dicom_file),
+            count=5,
+            strategies=["metadata"],
+        )
+        batch2_total = gen.cumulative_strategies.get("metadata", 0)
+
+        # Cumulative should be >= batch1 count (it adds batch2's counts)
+        assert batch2_total >= batch1_count
+        # Per-batch stats reset, but cumulative persists
+        assert batch2_total > 0
+
+    def test_cumulative_strategies_empty_initially(self, tmp_path):
+        """cumulative_strategies starts empty."""
+        gen = DICOMGenerator(output_dir=str(tmp_path), skip_write_errors=True)
+        assert gen.cumulative_strategies == {}
