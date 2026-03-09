@@ -507,22 +507,14 @@ Current styling is flashy rather than professional:
 subtle borders instead of shadows, standard-sized text, no animations,
 no gradients. Professional enough for FDA submission attachments.
 
-## Adopt or remove dead helper functions in html_templates.py
+## ~~Adopt or remove dead helper functions in html_templates.py~~ [DONE]
 
-**Location:** `dicom_fuzzer/core/reporting/html_templates.py` (lines 344-592)
-
-10 helper functions are tested (`test_html_templates.py`) but have zero
-production callers: `render_badge`, `render_stat_card`, `render_alert`,
-`render_info_row`, `render_code_block`, `render_details`,
-`render_table_header`, `render_table_row`, `render_progress_bar`,
-`html_report_header`.
-
-Also `SEVERITY_COLORS` dict is tested but unused in production.
-
-**Decision:** Either refactor `formatters.py` and `report_analytics.py`
-to use these helpers (reducing inline HTML), or delete the helpers and
-their tests. Currently they're dead weight that creates a false sense
-of abstraction.
+Removed 10 dead helper functions (`render_badge`, `render_stat_card`,
+`render_alert`, `render_info_row`, `render_code_block`, `render_details`,
+`render_table_header`, `render_table_row`, `html_report_header`) and
+`SEVERITY_COLORS` dict, plus ~19 tests. Kept `escape_html`,
+`html_document_start`, `html_document_end`, and `REPORT_CSS` (all have
+production callers).
 
 ## Deduplicate critical crashes table
 
@@ -552,18 +544,9 @@ structure silently.
 div open/close into `enhanced_reporter.py` (the orchestrator), or have
 each section be self-contained.
 
-## Fix compliance.py creating duplicate ReportAnalytics instance
+## ~~Fix compliance.py creating duplicate ReportAnalytics instance~~ [MOOT]
 
-**Location:** `dicom_fuzzer/core/reporting/compliance.py` (lines 45-47),
-`dicom_fuzzer/core/reporting/enhanced_reporter.py` (line 57)
-
-`ComplianceFormatter.format_fda_compliance_section()` does a deferred
-import and creates a new `ReportAnalytics()` instance on every call.
-Meanwhile, `EnhancedReportGenerator` already holds a `_analytics`
-instance of `ReportAnalytics`.
-
-**Fix:** Pass the `ReportAnalytics` instance to `ComplianceFormatter`
-(via constructor or method parameter) instead of creating a duplicate.
+`compliance.py` was deleted in a prior refactor. Issue no longer exists.
 
 ## ~~Add structured logging to HeaderFuzzer and PixelFuzzer~~ [DONE]
 
@@ -840,16 +823,10 @@ The remaining methods (`get_pixel_data`, `get_transfer_syntax`,
 `is_compressed`, `temporary_mutation`) should also be evaluated for
 production integration or removal at that time.
 
-## Use or remove DicomSeries.metadata field
+## ~~Use or remove DicomSeries.metadata field~~ [DONE]
 
-**Location:** `dicom_fuzzer/core/dicom/dicom_series.py`
-
-`DicomSeries.metadata: dict[str, Any]` is defined but never read by any
-production code. Series-level metadata is always extracted directly from
-slices by consumers (series_detector, series_writer, series_reporter).
-
-Either populate it in `SeriesDetector._create_series()` and use it
-downstream, or remove it to keep the dataclass honest.
+Removed. Field was never read by production code. Removed from `series.py`,
+`parallel_mutator.py`, and 3 test files.
 
 ## Wire SeriesWriter into the fuzzing pipeline or remove
 
