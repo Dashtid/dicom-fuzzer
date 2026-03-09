@@ -2,6 +2,36 @@
 
 Ideas pruned from the codebase that may be worth implementing later.
 
+## Add seed-corpus generation mode (no network, mutations only)
+
+**Purpose:** Generate bulk mutated DICOM files to disk without sending them to a
+target. The output serves as a high-quality seed corpus for coverage-guided
+fuzzers (AFL/WinAFL with QEMU/DynamoRIO/Intel PT) that lack DICOM domain
+knowledge.
+
+**Why:** Coverage-guided fuzzers starting from generic DICOM samples waste
+millions of iterations learning basic structure (magic bytes, VR encoding,
+sequence nesting). Seeding them with domain-aware mutations from this fuzzer
+lets them skip straight to exploring deep code paths in the target binary.
+
+**Scope:** A new CLI subcommand (e.g. `dicom-fuzzer generate-seeds`) or a
+`--dry-run` / `--corpus-only` flag on the existing campaign command that:
+
+1. Runs `DICOMGenerator.generate_batch()` across all (or selected) strategies
+2. Writes each mutated file to an output directory (one `.dcm` per mutation)
+3. Skips harness setup, network sending, and crash detection entirely
+4. Optionally runs corpus minimization (deduplicate by file hash)
+
+**Implementation notes:**
+
+- The generator layer (`core/engine/generator.py`) already produces mutated
+  `Dataset` objects and can serialize them -- the plumbing exists
+- `campaign_runner.py` orchestrates batches but couples generation to sending;
+  a new controller or a flag to short-circuit after generation would work
+- Consider AFL's `afl-cmin` compatible output format (flat directory of files)
+
+Medium effort. Mostly new CLI/controller code, minimal changes to core.
+
 ## Separate reports.py CLI from utility library
 
 **Location:** `dicom_fuzzer/cli/commands/reports.py` (577 lines)
