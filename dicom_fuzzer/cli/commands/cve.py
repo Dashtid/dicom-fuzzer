@@ -128,6 +128,25 @@ Examples:
         action="store_true",
         help="Stop testing after the first crash",
     )
+    parser.add_argument(
+        "--gui-mode",
+        action="store_true",
+        help="Use GUI mode for target testing (app killed after timeout, requires psutil)",
+    )
+    parser.add_argument(
+        "--memory-limit",
+        type=int,
+        default=None,
+        metavar="MB",
+        help="Memory limit in MB for OOM detection during target testing",
+    )
+    parser.add_argument(
+        "--startup-delay",
+        type=float,
+        default=3.0,
+        metavar="SEC",
+        help="Seconds to wait after launching GUI app before monitoring (default: 3.0)",
+    )
 
     # Output format options
     parser.add_argument(
@@ -347,80 +366,53 @@ def cmd_test_target(
     timeout: float,
     stop_on_crash: bool,
     verbose: bool,
+    gui_mode: bool = False,
+    memory_limit: int | None = None,
+    startup_delay: float = 3.0,
 ) -> int:
-    """Run generated CVE files against a target executable."""
-    from dicom_fuzzer.core.harness.target_runner import ExecutionStatus, TargetRunner
+    """Run CVE files against a target using the full harness pipeline.
+
+    Delegates to TargetTestingController for session tracking, crash
+    deduplication, process monitoring, and HTML report generation.
+    A mutation_map.json is written mapping each filename to its CVE ID
+    and variant so crashes are attributed to specific CVEs in reports.
+
+    """
+    import json
+
+    from dicom_fuzzer.cli.controllers.target_controller import TargetTestingController
 
     target_path = Path(target)
     if not target_path.exists():
-        print(f"[-] Error: Target executable not found: {target}")
+        print(f"[-] Target not found: {target}")
         return 1
 
-    crash_dir = output_dir / "crashes"
-    crash_dir.mkdir(parents=True, exist_ok=True)
-
-    runner = TargetRunner(
-        target_executable=str(target_path),
-        timeout=timeout,
-        crash_dir=str(crash_dir),
-        enable_monitoring=True,
-        collect_stdout=False,
-        collect_stderr=True,
-        max_retries=0,
-        enable_circuit_breaker=False,
-    )
-
-    # Save files to a test directory and build path -> CVEFile map
+    # Save CVE files and build mutation map for crash attribution
     test_dir = output_dir / "test_files"
     test_dir.mkdir(parents=True, exist_ok=True)
-    test_paths: list[Path] = []
-    file_map: dict[Path, CVEFile] = {}
+
+    file_paths: list[Path] = []
+    mutation_map: dict[str, str] = {}
+
     for cve_file in cve_files:
-        path = cve_file.save(test_dir)
-        test_paths.append(path)
-        file_map[path] = cve_file
+        file_path = cve_file.save(test_dir)
+        file_paths.append(file_path)
+        mutation_map[file_path.name] = f"{cve_file.cve_id}/{cve_file.variant}"
 
-    print(f"\n[+] Testing {len(test_paths)} CVE files against: {target_path.name}")
-    results = runner.run_campaign(test_paths, stop_on_crash=stop_on_crash)
+    (test_dir / "mutation_map.json").write_text(json.dumps(mutation_map, indent=2))
 
-    crashes = results.get(ExecutionStatus.CRASH, [])
-    hangs = results.get(ExecutionStatus.HANG, [])
-    successes = results.get(ExecutionStatus.SUCCESS, [])
-    errors = results.get(ExecutionStatus.ERROR, [])
+    # Build args namespace matching TargetTestingController expectations
+    args = argparse.Namespace(
+        target=target,
+        timeout=timeout,
+        stop_on_crash=stop_on_crash,
+        gui_mode=gui_mode,
+        memory_limit=memory_limit,
+        startup_delay=startup_delay,
+        verbose=verbose,
+    )
 
-    total = len(test_paths)
-    print(f"\n{'=' * 60}")
-    print(f"  CVE Validation Results: {total} files tested")
-    print(f"{'=' * 60}")
-    print(f"  [+] Passed:  {len(successes)}")
-    print(f"  [-] Crashed: {len(crashes)}")
-    print(f"  [!] Hung:    {len(hangs)}")
-    print(f"  [!] Errors:  {len(errors)}")
-
-    if crashes:
-        print("\n  Crashes (potential vulnerabilities):")
-        for r in crashes:
-            cf = file_map.get(r.test_file)
-            label = f"{cf.cve_id}/{cf.variant}" if cf else str(r.test_file.name)
-            info_line = f"    [-] {label}"
-            if r.is_exploitable and r.windows_crash_info:
-                info_line += f" [EXPLOITABLE: {r.windows_crash_info.exception_name}]"
-            print(info_line)
-            if verbose and r.stderr:
-                for line in r.stderr.strip().splitlines()[:3]:
-                    print(f"        {line}")
-
-    if hangs:
-        print("\n  Hangs (potential DoS):")
-        for r in hangs:
-            cf = file_map.get(r.test_file)
-            label = f"{cf.cve_id}/{cf.variant}" if cf else str(r.test_file.name)
-            print(f"    [!] {label} ({r.hang_reason})")
-
-    if crashes:
-        print(f"\n  [i] Crash artifacts saved to: {crash_dir}")
-
-    return 1 if crashes or hangs else 0
+    return TargetTestingController.run(args, file_paths, output_dir)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -553,6 +545,9 @@ def main(argv: list[str] | None = None) -> int:
                 args.timeout,
                 args.stop_on_crash,
                 args.verbose,
+                gui_mode=args.gui_mode,
+                memory_limit=args.memory_limit,
+                startup_delay=args.startup_delay,
             )
 
         return validation_rc
