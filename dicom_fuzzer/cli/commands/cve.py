@@ -14,8 +14,11 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import io
 import sys
 from pathlib import Path
+
+import pydicom
 
 from dicom_fuzzer.cve import CVEFile, CVEGenerator, get_cve_info, list_cves
 from dicom_fuzzer.cve.registry import (
@@ -255,6 +258,88 @@ def cmd_generate(
     return 0, files
 
 
+def cmd_validate_generated(
+    cve_files: list[CVEFile],
+    template_bytes: bytes,
+    verbose: bool = False,
+) -> int:
+    """Validate generated CVE files for structural integrity.
+
+    Checks each generated file:
+    1. Parseable by pydicom (force=True)
+    2. SOPClassUID matches the template (modality preserved)
+    3. File differs from template (mutation took effect)
+
+    Returns:
+        0 if all files pass, 1 if any file has issues.
+
+    """
+    # Parse template to extract reference SOPClassUID
+    try:
+        template_ds = pydicom.dcmread(io.BytesIO(template_bytes), force=True)
+        template_sop = getattr(template_ds, "SOPClassUID", None)
+    except Exception:
+        template_sop = None
+
+    print(f"\n[+] Validating {len(cve_files)} generated file(s)...")
+
+    passed = 0
+    warnings = 0
+    failed = 0
+
+    for cve_file in cve_files:
+        label = f"{cve_file.cve_id}/{cve_file.variant}"
+        issues: list[str] = []
+
+        # Check mutation took effect
+        if cve_file.data == template_bytes:
+            issues.append("identical to template (mutation had no effect)")
+
+        # Check parseability
+        try:
+            ds = pydicom.dcmread(io.BytesIO(cve_file.data), force=True)
+        except Exception as e:
+            issues.append(f"unparseable: {e}")
+            ds = None
+
+        # Check SOPClassUID preservation
+        if ds is not None and template_sop is not None:
+            generated_sop = getattr(ds, "SOPClassUID", None)
+            if generated_sop is not None and str(generated_sop) != str(template_sop):
+                issues.append(f"SOPClassUID changed: {template_sop} -> {generated_sop}")
+
+        if not issues:
+            passed += 1
+            if verbose:
+                print(f"    [+] {label}: OK")
+        else:
+            # Only "identical to template" is a hard fail -- the mutation
+            # didn't work at all. Unparseable files are expected for some
+            # CVEs (the exploit intentionally breaks DICOM structure).
+            is_hard_fail = any("identical" in i for i in issues)
+            if is_hard_fail:
+                failed += 1
+                print(f"    [-] {label}: FAIL")
+            else:
+                warnings += 1
+                if verbose:
+                    print(f"    [!] {label}: WARN")
+            for issue in issues:
+                if verbose or is_hard_fail:
+                    print(f"        {issue}")
+
+    # Summary
+    status = "OK" if failed == 0 else "FAIL"
+    parts = [f"{passed} passed"]
+    if warnings:
+        parts.append(f"{warnings} warnings")
+    if failed:
+        parts.append(f"{failed} failed")
+    print(f"\n[i] Validation: [{status}] {', '.join(parts)}")
+
+    return 1 if failed > 0 else 0
+
+
 def cmd_test_target(
     cve_files: list[CVEFile],
     target: str,
@@ -453,16 +538,24 @@ def main(argv: list[str] | None = None) -> int:
                 if rc == 0:
                     all_cve_files.extend(files)
 
-    # If --target specified, run generated files against the target
-    if args.target and all_cve_files:
-        return cmd_test_target(
-            all_cve_files,
-            args.target,
-            output_dir,
-            args.timeout,
-            args.stop_on_crash,
-            args.verbose,
+    # Validate generated files
+    if all_cve_files:
+        validation_rc = cmd_validate_generated(
+            all_cve_files, template_bytes, args.verbose
         )
+
+        # If --target specified, run generated files against the target
+        if args.target:
+            return cmd_test_target(
+                all_cve_files,
+                args.target,
+                output_dir,
+                args.timeout,
+                args.stop_on_crash,
+                args.verbose,
+            )
+
+        return validation_rc
 
     return 0
 
