@@ -5,6 +5,67 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-03-10 - Modality Fuzzers & Codebase Hardening
+
+Major feature release adding 6 modality-specific fuzzers, a seed-corpus generation CLI,
+and systematic dead code removal across the entire codebase.
+
+### Added - Modality Fuzzers
+
+- **EncapsulatedPdfFuzzer** - 4 attack methods targeting PDF structure corruption and type confusion
+- **SegmentationFuzzer** - 4 attack methods for SEG label/frame/algorithm manipulation
+- **NuclearMedicineFuzzer** - 5 attack methods including decay correction and scan arc attacks
+- **PetFuzzer** - 4 SUV/decay attack strategies with time reversal attacks
+- **RTStructureSetFuzzer** - 5 contour/ROI attack strategies with invalid interpreted types
+- **RTDoseFuzzer** - 5 attack methods (25 variants) including invalid DVH types
+
+### Added - CLI & Engine
+
+- **`generate-seeds` subcommand** - Generate mutated DICOM files to disk for AFL/WinAFL seed corpora
+- **Crash timeline tracking** - `CrashAnalyzer.crash_timeline` records unique crash discovery over time
+- **Cumulative strategy hit counts** - `DICOMGenerator.cumulative_strategies` accumulates across batches
+- **Persistent file logging** - Auto-generated log paths for campaign runs
+- **Structured logging for campaigns** - Run isolation and structured log output
+- **GUI warmup phase** - Viewer warmup before fuzzing, increased timeout to 15s
+
+### Changed - Codebase Cleanup
+
+- Systematic review of all `core/` subpackages: dicom, mutation, engine, corpus, session, crash, harness, reporting, analytics
+- Replaced f-string logging with lazy `%s` formatting throughout
+- Fixed `datetime.utcnow()` deprecation with timezone-aware `datetime.now(UTC)`
+- Removed ~40 dead functions, unused constants, dead re-exports, and orphan test files
+- Removed `ByteMutator`, `MutationSeverity`, unused pydantic config, legacy method aliases
+- Extracted shared radiopharmaceutical attacks from NM and PET fuzzers
+- Removed 10 dead HTML template helpers and `SEVERITY_COLORS` dict
+- Fixed cross-module HTML nesting (content div now owned by report orchestrator)
+- Generator serialization robustness improved from 0.8% to 97% yield
+
+### Changed - Tests
+
+- Restructured test directory to mirror source tree layout
+- Added cross-fuzzer contract tests for all 12 format fuzzers
+- Added mutation verification tests for all fuzzers (Phases 1-4)
+- Added round-trip serialization tests (39 tests)
+- Added end-to-end integration tests for DICOMGenerator pipeline (15 tests)
+- Total test count: ~4,975
+
+### Fixed
+
+- Strategy hit-count data loss across `generate_batch()` calls
+- Crash detection wiring into session/report pipeline
+- Ghost files and lost mutations in generation output
+- pydicom deprecation warnings and log noise suppression
+- Campaign log errors from 500-file fuzzing runs
+- ReferenceFuzzer collecting ref_items before add_new
+- Missing `super().__init__()` in 4 format fuzzers
+- 37+ CodeQL code scanning alerts resolved
+
+### Security
+
+- Resolved all CodeQL and Semgrep security alerts
+- Bumped cryptography dependency for CVE fixes
+- Trimmed CI/CD pipeline and fixed CodeQL configuration
+
 ## [1.8.0] - 2026-01-13 - Phase 2 Technical Debt Reduction
 
 Major refactoring release focused on modularization, maintainability, and test coverage.
