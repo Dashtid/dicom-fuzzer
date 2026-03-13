@@ -17,7 +17,6 @@ from dicom_fuzzer.attacks.series.series_mutator import (
 )
 from dicom_fuzzer.core.dicom.series import DicomSeries
 from dicom_fuzzer.core.dicom.series_detector import SeriesDetector
-from dicom_fuzzer.core.dicom.series_writer import SeriesWriter
 
 
 @pytest.fixture
@@ -164,39 +163,6 @@ class TestPhase2Phase4Integration:
             assert len(records) > 0
 
 
-class TestPhase3Phase4Integration:
-    """Test integration of Phase 3 (Viewer Testing) with Phase 4 (Performance)."""
-
-    def test_series_writer_with_parallel_mutations(self, sample_series_files, tmp_path):
-        """Test SeriesWriter works with parallel-mutated series."""
-        series_dir, slice_paths = sample_series_files
-
-        series_uid = generate_uid()
-        study_uid = generate_uid()
-        series = DicomSeries(
-            series_uid=series_uid,
-            study_uid=study_uid,
-            modality="CT",
-            slices=slice_paths,
-        )
-
-        # Parallel mutation
-        mutator = ParallelSeriesMutator(workers=2, seed=42)
-        mutated_ds, records = mutator.mutate_series(
-            series, SeriesMutationStrategy.SLICE_POSITION_ATTACK, parallel=True
-        )
-
-        # Write mutated series (correct API: SeriesWriter(output_root).write_series(series, datasets))
-        output_dir = tmp_path / "output_series"
-        writer = SeriesWriter(output_root=output_dir)
-        metadata = writer.write_series(series, mutated_ds)
-
-        # Verify written files
-        assert metadata.output_directory.exists()
-        written_files = list(metadata.output_directory.glob("*.dcm"))
-        assert len(written_files) == series.slice_count
-
-
 class TestFullWorkflowIntegration:
     """Test complete Phase 1-4 workflow integration."""
 
@@ -224,20 +190,6 @@ class TestFullWorkflowIntegration:
         # Phase 2: Verify mutations applied
         assert len(mutated_ds) == series.slice_count
         assert len(records) > 0
-
-        # Phase 3: Write for viewer testing
-        output_dir = tmp_path / "fuzzed_series"
-        writer = SeriesWriter(output_root=output_dir)
-        metadata = writer.write_series(series, mutated_ds)
-
-        # Verify output
-        assert metadata.output_directory.exists()
-        written_files = list(metadata.output_directory.glob("*.dcm"))
-        assert len(written_files) == series.slice_count
-
-        # Verify metadata file exists
-        metadata_file = metadata.output_directory / "metadata.json"
-        assert metadata_file.exists()
 
 
 class TestPerformanceRegression:

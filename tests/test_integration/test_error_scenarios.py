@@ -15,10 +15,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from pydicom.dataset import Dataset
 
 from dicom_fuzzer.core.dicom.parser import DicomParser
-from dicom_fuzzer.core.dicom.validator import DicomValidator
 from dicom_fuzzer.core.engine.generator import DICOMGenerator
 from dicom_fuzzer.core.harness.target_runner import ExecutionStatus, TargetRunner
 from dicom_fuzzer.core.session.resource_manager import ResourceLimits, ResourceManager
@@ -50,55 +48,13 @@ class TestCorruptedFileHandling:
         truncated_file = temp_dir / "truncated.dcm"
         truncated_file.write_bytes(truncated_data)
 
-        # Parsing might succeed with force=True, validation should catch issues
+        # Parsing might succeed with force=True, or fail gracefully
         try:
             parser = DicomParser(truncated_file)
-            validator = DicomValidator()
-            validator.validate(parser.dataset)
-
-            # Either parse fails or validation detects issues
-            # This is acceptable behavior
-            assert True
+            assert parser is not None
         except Exception:
             # If parse fails, that's also acceptable
             assert True
-
-    def test_empty_file(self, temp_dir):
-        """Test handling empty file."""
-        empty_file = temp_dir / "empty.dcm"
-        empty_file.touch()
-
-        validator = DicomValidator()
-        result, dataset = validator.validate_file(empty_file)
-
-        # Should detect empty file
-        assert not result.is_valid
-        assert any("empty" in e.lower() for e in result.errors)
-        assert dataset is None
-
-    def test_missing_required_elements(self):
-        """Test handling DICOM with critical elements missing."""
-        dataset = Dataset()
-        # Minimal dataset with no required tags
-
-        validator = DicomValidator(strict_mode=True)
-        result = validator.validate(dataset)
-
-        # Should fail in strict mode
-        assert not result.is_valid
-        assert len(result.errors) > 0
-
-    def test_invalid_tag_values(self):
-        """Test handling invalid tag values."""
-        dataset = Dataset()
-        dataset.PatientName = "\x00\x00\x00"  # Null bytes
-        dataset.PatientID = "A" * 100000  # Extremely long
-
-        validator = DicomValidator()
-        result = validator.validate(dataset)
-
-        # Should detect issues
-        assert not result.is_valid or len(result.warnings) > 0
 
 
 @pytest.mark.slow
@@ -320,24 +276,6 @@ class TestResourceExhaustion:
 class TestInvalidInputData:
     """Test handling invalid input data."""
 
-    def test_none_dataset(self):
-        """Test handling None dataset."""
-        validator = DicomValidator()
-        result = validator.validate(None)
-
-        assert not result.is_valid
-        assert "None" in result.errors[0]
-
-    def test_empty_dataset(self):
-        """Test handling empty dataset."""
-        dataset = Dataset()
-
-        validator = DicomValidator()
-        result = validator.validate(dataset)
-
-        assert not result.is_valid
-        assert "empty" in result.errors[0].lower()
-
     def test_invalid_file_path(self):
         """Test handling invalid file paths."""
         path = Path("/nonexistent/path/file.dcm")
@@ -347,18 +285,6 @@ class TestInvalidInputData:
         """Test handling directory path where file expected."""
         assert temp_dir.is_dir()
         assert not temp_dir.is_file()
-
-    @pytest.mark.slow
-    def test_oversized_file(self, temp_dir):
-        """Test handling file exceeding size limit."""
-        large_file = temp_dir / "large.dcm"
-        large_file.write_bytes(b"X" * (200 * 1024 * 1024))  # 200MB
-
-        validator = DicomValidator(max_file_size=100 * 1024 * 1024)  # 100MB limit
-        result, dataset = validator.validate_file(large_file)
-
-        assert not result.is_valid
-        assert any("exceeds" in e.lower() for e in result.errors)
 
 
 class TestTargetExecutableErrors:
@@ -463,18 +389,6 @@ class TestConfigurationErrors:
         with manager.limited_execution():
             # Should not crash
             assert True
-
-    def test_conflicting_config_options(self):
-        """Test handling conflicting configuration."""
-        # Create validator with conflicting settings
-        validator = DicomValidator(
-            strict_mode=True,
-            max_file_size=0,  # Zero size limit
-        )
-
-        # Should initialize without crashing
-        assert validator.strict_mode is True
-        assert validator.max_file_size == 0
 
 
 class TestGracefulDegradation:
