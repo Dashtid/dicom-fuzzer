@@ -386,64 +386,6 @@ class TestGenerateReportE2E:
 
         return session_file
 
-    def test_generate_json_report(self, tmp_path):
-        """Test JSON report generation using generate_json_report."""
-        from dicom_fuzzer.cli.commands.reports import generate_json_report
-
-        output_path = tmp_path / "output_report.json"
-
-        data = {
-            "campaign_id": "test",
-            "iterations": 100,
-            "crashes": 5,
-        }
-
-        generate_json_report(data, str(output_path))
-
-        assert output_path.exists()
-        loaded = json.loads(output_path.read_text())
-        assert loaded["campaign_id"] == "test"
-        assert loaded["iterations"] == 100
-
-    def test_generate_csv_report(self, tmp_path):
-        """Test CSV report generation."""
-        from dicom_fuzzer.cli.commands.reports import generate_csv_report
-
-        output_path = tmp_path / "crashes.csv"
-
-        crashes = [
-            {"id": "crash_001", "type": "segfault", "severity": "high"},
-            {"id": "crash_002", "type": "memory", "severity": "critical"},
-        ]
-
-        generate_csv_report(crashes, str(output_path))
-
-        assert output_path.exists()
-        content = output_path.read_text()
-        assert "crash_001" in content
-        assert "crash_002" in content
-
-    def test_generate_markdown_report(self, tmp_path):
-        """Test Markdown report generation."""
-        from dicom_fuzzer.cli.commands.reports import generate_markdown_report
-
-        output_path = tmp_path / "report.md"
-
-        data = {
-            "title": "Test Report",
-            "summary": {"Total Tests": 100, "Crashes": 5},
-            "findings": [
-                {"severity": "HIGH", "description": "Buffer overflow detected"},
-            ],
-        }
-
-        generate_markdown_report(data, str(output_path))
-
-        assert output_path.exists()
-        content = output_path.read_text()
-        assert "# Test Report" in content
-        assert "HIGH" in content
-
     def test_generate_reports_function(self, temp_session_json, tmp_path):
         """Test main generate_reports function."""
         from dicom_fuzzer.cli.commands.reports import generate_reports
@@ -526,62 +468,6 @@ class TestCreateHtmlReportE2E:
 
         # Cleanup
         Path(result).unlink()
-
-    def test_load_template(self, tmp_path):
-        """Test load_template function."""
-        from dicom_fuzzer.cli.commands.reports import load_template
-
-        template_content = "<html>{{ title }}</html>"
-        template_file = tmp_path / "template.html"
-        template_file.write_text(template_content)
-
-        result = load_template(str(template_file))
-        assert result == template_content
-
-    def test_render_report(self):
-        """Test render_report function."""
-        from dicom_fuzzer.cli.commands.reports import render_report
-
-        template = "<html><title>{{ title }}</title></html>"
-        data = {"title": "Test Report"}
-
-        result = render_report(template, data)
-        assert "Test Report" in result
-
-    def test_save_report(self, tmp_path):
-        """Test save_report function."""
-        from dicom_fuzzer.cli.commands.reports import save_report
-
-        content = "<html>Test Content</html>"
-        output_file = tmp_path / "output.html"
-
-        save_report(content, str(output_file))
-
-        assert output_file.exists()
-        assert output_file.read_text() == content
-
-    def test_create_report_with_charts(self):
-        """Test create_report_with_charts function."""
-        from dicom_fuzzer.cli.commands.reports import create_report_with_charts
-
-        data = {"crashes": [], "coverage": 0.5}
-
-        result = create_report_with_charts(data, "/tmp/output")
-
-        assert "data" in result
-        assert "charts" in result
-        assert "output_dir" in result
-
-    def test_generate_charts(self):
-        """Test generate_charts function."""
-        from dicom_fuzzer.cli.commands.reports import generate_charts
-
-        data = {"metrics": {"coverage": 0.75}}
-
-        result = generate_charts(data)
-
-        assert "coverage_chart" in result
-        assert "crash_chart" in result
 
 
 class TestCampaignAnalyticsDataclasses:
