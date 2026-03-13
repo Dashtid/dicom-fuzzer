@@ -8,6 +8,8 @@ from __future__ import annotations
 import argparse
 import sys
 
+from dicom_fuzzer.cli.base import SubcommandBase
+
 
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for stress subcommand."""
@@ -87,16 +89,26 @@ def run_list_scenarios() -> int:
     return 0
 
 
+class StressCommand(SubcommandBase):
+    """Stress testing scenarios subcommand."""
+
+    @classmethod
+    def build_parser(cls) -> argparse.ArgumentParser:
+        """Return the argument parser for this subcommand."""
+        return create_parser()
+
+    @classmethod
+    def execute(cls, args: argparse.Namespace) -> int:
+        """Run the subcommand."""
+        if args.list_scenarios:
+            return run_list_scenarios()
+        cls.build_parser().print_help()
+        return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for stress subcommand."""
-    parser = create_parser()
-    args = parser.parse_args(argv)
-
-    if args.list_scenarios:
-        return run_list_scenarios()
-
-    parser.print_help()
-    return 1
+    return StressCommand.main(argv)
 
 
 if __name__ == "__main__":

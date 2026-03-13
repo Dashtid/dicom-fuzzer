@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pydicom.dataset import Dataset
 
+from dicom_fuzzer.cli.base import SubcommandBase
+
 
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for calibrate subcommand."""
@@ -247,18 +249,29 @@ def run_calibration_mutation(args: argparse.Namespace) -> int:
         return 1
 
 
+class CalibrateCommand(SubcommandBase):
+    """Calibration mutation subcommand."""
+
+    @classmethod
+    def build_parser(cls) -> argparse.ArgumentParser:
+        """Return the argument parser for this subcommand."""
+        return create_parser()
+
+    @classmethod
+    def execute(cls, args: argparse.Namespace) -> int:
+        """Run the subcommand."""
+        if args.list_categories:
+            return run_list_categories()
+        elif args.input:
+            return run_calibration_mutation(args)
+        else:
+            cls.build_parser().print_help()
+            return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for calibrate subcommand."""
-    parser = create_parser()
-    args = parser.parse_args(argv)
-
-    if args.list_categories:
-        return run_list_categories()
-    elif args.input:
-        return run_calibration_mutation(args)
-    else:
-        parser.print_help()
-        return 1
+    return CalibrateCommand.main(argv)
 
 
 if __name__ == "__main__":

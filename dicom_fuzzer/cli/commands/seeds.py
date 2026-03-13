@@ -10,6 +10,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from dicom_fuzzer.cli.base import SubcommandBase
 from dicom_fuzzer.core.engine import DICOMGenerator
 
 
@@ -42,19 +43,30 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
+class SeedsCommand(SubcommandBase):
+    """Generate mutated DICOM seed files subcommand."""
+
+    @classmethod
+    def build_parser(cls) -> argparse.ArgumentParser:
+        """Return the argument parser for this subcommand."""
+        return create_parser()
+
+    @classmethod
+    def execute(cls, args: argparse.Namespace) -> int:
+        """Run the subcommand."""
+        input_path = Path(args.input)
+        if not input_path.exists():
+            print(f"[-] File not found: {input_path}")
+            return 1
+        generator = DICOMGenerator(output_dir=args.output)
+        results = generator.generate_batch(str(input_path), count=args.count)
+        print(f"[+] Generated {len(results)} seed files in {args.output}")
+        return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for generate-seeds subcommand."""
-    parser = create_parser()
-    args = parser.parse_args(argv)
-
-    input_path = Path(args.input)
-    if not input_path.exists():
-        print(f"[-] File not found: {input_path}")
-        return 1
-    generator = DICOMGenerator(output_dir=args.output)
-    results = generator.generate_batch(str(input_path), count=args.count)
-    print(f"[+] Generated {len(results)} seed files in {args.output}")
-    return 0
+    return SeedsCommand.main(argv)
 
 
 if __name__ == "__main__":

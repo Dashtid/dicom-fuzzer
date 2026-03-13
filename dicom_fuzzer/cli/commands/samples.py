@@ -14,6 +14,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from dicom_fuzzer.cli.base import SubcommandBase
+
 # Public DICOM sample sources
 SAMPLE_SOURCES = {
     "rubo": {
@@ -191,18 +193,28 @@ def run_strip_pixel_data(args: argparse.Namespace) -> int:
         return 1
 
 
+class SamplesCommand(SubcommandBase):
+    """Manage DICOM seed files subcommand."""
+
+    @classmethod
+    def build_parser(cls) -> argparse.ArgumentParser:
+        """Return the argument parser for this subcommand."""
+        return create_parser()
+
+    @classmethod
+    def execute(cls, args: argparse.Namespace) -> int:
+        """Run the subcommand."""
+        if args.list_sources:
+            return run_list_sources(args)
+        elif args.strip_pixel_data:
+            return run_strip_pixel_data(args)
+        cls.build_parser().print_help()
+        return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for samples subcommand."""
-    parser = create_parser()
-    args = parser.parse_args(argv)
-
-    if args.list_sources:
-        return run_list_sources(args)
-    elif args.strip_pixel_data:
-        return run_strip_pixel_data(args)
-
-    parser.print_help()
-    return 1
+    return SamplesCommand.main(argv)
 
 
 if __name__ == "__main__":

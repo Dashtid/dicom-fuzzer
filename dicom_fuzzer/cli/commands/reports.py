@@ -19,6 +19,27 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from dicom_fuzzer.cli.base import SubcommandBase
+
+# Import matplotlib at module level for test compatibility
+_matplotlib: ModuleType | None
+try:
+    import matplotlib as _mpl
+
+    _ = _mpl.pyplot  # Access pyplot to trigger backend initialization
+    _matplotlib = _mpl
+except ImportError:
+    _matplotlib = None
+
+# Import jinja2 at module level for test compatibility
+jinja2: ModuleType | None
+try:
+    import jinja2 as _jinja2
+
+    jinja2 = _jinja2
+except ImportError:
+    jinja2 = None
+
 # Import EnhancedReportGenerator at module level for test compatibility
 try:
     from dicom_fuzzer.core.reporting.enhanced_reporter import EnhancedReportGenerator
@@ -351,42 +372,53 @@ def _generate_legacy_html(
 # ============================================================================
 
 
+class ReportsCommand(SubcommandBase):
+    """Report generation subcommand."""
+
+    @classmethod
+    def build_parser(cls) -> argparse.ArgumentParser:
+        """Return the argument parser for this subcommand."""
+        return create_parser()
+
+    @classmethod
+    def execute(cls, args: argparse.Namespace) -> int:
+        """Run the subcommand."""
+        # Validate input file
+        if not args.session_json.exists():
+            print(f"[-] Error: File not found: {args.session_json}", file=sys.stderr)
+            return 1
+
+        try:
+            if args.legacy:
+                # Use legacy HTML template
+                create_html_report(
+                    str(args.session_json),
+                    str(args.output) if args.output else None,
+                )
+            else:
+                # Use modern EnhancedReportGenerator
+                generate_reports(
+                    session_json_path=args.session_json,
+                    output_html=args.output,
+                    keep_json=args.keep_json,
+                )
+            return 0
+
+        except json.JSONDecodeError as e:
+            print(f"[-] Error: Invalid JSON file: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"[-] Error generating report: {e}", file=sys.stderr)
+            if args.verbose:
+                import traceback
+
+                traceback.print_exc()
+            return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for report subcommand."""
-    parser = create_parser()
-    args = parser.parse_args(argv)
-
-    # Validate input file
-    if not args.session_json.exists():
-        print(f"[-] Error: File not found: {args.session_json}", file=sys.stderr)
-        return 1
-
-    try:
-        if args.legacy:
-            # Use legacy HTML template
-            create_html_report(
-                str(args.session_json),
-                str(args.output) if args.output else None,
-            )
-        else:
-            # Use modern EnhancedReportGenerator
-            generate_reports(
-                session_json_path=args.session_json,
-                output_html=args.output,
-                keep_json=args.keep_json,
-            )
-        return 0
-
-    except json.JSONDecodeError as e:
-        print(f"[-] Error: Invalid JSON file: {e}", file=sys.stderr)
-        return 1
-    except Exception as e:
-        print(f"[-] Error generating report: {e}", file=sys.stderr)
-        if args.verbose:
-            import traceback
-
-            traceback.print_exc()
-        return 1
+    return ReportsCommand.main(argv)
 
 
 if __name__ == "__main__":

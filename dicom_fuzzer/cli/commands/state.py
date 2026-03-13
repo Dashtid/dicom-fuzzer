@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from dicom_fuzzer.cli.base import SubcommandBase
+
 
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for state subcommand."""
@@ -203,20 +205,31 @@ def run_list_states(args: argparse.Namespace) -> int:
     return 0
 
 
+class StateCommand(SubcommandBase):
+    """Protocol state machine fuzzing subcommand."""
+
+    @classmethod
+    def build_parser(cls) -> argparse.ArgumentParser:
+        """Return the argument parser for this subcommand."""
+        return create_parser()
+
+    @classmethod
+    def execute(cls, args: argparse.Namespace) -> int:
+        """Run the subcommand."""
+        if args.fuzz:
+            return run_fuzz(args)
+        elif args.export_sm:
+            return run_export_sm(args)
+        elif args.list_states:
+            return run_list_states(args)
+        else:
+            cls.build_parser().print_help()
+            return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for state subcommand."""
-    parser = create_parser()
-    args = parser.parse_args(argv)
-
-    if args.fuzz:
-        return run_fuzz(args)
-    elif args.export_sm:
-        return run_export_sm(args)
-    elif args.list_states:
-        return run_list_states(args)
-    else:
-        parser.print_help()
-        return 1
+    return StateCommand.main(argv)
 
 
 if __name__ == "__main__":

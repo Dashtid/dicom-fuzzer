@@ -20,6 +20,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from dicom_fuzzer.cli.base import SubcommandBase
+
 
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for corpus subcommand."""
@@ -606,24 +608,35 @@ def run_generate_study(args: argparse.Namespace) -> int:
         return 1
 
 
+class CorpusCommand(SubcommandBase):
+    """Corpus management subcommand."""
+
+    @classmethod
+    def build_parser(cls) -> argparse.ArgumentParser:
+        """Return the argument parser for this subcommand."""
+        return create_parser()
+
+    @classmethod
+    def execute(cls, args: argparse.Namespace) -> int:
+        """Run the subcommand."""
+        if args.analyze:
+            return run_analyze(args)
+        elif args.dedup:
+            return run_dedup(args)
+        elif args.merge:
+            return run_merge(args)
+        elif args.minimize_study:
+            return run_minimize_study(args)
+        elif args.generate_study:
+            return run_generate_study(args)
+        else:
+            cls.build_parser().print_help()
+            return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for corpus subcommand."""
-    parser = create_parser()
-    args = parser.parse_args(argv)
-
-    if args.analyze:
-        return run_analyze(args)
-    elif args.dedup:
-        return run_dedup(args)
-    elif args.merge:
-        return run_merge(args)
-    elif args.minimize_study:
-        return run_minimize_study(args)
-    elif args.generate_study:
-        return run_generate_study(args)
-    else:
-        parser.print_help()
-        return 1
+    return CorpusCommand.main(argv)
 
 
 if __name__ == "__main__":
