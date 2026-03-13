@@ -7,7 +7,6 @@ statistical analysis for DICOM fuzzing campaigns.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -16,7 +15,6 @@ from dicom_fuzzer.core.analytics.campaign_analytics import (
     CampaignAnalyzer,
     CoverageCorrelation,
     PerformanceMetrics,
-    TrendAnalysis,
 )
 
 # =============================================================================
@@ -98,230 +96,6 @@ class TestCoverageCorrelation:
         # 0.4 * 1.0 = 0.4
         score = corr.correlation_score()
         assert score == pytest.approx(0.4, abs=0.01)
-
-
-# =============================================================================
-# TestTrendAnalysis
-# =============================================================================
-
-
-class TestTrendAnalysis:
-    """Tests for TrendAnalysis dataclass."""
-
-    def test_creation(self) -> None:
-        """Test TrendAnalysis creation with all fields."""
-        start = datetime(2025, 1, 1, 10, 0, 0)
-        end = datetime(2025, 1, 1, 12, 0, 0)
-
-        trend = TrendAnalysis(
-            campaign_name="test_campaign",
-            start_time=start,
-            end_time=end,
-            total_duration=end - start,
-            crashes_over_time=[],
-            coverage_over_time=[],
-            mutations_over_time=[],
-        )
-
-        assert trend.campaign_name == "test_campaign"
-        assert trend.start_time == start
-        assert trend.end_time == end
-        assert trend.total_duration == timedelta(hours=2)
-
-    def test_crash_discovery_rate_with_crashes(self) -> None:
-        """Test crash_discovery_rate calculation."""
-        start = datetime(2025, 1, 1, 10, 0, 0)
-        end = datetime(2025, 1, 1, 12, 0, 0)
-
-        trend = TrendAnalysis(
-            campaign_name="test",
-            start_time=start,
-            end_time=end,
-            total_duration=timedelta(hours=2),
-            crashes_over_time=[
-                (datetime(2025, 1, 1, 10, 30, 0), 3),
-                (datetime(2025, 1, 1, 11, 30, 0), 5),
-            ],
-        )
-
-        # 8 crashes over 2 hours = 4 crashes/hour
-        rate = trend.crash_discovery_rate()
-        assert rate == pytest.approx(4.0, abs=0.01)
-
-    def test_crash_discovery_rate_empty(self) -> None:
-        """Test crash_discovery_rate with no crashes."""
-        start = datetime(2025, 1, 1, 10, 0, 0)
-        end = datetime(2025, 1, 1, 12, 0, 0)
-
-        trend = TrendAnalysis(
-            campaign_name="test",
-            start_time=start,
-            end_time=end,
-            total_duration=timedelta(hours=2),
-            crashes_over_time=[],
-        )
-
-        rate = trend.crash_discovery_rate()
-        assert rate == 0.0
-
-    def test_crash_discovery_rate_zero_duration(self) -> None:
-        """Test crash_discovery_rate with zero duration."""
-        now = datetime.now()
-
-        trend = TrendAnalysis(
-            campaign_name="test",
-            start_time=now,
-            end_time=now,
-            total_duration=timedelta(0),
-            crashes_over_time=[(now, 5)],
-        )
-
-        rate = trend.crash_discovery_rate()
-        assert rate == 0.0
-
-    def test_coverage_growth_rate_with_growth(self) -> None:
-        """Test coverage_growth_rate calculation."""
-        start = datetime(2025, 1, 1, 10, 0, 0)
-        end = datetime(2025, 1, 1, 12, 0, 0)
-
-        trend = TrendAnalysis(
-            campaign_name="test",
-            start_time=start,
-            end_time=end,
-            total_duration=timedelta(hours=2),
-            coverage_over_time=[
-                (datetime(2025, 1, 1, 10, 0, 0), 10.0),  # Initial
-                (datetime(2025, 1, 1, 12, 0, 0), 20.0),  # Final
-            ],
-        )
-
-        # 10% -> 20% = 100% increase over 2 hours = 50%/hour
-        rate = trend.coverage_growth_rate()
-        assert rate == pytest.approx(50.0, abs=0.1)
-
-    def test_coverage_growth_rate_insufficient_data(self) -> None:
-        """Test coverage_growth_rate with insufficient data."""
-        start = datetime(2025, 1, 1, 10, 0, 0)
-        end = datetime(2025, 1, 1, 12, 0, 0)
-
-        trend = TrendAnalysis(
-            campaign_name="test",
-            start_time=start,
-            end_time=end,
-            total_duration=timedelta(hours=2),
-            coverage_over_time=[(datetime(2025, 1, 1, 10, 0, 0), 10.0)],
-        )
-
-        rate = trend.coverage_growth_rate()
-        assert rate == 0.0
-
-    def test_coverage_growth_rate_zero_initial(self) -> None:
-        """Test coverage_growth_rate with zero initial coverage."""
-        start = datetime(2025, 1, 1, 10, 0, 0)
-        end = datetime(2025, 1, 1, 12, 0, 0)
-
-        trend = TrendAnalysis(
-            campaign_name="test",
-            start_time=start,
-            end_time=end,
-            total_duration=timedelta(hours=2),
-            coverage_over_time=[
-                (start, 0.0),  # Zero initial
-                (end, 20.0),
-            ],
-        )
-
-        rate = trend.coverage_growth_rate()
-        assert rate == 0.0
-
-    def test_is_plateauing_true(self) -> None:
-        """Test is_plateauing returns True with no recent crashes."""
-        end = datetime(2025, 1, 1, 12, 0, 0)
-        start = end - timedelta(hours=4)
-
-        trend = TrendAnalysis(
-            campaign_name="test",
-            start_time=start,
-            end_time=end,
-            total_duration=timedelta(hours=4),
-            crashes_over_time=[
-                # All crashes happened more than 1 hour ago
-                (end - timedelta(hours=3), 5),
-                (end - timedelta(hours=2), 3),
-            ],
-        )
-
-        # threshold_hours=1.0, min_rate=0.1
-        # No crashes in last 1 hour -> plateauing
-        assert trend.is_plateauing(threshold_hours=1.0, min_rate=0.1) is True
-
-    def test_is_plateauing_false_recent_crashes(self) -> None:
-        """Test is_plateauing returns False with recent crashes."""
-        end = datetime(2025, 1, 1, 12, 0, 0)
-        start = end - timedelta(hours=4)
-
-        trend = TrendAnalysis(
-            campaign_name="test",
-            start_time=start,
-            end_time=end,
-            total_duration=timedelta(hours=4),
-            crashes_over_time=[
-                (end - timedelta(minutes=30), 2),  # Recent crash
-                (end - timedelta(minutes=10), 1),  # Very recent
-            ],
-        )
-
-        # 3 crashes in last 1 hour = 3.0/hour > 0.1 min_rate
-        assert trend.is_plateauing(threshold_hours=1.0, min_rate=0.1) is False
-
-    def test_is_plateauing_empty_crashes(self) -> None:
-        """Test is_plateauing with no crash data."""
-        start = datetime(2025, 1, 1, 10, 0, 0)
-        end = datetime(2025, 1, 1, 12, 0, 0)
-
-        trend = TrendAnalysis(
-            campaign_name="test",
-            start_time=start,
-            end_time=end,
-            total_duration=timedelta(hours=2),
-            crashes_over_time=[],
-        )
-
-        assert trend.is_plateauing() is False
-
-    def test_is_plateauing_single_crash(self) -> None:
-        """Test is_plateauing with single crash entry."""
-        start = datetime(2025, 1, 1, 10, 0, 0)
-        end = datetime(2025, 1, 1, 12, 0, 0)
-
-        trend = TrendAnalysis(
-            campaign_name="test",
-            start_time=start,
-            end_time=end,
-            total_duration=timedelta(hours=2),
-            crashes_over_time=[(start, 1)],
-        )
-
-        assert trend.is_plateauing() is False
-
-    def test_is_plateauing_invalid_threshold(self) -> None:
-        """Test is_plateauing with invalid threshold."""
-        end = datetime(2025, 1, 1, 12, 0, 0)
-        start = end - timedelta(hours=4)
-
-        trend = TrendAnalysis(
-            campaign_name="test",
-            start_time=start,
-            end_time=end,
-            total_duration=timedelta(hours=4),
-            crashes_over_time=[
-                (end - timedelta(hours=1), 5),
-            ],
-        )
-
-        # threshold_hours <= 0 should return False
-        assert trend.is_plateauing(threshold_hours=0, min_rate=0.1) is False
-        assert trend.is_plateauing(threshold_hours=-1, min_rate=0.1) is False
 
 
 # =============================================================================
@@ -410,7 +184,6 @@ class TestCampaignAnalyzerInit:
 
         assert analyzer.campaign_name == "DICOM Fuzzing"
         assert analyzer.coverage_data == {}
-        assert analyzer.trend_data is None
         assert analyzer.performance_data is None
 
     def test_init_custom_name(self) -> None:
@@ -577,56 +350,6 @@ class TestCalculateCoverageCorrelation:
 
 
 # =============================================================================
-# TestAnalyzeTrends
-# =============================================================================
-
-
-class TestAnalyzeTrends:
-    """Tests for analyze_trends method."""
-
-    def test_basic_trend_creation(self) -> None:
-        """Test basic trend analysis creation."""
-        analyzer = CampaignAnalyzer()
-
-        start = datetime(2025, 1, 1, 10, 0, 0)
-        end = datetime(2025, 1, 1, 12, 0, 0)
-
-        crash_timeline = [(datetime(2025, 1, 1, 11, 0, 0), 3)]
-        coverage_timeline = [(start, 10.0), (end, 20.0)]
-        mutation_timeline = [(start, 100), (end, 500)]
-
-        trend = analyzer.analyze_trends(
-            start_time=start,
-            end_time=end,
-            crash_timeline=crash_timeline,
-            coverage_timeline=coverage_timeline,
-            mutation_timeline=mutation_timeline,
-        )
-
-        assert trend.campaign_name == analyzer.campaign_name
-        assert trend.start_time == start
-        assert trend.end_time == end
-        assert len(trend.crashes_over_time) == 1
-
-    def test_stores_trend_data(self) -> None:
-        """Test that trend data is stored in analyzer."""
-        analyzer = CampaignAnalyzer()
-
-        start = datetime(2025, 1, 1, 10, 0, 0)
-        end = datetime(2025, 1, 1, 12, 0, 0)
-
-        trend = analyzer.analyze_trends(
-            start_time=start,
-            end_time=end,
-            crash_timeline=[],
-            coverage_timeline=[],
-            mutation_timeline=[],
-        )
-
-        assert analyzer.trend_data is trend
-
-
-# =============================================================================
 # TestProfilePerformance
 # =============================================================================
 
@@ -709,51 +432,6 @@ class TestGenerateRecommendations:
         # Should warn about bad_strategy
         assert any("bad_strategy" in rec for rec in recommendations)
 
-    def test_trend_plateau_warning(self) -> None:
-        """Test recommendations include plateau warning."""
-        analyzer = CampaignAnalyzer()
-
-        end = datetime(2025, 1, 1, 12, 0, 0)
-        start = end - timedelta(hours=4)
-
-        # Create trend that is plateauing (requires at least 2 crash entries)
-        analyzer.trend_data = TrendAnalysis(
-            campaign_name="test",
-            start_time=start,
-            end_time=end,
-            total_duration=timedelta(hours=4),
-            crashes_over_time=[
-                # All crashes happened early, none in last hour
-                (end - timedelta(hours=3), 5),
-                (end - timedelta(hours=2), 3),
-            ],
-        )
-
-        recommendations = analyzer.generate_recommendations()
-
-        assert any("plateauing" in rec.lower() for rec in recommendations)
-
-    def test_trend_high_crash_rate(self) -> None:
-        """Test recommendations with high crash rate."""
-        analyzer = CampaignAnalyzer()
-
-        end = datetime(2025, 1, 1, 12, 0, 0)
-        start = end - timedelta(hours=1)
-
-        analyzer.trend_data = TrendAnalysis(
-            campaign_name="test",
-            start_time=start,
-            end_time=end,
-            total_duration=timedelta(hours=1),
-            crashes_over_time=[
-                (end - timedelta(minutes=30), 5),  # 5 crashes
-            ],
-        )
-
-        recommendations = analyzer.generate_recommendations()
-
-        assert any("continue fuzzing" in rec.lower() for rec in recommendations)
-
     def test_performance_low_throughput_warning(self) -> None:
         """Test recommendations with low throughput."""
         analyzer = CampaignAnalyzer()
@@ -818,47 +496,3 @@ class TestExportToJson:
         assert "generated_at" in data
         assert "coverage_correlation" in data
         assert "recommendations" in data
-
-    def test_export_with_all_data(self, tmp_path) -> None:
-        """Test JSON export with coverage, trend, and performance data."""
-        analyzer = CampaignAnalyzer(campaign_name="Full Export")
-
-        # Add coverage data
-        analyzer.calculate_coverage_correlation(
-            strategy="exported_strategy",
-            coverage_increase=50.0,
-            unique_paths=75,
-            crashes_found=5,
-            mutations_applied=100,
-        )
-
-        # Add trend data
-        start = datetime(2025, 1, 1, 10, 0, 0)
-        end = datetime(2025, 1, 1, 12, 0, 0)
-        analyzer.analyze_trends(
-            start_time=start,
-            end_time=end,
-            crash_timeline=[(end, 3)],
-            coverage_timeline=[(start, 10.0), (end, 20.0)],
-            mutation_timeline=[],
-        )
-
-        # Add performance data
-        analyzer.profile_performance(
-            mutations_per_second=50.0,
-            peak_memory_mb=1024.0,
-            avg_memory_mb=512.0,
-            cpu_utilization=75.0,
-        )
-
-        output_path = tmp_path / "full_analytics.json"
-        analyzer.export_to_json(output_path)
-
-        with open(output_path, encoding="utf-8") as f:
-            data = json.load(f)
-
-        assert "exported_strategy" in data["coverage_correlation"]
-        assert data["trend_analysis"] is not None
-        assert data["trend_analysis"]["crash_discovery_rate"] > 0
-        assert data["performance_metrics"] is not None
-        assert data["performance_metrics"]["mutations_per_second"] == 50.0

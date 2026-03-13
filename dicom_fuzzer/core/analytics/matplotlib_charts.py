@@ -15,7 +15,6 @@ import seaborn as sns
 from dicom_fuzzer.core.analytics.campaign_analytics import (
     CoverageCorrelation,
     PerformanceMetrics,
-    TrendAnalysis,
 )
 from dicom_fuzzer.utils.identifiers import generate_timestamp_id
 
@@ -78,65 +77,6 @@ class MatplotlibChartRenderer:
         output_path = (
             self.output_dir / f"strategy_effectiveness_{timestamp}.{output_format}"
         )
-        plt.savefig(output_path, dpi=300, bbox_inches="tight")
-        plt.close()
-
-        return output_path
-
-    def plot_crash_trend(
-        self, trend_data: TrendAnalysis, output_format: str = "png"
-    ) -> Path:
-        """Create crash trend line chart."""
-        if not trend_data.crashes_over_time:
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.text(
-                0.5,
-                0.5,
-                "No crash data available",
-                ha="center",
-                va="center",
-                fontsize=14,
-                color="gray",
-            )
-            ax.set_xlim(0, 1)
-            ax.set_ylim(0, 1)
-            ax.axis("off")
-            timestamp = generate_timestamp_id()
-            output_path = self.output_dir / f"crash_trend_{timestamp}.{output_format}"
-            plt.savefig(output_path, dpi=300, bbox_inches="tight")
-            plt.close()
-            return output_path
-
-        timestamps: list = [ts for ts, _ in trend_data.crashes_over_time]
-        cumulative_crashes = []
-        total = 0
-        for _, count in trend_data.crashes_over_time:
-            total += count
-            cumulative_crashes.append(total)
-
-        fig, ax = plt.subplots(figsize=(12, 6))
-
-        ax.plot(
-            timestamps,
-            cumulative_crashes,
-            color=self.colors["danger"],
-            linewidth=2,
-            marker="o",
-            markersize=6,
-            label="Cumulative Crashes",
-        )
-
-        ax.set_xlabel("Time", fontsize=12, fontweight="bold")
-        ax.set_ylabel("Cumulative Crashes", fontsize=12, fontweight="bold")
-        ax.set_title("Crash Discovery Over Time", fontsize=14, fontweight="bold")
-        ax.grid(alpha=0.3)
-        ax.legend(fontsize=10)
-
-        plt.xticks(rotation=45, ha="right")
-        plt.tight_layout()
-
-        timestamp = generate_timestamp_id()
-        output_path = self.output_dir / f"crash_trend_{timestamp}.{output_format}"
         plt.savefig(output_path, dpi=300, bbox_inches="tight")
         plt.close()
 

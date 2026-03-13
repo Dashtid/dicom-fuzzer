@@ -113,6 +113,8 @@ class EnhancedReportGenerator:
         html += self._formatter.format_crash_summary(crashes, fuzzed_files)
         html += self._formatter.format_crash_details(crashes, fuzzed_files)
         html += self._analytics.format_mutation_analysis(fuzzed_files, crashes)
+        if data.get("strategies_used"):
+            html += self._analytics.format_strategy_hit_rate(data["strategies_used"])
         html += "\n        </div>\n"
         html += self._html_footer()
 

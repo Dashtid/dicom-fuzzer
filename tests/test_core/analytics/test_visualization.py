@@ -4,7 +4,6 @@ Tests cover chart generation with Matplotlib and Plotly, output formats,
 and HTML summary report generation.
 """
 
-from datetime import datetime
 from pathlib import Path
 
 from dicom_fuzzer.core.analytics.visualization import FuzzingVisualizer
@@ -30,13 +29,6 @@ class MockCoverageCorrelation:
             + min(self.unique_paths / 100.0, 1.0) * 0.3
             + self.crash_correlation * 0.4
         )
-
-
-class MockTrendAnalysis:
-    """Mock TrendAnalysis for testing."""
-
-    def __init__(self, crashes_over_time: list = None):
-        self.crashes_over_time = crashes_over_time or []
 
 
 class MockPerformanceMetrics:
@@ -150,59 +142,6 @@ class TestPlotStrategyEffectiveness:
         }
 
         path = visualizer.plot_strategy_effectiveness(data, output_format="png")
-        assert path.exists()
-
-
-class TestPlotCrashTrend:
-    """Test plot_crash_trend method."""
-
-    def test_plot_crash_trend_png(self, tmp_path):
-        """Test crash trend line chart in PNG."""
-        visualizer = FuzzingVisualizer(str(tmp_path))
-        trend_data = MockTrendAnalysis(
-            crashes_over_time=[
-                (datetime(2025, 1, 1, 10, 0), 5),
-                (datetime(2025, 1, 1, 11, 0), 3),
-                (datetime(2025, 1, 1, 12, 0), 7),
-            ]
-        )
-
-        path = visualizer.plot_crash_trend(trend_data, output_format="png")
-
-        assert path.exists()
-        assert "crash_trend" in path.name
-
-    def test_plot_crash_trend_html(self, tmp_path):
-        """Test crash trend chart with Plotly."""
-        visualizer = FuzzingVisualizer(str(tmp_path))
-        trend_data = MockTrendAnalysis(
-            crashes_over_time=[
-                (datetime(2025, 1, 1, 10, 0), 2),
-                (datetime(2025, 1, 1, 11, 0), 4),
-            ]
-        )
-
-        path = visualizer.plot_crash_trend(trend_data, output_format="html")
-
-        assert path.exists()
-        assert path.suffix == ".html"
-
-    def test_plot_crash_trend_empty_data(self, tmp_path):
-        """Test crash trend with no data shows empty message."""
-        visualizer = FuzzingVisualizer(str(tmp_path))
-        trend_data = MockTrendAnalysis(crashes_over_time=[])
-
-        path = visualizer.plot_crash_trend(trend_data, output_format="png")
-
-        assert path.exists()
-
-    def test_plot_crash_trend_empty_data_html(self, tmp_path):
-        """Test crash trend HTML with no data."""
-        visualizer = FuzzingVisualizer(str(tmp_path))
-        trend_data = MockTrendAnalysis(crashes_over_time=[])
-
-        path = visualizer.plot_crash_trend(trend_data, output_format="html")
-
         assert path.exists()
 
 
@@ -382,15 +321,6 @@ class TestIntegration:
             strategy_data, output_format="png"
         )
 
-        # Crash trend
-        trend_data = MockTrendAnalysis(
-            crashes_over_time=[
-                (datetime(2025, 1, 1, 10, 0), 3),
-                (datetime(2025, 1, 1, 11, 0), 5),
-            ]
-        )
-        trend_path = visualizer.plot_crash_trend(trend_data, output_format="png")
-
         # Coverage heatmap
         coverage_data = {
             "strategy_a": MockCoverageCorrelation(),
@@ -407,12 +337,10 @@ class TestIntegration:
 
         # Generate HTML summary
         html = visualizer.create_summary_report_html(
-            strategy_path, trend_path, coverage_path, perf_path
+            strategy_path, Path("trend_placeholder.png"), coverage_path, perf_path
         )
 
-        assert all(
-            p.exists() for p in [strategy_path, trend_path, coverage_path, perf_path]
-        )
+        assert all(p.exists() for p in [strategy_path, coverage_path, perf_path])
         assert "charts-container" in html
 
     def test_full_visualization_workflow_plotly(self, tmp_path):
@@ -424,12 +352,6 @@ class TestIntegration:
         strategy_path = visualizer.plot_strategy_effectiveness(
             strategy_data, output_format="html"
         )
-
-        # Crash trend
-        trend_data = MockTrendAnalysis(
-            crashes_over_time=[(datetime(2025, 1, 1, 12, 0), 10)]
-        )
-        trend_path = visualizer.plot_crash_trend(trend_data, output_format="html")
 
         # Coverage heatmap
         coverage_data = {"test": MockCoverageCorrelation(50.0, 100, 0.9)}
@@ -445,5 +367,5 @@ class TestIntegration:
 
         assert all(
             p.exists() and p.suffix == ".html"
-            for p in [strategy_path, trend_path, coverage_path, perf_path]
+            for p in [strategy_path, coverage_path, perf_path]
         )

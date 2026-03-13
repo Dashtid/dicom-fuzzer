@@ -5,6 +5,8 @@ Generates mutation analysis sections for fuzzing reports.
 
 from typing import Any
 
+from dicom_fuzzer.core.reporting.html_templates import escape_html
+
 
 class ReportAnalytics:
     """Generates analytics sections for fuzzing reports."""
@@ -102,6 +104,21 @@ class ReportAnalytics:
 """
 
         return html
+
+    def format_strategy_hit_rate(self, strategies_used: dict[str, int]) -> str:
+        """Return an HTML table section showing strategy hit counts and share."""
+        if not strategies_used:
+            return ""
+        total = sum(strategies_used.values())
+        rows = ""
+        for name, count in sorted(strategies_used.items(), key=lambda x: -x[1]):
+            pct = (count / total * 100) if total > 0 else 0
+            rows += f"<tr><td>{escape_html(name)}</td><td>{count}</td><td>{pct:.1f}%</td></tr>"
+        return (
+            "<h2>Strategy Hit Rate</h2>"
+            "<table><thead><tr><th>Strategy</th><th>Uses</th><th>Share</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+        )
 
 
 __all__ = ["ReportAnalytics"]
