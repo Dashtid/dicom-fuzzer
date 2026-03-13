@@ -20,7 +20,6 @@ from typing import Any
 
 from dicom_fuzzer.cli.controllers.campaign_runner import CampaignRunner
 from dicom_fuzzer.cli.controllers.network_controller import NetworkFuzzingController
-from dicom_fuzzer.cli.controllers.security_controller import SecurityFuzzingController
 from dicom_fuzzer.cli.controllers.target_controller import TargetTestingController
 from dicom_fuzzer.cli.utils import output as cli
 from dicom_fuzzer.cli.utils.argument_parser import create_parser
@@ -53,7 +52,6 @@ SUBCOMMANDS: dict[str, str] = {
     "calibrate": "dicom_fuzzer.cli.commands.calibrate",
     "stress": "dicom_fuzzer.cli.commands.stress",
     "target": "dicom_fuzzer.cli.commands.target",
-    "cve": "dicom_fuzzer.cli.commands.cve",
     "report": "dicom_fuzzer.cli.commands.reports",  # Report generation
     "generate-seeds": "dicom_fuzzer.cli.commands.seeds",
 }
@@ -540,10 +538,6 @@ def _run_optional_controllers(
     """
     if getattr(args, "network_fuzz", False):
         NetworkFuzzingController.run(args, files)
-
-    if getattr(args, "security_fuzz", False):
-        num_files = getattr(args, "count", 100)
-        SecurityFuzzingController.run(args, input_files[0], output_path, num_files)
 
     if getattr(args, "target", None):
         result = TargetTestingController.run(args, files, output_path, resource_limits)
