@@ -27,7 +27,6 @@ from dicom_fuzzer.core import (
     DICOMGenerator,
     DicomMutator,
     DicomParser,
-    DicomValidator,
     SeriesDetector,
 )
 
@@ -100,12 +99,7 @@ class TestEndToEndFuzzingWorkflow:
         mutated_dataset = metadata_fuzzer.mutate_patient_info(original_dataset.copy())
         assert mutated_dataset is not None
 
-        # Step 3: Validate mutated dataset
-        validator = DicomValidator(strict_mode=False)
-        result = validator.validate(mutated_dataset)
-        assert result is not None
-
-        # Step 4: Generate batch of fuzzed files
+        # Step 3: Generate batch of fuzzed files
         # Exclude CVE mutations for deterministic file count (they cause write failures by design)
         output_dir = temp_dir / "integration_output"
         generator = DICOMGenerator(output_dir=str(output_dir))
@@ -115,30 +109,6 @@ class TestEndToEndFuzzingWorkflow:
 
         assert len(generated_files) <= 5
         assert all(f.exists() for f in generated_files)
-        shutil.rmtree(output_dir)
-
-    def test_fuzzing_with_validation_feedback_loop(self, sample_dicom_file, temp_dir):
-        """Test fuzzing with validation feedback loop."""
-        output_dir = temp_dir / "feedback_output"
-        generator = DICOMGenerator(output_dir=str(output_dir))
-        validator = DicomValidator(strict_mode=False)
-
-        # Exclude CVE mutations for deterministic file count (CVE mutations cause write failures)
-        generated_files = generator.generate_batch(
-            sample_dicom_file, count=10, strategies=["metadata", "header", "pixel"]
-        )
-
-        valid_count = 0
-        invalid_count = 0
-
-        for file_path in generated_files:
-            result, dataset = validator.validate_file(file_path)
-            if result.is_valid:
-                valid_count += 1
-            else:
-                invalid_count += 1
-
-        assert valid_count + invalid_count == len(generated_files)
         shutil.rmtree(output_dir)
 
     def test_multi_strategy_mutation_workflow(self, sample_dicom_file):
@@ -164,10 +134,6 @@ class TestEndToEndFuzzingWorkflow:
         assert metadata is not None
         assert "patient_name" in metadata
 
-        validator = DicomValidator()
-        result, _ = validator.validate_file(sample_dicom_file)
-        assert result.is_valid
-
         mutator = DicomMutator()
         dataset = pydicom.dcmread(str(sample_dicom_file))
         mutated_ds = mutator.apply_mutations(dataset)
@@ -189,18 +155,6 @@ class TestModuleInteractionAndDataFlow:
         assert mutated is not None
         assert isinstance(mutated, Dataset)
 
-    def test_fuzzer_to_validator_data_flow(self, sample_dicom_file):
-        """Test data flow from fuzzer to validator."""
-        parser = DicomParser(sample_dicom_file)
-        dataset = parser.dataset
-
-        fuzzer = MetadataFuzzer()
-        mutated = fuzzer.mutate_patient_info(dataset.copy())
-
-        validator = DicomValidator(strict_mode=False)
-        result = validator.validate(mutated)
-        assert result is not None
-
     def test_generator_to_parser_round_trip(self, sample_dicom_file, temp_dir):
         """Test round trip: generate file -> parse it back."""
         output_dir = temp_dir / "roundtrip"
@@ -218,20 +172,6 @@ class TestModuleInteractionAndDataFlow:
         dataset = parser.dataset
         assert dataset is not None
         shutil.rmtree(output_dir)
-
-    def test_validator_to_fuzzer_feedback(self, sample_dicom_file):
-        """Test using validator feedback to guide fuzzing."""
-        parser = DicomParser(sample_dicom_file)
-        dataset = parser.dataset
-
-        validator = DicomValidator(strict_mode=True)
-        validator.validate(dataset)
-
-        fuzzer = MetadataFuzzer()
-        mutated = fuzzer.mutate_patient_info(dataset.copy())
-
-        result = validator.validate(mutated)
-        assert result is not None
 
     def test_mutator_preserves_required_tags(self, sample_dicom_file):
         """Test that safe strategies preserve required DICOM tags."""
@@ -303,36 +243,6 @@ class TestErrorHandlingAcrossModules:
             parser = DicomParser(invalid_file)
             _ = parser.dataset
 
-    def test_validator_catches_mutator_issues(self, sample_dicom_file):
-        """Test that validator catches issues from mutations."""
-        parser = DicomParser(sample_dicom_file)
-        dataset = parser.dataset
-
-        broken_dataset = dataset.copy()
-        broken_dataset.PatientName = "\x00" * 100
-
-        validator = DicomValidator(strict_mode=False)
-        result = validator.validate(broken_dataset)
-        assert result is not None
-
-    def test_validation_without_mutations(self, sample_dicom_file):
-        """Test validation of unchanged dataset."""
-        parser = DicomParser(sample_dicom_file)
-        dataset = parser.dataset
-
-        validator = DicomValidator(strict_mode=False)
-        result = validator.validate(dataset)
-        assert result is not None
-
-    def test_validator_detects_invalid_file(self, temp_dir):
-        """Test that validator detects invalid files."""
-        invalid_file = temp_dir / "invalid.dcm"
-        invalid_file.write_bytes(b"NOT_A_DICOM_FILE")
-
-        validator = DicomValidator()
-        result, _ = validator.validate_file(invalid_file)
-        assert not result.is_valid
-
     def test_parser_with_corrupted_header(self, temp_dir):
         """Test parser with corrupted DICOM header."""
         corrupted = temp_dir / "corrupted.dcm"
@@ -393,34 +303,6 @@ class TestPerformanceAndResourceManagement:
         assert all(f.exists() for f in generated_files)
         shutil.rmtree(output_dir)
 
-    def test_validator_batch_performance(self, sample_dicom_file, temp_dir):
-        """Test validator batch performance."""
-        import time
-
-        output_dir = temp_dir / "val_perf"
-        generator = DICOMGenerator(output_dir=str(output_dir))
-
-        # Exclude CVE mutations which can cause write failures by design
-        generated_files = generator.generate_batch(
-            sample_dicom_file, count=20, strategies=["metadata", "header", "pixel"]
-        )
-
-        validator = DicomValidator(strict_mode=False)
-        datasets = []
-
-        for file_path in generated_files:
-            _, dataset = validator.validate_file(file_path)
-            if dataset:
-                datasets.append(dataset)
-
-        start_time = time.time()
-        results = validator.validate_batch(datasets)
-        elapsed_time = time.time() - start_time
-
-        assert len(results) > 0
-        assert elapsed_time < 10, f"Batch validation took {elapsed_time:.2f}s"
-        shutil.rmtree(output_dir)
-
 
 class TestRealWorldUsageScenarios:
     """Test real-world usage scenarios."""
@@ -429,7 +311,6 @@ class TestRealWorldUsageScenarios:
         """Test continuous fuzzing session with multiple rounds."""
         output_dir = temp_dir / "continuous"
         generator = DICOMGenerator(output_dir=str(output_dir))
-        validator = DicomValidator(strict_mode=False)
 
         # Exclude CVE mutations which can cause write failures by design
         strategies = ["metadata", "header", "pixel"]
@@ -444,13 +325,7 @@ class TestRealWorldUsageScenarios:
 
         assert len(total_files) <= 15
 
-        valid_count = 0
-        for file_path in total_files:
-            result, _ = validator.validate_file(file_path)
-            if result.is_valid or len(result.errors) == 0:
-                valid_count += 1
-
-        assert valid_count > 0
+        assert len(total_files) > 0
         shutil.rmtree(output_dir)
 
     def test_targeted_fuzzing_campaign(self, sample_dicom_file, temp_dir):
@@ -473,37 +348,6 @@ class TestRealWorldUsageScenarios:
         assert all(f.exists() for f in results)
         shutil.rmtree(output_dir)
 
-    def test_fuzzing_with_error_analysis(self, sample_dicom_file, temp_dir):
-        """Test fuzzing with detailed error analysis."""
-        output_dir = temp_dir / "error_analysis"
-        generator = DICOMGenerator(output_dir=str(output_dir))
-        validator = DicomValidator(strict_mode=True)
-
-        # Exclude CVE mutations which can cause write failures by design
-        generated_files = generator.generate_batch(
-            sample_dicom_file, count=15, strategies=["metadata", "header", "pixel"]
-        )
-
-        error_categories = {}
-
-        for file_path in generated_files:
-            result, _ = validator.validate_file(file_path)
-
-            for error in result.errors:
-                if "missing" in error.lower():
-                    error_categories["missing_tags"] = (
-                        error_categories.get("missing_tags", 0) + 1
-                    )
-                elif "null" in error.lower():
-                    error_categories["null_bytes"] = (
-                        error_categories.get("null_bytes", 0) + 1
-                    )
-                else:
-                    error_categories["other"] = error_categories.get("other", 0) + 1
-
-        assert len(generated_files) <= 15
-        shutil.rmtree(output_dir)
-
 
 class TestIntegrationEdgeCases:
     """Test edge cases in integration scenarios."""
@@ -518,17 +362,6 @@ class TestIntegrationEdgeCases:
         assert dataset is not None
         assert copied is not None
         assert len(copied) > 0
-
-    def test_validation_without_file_meta(self):
-        """Test validation of dataset without file meta."""
-        dataset = Dataset()
-        dataset.PatientName = "Test^Patient"
-        dataset.PatientID = "TEST001"
-
-        validator = DicomValidator(strict_mode=False)
-        result = validator.validate(dataset)
-
-        assert any("file meta" in w.lower() for w in result.warnings)
 
     def test_generator_with_minimal_dicom(self, minimal_dicom_file, temp_dir):
         """Test generator with minimal DICOM file."""
@@ -554,17 +387,6 @@ class TestConcurrentOperations:
 
         for parser in parsers:
             assert parser.dataset is not None
-
-    def test_multiple_validators_same_dataset(self, sample_dicom_file):
-        """Test multiple validators on same dataset."""
-        parser = DicomParser(sample_dicom_file)
-        dataset = parser.dataset
-
-        validators = [DicomValidator(strict_mode=False) for _ in range(5)]
-
-        results = [v.validate(dataset) for v in validators]
-
-        assert len(results) == 5
 
 
 if __name__ == "__main__":

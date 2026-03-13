@@ -245,11 +245,9 @@ class DicomMutator:
 
         Caches results based on dataset features for performance.
         """
-        modality_value = dataset.get("Modality", None)
-        modality_str = str(modality_value) if modality_value is not None else None
         cache_key = (
             tuple(sorted(dataset.dir())),  # Tags present in dataset
-            modality_str,  # Modality type (converted to string for hashability)
+            getattr(dataset, "Modality", None),  # str | None (CS VR, VM=1)
             bool(hasattr(dataset, "PixelData")),  # Has pixel data
             tuple(sorted(strategy_names))
             if strategy_names

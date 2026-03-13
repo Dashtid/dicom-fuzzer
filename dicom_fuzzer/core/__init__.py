@@ -37,10 +37,8 @@ from .dicom.parser import DicomParser
 # DICOM I/O
 from .dicom.series import DicomSeries
 
-# Series detection & writing (in core/dicom/)
+# Series detection (in core/dicom/)
 from .dicom.series_detector import SeriesDetector
-from .dicom.series_writer import SeriesMetadata, SeriesWriter
-from .dicom.validator import DicomValidator
 
 # Fuzzing engines
 from .engine import DICOMGenerator
@@ -87,7 +85,6 @@ __all__ = [
     "DicomFuzzingError",
     "DicomMutator",
     "DicomParser",
-    "DicomValidator",
     "ValidationError",
     # Protocol types
     "DICOMCommand",
@@ -102,8 +99,6 @@ __all__ = [
     # DICOM series
     "DicomSeries",
     "SeriesDetector",
-    "SeriesMetadata",
-    "SeriesWriter",
     # Reporting
     "Series3DReport",
     "Series3DReportGenerator",
