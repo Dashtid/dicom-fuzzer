@@ -345,8 +345,8 @@ def parse_strategies(strategies_str: str | None) -> list[str]:
         List of strategy names
 
     Note:
-        CVE replication is NOT part of fuzzing. Use the 'cve' subcommand
-        or dicom_fuzzer.cve module for deterministic CVE file generation.
+        CVE replication is NOT part of fuzzing. Use the dicom-cve-toolkit
+        package for deterministic CVE file generation.
 
     """
     valid_strategies = {
@@ -382,8 +382,9 @@ def parse_strategies(strategies_str: str | None) -> list[str]:
 
     # Check for removed exploit-patterns
     if "exploit-patterns" in strategies:
-        print("Note: 'exploit-patterns' has been moved to the 'cve' subcommand")
-        print("Use: dicom-fuzzer cve --help for CVE file generation")
+        print(
+            "Note: 'exploit-patterns' has been removed. Use dicom-cve-toolkit for CVE file generation."
+        )
         strategies = [s for s in strategies if s != "exploit-patterns"]
 
     invalid = set(strategies) - valid_strategies
