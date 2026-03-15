@@ -17,19 +17,23 @@ from typing import TYPE_CHECKING
 
 from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
 
-from .base import MutationStrategyBase
+from .format_base import MultiFrameFuzzerBase
 
 if TYPE_CHECKING:
     from pydicom.dataset import Dataset
 
 
-class FrameTimeCorruptionStrategy(MutationStrategyBase):
+class FrameTimeCorruptionStrategy(MultiFrameFuzzerBase):
     """Mutation strategy for frame time corruption attacks."""
 
     @property
     def strategy_name(self) -> str:
         """Return the strategy name."""
         return "frame_time_corruption"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
+        """Apply one randomly-selected mutation and return the mutated dataset."""
+        return self._mutate_impl(dataset, 1)[0]
 
     def _set_frame_time(
         self, dataset: Dataset, value: float, display_value: str, attack_type: str
@@ -87,7 +91,7 @@ class FrameTimeCorruptionStrategy(MutationStrategyBase):
             details={"attack_type": "corrupt_temporal_index"},
         )
 
-    def mutate(
+    def _mutate_impl(
         self,
         dataset: Dataset,
         mutation_count: int,

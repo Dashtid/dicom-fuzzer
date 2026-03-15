@@ -21,12 +21,6 @@ class TestStrategyName:
         strategy = FrameIncrementStrategy()
         assert strategy.strategy_name == "frame_increment_invalid"
 
-    def test_strategy_name_with_custom_severity(self) -> None:
-        """Test strategy_name works with custom severity."""
-        strategy = FrameIncrementStrategy(severity="aggressive")
-        assert strategy.strategy_name == "frame_increment_invalid"
-        assert strategy.severity == "aggressive"
-
 
 class TestMutateNonexistentTag:
     """Tests for nonexistent_tag attack type."""
@@ -42,7 +36,7 @@ class TestMutateNonexistentTag:
         dataset.FrameIncrementPointer = (0x0018, 0x1063)
 
         with patch("random.choice", return_value="nonexistent_tag"):
-            _, records = strategy.mutate(dataset, mutation_count=1)
+            _, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].strategy == "frame_increment_invalid"
@@ -59,7 +53,7 @@ class TestMutateNonexistentTag:
         dataset.FrameIncrementPointer = (0x0018, 0x1063)
 
         with patch("random.choice", return_value="nonexistent_tag"):
-            _, records = strategy.mutate(dataset, mutation_count=1)
+            _, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert (
             "(24, 4195)" in records[0].original_value
@@ -82,7 +76,7 @@ class TestMutateInvalidFormat:
         dataset.FrameIncrementPointer = None
 
         with patch("random.choice", return_value="invalid_format"):
-            _, records = strategy.mutate(dataset, mutation_count=1)
+            _, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].mutated_value == "(FFFF,FFFF)"
@@ -104,7 +98,7 @@ class TestMutatePointToPixelData:
         dataset.FrameIncrementPointer = None
 
         with patch("random.choice", return_value="point_to_pixel_data"):
-            _, records = strategy.mutate(dataset, mutation_count=1)
+            _, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].mutated_value == "(7FE0,0010) [PixelData]"
@@ -126,7 +120,7 @@ class TestMutateMultipleInvalid:
         dataset.FrameIncrementPointer = None
 
         with patch("random.choice", return_value="multiple_invalid"):
-            _, records = strategy.mutate(dataset, mutation_count=1)
+            _, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert len(records) == 1
         assert "[(0,0), (FFFF,FFFF), (7FE0,0010)]" in records[0].mutated_value
@@ -152,7 +146,7 @@ class TestMutateGeneral:
         """Test mutate returns tuple of dataset and records."""
         dataset = MagicMock()
 
-        result = strategy.mutate(dataset, mutation_count=1)
+        result = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert isinstance(result, tuple)
         assert len(result) == 2
@@ -164,7 +158,7 @@ class TestMutateGeneral:
         """Test mutate with multiple mutations."""
         dataset = MagicMock()
 
-        _, records = strategy.mutate(dataset, mutation_count=5)
+        _, records = strategy._mutate_impl(dataset, mutation_count=5)
 
         assert len(records) == 5
 
@@ -172,7 +166,7 @@ class TestMutateGeneral:
         """Test mutate with zero mutations."""
         dataset = MagicMock()
 
-        _, records = strategy.mutate(dataset, mutation_count=0)
+        _, records = strategy._mutate_impl(dataset, mutation_count=0)
 
         assert records == []
 
@@ -181,7 +175,7 @@ class TestMutateGeneral:
         dataset = MagicMock(spec=[])  # No FrameIncrementPointer
 
         with patch("random.choice", return_value="nonexistent_tag"):
-            _, records = strategy.mutate(dataset, mutation_count=1)
+            _, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert records[0].original_value == "<none>"
 
@@ -197,29 +191,5 @@ class TestMutateGeneral:
 
         for attack_type in attack_types:
             with patch("random.choice", return_value=attack_type):
-                _, records = strategy.mutate(dataset, mutation_count=1)
+                _, records = strategy._mutate_impl(dataset, mutation_count=1)
                 assert records[0].details["attack_type"] == attack_type
-
-
-class TestSeverity:
-    """Tests for severity configuration."""
-
-    def test_default_severity(self) -> None:
-        """Test default severity is 'moderate'."""
-        strategy = FrameIncrementStrategy()
-        assert strategy.severity == "moderate"
-
-    def test_custom_severity(self) -> None:
-        """Test custom severity is preserved."""
-        strategy = FrameIncrementStrategy(severity="extreme")
-        assert strategy.severity == "extreme"
-
-    def test_severity_in_records(self) -> None:
-        """Test severity appears in mutation records."""
-        strategy = FrameIncrementStrategy(severity="aggressive")
-        dataset = MagicMock()
-
-        with patch("random.choice", return_value="nonexistent_tag"):
-            _, records = strategy.mutate(dataset, mutation_count=1)
-
-        assert records[0].severity == "aggressive"

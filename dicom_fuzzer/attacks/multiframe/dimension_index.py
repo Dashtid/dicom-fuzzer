@@ -26,10 +26,10 @@ from pydicom.tag import Tag
 
 from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
 
-from .base import MutationStrategyBase
+from .format_base import MultiFrameFuzzerBase
 
 
-class DimensionIndexStrategy(MutationStrategyBase):
+class DimensionIndexStrategy(MultiFrameFuzzerBase):
     """Mutation strategy for dimension index module attacks."""
 
     _ATTACK_TYPES = [
@@ -46,6 +46,10 @@ class DimensionIndexStrategy(MutationStrategyBase):
     def strategy_name(self) -> str:
         """Return the strategy name."""
         return "dimension_index_attack"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
+        """Apply one randomly-selected mutation and return the mutated dataset."""
+        return self._mutate_impl(dataset, 1)[0]
 
     def _make_record(
         self,
@@ -279,7 +283,7 @@ class DimensionIndexStrategy(MutationStrategyBase):
             "duplicate_dimension_pointers",
         )
 
-    def mutate(
+    def _mutate_impl(
         self,
         dataset: Dataset,
         mutation_count: int,

@@ -190,13 +190,13 @@ class TestFuzzerIntegration:
     """Test integration with fuzzing strategies."""
 
     def test_all_strategies_registered(self, temp_dir):
-        """Test that all 18 format fuzzers are registered in the mutator."""
+        """Test that all format and multiframe fuzzers are registered in the mutator."""
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        assert len(generator.mutator.strategies) == 18
+        assert len(generator.mutator.strategies) == 28
         strategy_names = [s.strategy_name for s in generator.mutator.strategies]
-        expected = [
+        expected_format = [
             "calibration",
             "compressed_pixel",
             "conformance",
@@ -216,7 +216,19 @@ class TestFuzzerIntegration:
             "sequence",
             "structure",
         ]
-        assert sorted(strategy_names) == sorted(expected)
+        expected_multiframe = [
+            "dimension_index_attack",
+            "dimension_overflow",
+            "encapsulated_pixel_data",
+            "frame_count_mismatch",
+            "frame_increment_invalid",
+            "frame_time_corruption",
+            "functional_group_attack",
+            "per_frame_dimension_mismatch",
+            "pixel_data_truncation",
+            "shared_group_corruption",
+        ]
+        assert sorted(strategy_names) == sorted(expected_format + expected_multiframe)
 
     def test_mutations_applied_to_dataset(self, sample_dicom_file, temp_dir):
         """Test that mutations are actually applied to the dataset."""

@@ -18,16 +18,20 @@ from pydicom.sequence import Sequence
 
 from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
 
-from .base import MutationStrategyBase
+from .format_base import MultiFrameFuzzerBase
 
 
-class PerFrameDimensionStrategy(MutationStrategyBase):
+class PerFrameDimensionStrategy(MultiFrameFuzzerBase):
     """Mutation strategy for per-frame dimension mismatch attacks."""
 
     @property
     def strategy_name(self) -> str:
         """Return the strategy name."""
         return "per_frame_dimension_mismatch"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
+        """Apply one randomly-selected mutation and return the mutated dataset."""
+        return self._mutate_impl(dataset, 1)[0]
 
     def _ensure_pixel_measures(self, fg: Dataset) -> Dataset:
         """Ensure PixelMeasuresSequence exists and return first item."""
@@ -70,7 +74,7 @@ class PerFrameDimensionStrategy(MutationStrategyBase):
             details={"attack_type": attack_type},
         )
 
-    def mutate(
+    def _mutate_impl(
         self,
         dataset: Dataset,
         mutation_count: int,

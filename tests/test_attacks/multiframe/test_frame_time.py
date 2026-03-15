@@ -23,12 +23,6 @@ class TestStrategyName:
         strategy = FrameTimeCorruptionStrategy()
         assert strategy.strategy_name == "frame_time_corruption"
 
-    def test_strategy_name_with_custom_severity(self) -> None:
-        """Test strategy_name works with custom severity."""
-        strategy = FrameTimeCorruptionStrategy(severity="aggressive")
-        assert strategy.strategy_name == "frame_time_corruption"
-        assert strategy.severity == "aggressive"
-
 
 class TestSetFrameTime:
     """Tests for _set_frame_time method."""
@@ -257,7 +251,7 @@ class TestMutate:
         self, strategy: FrameTimeCorruptionStrategy, mock_dataset: MagicMock
     ) -> None:
         """Test mutate returns tuple of dataset and records."""
-        result = strategy.mutate(mock_dataset, mutation_count=1)
+        result = strategy._mutate_impl(mock_dataset, mutation_count=1)
 
         assert isinstance(result, tuple)
         assert len(result) == 2
@@ -269,7 +263,7 @@ class TestMutate:
         self, strategy: FrameTimeCorruptionStrategy, mock_dataset: MagicMock
     ) -> None:
         """Test mutate with single mutation."""
-        _, records = strategy.mutate(mock_dataset, mutation_count=1)
+        _, records = strategy._mutate_impl(mock_dataset, mutation_count=1)
 
         # Should have at least 0-1 records (temporal index may return None)
         assert len(records) <= 1
@@ -285,7 +279,7 @@ class TestMutate:
         functional_group.FrameContentSequence = [frame_content]
         mock_dataset.PerFrameFunctionalGroupsSequence = [functional_group]
 
-        _, records = strategy.mutate(mock_dataset, mutation_count=5)
+        _, records = strategy._mutate_impl(mock_dataset, mutation_count=5)
 
         # Should have some records (exact count depends on random choices)
         assert len(records) >= 0  # May be less due to temporal index returning None
@@ -294,7 +288,7 @@ class TestMutate:
         self, strategy: FrameTimeCorruptionStrategy, mock_dataset: MagicMock
     ) -> None:
         """Test mutate with zero mutations."""
-        _, records = strategy.mutate(mock_dataset, mutation_count=0)
+        _, records = strategy._mutate_impl(mock_dataset, mutation_count=0)
 
         assert records == []
 
@@ -309,7 +303,7 @@ class TestMutate:
         functional_group.FrameContentSequence = [frame_content]
         mock_dataset.PerFrameFunctionalGroupsSequence = [functional_group]
 
-        _, records = strategy.mutate(mock_dataset, mutation_count=10)
+        _, records = strategy._mutate_impl(mock_dataset, mutation_count=10)
 
         for record in records:
             assert record.strategy == "frame_time_corruption"
@@ -376,28 +370,3 @@ class TestGetFrameCount:
         result = strategy._get_frame_count(dataset)
 
         assert result == 1
-
-
-class TestSeverity:
-    """Tests for severity configuration."""
-
-    def test_default_severity(self) -> None:
-        """Test default severity is 'moderate'."""
-        strategy = FrameTimeCorruptionStrategy()
-        assert strategy.severity == "moderate"
-
-    def test_custom_severity(self) -> None:
-        """Test custom severity is preserved."""
-        strategy = FrameTimeCorruptionStrategy(severity="extreme")
-        assert strategy.severity == "extreme"
-
-    def test_severity_in_records(self) -> None:
-        """Test severity appears in mutation records."""
-        strategy = FrameTimeCorruptionStrategy(severity="aggressive")
-        dataset = MagicMock()
-        dataset.NumberOfFrames = 5
-        dataset.FrameTime = 33.33
-
-        record = strategy._set_frame_time(dataset, 0.0, "0.0", "test")
-
-        assert record.severity == "aggressive"

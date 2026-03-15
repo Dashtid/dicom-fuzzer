@@ -19,16 +19,20 @@ from pydicom.sequence import Sequence
 
 from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
 
-from .base import MutationStrategyBase
+from .format_base import MultiFrameFuzzerBase
 
 
-class FunctionalGroupStrategy(MutationStrategyBase):
+class FunctionalGroupStrategy(MultiFrameFuzzerBase):
     """Mutation strategy for functional group attacks."""
 
     @property
     def strategy_name(self) -> str:
         """Return the strategy name."""
         return "functional_group_attack"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
+        """Apply one randomly-selected mutation and return the mutated dataset."""
+        return self._mutate_impl(dataset, 1)[0]
 
     def _attack_missing_per_frame(self, dataset: Dataset) -> MultiFrameMutationRecord:
         """Create fewer per-frame groups than frames."""
@@ -112,7 +116,7 @@ class FunctionalGroupStrategy(MutationStrategyBase):
             details={"attack_type": "deeply_nested_corruption", "nesting_depth": 10},
         )
 
-    def mutate(
+    def _mutate_impl(
         self,
         dataset: Dataset,
         mutation_count: int,

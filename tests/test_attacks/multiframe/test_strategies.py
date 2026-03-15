@@ -14,7 +14,7 @@ from dicom_fuzzer.attacks.multiframe import (
     FrameIncrementStrategy,
     FrameTimeCorruptionStrategy,
     FunctionalGroupStrategy,
-    MutationStrategyBase,
+    MultiFrameFuzzerBase,
     PerFrameDimensionStrategy,
     PixelDataTruncationStrategy,
     SharedGroupStrategy,
@@ -22,16 +22,50 @@ from dicom_fuzzer.attacks.multiframe import (
 from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
 
 
-class TestMutationStrategyBase:
-    """Tests for MutationStrategyBase abstract class."""
+class TestMultiFrameFuzzerPublicAPI:
+    """Tests for the FormatFuzzerBase-compatible mutate(dataset) interface."""
+
+    def test_mutate_returns_dataset(self) -> None:
+        """mutate(dataset) returns a Dataset, not a tuple."""
+        dataset = Dataset()
+        dataset.NumberOfFrames = 5
+        strategy = FrameCountMismatchStrategy()
+        result = strategy.mutate(dataset)
+        from pydicom.dataset import Dataset as _Dataset
+
+        assert isinstance(result, _Dataset)
+
+    def test_mutate_no_args_besides_dataset(self) -> None:
+        """mutate() takes exactly one argument (dataset)."""
+        import inspect
+
+        strategy = DimensionOverflowStrategy()
+        sig = inspect.signature(strategy.mutate)
+        params = list(sig.parameters.keys())
+        assert params == ["dataset"]
+
+    def test_can_mutate_returns_true_by_default(self) -> None:
+        """can_mutate() defaults to True for all multiframe strategies."""
+        dataset = Dataset()
+        for cls in [
+            FrameCountMismatchStrategy,
+            FrameTimeCorruptionStrategy,
+            DimensionOverflowStrategy,
+            FrameIncrementStrategy,
+        ]:
+            assert cls().can_mutate(dataset) is True
+
+
+class TestMultiFrameFuzzerBase:
+    """Tests for MultiFrameFuzzerBase abstract class."""
 
     def test_base_is_abstract(self) -> None:
-        """Verify MutationStrategyBase cannot be instantiated directly."""
+        """Verify MultiFrameFuzzerBase cannot be instantiated directly."""
         with pytest.raises(TypeError):
-            MutationStrategyBase()  # type: ignore
+            MultiFrameFuzzerBase()  # type: ignore
 
     def test_all_strategies_inherit_from_base(self) -> None:
-        """Verify all strategies inherit from MutationStrategyBase."""
+        """Verify all strategies inherit from MultiFrameFuzzerBase."""
         strategies = [
             FrameCountMismatchStrategy,
             FrameTimeCorruptionStrategy,
@@ -43,7 +77,7 @@ class TestMutationStrategyBase:
             PixelDataTruncationStrategy,
         ]
         for strategy_cls in strategies:
-            assert issubclass(strategy_cls, MutationStrategyBase)
+            assert issubclass(strategy_cls, MultiFrameFuzzerBase)
 
 
 class TestFrameCountMismatchStrategy:
@@ -64,8 +98,8 @@ class TestFrameCountMismatchStrategy:
         dataset.SamplesPerPixel = 1
         dataset.PixelData = b"\x00" * (64 * 64 * 2 * 10)
 
-        strategy = FrameCountMismatchStrategy(severity="moderate")
-        mutated, records = strategy.mutate(dataset, mutation_count=1)
+        strategy = FrameCountMismatchStrategy()
+        mutated, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert isinstance(records, list)
         assert len(records) >= 1
@@ -89,11 +123,11 @@ class TestFrameTimeCorruptionStrategy:
         dataset.NumberOfFrames = 5
         dataset.FrameTime = 33.33
 
-        strategy = FrameTimeCorruptionStrategy(severity="moderate")
+        strategy = FrameTimeCorruptionStrategy()
         # Force a mutation type that always creates a record (not corrupt_temporal_index
         # which requires PerFrameFunctionalGroupsSequence to create records)
         with patch("random.choice", return_value="negative_frame_time"):
-            mutated, records = strategy.mutate(dataset, mutation_count=1)
+            mutated, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert isinstance(records, list)
         assert len(records) >= 1
@@ -112,8 +146,8 @@ class TestPerFrameDimensionStrategy:
         dataset = Dataset()
         dataset.NumberOfFrames = 3
 
-        strategy = PerFrameDimensionStrategy(severity="moderate")
-        mutated, records = strategy.mutate(dataset, mutation_count=1)
+        strategy = PerFrameDimensionStrategy()
+        mutated, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert hasattr(mutated, "PerFrameFunctionalGroupsSequence")
 
@@ -131,8 +165,8 @@ class TestSharedGroupStrategy:
         dataset = Dataset()
         dataset.SharedFunctionalGroupsSequence = Sequence([Dataset()])
 
-        strategy = SharedGroupStrategy(severity="moderate")
-        mutated, records = strategy.mutate(dataset, mutation_count=1)
+        strategy = SharedGroupStrategy()
+        mutated, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert isinstance(records, list)
         assert len(records) >= 1
@@ -150,8 +184,8 @@ class TestFrameIncrementStrategy:
         """Test mutate returns mutation records."""
         dataset = Dataset()
 
-        strategy = FrameIncrementStrategy(severity="moderate")
-        mutated, records = strategy.mutate(dataset, mutation_count=1)
+        strategy = FrameIncrementStrategy()
+        mutated, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert isinstance(records, list)
         assert len(records) >= 1
@@ -172,8 +206,8 @@ class TestDimensionOverflowStrategy:
         dataset.Rows = 256
         dataset.Columns = 256
 
-        strategy = DimensionOverflowStrategy(severity="extreme")
-        mutated, records = strategy.mutate(dataset, mutation_count=1)
+        strategy = DimensionOverflowStrategy()
+        mutated, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert isinstance(records, list)
         assert len(records) >= 1
@@ -195,8 +229,8 @@ class TestFunctionalGroupStrategy:
             [Dataset() for _ in range(5)]
         )
 
-        strategy = FunctionalGroupStrategy(severity="aggressive")
-        mutated, records = strategy.mutate(dataset, mutation_count=1)
+        strategy = FunctionalGroupStrategy()
+        mutated, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert isinstance(records, list)
         assert len(records) >= 1
@@ -220,8 +254,8 @@ class TestPixelDataTruncationStrategy:
         dataset.NumberOfFrames = 5
         dataset.PixelData = b"\x00" * (64 * 64 * 2 * 5)
 
-        strategy = PixelDataTruncationStrategy(severity="moderate")
-        mutated, records = strategy.mutate(dataset, mutation_count=1)
+        strategy = PixelDataTruncationStrategy()
+        mutated, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert isinstance(records, list)
         assert len(records) >= 1
@@ -231,51 +265,10 @@ class TestPixelDataTruncationStrategy:
         dataset = Dataset()
         dataset.NumberOfFrames = 5
 
-        strategy = PixelDataTruncationStrategy(severity="moderate")
-        mutated, records = strategy.mutate(dataset, mutation_count=1)
+        strategy = PixelDataTruncationStrategy()
+        mutated, records = strategy._mutate_impl(dataset, mutation_count=1)
 
         assert records == []
-
-
-class TestStrategySeverityLevels:
-    """Tests for strategy severity level handling."""
-
-    @pytest.mark.parametrize(
-        "strategy_cls",
-        [
-            pytest.param(FrameCountMismatchStrategy, id="frame_count_mismatch"),
-            pytest.param(FrameTimeCorruptionStrategy, id="frame_time_corruption"),
-            pytest.param(PerFrameDimensionStrategy, id="per_frame_dimension"),
-            pytest.param(SharedGroupStrategy, id="shared_group"),
-            pytest.param(FrameIncrementStrategy, id="frame_increment"),
-            pytest.param(DimensionOverflowStrategy, id="dimension_overflow"),
-            pytest.param(FunctionalGroupStrategy, id="functional_group"),
-            pytest.param(PixelDataTruncationStrategy, id="pixel_truncation"),
-        ],
-    )
-    def test_strategy_accepts_severity(self, strategy_cls: type) -> None:
-        """Test all strategies accept severity parameter."""
-        for severity in ["minimal", "moderate", "aggressive", "extreme"]:
-            strategy = strategy_cls(severity=severity)
-            assert strategy.severity == severity
-
-    @pytest.mark.parametrize(
-        "strategy_cls",
-        [
-            pytest.param(FrameCountMismatchStrategy, id="frame_count_mismatch"),
-            pytest.param(FrameTimeCorruptionStrategy, id="frame_time_corruption"),
-            pytest.param(PerFrameDimensionStrategy, id="per_frame_dimension"),
-            pytest.param(SharedGroupStrategy, id="shared_group"),
-            pytest.param(FrameIncrementStrategy, id="frame_increment"),
-            pytest.param(DimensionOverflowStrategy, id="dimension_overflow"),
-            pytest.param(FunctionalGroupStrategy, id="functional_group"),
-            pytest.param(PixelDataTruncationStrategy, id="pixel_truncation"),
-        ],
-    )
-    def test_strategy_default_severity(self, strategy_cls: type) -> None:
-        """Test all strategies default to moderate severity."""
-        strategy = strategy_cls()
-        assert strategy.severity == "moderate"
 
 
 class TestStrategyImports:
@@ -291,13 +284,13 @@ class TestStrategyImports:
             FrameIncrementStrategy,
             FrameTimeCorruptionStrategy,
             FunctionalGroupStrategy,
-            MutationStrategyBase,
+            MultiFrameFuzzerBase,
             PerFrameDimensionStrategy,
             PixelDataTruncationStrategy,
             SharedGroupStrategy,
         )
 
-        assert MutationStrategyBase is not None
+        assert MultiFrameFuzzerBase is not None
         assert FrameCountMismatchStrategy is not None
         assert FrameTimeCorruptionStrategy is not None
         assert PerFrameDimensionStrategy is not None
@@ -314,7 +307,7 @@ class TestStrategyImports:
 
 
 class TestBaseClassHelpers:
-    """Tests for shared helpers in MutationStrategyBase."""
+    """Tests for shared helpers in MultiFrameFuzzerBase."""
 
     def test_get_frame_count_with_frames(self) -> None:
         """Test _get_frame_count returns correct count."""
@@ -371,7 +364,7 @@ class TestRecordLossFixes:
         ds.PixelData = b"\x00" * 100  # No Rows/Cols -> frame_size=0
 
         with patch("random.choice", return_value="truncate_mid_frame"):
-            _, records = strategy.mutate(ds, mutation_count=1)
+            _, records = strategy._mutate_impl(ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "truncate_mid_frame_fallback"
@@ -390,7 +383,7 @@ class TestRecordLossFixes:
         ds.PixelData = b"\x00" * (64 * 64 * 2)
 
         with patch("random.choice", return_value="truncate_mid_frame"):
-            _, records = strategy.mutate(ds, mutation_count=1)
+            _, records = strategy._mutate_impl(ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "truncate_mid_frame_fallback"
@@ -406,7 +399,7 @@ class TestRecordLossFixes:
         # No PerFrameFunctionalGroupsSequence
 
         with patch("random.choice", return_value="corrupt_temporal_index"):
-            _, records = strategy.mutate(ds, mutation_count=1)
+            _, records = strategy._mutate_impl(ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "negative_frame_time"
@@ -417,7 +410,7 @@ class TestRecordLossFixes:
         ds = Dataset()
         ds.PixelData = b"\x00" * 50  # Small data, no dims
 
-        _, records = strategy.mutate(ds, mutation_count=5)
+        _, records = strategy._mutate_impl(ds, mutation_count=5)
         assert len(records) == 5
 
     def test_frame_time_always_produces_records(self) -> None:
@@ -427,7 +420,7 @@ class TestRecordLossFixes:
         ds.NumberOfFrames = 3
         # No PerFrameFunctionalGroupsSequence
 
-        _, records = strategy.mutate(ds, mutation_count=10)
+        _, records = strategy._mutate_impl(ds, mutation_count=10)
         assert len(records) == 10
 
 
@@ -456,7 +449,7 @@ class TestPixelDataTruncationAttackTypes:
         strategy = PixelDataTruncationStrategy()
 
         with patch("random.choice", return_value="truncate_mid_frame"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "truncate_mid_frame"
@@ -470,7 +463,7 @@ class TestPixelDataTruncationAttackTypes:
         strategy = PixelDataTruncationStrategy()
 
         with patch("random.choice", return_value="truncate_partial"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "truncate_partial"
@@ -484,7 +477,7 @@ class TestPixelDataTruncationAttackTypes:
         strategy = PixelDataTruncationStrategy()
 
         with patch("random.choice", return_value="extra_bytes"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "extra_bytes"
@@ -497,7 +490,7 @@ class TestPixelDataTruncationAttackTypes:
         strategy = PixelDataTruncationStrategy()
 
         with patch("random.choice", return_value="empty_pixel_data"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "empty_pixel_data"
@@ -510,7 +503,7 @@ class TestPixelDataTruncationAttackTypes:
         strategy = PixelDataTruncationStrategy()
 
         with patch("random.choice", return_value="single_byte"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "single_byte"
@@ -542,7 +535,7 @@ class TestSharedGroupAttackTypes:
 
         strategy = SharedGroupStrategy()
         with patch("random.choice", return_value="delete_shared_groups"):
-            _, records = strategy.mutate(ds_with_sfg, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_sfg, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "delete_shared_groups"
@@ -554,7 +547,7 @@ class TestSharedGroupAttackTypes:
 
         strategy = SharedGroupStrategy()
         with patch("random.choice", return_value="empty_shared_groups"):
-            _, records = strategy.mutate(ds_with_sfg, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_sfg, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "empty_shared_groups"
@@ -566,7 +559,7 @@ class TestSharedGroupAttackTypes:
 
         strategy = SharedGroupStrategy()
         with patch("random.choice", return_value="corrupt_pixel_measures"):
-            _, records = strategy.mutate(ds_with_sfg, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_sfg, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "corrupt_pixel_measures"
@@ -581,7 +574,7 @@ class TestSharedGroupAttackTypes:
 
         strategy = SharedGroupStrategy()
         with patch("random.choice", return_value="invalid_orientation"):
-            _, records = strategy.mutate(ds_with_sfg, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_sfg, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "invalid_orientation"
@@ -595,7 +588,7 @@ class TestSharedGroupAttackTypes:
 
         strategy = SharedGroupStrategy()
         with patch("random.choice", return_value="conflict_with_per_frame"):
-            _, records = strategy.mutate(ds_with_sfg, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_sfg, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "conflict_with_per_frame"
@@ -617,7 +610,7 @@ class TestPerFrameDimensionAttackTypes:
 
         strategy = PerFrameDimensionStrategy()
         with patch("random.choice", return_value=("varying", None, None)):
-            _, records = strategy.mutate(ds_with_per_frame, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_per_frame, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "varying_matrix_size"
@@ -628,7 +621,7 @@ class TestPerFrameDimensionAttackTypes:
 
         strategy = PerFrameDimensionStrategy()
         with patch("random.choice", return_value=("zero", 0, 0)):
-            _, records = strategy.mutate(ds_with_per_frame, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_per_frame, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "zero_dimensions"
@@ -639,7 +632,7 @@ class TestPerFrameDimensionAttackTypes:
 
         strategy = PerFrameDimensionStrategy()
         with patch("random.choice", return_value=("extreme", 65535, 65535)):
-            _, records = strategy.mutate(ds_with_per_frame, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_per_frame, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "extreme_dimensions"
@@ -651,7 +644,7 @@ class TestPerFrameDimensionAttackTypes:
 
         strategy = PerFrameDimensionStrategy()
         with patch("random.choice", return_value=("negative", -1, -1)):
-            _, records = strategy.mutate(ds_with_per_frame, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_per_frame, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "negative_dimensions"
@@ -676,7 +669,7 @@ class TestDimensionOverflowAttackTypes:
 
         strategy = DimensionOverflowStrategy()
         with patch("random.choice", return_value="frame_dimension_overflow"):
-            _, records = strategy.mutate(base_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(base_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "frame_dimension_overflow"
@@ -690,7 +683,7 @@ class TestDimensionOverflowAttackTypes:
 
         strategy = DimensionOverflowStrategy()
         with patch("random.choice", return_value="total_pixel_overflow"):
-            _, records = strategy.mutate(base_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(base_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "total_pixel_overflow"
@@ -704,7 +697,7 @@ class TestDimensionOverflowAttackTypes:
 
         strategy = DimensionOverflowStrategy()
         with patch("random.choice", return_value="bits_multiplier_overflow"):
-            _, records = strategy.mutate(base_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(base_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "bits_multiplier_overflow"
@@ -716,7 +709,7 @@ class TestDimensionOverflowAttackTypes:
 
         strategy = DimensionOverflowStrategy()
         with patch("random.choice", return_value="samples_multiplier_overflow"):
-            _, records = strategy.mutate(base_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(base_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "samples_multiplier_overflow"
@@ -740,7 +733,7 @@ class TestFunctionalGroupAttackTypes:
         strategy = FunctionalGroupStrategy()
         handlers = [strategy._attack_missing_per_frame]
         with patch("random.choice", return_value=strategy._attack_missing_per_frame):
-            _, records = strategy.mutate(ds_with_groups, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_groups, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "missing_per_frame_groups"
@@ -753,7 +746,7 @@ class TestFunctionalGroupAttackTypes:
 
         strategy = FunctionalGroupStrategy()
         with patch("random.choice", return_value=strategy._attack_extra_per_frame):
-            _, records = strategy.mutate(ds_with_groups, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_groups, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "extra_per_frame_groups"
@@ -766,7 +759,7 @@ class TestFunctionalGroupAttackTypes:
 
         strategy = FunctionalGroupStrategy()
         with patch("random.choice", return_value=strategy._attack_empty_items):
-            _, records = strategy.mutate(ds_with_groups, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_groups, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "empty_group_items"
@@ -777,7 +770,7 @@ class TestFunctionalGroupAttackTypes:
 
         strategy = FunctionalGroupStrategy()
         with patch("random.choice", return_value=strategy._attack_null_sequence):
-            _, records = strategy.mutate(ds_with_groups, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_groups, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "null_sequence_items"
@@ -788,7 +781,7 @@ class TestFunctionalGroupAttackTypes:
 
         strategy = FunctionalGroupStrategy()
         with patch("random.choice", return_value=strategy._attack_deeply_nested):
-            _, records = strategy.mutate(ds_with_groups, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_groups, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "deeply_nested_corruption"
@@ -815,7 +808,7 @@ class TestFrameCountMismatchAttackTypes:
 
         strategy = FrameCountMismatchStrategy()
         with patch("random.choice", return_value="too_large"):
-            _, records = strategy.mutate(ds_with_frames, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_frames, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "too_large"
@@ -827,7 +820,7 @@ class TestFrameCountMismatchAttackTypes:
 
         strategy = FrameCountMismatchStrategy()
         with patch("random.choice", return_value="zero"):
-            _, records = strategy.mutate(ds_with_frames, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_frames, mutation_count=1)
 
         assert records[0].details["attack_type"] == "zero"
         assert ds_with_frames.NumberOfFrames == 0
@@ -838,7 +831,7 @@ class TestFrameCountMismatchAttackTypes:
 
         strategy = FrameCountMismatchStrategy()
         with patch("random.choice", return_value="negative"):
-            _, records = strategy.mutate(ds_with_frames, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_frames, mutation_count=1)
 
         assert records[0].details["attack_type"] == "negative"
         assert ds_with_frames.NumberOfFrames == -1
@@ -849,7 +842,7 @@ class TestFrameCountMismatchAttackTypes:
 
         strategy = FrameCountMismatchStrategy()
         with patch("random.choice", return_value="overflow_32bit"):
-            _, records = strategy.mutate(ds_with_frames, mutation_count=1)
+            _, records = strategy._mutate_impl(ds_with_frames, mutation_count=1)
 
         assert records[0].details["attack_type"] == "overflow_32bit"
         assert ds_with_frames.NumberOfFrames == 2147483647
@@ -879,7 +872,7 @@ class TestEncapsulatedPixelStrategy:
     def test_mutate_produces_records(self, multiframe_ds: Dataset) -> None:
         """Test mutate produces correct number of records."""
         strategy = EncapsulatedPixelStrategy()
-        _, records = strategy.mutate(multiframe_ds, mutation_count=5)
+        _, records = strategy._mutate_impl(multiframe_ds, mutation_count=5)
         assert len(records) == 5
         for r in records:
             assert r.strategy == "encapsulated_pixel_data"
@@ -890,7 +883,7 @@ class TestEncapsulatedPixelStrategy:
 
         strategy = EncapsulatedPixelStrategy()
         with patch("random.choice", return_value="invalid_bot_offsets"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "invalid_bot_offsets"
@@ -901,7 +894,7 @@ class TestEncapsulatedPixelStrategy:
 
         strategy = EncapsulatedPixelStrategy()
         with patch("random.choice", return_value="bot_length_not_multiple_of_4"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "bot_length_not_multiple_of_4"
@@ -912,7 +905,7 @@ class TestEncapsulatedPixelStrategy:
 
         strategy = EncapsulatedPixelStrategy()
         with patch("random.choice", return_value="empty_bot_with_eot"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "empty_bot_with_eot"
@@ -927,7 +920,7 @@ class TestEncapsulatedPixelStrategy:
 
         strategy = EncapsulatedPixelStrategy()
         with patch("random.choice", return_value="bot_and_eot_coexist"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "bot_and_eot_coexist"
@@ -942,7 +935,7 @@ class TestEncapsulatedPixelStrategy:
 
         strategy = EncapsulatedPixelStrategy()
         with patch("random.choice", return_value="fragment_count_mismatch"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "fragment_count_mismatch"
@@ -953,7 +946,7 @@ class TestEncapsulatedPixelStrategy:
 
         strategy = EncapsulatedPixelStrategy()
         with patch("random.choice", return_value="fragment_embedded_delimiter"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "fragment_embedded_delimiter"
@@ -966,7 +959,7 @@ class TestEncapsulatedPixelStrategy:
 
         strategy = EncapsulatedPixelStrategy()
         with patch("random.choice", return_value="fragment_undefined_length"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "fragment_undefined_length"
@@ -979,7 +972,7 @@ class TestEncapsulatedPixelStrategy:
 
         strategy = EncapsulatedPixelStrategy()
         with patch("random.choice", return_value="truncated_fragment"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "truncated_fragment"
@@ -990,7 +983,7 @@ class TestEncapsulatedPixelStrategy:
 
         strategy = EncapsulatedPixelStrategy()
         with patch("random.choice", return_value="missing_seq_delimiter"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "missing_seq_delimiter"
@@ -1002,7 +995,7 @@ class TestEncapsulatedPixelStrategy:
         strategy = EncapsulatedPixelStrategy()
         ds = Dataset()
         ds.NumberOfFrames = 2
-        _, records = strategy.mutate(ds, mutation_count=3)
+        _, records = strategy._mutate_impl(ds, mutation_count=3)
         assert len(records) == 3
 
 
@@ -1025,7 +1018,7 @@ class TestDimensionIndexStrategy:
     def test_mutate_produces_records(self, multiframe_ds: Dataset) -> None:
         """Test mutate produces correct number of records."""
         strategy = DimensionIndexStrategy()
-        _, records = strategy.mutate(multiframe_ds, mutation_count=5)
+        _, records = strategy._mutate_impl(multiframe_ds, mutation_count=5)
         assert len(records) == 5
         for r in records:
             assert r.strategy == "dimension_index_attack"
@@ -1036,7 +1029,7 @@ class TestDimensionIndexStrategy:
 
         strategy = DimensionIndexStrategy()
         with patch("random.choice", return_value="invalid_index_pointer"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "invalid_index_pointer"
@@ -1048,7 +1041,7 @@ class TestDimensionIndexStrategy:
 
         strategy = DimensionIndexStrategy()
         with patch("random.choice", return_value="index_values_length_mismatch"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "index_values_length_mismatch"
@@ -1059,7 +1052,7 @@ class TestDimensionIndexStrategy:
 
         strategy = DimensionIndexStrategy()
         with patch("random.choice", return_value="missing_index_values"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "missing_index_values"
@@ -1071,7 +1064,7 @@ class TestDimensionIndexStrategy:
 
         strategy = DimensionIndexStrategy()
         with patch("random.choice", return_value="out_of_range_index_values"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "out_of_range_index_values"
@@ -1083,7 +1076,7 @@ class TestDimensionIndexStrategy:
 
         strategy = DimensionIndexStrategy()
         with patch("random.choice", return_value="organization_type_mismatch"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "organization_type_mismatch"
@@ -1096,7 +1089,7 @@ class TestDimensionIndexStrategy:
 
         strategy = DimensionIndexStrategy()
         with patch("random.choice", return_value="empty_dimension_sequence"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "empty_dimension_sequence"
@@ -1108,7 +1101,7 @@ class TestDimensionIndexStrategy:
 
         strategy = DimensionIndexStrategy()
         with patch("random.choice", return_value="duplicate_dimension_pointers"):
-            _, records = strategy.mutate(multiframe_ds, mutation_count=1)
+            _, records = strategy._mutate_impl(multiframe_ds, mutation_count=1)
 
         assert len(records) == 1
         assert records[0].details["attack_type"] == "duplicate_dimension_pointers"

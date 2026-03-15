@@ -17,13 +17,13 @@ from typing import TYPE_CHECKING
 
 from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
 
-from .base import MutationStrategyBase
+from .format_base import MultiFrameFuzzerBase
 
 if TYPE_CHECKING:
     from pydicom.dataset import Dataset
 
 
-class FrameIncrementStrategy(MutationStrategyBase):
+class FrameIncrementStrategy(MultiFrameFuzzerBase):
     """Mutation strategy for frame increment pointer invalid attacks."""
 
     @property
@@ -31,7 +31,11 @@ class FrameIncrementStrategy(MutationStrategyBase):
         """Return the strategy name."""
         return "frame_increment_invalid"
 
-    def mutate(
+    def mutate(self, dataset: Dataset) -> Dataset:
+        """Apply one randomly-selected mutation and return the mutated dataset."""
+        return self._mutate_impl(dataset, 1)[0]
+
+    def _mutate_impl(
         self,
         dataset: Dataset,
         mutation_count: int,

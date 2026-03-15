@@ -16,13 +16,13 @@ from typing import TYPE_CHECKING
 
 from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
 
-from .base import MutationStrategyBase
+from .format_base import MultiFrameFuzzerBase
 
 if TYPE_CHECKING:
     from pydicom.dataset import Dataset
 
 
-class DimensionOverflowStrategy(MutationStrategyBase):
+class DimensionOverflowStrategy(MultiFrameFuzzerBase):
     """Mutation strategy for dimension overflow attacks."""
 
     @property
@@ -30,7 +30,11 @@ class DimensionOverflowStrategy(MutationStrategyBase):
         """Return the strategy name."""
         return "dimension_overflow"
 
-    def mutate(
+    def mutate(self, dataset: Dataset) -> Dataset:
+        """Apply one randomly-selected mutation and return the mutated dataset."""
+        return self._mutate_impl(dataset, 1)[0]
+
+    def _mutate_impl(
         self,
         dataset: Dataset,
         mutation_count: int,

@@ -19,10 +19,10 @@ from pydicom.sequence import Sequence
 
 from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
 
-from .base import MutationStrategyBase
+from .format_base import MultiFrameFuzzerBase
 
 
-class SharedGroupStrategy(MutationStrategyBase):
+class SharedGroupStrategy(MultiFrameFuzzerBase):
     """Mutation strategy for shared functional groups corruption attacks."""
 
     _ATTACK_TYPES = [
@@ -37,6 +37,10 @@ class SharedGroupStrategy(MutationStrategyBase):
     def strategy_name(self) -> str:
         """Return the strategy name."""
         return "shared_group_corruption"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
+        """Apply one randomly-selected mutation and return the mutated dataset."""
+        return self._mutate_impl(dataset, 1)[0]
 
     def _ensure_sfg(self, dataset: Dataset) -> Dataset:
         """Ensure SharedFunctionalGroupsSequence exists and return first item."""
@@ -126,7 +130,7 @@ class SharedGroupStrategy(MutationStrategyBase):
             "conflict_with_per_frame",
         )
 
-    def mutate(
+    def _mutate_impl(
         self,
         dataset: Dataset,
         mutation_count: int,

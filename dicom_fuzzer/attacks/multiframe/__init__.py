@@ -14,7 +14,6 @@ This package contains modular mutation strategies for multi-frame DICOM:
 
 """
 
-from .base import MutationStrategyBase
 from .dimension_index import (
     DimensionIndexStrategy,
 )
@@ -24,6 +23,7 @@ from .dimension_overflow import (
 from .encapsulated_pixel import (
     EncapsulatedPixelStrategy,
 )
+from .format_base import MultiFrameFuzzerBase
 from .frame_count import (
     FrameCountMismatchStrategy,
 )
@@ -46,7 +46,7 @@ from .shared_group import SharedGroupStrategy
 
 __all__ = [
     # Base class
-    "MutationStrategyBase",
+    "MultiFrameFuzzerBase",
     # Strategy implementations
     "FrameCountMismatchStrategy",
     "FrameTimeCorruptionStrategy",
