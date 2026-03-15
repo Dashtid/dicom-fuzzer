@@ -5,8 +5,8 @@ performance profiling, and strategy effectiveness scoring.
 """
 
 import json
-from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -47,102 +47,6 @@ class CoverageCorrelation:
         )
 
         return max(0.0, min(1.0, score))
-
-
-@dataclass
-class TrendAnalysis:
-    """Time-series analysis of fuzzing campaign progress.
-
-    Tracks how crash discovery and coverage change over time,
-    helping identify when to stop fuzzing or adjust strategies.
-    """
-
-    campaign_name: str
-    start_time: datetime
-    end_time: datetime
-    total_duration: timedelta
-
-    # Time-series data
-    crashes_over_time: list[tuple[datetime, int]] = field(default_factory=list)
-    coverage_over_time: list[tuple[datetime, float]] = field(default_factory=list)
-    mutations_over_time: list[tuple[datetime, int]] = field(default_factory=list)
-
-    def crash_discovery_rate(self) -> float:
-        """Calculate crash discovery rate (crashes per hour).
-
-        Returns:
-            Crashes found per hour of fuzzing
-
-        """
-        if not self.crashes_over_time or self.total_duration.total_seconds() == 0:
-            return 0.0
-
-        total_crashes = sum(count for _, count in self.crashes_over_time)
-        hours = self.total_duration.total_seconds() / 3600
-
-        return total_crashes / hours if hours > 0 else 0.0
-
-    def coverage_growth_rate(self) -> float:
-        """Calculate coverage growth rate (% per hour).
-
-        Returns:
-            Percentage increase in coverage per hour
-
-        """
-        if len(self.coverage_over_time) < 2 or self.total_duration.total_seconds() == 0:
-            return 0.0
-
-        initial_coverage = self.coverage_over_time[0][1]
-        final_coverage = self.coverage_over_time[-1][1]
-
-        if initial_coverage == 0:
-            return 0.0
-
-        coverage_increase = final_coverage - initial_coverage
-        hours = self.total_duration.total_seconds() / 3600
-
-        return (
-            (coverage_increase / initial_coverage * 100) / hours if hours > 0 else 0.0
-        )
-
-    def is_plateauing(
-        self, threshold_hours: float = 1.0, min_rate: float = 0.1
-    ) -> bool:
-        """Detect if fuzzing campaign has plateaued (diminishing returns).
-
-        Args:
-            threshold_hours: Hours to analyze for plateau detection
-            min_rate: Minimum acceptable crash discovery rate
-
-        Returns:
-            True if campaign has plateaued (should consider stopping)
-
-        """
-        if not self.crashes_over_time or len(self.crashes_over_time) < 2:
-            return False
-
-        # Guard against invalid threshold
-        if threshold_hours <= 0:
-            return False
-
-        # Analyze recent time window
-        threshold_delta = timedelta(hours=threshold_hours)
-        recent_time = self.end_time - threshold_delta
-
-        recent_crashes = [
-            count
-            for timestamp, count in self.crashes_over_time
-            if timestamp >= recent_time
-        ]
-
-        if not recent_crashes:
-            return True  # No crashes in recent window
-
-        # Calculate recent crash rate
-        recent_total = sum(recent_crashes)
-        recent_rate = recent_total / threshold_hours
-
-        return recent_rate < min_rate
 
 
 @dataclass
@@ -194,7 +98,6 @@ class CampaignAnalyzer:
         """
         self.campaign_name = campaign_name
         self.coverage_data: dict[str, CoverageCorrelation] = {}
-        self.trend_data: TrendAnalysis | None = None
         self.performance_data: PerformanceMetrics | None = None
 
     def analyze_strategy_effectiveness(
@@ -293,40 +196,6 @@ class CampaignAnalyzer:
 
         return correlation
 
-    def analyze_trends(
-        self,
-        start_time: datetime,
-        end_time: datetime,
-        crash_timeline: list[tuple[datetime, int]],
-        coverage_timeline: list[tuple[datetime, float]],
-        mutation_timeline: list[tuple[datetime, int]],
-    ) -> TrendAnalysis:
-        """Analyze time-series trends in fuzzing campaign.
-
-        Args:
-            start_time: Campaign start time
-            end_time: Campaign end time
-            crash_timeline: List of (timestamp, crash_count) tuples
-            coverage_timeline: List of (timestamp, coverage_percentage) tuples
-            mutation_timeline: List of (timestamp, mutation_count) tuples
-
-        Returns:
-            TrendAnalysis object with time-series analysis
-
-        """
-        trend = TrendAnalysis(
-            campaign_name=self.campaign_name,
-            start_time=start_time,
-            end_time=end_time,
-            total_duration=end_time - start_time,
-            crashes_over_time=crash_timeline,
-            coverage_over_time=coverage_timeline,
-            mutations_over_time=mutation_timeline,
-        )
-
-        self.trend_data = trend
-        return trend
-
     def profile_performance(
         self,
         mutations_per_second: float,
@@ -385,26 +254,6 @@ class CampaignAnalyzer:
             )
         return recommendations
 
-    def _recommend_trends(self) -> list[str]:
-        """Generate trend-based recommendations."""
-        if not self.trend_data:
-            return []
-        recommendations: list[str] = []
-        if self.trend_data.is_plateauing():
-            recommendations.append(
-                "[!] Campaign appears to be plateauing - consider stopping or changing strategies"
-            )
-        crash_rate = self.trend_data.crash_discovery_rate()
-        if crash_rate > 1.0:
-            recommendations.append(
-                f"[+] High crash discovery rate ({crash_rate:.2f}/hour) - continue fuzzing"
-            )
-        elif crash_rate < 0.1:
-            recommendations.append(
-                f"[!] Low crash discovery rate ({crash_rate:.2f}/hour) - consider adjusting strategies"
-            )
-        return recommendations
-
     def _recommend_performance(self) -> list[str]:
         """Generate performance-based recommendations."""
         if not self.performance_data:
@@ -437,7 +286,6 @@ class CampaignAnalyzer:
         """
         recommendations: list[str] = []
         recommendations.extend(self._recommend_coverage())
-        recommendations.extend(self._recommend_trends())
         recommendations.extend(self._recommend_performance())
 
         if not recommendations:
@@ -470,21 +318,9 @@ class CampaignAnalyzer:
                 }
                 for strategy, corr in self.coverage_data.items()
             },
-            "trend_analysis": None,
             "performance_metrics": None,
             "recommendations": self.generate_recommendations(),
         }
-
-        if self.trend_data:
-            data["trend_analysis"] = {
-                "start_time": self.trend_data.start_time.isoformat(),
-                "end_time": self.trend_data.end_time.isoformat(),
-                "total_duration_hours": self.trend_data.total_duration.total_seconds()
-                / 3600,
-                "crash_discovery_rate": self.trend_data.crash_discovery_rate(),
-                "coverage_growth_rate": self.trend_data.coverage_growth_rate(),
-                "is_plateauing": self.trend_data.is_plateauing(),
-            }
 
         if self.performance_data:
             data["performance_metrics"] = {

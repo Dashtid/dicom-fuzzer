@@ -11,7 +11,6 @@ Tests cover:
 
 import os
 import tempfile
-from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -338,85 +337,6 @@ class TestCrashRecording:
 
             # Should have recorded crashes
             assert len(analyzer.crashes) >= 1
-
-
-class TestCrashTimeline:
-    """Test crash discovery timeline tracking."""
-
-    def test_timeline_empty_initially(self):
-        """Timeline starts empty."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = CrashAnalyzer(crash_dir=tmpdir)
-            assert analyzer.get_crash_timeline() == []
-
-    def test_timeline_records_unique_discoveries(self):
-        """Timeline grows with each unique crash, not duplicates."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = CrashAnalyzer(crash_dir=tmpdir)
-
-            # Record 3 different crashes
-            for i, exc_cls in enumerate([ValueError, TypeError, MemoryError]):
-                try:
-                    raise exc_cls(f"Error {i}")
-                except Exception as e:
-                    analyzer.record_crash(e, f"test{i}.dcm")
-
-            timeline = analyzer.get_crash_timeline()
-            assert len(timeline) >= 1
-
-            # Each entry has (datetime, cumulative_count)
-            for ts, count in timeline:
-                assert isinstance(ts, datetime)
-                assert isinstance(count, int)
-                assert count > 0
-
-            # Counts should be monotonically increasing
-            counts = [count for _, count in timeline]
-            assert counts == sorted(counts)
-
-    def test_timeline_not_affected_by_duplicates(self):
-        """Duplicate crashes should not add timeline entries."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = CrashAnalyzer(crash_dir=tmpdir)
-
-            # Record a unique crash
-            try:
-                raise ValueError("Error")
-            except Exception as e:
-                report = analyzer.record_crash(e, "test1.dcm")
-
-            assert report is not None
-            timeline_after_first = len(analyzer.get_crash_timeline())
-            assert timeline_after_first == 1
-
-            # Pre-seed the hash so the next crash is detected as duplicate
-            # (different stack traces from different call sites produce
-            # different hashes, so we force it by adding the hash directly)
-            try:
-                raise TypeError("Different error")
-            except Exception as e:
-                dup_report = analyzer.analyze_exception(e, "test2.dcm")
-                analyzer.crash_hashes.add(dup_report.crash_hash)
-
-                # Now record_crash should see this as a duplicate
-                result = analyzer.record_crash(e, "test2.dcm")
-
-            assert result is None
-            assert len(analyzer.get_crash_timeline()) == timeline_after_first
-
-    def test_get_crash_timeline_returns_copy(self):
-        """get_crash_timeline() returns a copy, not a reference."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            analyzer = CrashAnalyzer(crash_dir=tmpdir)
-
-            try:
-                raise ValueError("Error")
-            except Exception as e:
-                analyzer.record_crash(e, "test.dcm")
-
-            timeline = analyzer.get_crash_timeline()
-            timeline.clear()  # Mutate the copy
-            assert len(analyzer.crash_timeline) > 0  # Original unchanged
 
 
 class TestCrashSummary:

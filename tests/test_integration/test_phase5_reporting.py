@@ -9,7 +9,6 @@ Tests all Phase 5 components:
 """
 
 import json
-from datetime import datetime, timedelta
 
 import pytest
 
@@ -25,7 +24,6 @@ from dicom_fuzzer.core.analytics.campaign_analytics import (
     CampaignAnalyzer,
     CoverageCorrelation,
     PerformanceMetrics,
-    TrendAnalysis,
 )
 from dicom_fuzzer.core.analytics.visualization import FuzzingVisualizer
 from dicom_fuzzer.core.reporting.series_reporter import (
@@ -301,74 +299,6 @@ class TestCoverageCorrelation:
         score_low = corr_low.correlation_score()
         assert 0.0 <= score_low <= 1.0
         assert score_low < 0.3  # Should be low
-
-
-class TestTrendAnalysis:
-    """Test TrendAnalysis dataclass."""
-
-    def test_create_trend_analysis(self):
-        """Test creating trend analysis."""
-        start = datetime.now()
-        end = start + timedelta(hours=2)
-
-        trend = TrendAnalysis(
-            campaign_name="Test",
-            start_time=start,
-            end_time=end,
-            total_duration=end - start,
-        )
-
-        assert trend.campaign_name == "Test"
-        assert trend.total_duration == timedelta(hours=2)
-
-    def test_crash_discovery_rate(self):
-        """Test crash discovery rate calculation."""
-        start = datetime.now()
-        end = start + timedelta(hours=2)
-
-        trend = TrendAnalysis(
-            campaign_name="Test",
-            start_time=start,
-            end_time=end,
-            total_duration=end - start,
-            crashes_over_time=[
-                (start + timedelta(minutes=30), 5),
-                (start + timedelta(hours=1), 10),
-                (start + timedelta(hours=2), 15),
-            ],
-        )
-
-        rate = trend.crash_discovery_rate()
-        assert rate == 15.0  # 30 total crashes / 2 hours = 15/hour
-
-    def test_plateau_detection(self):
-        """Test plateau detection."""
-        start = datetime.now()
-        end = start + timedelta(hours=5)
-
-        # Early phase - not plateauing (steady crash rate)
-        trend_active = TrendAnalysis(
-            campaign_name="Test",
-            start_time=start,
-            end_time=end,
-            total_duration=end - start,
-            crashes_over_time=[(start + timedelta(hours=i), 10) for i in range(5)],
-        )
-
-        assert not trend_active.is_plateauing(threshold_hours=2.0, min_rate=0.1)
-
-        # Plateau phase - no recent crashes
-        trend_plateau = TrendAnalysis(
-            campaign_name="Test",
-            start_time=start,
-            end_time=end,
-            total_duration=end - start,
-            crashes_over_time=[
-                (start + timedelta(hours=i), 10 if i < 3 else 0) for i in range(5)
-            ],
-        )
-
-        assert trend_plateau.is_plateauing(threshold_hours=2.0, min_rate=0.1)
 
 
 class TestPerformanceMetrics:

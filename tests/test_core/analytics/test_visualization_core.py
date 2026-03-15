@@ -1,6 +1,5 @@
 """Tests for dicom_fuzzer.analytics.visualization module."""
 
-from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -11,19 +10,8 @@ pytest.importorskip("plotly", reason="plotly not installed")
 from dicom_fuzzer.core.analytics.campaign_analytics import (
     CoverageCorrelation,
     PerformanceMetrics,
-    TrendAnalysis,
 )
 from dicom_fuzzer.core.analytics.visualization import FuzzingVisualizer
-
-
-def create_trend_analysis():
-    """Create a TrendAnalysis instance for testing."""
-    return TrendAnalysis(
-        campaign_name="test_campaign",
-        start_time=datetime(2024, 1, 1, 10, 0),
-        end_time=datetime(2024, 1, 1, 12, 0),
-        total_duration=timedelta(hours=2),
-    )
 
 
 def create_coverage_correlation(
@@ -180,74 +168,6 @@ class TestPlotStrategyEffectiveness:
         )
 
         assert output_path.exists()
-
-
-class TestPlotCrashTrend:
-    """Tests for crash trend charts."""
-
-    def test_plot_crash_trend_png(self, tmp_path):
-        """Test PNG crash trend chart."""
-        visualizer = FuzzingVisualizer(str(tmp_path / "charts"))
-        trend_data = create_trend_analysis()
-        trend_data.crashes_over_time = [
-            (datetime(2024, 1, 1, 10, 0), 1),
-            (datetime(2024, 1, 1, 11, 0), 2),
-            (datetime(2024, 1, 1, 12, 0), 3),
-        ]
-
-        output_path = visualizer.plot_crash_trend(trend_data, output_format="png")
-
-        assert output_path.exists()
-        assert output_path.suffix == ".png"
-
-    def test_plot_crash_trend_svg(self, tmp_path):
-        """Test SVG crash trend chart."""
-        visualizer = FuzzingVisualizer(str(tmp_path / "charts"))
-        trend_data = create_trend_analysis()
-        trend_data.crashes_over_time = [
-            (datetime(2024, 1, 1, 10, 0), 5),
-        ]
-
-        output_path = visualizer.plot_crash_trend(trend_data, output_format="svg")
-
-        assert output_path.exists()
-        assert output_path.suffix == ".svg"
-
-    def test_plot_crash_trend_html(self, tmp_path):
-        """Test HTML crash trend chart (Plotly)."""
-        visualizer = FuzzingVisualizer(str(tmp_path / "charts"))
-        trend_data = create_trend_analysis()
-        trend_data.crashes_over_time = [
-            (datetime(2024, 1, 1, 10, 0), 1),
-            (datetime(2024, 1, 1, 11, 0), 2),
-        ]
-
-        output_path = visualizer.plot_crash_trend(trend_data, output_format="html")
-
-        assert output_path.exists()
-        assert output_path.suffix == ".html"
-
-    def test_plot_crash_trend_empty_data_png(self, tmp_path):
-        """Test crash trend chart with no data (PNG)."""
-        visualizer = FuzzingVisualizer(str(tmp_path / "charts"))
-        trend_data = create_trend_analysis()
-        trend_data.crashes_over_time = []
-
-        output_path = visualizer.plot_crash_trend(trend_data, output_format="png")
-
-        assert output_path.exists()
-
-    def test_plot_crash_trend_empty_data_html(self, tmp_path):
-        """Test crash trend chart with no data (HTML)."""
-        visualizer = FuzzingVisualizer(str(tmp_path / "charts"))
-        trend_data = create_trend_analysis()
-        trend_data.crashes_over_time = []
-
-        output_path = visualizer.plot_crash_trend(trend_data, output_format="html")
-
-        assert output_path.exists()
-        content = output_path.read_text(encoding="utf-8")
-        assert "No crash data available" in content
 
 
 class TestPlotCoverageHeatmap:
@@ -507,14 +427,6 @@ class TestVisualizationIntegration:
             effectiveness_data, output_format="png"
         )
 
-        # Create crash trend chart
-        trend_data = create_trend_analysis()
-        trend_data.crashes_over_time = [
-            (datetime(2024, 1, 1, 10, 0), 1),
-            (datetime(2024, 1, 1, 11, 0), 2),
-        ]
-        trend_path = visualizer.plot_crash_trend(trend_data, output_format="png")
-
         # Create coverage heatmap
         coverage_data = {
             "strategy_a": create_coverage_correlation(
@@ -543,18 +455,16 @@ class TestVisualizationIntegration:
         # Create summary HTML
         summary_html = visualizer.create_summary_report_html(
             strategy_chart_path=strategy_path,
-            trend_chart_path=trend_path,
+            trend_chart_path=Path("trend_placeholder.png"),
             coverage_chart_path=coverage_path,
             performance_chart_path=performance_path,
         )
 
         # Verify all outputs
         assert strategy_path.exists()
-        assert trend_path.exists()
         assert coverage_path.exists()
         assert performance_path.exists()
         assert strategy_path.name in summary_html
-        assert trend_path.name in summary_html
         assert coverage_path.name in summary_html
         assert performance_path.name in summary_html
 
@@ -567,11 +477,6 @@ class TestVisualizationIntegration:
         strategy_path = visualizer.plot_strategy_effectiveness(
             effectiveness_data, output_format="html"
         )
-
-        # Crash trend
-        trend_data = create_trend_analysis()
-        trend_data.crashes_over_time = [(datetime(2024, 1, 1), 1)]
-        trend_path = visualizer.plot_crash_trend(trend_data, output_format="html")
 
         # Coverage heatmap
         coverage_data = {
@@ -600,7 +505,6 @@ class TestVisualizationIntegration:
 
         # Verify all HTML files exist
         assert strategy_path.suffix == ".html"
-        assert trend_path.suffix == ".html"
         assert coverage_path.suffix == ".html"
         assert performance_path.suffix == ".html"
 
@@ -671,17 +575,5 @@ class TestEdgeCases:
         output_path = visualizer.plot_performance_dashboard(
             performance_data, output_format="png"
         )
-
-        assert output_path.exists()
-
-    def test_long_trend_data(self, tmp_path):
-        """Test crash trend with many data points."""
-        visualizer = FuzzingVisualizer(str(tmp_path / "charts"))
-        trend_data = create_trend_analysis()
-        trend_data.crashes_over_time = [
-            (datetime(2024, 1, 1, i % 24, 0), 1) for i in range(100)
-        ]
-
-        output_path = visualizer.plot_crash_trend(trend_data, output_format="png")
 
         assert output_path.exists()

@@ -9,7 +9,6 @@ from pathlib import Path
 from dicom_fuzzer.core.analytics.campaign_analytics import (
     CoverageCorrelation,
     PerformanceMetrics,
-    TrendAnalysis,
 )
 from dicom_fuzzer.core.analytics.matplotlib_charts import MatplotlibChartRenderer
 from dicom_fuzzer.core.analytics.plotly_charts import PlotlyChartRenderer
@@ -68,23 +67,6 @@ class FuzzingVisualizer:
         return self._matplotlib.plot_strategy_effectiveness(
             effectiveness_data, output_format
         )
-
-    def plot_crash_trend(
-        self, trend_data: TrendAnalysis, output_format: str = "png"
-    ) -> Path:
-        """Create line chart of crash discovery over time.
-
-        Args:
-            trend_data: TrendAnalysis object with time-series data
-            output_format: Output format ('png', 'svg', 'html')
-
-        Returns:
-            Path to saved chart file
-
-        """
-        if output_format == "html":
-            return self._plotly.plot_crash_trend(trend_data)
-        return self._matplotlib.plot_crash_trend(trend_data, output_format)
 
     def plot_coverage_heatmap(
         self, coverage_data: dict[str, CoverageCorrelation], output_format: str = "png"

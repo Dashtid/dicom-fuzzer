@@ -9,7 +9,7 @@ These tests improve coverage for modules with low coverage percentages.
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -18,7 +18,6 @@ import pytest
 from dicom_fuzzer.core.analytics.campaign_analytics import (
     CoverageCorrelation,
     PerformanceMetrics,
-    TrendAnalysis,
 )
 from dicom_fuzzer.core.analytics.visualization import FuzzingVisualizer
 
@@ -48,28 +47,6 @@ class TestFuzzingVisualizerE2E:
             "structure_fuzzer": {"effectiveness_score": 0.58, "usage_count": 40},
             "dictionary_fuzzer": {"effectiveness_score": 0.45, "usage_count": 30},
         }
-
-    @pytest.fixture
-    def sample_trend_data(self):
-        """Sample trend analysis data."""
-        base_time = datetime.now()
-        start_time = base_time - timedelta(hours=5)
-        end_time = base_time
-
-        trend = TrendAnalysis(
-            campaign_name="test_campaign",
-            start_time=start_time,
-            end_time=end_time,
-            total_duration=end_time - start_time,
-            crashes_over_time=[
-                (base_time - timedelta(hours=5), 2),
-                (base_time - timedelta(hours=4), 1),
-                (base_time - timedelta(hours=3), 3),
-                (base_time - timedelta(hours=2), 2),
-                (base_time - timedelta(hours=1), 4),
-            ],
-        )
-        return trend
 
     @pytest.fixture
     def sample_coverage_data(self):
@@ -148,44 +125,6 @@ class TestFuzzingVisualizerE2E:
         content = output_path.read_text(encoding="utf-8")
         assert "plotly" in content.lower() or "script" in content.lower()
 
-    def test_plot_crash_trend_png(self, visualizer, sample_trend_data):
-        """Test crash trend chart generation (PNG)."""
-        output_path = visualizer.plot_crash_trend(
-            sample_trend_data, output_format="png"
-        )
-
-        assert output_path.exists()
-        assert output_path.suffix == ".png"
-        assert output_path.stat().st_size > 0
-
-    def test_plot_crash_trend_html(self, visualizer, sample_trend_data):
-        """Test crash trend interactive chart (HTML)."""
-        output_path = visualizer.plot_crash_trend(
-            sample_trend_data, output_format="html"
-        )
-
-        assert output_path.exists()
-        assert output_path.suffix == ".html"
-
-    def test_plot_crash_trend_empty_data(self, visualizer):
-        """Test crash trend with empty data."""
-        base_time = datetime.now()
-        empty_trend = TrendAnalysis(
-            campaign_name="empty_test",
-            start_time=base_time - timedelta(hours=1),
-            end_time=base_time,
-            total_duration=timedelta(hours=1),
-            crashes_over_time=[],
-        )
-
-        output_path = visualizer.plot_crash_trend(empty_trend, output_format="png")
-        assert output_path.exists()
-
-        output_path_html = visualizer.plot_crash_trend(
-            empty_trend, output_format="html"
-        )
-        assert output_path_html.exists()
-
     def test_plot_coverage_heatmap_png(self, visualizer, sample_coverage_data):
         """Test coverage heatmap generation (PNG)."""
         output_path = visualizer.plot_coverage_heatmap(
@@ -228,7 +167,6 @@ class TestFuzzingVisualizerE2E:
         self,
         visualizer,
         sample_effectiveness_data,
-        sample_trend_data,
         sample_coverage_data,
         sample_performance_data,
     ):
@@ -236,9 +174,6 @@ class TestFuzzingVisualizerE2E:
         # Generate all charts
         strategy_chart = visualizer.plot_strategy_effectiveness(
             sample_effectiveness_data, output_format="png"
-        )
-        trend_chart = visualizer.plot_crash_trend(
-            sample_trend_data, output_format="png"
         )
         coverage_chart = visualizer.plot_coverage_heatmap(
             sample_coverage_data, output_format="png"
@@ -249,7 +184,10 @@ class TestFuzzingVisualizerE2E:
 
         # Generate summary HTML
         html = visualizer.create_summary_report_html(
-            strategy_chart, trend_chart, coverage_chart, performance_chart
+            strategy_chart,
+            Path("trend_placeholder.png"),
+            coverage_chart,
+            performance_chart,
         )
 
         # Verify HTML content
@@ -678,24 +616,6 @@ class TestCampaignAnalyticsDataclasses:
         assert 0 <= score <= 1
         assert isinstance(score, float)
 
-    def test_trend_analysis_with_data(self):
-        """Test TrendAnalysis with crash data."""
-        base_time = datetime.now()
-        trend = TrendAnalysis(
-            campaign_name="test",
-            start_time=base_time - timedelta(hours=1),
-            end_time=base_time,
-            total_duration=timedelta(hours=1),
-            crashes_over_time=[
-                (base_time - timedelta(minutes=30), 2),
-                (base_time - timedelta(minutes=15), 1),
-            ],
-        )
-
-        assert trend.campaign_name == "test"
-        rate = trend.crash_discovery_rate()
-        assert rate >= 0
-
     def test_coverage_correlation_edge_cases(self):
         """Test CoverageCorrelation with edge case values."""
         # Zero values
@@ -732,18 +652,6 @@ class TestIntegrationWorkflowE2E:
             "strategy_b": {"effectiveness_score": 0.6, "usage_count": 80},
         }
 
-        base_time = datetime.now()
-        trend_data = TrendAnalysis(
-            campaign_name="integration_test",
-            start_time=base_time - timedelta(hours=2),
-            end_time=base_time,
-            total_duration=timedelta(hours=2),
-            crashes_over_time=[
-                (base_time - timedelta(hours=1), 1),
-                (base_time, 2),
-            ],
-        )
-
         coverage_data = {
             "strategy_a": CoverageCorrelation(
                 strategy="strategy_a",
@@ -766,19 +674,26 @@ class TestIntegrationWorkflowE2E:
         # 2. Create visualizer and generate all charts
         visualizer = FuzzingVisualizer(output_dir=str(tmp_path / "charts"))
 
-        charts = []
-        charts.append(visualizer.plot_strategy_effectiveness(effectiveness_data, "png"))
-        charts.append(visualizer.plot_crash_trend(trend_data, "png"))
-        charts.append(visualizer.plot_coverage_heatmap(coverage_data, "png"))
-        charts.append(visualizer.plot_performance_dashboard(performance_data, "png"))
+        strategy_chart = visualizer.plot_strategy_effectiveness(
+            effectiveness_data, "png"
+        )
+        coverage_chart = visualizer.plot_coverage_heatmap(coverage_data, "png")
+        performance_chart = visualizer.plot_performance_dashboard(
+            performance_data, "png"
+        )
 
         # 3. Verify all charts created
-        for chart_path in charts:
+        for chart_path in [strategy_chart, coverage_chart, performance_chart]:
             assert chart_path.exists()
             assert chart_path.stat().st_size > 0
 
         # 4. Generate summary HTML
-        html = visualizer.create_summary_report_html(*charts)
+        html = visualizer.create_summary_report_html(
+            strategy_chart,
+            Path("trend_placeholder.png"),
+            coverage_chart,
+            performance_chart,
+        )
         assert len(html) > 0
         assert "charts-container" in html
 

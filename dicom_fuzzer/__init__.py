@@ -15,7 +15,6 @@ try:
         CampaignAnalyzer,
         CoverageCorrelation,
         PerformanceMetrics,
-        TrendAnalysis,
     )
     from dicom_fuzzer.core.analytics.visualization import FuzzingVisualizer
 except ImportError as _import_err:
@@ -23,7 +22,6 @@ except ImportError as _import_err:
     CampaignAnalyzer = None  # type: ignore[misc,assignment]
     CoverageCorrelation = None  # type: ignore[misc,assignment]
     PerformanceMetrics = None  # type: ignore[misc,assignment]
-    TrendAnalysis = None  # type: ignore[misc,assignment]
     FuzzingVisualizer = None  # type: ignore[misc,assignment]
     del _import_err  # Avoid unused variable warning
 from dicom_fuzzer.core.crash import CrashAnalyzer
@@ -52,7 +50,6 @@ __all__ = [
     "SeriesMutationSummary",
     "CampaignAnalyzer",
     "CoverageCorrelation",
-    "TrendAnalysis",
     "PerformanceMetrics",
     "FuzzingVisualizer",
 ]

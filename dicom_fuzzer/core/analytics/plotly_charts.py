@@ -12,7 +12,6 @@ from plotly.subplots import make_subplots
 from dicom_fuzzer.core.analytics.campaign_analytics import (
     CoverageCorrelation,
     PerformanceMetrics,
-    TrendAnalysis,
 )
 from dicom_fuzzer.utils.identifiers import generate_timestamp_id
 
@@ -74,63 +73,6 @@ class PlotlyChartRenderer:
 
         timestamp = generate_timestamp_id()
         output_path = self.output_dir / f"strategy_effectiveness_{timestamp}.html"
-        fig.write_html(str(output_path))
-
-        return output_path
-
-    def plot_crash_trend(self, trend_data: TrendAnalysis) -> Path:
-        """Create interactive crash trend chart."""
-        if not trend_data.crashes_over_time:
-            fig = go.Figure()
-            fig.add_annotation(
-                text="No crash data available",
-                xref="paper",
-                yref="paper",
-                x=0.5,
-                y=0.5,
-                showarrow=False,
-                font={"size": 14, "color": "gray"},
-            )
-            timestamp = generate_timestamp_id()
-            output_path = self.output_dir / f"crash_trend_{timestamp}.html"
-            fig.write_html(str(output_path))
-            return output_path
-
-        timestamps = [ts for ts, _ in trend_data.crashes_over_time]
-        cumulative_crashes = []
-        total = 0
-        for _, count in trend_data.crashes_over_time:
-            total += count
-            cumulative_crashes.append(total)
-
-        fig = go.Figure(
-            data=[
-                go.Scatter(
-                    x=timestamps,
-                    y=cumulative_crashes,
-                    mode="lines+markers",
-                    line={"color": self.colors["danger"], "width": 2},
-                    marker={"size": 8},
-                    hovertemplate=(
-                        "<b>Time:</b> %{x}<br>"
-                        + "<b>Cumulative Crashes:</b> %{y}<br>"
-                        + "<extra></extra>"
-                    ),
-                )
-            ]
-        )
-
-        fig.update_layout(
-            title="Crash Discovery Over Time",
-            xaxis_title="Time",
-            yaxis_title="Cumulative Crashes",
-            template="plotly_white",
-            font={"size": 12},
-            hovermode="x unified",
-        )
-
-        timestamp = generate_timestamp_id()
-        output_path = self.output_dir / f"crash_trend_{timestamp}.html"
         fig.write_html(str(output_path))
 
         return output_path
