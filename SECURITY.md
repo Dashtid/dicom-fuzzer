@@ -4,9 +4,9 @@
 
 | Version | Supported     |
 | ------- | ------------- |
-| 1.7.x   | Yes (Current) |
-| 1.6.x   | Yes           |
-| < 1.6   | No            |
+| 1.9.x   | Yes (Current) |
+| 1.8.x   | Yes           |
+| < 1.8   | No            |
 
 ## Reporting a Vulnerability
 
@@ -43,16 +43,18 @@ DICOM files often contain PHI. Follow these requirements:
 
 ## Malicious Sample Library
 
-The fuzzer generates intentionally malicious DICOM samples. See [CVE Reference](docs/CVE_REFERENCE.md) for details.
+The fuzzer generates intentionally malicious DICOM samples.
 
 | Category               | Risk   | Description                          |
 | ---------------------- | ------ | ------------------------------------ |
 | preamble_attacks/      | HIGH   | PE/ELF polyglots (CVE-2019-11687)    |
-| dicom_fuzzer/cve/      | HIGH   | Known CVE reproductions              |
 | parser_stress/         | MEDIUM | DoS via deep nesting, truncation     |
 | compliance_violations/ | LOW    | Malformed samples for parser testing |
 
-### CVE Samples
+### CVE Coverage
+
+The following CVEs are targeted by the format fuzzers (see `attacks/format/`).
+Attack patterns are embedded in the format fuzzers, not a standalone module.
 
 | CVE            | Product    | Type                   | CVSS |
 | -------------- | ---------- | ---------------------- | ---- |
@@ -75,16 +77,6 @@ The fuzzer generates intentionally malicious DICOM samples. See [CVE Reference](
 2. **Monitor resources** - Stress tests can cause resource exhaustion
 3. **Never execute polyglots** - PE/ELF polyglots are valid executables
 4. **Clean up after testing** - Remove generated samples when done
-
-### Detection Tools
-
-```bash
-# Scan files for threats
-dicom-fuzzer samples --scan ./files --recursive --json
-
-# Sanitize suspicious files
-dicom-fuzzer samples --sanitize suspicious.dcm
-```
 
 ## Security Advisories
 

@@ -1,40 +1,18 @@
 # CVE Reference
 
-DICOM vulnerabilities for security validation testing.
+Known DICOM CVEs targeted by the format fuzzers.
 
-## Purpose
-
-CVE replication generates deterministic test files to validate whether a DICOM viewer or parser is vulnerable to known CVEs. This is not fuzzing -- it produces specific malformed files targeting known vulnerabilities.
-
-**Intended use:**
-
-- Generate malformed DICOM files to test parser implementations
-- Validate software handles edge cases safely
-- Discover vulnerabilities before attackers do
-
-## Usage
+Attack patterns for these vulnerabilities are embedded in `dicom_fuzzer/attacks/format/`
+(primarily `compressed_pixel_fuzzer.py`, `pixel_fuzzer.py`, `structure_fuzzer.py`,
+`conformance_fuzzer.py`, and `metadata_fuzzer.py`). To exercise CVE-specific attack
+surfaces, run a standard fuzzing campaign with the relevant strategies:
 
 ```bash
-# List available CVEs
-dicom-fuzzer cve --list
+# Fuzz with all strategies (covers CVE attack patterns)
+dicom-fuzzer input.dcm -c 1000 -t ./viewer.exe
 
-# Generate all CVE files
-dicom-fuzzer cve --all -t template.dcm -o ./cve_output
-
-# Generate specific CVE
-dicom-fuzzer cve --cve CVE-2025-5943 -t template.dcm -o ./output
-
-# Filter by product
-dicom-fuzzer cve --product MicroDicom -t template.dcm -o ./output
-
-# Filter by category
-dicom-fuzzer cve --category heap_overflow -t template.dcm -o ./output
-
-# Get CVE details
-dicom-fuzzer cve --info CVE-2025-5943
-
-# Generate and test against a target viewer
-dicom-fuzzer cve --all -t template.dcm --target ./viewer.exe
+# Fuzz with specific strategies
+dicom-fuzzer input.dcm -c 500 -s pixel,conformance,structure -t ./viewer.exe
 ```
 
 ## CVE Database

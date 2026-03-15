@@ -5,6 +5,34 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-03-15 - Architecture Unification & Cleanup
+
+Refactoring release. No new attack surface. Focuses on pipeline unification,
+payload centralization, and removing stale dead code.
+
+### Changed
+
+- **Multiframe strategies unified** -- All 10 multiframe strategies now extend
+  `MultiFrameFuzzerBase(FormatFuzzerBase)` and are registered with `DicomMutator`.
+  `MultiFrameHandler`, `MutationStrategyBase`, and `create_multiframe_mutator` deleted.
+  `DicomMutator` now runs 28 strategies (18 format + 10 multiframe) in one pipeline.
+
+- **Attack payloads centralized** -- `SOP_CLASS_BY_MODALITY`, `TRANSFER_SYNTAX_BY_NAME`,
+  `INVALID_PN_VALUES`, `INVALID_DATES`, and `INVALID_TIMES` moved to `dicom_dictionaries.py`.
+  `ConformanceFuzzer` and `MetadataFuzzer` use aliased imports; all call sites unchanged.
+
+- **Strategy hit-rate wired into HTML reports** -- Fixed `GenerationStats` data loss bug
+  (reset on every `generate_batch()` call). Per-strategy hit counts now appear in the
+  campaign HTML report.
+
+### Removed
+
+- **CVE module** (`dicom_fuzzer/cve/`) -- removed. CVE attack patterns are embedded in the
+  format fuzzers (`attacks/format/`). The standalone `dicom-fuzzer cve` CLI command is removed.
+- **Crash-timeline dead code** -- `crash_timeline` accumulator and `get_crash_timeline()`
+  deleted. No production callers.
+- **`test_multiframe_handler.py`** (396-line test file for deleted handler)
+
 ## [1.9.0] - 2026-03-10 - Modality Fuzzers & Codebase Hardening
 
 Major feature release adding 6 modality-specific fuzzers, a seed-corpus generation CLI,
