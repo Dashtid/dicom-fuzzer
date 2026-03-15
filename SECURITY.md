@@ -41,35 +41,17 @@ DICOM files often contain PHI. Follow these requirements:
 3. **Proper disposal** - Securely delete fuzzed files after testing
 4. **Isolated networks** - Use isolated test networks, not production medical networks
 
-## Malicious Sample Library
+## Generated Artifacts
 
-The fuzzer generates intentionally malicious DICOM samples.
+The fuzzer generates intentionally malicious DICOM samples under `artifacts/fuzzed/`.
+Attack patterns are embedded across four modules:
 
-| Category               | Risk   | Description                          |
-| ---------------------- | ------ | ------------------------------------ |
-| preamble_attacks/      | HIGH   | PE/ELF polyglots (CVE-2019-11687)    |
-| parser_stress/         | MEDIUM | DoS via deep nesting, truncation     |
-| compliance_violations/ | LOW    | Malformed samples for parser testing |
-
-### CVE Coverage
-
-The following CVEs are targeted by the format fuzzers (see `attacks/format/`).
-Attack patterns are embedded in the format fuzzers, not a standalone module.
-
-| CVE            | Product    | Type                   | CVSS |
-| -------------- | ---------- | ---------------------- | ---- |
-| CVE-2025-5943  | MicroDicom | OOB write              | 8.8  |
-| CVE-2025-53618 | GDCM       | JPEG codec OOB read    | 7.5  |
-| CVE-2025-53619 | GDCM       | JPEG info disclosure   | 7.5  |
-| CVE-2025-11266 | GDCM       | PixelData OOB write    | 6.6  |
-| CVE-2025-1001  | RadiAnt    | TLS cert bypass (MitM) | 5.7  |
-| CVE-2024-33606 | MicroDicom | URL scheme auth bypass | 8.8  |
-| CVE-2024-28877 | MicroDicom | Stack buffer overflow  | 8.7  |
-| CVE-2024-22100 | MicroDicom | Heap buffer overflow   | 7.8  |
-| CVE-2022-2121  | DCMTK      | Null pointer deref     | 6.5  |
-| CVE-2022-2120  | DCMTK      | Path traversal (SCU)   | 7.5  |
-| CVE-2022-2119  | DCMTK      | Path traversal (SCP)   | 7.5  |
-| CVE-2019-11687 | DICOM Std  | Preamble executable    | N/A  |
+| Module                | Risk   | Description                                        |
+| --------------------- | ------ | -------------------------------------------------- |
+| `attacks/format/`     | HIGH   | Malformed headers, pixel data, preamble polyglots  |
+| `attacks/multiframe/` | HIGH   | Frame count mismatches, encapsulated pixel attacks |
+| `attacks/series/`     | HIGH   | Cross-series mutations targeting CVE patterns      |
+| `attacks/network/`    | MEDIUM | TLS/DIMSE protocol fuzzing (experimental)          |
 
 ### Safety Guidelines
 
