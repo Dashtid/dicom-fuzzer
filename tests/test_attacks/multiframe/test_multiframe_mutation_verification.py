@@ -127,7 +127,7 @@ class TestFrameCountMismatch:
     def test_number_of_frames(self, strategy, multiframe_ds, attack, expected_nof):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value=attack):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert result.NumberOfFrames == expected_nof
         assert len(records) == 1
         assert records[0].details["attack_type"] == attack
@@ -146,31 +146,31 @@ class TestFrameTimeCorruption:
     def test_negative_frame_time(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="negative_frame_time"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert result.FrameTime == -33.33
 
     def test_zero_frame_time(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="zero_frame_time"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert result.FrameTime == 0.0
 
     def test_nan_frame_time(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="nan_frame_time"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert math.isnan(result.FrameTime)
 
     def test_extreme_time_values(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="extreme_time_values"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert result.FrameTime == 1e308
 
     def test_invalid_time_vector(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", side_effect=_force_attack("invalid_time_vector")):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert hasattr(result, "FrameTimeVector")
         ftv = result.FrameTimeVector
         # pydicom returns scalar DSfloat for single-element sequences
@@ -182,7 +182,7 @@ class TestFrameTimeCorruption:
         with patch(
             "random.choice", side_effect=_force_attack("corrupt_temporal_index")
         ):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         corrupted = False
         for fg in result.PerFrameFunctionalGroupsSequence:
             if hasattr(fg, "FrameContentSequence") and fg.FrameContentSequence:
@@ -217,7 +217,7 @@ class TestPerFrameDimension:
     ):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", side_effect=_force_attack(attack_tuple)):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(records) >= 1
         assert records[0].details["attack_type"] == expected_type
 
@@ -235,19 +235,19 @@ class TestSharedGroup:
     def test_delete_shared_groups(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="delete_shared_groups"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert not hasattr(result, "SharedFunctionalGroupsSequence")
 
     def test_empty_shared_groups(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="empty_shared_groups"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(result.SharedFunctionalGroupsSequence) == 0
 
     def test_corrupt_pixel_measures(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="corrupt_pixel_measures"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         pm = result.SharedFunctionalGroupsSequence[0].PixelMeasuresSequence[0]
         assert list(pm.PixelSpacing) == [0.0, 0.0]
         assert pm.SliceThickness == -1.0
@@ -255,7 +255,7 @@ class TestSharedGroup:
     def test_invalid_orientation(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="invalid_orientation"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         sfg = result.SharedFunctionalGroupsSequence[0]
         orient = list(sfg.PlaneOrientationSequence[0].ImageOrientationPatient)
         assert any(math.isnan(v) for v in orient)
@@ -263,7 +263,7 @@ class TestSharedGroup:
     def test_conflict_with_per_frame(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="conflict_with_per_frame"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         shared_ps = list(
             result.SharedFunctionalGroupsSequence[0]
             .PixelMeasuresSequence[0]
@@ -287,26 +287,26 @@ class TestFrameIncrement:
     def test_nonexistent_tag(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="nonexistent_tag"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert hasattr(result, "FrameIncrementPointer")
         assert len(records) >= 1
 
     def test_invalid_format(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="invalid_format"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert hasattr(result, "FrameIncrementPointer")
 
     def test_point_to_pixel_data(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="point_to_pixel_data"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert hasattr(result, "FrameIncrementPointer")
 
     def test_multiple_invalid(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="multiple_invalid"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert hasattr(result, "FrameIncrementPointer")
 
 
@@ -323,7 +323,7 @@ class TestDimensionOverflow:
     def test_frame_dimension_overflow(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="frame_dimension_overflow"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert result.NumberOfFrames == 50000
         assert result.Rows == 10000
         assert result.Columns == 10000
@@ -331,7 +331,7 @@ class TestDimensionOverflow:
     def test_total_pixel_overflow(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="total_pixel_overflow"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert result.NumberOfFrames == 65535
         assert result.Rows == 65535
         assert result.Columns == 65535
@@ -339,13 +339,13 @@ class TestDimensionOverflow:
     def test_bits_multiplier_overflow(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="bits_multiplier_overflow"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert result.BitsAllocated == 64
 
     def test_samples_multiplier_overflow(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="samples_multiplier_overflow"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert result.SamplesPerPixel == 255
 
 
@@ -363,21 +363,21 @@ class TestFunctionalGroup:
         ds = copy.deepcopy(multiframe_ds)
         handler = strategy._attack_missing_per_frame
         with patch("random.choice", side_effect=_force_attack(handler)):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(result.PerFrameFunctionalGroupsSequence) < 10
 
     def test_extra_per_frame_groups(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         handler = strategy._attack_extra_per_frame
         with patch("random.choice", side_effect=_force_attack(handler)):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(result.PerFrameFunctionalGroupsSequence) > 10
 
     def test_empty_group_items(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         handler = strategy._attack_empty_items
         with patch("random.choice", side_effect=_force_attack(handler)):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         empty_count = sum(
             1 for fg in result.PerFrameFunctionalGroupsSequence if len(fg) == 0
         )
@@ -387,7 +387,7 @@ class TestFunctionalGroup:
         ds = copy.deepcopy(multiframe_ds)
         handler = strategy._attack_null_sequence
         with patch("random.choice", side_effect=_force_attack(handler)):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(records) >= 1
         assert records[0].details["attack_type"] == "null_sequence_items"
 
@@ -395,7 +395,7 @@ class TestFunctionalGroup:
         ds = copy.deepcopy(multiframe_ds)
         handler = strategy._attack_deeply_nested
         with patch("random.choice", side_effect=_force_attack(handler)):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(records) >= 1
         assert records[0].details["attack_type"] == "deeply_nested_corruption"
 
@@ -414,32 +414,32 @@ class TestPixelDataTruncation:
         ds = copy.deepcopy(multiframe_ds)
         original_len = len(ds.PixelData)
         with patch("random.choice", return_value="truncate_mid_frame"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(result.PixelData) < original_len
 
     def test_truncate_partial(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="truncate_partial"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(result.PixelData) < 524288  # Less than one frame
 
     def test_extra_bytes(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         original_len = len(ds.PixelData)
         with patch("random.choice", return_value="extra_bytes"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(result.PixelData) > original_len
 
     def test_empty_pixel_data(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="empty_pixel_data"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(result.PixelData) == 0
 
     def test_single_byte(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="single_byte"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(result.PixelData) == 1
 
 
@@ -470,7 +470,7 @@ class TestEncapsulatedPixel:
     def test_attack_produces_records(self, strategy, multiframe_ds, attack):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", side_effect=_force_attack(attack)):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(records) >= 1
         assert records[0].details["attack_type"] == attack
 
@@ -482,7 +482,7 @@ class TestEncapsulatedPixel:
         with patch(
             "random.choice", side_effect=_force_attack("fragment_undefined_length")
         ):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         if isinstance(result.PixelData, bytes):
             assert struct.pack("<I", 0xFFFFFFFF) in result.PixelData
 
@@ -500,7 +500,7 @@ class TestDimensionIndex:
     def test_invalid_index_pointer(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", side_effect=_force_attack("invalid_index_pointer")):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert hasattr(result, "DimensionIndexSequence")
         has_invalid = any(
             item.DimensionIndexPointer == Tag(0x9999, 0x9999)
@@ -515,13 +515,13 @@ class TestDimensionIndex:
             "random.choice",
             side_effect=_force_attack("index_values_length_mismatch"),
         ):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(records) >= 1
 
     def test_missing_index_values(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", side_effect=_force_attack("missing_index_values")):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(records) >= 1
 
     def test_out_of_range_index_values(self, strategy, multiframe_ds):
@@ -530,7 +530,7 @@ class TestDimensionIndex:
             "random.choice",
             side_effect=_force_attack("out_of_range_index_values"),
         ):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(records) >= 1
 
     def test_organization_type_mismatch(self, strategy, multiframe_ds):
@@ -539,14 +539,14 @@ class TestDimensionIndex:
             "random.choice",
             side_effect=_force_attack("organization_type_mismatch"),
         ):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert result.DimensionOrganizationType == "3D"
         assert len(result.DimensionIndexSequence) == 1
 
     def test_empty_dimension_sequence(self, strategy, multiframe_ds):
         ds = copy.deepcopy(multiframe_ds)
         with patch("random.choice", return_value="empty_dimension_sequence"):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(result.DimensionIndexSequence) == 0
 
     def test_duplicate_dimension_pointers(self, strategy, multiframe_ds):
@@ -555,5 +555,5 @@ class TestDimensionIndex:
             "random.choice",
             side_effect=_force_attack("duplicate_dimension_pointers"),
         ):
-            result, records = strategy.mutate(ds, mutation_count=1)
+            result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(result.DimensionIndexSequence) >= 4

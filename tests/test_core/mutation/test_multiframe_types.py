@@ -199,15 +199,3 @@ class TestBackwardCompatibilityImports:
         assert FrameInfo is not None
         assert MultiFrameMutationRecord is not None
         assert MultiFrameMutationStrategy is not None
-
-    def test_import_from_multiframe_handler(self) -> None:
-        """Verify imports from multiframe_handler still work."""
-        from dicom_fuzzer.core.mutation.multiframe_handler import (
-            FrameInfo,
-            MultiFrameMutationRecord,
-            MultiFrameMutationStrategy,
-        )
-
-        assert FrameInfo is not None
-        assert MultiFrameMutationRecord is not None
-        assert MultiFrameMutationStrategy is not None

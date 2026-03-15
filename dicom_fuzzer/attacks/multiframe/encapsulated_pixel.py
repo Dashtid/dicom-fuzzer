@@ -29,7 +29,7 @@ from pydicom.uid import UID
 
 from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
 
-from .base import MutationStrategyBase
+from .format_base import MultiFrameFuzzerBase
 
 # DICOM sequence delimiter bytes (FFFE,E0DD with zero length)
 _SEQ_DELIM_BYTES = b"\xfe\xff\xdd\xe0\x00\x00\x00\x00"
@@ -39,7 +39,7 @@ _ITEM_TAG_BYTES = b"\xfe\xff\x00\xe0"
 _UNDEFINED_LENGTH = b"\xff\xff\xff\xff"
 
 
-class EncapsulatedPixelStrategy(MutationStrategyBase):
+class EncapsulatedPixelStrategy(MultiFrameFuzzerBase):
     """Mutation strategy for encapsulated pixel data attacks."""
 
     _ATTACK_TYPES = [
@@ -58,6 +58,10 @@ class EncapsulatedPixelStrategy(MutationStrategyBase):
     def strategy_name(self) -> str:
         """Return the strategy name."""
         return "encapsulated_pixel_data"
+
+    def mutate(self, dataset: Dataset) -> Dataset:
+        """Apply one randomly-selected mutation and return the mutated dataset."""
+        return self._mutate_impl(dataset, 1)[0]
 
     def _make_record(
         self,
@@ -87,9 +91,9 @@ class EncapsulatedPixelStrategy(MutationStrategyBase):
         Returns raw bytes: BOT item + N fragment items + sequence delimiter.
 
         """
-        fragments = []
-        for _ in range(frame_count):
-            fragments.append(bytes(random.getrandbits(8) for _ in range(frame_size)))
+        import os
+
+        fragments = [os.urandom(frame_size) for _ in range(frame_count)]
 
         # BOT: item tag + length + offset entries
         offsets = []
@@ -115,10 +119,12 @@ class EncapsulatedPixelStrategy(MutationStrategyBase):
         Returns (frame_count, fragment_size) used.
 
         """
-        frame_count = self._get_frame_count(dataset)
+        frame_count = min(self._get_frame_count(dataset), 10)  # cap for perf
         frame_size = self._calculate_frame_size(dataset)
         if frame_size == 0:
             frame_size = 256  # Default fragment size
+        # Cap to 256 bytes: the attack targets structure, not content size.
+        frame_size = min(frame_size, 256)
 
         # Set a compressed transfer syntax
         if not hasattr(dataset, "file_meta"):
@@ -342,7 +348,7 @@ class EncapsulatedPixelStrategy(MutationStrategyBase):
             "missing_seq_delimiter",
         )
 
-    def mutate(
+    def _mutate_impl(
         self,
         dataset: Dataset,
         mutation_count: int,

@@ -206,13 +206,13 @@ def run_multiframe_round_trip(
     dataset: Dataset,
     attempts: int = ROUND_TRIP_ATTEMPTS,
 ) -> dict:
-    """Run N attempts for multiframe strategies (mutate(ds, mutation_count))."""
+    """Run N attempts for multiframe strategies using the FormatFuzzerBase interface."""
     success_count = 0
 
     for _ in range(attempts):
         ds = copy.deepcopy(dataset)
         strategy = strategy_cls()
-        result_ds, _records = strategy.mutate(ds, mutation_count=1)
+        result_ds = strategy.mutate(ds)
         rt = round_trip(result_ds)
         if rt is not None:
             success_count += 1
