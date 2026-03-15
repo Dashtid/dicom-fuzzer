@@ -50,12 +50,10 @@ from .exceptions import DicomFuzzingError, ValidationError
 from .harness.target_runner import ExecutionStatus, TargetRunner
 
 # Mutation primitives
-from .mutation.multiframe_handler import (
+from .mutation.multiframe_types import (
     FrameInfo,
-    MultiFrameHandler,
     MultiFrameMutationRecord,
     MultiFrameMutationStrategy,
-    create_multiframe_mutator,
 )
 from .mutation.mutator import DicomMutator
 
@@ -109,10 +107,8 @@ __all__ = [
     "StateCoverage",
     "StateFingerprint",
     "StateTransition",
-    # Multi-frame handler
+    # Multi-frame types
     "FrameInfo",
-    "MultiFrameHandler",
     "MultiFrameMutationRecord",
     "MultiFrameMutationStrategy",
-    "create_multiframe_mutator",
 ]

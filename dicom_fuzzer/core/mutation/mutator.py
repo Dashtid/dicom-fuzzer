@@ -120,6 +120,34 @@ class DicomMutator:
         from dicom_fuzzer.attacks.format.seg_fuzzer import SegmentationFuzzer
         from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
         from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
+        from dicom_fuzzer.attacks.multiframe.dimension_index import (
+            DimensionIndexStrategy,
+        )
+        from dicom_fuzzer.attacks.multiframe.dimension_overflow import (
+            DimensionOverflowStrategy,
+        )
+        from dicom_fuzzer.attacks.multiframe.encapsulated_pixel import (
+            EncapsulatedPixelStrategy,
+        )
+        from dicom_fuzzer.attacks.multiframe.frame_count import (
+            FrameCountMismatchStrategy,
+        )
+        from dicom_fuzzer.attacks.multiframe.frame_increment import (
+            FrameIncrementStrategy,
+        )
+        from dicom_fuzzer.attacks.multiframe.frame_time import (
+            FrameTimeCorruptionStrategy,
+        )
+        from dicom_fuzzer.attacks.multiframe.functional_group import (
+            FunctionalGroupStrategy,
+        )
+        from dicom_fuzzer.attacks.multiframe.per_frame_dimension import (
+            PerFrameDimensionStrategy,
+        )
+        from dicom_fuzzer.attacks.multiframe.pixel_truncation import (
+            PixelDataTruncationStrategy,
+        )
+        from dicom_fuzzer.attacks.multiframe.shared_group import SharedGroupStrategy
 
         for fuzzer_cls in [
             CalibrationFuzzer,
@@ -140,6 +168,17 @@ class DicomMutator:
             SegmentationFuzzer,
             SequenceFuzzer,
             StructureFuzzer,
+            # Multi-frame strategies
+            DimensionIndexStrategy,
+            DimensionOverflowStrategy,
+            EncapsulatedPixelStrategy,
+            FrameCountMismatchStrategy,
+            FrameIncrementStrategy,
+            FrameTimeCorruptionStrategy,
+            FunctionalGroupStrategy,
+            PerFrameDimensionStrategy,
+            PixelDataTruncationStrategy,
+            SharedGroupStrategy,
         ]:
             try:
                 self.register_strategy(fuzzer_cls())  # type: ignore[abstract]
