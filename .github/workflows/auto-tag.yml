@@ -11,6 +11,11 @@ on:
     paths:
       - "pyproject.toml"
 
+# Serialize runs so two rapid pyproject.toml changes can't both race to create the same tag.
+concurrency:
+  group: auto-tag
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -21,12 +26,16 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1  # Only HEAD needed — ls-remote queries remote directly
 
       - name: Read version from pyproject.toml
         id: ver
         run: |
-          VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          VERSION=$(grep '^version = ' pyproject.toml | awk -F'"' '{print $2}')
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not parse version from pyproject.toml"
+            exit 1
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Detected version: $VERSION"
 
