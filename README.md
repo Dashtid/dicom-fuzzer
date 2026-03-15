@@ -24,26 +24,20 @@ dicom-fuzzer input.dcm -c 100 -o ./artifacts/output
 # Fuzz and test against a target viewer
 dicom-fuzzer input.dcm -c 1000 -t ./viewer.exe --timeout 10
 
-# Replicate known CVEs against a target
-dicom-fuzzer cve --all -t template.dcm --target ./viewer.exe
+# Generate seed corpus for AFL/WinAFL
+dicom-fuzzer generate-seeds input.dcm -c 500 -o ./seeds/
 ```
 
 ## Features
 
 ### Fuzzing
 
-- 12 mutation strategies: metadata, pixel, header, structure, encoding, sequences, compressed pixel, conformance, references, private tags, calibration, dictionary
+- 28 mutation strategies across 4 tiers: metadata, structure/encoding, pixel/modality-specific, multi-frame
+- 18 format fuzzers (generic + modality-specific: SEG, RTSS, RT Dose, NM, PET, Encapsulated PDF)
+- 10 multiframe strategies (frame count, temporal, dimensional, encapsulated pixel)
 - 3D series fuzzing (CT/MRI volumetric data)
-- Multi-frame fuzzing (temporal, dimensional, encapsulated pixel)
 - Study-level cross-series attacks
 - Network protocol fuzzing (DIMSE, TLS) -- experimental
-
-### CVE Replication
-
-- 22 known DICOM CVEs with 75 deterministic variants
-- Filter by product, category, or specific CVE ID
-- Run generated files against a target viewer for validation
-- Not fuzzing -- produces deterministic output for specific vulnerabilities
 
 ### Analysis
 
@@ -51,6 +45,7 @@ dicom-fuzzer cve --all -t template.dcm --target ./viewer.exe
 - Crash triaging with severity and exploitability scoring
 - Test case minimization
 - Corpus management
+- HTML campaign reports with per-strategy hit rates
 
 ### Integration
 
@@ -62,8 +57,9 @@ dicom-fuzzer cve --all -t template.dcm --target ./viewer.exe
 ## CLI Reference
 
 ```bash
-dicom-fuzzer --help              # Main help
-dicom-fuzzer cve --help          # CVE replication
+dicom-fuzzer --help              # Main fuzzing campaign
+dicom-fuzzer target --help       # Target testing
+dicom-fuzzer generate-seeds --help  # Seed corpus generation
 dicom-fuzzer report --help       # Report generation
 dicom-fuzzer corpus --help       # Corpus management
 dicom-fuzzer tls --help          # TLS/auth testing
@@ -93,7 +89,6 @@ dicom-fuzzer/
 │   ├── attacks/     # Attack modules (format, series, network, multiframe)
 │   ├── cli/         # Command-line interface (11 subcommands)
 │   ├── core/        # Engine, mutation, corpus, crash analysis, harness, reporting
-│   ├── cve/         # CVE replication (deterministic, 22 CVEs)
 │   └── utils/       # Logging, hashing, identifiers
 ├── tests/           # Test suite
 ├── docs/            # Documentation
@@ -104,7 +99,6 @@ dicom-fuzzer/
 
 - [Quick Start Guide](docs/QUICKSTART.md)
 - [CLI Reference](docs/CLI_REFERENCE.md)
-- [CVE Reference](docs/CVE_REFERENCE.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)

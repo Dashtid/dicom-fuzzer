@@ -26,7 +26,6 @@ dicom-fuzzer/
 │   │   ├── harness/       # Target execution and process monitoring
 │   │   ├── adapters/      # Viewer-specific automation
 │   │   └── analytics/     # Campaign analytics and visualization
-│   ├── cve/           # CVE replication (deterministic, 22 CVEs)
 │   ├── attacks/       # Attack modules (format, series, network, multiframe)
 │   ├── utils/         # Utilities
 │   └── tools/         # Benchmarks and scripts
@@ -77,7 +76,7 @@ Reporting (HTML/JSON)
 
 ```text
 attacks/
-├── format/               # DICOM file format attacks (12 fuzzers, all inherit FormatFuzzerBase)
+├── format/               # DICOM file format attacks (18 fuzzers, all inherit FormatFuzzerBase)
 │   ├── FormatFuzzerBase      # ABC: mutate(dataset) + strategy_name
 │   ├── HeaderFuzzer          # VR and tag mutations
 │   ├── PixelFuzzer           # Image dimensions, pixel data
@@ -98,13 +97,17 @@ attacks/
 │   ├── TemporalAttacksMixin  # Cross-slice temporal
 │   ├── StudyMutator          # Cross-series study-level
 │   └── ParallelSeriesMutator # Multi-process wrapper
-├── multiframe/           # Multi-frame mutation strategies (10 strategies)
-│   ├── FrameCountMismatchStrategy   # NumberOfFrames attacks
-│   ├── FrameTimeCorruptionStrategy  # Temporal info corruption
-│   ├── DimensionOverflowStrategy    # Integer overflow via dimensions
-│   ├── EncapsulatedPixelStrategy    # BOT/EOT/fragment attacks
-│   ├── DimensionIndexStrategy       # Dimension index module attacks
-│   └── ...                          # 5 more frame-level strategies
+├── multiframe/           # Multi-frame mutation strategies (10 strategies, all extend MultiFrameFuzzerBase)
+│   ├── FrameCountMismatchStrategy   # NumberOfFrames vs actual frame data
+│   ├── FrameTimeCorruptionStrategy  # FrameTime / FrameIncrementPointer
+│   ├── FrameIncrementStrategy       # FrameIncrementPointer tag corruption
+│   ├── FunctionalGroupStrategy      # Shared/per-frame functional group sequences
+│   ├── PerFrameDimensionStrategy    # Per-frame dimension index integrity
+│   ├── DimensionIndexStrategy       # DimensionIndexSequence corruption
+│   ├── DimensionOverflowStrategy    # Integer overflow via dimension fields
+│   ├── EncapsulatedPixelStrategy    # BOT/EOT fragments, offset table attacks
+│   ├── PixelDataTruncationStrategy  # Pixel data truncation vs frame count
+│   └── SharedGroupStrategy          # Shared functional group mutations
 └── network/              # Network protocol fuzzing (experimental)
     ├── dimse/                # DIMSE protocol layer
     ├── tls/                  # TLS security testing
@@ -112,19 +115,6 @@ attacks/
 ```
 
 CLI strategy flags (`-s metadata,pixel`) map to format fuzzers internally.
-
-## CVE Module
-
-CVE replication is deterministic (not fuzzing). Located in `dicom_fuzzer/cve/`:
-
-```text
-cve/
-├── registry.py      # CVE metadata and lookup (22 CVEs)
-├── generator.py     # File generation from templates
-└── payloads/        # Per-CVE mutation payloads
-```
-
-Usage: `dicom-fuzzer cve --list`
 
 ## Extending
 
