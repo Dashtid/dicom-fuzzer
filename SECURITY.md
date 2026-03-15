@@ -53,10 +53,6 @@ Attack patterns are embedded across four modules:
 | `attacks/series/`     | HIGH   | Cross-series mutations targeting CVE patterns      |
 | `attacks/network/`    | MEDIUM | TLS/DIMSE protocol fuzzing (experimental)          |
 
-### CVE Coverage
-
-Attack patterns target 22 known DICOM CVEs. See [docs/CVE_REFERENCE.md](docs/CVE_REFERENCE.md) for the full list.
-
 ### Safety Guidelines
 
 1. **Isolate testing** - Use VMs, containers, or air-gapped systems
