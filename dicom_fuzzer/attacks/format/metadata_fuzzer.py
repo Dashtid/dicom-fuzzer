@@ -20,69 +20,20 @@ from pydicom.dataset import Dataset
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
-from .dicom_dictionaries import INJECTION_PAYLOADS
+from .dicom_dictionaries import (
+    INJECTION_PAYLOADS,
+)
+from .dicom_dictionaries import (
+    INVALID_DATES as _INVALID_DATES,
+)
+from .dicom_dictionaries import (
+    INVALID_PN_VALUES as _PN_ATTACKS,
+)
+from .dicom_dictionaries import (
+    INVALID_TIMES as _INVALID_TIMES,
+)
 
 logger = get_logger(__name__)
-
-# Malformed Person Name (PN) values
-# DICOM PN format: alphabetic^ideographic^phonetic, each with up to 5 components
-_PN_ATTACKS = [
-    "^^^^^",  # All empty components
-    "A^B^C^D^E^F^G",  # Too many component groups
-    "A" * 65,  # Over 64-char component limit
-    "Name^With^Too^Many^Carets^Here^And^More",  # Excess carets
-    "=Equal^Sign",  # Invalid equals in PN
-    "\x00Hidden^Name",  # Null byte in name
-    "Name\nWith\nNewlines",  # Embedded newlines
-    "\\Path\\Like^Name",  # Backslash in name
-    "",  # Empty name
-    " ",  # Whitespace only
-    "^",  # Single caret
-    "^^^",  # Just carets
-    "Name^Given=Ideographic=Phonetic",  # PN with all 3 groups
-    "\xe4\xb8\xad\xe6\x96\x87^ChineseName",  # Latin codepoints mimicking UTF-8 byte sequence
-    "Smith^John" * 20,  # Repeated name exceeding length
-    "DROP^TABLE^patients",  # SQL in name components
-]
-
-# Invalid DICOM date (DA) values
-_INVALID_DATES = [
-    "00000000",  # All zeros
-    "99999999",  # All nines
-    "20251301",  # Month 13
-    "20250132",  # Day 32
-    "20250230",  # Feb 30
-    "20250000",  # Month/day zero
-    "2025",  # Truncated
-    "202501",  # Missing day
-    "2025-01-01",  # Dashes (wrong format)
-    "01012025",  # MMDDYYYY instead of YYYYMMDD
-    "20250101120000",  # Date+time in DA field
-    "00010101",  # Year 1
-    "99991231",  # Year 9999
-    "30000101",  # Far future
-    "",  # Empty
-    "NOTADATE",  # Non-numeric
-    "2025/01/01",  # Slashes
-]
-
-# Invalid DICOM time (TM) values
-_INVALID_TIMES = [
-    "250000",  # Hour 25
-    "006100",  # Minute 61
-    "000061",  # Second 61
-    "240000",  # Midnight boundary (technically valid, many parsers reject)
-    "235960",  # Leap second
-    "999999.999999",  # Max boundary
-    "-10000",  # Negative
-    "12:30:00",  # Colons (wrong format)
-    "",  # Empty
-    "NOON",  # Text
-    "000000.0000001",  # Too many fraction digits
-    "120000.1",  # 1-digit fraction
-    "120000.123456",  # 6-digit fraction (max valid)
-    "120000.1234567",  # 7-digit fraction (over max)
-]
 
 
 class MetadataFuzzer(FormatFuzzerBase):

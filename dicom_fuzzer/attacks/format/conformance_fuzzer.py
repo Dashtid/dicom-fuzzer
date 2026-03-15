@@ -27,54 +27,15 @@ from pydicom.uid import (
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+from .dicom_dictionaries import (
+    SOP_CLASS_BY_MODALITY as SOP_CLASSES,
+)
+from .dicom_dictionaries import (
+    TRANSFER_SYNTAX_BY_NAME as TRANSFER_SYNTAXES,
+)
 from .uid_attacks import INVALID_UIDS
 
 logger = get_logger(__name__)
-
-# Common SOP Class UIDs
-SOP_CLASSES = {
-    "CT": "1.2.840.10008.5.1.4.1.1.2",
-    "MR": "1.2.840.10008.5.1.4.1.1.4",
-    "US": "1.2.840.10008.5.1.4.1.1.6.1",
-    "XA": "1.2.840.10008.5.1.4.1.1.12.1",
-    "CR": "1.2.840.10008.5.1.4.1.1.1",
-    "DX": "1.2.840.10008.5.1.4.1.1.1.1",
-    "MG": "1.2.840.10008.5.1.4.1.1.1.2",
-    "NM": "1.2.840.10008.5.1.4.1.1.20",
-    "PT": "1.2.840.10008.5.1.4.1.1.128",
-    "RTDOSE": "1.2.840.10008.5.1.4.1.1.481.2",
-    "RTPLAN": "1.2.840.10008.5.1.4.1.1.481.5",
-    "RTSTRUCT": "1.2.840.10008.5.1.4.1.1.481.3",
-    "SEG": "1.2.840.10008.5.1.4.1.1.66.4",
-    "SR": "1.2.840.10008.5.1.4.1.1.88.11",  # Basic Text SR
-    "PDF": "1.2.840.10008.5.1.4.1.1.104.1",
-    "RAW": "1.2.840.10008.5.1.4.1.1.66",
-    "SC": "1.2.840.10008.5.1.4.1.1.7",  # Secondary Capture
-    "SC_TRUECOLOR_MF": "1.2.840.10008.5.1.4.1.1.7.4",  # Multi-frame True Color SC
-    "ENCAPSULATED_PDF": "1.2.840.10008.5.1.4.1.1.104.1",
-    "ENCAPSULATED_CDA": "1.2.840.10008.5.1.4.1.1.104.2",
-}
-
-# Transfer Syntax UIDs
-TRANSFER_SYNTAXES = {
-    "implicit_vr_le": "1.2.840.10008.1.2",
-    "explicit_vr_le": "1.2.840.10008.1.2.1",
-    "explicit_vr_be": "1.2.840.10008.1.2.2",
-    "deflated": "1.2.840.10008.1.2.1.99",
-    "jpeg_baseline": "1.2.840.10008.1.2.4.50",
-    "jpeg_extended": "1.2.840.10008.1.2.4.51",
-    "jpeg_lossless_nonhierarchical": "1.2.840.10008.1.2.4.57",
-    "jpeg_lossless": "1.2.840.10008.1.2.4.70",
-    "jpeg_ls_lossless": "1.2.840.10008.1.2.4.80",
-    "jpeg_ls_lossy": "1.2.840.10008.1.2.4.81",
-    "jpeg2000_lossless": "1.2.840.10008.1.2.4.90",
-    "jpeg2000_lossy": "1.2.840.10008.1.2.4.91",
-    "rle": "1.2.840.10008.1.2.5",
-    "mpeg2": "1.2.840.10008.1.2.4.100",
-    "mpeg2_high": "1.2.840.10008.1.2.4.101",
-    "mpeg4": "1.2.840.10008.1.2.4.102",
-    "mpeg4_bd": "1.2.840.10008.1.2.4.103",
-}
 
 
 class ConformanceFuzzer(FormatFuzzerBase):
