@@ -309,6 +309,111 @@ CHARACTER_SETS = [
     "ISO_IR 999",  # Non-existent
 ]
 
+# SOP Class UIDs indexed by modality short name (used by ConformanceFuzzer)
+SOP_CLASS_BY_MODALITY: dict[str, str] = {
+    "CT": "1.2.840.10008.5.1.4.1.1.2",
+    "MR": "1.2.840.10008.5.1.4.1.1.4",
+    "US": "1.2.840.10008.5.1.4.1.1.6.1",
+    "XA": "1.2.840.10008.5.1.4.1.1.12.1",
+    "CR": "1.2.840.10008.5.1.4.1.1.1",
+    "DX": "1.2.840.10008.5.1.4.1.1.1.1",
+    "MG": "1.2.840.10008.5.1.4.1.1.1.2",
+    "NM": "1.2.840.10008.5.1.4.1.1.20",
+    "PT": "1.2.840.10008.5.1.4.1.1.128",
+    "RTDOSE": "1.2.840.10008.5.1.4.1.1.481.2",
+    "RTPLAN": "1.2.840.10008.5.1.4.1.1.481.5",
+    "RTSTRUCT": "1.2.840.10008.5.1.4.1.1.481.3",
+    "SEG": "1.2.840.10008.5.1.4.1.1.66.4",
+    "SR": "1.2.840.10008.5.1.4.1.1.88.11",  # Basic Text SR
+    "PDF": "1.2.840.10008.5.1.4.1.1.104.1",
+    "RAW": "1.2.840.10008.5.1.4.1.1.66",
+    "SC": "1.2.840.10008.5.1.4.1.1.7",  # Secondary Capture
+    "SC_TRUECOLOR_MF": "1.2.840.10008.5.1.4.1.1.7.4",  # Multi-frame True Color SC
+    "ENCAPSULATED_PDF": "1.2.840.10008.5.1.4.1.1.104.1",
+    "ENCAPSULATED_CDA": "1.2.840.10008.5.1.4.1.1.104.2",
+}
+
+# Transfer Syntax UIDs indexed by name (used by ConformanceFuzzer)
+TRANSFER_SYNTAX_BY_NAME: dict[str, str] = {
+    "implicit_vr_le": "1.2.840.10008.1.2",
+    "explicit_vr_le": "1.2.840.10008.1.2.1",
+    "explicit_vr_be": "1.2.840.10008.1.2.2",
+    "deflated": "1.2.840.10008.1.2.1.99",
+    "jpeg_baseline": "1.2.840.10008.1.2.4.50",
+    "jpeg_extended": "1.2.840.10008.1.2.4.51",
+    "jpeg_lossless_nonhierarchical": "1.2.840.10008.1.2.4.57",
+    "jpeg_lossless": "1.2.840.10008.1.2.4.70",
+    "jpeg_ls_lossless": "1.2.840.10008.1.2.4.80",
+    "jpeg_ls_lossy": "1.2.840.10008.1.2.4.81",
+    "jpeg2000_lossless": "1.2.840.10008.1.2.4.90",
+    "jpeg2000_lossy": "1.2.840.10008.1.2.4.91",
+    "rle": "1.2.840.10008.1.2.5",
+    "mpeg2": "1.2.840.10008.1.2.4.100",
+    "mpeg2_high": "1.2.840.10008.1.2.4.101",
+    "mpeg4": "1.2.840.10008.1.2.4.102",
+    "mpeg4_bd": "1.2.840.10008.1.2.4.103",
+}
+
+# Malformed Person Name (PN) values (used by MetadataFuzzer)
+# DICOM PN format: alphabetic^ideographic^phonetic, each with up to 5 components
+INVALID_PN_VALUES: list[str] = [
+    "^^^^^",  # All empty components
+    "A^B^C^D^E^F^G",  # Too many component groups
+    "A" * 65,  # Over 64-char component limit
+    "Name^With^Too^Many^Carets^Here^And^More",  # Excess carets
+    "=Equal^Sign",  # Invalid equals in PN
+    "\x00Hidden^Name",  # Null byte in name
+    "Name\nWith\nNewlines",  # Embedded newlines
+    "\\Path\\Like^Name",  # Backslash in name
+    "",  # Empty name
+    " ",  # Whitespace only
+    "^",  # Single caret
+    "^^^",  # Just carets
+    "Name^Given=Ideographic=Phonetic",  # PN with all 3 groups
+    "\xe4\xb8\xad\xe6\x96\x87^ChineseName",  # Latin codepoints mimicking UTF-8 byte sequence
+    "Smith^John" * 20,  # Repeated name exceeding length
+    "DROP^TABLE^patients",  # SQL in name components
+]
+
+# Invalid DICOM date (DA) values (used by MetadataFuzzer)
+INVALID_DATES: list[str] = [
+    "00000000",  # All zeros
+    "99999999",  # All nines
+    "20251301",  # Month 13
+    "20250132",  # Day 32
+    "20250230",  # Feb 30
+    "20250000",  # Month/day zero
+    "2025",  # Truncated
+    "202501",  # Missing day
+    "2025-01-01",  # Dashes (wrong format)
+    "01012025",  # MMDDYYYY instead of YYYYMMDD
+    "20250101120000",  # Date+time in DA field
+    "00010101",  # Year 1
+    "99991231",  # Year 9999
+    "30000101",  # Far future
+    "",  # Empty
+    "NOTADATE",  # Non-numeric
+    "2025/01/01",  # Slashes
+]
+
+# Invalid DICOM time (TM) values (used by MetadataFuzzer)
+INVALID_TIMES: list[str] = [
+    "250000",  # Hour 25
+    "006100",  # Minute 61
+    "000061",  # Second 61
+    "240000",  # Midnight boundary (technically valid, many parsers reject)
+    "235960",  # Leap second
+    "999999.999999",  # Max boundary
+    "-10000",  # Negative
+    "12:30:00",  # Colons (wrong format)
+    "",  # Empty
+    "NOON",  # Text
+    "000000.0000001",  # Too many fraction digits
+    "120000.1",  # 1-digit fraction
+    "120000.123456",  # 6-digit fraction (max valid)
+    "120000.1234567",  # 7-digit fraction (over max)
+]
+
 # UID Prefixes (organization roots)
 COMMON_UID_ROOTS = [
     "1.2.840.10008",  # DICOM Standard
