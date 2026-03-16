@@ -174,7 +174,7 @@ jobs:
           fi
 
       - name: Pytest coverage comment
-        uses: MishaKav/pytest-coverage-comment@46a1348587126fb199084ee9024ce511cb3abbdb  # main
+        uses: MishaKav/pytest-coverage-comment@287292879eaaff04116f36d3eb1a670f6e5df1a4  # main
         if: steps.coverage-check.outputs.exists == 'true'
         with:
           pytest-xml-coverage-path: ./coverage.xml
