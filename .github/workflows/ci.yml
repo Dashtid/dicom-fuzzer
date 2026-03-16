@@ -124,7 +124,7 @@ jobs:
 
       - name: Archive coverage report
         if: matrix.group == 1 && matrix.python-version == '3.13'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v5
         with:
           name: coverage-xml-report
           path: coverage.xml
@@ -133,7 +133,7 @@ jobs:
 
       - name: Archive test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v5
         with:
           name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}-group${{ matrix.group }}
           path: |
@@ -150,14 +150,14 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
       - name: Download coverage artifact
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v4
         with:
           name: coverage-xml-report
           path: .
         continue-on-error: true
 
       - name: Download test results
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v4
         with:
           name: test-results-ubuntu-latest-py3.13-group1
           path: .
@@ -174,7 +174,7 @@ jobs:
           fi
 
       - name: Pytest coverage comment
-        uses: MishaKav/pytest-coverage-comment@46a1348587126fb199084ee9024ce511cb3abbdb  # main
+        uses: MishaKav/pytest-coverage-comment@287292879eaaff04116f36d3eb1a670f6e5df1a4  # main
         if: steps.coverage-check.outputs.exists == 'true'
         with:
           pytest-xml-coverage-path: ./coverage.xml
@@ -214,7 +214,7 @@ jobs:
           uv run twine check dist/*
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v5
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v5
         with:
           name: dist-packages
           path: dist/
