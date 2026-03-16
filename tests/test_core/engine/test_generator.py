@@ -472,6 +472,7 @@ class TestGeneratorErrorHandling:
         assert "TypeError" in stats.error_types
         assert stats.error_types["TypeError"] == 1
 
+    @pytest.mark.timeout(300)
     def test_generate_with_skip_write_errors_true(self, sample_dicom_file, temp_dir):
         """Test generator skips files with write errors."""
         output_dir = temp_dir / "skip_errors"
