@@ -9,8 +9,6 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
-    reviewers:
-      - "daviddashtii"
     labels:
       - "dependencies"
       - "python"
@@ -38,3 +36,8 @@ updates:
     commit-message:
       prefix: "ci"
       include: "scope"
+    # Group all Action bumps into one PR instead of one per action
+    groups:
+      github-actions:
+        patterns:
+          - "*"
