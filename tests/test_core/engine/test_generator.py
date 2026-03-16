@@ -601,7 +601,7 @@ class TestGeneratorErrorHandling:
 
         # Mock _apply_mutations to return None (simulating handled error)
         with patch.object(generator, "_apply_mutations") as mock_apply:
-            mock_apply.return_value = (None, [])
+            mock_apply.return_value = (None, [], None)
 
             files = generator.generate_batch(sample_dicom_file, count=5)
 

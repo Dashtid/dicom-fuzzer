@@ -8,6 +8,7 @@ Attacks:
 - Unexpected tag insertion
 - Duplicate tag entries
 - Value Multiplicity (VM) violations
+- Binary-level tag ordering, duplicate tag, and length field corruption
 """
 
 from __future__ import annotations
@@ -23,6 +24,125 @@ from dicom_fuzzer.utils.logger import get_logger
 from .base import FormatFuzzerBase
 
 logger = get_logger(__name__)
+
+# DICOM file layout constants
+_PREAMBLE_SIZE = 128
+_DICM_MAGIC = b"DICM"
+_DICM_OFFSET = 128
+_DATA_OFFSET = 132  # preamble (128) + "DICM" (4)
+
+# VRs that use 2-byte reserved field + 4-byte length (instead of 2-byte length)
+_LONG_VRS = frozenset(
+    {b"OB", b"OD", b"OF", b"OL", b"OW", b"SQ", b"UC", b"UN", b"UR", b"UT"}
+)
+
+
+def _parse_dicom_elements(
+    file_data: bytes, start_offset: int
+) -> list[tuple[int, int, int, int]]:
+    """Parse Explicit VR Little Endian DICOM elements starting at start_offset.
+
+    Returns list of (elem_start, elem_end, len_field_offset, len_field_size).
+
+    Skips:
+    - Group 0002 elements (file meta -- must stay intact for readers)
+    - SQ elements (nested structure; swapping breaks internal references)
+    - Elements with undefined length (0xFFFFFFFF / 0xFFFF)
+    - Group 0xFFFE item/delimiter tags
+
+    Stops and returns a partial list on any parse error.
+
+    Args:
+        file_data: Complete DICOM file bytes
+        start_offset: Byte offset to begin parsing (after preamble + DICM)
+
+    Returns:
+        List of (elem_start, elem_end, len_field_offset, len_field_size) tuples
+
+    """
+    results: list[tuple[int, int, int, int]] = []
+    pos = start_offset
+    data_len = len(file_data)
+
+    try:
+        while pos + 4 <= data_len:
+            elem_start = pos
+
+            # Read group and element (2 bytes each, little-endian)
+            group = struct.unpack_from("<H", file_data, pos)[0]
+            pos += 2
+            pos += 2  # element number -- not needed for candidate selection
+
+            # Skip group 0002 (file meta) -- must remain intact
+            if group == 0x0002:
+                # Still need to advance past this element
+                if pos + 2 > data_len:
+                    break
+                vr = file_data[pos : pos + 2]
+                pos += 2
+                if vr in _LONG_VRS:
+                    pos += 2  # skip 2-byte reserved
+                    if pos + 4 > data_len:
+                        break
+                    length = struct.unpack_from("<I", file_data, pos)[0]
+                    pos += 4
+                else:
+                    if pos + 2 > data_len:
+                        break
+                    length = struct.unpack_from("<H", file_data, pos)[0]
+                    pos += 2
+                if length == 0xFFFFFFFF or length == 0xFFFF:
+                    break  # undefined length in file meta -- stop
+                pos += length
+                continue
+
+            # Stop at item/delimiter tags (group 0xFFFE)
+            if group == 0xFFFE:
+                break
+
+            # Need at least VR (2 bytes)
+            if pos + 2 > data_len:
+                break
+
+            vr = file_data[pos : pos + 2]
+            pos += 2
+
+            if vr in _LONG_VRS:
+                # 2-byte reserved + 4-byte length
+                pos += 2  # skip reserved
+                if pos + 4 > data_len:
+                    break
+                len_field_offset = pos
+                len_field_size = 4
+                length = struct.unpack_from("<I", file_data, pos)[0]
+                pos += 4
+            else:
+                # 2-byte length
+                if pos + 2 > data_len:
+                    break
+                len_field_offset = pos
+                len_field_size = 2
+                length = struct.unpack_from("<H", file_data, pos)[0]
+                pos += 2
+
+            # Skip undefined-length elements and SQ
+            if length == 0xFFFFFFFF or (len_field_size == 2 and length == 0xFFFF):
+                break  # can't safely skip; stop here
+            if vr == b"SQ":
+                pos += length
+                continue
+
+            elem_end = pos + length
+            if elem_end > data_len:
+                break
+
+            results.append((elem_start, elem_end, len_field_offset, len_field_size))
+            pos = elem_end
+
+    except struct.error:
+        pass  # return whatever we parsed so far
+
+    return results
 
 
 class StructureFuzzer(FormatFuzzerBase):
@@ -405,3 +525,169 @@ class StructureFuzzer(FormatFuzzerBase):
             logger.debug("VM mismatch attack failed: %s", e)
 
         return dataset
+
+    # ------------------------------------------------------------------
+    # Binary-level attacks -- operate on raw bytes after pydicom write
+    # ------------------------------------------------------------------
+
+    # Corrupt length values for 4-byte length fields
+    _CORRUPT_LENGTHS_4B: list[bytes] = [
+        struct.pack("<I", 0xFFFFFFFF),  # undefined-length sentinel
+        struct.pack("<I", 0x00000000),  # zero length for non-empty element
+        struct.pack("<I", 0x7FFFFFFF),  # 2 GB-1 (signed 32-bit max)
+        struct.pack("<I", 0x80000000),  # signed 32-bit overflow
+        struct.pack("<I", 0x0000FFFF),  # 16-bit max in 32-bit field
+        struct.pack("<I", 0x00010000),  # 16-bit overflow
+    ]
+
+    # Corrupt length values for 2-byte length fields
+    _CORRUPT_LENGTHS_2B: list[bytes] = [
+        struct.pack("<H", 0xFFFF),  # max 16-bit (undefined sentinel for short VRs)
+        struct.pack("<H", 0x0000),  # zero length
+        struct.pack("<H", 0x8000),  # signed 16-bit overflow
+    ]
+
+    def mutate_bytes(self, file_data: bytes) -> bytes:
+        """Apply binary-level structure corruptions after pydicom serialization.
+
+        Selects 1-2 of the three binary attacks and applies them in sequence.
+        Falls back to returning file_data unchanged on any error.
+
+        Args:
+            file_data: Complete DICOM file bytes (preamble + DICM + elements)
+
+        Returns:
+            Possibly-modified byte string
+
+        """
+        if len(file_data) < _DATA_OFFSET + 4:
+            return file_data
+        if file_data[_DICM_OFFSET:_DATA_OFFSET] != _DICM_MAGIC:
+            return file_data
+
+        binary_attacks = [
+            self._binary_corrupt_tag_ordering,
+            self._binary_duplicate_tag,
+            self._binary_corrupt_length_field,
+        ]
+        num = random.randint(1, 2)
+        selected = random.sample(binary_attacks, num)
+        result = file_data
+        for attack in selected:
+            try:
+                result = attack(result)
+            except Exception as e:
+                logger.debug("Binary attack %s failed: %s", attack.__name__, e)
+        return result
+
+    @staticmethod
+    def _is_valid_dicom(file_data: bytes) -> bool:
+        """Return True if file_data has a valid DICOM preamble + DICM magic."""
+        return (
+            len(file_data) >= _DATA_OFFSET + 4
+            and file_data[_DICM_OFFSET:_DATA_OFFSET] == _DICM_MAGIC
+        )
+
+    def _binary_corrupt_tag_ordering(self, file_data: bytes) -> bytes:
+        """Swap two data elements in the byte stream to violate tag ordering.
+
+        Parses Explicit VR LE elements, picks two non-adjacent elements, and
+        swaps their raw bytes. The result is a byte stream where elements
+        appear out of ascending tag-number order, which violates the DICOM
+        standard.
+
+        Args:
+            file_data: Complete DICOM file bytes
+
+        Returns:
+            File bytes with two elements swapped, or file_data unchanged
+
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        elements = _parse_dicom_elements(file_data, _DATA_OFFSET)
+        if len(elements) < 3:
+            return file_data
+
+        idx1, idx2 = random.sample(range(len(elements)), 2)
+        if idx1 > idx2:
+            idx1, idx2 = idx2, idx1
+
+        s1, e1, _, _ = elements[idx1]
+        s2, e2, _, _ = elements[idx2]
+
+        # Swap: rebuild byte string working back-to-front to avoid offset drift
+        chunk1 = file_data[s1:e1]
+        chunk2 = file_data[s2:e2]
+
+        if len(chunk1) == len(chunk2):
+            # Same size -- simple in-place swap
+            result = bytearray(file_data)
+            result[s1:e1] = chunk2
+            result[s2:e2] = chunk1
+            return bytes(result)
+        else:
+            # Different sizes -- rebuild in three slices
+            return file_data[:s1] + chunk2 + file_data[e1:s2] + chunk1 + file_data[e2:]
+
+    def _binary_duplicate_tag(self, file_data: bytes) -> bytes:
+        """Duplicate a random element's raw bytes at another position.
+
+        Picks a random element, copies its raw bytes, and inserts the copy
+        after a different random element. The result is a byte stream where
+        the same tag appears twice, violating the DICOM uniqueness rule.
+
+        Args:
+            file_data: Complete DICOM file bytes
+
+        Returns:
+            File bytes with one element duplicated (file grows), or file_data
+
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        elements = _parse_dicom_elements(file_data, _DATA_OFFSET)
+        if len(elements) < 2:
+            return file_data
+
+        src_idx = random.randrange(len(elements))
+        # Pick a different index for the insertion point
+        candidates = [i for i in range(len(elements)) if i != src_idx]
+        insert_after_idx = random.choice(candidates)
+
+        src_start, src_end, _, _ = elements[src_idx]
+        _, insert_pos, _, _ = elements[insert_after_idx]
+
+        element_bytes = file_data[src_start:src_end]
+        return file_data[:insert_pos] + element_bytes + file_data[insert_pos:]
+
+    def _binary_corrupt_length_field(self, file_data: bytes) -> bytes:
+        """Overwrite a random element's length field with a corrupt value.
+
+        Targets non-group-0002 elements with definite length. The corrupt
+        length does not match the actual value size, creating a length/data
+        mismatch that parsers must handle.
+
+        Args:
+            file_data: Complete DICOM file bytes
+
+        Returns:
+            File bytes with one length field patched, or file_data unchanged
+
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        elements = _parse_dicom_elements(file_data, _DATA_OFFSET)
+        if not elements:
+            return file_data
+
+        _, _, len_offset, len_size = random.choice(elements)
+
+        result = bytearray(file_data)
+        if len_size == 4:
+            corrupt = random.choice(self._CORRUPT_LENGTHS_4B)
+        else:
+            corrupt = random.choice(self._CORRUPT_LENGTHS_2B)
+
+        result[len_offset : len_offset + len_size] = corrupt
+        return bytes(result)

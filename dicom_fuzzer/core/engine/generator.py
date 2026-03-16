@@ -6,6 +6,7 @@ import re
 import struct
 import sys
 import warnings
+from io import BytesIO
 from pathlib import Path
 
 from pydicom.dataset import Dataset
@@ -137,14 +138,16 @@ class DICOMGenerator:
         sys.setrecursionlimit(max(old_limit, 10000))
         try:
             # Create mutated dataset
-            mutated_dataset, strategies_applied = self._apply_mutations(
+            mutated_dataset, strategies_applied, strategy_obj = self._apply_mutations(
                 base_dataset, strategy_names
             )
             if mutated_dataset is None:
                 return None
 
             # Save to file
-            return self._save_mutated_file(mutated_dataset, strategies_applied)
+            return self._save_mutated_file(
+                mutated_dataset, strategies_applied, strategy_obj
+            )
         finally:
             sys.setrecursionlimit(old_limit)
 
@@ -152,14 +155,16 @@ class DICOMGenerator:
         self,
         base_dataset: Dataset,
         strategy_names: list[str] | None = None,
-    ) -> tuple[Dataset | None, list[str]]:
+    ) -> tuple[Dataset | None, list[str], object]:
         """Apply a single mutation to dataset via DicomMutator.
 
         Delegates to DicomMutator which handles strategy selection,
         application, and tracking. Default is one strategy per file
         for clean crash attribution.
 
-        Returns (dataset, strategies) or (None, []).
+        Returns (dataset, strategies, strategy_obj) or (None, [], None).
+        The strategy_obj is the live strategy instance so the engine can
+        call mutate_bytes() on the serialized output for binary-level mutations.
         """
         try:
             mutated_dataset = self.mutator.apply_mutations(
@@ -183,16 +188,24 @@ class DICOMGenerator:
             if last_mutation.success:
                 strategies = [last_mutation.strategy_name]
 
-        return mutated_dataset, strategies
+        # Resolve the strategy object by name so callers can invoke mutate_bytes()
+        strategy_obj: object = None
+        if strategies:
+            for s in self.mutator.strategies:
+                if s.strategy_name == strategies[0]:
+                    strategy_obj = s
+                    break
 
-    def _handle_mutation_error(self, error: Exception) -> tuple[None, list[str]]:
+        return mutated_dataset, strategies, strategy_obj
+
+    def _handle_mutation_error(self, error: Exception) -> tuple[None, list[str], None]:
         """Handle errors during mutation."""
         error_name = type(error).__name__
         if self.skip_write_errors:
             self.stats.record_failure(error_name)
             self.stats.skipped_due_to_write_errors += 1
             logger.debug("Mutation error skipped: %s: %s", error_name, error)
-            return None, []
+            return None, [], None
 
         self.stats.record_failure(error_name)
         raise error
@@ -270,7 +283,10 @@ class DICOMGenerator:
     )
 
     def _save_mutated_file(
-        self, mutated_dataset: Dataset, strategies_applied: list[str]
+        self,
+        mutated_dataset: Dataset,
+        strategies_applied: list[str],
+        strategy_obj: object = None,
     ) -> Path | None:
         """Save mutated dataset to file with iterative error recovery.
 
@@ -278,6 +294,10 @@ class DICOMGenerator:
         message, removes it from the dataset, and retries. This preserves
         all mutations except elements that pydicom physically cannot
         serialize (e.g. string in a float field).
+
+        After a successful serialize, calls strategy_obj.mutate_bytes() for
+        binary-level mutations (e.g. tag ordering, duplicate tags, length
+        field corruption) that pydicom would undo during Dataset-level writes.
         """
         filename = f"fuzzed_{generate_short_id()}.dcm"
         output_path = self.output_dir / filename
@@ -287,7 +307,24 @@ class DICOMGenerator:
         max_retries = 10
         for attempt in range(max_retries):
             try:
-                dcmwrite(output_path, mutated_dataset, **write_kwargs)
+                # Serialize to memory so binary mutations can be applied
+                # before the final write to disk.
+                buf = BytesIO()
+                dcmwrite(buf, mutated_dataset, **write_kwargs)
+                raw_bytes = buf.getvalue()
+
+                # Apply binary-level mutations if strategy supports them.
+                # mutate_bytes() is a no-op on the base class; only
+                # StructureFuzzer (and future subclasses) override it.
+                if strategy_obj is not None:
+                    mutate_bytes = getattr(strategy_obj, "mutate_bytes", None)
+                    if mutate_bytes is not None:
+                        try:
+                            raw_bytes = mutate_bytes(raw_bytes)
+                        except Exception as e:
+                            logger.debug("mutate_bytes failed: %s", e)
+
+                output_path.write_bytes(raw_bytes)
                 self.stats.record_success(strategies_applied)
                 if strategies_applied:
                     self.file_strategy_map[output_path.name] = strategies_applied[0]
@@ -303,9 +340,8 @@ class DICOMGenerator:
                 self.stats.record_failure(error_name)
                 if self.skip_write_errors:
                     self.stats.skipped_due_to_write_errors += 1
-                    # Clean up partial file left by dcmwrite (it writes the
-                    # preamble/meta before serializing elements, so a crash
-                    # mid-write leaves a truncated ghost file on disk).
+                    # Clean up any partial file (write_bytes is atomic on
+                    # success, but a previous attempt may have left a ghost).
                     output_path.unlink(missing_ok=True)
                     logger.debug("Save error skipped: %s: %s", error_name, e)
                     return None

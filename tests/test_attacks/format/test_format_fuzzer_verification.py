@@ -22,8 +22,10 @@ Phase 4c: PrivateTagFuzzer (10 strategies)
 """
 
 import copy
+import io
 import struct
 
+import pydicom
 import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.tag import Tag
@@ -55,7 +57,11 @@ from dicom_fuzzer.attacks.format.private_tag_fuzzer import (
 )
 from dicom_fuzzer.attacks.format.reference_fuzzer import ReferenceFuzzer
 from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
-from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
+from dicom_fuzzer.attacks.format.structure_fuzzer import (
+    _DATA_OFFSET,
+    StructureFuzzer,
+    _parse_dicom_elements,
+)
 from dicom_fuzzer.attacks.format.uid_attacks import INVALID_UIDS, UID_TAG_NAMES
 
 # ---------------------------------------------------------------------------
@@ -2076,6 +2082,133 @@ class TestVmMismatchAttacks:
                     if val == "":
                         return
         pytest.fail("No VM mismatch detected in 100 runs")
+
+
+# ===========================================================================
+# Phase 2c addendum: StructureFuzzer binary-level attacks
+# ===========================================================================
+
+
+def _make_binary_test_dataset() -> bytes:
+    """Build a minimal valid Explicit VR LE DICOM file as raw bytes."""
+    ds = Dataset()
+    ds.file_meta = FileMetaDataset()
+    ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    ds.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    ds.file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    ds.is_implicit_VR = False
+    ds.is_little_endian = True
+    ds.PatientID = "BINARYTEST"
+    ds.PatientName = "Binary^Test"
+    ds.StudyDate = "20230101"
+    ds.Modality = "CT"
+    ds.Rows = 16
+    ds.Columns = 16
+    buf = io.BytesIO()
+    pydicom.dcmwrite(buf, ds, enforce_file_format=True)
+    return buf.getvalue()
+
+
+# 40b. _binary_corrupt_tag_ordering
+class TestBinaryCorruptTagOrderingVerification:
+    """#40b: binary tag ordering -- elements swapped in byte stream."""
+
+    def test_tag_bytes_swapped_in_output(self, str_fuzzer):
+        """After corruption, at least one pair of elements must be
+        in different relative positions compared to the original."""
+        file_data = _make_binary_test_dataset()
+        original_elements = _parse_dicom_elements(file_data, _DATA_OFFSET)
+
+        if len(original_elements) < 3:
+            pytest.skip("Not enough elements to swap in this dataset")
+
+        for _ in range(30):
+            result = str_fuzzer._binary_corrupt_tag_ordering(file_data)
+            result_elements = _parse_dicom_elements(result, _DATA_OFFSET)
+            # After a swap of different-sized elements, total file size may
+            # change; after a same-size swap, size is identical but content
+            # at some position differs.
+            if result != file_data:
+                return  # mutation was applied
+
+        pytest.fail("_binary_corrupt_tag_ordering produced no changes in 30 runs")
+
+    def test_preamble_intact(self, str_fuzzer):
+        """Binary tag ordering must not touch the DICOM preamble."""
+        file_data = _make_binary_test_dataset()
+        result = str_fuzzer._binary_corrupt_tag_ordering(file_data)
+        assert result[:_DATA_OFFSET] == file_data[:_DATA_OFFSET]
+
+
+# 43b. _binary_duplicate_tag
+class TestBinaryDuplicateTagVerification:
+    """#43b: binary duplicate tag -- element bytes appear twice."""
+
+    def test_file_grows(self, str_fuzzer):
+        """Duplicating an element must increase the total file size."""
+        file_data = _make_binary_test_dataset()
+        result = str_fuzzer._binary_duplicate_tag(file_data)
+        assert len(result) > len(file_data)
+
+    def test_element_duplicated_in_stream(self, str_fuzzer):
+        """The raw bytes of some duplicated element must appear at least
+        twice in the output byte stream."""
+        file_data = _make_binary_test_dataset()
+        elements = _parse_dicom_elements(file_data, _DATA_OFFSET)
+        assert elements
+
+        result = str_fuzzer._binary_duplicate_tag(file_data)
+
+        # Verify that at least one of the original elements now appears twice
+        found = any(
+            result.count(file_data[s:e]) >= 2
+            for s, e, _, _ in elements
+            if e > s  # skip zero-length elements
+        )
+        assert found, "No element was duplicated in the output"
+
+    def test_preamble_intact(self, str_fuzzer):
+        """Binary duplicate must not touch the DICOM preamble."""
+        file_data = _make_binary_test_dataset()
+        result = str_fuzzer._binary_duplicate_tag(file_data)
+        assert result[:_DATA_OFFSET] == file_data[:_DATA_OFFSET]
+
+
+# 41b. _binary_corrupt_length_field
+class TestBinaryCorruptLengthFieldVerification:
+    """#41b: binary length field corruption -- length patched in-place."""
+
+    def test_length_field_differs(self, str_fuzzer):
+        """The patched file must differ from the original at the length
+        field position of at least one element."""
+        file_data = _make_binary_test_dataset()
+        elements = _parse_dicom_elements(file_data, _DATA_OFFSET)
+        assert elements
+
+        for _ in range(30):
+            result = str_fuzzer._binary_corrupt_length_field(file_data)
+            if result != file_data:
+                # Verify the difference is within a known length-field region
+                changed_offsets = [
+                    i for i, (a, b) in enumerate(zip(file_data, result)) if a != b
+                ]
+                len_regions = [range(lo, lo + ls) for _, _, lo, ls in elements]
+                for off in changed_offsets:
+                    if any(off in r for r in len_regions):
+                        return  # confirmed change in a length field
+        pytest.fail("No length-field change detected in 30 runs")
+
+    def test_file_size_unchanged(self, str_fuzzer):
+        """Length-field patch is in-place; file size must not change."""
+        file_data = _make_binary_test_dataset()
+        result = str_fuzzer._binary_corrupt_length_field(file_data)
+        assert len(result) == len(file_data)
+
+    def test_preamble_intact(self, str_fuzzer):
+        """Length corruption must not touch the DICOM preamble."""
+        file_data = _make_binary_test_dataset()
+        result = str_fuzzer._binary_corrupt_length_field(file_data)
+        assert result[:_DATA_OFFSET] == file_data[:_DATA_OFFSET]
 
 
 # ===========================================================================
