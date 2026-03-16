@@ -258,14 +258,14 @@ class TestGeneratorPerStrategy:
 class TestGeneratorAllStrategies:
     """Verify generation with all strategies produces diverse output."""
 
-    @pytest.mark.timeout(120)
+    @pytest.mark.timeout(300)
     def test_all_strategies_combined(self, tmp_path, seed_dicom_file):
         output_dir = tmp_path / "output_all"
         gen = DICOMGenerator(output_dir=str(output_dir), skip_write_errors=True)
         files = gen.generate_batch(
             original_file=str(seed_dicom_file),
             count=50,
-            strategies=None,  # Use all 18
+            strategies=None,  # Use all 28
         )
 
         assert len(files) >= 1, (
