@@ -35,7 +35,7 @@ class TestGenerateReports:
         session_file.write_text(json.dumps(session_data))
 
         with patch(
-            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
+            "dicom_fuzzer.core.reporting.report_utils.EnhancedReportGenerator"
         ) as mock_reporter:
             mock_instance = MagicMock()
             mock_instance.generate_html_report.return_value = tmp_path / "report.html"
@@ -65,7 +65,7 @@ class TestGenerateReports:
         custom_output = tmp_path / "custom_report.html"
 
         with patch(
-            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
+            "dicom_fuzzer.core.reporting.report_utils.EnhancedReportGenerator"
         ) as mock_reporter:
             mock_instance = MagicMock()
             mock_instance.generate_html_report.return_value = custom_output
@@ -90,7 +90,7 @@ class TestGenerateReports:
         session_file.write_text(json.dumps(session_data))
 
         with patch(
-            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
+            "dicom_fuzzer.core.reporting.report_utils.EnhancedReportGenerator"
         ) as mock_reporter:
             mock_instance = MagicMock()
             mock_instance.generate_html_report.return_value = tmp_path / "report.html"
@@ -125,7 +125,7 @@ class TestGenerateReports:
         session_file.write_text(json.dumps(session_data))
 
         with patch(
-            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
+            "dicom_fuzzer.core.reporting.report_utils.EnhancedReportGenerator"
         ) as mock_reporter:
             mock_instance = MagicMock()
             mock_instance.generate_html_report.return_value = tmp_path / "report.html"
@@ -286,7 +286,7 @@ class TestEdgeCases:
         session_file.write_text(json.dumps(session_data))
 
         with patch(
-            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
+            "dicom_fuzzer.core.reporting.report_utils.EnhancedReportGenerator"
         ) as mock_reporter:
             mock_instance = MagicMock()
             mock_instance.generate_html_report.return_value = tmp_path / "report.html"
@@ -317,7 +317,7 @@ class TestEdgeCases:
         session_file.write_text(json.dumps(session_data))
 
         with patch(
-            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
+            "dicom_fuzzer.core.reporting.report_utils.EnhancedReportGenerator"
         ) as mock_reporter:
             mock_instance = MagicMock()
             mock_instance.generate_html_report.return_value = tmp_path / "report.html"

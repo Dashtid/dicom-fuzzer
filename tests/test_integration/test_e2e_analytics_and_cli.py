@@ -394,7 +394,7 @@ class TestGenerateReportE2E:
 
         # Mock the EnhancedReportGenerator to avoid file dependencies
         with patch(
-            "dicom_fuzzer.cli.commands.reports.EnhancedReportGenerator"
+            "dicom_fuzzer.core.reporting.report_utils.EnhancedReportGenerator"
         ) as mock_reporter_class:
             mock_reporter = MagicMock()
             mock_reporter.generate_html_report.return_value = output_html
