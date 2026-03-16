@@ -57,5 +57,24 @@ class FormatFuzzerBase(ABC):
         """Check if this strategy can mutate the dataset. Override if needed."""
         return True
 
+    def mutate_bytes(self, file_data: bytes) -> bytes:
+        """Apply binary-level mutations to an already-serialized DICOM byte stream.
+
+        Called by the engine after mutate() and dcmwrite(), giving the strategy
+        a second pass on the raw bytes. Override in subclasses that need to
+        corrupt data that pydicom would correct during serialization (e.g. tag
+        ordering, duplicate tags, length fields).
+
+        The default implementation returns file_data unchanged.
+
+        Args:
+            file_data: Complete DICOM file bytes (preamble + DICM + elements)
+
+        Returns:
+            Possibly-modified byte string
+
+        """
+        return file_data
+
 
 __all__ = ["FormatFuzzerBase"]

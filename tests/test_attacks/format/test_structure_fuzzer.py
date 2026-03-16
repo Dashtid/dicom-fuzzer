@@ -3,13 +3,21 @@
 Tests cover structure mutations and tag corruption.
 """
 
+import io
 import random
+import struct
 from unittest.mock import patch
 
-from pydicom.dataset import Dataset
+import pydicom
+from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.tag import Tag
+from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
-from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
+from dicom_fuzzer.attacks.format.structure_fuzzer import (
+    _DATA_OFFSET,
+    StructureFuzzer,
+    _parse_dicom_elements,
+)
 
 
 class TestStructureFuzzerInit:
@@ -470,3 +478,270 @@ class TestCorruptTagOrderingExtended:
         result = fuzzer._corrupt_tag_ordering(dataset)
         assert isinstance(result, Dataset)
         assert result is not None
+
+
+# ---------------------------------------------------------------------------
+# Helpers shared by binary-attack test classes
+# ---------------------------------------------------------------------------
+
+
+def _make_minimal_dicom_bytes() -> bytes:
+    """Build a minimal valid Explicit VR LE DICOM file in memory."""
+    ds = Dataset()
+    ds.file_meta = FileMetaDataset()
+    ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    ds.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    ds.file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    ds.is_implicit_VR = False
+    ds.is_little_endian = True
+    ds.PatientID = "TEST001"
+    ds.PatientName = "Test^Patient"
+    ds.StudyDate = "20230101"
+    ds.Modality = "CT"
+    ds.Rows = 64
+    ds.Columns = 64
+
+    buf = io.BytesIO()
+    pydicom.dcmwrite(buf, ds, enforce_file_format=True)
+    return buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# _parse_dicom_elements helper
+# ---------------------------------------------------------------------------
+
+
+class TestParseDicomElements:
+    """Tests for the _parse_dicom_elements module-level helper."""
+
+    def test_returns_list_for_valid_dicom(self):
+        """Should return at least one element for a valid DICOM file."""
+        file_data = _make_minimal_dicom_bytes()
+        elements = _parse_dicom_elements(file_data, _DATA_OFFSET)
+        assert isinstance(elements, list)
+        assert len(elements) > 0
+
+    def test_tuples_have_four_fields(self):
+        """Each result tuple must have (start, end, len_offset, len_size)."""
+        file_data = _make_minimal_dicom_bytes()
+        for elem in _parse_dicom_elements(file_data, _DATA_OFFSET):
+            assert len(elem) == 4
+            start, end, len_off, len_size = elem
+            assert start < end
+            assert len_off > start
+            assert len_size in (2, 4)
+
+    def test_skips_group_0002(self):
+        """No element in group 0002 should appear in results."""
+        file_data = _make_minimal_dicom_bytes()
+        for start, end, _, _ in _parse_dicom_elements(file_data, _DATA_OFFSET):
+            group = struct.unpack_from("<H", file_data, start)[0]
+            assert group != 0x0002
+
+    def test_empty_bytes_returns_empty(self):
+        """Truly empty input returns empty list without raising."""
+        assert _parse_dicom_elements(b"", 0) == []
+
+    def test_offset_beyond_data_returns_empty(self):
+        """Start offset beyond file length returns empty without raising."""
+        assert _parse_dicom_elements(b"\x00" * 10, 200) == []
+
+    def test_truncated_file_returns_partial(self):
+        """Truncated file should return a partial list, not raise."""
+        file_data = _make_minimal_dicom_bytes()
+        truncated = file_data[: len(file_data) // 2]
+        result = _parse_dicom_elements(truncated, _DATA_OFFSET)
+        assert isinstance(result, list)  # may be empty or partial
+
+
+# ---------------------------------------------------------------------------
+# Binary attack: _binary_corrupt_tag_ordering
+# ---------------------------------------------------------------------------
+
+
+class TestBinaryCorruptTagOrdering:
+    """Tests for StructureFuzzer._binary_corrupt_tag_ordering."""
+
+    def test_returns_bytes(self):
+        """Return type must be bytes."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_corrupt_tag_ordering(file_data)
+        assert isinstance(result, bytes)
+
+    def test_preserves_preamble_and_magic(self):
+        """First 132 bytes must be unchanged."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_corrupt_tag_ordering(file_data)
+        assert result[:_DATA_OFFSET] == file_data[:_DATA_OFFSET]
+
+    def test_non_dicom_passthrough(self):
+        """Non-DICOM bytes (no DICM magic) must be returned unchanged."""
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_corrupt_tag_ordering(garbage) is garbage
+
+    def test_short_input_passthrough(self):
+        """Input shorter than DATA_OFFSET + 4 returned unchanged."""
+        fuzzer = StructureFuzzer()
+        short = b"\x00" * 20
+        assert fuzzer._binary_corrupt_tag_ordering(short) is short
+
+    def test_produces_mutation_over_runs(self):
+        """Over multiple runs at least one should produce different bytes."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        changed = any(
+            fuzzer._binary_corrupt_tag_ordering(file_data) != file_data
+            for _ in range(30)
+        )
+        assert changed, "No mutation produced in 30 runs"
+
+
+# ---------------------------------------------------------------------------
+# Binary attack: _binary_duplicate_tag
+# ---------------------------------------------------------------------------
+
+
+class TestBinaryDuplicateTag:
+    """Tests for StructureFuzzer._binary_duplicate_tag."""
+
+    def test_returns_bytes(self):
+        """Return type must be bytes."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_duplicate_tag(file_data)
+        assert isinstance(result, bytes)
+
+    def test_output_longer_than_input(self):
+        """Result must be longer (an element was duplicated)."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_duplicate_tag(file_data)
+        assert len(result) > len(file_data)
+
+    def test_preserves_preamble_and_magic(self):
+        """First 132 bytes must be unchanged."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_duplicate_tag(file_data)
+        assert result[:_DATA_OFFSET] == file_data[:_DATA_OFFSET]
+
+    def test_non_dicom_passthrough(self):
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_duplicate_tag(garbage) is garbage
+
+    def test_element_bytes_appear_twice(self):
+        """The duplicated element bytes must appear at least twice in output."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        elements = _parse_dicom_elements(file_data, _DATA_OFFSET)
+        assert len(elements) >= 2, "Need at least two elements for this test"
+
+        src_start, src_end, _, _ = elements[0]
+        elem_bytes = file_data[src_start:src_end]
+
+        # Force src_idx=0, insert_after_idx=last element (integer index)
+        with patch("random.randrange", return_value=0):
+            with patch("random.choice", return_value=len(elements) - 1):
+                result = fuzzer._binary_duplicate_tag(file_data)
+        assert result.count(elem_bytes) >= 2
+
+
+# ---------------------------------------------------------------------------
+# Binary attack: _binary_corrupt_length_field
+# ---------------------------------------------------------------------------
+
+
+class TestBinaryCorruptLengthField:
+    """Tests for StructureFuzzer._binary_corrupt_length_field."""
+
+    def test_returns_bytes(self):
+        """Return type must be bytes."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_corrupt_length_field(file_data)
+        assert isinstance(result, bytes)
+
+    def test_same_length_as_input(self):
+        """Patching a length field does not change file size."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_corrupt_length_field(file_data)
+        assert len(result) == len(file_data)
+
+    def test_preamble_unchanged(self):
+        """First 132 bytes must be unchanged."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_corrupt_length_field(file_data)
+        assert result[:_DATA_OFFSET] == file_data[:_DATA_OFFSET]
+
+    def test_bytes_differ_from_input(self):
+        """At least one byte must differ (length field was patched)."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        changed = any(
+            fuzzer._binary_corrupt_length_field(file_data) != file_data
+            for _ in range(30)
+        )
+        assert changed, "No byte change produced in 30 runs"
+
+    def test_non_dicom_passthrough(self):
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_corrupt_length_field(garbage) is garbage
+
+
+# ---------------------------------------------------------------------------
+# mutate_bytes integration
+# ---------------------------------------------------------------------------
+
+
+class TestMutateBytes:
+    """Tests for StructureFuzzer.mutate_bytes."""
+
+    def test_returns_bytes_type(self):
+        """mutate_bytes must return bytes."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer.mutate_bytes(file_data)
+        assert isinstance(result, bytes)
+
+    def test_non_dicom_passthrough(self):
+        """Non-DICOM input must be returned unchanged."""
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        result = fuzzer.mutate_bytes(garbage)
+        assert result == garbage
+
+    def test_short_input_passthrough(self):
+        """Input shorter than minimum DICOM size returned unchanged."""
+        fuzzer = StructureFuzzer()
+        short = b"\x00" * 10
+        assert fuzzer.mutate_bytes(short) == short
+
+    def test_valid_input_produces_mutation(self):
+        """Over many runs, at least one must differ from input."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        changed = any(fuzzer.mutate_bytes(file_data) != file_data for _ in range(50))
+        assert changed, "mutate_bytes produced no changes in 50 runs"
+
+    def test_base_class_returns_unchanged(self):
+        """FormatFuzzerBase.mutate_bytes default must be a no-op."""
+        from dicom_fuzzer.attacks.format.base import FormatFuzzerBase
+
+        class _ConcreteNoOp(FormatFuzzerBase):
+            def mutate(self, dataset):
+                return dataset
+
+            @property
+            def strategy_name(self):
+                return "noop"
+
+        noop = _ConcreteNoOp()
+        data = b"some data"
+        assert noop.mutate_bytes(data) is data
