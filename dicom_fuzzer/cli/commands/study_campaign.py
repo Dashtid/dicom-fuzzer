@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from dicom_fuzzer.cli.base import SubcommandBase
 from dicom_fuzzer.core.harness.target_runner import (
     ExecutionResult,
     ExecutionStatus,
@@ -816,18 +817,29 @@ def run_campaign(args: argparse.Namespace) -> int:
         return 1
 
 
+class StudyCampaignCommand(SubcommandBase):
+    """Study-level fuzzing campaign subcommand."""
+
+    @classmethod
+    def build_parser(cls) -> argparse.ArgumentParser:
+        """Return the argument parser for this subcommand."""
+        return create_parser()
+
+    @classmethod
+    def execute(cls, args: argparse.Namespace) -> int:
+        """Run the subcommand."""
+        if args.list_strategies:
+            return run_list_strategies()
+        elif args.target:
+            return run_campaign(args)
+        else:
+            cls.build_parser().print_help()
+            return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for study-campaign subcommand."""
-    parser = create_parser()
-    args = parser.parse_args(argv)
-
-    if args.list_strategies:
-        return run_list_strategies()
-    elif args.target:
-        return run_campaign(args)
-    else:
-        parser.print_help()
-        return 1
+    return StudyCampaignCommand.main(argv)
 
 
 if __name__ == "__main__":
