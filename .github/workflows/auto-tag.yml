@@ -2,7 +2,8 @@ name: Auto-tag on Version Bump
 
 # Fires whenever pyproject.toml changes on main.
 # If the version in pyproject.toml does not yet have a matching git tag,
-# creates and pushes it — which triggers release.yml (build + PyPI + GitHub Release).
+# creates and pushes it, then triggers release.yml via workflow_dispatch
+# (tag pushes via GITHUB_TOKEN do not trigger downstream workflows directly).
 
 on:
   push:
@@ -57,4 +58,14 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "v${{ steps.ver.outputs.version }}"
           git push origin "v${{ steps.ver.outputs.version }}"
-          echo "Pushed tag v${{ steps.ver.outputs.version }} — release.yml will now run."
+          echo "Pushed tag v${{ steps.ver.outputs.version }}"
+
+      # Tag pushes via GITHUB_TOKEN do not trigger downstream workflows.
+      # workflow_dispatch is explicitly exempt from this restriction (GitHub docs).
+      - name: Trigger release workflow
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          gh workflow run release.yml --ref "refs/tags/v${{ steps.ver.outputs.version }}"
+          echo "Triggered release.yml for v${{ steps.ver.outputs.version }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

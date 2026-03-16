@@ -56,7 +56,7 @@ jobs:
         timeout-minutes: 45
 
       - name: Build distribution packages
-        run: uv build
+        run: uv build --out-dir .dist
 
       - name: Validate packages
         run: uvx twine check .dist/*
