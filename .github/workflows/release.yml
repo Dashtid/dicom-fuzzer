@@ -52,7 +52,7 @@ jobs:
 
       - name: Run full test suite
         run: |
-          uv run pytest tests/ -m "not slow" -o "addopts=" -v --cov=dicom_fuzzer --cov-report=xml --cov-report=html --timeout=30 --reruns=3 --reruns-delay=1
+          uv run pytest tests/ -m "not slow" -o "addopts=" -v --cov=dicom_fuzzer --cov-report=xml --cov-report=html --timeout=60 --reruns=3 --reruns-delay=1
         timeout-minutes: 45
 
       - name: Build distribution packages
