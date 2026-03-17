@@ -8,12 +8,61 @@ in DicomMutator._register_default_strategies() alongside format fuzzers.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
 
 from dicom_fuzzer.attacks.format.base import FormatFuzzerBase
 
 if TYPE_CHECKING:
     from pydicom.dataset import Dataset
+
+
+@dataclass
+class MultiFrameMutationRecord:
+    """Record of a multi-frame mutation.
+
+    Attributes:
+        strategy: Name of the mutation strategy applied
+        frame_number: Which frame was mutated (None = all/dataset-level)
+        tag: DICOM tag that was mutated
+        original_value: Value before mutation
+        mutated_value: Value after mutation
+        severity: Mutation severity level
+        details: Additional mutation details
+
+    """
+
+    strategy: str
+    frame_number: int | None = (
+        None  # Which frame was mutated (None = all/dataset-level)
+    )
+    tag: str | None = None
+    original_value: str | None = None
+    mutated_value: str | None = None
+    severity: str = "moderate"
+    details: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert record to dictionary for serialization.
+
+        Returns:
+            Dictionary representation of the record
+
+        """
+        data = {
+            "strategy": self.strategy,
+            "frame_number": self.frame_number,
+            "tag": self.tag,
+            "original_value": str(self.original_value)
+            if self.original_value is not None
+            else None,
+            "mutated_value": str(self.mutated_value)
+            if self.mutated_value is not None
+            else None,
+            "severity": self.severity,
+            "details": self.details,
+        }
+        return data
 
 
 class MultiFrameFuzzerBase(FormatFuzzerBase):
@@ -56,4 +105,4 @@ class MultiFrameFuzzerBase(FormatFuzzerBase):
         return rows * cols * (bits_allocated // 8) * samples_per_pixel
 
 
-__all__ = ["MultiFrameFuzzerBase"]
+__all__ = ["MultiFrameFuzzerBase", "MultiFrameMutationRecord"]

@@ -17,7 +17,7 @@ import random
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 
-from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
+from dicom_fuzzer.attacks.multiframe.format_base import MultiFrameMutationRecord
 
 from .format_base import MultiFrameFuzzerBase
 

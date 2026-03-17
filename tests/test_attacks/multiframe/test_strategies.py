@@ -19,7 +19,7 @@ from dicom_fuzzer.attacks.multiframe import (
     PixelDataTruncationStrategy,
     SharedGroupStrategy,
 )
-from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
+from dicom_fuzzer.attacks.multiframe.format_base import MultiFrameMutationRecord
 
 
 class TestMultiFrameFuzzerPublicAPI:

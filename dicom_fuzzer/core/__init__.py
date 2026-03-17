@@ -15,6 +15,9 @@ Subpackages:
 - session/: Runtime and session management
 """
 
+# Mutation primitives
+from dicom_fuzzer.attacks.multiframe.format_base import MultiFrameMutationRecord
+
 from .constants import (
     BugSeverity,
     CrashSeverity,
@@ -48,13 +51,6 @@ from .exceptions import DicomFuzzingError, ValidationError
 
 # Target harness
 from .harness.target_runner import ExecutionStatus, TargetRunner
-
-# Mutation primitives
-from .mutation.multiframe_types import (
-    FrameInfo,
-    MultiFrameMutationRecord,
-    MultiFrameMutationStrategy,
-)
 from .mutation.mutator import DicomMutator
 
 # Reporting
@@ -108,7 +104,5 @@ __all__ = [
     "StateFingerprint",
     "StateTransition",
     # Multi-frame types
-    "FrameInfo",
     "MultiFrameMutationRecord",
-    "MultiFrameMutationStrategy",
 ]

@@ -1,17 +1,12 @@
 """Mutation primitives -- multiframe and orchestration."""
 
-from .multiframe_types import (
-    FrameInfo,
-    MultiFrameMutationRecord,
-    MultiFrameMutationStrategy,
-)
+from dicom_fuzzer.attacks.multiframe.format_base import MultiFrameMutationRecord
+
 from .mutator import DicomMutator, MutationRecord, MutationSession, MutationStrategy
 
 __all__ = [
     "DicomMutator",
-    "FrameInfo",
     "MultiFrameMutationRecord",
-    "MultiFrameMutationStrategy",
     "MutationRecord",
     "MutationSession",
     "MutationStrategy",
