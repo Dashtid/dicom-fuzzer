@@ -8,10 +8,16 @@ Attacks:
 - Row/column dimension mismatch with pixel data size
 - Bit depth inconsistencies (BitsAllocated, BitsStored, HighBit)
 - Photometric interpretation confusion (MONOCHROME1/2, RGB, YBR)
+- Raw PixelData buffer truncation
+- Raw PixelData byte flipping
+- Raw PixelData uniform fill (0x00 / 0xFF)
+- Raw PixelData random garbage replacement
+- Raw PixelData oversized buffer injection
 """
 
 from __future__ import annotations
 
+import os
 import random
 
 from pydicom.dataset import Dataset
@@ -57,6 +63,11 @@ class PixelFuzzer(FormatFuzzerBase):
             self._photometric_confusion,
             self._samples_per_pixel_attack,
             self._planar_configuration_attack,
+            self._pixel_data_truncation,
+            self._pixel_data_byte_flip,
+            self._pixel_data_fill_pattern,
+            self._pixel_data_random_garbage,
+            self._pixel_data_oversized,
         ]
 
         # Apply 1-2 mutations
@@ -255,4 +266,92 @@ class PixelFuzzer(FormatFuzzerBase):
         except Exception as e:
             logger.debug("Photometric confusion attack failed: %s", e)
 
+        return dataset
+
+    def _pixel_data_truncation(self, dataset: Dataset) -> Dataset:
+        """Replace PixelData with a truncated slice (10-90% of original size).
+
+        Forces buffer-read past end of data on the viewer side when dimensions
+        and declared sizes indicate more bytes than are present.
+        """
+        pixel_data = getattr(dataset, "PixelData", None)
+        if not pixel_data:
+            return dataset
+        try:
+            data = bytes(pixel_data)
+            fraction = random.uniform(0.1, 0.9)
+            dataset.PixelData = data[: max(1, int(len(data) * fraction))]
+        except Exception as e:
+            logger.debug("Pixel data truncation attack failed: %s", e)
+        return dataset
+
+    def _pixel_data_byte_flip(self, dataset: Dataset) -> Dataset:
+        """XOR random bytes in PixelData with a random non-zero value.
+
+        Flip count is 1% of the buffer length (minimum 1). Low crash
+        probability but high anomaly surface for decode paths.
+        """
+        pixel_data = getattr(dataset, "PixelData", None)
+        if not pixel_data:
+            return dataset
+        try:
+            data = bytes(pixel_data)
+            buf = bytearray(data)
+            n_flips = max(1, min(len(buf) // 100, len(buf)))
+            for i in random.sample(range(len(buf)), n_flips):
+                buf[i] ^= random.randint(1, 255)
+            dataset.PixelData = bytes(buf)
+        except Exception as e:
+            logger.debug("Pixel data byte flip attack failed: %s", e)
+        return dataset
+
+    def _pixel_data_fill_pattern(self, dataset: Dataset) -> Dataset:
+        """Replace PixelData with a uniform fill of 0x00 or 0xFF.
+
+        Tests LUT/window handling edge cases where every sample has the
+        same value (black frame or saturated frame).
+        """
+        pixel_data = getattr(dataset, "PixelData", None)
+        if not pixel_data:
+            return dataset
+        try:
+            data = bytes(pixel_data)
+            fill_byte = random.choice([0x00, 0xFF])
+            dataset.PixelData = bytes([fill_byte] * len(data))
+        except Exception as e:
+            logger.debug("Pixel data fill pattern attack failed: %s", e)
+        return dataset
+
+    def _pixel_data_random_garbage(self, dataset: Dataset) -> Dataset:
+        """Replace PixelData with cryptographically random bytes of the same length.
+
+        Most aggressive option -- exercises all downstream pixel decode paths
+        with maximally unpredictable input.
+        """
+        pixel_data = getattr(dataset, "PixelData", None)
+        if not pixel_data:
+            return dataset
+        try:
+            data = bytes(pixel_data)
+            dataset.PixelData = os.urandom(len(data))
+        except Exception as e:
+            logger.debug("Pixel data random garbage attack failed: %s", e)
+        return dataset
+
+    def _pixel_data_oversized(self, dataset: Dataset) -> Dataset:
+        """Append extra random bytes to PixelData (2x-4x declared size total).
+
+        Some viewers allocate exactly the declared pixel buffer size and then
+        read the full (larger) stream, causing heap overread or OOM conditions.
+        """
+        pixel_data = getattr(dataset, "PixelData", None)
+        if not pixel_data:
+            return dataset
+        try:
+            data = bytes(pixel_data)
+            multiplier = random.uniform(2.0, 4.0)
+            extra_len = max(1, int(len(data) * multiplier) - len(data))
+            dataset.PixelData = data + os.urandom(extra_len)
+        except Exception as e:
+            logger.debug("Pixel data oversized attack failed: %s", e)
         return dataset

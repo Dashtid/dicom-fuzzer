@@ -127,6 +127,8 @@ class TestFileGeneration:
                 ]
                 mock_gen.stats.skipped_due_to_write_errors = 0
                 mock_gen.stats.strategies_used = {"metadata": 5, "header": 5}
+                mock_gen.cumulative_strategies = {}
+                mock_gen.known_strategy_names = []
                 mock_gen_class.return_value = mock_gen
 
                 try:
@@ -162,6 +164,8 @@ class TestFileGeneration:
                 ]
                 mock_gen.stats.skipped_due_to_write_errors = 0
                 mock_gen.stats.strategies_used = {"metadata": 3, "header": 2}
+                mock_gen.cumulative_strategies = {}
+                mock_gen.known_strategy_names = []
                 mock_gen_class.return_value = mock_gen
 
                 try:
@@ -197,6 +201,8 @@ class TestFileGeneration:
                 ]
                 mock_gen.stats.skipped_due_to_write_errors = 0
                 mock_gen.stats.strategies_used = {"metadata": 5}
+                mock_gen.cumulative_strategies = {}
+                mock_gen.known_strategy_names = []
                 mock_gen_class.return_value = mock_gen
 
                 try:
@@ -251,6 +257,8 @@ class TestTargetTesting:
                     mock_gen.generate_batch.return_value = test_files
                     mock_gen.stats.skipped_due_to_write_errors = 0
                     mock_gen.stats.strategies_used = {"metadata": 5}
+                    mock_gen.cumulative_strategies = {}
+                    mock_gen.known_strategy_names = []
                     mock_gen_class.return_value = mock_gen
 
                     # Setup runner mock
@@ -335,6 +343,8 @@ class TestTargetTesting:
                     mock_gen.generate_batch.return_value = test_files
                     mock_gen.stats.skipped_due_to_write_errors = 0
                     mock_gen.stats.strategies_used = {"metadata": 10}
+                    mock_gen.cumulative_strategies = {}
+                    mock_gen.known_strategy_names = []
                     mock_gen_class.return_value = mock_gen
 
                     mock_runner = Mock()
@@ -450,6 +460,8 @@ class TestOutputFormatting:
                 ]
                 mock_gen.stats.skipped_due_to_write_errors = 0
                 mock_gen.stats.strategies_used = {"metadata": 5}
+                mock_gen.cumulative_strategies = {}
+                mock_gen.known_strategy_names = []
                 mock_gen_class.return_value = mock_gen
 
                 try:
@@ -493,6 +505,8 @@ class TestOutputFormatting:
                     ]
                     mock_gen.stats.skipped_due_to_write_errors = 0
                     mock_gen.stats.strategies_used = {"metadata": 20}
+                    mock_gen.cumulative_strategies = {}
+                    mock_gen.known_strategy_names = []
                     mock_gen_class.return_value = mock_gen
 
                     # Setup tqdm context manager mock
@@ -567,6 +581,8 @@ class TestDirectoryCreation:
                 ]
                 mock_gen.stats.skipped_due_to_write_errors = 0
                 mock_gen.stats.strategies_used = {"metadata": 5}
+                mock_gen.cumulative_strategies = {}
+                mock_gen.known_strategy_names = []
                 mock_gen_class.return_value = mock_gen
 
                 # Let directory creation happen
