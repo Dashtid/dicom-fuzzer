@@ -118,45 +118,6 @@ Fix:
 
 Low-medium effort. The core logic exists — it just needs wiring.
 
-## Separate reports.py CLI from utility library
-
-**Location:** `dicom_fuzzer/cli/commands/reports.py` (577 lines)
-
-`reports.py` serves dual roles: (1) CLI subcommand for `dicom-fuzzer report`
-and (2) utility library with 9 helper functions (`generate_json_report`,
-`generate_csv_report`, `generate_coverage_chart`, `generate_markdown_report`,
-`load_template`, `render_report`, `save_report`, `create_report_with_charts`,
-`generate_charts`). Only 2 helpers have production consumers
-(`generate_json_report` in `series_reporter.py`, `save_report` in
-`tls/fuzzer.py`). The rest are test-only. `generate_charts()` is a stub
-returning mock data.
-
-**Fix:** Move the utility functions to `dicom_fuzzer/core/reporting/` (where
-they logically belong) and update the 2 production imports + 9 test files.
-Keep `reports.py` as a thin CLI wrapper. Also consider moving the ~100-line
-inline legacy HTML template to a separate template file.
-
-Medium effort. Touches ~12 files.
-
-## ~~Unify CLI setup_logging() with utils.logger.configure_logging()~~ [DONE]
-
-`setup_logging()` now delegates to `configure_logging()` from utils.
-
-## Migrate CLI subcommands to SubcommandBase
-
-**Location:** `dicom_fuzzer/cli/commands/` (11 subcommands)
-
-All 11 subcommands use ad-hoc `def main(argv)` with custom error handling.
-A `SubcommandBase` ABC was designed (and deleted as dead code) that would
-standardize: argument parser creation, error handling, verbose traceback
-support, and the `name`/`description`/`epilog` interface.
-
-**Fix:** Create a new `SubcommandBase` in `cli/base.py` (or inline in
-`cli/__init__.py`), then migrate each subcommand's `main()` to extend it.
-This removes ~15 lines of boilerplate per subcommand (11 \* 15 = ~165 lines).
-
-Medium effort. Touches 11 files + tests.
-
 ## Re-encode pixel data to match mutated TransferSyntaxUID
 
 **Context:** `dicom_fuzzer/attacks/format/compressed_pixel_fuzzer.py`,
@@ -209,10 +170,6 @@ Medium-low. The existing synthetic bitstreams already test the important
 attack surface (malformed markers, dimension mismatches, truncation).
 Real re-encoding matters more for testing decoder happy-path robustness,
 which is valuable but secondary to structural fuzzing.
-
-## ~~Remove pydicom MultiValue str() workaround in strategy cache~~ [DONE]
-
-`str()` workaround removed from `_get_applicable_strategies()`.
 
 ## Pre-mutation safety checks
 
@@ -351,97 +308,6 @@ Touches 8+ files, ~200+ lines. Medium effort, low risk.
 - Enables the "attack mode / scope filtering" backlog item (filter by
   category at the source instead of in each fuzzer)
 
-## ~~SEG and RTSS file fuzzing~~ [DONE]
-
-**Implemented:** `seg_fuzzer.py` (4 strategies, 20 variants) and `rtss_fuzzer.py` (5 strategies, 26 variants).
-
-**Context:** New attack surface not covered by existing format fuzzers
-
-DICOM SEG (Segmentation) and RTSS (RT Structure Set) files have
-complex internal structures that differ significantly from standard
-image storage objects. The existing fuzzers target generic DICOM
-metadata, pixel data, and headers -- but SEG and RTSS have
-domain-specific structures that need targeted mutations.
-
-### SEG-specific attack surface
-
-- **Segment Sequence** (0062,0002): Each item defines a segment with
-  SegmentNumber, SegmentLabel, SegmentAlgorithmType, AnatomicRegion.
-  Mismatches between segment count and actual frame data cause crashes.
-- **Dimension Index**: Per-Frame Functional Groups map frames to
-  segments and slices. Corrupting this mapping is a known crash vector.
-- **Binary/fractional pixel data**: Segment masks stored as 1-bit-per-pixel
-  (BINARY) or 8-bit fractional. Mismatch with SegmentationType tag.
-- **Referenced Series Sequence**: Links to the original image. Broken
-  references stress error handling.
-
-### RTSS-specific attack surface
-
-- **Deeply nested sequences**: StructureSetROISequence ->
-  ROIContourSequence -> ContourSequence -> ContourData. Nesting depth
-  and item counts are rich mutation targets.
-- **ContourData**: Thousands of float coordinates in a single
-  backslash-delimited string. Malformed floats, NaN, Inf, truncated
-  arrays, and coordinate count mismatches with ContourGeometricType.
-- **ROI numbering**: ReferencedROINumber must match across sequences.
-  Mismatches cause lookup failures.
-- **Referenced Frame of Reference**: Coordinate system references.
-  Invalid or missing references break spatial mapping.
-
-### Implementation approach
-
-Two options:
-
-1. **New fuzzers in `attacks/format/`**: `seg_fuzzer.py` and
-   `rtss_fuzzer.py` extending `FormatFuzzerBase`. Keeps the single
-   `mutate(dataset) -> Dataset` interface. The fuzzers would check
-   SOPClassUID to decide if the dataset is a SEG/RTSS and apply
-   targeted mutations. Pro: integrates with existing engine pipeline.
-2. **New attack category**: `attacks/specialized/` for modality-specific
-   fuzzers that require seed files of the correct type. Pro: cleaner
-   separation. Con: needs engine changes to route seeds by type.
-
-Option 1 is simpler and recommended as a starting point. Both fuzzers
-would return the dataset unmodified if it's not the right SOPClassUID,
-which is consistent with `can_mutate()` in `FormatFuzzerBase`.
-
-Requires seed SEG and RTSS files for the corpus.
-
-## ~~Encapsulated PDF fuzzing~~ [DONE]
-
-**Implemented:** `encapsulated_pdf_fuzzer.py` (5 strategies, 19 variants). See "Encapsulated PDF fuzzer improvements" below for remaining work.
-
-**Context:** New attack surface not covered by existing format fuzzers
-
-Encapsulated PDF Storage (SOP Class `1.2.840.10008.5.1.4.1.1.104.1`)
-wraps a raw PDF inside a DICOM object. The viewer must parse the DICOM
-wrapper, extract the PDF bytes from `EncapsulatedDocument` (0042,0011),
-then hand them to a PDF renderer -- two parsers in series.
-
-### Attack surface
-
-- **EncapsulatedDocument** (0042,0011): The raw PDF bytes in an OB
-  field. Truncated, corrupted, or entirely replaced content tests the
-  PDF extraction and rendering pipeline.
-- **MIMETypeOfEncapsulatedDocument** (0042,0012): Should be
-  `"application/pdf"`. Mismatches (e.g. claiming `"image/jpeg"` or
-  empty) test content-type validation.
-- **DICOM metadata with valid PDF**: Corrupt the DICOM header while
-  keeping the embedded PDF intact. Tests whether metadata corruption
-  prevents the viewer from reaching the PDF at all.
-- **Valid DICOM with malformed PDF**: Keep the DICOM wrapper clean but
-  stuff in a malformed PDF. Tests the handoff between DICOM parser
-  and PDF renderer.
-- **Encapsulated CDA** (`1.2.840.10008.5.1.4.1.1.104.2`): Same
-  pattern but for Clinical Document Architecture (XML-based clinical
-  documents). Could share most of the fuzzer logic.
-
-### Implementation
-
-Same pattern as SEG/RTSS: new fuzzer in `attacks/format/` extending
-`FormatFuzzerBase`, using `can_mutate()` to check SOPClassUID.
-Requires seed Encapsulated PDF files for the corpus.
-
 ## Seed corpus diversification
 
 **Context:** `dicom_fuzzer/core/corpus/` and engine pipeline
@@ -570,181 +436,6 @@ Current styling is flashy rather than professional:
 subtle borders instead of shadows, standard-sized text, no animations,
 no gradients. Professional enough for FDA submission attachments.
 
-## ~~Adopt or remove dead helper functions in html_templates.py~~ [DONE]
-
-Removed 9 dead helpers (`render_badge`, `render_stat_card`, `render_alert`,
-`render_info_row`, `render_code_block`, `render_details`, `render_table_header`,
-`render_table_row`, `html_report_header`) and `SEVERITY_COLORS`. Kept
-`escape_html`, `html_document_start`, `html_document_end` (production callers).
-
-## ~~Deduplicate critical crashes table~~ [DONE]
-
-Duplicate `_format_critical_crashes` implementations consolidated.
-
-## ~~Fix cross-module HTML nesting~~ [DONE]
-
-Cross-module div nesting fixed -- each module manages its own tags.
-
-## ~~Fix compliance.py creating duplicate ReportAnalytics instance~~ [DONE]
-
-`compliance.py` removed; duplicate `ReportAnalytics` instantiation eliminated.
-
-## ~~Add structured logging to HeaderFuzzer and PixelFuzzer~~ [DONE]
-
-Both fuzzers now have `get_logger(__name__)` and `logger.debug()` calls.
-
-## Rewrite StructureFuzzer no-op attacks at binary level
-
-**Context:** `dicom_fuzzer/attacks/format/structure_fuzzer.py`
-
-Three of StructureFuzzer's six Dataset-level attacks are partially or
-fully no-ops because pydicom enforces structural correctness on write:
-
-1. **`_corrupt_tag_ordering`** -- Swaps elements in a list then rebuilds
-   a Dataset, but pydicom re-sorts by tag number on insertion. Output
-   tag order is identical to input. Complete no-op.
-
-2. **`_duplicate_tags`** -- Calls `add_new` on an existing tag, but
-   pydicom overwrites instead of creating a duplicate. Result is a
-   value mutation (appends "\_DUPLICATE"), not a duplicate tag.
-
-3. **`_corrupt_length_fields`** -- Changes string values (longer, empty,
-   null bytes) but pydicom recalculates length fields from actual
-   values on write. Output has correct lengths for new values.
-
-### What to do
-
-Reimplement these attacks at the binary level, similar to the existing
-`corrupt_file_header()` method which already operates on raw bytes:
-
-1. **Tag ordering**: Write file via pydicom, then swap tag byte-pairs
-   in the raw output to create out-of-order tags.
-2. **Duplicate tags**: Write file, then duplicate a tag's raw bytes at
-   a different position in the binary stream.
-3. **Length corruption**: Write file, then patch the 4-byte length
-   field of a random element to a wrong value (0xFFFFFFFF, 0, or
-   a value larger than actual data).
-
-### Integration approach
-
-Add a `mutate_bytes(file_data: bytes) -> bytes` method alongside
-the existing `mutate(dataset) -> Dataset`. The engine could call
-`mutate_bytes` on the serialized output of `mutate`, layering
-Dataset-level and binary-level mutations.
-
-Medium-high effort, medium risk. Requires updating the engine to
-support a byte-level mutation pass.
-
-## ~~Nuclear Medicine (NM) modality-specific fuzzing~~ [DONE]
-
-**Implemented:** `nm_fuzzer.py` (5 strategies, 28 variants).
-
-**Context:** SOP Class `1.2.840.10008.5.1.4.1.1.20` -- not covered by
-any existing fuzzer beyond generic DICOM metadata and pixel data.
-
-NM images have domain-specific sequences that existing fuzzers never
-touch because they don't exist in CT seed files:
-
-### Attack surface
-
-- **EnergyWindowInformationSequence** (0054,0012): Defines energy
-  windows (keV ranges) for gamma camera acquisitions. Items contain
-  `EnergyWindowRangeSequence` with `EnergyWindowLowerLimit` /
-  `EnergyWindowUpperLimit` (DS values). Corrupting these tests how the
-  viewer handles invalid energy calibration.
-- **DetectorInformationSequence** (0054,0022): Detector geometry --
-  `ImageOrientationPatient`, `ImagePositionPatient`, `FieldOfViewShape`,
-  `FieldOfViewDimensions` per detector. Mismatches between detectors
-  stress multi-detector rendering.
-- **RotationInformationSequence** (0054,0052): SPECT rotation data --
-  `ScanArc`, `NumberOfFramesInRotation`, `AngularStep`,
-  `RadialPosition`. Cross-field consistency is a rich target.
-- **RadiopharmaceuticalInformationSequence** (0054,0016): Isotope,
-  injection time, dose, half-life. Shared with PET.
-- **NumberOfSlices / NumberOfTimeSlices** cross-consistency: Mismatch
-  between these and actual frame count.
-
-### Implementation
-
-New fuzzer `attacks/format/nm_fuzzer.py` extending `FormatFuzzerBase`.
-Use `can_mutate()` to check `SOPClassUID == 1.2.840.10008.5.1.4.1.1.20`
-or `Modality == "NM"`. Requires NM seed files.
-
-Medium effort. Requires NM seed file in corpus.
-
-## ~~PET modality-specific fuzzing~~ [DONE]
-
-**Implemented:** `pet_fuzzer.py` (5 strategies, 25 variants).
-
-**Context:** SOP Class `1.2.840.10008.5.1.4.1.1.128` -- SUV
-calibration chain and radiopharmaceutical data not covered.
-
-PET images share some structures with NM but have unique aspects
-around SUV calculation that viewers must handle correctly.
-
-### Attack surface
-
-- **RadiopharmaceuticalInformationSequence** (0054,0016): Same as NM,
-  but more critical for PET -- `RadionuclideHalfLife`,
-  `RadionuclideTotalDose`, `RadiopharmaceuticalStartDateTime` feed
-  directly into decay correction and SUV computation.
-- **SUV calibration chain**: `Units` (BQML/CNTS), `DecayCorrection`
-  (START/ADMIN/NONE), `PatientWeight`, `PatientSize` -- these must be
-  consistent for SUV calculation. Existing `MetadataFuzzer` touches
-  `PatientWeight`/`PatientSize` with boundary values but doesn't
-  understand the SUV dependency chain.
-- **DecayFactor** / **FrameReferenceTime** / **ActualFrameDuration**:
-  Temporal parameters for multi-frame PET. Inconsistencies between
-  frames stress time-based rendering.
-- **CorrectedImage** (0028,0051): Flags like ATTN, DECY, NORM, SCAT
-  indicating which corrections were applied. Invalid combinations or
-  unexpected values.
-
-### Implementation
-
-Could share a base with NM fuzzer since `RadiopharmaceuticalInformation
-Sequence` overlaps. `attacks/format/pet_fuzzer.py` or a combined
-`nuclear_medicine_fuzzer.py`. Requires PET seed files.
-
-Medium effort. Requires PET seed file in corpus.
-
-## ~~RT Dose modality-specific fuzzing~~ [DONE]
-
-**Implemented:** `rt_dose_fuzzer.py` (5 strategies, 26 variants).
-
-**Context:** SOP Class `1.2.840.10008.5.1.4.1.1.481.2` -- dose grid
-scaling and DVH structures not covered.
-
-RT Dose has pixel-like dose grid data that the existing pixel fuzzers
-partially cover, but domain-specific tags are missed.
-
-### Attack surface
-
-- **DoseGridScaling** (3004,000E): DS value that converts stored pixel
-  values to dose (Gy). Similar to `RescaleSlope` but not in
-  `CalibrationFuzzer`'s target list. Zero, negative, NaN, extreme
-  values would test dose display.
-- **DVHSequence** (3004,0050): Dose-Volume Histogram data with nested
-  `DVHData` (DS array of dose/volume pairs), `DVHType` (CUMULATIVE/
-  DIFFERENTIAL), `DVHDoseScaling`. Not targeted by any fuzzer.
-- **GridFrameOffsetVector** (3004,000C): DS array defining Z-offsets
-  of dose planes. Length mismatch with `NumberOfFrames`, non-monotonic
-  offsets, NaN values.
-- **ReferencedRTPlanSequence** (300C,0002): Links dose to treatment
-  plan. `ReferenceFuzzer` covers generic references but doesn't
-  construct RT-specific ones.
-- **DoseType** (3004,0004): PHYSICAL/EFFECTIVE/ERROR -- invalid
-  enumeration values.
-- **DoseSummationType** (3004,000A): PLAN/MULTI_PLAN/FRACTION/BEAM/
-  BRACHY -- mismatches with actual data structure.
-
-### Implementation
-
-New fuzzer `attacks/format/rt_dose_fuzzer.py`. Use `can_mutate()` to
-check SOPClassUID. Requires RT Dose seed files.
-
-Medium effort. Requires RT Dose seed file in corpus.
-
 ## MR modality-specific fuzzing
 
 **Context:** SOP Class `1.2.840.10008.5.1.4.1.1.4` -- MR-specific
@@ -863,10 +554,6 @@ or reshape `DicomParser`'s API to match what production code actually needs.
 The remaining methods (`get_pixel_data`, `get_transfer_syntax`,
 `is_compressed`, `temporary_mutation`) should also be evaluated for
 production integration or removal at that time.
-
-## ~~Use or remove DicomSeries.metadata field~~ [DONE]
-
-Dead `metadata: dict[str, Any]` field removed from `DicomSeries` dataclass.
 
 ## Wire SeriesWriter into the fuzzing pipeline or remove
 
@@ -992,36 +679,6 @@ Medium. Directly supports the "diminishing returns" FDA rationale.
 The plateau proof is more convincing than raw case counts for
 demonstrating campaign sufficiency.
 
-## PyPI publishing pipeline
-
-**Context:** `.github/workflows/ci.yml` -- the `build` job already runs
-`uv build` and `twine check dist/*`, but the pipeline stops there.
-
-The natural next step is a publish workflow that pushes to PyPI on tagged
-releases. The standard pattern:
-
-1. **Trigger**: `on: push: tags: ['v*']` (semantic version tags)
-2. **Build**: Same `uv build` + `twine check` as the current `build` job
-3. **Publish to TestPyPI**: Upload to test.pypi.org first for validation
-4. **Publish to PyPI**: Upload to pypi.org using trusted publishing (OIDC)
-   -- no API tokens needed, GitHub Actions authenticates directly with PyPI
-5. **GitHub Release**: Create a GitHub Release with changelog and dist
-   artifacts attached
-
-Key decisions for later:
-
-- **Trusted publishing vs API token**: OIDC (trusted publishing) is the
-  modern approach -- configure it in PyPI project settings, no secrets needed
-- **pyproject.toml metadata**: Ensure `[project]` has correct `name`,
-  `version`, `description`, `authors`, `license`, `classifiers`, `urls`
-- **Versioning strategy**: Manual version bumps in `pyproject.toml` or
-  automated via `python-semantic-release` / `bump-my-version`
-- **Changelog generation**: Manual CHANGELOG.md or auto-generated from
-  conventional commits
-
-Low effort to set up once the package metadata is finalized. The existing
-`build` job proves the package already builds and passes `twine check`.
-
 ## Rename dicom_series.py to series.py for naming consistency
 
 **Location:** `dicom_fuzzer/core/dicom/dicom_series.py`
@@ -1063,10 +720,6 @@ Or keep two files but give them clearly distinct names
 (`corpus_strip.py` + `corpus_minimize.py`).
 
 Medium effort. Touches imports in CLI commands, engine, and tests.
-
-## ~~Clean up core/corpus/\_\_init\_\_.py exports~~ [DONE]
-
-Partial re-exports removed. Direct submodule imports are the pattern.
 
 ## Consolidate crash data types (CrashReport, CrashRecord, WindowsCrashInfo)
 
@@ -1161,71 +814,6 @@ Also removed in the same cleanup pass:
 - `CoverageAwarePrioritizer` from `corpus_minimization.py` -- completely dead
 - `minimize_crashing_study` from `study_minimizer.py` -- dead convenience wrapper
 - All `__init__.py` re-exports (no production code used package-level imports)
-
-## ~~Encapsulated PDF fuzzer improvements~~ [PARTIALLY DONE]
-
-**Location:** `dicom_fuzzer/attacks/format/encapsulated_pdf_fuzzer.py`
-
-### ~~Generalize to Encapsulated Document fuzzer~~ [DESCOPED]
-
-CDA, STL, OBJ SOP classes are not in the corpus seed list. Out of scope
-until those SOP classes are added to the fuzzer's target list.
-
-### ~~Add PDF-internal structure attacks~~ [DONE]
-
-Added `_pdf_structure_corruption` strategy with 5 variants: corrupt_xref,
-truncated_stream, bad_startxref, recursive_pages, js_openaction.
-
-### ~~Type confusion attacks~~ [DONE]
-
-Added `_type_confusion` strategy with 4 variants: int_document,
-str_document, dataset_document, none_document.
-
-## [DONE] Share radiopharmaceutical attacks between NM and PET fuzzers
-
-**Location:** `dicom_fuzzer/attacks/format/nm_fuzzer.py`,
-`dicom_fuzzer/attacks/format/pet_fuzzer.py`
-
-Both fuzzers independently attack `RadiopharmaceuticalInformationSequence`
-with complementary but duplicated logic:
-
-- **NM** (7 variants): empty_isotope, negative_dose, time_reversal,
-  invalid_route, remove_nuclide, zero_half_life, negative_total_dose
-- **PET** (5 variants): zero_half_life, negative_dose, future_start_time,
-  zero_positron_fraction, remove_sequence
-
-`zero_half_life` and `negative_dose` overlap directly. The remaining
-variants are complementary and both fuzzers would benefit from having
-all of them.
-
-**Fix:** Extract a shared `_radiopharmaceutical_attacks()` helper (either
-a standalone function in a shared module, or a mixin) that both fuzzers
-call. Each fuzzer can add its own modality-specific variants on top.
-
-Low-medium effort. Touches 2 source files + 2 test files.
-
-### Implementation plan
-
-**Phase 1 -- Extract shared helper:**
-
-1. Create `dicom_fuzzer/attacks/format/_radiopharmaceutical.py` with a
-   standalone function `radiopharmaceutical_attacks(dataset) -> Dataset`
-2. Combine all 10 unique variants from both fuzzers:
-   - From NM: empty_isotope, negative_dose, time_reversal, invalid_route,
-     remove_nuclide, zero_half_life, negative_total_dose
-   - From PET: future_start_time, zero_positron_fraction, remove_sequence
-   - Deduplicate: zero_half_life and negative_dose (keep one copy each)
-3. Both fuzzers call the shared helper as one of their strategies
-4. Remove the per-fuzzer `_radiopharmaceutical_corruption` methods
-
-**Phase 2 -- Update tests:**
-
-1. Create `tests/test_attacks/format/test_radiopharmaceutical.py` with
-   tests for all 10 variants using a generic dataset fixture
-2. Remove duplicate radiopharmaceutical tests from `test_nm_fuzzer.py`
-   and `test_pet_fuzzer.py`
-3. Keep integration tests in each fuzzer's test file to verify the
-   shared helper is wired into `mutate()` correctly
 
 ## Establish a consistent mutation taxonomy across all fuzzers
 
