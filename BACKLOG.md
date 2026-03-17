@@ -2,23 +2,63 @@
 
 Ideas pruned from the codebase that may be worth implementing later.
 
-## pixel_fuzzer.py: Add raw PixelData byte mutations for uncompressed images
+## All fuzzers: Audit mutations for crash potential vs. noise
+
+**Location:** `dicom_fuzzer/attacks/format/` (all fuzzers)
+
+Not all mutations are equal. There is a meaningful distinction between mutations that
+produce _noise_ (corrupt data a parser handles gracefully) and mutations that produce
+_parser-breaking inputs_ (force allocation failures, integer overflows, state machine
+violations, or unguarded code paths).
+
+The only confirmed crash so far came from intense sequence nesting — a structural attack,
+not a content one. This pattern warrants a systematic review of every fuzzer.
+
+**Investigation goal:** For each fuzzer, classify every mutation method as either:
+
+- **Structural** — attacks parser logic, size calculations, state machines, or allocation
+  (high crash potential)
+- **Content** — corrupts data values the parser has already successfully read and allocated
+  for (low crash potential; parsers are hardened against this)
+
+Mutations in the content category should be deprioritized, weighted lower in the sampling
+pool, or replaced with structural equivalents where possible.
+
+**Work items:**
+
+- Enumerate all mutation methods across every fuzzer in `attacks/format/`
+- Classify each as structural vs. content using the above definition
+- For each content mutation, assess whether a structural equivalent exists or could be designed
+- Produce a prioritized list of high-value mutations and low-value ones to cut or downweight
+
+## pixel_fuzzer.py: Deprioritize content mutations, strengthen structural ones
 
 **Location:** `dicom_fuzzer/attacks/format/pixel_fuzzer.py`
 
-`pixel_fuzzer.py` only mutates metadata tags (Rows, Columns, BitsAllocated, etc.) - it
-never corrupts the actual `PixelData` bytes. `compressed_pixel_fuzzer.py` covers
-JPEG/JPEG2000/RLE, but uncompressed raw pixel byte corruption is absent entirely.
-This is the highest-leverage gap: viewers that decode correctly-tagged data but
-mishandle truncated or corrupted raw buffers won't be exercised at all.
+The byte-level pixel content mutations (`_pixel_data_byte_flip`, `_pixel_data_fill_pattern`,
+`_pixel_data_random_garbage`) have low crash probability because modern image codecs are built
+to degrade gracefully on corrupt pixel bytes — they render garbage or raise a handled decode
+error rather than crashing.
 
-Specific mutations to add as new `_pixel_data_*` methods in `PixelFuzzer`:
+The high-value mutations are the ones that attack _allocation math_ and _cross-field
+consistency_ — where the parser trusts DICOM metadata to calculate buffer sizes without
+validation:
 
-- **Truncation**: Replace PixelData with a slice of 10-90% its real size. Forces buffer-read past end of data.
-- **Byte flip / bit corruption**: Flip random bytes or individual bits in the buffer. Low crash probability but high anomaly surface.
-- **All-zeros / all-0xFF**: Replace entire pixel buffer. Tests LUT/window handling edge cases.
-- **Random garbage replacement**: Replace with `os.urandom(len(original))`. Most aggressive option; tests all downstream decode paths.
-- **Oversized buffer**: Replace PixelData with a buffer larger than `Rows * Columns * SamplesPerPixel * (BitsAllocated // 8)`. Some viewers allocate exactly the declared size and then read the (larger) stream.
+- `_dimension_mismatch` with `extreme_dimensions` (e.g. `Rows=4294967295`) forces a
+  multi-terabyte allocation calculation — crash surface is at the allocation site, not decode.
+- `_bit_depth_attack` with `extreme_bits` similarly corrupts the bytes-per-pixel multiplier.
+- Multi-field contradictions (e.g. `SamplesPerPixel=3`, `PhotometricInterpretation=MONOCHROME2`,
+  `BitsAllocated=128`, `Rows=65535` applied simultaneously) are stronger than single-field
+  attacks because they force impossible code paths the parser never validates.
+
+**Work items:**
+
+- Consider removing or deprioritizing `_pixel_data_byte_flip` and `_pixel_data_fill_pattern`
+  from the mutation pool, or weighting them much lower.
+- Add a combined "extreme contradiction" mutation that sets multiple conflicting fields
+  simultaneously rather than picking one at a time.
+- `extreme_dimensions` and `extreme_bits` should be the primary crash vectors; `rows_larger`
+  (10x multiplier) is weaker than just setting `Rows=65535`.
 
 ## pixel_fuzzer.py: Missing tag attacks
 
@@ -68,9 +108,12 @@ RNG sequence deterministically.
 **Work items in dependency order:**
 
 1. **Add variant to MutationRecord** (`fuzzing_session.py`): Add `variant: str | None`
-   field to the `MutationRecord` dataclass. Each mutation method should return (or pass
-   back) the variant string it chose. `generator.py` captures it into the record. This
-   alone solves the immediate debugging pain — session JSON already lands on disk per run.
+   field to the `MutationRecord` dataclass in `fuzzing_session.py:31` (note: there are
+   two classes named `MutationRecord` — `mutator.py:34` has 6 fields and is for internal
+   tracking, `fuzzing_session.py:31` has 8 fields and writes to session JSON; the variant
+   belongs in the latter). Each mutation method should return (or pass back) the variant
+   string it chose. `generator.py` captures it into the record. This alone solves the
+   immediate debugging pain — session JSON already lands on disk per run.
 
 2. **Add `replay --decompose` CLI subcommand** (depends on item 1): No replay command
    exists today — this is net-new. Add `dicom-fuzzer replay --decompose <fuzzed_file.dcm>`.
@@ -97,26 +140,34 @@ Also worth auditing: whether the 1-2 mutation types per file (`k=random.randint(
 is consistent across all fuzzers. The count is intentional for throughput during
 overnight batch runs (not a bug), but the policy is undocumented and may vary per fuzzer.
 
-## Wire up orphaned crash triage infrastructure
+## Export CrashTriageEngine and add CLI triage subcommand
 
 **Location:** `dicom_fuzzer/core/crash/crash_triage.py`, `dicom_fuzzer/core/crash/__init__.py`
 
-`CrashTriageEngine` and `CrashTriage` (480 lines, exploitability rating, priority scoring,
-actionable recommendations) exist but are **not exported from `crash/__init__.py`** and
-have **no CLI entry point**. The triage engine is unreachable from normal usage.
+**Investigation findings (2026-03-17):**
 
-The triage engine's own recommendations include "Attempt to minimize test case for
-easier analysis" — but no minimization code backs that recommendation.
+`CrashTriageEngine` (480 lines: exploitability rating, priority scoring, actionable
+recommendations) is NOT orphaned — it IS used in production. `enhanced_reporter.py` and
+`enrichers.py` import it directly from `crash_triage.py`. It works.
 
-Fix:
+The real issues:
+
+1. **Not in the package API**: `crash/__init__.py` does not export `CrashTriageEngine` or
+   `CrashTriage`. Callers bypass the package interface, creating a hidden dependency.
+2. **No CLI entry point**: triage is only reachable via the reporting layer, not directly.
+3. **Minimization stub**: the engine recommends "minimize test case" but no minimization
+   code backs this recommendation.
+
+**Work items:**
 
 - Export `CrashTriageEngine` and `CrashTriage` from `crash/__init__.py`
-- Add a `dicom-fuzzer triage` CLI subcommand (or fold into the `replay` subcommand from
-  the item above) that runs triage on a crash report and prints the exploitability
-  rating, priority score, and recommendations
+- Add a `dicom-fuzzer triage` CLI subcommand that accepts a crash report JSON and prints
+  exploitability rating, priority score, and recommendations
+- Optionally fold into the `replay` subcommand (from "Formalize variant terminology")
+  as `replay --triage`
 - Implement or stub the minimization path so the recommendation is actionable
 
-Low-medium effort. The core logic exists — it just needs wiring.
+Low-medium effort. The core logic exists and works — this is plumbing and CLI wiring only.
 
 ## Re-encode pixel data to match mutated TransferSyntaxUID
 
@@ -231,10 +282,10 @@ issues), but having the option to scope them would be valuable.
 data (anonymization). It is not a fuzzing attack -- it replaces fields
 with valid-looking data from `fake_names` and `fake_ids` lists.
 
-It has ~35 call sites across test and integration files, so moving it
-is non-trivial. A natural home would be a dedicated anonymization
-utility (e.g. `dicom_fuzzer/utils/anonymizer.py`) or a data generation
-helper. Worth doing when building a proper anonymization module.
+It has 25 call sites (all in test files, zero production callers), so moving it is
+low-risk. A natural home would be a dedicated anonymization utility (e.g.
+`dicom_fuzzer/utils/anonymizer.py`) or a data generation helper. Worth doing when
+building a proper anonymization module.
 
 ## Centralize attack payloads in dicom_dictionaries
 
@@ -520,177 +571,189 @@ comprehensive coverage, with diminishing returns past ~30 fuzzers.
 The 6 existing stubs + 4-6 high-value domain fuzzers would cover
 ~85-90% of the attack surface for typical PACS/viewer targets.
 
-## Unify multiframe strategies with FormatFuzzerBase
+## Register multiframe strategies in DicomMutator dispatch pool
 
-**Location:** `dicom_fuzzer/core/mutation/multiframe_handler.py`, `dicom_fuzzer/attacks/multiframe/`
+**Location:** `dicom_fuzzer/attacks/multiframe/`, `dicom_fuzzer/core/mutation/mutator.py`
 
-`MultiFrameHandler` is a parallel orchestrator that duplicates what `DicomMutator`
-already does. The 8 multiframe strategies (`attacks/multiframe/`) use their own
-base class (`MutationStrategyBase`), their own record type (`MultiFrameMutationRecord`),
-and their own dispatch -- completely disconnected from the fuzzing pipeline.
+**Investigation findings (2026-03-17):**
 
-Zero production code calls `MultiFrameHandler.mutate()`. The strategies never
-run unless manually instantiated.
+The architecture unification described in the old version of this item is already done.
+`MultiFrameFuzzerBase` extends `FormatFuzzerBase` (via `attacks/multiframe/format_base.py`).
+All 10 multiframe strategies expose a conformant `mutate(dataset) -> Dataset` interface.
+`MultiFrameHandler`, `MutationStrategyBase`, and the disconnected dispatch chain described
+previously do not exist in the current codebase.
 
-**Fix:** Refactor multiframe strategies to extend `FormatFuzzerBase`, return
-`Dataset` (not `tuple[Dataset, list[...]]`), auto-register with `DicomMutator`,
-then delete `MultiFrameHandler`, `multiframe_types.py`, and `create_multiframe_mutator`.
-Touches ~10 strategy files + tests.
+What remains: none of the 10 strategies are registered in `DicomMutator`'s strategy pool.
+They are explicit-only — they never fire in a standard campaign run.
 
-## Consolidate DICOM metadata extraction through DicomParser
+**Work items:**
 
-**Location:** `dicom_fuzzer/core/dicom/parser.py`, `dicom_fuzzer/core/session/fuzzing_session.py`
+- Import and register all 10 multiframe strategies in `DicomMutator`
+- Verify `can_mutate()` guards fire correctly for non-multiframe seeds (multiframe
+  strategies should self-select based on `NumberOfFrames > 1`)
+- Run `tests/test_attacks/format/test_format_fuzzer_verification.py` — strategy count
+  will increase from 88 to ~98
 
-`DicomParser` has a well-structured `extract_metadata()` method, but no
-production code calls it. The sole production consumer (`engine/generator.py`)
-only uses `DicomParser(file).dataset` as a thin parse wrapper.
+**Note:** `MultiFrameMutationRecord` per-frame detail records are produced by
+`_mutate_impl()` internally but discarded by the public `mutate()` wrapper. They will
+not appear in campaign reports after dispatch registration. See deferred item below.
 
-Meanwhile, `FuzzingSession._extract_metadata()` does its own inline
-`pydicom.dcmread` + attribute extraction, duplicating the concept while
-bypassing `DicomParser` entirely.
+## Deferred: Surface MultiFrameMutationRecord details in campaign reports
 
-**Fix:** Either make `FuzzingSession` use `DicomParser.extract_metadata()`,
-or reshape `DicomParser`'s API to match what production code actually needs.
-The remaining methods (`get_pixel_data`, `get_transfer_syntax`,
-`is_compressed`, `temporary_mutation`) should also be evaluated for
-production integration or removal at that time.
+**Location:** `dicom_fuzzer/attacks/multiframe/format_base.py`, `dicom_fuzzer/core/reporting/`
 
-## Wire SeriesWriter into the fuzzing pipeline or remove
+**Deferred from:** "Register multiframe strategies in DicomMutator dispatch pool"
 
-**Location:** `dicom_fuzzer/core/dicom/series_writer.py`
+`_mutate_impl()` returns `tuple[Dataset, list[MultiFrameMutationRecord]]` with per-frame
+detail (strategy, frame_number, tag, original_value, mutated_value, severity). The public
+`mutate()` wrapper returns only the `Dataset` and discards the records. Once multiframe
+strategies run through `DicomMutator`, these per-frame records are lost — campaign reports
+only see the strategy name, not which frames were mutated or what changed.
 
-`SeriesWriter` and `SeriesMetadata` have **zero production consumers**. They are
-exported from `core/dicom/__init__.py` and exercised by 25+ tests, but no
-production code path ever writes fuzzed series to disk through this class.
+**Future work:**
 
-The fuzzing pipeline currently stops at in-memory `Dataset` objects.
-`SeriesWriter` was built to close that gap (organized output dirs, metadata
-JSON, reproduction scripts), but was never wired in.
+- Extend `MutationRecord` (`fuzzing_session.py`) with an optional
+  `frame_mutations: list[MultiFrameMutationRecord]` field
+- Surface frame-level details in session JSON and HTML reports
+- Depends on "Formalize variant terminology" item 1 first (MutationRecord already
+  extended before adding `frame_mutations`)
 
-**Fix:** Either integrate `SeriesWriter` into the fuzzing session's output
-path (e.g., `FuzzingSession` or a CLI command calls `write_series()` after
-mutation), or remove it if output is handled differently.
+Medium effort. Lower priority than basic dispatch registration.
 
-## Wire DicomValidator into the fuzzing pipeline or remove
+## Remove orphaned DicomParser methods
 
-**Location:** `dicom_fuzzer/core/dicom/validator.py`
+**Location:** `dicom_fuzzer/core/dicom/parser.py`
 
-`DicomValidator` has **zero production consumers**. It is exported from
-`core/dicom/__init__.py` and tested, but no production code ever calls it.
+**Investigation findings (2026-03-17):**
 
-Validation of fuzzed DICOM files is currently done inline or not at all.
-`DicomValidator` was presumably built to provide structured validation, but
-was never integrated.
+The "Consolidate DICOM metadata extraction" item that preceded this was based on a false
+premise. `DicomParser.extract_metadata()` (14+ fields, cached, comprehensive) and
+`FuzzingSession._extract_metadata()` (7 fields, `stop_before_pixels=True`, lightweight)
+serve different purposes and should not be merged. The two-method design is intentional.
 
-**Fix:** Either wire it into the pipeline (e.g., post-mutation validation
-in `DicomMutator`, pre-write validation in `SeriesWriter`, or CLI `validate`
-command), or remove it if validation is handled differently.
+What is actionable: four `DicomParser` instance methods have zero production callers,
+confirmed by tracing through `engine/generator.py` and all session/reporting code:
 
-## Wire strategy hit-rate tracking into campaign reports
+- `get_pixel_data()` -- unused, remove
+- `get_transfer_syntax()` -- unused, remove
+- `is_compressed()` -- keep: useful for seed selection and `can_mutate()` logic
+- `temporary_mutation()` -- keep: useful for test isolation patterns
+
+**Work items:**
+
+- Remove `get_pixel_data()` and `get_transfer_syntax()` from `DicomParser`
+- Grep for callers before deleting (confirm no test-only usage remains)
+- Update `core/dicom/__init__.py` exports if either method is re-exported
+
+Low effort. Low risk.
+
+## Wire strategy hit-rate tracking into session output
 
 **Context:** `dicom_fuzzer/core/engine/generator.py`,
-`dicom_fuzzer/core/reporting/statistics.py`,
-`dicom_fuzzer/core/analytics/campaign_analytics.py`,
-`dicom_fuzzer/core/analytics/visualization.py`
+`dicom_fuzzer/core/session/fuzzing_session.py`
 
-After a fuzzing campaign, the operator needs to verify that all 88 mutation
-strategies fired at least once. If some strategies got 0 hits (due to
-stochastic selection or seed incompatibility), the campaign has blind spots
-and needs more runs or weighted selection.
+After a fuzzing campaign, the operator needs to verify that all strategies fired at
+least once. If some got 0 hits (stochastic selection or seed incompatibility), the
+campaign has blind spots.
 
 ### What exists
 
-- `GenerationStats.strategies_used: dict[str, int]` in `generator.py`
-  already counts hits per strategy during `generate_batch()`
-- `MutationStatistics` in `statistics.py` has `times_used`,
-  `effectiveness_score()`, `crashes_found` -- never populated
-- `CampaignAnalyzer.analyze_strategy_effectiveness()` in
-  `campaign_analytics.py` computes composite scores -- expects
-  pre-built `list[MutationStatistics]`, never receives them
-- `FuzzingVisualizer.plot_strategy_effectiveness()` in `visualization.py`
-  renders a bar chart of strategy scores -- never called
+`GenerationStats.strategies_used: dict[str, int]` in `generator.py` already counts hits
+per strategy during `generate_batch()`. The counting works. The problem: it resets per
+batch and is never persisted or emitted anywhere.
 
-### What's needed
+### Approach (simple path)
 
-1. **Persist `strategies_used` across batches** -- accumulate into a
-   `dict[str, int]` that survives `generate_batch()` resets
-2. **Build `MutationStatistics` from accumulated counts** -- construct
-   one per strategy at campaign end
-3. **Feed into `CampaignAnalyzer`** -- call
-   `analyze_strategy_effectiveness()` with the built stats
-4. **Render or log** -- either call `FuzzingVisualizer` for a chart,
-   or emit a simple text table of (strategy, hits, hit_rate%)
+1. **Accumulate across batches** -- add a `cumulative_strategies: dict[str, int]` that
+   persists across `generate_batch()` resets in `DICOMGenerator`
+2. **Emit at session close** -- write as a `strategy_hit_rates` section in
+   `session_<id>.json` (strategy name -> hit count + hit rate %)
+3. **Log a text table** -- at campaign end, log `strategy | hits | hit_rate%` with a
+   warning for any strategy at 0 hits
+
+This answers the FDA question without requiring the full analytics pipeline.
 
 ### Effort
 
-Small-medium. The counting already works. The work is plumbing: persist
-the dict, build the stats objects, and add one call from the CLI/engine
-into the analytics layer.
+Small. The counting already works. The work is persisting the dict and one JSON/log
+write at campaign end.
 
 ### Priority
 
-Medium. Directly supports the "all 88 strategies fired" FDA rationale.
-Without this, the operator has no proof that the campaign actually
-exercised every strategy.
+Medium. Directly supports the "all strategies fired" FDA rationale.
 
-## Wire unique-crash-over-time curve into campaign reports
+### Deferred: Full analytics pipeline
+
+See the deferred item below for wiring accumulated counts into `CampaignAnalyzer` and
+`FuzzingVisualizer` for richer visualizations.
+
+## Deferred: Wire strategy effectiveness into CampaignAnalyzer and FuzzingVisualizer
+
+**Location:** `dicom_fuzzer/core/analytics/campaign_analytics.py`,
+`dicom_fuzzer/core/analytics/visualization.py`
+
+**Deferred from:** "Wire strategy hit-rate tracking into session output"
+
+Once `cumulative_strategies` is persisted, the full analytics pipeline is available
+but not wired:
+
+- `CampaignAnalyzer.analyze_strategy_effectiveness()` computes composite scores but
+  expects `list[MutationStatistics]` -- never constructed, never called
+- `FuzzingVisualizer.plot_strategy_effectiveness()` renders a bar chart -- never called
+- `MutationStatistics` in `statistics.py` has all required fields (`times_used`,
+  `effectiveness_score()`, `crashes_found`) -- never populated
+
+**Future work:**
+
+1. Build `MutationStatistics` objects from accumulated strategy counts
+2. Call `CampaignAnalyzer.analyze_strategy_effectiveness()` at campaign end
+3. Call `FuzzingVisualizer.plot_strategy_effectiveness()` to generate the chart
+4. Include chart in the HTML campaign report
+
+Medium effort. Lower priority than the text-table path (which already answers the FDA
+question).
+
+## Build unique-crash-over-time curve (crash discovery saturation)
 
 **Context:** `dicom_fuzzer/core/crash/crash_analyzer.py`,
 `dicom_fuzzer/core/analytics/campaign_analytics.py`,
 `dicom_fuzzer/core/analytics/visualization.py`
 
-After a fuzzing campaign, the operator needs to prove diminishing returns
--- that the unique crash discovery rate has plateaued. If the curve is
-still climbing steeply at the end, more runs are needed. If it's flat,
-the campaign has saturated.
+**Investigation findings (2026-03-17):**
 
-### What exists
+The previous version of this item claimed `TrendAnalysis` and `plot_crash_trend()`
+exist and only need wiring. Neither exists. Both must be built from scratch.
 
-- `CrashAnalyzer.crash_hashes: set[str]` in `crash_analyzer.py`
-  deduplicates crashes via SHA256(stack_trace + exception_msg).
-  `is_unique_crash()` gates recording correctly
-- `TrendAnalysis` in `campaign_analytics.py` has
-  `crashes_over_time: list[tuple[datetime, int]]` +
-  `crash_discovery_rate()` + `is_plateauing()` -- all implemented,
-  zero callers
-- `FuzzingVisualizer.plot_crash_trend()` in `visualization.py` renders
-  the curve -- never called
+After a fuzzing campaign, the operator needs to prove diminishing returns -- that the
+unique crash discovery rate has plateaued. If the curve is still climbing, more runs
+are needed.
 
-### What's needed
+### What actually exists
 
-1. **Add timestamped discovery log to `CrashAnalyzer`** -- when
-   `is_unique_crash()` returns `True`, append
-   `(datetime.now(), len(crash_hashes))` to a new
-   `crash_timeline: list[tuple[datetime, int]]`
-2. **Feed into `TrendAnalysis`** -- pass the timeline to
-   `CampaignAnalyzer.analyze_trends()` as the `crash_timeline` arg
-3. **Render or log** -- call `FuzzingVisualizer.plot_crash_trend()`
-   for a chart, or emit `is_plateauing()` as a pass/fail verdict
+- `CrashAnalyzer.crash_hashes: set[str]` -- SHA256 dedup. `is_unique_crash()` works.
+  No temporal tracking.
+- `CampaignAnalyzer` in `campaign_analytics.py` -- no `TrendAnalysis` class here
+- `FuzzingVisualizer` in `visualization.py` -- no `plot_crash_trend()` method here
+
+### What needs to be built
+
+1. **`crash_timeline` in `CrashAnalyzer`** -- add
+   `crash_timeline: list[tuple[datetime, int]]`. When `is_unique_crash()` returns
+   `True`, append `(datetime.now(), len(crash_hashes))`.
+2. **`TrendAnalysis` dataclass** in `campaign_analytics.py` -- fields:
+   `crashes_over_time: list[tuple[datetime, int]]`, methods: `crash_discovery_rate()`,
+   `is_plateauing()` (define plateau as <5% new crashes in last 20% of campaign duration)
+3. **`plot_crash_trend()`** in `visualization.py` -- render the curve using the timeline
+4. **Wire at campaign end** -- call from `CampaignRunner` or session close
 
 ### Effort
 
-Small. The dedup logic works. The analytics and visualization are
-implemented. The work is adding one list + one append to `CrashAnalyzer`
-and wiring it through to the existing analytics.
+Medium. The dedup logic works. The analytics and visualization are net-new, not wiring.
 
 ### Priority
 
-Medium. Directly supports the "diminishing returns" FDA rationale.
-The plateau proof is more convincing than raw case counts for
-demonstrating campaign sufficiency.
-
-## Rename dicom_series.py to series.py for naming consistency
-
-**Location:** `dicom_fuzzer/core/dicom/dicom_series.py`
-
-The `core/dicom/` package has inconsistent file naming: `dicom_series.py`
-carries a redundant `dicom_` prefix (the package is already `dicom/`),
-while `series_detector.py` and `series_writer.py` follow a cleaner
-`series_*.py` convention.
-
-Renaming `dicom_series.py` to `series.py` would align all three files,
-but touches 10+ imports across `attacks/series/`, `core/dicom/`, and tests.
-Low priority -- cosmetic only, no behavior change.
+Medium. The plateau proof is more convincing than raw case counts for demonstrating
+campaign sufficiency in FDA submissions.
 
 ## Merge/disambiguate corpus_minimization.py and corpus_minimizer.py
 
@@ -976,3 +1039,63 @@ accidental placement; consolidate to the top only if it is safe.
 
 Small-medium effort. No behavior change. Run the test suite after each
 file to confirm nothing broke.
+
+---
+
+## Needs investigation / decision
+
+Items below were surfaced during backlog review (2026-03-17) but require codebase
+investigation and/or a decision before they can be written as actionable work items.
+Do not plan or implement these until they have been promoted to proper entries above.
+
+### MutationRecord naming collision
+
+Two classes share the name `MutationRecord`: `mutator.py:34` (6 fields, internal
+tracking) and `fuzzing_session.py:31` (8 fields, written to session JSON). A developer
+importing from the wrong module gets the wrong class silently.
+
+**Needs decision:** Rename one (e.g. `InternalMutationRecord` for the mutator variant)?
+If yes, scope the rename and confirm no test assertions break.
+
+### FuzzingSession pixel metadata gap
+
+`FuzzingSession._extract_metadata()` uses `stop_before_pixels=True`. If a crash is
+caused by a pixel mutation (high-priority per the pixel_fuzzer backlog items), the
+session record has zero pixel context -- no Rows, Columns, BitsAllocated, or PixelData
+presence flag.
+
+**Needs decision:** Add a lightweight pixel field capture (just metadata tags, not the
+pixel array) to `_extract_metadata()`? Assess whether `stop_before_pixels=True` is a
+performance requirement or just a conservative default that can be relaxed.
+
+### Centralize payloads and mutation taxonomy are order-dependent
+
+"Centralize attack payloads in dicom_dictionaries" and "Establish a consistent mutation
+taxonomy" are currently unordered independent items. Applying taxonomy without
+centralizing first means family-selection logic references inline lists per fuzzer.
+Centralizing without taxonomy produces uncategorized payloads in one place.
+
+**Needs decision:** Confirm sequence: centralize payloads first, then apply taxonomy.
+Add explicit ordering and cross-references between the two items.
+
+### End-of-campaign auto-triage
+
+Once `dicom-fuzzer triage` is a CLI command (per "Export CrashTriageEngine" item), the
+natural follow-on is calling it automatically at campaign end and writing triage verdicts
+into `session_<id>.json`. Currently triage results only appear when you explicitly invoke
+the reporter.
+
+**Needs decision:** Should campaign-end auto-triage be part of the CLI wiring item, or
+a separate follow-on item? Investigate whether `CampaignRunner`'s session-close path is
+the right hook point.
+
+### CrashRecord.reproduction_command always None
+
+`CrashRecord` in `fuzzing_session.py` has a `reproduction_command: str | None` field
+that is always `None`. It is only meaningful once `replay --decompose` exists (item 2
+of "Formalize variant terminology"). Currently this field creates false expectation that
+reproduction commands are tracked.
+
+**Needs decision:** Is this worth stubbing out visibly (e.g. a TODO comment at the field
+site) or leaving as-is until the replay item is implemented? Should it be mentioned as a
+dependency in the variant terminology item?
