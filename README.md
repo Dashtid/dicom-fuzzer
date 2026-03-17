@@ -32,12 +32,12 @@ dicom-fuzzer generate-seeds input.dcm -c 500 -o ./seeds/
 
 ### Fuzzing
 
-- 28 mutation strategies across 4 tiers: metadata, structure/encoding, pixel/modality-specific, multi-frame
+- 18 mutation strategies across 3 tiers: metadata, structure/encoding, pixel/modality-specific
 - 18 format fuzzers (generic + modality-specific: SEG, RTSS, RT Dose, NM, PET, Encapsulated PDF)
-- 10 multiframe strategies (frame count, temporal, dimensional, encapsulated pixel)
-- 3D series fuzzing (CT/MRI volumetric data)
-- Study-level cross-series attacks
-- Network protocol fuzzing (DIMSE, TLS) -- experimental
+- 10 multiframe strategies (frame count, temporal, dimensional, encapsulated pixel) -- WIP
+- 3D series fuzzing (CT/MRI volumetric data) -- WIP
+- Study-level cross-series attacks -- WIP
+- Network protocol fuzzing (DIMSE, TLS) -- WIP
 
 ### Analysis
 
