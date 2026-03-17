@@ -16,7 +16,7 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING
 
-from dicom_fuzzer.core.mutation.multiframe_types import MultiFrameMutationRecord
+from dicom_fuzzer.attacks.multiframe.format_base import MultiFrameMutationRecord
 
 from .format_base import MultiFrameFuzzerBase
 
