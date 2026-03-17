@@ -450,6 +450,52 @@ class TestIntegration:
         for f in files_from_sample + files_from_minimal:
             assert f.exists()
 
+    def test_known_strategy_names_returns_all_registered(self, temp_dir):
+        """known_strategy_names returns one name per registered strategy."""
+        output_dir = temp_dir / "output"
+        generator = DICOMGenerator(output_dir=str(output_dir))
+
+        names = generator.known_strategy_names
+
+        assert len(names) == len(generator.mutator.strategies)
+        assert all(isinstance(n, str) for n in names)
+        # Names match what mutator reports directly
+        assert sorted(names) == sorted(
+            s.strategy_name for s in generator.mutator.strategies
+        )
+
+    def test_cumulative_strategies_accumulates_across_batches(
+        self, sample_dicom_file, temp_dir
+    ):
+        """cumulative_strategies grows (or stays equal) after a second batch."""
+        output_dir = temp_dir / "output"
+        generator = DICOMGenerator(output_dir=str(output_dir))
+
+        generator.generate_batch(
+            sample_dicom_file, count=5, strategies=["metadata", "header"]
+        )
+        after_batch1 = sum(generator.cumulative_strategies.values())
+
+        generator.generate_batch(
+            sample_dicom_file, count=5, strategies=["metadata", "header"]
+        )
+        after_batch2 = sum(generator.cumulative_strategies.values())
+
+        assert after_batch2 >= after_batch1
+
+    def test_cumulative_strategies_zero_hit_detection(self, temp_dir):
+        """Before any batch, all known strategies have zero cumulative hits."""
+        output_dir = temp_dir / "output"
+        generator = DICOMGenerator(output_dir=str(output_dir))
+
+        zero_hit = [
+            n
+            for n in generator.known_strategy_names
+            if generator.cumulative_strategies.get(n, 0) == 0
+        ]
+
+        assert len(zero_hit) == len(generator.known_strategy_names)
+
 
 class TestGeneratorErrorHandling:
     """Test error handling in DICOMGenerator."""

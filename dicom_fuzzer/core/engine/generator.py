@@ -78,6 +78,11 @@ class DICOMGenerator:
         self.mutator = DicomMutator()
         self.file_strategy_map: dict[str, str] = {}
 
+    @property
+    def known_strategy_names(self) -> list[str]:
+        """Return all registered strategy names in the mutator dispatch pool."""
+        return [s.strategy_name for s in self.mutator.strategies]
+
     def generate_batch(
         self,
         original_file: str,
