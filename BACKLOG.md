@@ -586,11 +586,37 @@ previously do not exist in the current codebase.
 What remains: none of the 10 strategies are registered in `DicomMutator`'s strategy pool.
 They are explicit-only — they never fire in a standard campaign run.
 
-**Work items:**
+**Blocked: requires multiframe seed files + can_mutate() guards (2026-03-19)**
 
-- Import and register all 10 multiframe strategies in `DicomMutator`
-- Verify `can_mutate()` guards fire correctly for non-multiframe seeds (multiframe
-  strategies should self-select based on `NumberOfFrames > 1`)
+`FormatFuzzerBase.can_mutate()` returns `True` unconditionally and none of the 10
+multiframe strategies override it. Registering them as-is causes all 10 to fire on
+any seed, including single-frame CT. Investigation found:
+
+- **2 strategies work on any seed** (`FrameCountMismatch`, `DimensionOverflow`) — they
+  set `NumberOfFrames` and dimension tags regardless of what the seed contains.
+- **7-8 strategies are no-ops or low-value on CT** (`FunctionalGroupSequence`,
+  `PerFrameDimension`, `SharedGroup`, `DimensionIndex`, `FrameIncrementPointer`) — they
+  target Enhanced MR/CT per-frame and shared functional group sequences that are absent
+  from standard single-frame CT seeds. They will silently produce near-identical output.
+- **1-2 strategies are conditional** (`EncapsulatedPixel`, `PixelTruncation`,
+  `FrameTime`) — value depends on whether the seed uses encapsulated transfer syntax.
+
+**Do not implement until:**
+
+1. Multiframe seed files are acquired (see "Seed corpus diversification" item).
+2. `can_mutate()` is designed and implemented per-strategy — at minimum checking
+   `NumberOfFrames > 1` for frame-dependent strategies and SOPClassUID for
+   Enhanced MR/CT-specific ones.
+
+The 2 strategies that are seed-agnostic (`FrameCountMismatch`, `DimensionOverflow`)
+could be registered independently as a partial win, but do not register the full 10
+until seeds and guards are in place.
+
+**Work items (after prerequisites are met):**
+
+- Design `can_mutate()` override per strategy (not a blanket `NumberOfFrames > 1` —
+  each strategy has different requirements)
+- Import and register strategies with their guards in `DicomMutator`
 - Run `tests/test_attacks/format/test_format_fuzzer_verification.py` — strategy count
   will increase from 88 to ~98
 
@@ -619,6 +645,31 @@ only see the strategy name, not which frames were mutated or what changed.
   extended before adding `frame_mutations`)
 
 Medium effort. Lower priority than basic dispatch registration.
+
+## Series attacks: investigate before wiring into any campaign pipeline
+
+**Location:** `dicom_fuzzer/attacks/series/`
+
+The series attack module (`series_mutator.py`, `series_3d_attacks.py`,
+`series_temporal_attacks.py`, `series_core_mutations.py`, `parallel_mutator.py`)
+operates on a list of DICOM files (a whole series), not a single dataset. Its
+architecture is fundamentally different from `FormatFuzzerBase` — it is not
+pluggable into `DicomMutator`'s single-file dispatch without design work.
+
+**Do not attempt to wire series attacks into the main campaign pipeline until:**
+
+1. The series attack interface is fully understood (what seeds it needs, how it
+   selects files, what its output contract is).
+2. It is confirmed whether series attacks need a CT series (N single-frame CT
+   slices) or actual multi-frame files.
+3. A decision is made on whether series fuzzing belongs as a separate campaign
+   mode or as an extension of the existing format fuzzing loop.
+
+Same seed-availability concern as multiframe: the current corpus is a single
+CT seed file, which is likely insufficient for series-level attacks.
+
+**Prior to any implementation:** read and summarize the series module, then
+propose an integration design before writing any wiring code.
 
 ## Remove orphaned DicomParser methods
 

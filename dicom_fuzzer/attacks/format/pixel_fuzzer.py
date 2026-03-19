@@ -8,6 +8,11 @@ Attacks:
 - Row/column dimension mismatch with pixel data size
 - Bit depth inconsistencies (BitsAllocated, BitsStored, HighBit)
 - Photometric interpretation confusion (MONOCHROME1/2, RGB, YBR)
+- PixelRepresentation sign flip and invalid values
+- NumberOfFrames mismatch (declare N frames, supply data for 1)
+- SmallestImagePixelValue / LargestImagePixelValue inversion and extremes
+- RescaleSlope / RescaleIntercept zero, NaN, Inf, and extreme values
+- WindowCenter / WindowWidth zero-width and negative-width attacks
 - Raw PixelData buffer truncation
 - Raw PixelData byte flipping
 - Raw PixelData uniform fill (0x00 / 0xFF)
@@ -63,6 +68,11 @@ class PixelFuzzer(FormatFuzzerBase):
             self._photometric_confusion,
             self._samples_per_pixel_attack,
             self._planar_configuration_attack,
+            self._pixel_representation_attack,
+            self._number_of_frames_mismatch,
+            self._pixel_value_range_attack,
+            self._rescale_attack,
+            self._window_attack,
             self._pixel_data_truncation,
             self._pixel_data_byte_flip,
             self._pixel_data_fill_pattern,
@@ -265,6 +275,139 @@ class PixelFuzzer(FormatFuzzerBase):
             dataset.PhotometricInterpretation = random.choice(invalid_photometrics)
         except Exception as e:
             logger.debug("Photometric confusion attack failed: %s", e)
+
+        return dataset
+
+    def _pixel_representation_attack(self, dataset: Dataset) -> Dataset:
+        """Attack PixelRepresentation field.
+
+        PixelRepresentation defines pixel sign convention:
+        0 = unsigned integer, 1 = signed two's complement.
+
+        Flipping sign causes display inversion and sign-extension misreads.
+        Invalid values (outside 0-1) test parser validation.
+        """
+        attack = random.choice(["flip_sign", "invalid_value"])
+
+        try:
+            if attack == "flip_sign":
+                current = getattr(dataset, "PixelRepresentation", 0)
+                dataset.PixelRepresentation = 1 if current == 0 else 0
+            elif attack == "invalid_value":
+                dataset.PixelRepresentation = random.choice([2, 3, 255, 65535])
+        except Exception as e:
+            logger.debug("Pixel representation attack failed: %s", e)
+
+        return dataset
+
+    def _number_of_frames_mismatch(self, dataset: Dataset) -> Dataset:
+        """Mismatch NumberOfFrames against actual pixel data size.
+
+        Declares more frames than the pixel data contains, forcing viewers
+        to read past the end of the buffer. Works on single-frame seeds by
+        injecting a false frame count — the pixel data stays unchanged.
+        """
+        attack = random.choice(["over_declare", "extreme", "zero", "negative"])
+
+        try:
+            if attack == "over_declare":
+                actual = int(getattr(dataset, "NumberOfFrames", 1))
+                dataset.NumberOfFrames = actual * random.randint(10, 1000)
+            elif attack == "extreme":
+                dataset.NumberOfFrames = random.choice([65535, 2147483647])
+            elif attack == "zero":
+                dataset.NumberOfFrames = 0
+            elif attack == "negative":
+                dataset.NumberOfFrames = -1
+        except Exception as e:
+            logger.debug("NumberOfFrames mismatch attack failed: %s", e)
+
+        return dataset
+
+    def _pixel_value_range_attack(self, dataset: Dataset) -> Dataset:
+        """Attack SmallestImagePixelValue and LargestImagePixelValue.
+
+        These tags define the display range for auto-windowing. Inverted or
+        zero-width ranges cause divide-by-zero and undefined behavior in
+        normalization code.
+        """
+        attack = random.choice(
+            ["inverted", "same_value", "extreme", "wider_than_bit_depth"]
+        )
+
+        try:
+            if attack == "inverted":
+                # Smallest > Largest: undefined behavior in auto-windowing
+                dataset.SmallestImagePixelValue = 4000
+                dataset.LargestImagePixelValue = 100
+            elif attack == "same_value":
+                # Zero-width range: divide-by-zero in normalization
+                dataset.SmallestImagePixelValue = 0
+                dataset.LargestImagePixelValue = 0
+            elif attack == "extreme":
+                dataset.SmallestImagePixelValue = -32768
+                dataset.LargestImagePixelValue = 65535
+            elif attack == "wider_than_bit_depth":
+                bits = getattr(dataset, "BitsAllocated", 8)
+                max_val = (1 << bits) - 1
+                dataset.SmallestImagePixelValue = -(max_val + 1)
+                dataset.LargestImagePixelValue = max_val * 2
+        except Exception as e:
+            logger.debug("Pixel value range attack failed: %s", e)
+
+        return dataset
+
+    def _rescale_attack(self, dataset: Dataset) -> Dataset:
+        """Attack RescaleSlope and RescaleIntercept.
+
+        Used in CT to convert stored pixel values to Hounsfield Units:
+        HU = stored * slope + intercept.
+
+        Zero slope triggers divide-by-zero on inverse transforms.
+        NaN/Inf values crash floating-point display pipelines.
+        """
+        attack = random.choice(
+            ["zero_slope", "nan_slope", "inf_slope", "nan_intercept", "extreme_slope"]
+        )
+
+        try:
+            if attack == "zero_slope":
+                dataset.RescaleSlope = "0"
+            elif attack == "nan_slope":
+                dataset.RescaleSlope = "NaN"
+            elif attack == "inf_slope":
+                dataset.RescaleSlope = "Inf"
+            elif attack == "nan_intercept":
+                dataset.RescaleIntercept = "NaN"
+            elif attack == "extreme_slope":
+                dataset.RescaleSlope = str(random.choice([1e38, -1e38, 1e-38]))
+        except Exception as e:
+            logger.debug("Rescale attack failed: %s", e)
+
+        return dataset
+
+    def _window_attack(self, dataset: Dataset) -> Dataset:
+        """Attack WindowCenter and WindowWidth.
+
+        WindowWidth = 0 causes divide-by-zero in the linear windowing formula.
+        WindowWidth < 0 is invalid per DICOM PS3.3 C.7.6.3.1.5 (must be >= 1).
+        """
+        attack = random.choice(
+            ["zero_width", "negative_width", "extreme_center", "both_zero"]
+        )
+
+        try:
+            if attack == "zero_width":
+                dataset.WindowWidth = "0"
+            elif attack == "negative_width":
+                dataset.WindowWidth = str(random.choice([-1, -255, -32768]))
+            elif attack == "extreme_center":
+                dataset.WindowCenter = str(random.choice([2147483647, -2147483648]))
+            elif attack == "both_zero":
+                dataset.WindowCenter = "0"
+                dataset.WindowWidth = "0"
+        except Exception as e:
+            logger.debug("Window attack failed: %s", e)
 
         return dataset
 
