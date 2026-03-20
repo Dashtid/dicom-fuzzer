@@ -72,83 +72,45 @@ The engine already produces two per-session artifacts:
 - `session_<id>.json` (`artifacts/reports/json/`): full `MutationRecord` per file with
   strategy name, mutation type, target DICOM tag, original value, mutated value
 
-What is NOT tracked:
+What is NOT tracked (as of 2026-03-20):
 
-- The **variant** (the inner `random.choice` result inside each mutation method, e.g.
-  `"bits_stored_greater"`) — chosen and discarded with no log entry
 - **Binary-level mutations** from `mutate_bytes()` — applied after serialization,
   completely untracked
 - **RNG state** — `DicomMutator` / `DICOMGenerator` never call `random.seed()` and
   record no seed. Series/Study mutators have an optional `seed` param but don't log it.
   No `--seed` CLI flag exists.
 
-This is why a viewer crash is hard to reproduce: you can identify the strategy and
-mutation type from `session_<id>.json`, but not the variant, and you cannot rerun the
-RNG sequence deterministically.
+~~**Variant** is now tracked: `MutationRecord.variant` added in `7b947e5`.~~
+
+Without a seed, a crash is still not fully reproducible: you can identify the strategy,
+mutation type, and variant from `session_<id>.json`, but you cannot rerun the RNG
+sequence deterministically.
 
 **Work items in dependency order:**
 
-1. **Add variant to MutationRecord** (`fuzzing_session.py`): Add `variant: str | None`
-   field to the `MutationRecord` dataclass in `fuzzing_session.py:31` (note: there are
-   two classes named `MutationRecord` — `mutator.py:34` has 6 fields and is for internal
-   tracking, `fuzzing_session.py:31` has 8 fields and writes to session JSON; the variant
-   belongs in the latter). Each mutation method should return (or pass back) the variant
-   string it chose. `generator.py` captures it into the record. This alone solves the
-   immediate debugging pain — session JSON already lands on disk per run.
-
-2. **Add `replay --decompose` CLI subcommand** (depends on item 1): No replay command
-   exists today — this is net-new. Add `dicom-fuzzer replay --decompose <fuzzed_file.dcm>`.
-   Given a crashed fuzzed file, it reads its `MutationRecord` entries from
-   `session_<id>.json`, then re-applies each mutation in isolation against the original
-   clean input — producing N output files, one per mutation/variant combination. Naming:
+1. **Add `replay --decompose` CLI subcommand**: No replay command exists today — this
+   is net-new. Add `dicom-fuzzer replay --decompose <fuzzed_file.dcm>`. Given a crashed
+   fuzzed file, it reads its `MutationRecord` entries from `session_<id>.json`, then
+   re-applies each mutation in isolation against the original clean input — producing N
+   output files, one per mutation/variant combination. Naming:
    `<original>_mut0_<strategy>_<type>_<variant>.dcm`. Load each in the viewer to find
    the crash-causing mutation without manual bisection. This is standard delta-debugging.
-   Note: without item 1, decompose can only isolate to mutation-type level, not variant.
    Also: `CrashRecord` already has a `reproduction_command: str | None` field (currently
    always `None`) — populate this during decompose so crashes are self-documenting.
 
-3. **Seed the format fuzzer engine + log the seed**: Add `seed: int | None` param to
+2. **Seed the format fuzzer engine + log the seed**: Add `seed: int | None` param to
    `DICOMGenerator.__init__()` and `DicomMutator`. Call `random.seed(seed)` at init.
    Write the seed into `session_<id>.json` and `mutation_map.json`. Add `--seed INT`
    CLI flag. With seed + variant logged, a crash is fully reproducible: pass `--seed`
    and the engine recreates the exact RNG sequence.
 
-4. **Track binary mutations**: `mutate_bytes()` currently returns modified bytes with no
+3. **Track binary mutations**: `mutate_bytes()` currently returns modified bytes with no
    record. Add a `binary_mutations: list[str]` field to `MutationRecord` or a separate
    record, populated by strategies that override `mutate_bytes()`.
 
 Also worth auditing: whether the 1-2 mutation types per file (`k=random.randint(1, 2)`)
 is consistent across all fuzzers. The count is intentional for throughput during
 overnight batch runs (not a bug), but the policy is undocumented and may vary per fuzzer.
-
-## Export CrashTriageEngine and add CLI triage subcommand
-
-**Location:** `dicom_fuzzer/core/crash/crash_triage.py`, `dicom_fuzzer/core/crash/__init__.py`
-
-**Investigation findings (2026-03-17):**
-
-`CrashTriageEngine` (480 lines: exploitability rating, priority scoring, actionable
-recommendations) is NOT orphaned — it IS used in production. `enhanced_reporter.py` and
-`enrichers.py` import it directly from `crash_triage.py`. It works.
-
-The real issues:
-
-1. **Not in the package API**: `crash/__init__.py` does not export `CrashTriageEngine` or
-   `CrashTriage`. Callers bypass the package interface, creating a hidden dependency.
-2. **No CLI entry point**: triage is only reachable via the reporting layer, not directly.
-3. **Minimization stub**: the engine recommends "minimize test case" but no minimization
-   code backs this recommendation.
-
-**Work items:**
-
-- Export `CrashTriageEngine` and `CrashTriage` from `crash/__init__.py`
-- Add a `dicom-fuzzer triage` CLI subcommand that accepts a crash report JSON and prints
-  exploitability rating, priority score, and recommendations
-- Optionally fold into the `replay` subcommand (from "Formalize variant terminology")
-  as `replay --triage`
-- Implement or stub the minimization path so the recommendation is actionable
-
-Low-medium effort. The core logic exists and works — this is plumbing and CLI wiring only.
 
 ## Re-encode pixel data to match mutated TransferSyntaxUID
 
@@ -652,33 +614,6 @@ CT seed file, which is likely insufficient for series-level attacks.
 **Prior to any implementation:** read and summarize the series module, then
 propose an integration design before writing any wiring code.
 
-## Remove orphaned DicomParser methods
-
-**Location:** `dicom_fuzzer/core/dicom/parser.py`
-
-**Investigation findings (2026-03-17):**
-
-The "Consolidate DICOM metadata extraction" item that preceded this was based on a false
-premise. `DicomParser.extract_metadata()` (14+ fields, cached, comprehensive) and
-`FuzzingSession._extract_metadata()` (7 fields, `stop_before_pixels=True`, lightweight)
-serve different purposes and should not be merged. The two-method design is intentional.
-
-What is actionable: four `DicomParser` instance methods have zero production callers,
-confirmed by tracing through `engine/generator.py` and all session/reporting code:
-
-- `get_pixel_data()` -- unused, remove
-- `get_transfer_syntax()` -- unused, remove
-- `is_compressed()` -- keep: useful for seed selection and `can_mutate()` logic
-- `temporary_mutation()` -- keep: useful for test isolation patterns
-
-**Work items:**
-
-- Remove `get_pixel_data()` and `get_transfer_syntax()` from `DicomParser`
-- Grep for callers before deleting (confirm no test-only usage remains)
-- Update `core/dicom/__init__.py` exports if either method is re-exported
-
-Low effort. Low risk.
-
 ## Wire strategy hit-rate tracking into session output
 
 **Context:** `dicom_fuzzer/core/engine/generator.py`,
@@ -1083,15 +1018,6 @@ Items below were surfaced during backlog review (2026-03-17) but require codebas
 investigation and/or a decision before they can be written as actionable work items.
 Do not plan or implement these until they have been promoted to proper entries above.
 
-### MutationRecord naming collision
-
-Two classes share the name `MutationRecord`: `mutator.py:34` (6 fields, internal
-tracking) and `fuzzing_session.py:31` (8 fields, written to session JSON). A developer
-importing from the wrong module gets the wrong class silently.
-
-**Needs decision:** Rename one (e.g. `InternalMutationRecord` for the mutator variant)?
-If yes, scope the rename and confirm no test assertions break.
-
 ### FuzzingSession pixel metadata gap
 
 `FuzzingSession._extract_metadata()` uses `stop_before_pixels=True`. If a crash is
@@ -1115,14 +1041,14 @@ Add explicit ordering and cross-references between the two items.
 
 ### End-of-campaign auto-triage
 
-Once `dicom-fuzzer triage` is a CLI command (per "Export CrashTriageEngine" item), the
-natural follow-on is calling it automatically at campaign end and writing triage verdicts
-into `session_<id>.json`. Currently triage results only appear when you explicitly invoke
-the reporter.
+`dicom-fuzzer triage` CLI now exists (`092b000`). The follow-on: call it automatically
+at campaign end and write triage verdicts into `session_<id>.json`. Currently triage
+results only appear when you explicitly invoke the reporter after a run.
 
-**Needs decision:** Should campaign-end auto-triage be part of the CLI wiring item, or
-a separate follow-on item? Investigate whether `CampaignRunner`'s session-close path is
-the right hook point.
+**Needs decision:** Investigate whether `CampaignRunner`'s session-close path is the
+right hook point, or whether it should be driven from the CLI layer (i.e., the `fuzz`
+command runs triage on its own output before exiting). Promote to a main backlog item
+once the hook point is confirmed.
 
 ### CrashRecord.reproduction_command always None
 
