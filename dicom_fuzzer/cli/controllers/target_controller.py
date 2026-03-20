@@ -200,9 +200,15 @@ class TargetTestingController:
         try:
             with open(map_path) as f:
                 raw: dict[str, object] = json.load(f)
+            # Unwrap new format: {"seed": int, "mutations": {filename: {...}}}
+            _mutations = raw.get("mutations")
+            if isinstance(_mutations, dict):
+                entries: dict[str, object] = _mutations
+            else:
+                entries = raw
             # Normalize: old entries are plain strings; new entries are dicts
             normalized: dict[str, dict[str, str | None]] = {}
-            for filename, value in raw.items():
+            for filename, value in entries.items():
                 if isinstance(value, dict):
                     normalized[filename] = {
                         "strategy": value.get("strategy", ""),

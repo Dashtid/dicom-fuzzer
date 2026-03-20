@@ -530,6 +530,7 @@ class TestMainArgumentParsing:
             mock_gen_instance.generate_batch.return_value = [out_file]
             mock_gen_instance.stats = MagicMock(skipped_due_to_write_errors=0)
             # Use real dicts so JSON serialization works in display_results
+            mock_gen_instance.seed = 42
             mock_gen_instance.cumulative_strategies = {"metadata": 1}
             mock_gen_instance.file_strategy_map = {}
             mock_gen.return_value = mock_gen_instance

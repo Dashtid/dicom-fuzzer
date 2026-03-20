@@ -50,6 +50,7 @@ class CampaignRunner:
         self.input_files = input_files
         self.selected_strategies = selected_strategies
         self.is_directory_input = len(input_files) > 1
+        self.seed: int | None = getattr(args, "seed", None)
 
         # Calculate number of files to generate per input
         _count = getattr(args, "count", None)
@@ -95,7 +96,10 @@ class CampaignRunner:
         logger.info("Generating up to %d fuzzed files...", total_expected)
         start_time = time.time()
 
-        generator = DICOMGenerator(self.args.output, skip_write_errors=True)
+        generator = DICOMGenerator(
+            self.args.output, skip_write_errors=True, seed=self.seed
+        )
+        self.seed = generator.seed  # capture auto-generated seed if not provided
         files: list[Path] = []
 
         # Process each input file
@@ -261,8 +265,9 @@ class CampaignRunner:
                 }
                 for filename, strategy in strategy_map.items()
             }
+            output = {"seed": self.seed, "mutations": combined}
             with open(map_path, "w") as f:
-                json.dump(combined, f, indent=2)
+                json.dump(output, f, indent=2)
             logger.debug("Mutation map saved: %s (%d entries)", map_path, len(combined))
         except Exception as e:
             logger.warning("Failed to save mutation map: %s", e)
@@ -293,6 +298,7 @@ class CampaignRunner:
 
         results_data: dict[str, Any] = {
             "status": "success",
+            "seed": getattr(self, "seed", None),
             "generated_count": len(files),
             "skipped_count": skipped,
             "duration_seconds": round(elapsed_time, 2),
