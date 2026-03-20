@@ -525,6 +525,14 @@ class FuzzingSession:
                 ("SOPInstanceUID", "(0008,0018)"),
                 ("Modality", "(0008,0060)"),
                 ("TransferSyntaxUID", "TransferSyntaxUID"),
+                # Pixel metadata — all in group (0028,xxxx), available with stop_before_pixels=True
+                ("Rows", "(0028,0010)"),
+                ("Columns", "(0028,0011)"),
+                ("BitsAllocated", "(0028,0100)"),
+                ("SamplesPerPixel", "(0028,0002)"),
+                ("PhotometricInterpretation", "(0028,0004)"),
+                ("PixelRepresentation", "(0028,0103)"),
+                ("NumberOfFrames", "(0028,0008)"),
             ]
 
             for name, _tag in key_tags:

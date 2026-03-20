@@ -614,55 +614,15 @@ CT seed file, which is likely insufficient for series-level attacks.
 **Prior to any implementation:** read and summarize the series module, then
 propose an integration design before writing any wiring code.
 
-## Wire strategy hit-rate tracking into session output
-
-**Context:** `dicom_fuzzer/core/engine/generator.py`,
-`dicom_fuzzer/core/session/fuzzing_session.py`
-
-After a fuzzing campaign, the operator needs to verify that all strategies fired at
-least once. If some got 0 hits (stochastic selection or seed incompatibility), the
-campaign has blind spots.
-
-### What exists
-
-`GenerationStats.strategies_used: dict[str, int]` in `generator.py` already counts hits
-per strategy during `generate_batch()`. The counting works. The problem: it resets per
-batch and is never persisted or emitted anywhere.
-
-### Approach (simple path)
-
-1. **Accumulate across batches** -- add a `cumulative_strategies: dict[str, int]` that
-   persists across `generate_batch()` resets in `DICOMGenerator`
-2. **Emit at session close** -- write as a `strategy_hit_rates` section in
-   `session_<id>.json` (strategy name -> hit count + hit rate %)
-3. **Log a text table** -- at campaign end, log `strategy | hits | hit_rate%` with a
-   warning for any strategy at 0 hits
-
-This answers the FDA question without requiring the full analytics pipeline.
-
-### Effort
-
-Small. The counting already works. The work is persisting the dict and one JSON/log
-write at campaign end.
-
-### Priority
-
-Medium. Directly supports the "all strategies fired" FDA rationale.
-
-### Deferred: Full analytics pipeline
-
-See the deferred item below for wiring accumulated counts into `CampaignAnalyzer` and
-`FuzzingVisualizer` for richer visualizations.
-
 ## Deferred: Wire strategy effectiveness into CampaignAnalyzer and FuzzingVisualizer
 
 **Location:** `dicom_fuzzer/core/analytics/campaign_analytics.py`,
 `dicom_fuzzer/core/analytics/visualization.py`
 
-**Deferred from:** "Wire strategy hit-rate tracking into session output"
-
-Once `cumulative_strategies` is persisted, the full analytics pipeline is available
-but not wired:
+**Prerequisite met (2026-03-20):** `cumulative_strategies` accumulates across batches
+in `DICOMGenerator`; `strategy_hit_rates` is written to `session.json` and logged as a
+text table with zero-hit warnings at campaign end (`campaign_runner.py`). The simple
+path (text table + JSON) is done. The full analytics pipeline is available but not wired:
 
 - `CampaignAnalyzer.analyze_strategy_effectiveness()` computes composite scores but
   expects `list[MutationStatistics]` -- never constructed, never called
@@ -1017,17 +977,6 @@ file to confirm nothing broke.
 Items below were surfaced during backlog review (2026-03-17) but require codebase
 investigation and/or a decision before they can be written as actionable work items.
 Do not plan or implement these until they have been promoted to proper entries above.
-
-### FuzzingSession pixel metadata gap
-
-`FuzzingSession._extract_metadata()` uses `stop_before_pixels=True`. If a crash is
-caused by a pixel mutation (high-priority per the pixel_fuzzer backlog items), the
-session record has zero pixel context -- no Rows, Columns, BitsAllocated, or PixelData
-presence flag.
-
-**Needs decision:** Add a lightweight pixel field capture (just metadata tags, not the
-pixel array) to `_extract_metadata()`? Assess whether `stop_before_pixels=True` is a
-performance requirement or just a conservative default that can be relaxed.
 
 ### Centralize payloads and mutation taxonomy are order-dependent
 
