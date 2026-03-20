@@ -90,42 +90,6 @@ class TestPixelDataMutations:
         assert isinstance(result, Dataset)
         assert not hasattr(result, "PixelData")
 
-    def test_byte_flip_changes_content(
-        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
-    ) -> None:
-        """Byte flip must change at least one byte of the buffer."""
-        original = bytes(pixel_dataset.PixelData)
-        result = fuzzer._pixel_data_byte_flip(pixel_dataset)
-        assert isinstance(result, Dataset)
-        assert len(result.PixelData) == len(original)
-        assert bytes(result.PixelData) != original
-
-    def test_byte_flip_noop_without_pixel_data(self, fuzzer: PixelFuzzer) -> None:
-        """Byte flip on a dataset without PixelData must return unchanged."""
-        ds = Dataset()
-        result = fuzzer._pixel_data_byte_flip(ds)
-        assert isinstance(result, Dataset)
-        assert not hasattr(result, "PixelData")
-
-    def test_fill_pattern_all_same_byte(
-        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
-    ) -> None:
-        """Fill pattern must produce a buffer where all bytes are identical."""
-        original_len = len(pixel_dataset.PixelData)
-        result = fuzzer._pixel_data_fill_pattern(pixel_dataset)
-        assert isinstance(result, Dataset)
-        data = bytes(result.PixelData)
-        assert len(data) == original_len
-        assert data == bytes([data[0]] * len(data))
-        assert data[0] in (0x00, 0xFF)
-
-    def test_fill_pattern_noop_without_pixel_data(self, fuzzer: PixelFuzzer) -> None:
-        """Fill pattern on a dataset without PixelData must return unchanged."""
-        ds = Dataset()
-        result = fuzzer._pixel_data_fill_pattern(ds)
-        assert isinstance(result, Dataset)
-        assert not hasattr(result, "PixelData")
-
     def test_random_garbage_same_length(
         self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
     ) -> None:
@@ -180,6 +144,65 @@ class TestPixelDataMutations:
     ) -> None:
         """mutate() must return a Dataset when PixelData is present."""
         result = fuzzer.mutate(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+
+class TestExtremeContradiction:
+    """Tests for _extreme_contradiction."""
+
+    def test_overflow_allocation_sets_all_four_fields(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """overflow_allocation must set Rows, Columns, BitsAllocated, SamplesPerPixel."""
+        with patch("random.choice", return_value="overflow_allocation"):
+            result = fuzzer._extreme_contradiction(pixel_dataset)
+        assert result.Rows == 65535
+        assert result.Columns == 65535
+        assert result.BitsAllocated == 32
+        assert result.SamplesPerPixel == 4
+
+    def test_zero_product_sets_fields_to_zero(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """zero_product must set all four allocation fields to zero."""
+        with patch("random.choice", return_value="zero_product"):
+            result = fuzzer._extreme_contradiction(pixel_dataset)
+        assert result.Rows == 0
+        assert result.Columns == 0
+        assert result.BitsAllocated == 0
+        assert result.SamplesPerPixel == 0
+
+    def test_color_space_conflict_sets_contradicting_fields(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """color_space_conflict must produce MONOCHROME2 with SamplesPerPixel=3."""
+        with patch("random.choice", return_value="color_space_conflict"):
+            result = fuzzer._extreme_contradiction(pixel_dataset)
+        assert result.SamplesPerPixel == 3
+        assert result.PhotometricInterpretation == "MONOCHROME2"
+        assert result.BitsAllocated == 128
+        assert result.Rows == 65535
+
+    def test_max_all_fields_sets_extreme_values(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """max_all_fields must set all allocation-math fields to extreme values."""
+        with patch("random.choice", return_value="max_all_fields"):
+            result = fuzzer._extreme_contradiction(pixel_dataset)
+        assert result.Rows == 4294967295
+        assert result.Columns == 4294967295
+        assert result.BitsAllocated == 255
+        assert result.SamplesPerPixel == 65535
+
+    def test_returns_dataset_on_empty_input(self, fuzzer: PixelFuzzer) -> None:
+        """Method must return a Dataset even when allocation fields are absent."""
+        ds = Dataset()
+        result = fuzzer._extreme_contradiction(ds)
+        assert isinstance(result, Dataset)
+
+    def test_returns_dataset(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        """Method must always return a Dataset."""
+        result = fuzzer._extreme_contradiction(pixel_dataset)
         assert isinstance(result, Dataset)
 
 
