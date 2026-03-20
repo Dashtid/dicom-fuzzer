@@ -31,35 +31,6 @@ pool, or replaced with structural equivalents where possible.
 - For each content mutation, assess whether a structural equivalent exists or could be designed
 - Produce a prioritized list of high-value mutations and low-value ones to cut or downweight
 
-## pixel_fuzzer.py: Deprioritize content mutations, strengthen structural ones
-
-**Location:** `dicom_fuzzer/attacks/format/pixel_fuzzer.py`
-
-The byte-level pixel content mutations (`_pixel_data_byte_flip`, `_pixel_data_fill_pattern`,
-`_pixel_data_random_garbage`) have low crash probability because modern image codecs are built
-to degrade gracefully on corrupt pixel bytes — they render garbage or raise a handled decode
-error rather than crashing.
-
-The high-value mutations are the ones that attack _allocation math_ and _cross-field
-consistency_ — where the parser trusts DICOM metadata to calculate buffer sizes without
-validation:
-
-- `_dimension_mismatch` with `extreme_dimensions` (e.g. `Rows=4294967295`) forces a
-  multi-terabyte allocation calculation — crash surface is at the allocation site, not decode.
-- `_bit_depth_attack` with `extreme_bits` similarly corrupts the bytes-per-pixel multiplier.
-- Multi-field contradictions (e.g. `SamplesPerPixel=3`, `PhotometricInterpretation=MONOCHROME2`,
-  `BitsAllocated=128`, `Rows=65535` applied simultaneously) are stronger than single-field
-  attacks because they force impossible code paths the parser never validates.
-
-**Work items:**
-
-- Consider removing or deprioritizing `_pixel_data_byte_flip` and `_pixel_data_fill_pattern`
-  from the mutation pool, or weighting them much lower.
-- Add a combined "extreme contradiction" mutation that sets multiple conflicting fields
-  simultaneously rather than picking one at a time.
-- `extreme_dimensions` and `extreme_bits` should be the primary crash vectors; `rows_larger`
-  (10x multiplier) is weaker than just setting `Rows=65535`.
-
 ## Formalize variant terminology and add crash replay capability
 
 **Location:** `dicom_fuzzer/attacks/format/` (all fuzzers), `dicom_fuzzer/core/engine/generator.py`, `dicom_fuzzer/core/mutation/mutator.py`, `dicom_fuzzer/core/session/fuzzing_session.py`

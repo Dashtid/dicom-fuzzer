@@ -13,9 +13,8 @@ Attacks:
 - SmallestImagePixelValue / LargestImagePixelValue inversion and extremes
 - RescaleSlope / RescaleIntercept zero, NaN, Inf, and extreme values
 - WindowCenter / WindowWidth zero-width and negative-width attacks
+- Multi-field extreme contradiction (allocation-math overflow attack)
 - Raw PixelData buffer truncation
-- Raw PixelData byte flipping
-- Raw PixelData uniform fill (0x00 / 0xFF)
 - Raw PixelData random garbage replacement
 - Raw PixelData oversized buffer injection
 """
@@ -73,9 +72,8 @@ class PixelFuzzer(FormatFuzzerBase):
             self._pixel_value_range_attack,
             self._rescale_attack,
             self._window_attack,
+            self._extreme_contradiction,
             self._pixel_data_truncation,
-            self._pixel_data_byte_flip,
-            self._pixel_data_fill_pattern,
             self._pixel_data_random_garbage,
             self._pixel_data_oversized,
         ]
@@ -188,16 +186,12 @@ class PixelFuzzer(FormatFuzzerBase):
 
         try:
             if attack == "rows_larger":
-                if hasattr(dataset, "Rows"):
-                    dataset.Rows = dataset.Rows * 10
+                dataset.Rows = 65535
             elif attack == "columns_larger":
-                if hasattr(dataset, "Columns"):
-                    dataset.Columns = dataset.Columns * 10
+                dataset.Columns = 65535
             elif attack == "both_larger":
-                if hasattr(dataset, "Rows"):
-                    dataset.Rows = dataset.Rows * 5
-                if hasattr(dataset, "Columns"):
-                    dataset.Columns = dataset.Columns * 5
+                dataset.Rows = 65535
+                dataset.Columns = 65535
             elif attack == "rows_zero":
                 dataset.Rows = 0
             elif attack == "columns_zero":
@@ -413,6 +407,54 @@ class PixelFuzzer(FormatFuzzerBase):
 
         return dataset
 
+    def _extreme_contradiction(self, dataset: Dataset) -> Dataset:
+        """Set multiple conflicting pixel metadata fields simultaneously.
+
+        Single-field attacks let parsers recover field-by-field. Contradicting
+        multiple allocation-math fields at once forces code paths that assume at
+        least one field is valid — maximising the product rows x cols x bits/8 x
+        samples that the viewer must compute before it can detect the inconsistency.
+        """
+        attack = random.choice(
+            [
+                "overflow_allocation",
+                "zero_product",
+                "color_space_conflict",
+                "max_all_fields",
+            ]
+        )
+
+        try:
+            if attack == "overflow_allocation":
+                # rows(65535) * cols(65535) * bytes(4) * samples(4) ≈ 64 GB
+                dataset.Rows = 65535
+                dataset.Columns = 65535
+                dataset.BitsAllocated = 32
+                dataset.SamplesPerPixel = 4
+            elif attack == "zero_product":
+                # Zero in every allocation field — hits all null-check paths
+                dataset.Rows = 0
+                dataset.Columns = 0
+                dataset.BitsAllocated = 0
+                dataset.SamplesPerPixel = 0
+            elif attack == "color_space_conflict":
+                # MONOCHROME2 requires SamplesPerPixel=1; BitsAllocated=128 is invalid
+                dataset.SamplesPerPixel = 3
+                dataset.PhotometricInterpretation = "MONOCHROME2"
+                dataset.BitsAllocated = 128
+                dataset.Rows = 65535
+            elif attack == "max_all_fields":
+                # Every allocation-math field at or beyond its declared maximum
+                dataset.Rows = 4294967295
+                dataset.Columns = 4294967295
+                dataset.BitsAllocated = 255
+                dataset.SamplesPerPixel = 65535
+                dataset.NumberOfFrames = 4294967295
+        except Exception as e:
+            logger.debug("Extreme contradiction attack failed: %s", e)
+
+        return dataset
+
     def _pixel_data_truncation(self, dataset: Dataset) -> Dataset:
         """Replace PixelData with a truncated slice (10-90% of original size).
 
@@ -428,43 +470,6 @@ class PixelFuzzer(FormatFuzzerBase):
             dataset.PixelData = data[: max(1, int(len(data) * fraction))]
         except Exception as e:
             logger.debug("Pixel data truncation attack failed: %s", e)
-        return dataset
-
-    def _pixel_data_byte_flip(self, dataset: Dataset) -> Dataset:
-        """XOR random bytes in PixelData with a random non-zero value.
-
-        Flip count is 1% of the buffer length (minimum 1). Low crash
-        probability but high anomaly surface for decode paths.
-        """
-        pixel_data = getattr(dataset, "PixelData", None)
-        if not pixel_data:
-            return dataset
-        try:
-            data = bytes(pixel_data)
-            buf = bytearray(data)
-            n_flips = max(1, min(len(buf) // 100, len(buf)))
-            for i in random.sample(range(len(buf)), n_flips):
-                buf[i] ^= random.randint(1, 255)
-            dataset.PixelData = bytes(buf)
-        except Exception as e:
-            logger.debug("Pixel data byte flip attack failed: %s", e)
-        return dataset
-
-    def _pixel_data_fill_pattern(self, dataset: Dataset) -> Dataset:
-        """Replace PixelData with a uniform fill of 0x00 or 0xFF.
-
-        Tests LUT/window handling edge cases where every sample has the
-        same value (black frame or saturated frame).
-        """
-        pixel_data = getattr(dataset, "PixelData", None)
-        if not pixel_data:
-            return dataset
-        try:
-            data = bytes(pixel_data)
-            fill_byte = random.choice([0x00, 0xFF])
-            dataset.PixelData = bytes([fill_byte] * len(data))
-        except Exception as e:
-            logger.debug("Pixel data fill pattern attack failed: %s", e)
         return dataset
 
     def _pixel_data_random_garbage(self, dataset: Dataset) -> Dataset:
