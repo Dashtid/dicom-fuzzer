@@ -32,8 +32,11 @@ class MutationStrategy(Protocol):
 
 
 @dataclass
-class MutationRecord:
-    """Record of a single mutation applied to a file."""
+class InternalMutationRecord:
+    """Record of a single mutation applied to a file (internal tracking only).
+
+    Not serialized; use MutationRecord in fuzzing_session.py for session JSON output.
+    """
 
     mutation_id: str = field(default_factory=generate_short_id)
     strategy_name: str = ""
@@ -50,7 +53,7 @@ class MutationSession:
 
     session_id: str = field(default_factory=generate_short_id)
     original_file_info: dict[str, Any] = field(default_factory=dict)
-    mutations: list[MutationRecord] = field(default_factory=list)
+    mutations: list[InternalMutationRecord] = field(default_factory=list)
     start_time: datetime = field(default_factory=lambda: datetime.now(UTC))
     end_time: datetime | None = None
     total_mutations: int = 0
@@ -339,7 +342,7 @@ class DicomMutator:
             logger.warning("No active session - cannot record mutation")
             return
 
-        mutation_record = MutationRecord(
+        mutation_record = InternalMutationRecord(
             strategy_name=strategy.strategy_name,
             description=f"Applied {strategy.strategy_name}",
             success=success,
