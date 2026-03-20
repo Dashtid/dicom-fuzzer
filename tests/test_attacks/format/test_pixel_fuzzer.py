@@ -5,7 +5,7 @@ Tests cover pixel metadata mutation strategies.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydicom.dataset import Dataset
@@ -180,4 +180,219 @@ class TestPixelDataMutations:
     ) -> None:
         """mutate() must return a Dataset when PixelData is present."""
         result = fuzzer.mutate(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+
+class TestPixelRepresentationAttack:
+    """Tests for _pixel_representation_attack."""
+
+    def test_flip_sign_unsigned_to_signed(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """flip_sign variant must flip 0 to 1."""
+        pixel_dataset.PixelRepresentation = 0
+        with patch("random.choice", return_value="flip_sign"):
+            result = fuzzer._pixel_representation_attack(pixel_dataset)
+        assert result.PixelRepresentation == 1
+
+    def test_flip_sign_signed_to_unsigned(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """flip_sign variant must flip 1 to 0."""
+        pixel_dataset.PixelRepresentation = 1
+        with patch("random.choice", return_value="flip_sign"):
+            result = fuzzer._pixel_representation_attack(pixel_dataset)
+        assert result.PixelRepresentation == 0
+
+    def test_invalid_value_sets_out_of_range(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """invalid_value variant must set PixelRepresentation outside {0, 1}."""
+        pixel_dataset.PixelRepresentation = 0
+        with patch("random.choice", side_effect=["invalid_value", 255]):
+            result = fuzzer._pixel_representation_attack(pixel_dataset)
+        assert result.PixelRepresentation not in (0, 1)
+
+    def test_returns_dataset_without_field(self, fuzzer: PixelFuzzer) -> None:
+        """Method must return a Dataset even when PixelRepresentation is absent."""
+        ds = Dataset()
+        result = fuzzer._pixel_representation_attack(ds)
+        assert isinstance(result, Dataset)
+
+    def test_returns_dataset(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        """Method must always return a Dataset."""
+        result = fuzzer._pixel_representation_attack(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+
+class TestNumberOfFramesMismatch:
+    """Tests for _number_of_frames_mismatch."""
+
+    def test_over_declare_multiplies_frame_count(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """over_declare variant must set NumberOfFrames > original value."""
+        pixel_dataset.NumberOfFrames = 1
+        with (
+            patch("random.choice", return_value="over_declare"),
+            patch("random.randint", return_value=50),
+        ):
+            result = fuzzer._number_of_frames_mismatch(pixel_dataset)
+        assert result.NumberOfFrames == 50
+
+    def test_extreme_sets_large_value(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """extreme variant must set a large NumberOfFrames value."""
+        with patch("random.choice", side_effect=["extreme", 65535]):
+            result = fuzzer._number_of_frames_mismatch(pixel_dataset)
+        assert result.NumberOfFrames == 65535
+
+    def test_zero_variant(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        """zero variant must set NumberOfFrames to 0."""
+        with patch("random.choice", return_value="zero"):
+            result = fuzzer._number_of_frames_mismatch(pixel_dataset)
+        assert result.NumberOfFrames == 0
+
+    def test_sets_field_on_single_frame_seed(self, fuzzer: PixelFuzzer) -> None:
+        """Method must set NumberOfFrames even when absent from seed."""
+        ds = Dataset()
+        ds.PixelData = bytes(16)
+        result = fuzzer._number_of_frames_mismatch(ds)
+        assert isinstance(result, Dataset)
+        assert hasattr(result, "NumberOfFrames")
+
+    def test_returns_dataset(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        """Method must always return a Dataset."""
+        result = fuzzer._number_of_frames_mismatch(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+
+class TestPixelValueRangeAttack:
+    """Tests for _pixel_value_range_attack."""
+
+    def test_inverted_sets_smallest_greater_than_largest(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """inverted variant must produce SmallestImagePixelValue > LargestImagePixelValue."""
+        with patch("random.choice", return_value="inverted"):
+            result = fuzzer._pixel_value_range_attack(pixel_dataset)
+        assert result.SmallestImagePixelValue > result.LargestImagePixelValue
+
+    def test_same_value_produces_zero_width_range(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """same_value variant must set Smallest == Largest == 0."""
+        with patch("random.choice", return_value="same_value"):
+            result = fuzzer._pixel_value_range_attack(pixel_dataset)
+        assert result.SmallestImagePixelValue == result.LargestImagePixelValue == 0
+
+    def test_extreme_sets_both_fields(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """extreme variant must set both SmallestImagePixelValue and LargestImagePixelValue."""
+        with patch("random.choice", return_value="extreme"):
+            result = fuzzer._pixel_value_range_attack(pixel_dataset)
+        assert hasattr(result, "SmallestImagePixelValue")
+        assert hasattr(result, "LargestImagePixelValue")
+
+    def test_returns_dataset_without_pixel_data(self, fuzzer: PixelFuzzer) -> None:
+        """Method must return a Dataset even on a minimal dataset."""
+        ds = Dataset()
+        result = fuzzer._pixel_value_range_attack(ds)
+        assert isinstance(result, Dataset)
+
+    def test_returns_dataset(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        """Method must always return a Dataset."""
+        result = fuzzer._pixel_value_range_attack(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+
+class TestRescaleAttack:
+    """Tests for _rescale_attack."""
+
+    def test_zero_slope_sets_rescale_slope_to_zero(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """zero_slope variant must set RescaleSlope to '0'."""
+        with patch("random.choice", return_value="zero_slope"):
+            result = fuzzer._rescale_attack(pixel_dataset)
+        assert str(result.RescaleSlope) == "0"
+
+    def test_nan_slope_sets_field(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """nan_slope variant must attempt to set RescaleSlope; method must not raise."""
+        with patch("random.choice", return_value="nan_slope"):
+            result = fuzzer._rescale_attack(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+    def test_inf_slope_sets_field(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """inf_slope variant must attempt to set RescaleSlope; method must not raise."""
+        with patch("random.choice", return_value="inf_slope"):
+            result = fuzzer._rescale_attack(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+    def test_extreme_slope_sets_rescale_slope(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """extreme_slope variant must set RescaleSlope to a non-default value."""
+        with patch("random.choice", side_effect=["extreme_slope", 1e38]):
+            result = fuzzer._rescale_attack(pixel_dataset)
+        assert isinstance(result, Dataset)
+        assert hasattr(result, "RescaleSlope")
+
+    def test_returns_dataset(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        """Method must always return a Dataset."""
+        result = fuzzer._rescale_attack(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+
+class TestWindowAttack:
+    """Tests for _window_attack."""
+
+    def test_zero_width_sets_window_width_to_zero(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """zero_width variant must set WindowWidth to '0'."""
+        with patch("random.choice", return_value="zero_width"):
+            result = fuzzer._window_attack(pixel_dataset)
+        assert float(result.WindowWidth) == 0.0
+
+    def test_negative_width_sets_negative_value(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """negative_width variant must set WindowWidth to a negative value."""
+        with patch("random.choice", side_effect=["negative_width", -255]):
+            result = fuzzer._window_attack(pixel_dataset)
+        assert float(result.WindowWidth) < 0
+
+    def test_extreme_center_sets_window_center(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """extreme_center variant must set WindowCenter to an extreme value."""
+        with patch("random.choice", side_effect=["extreme_center", 2147483647]):
+            result = fuzzer._window_attack(pixel_dataset)
+        assert hasattr(result, "WindowCenter")
+
+    def test_both_zero_sets_center_and_width(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """both_zero variant must set WindowCenter=0 and WindowWidth=0."""
+        with patch("random.choice", return_value="both_zero"):
+            result = fuzzer._window_attack(pixel_dataset)
+        assert float(result.WindowCenter) == 0.0
+        assert float(result.WindowWidth) == 0.0
+
+    def test_returns_dataset_without_existing_tags(self, fuzzer: PixelFuzzer) -> None:
+        """Method must return a Dataset even when window tags are absent."""
+        ds = Dataset()
+        result = fuzzer._window_attack(ds)
+        assert isinstance(result, Dataset)
+
+    def test_returns_dataset(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        """Method must always return a Dataset."""
+        result = fuzzer._window_attack(pixel_dataset)
         assert isinstance(result, Dataset)

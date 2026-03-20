@@ -92,6 +92,7 @@ class EncodingFuzzer(FormatFuzzerBase):
         """
         num_strategies = random.randint(1, 3)
         selected = random.sample(self.mutation_strategies, num_strategies)
+        self.last_variant = ",".join(s.__name__ for s in selected)
 
         for strategy in selected:
             try:

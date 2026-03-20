@@ -285,11 +285,14 @@ class CalibrationFuzzer(FormatFuzzerBase):
             self.fuzz_slice_thickness,
         ]
 
+        applied: list[str] = []
         for fuzzer in fuzzers:
             if random.random() < 0.5:
                 try:
                     dataset = fuzzer(dataset)
+                    applied.append(fuzzer.__name__)
                 except Exception as e:
                     logger.debug("Calibration %s failed: %s", fuzzer.__name__, e)
+        self.last_variant = ",".join(applied) if applied else None
 
         return dataset

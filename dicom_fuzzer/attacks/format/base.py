@@ -29,8 +29,11 @@ class FormatFuzzerBase(ABC):
 
     """
 
-    def __init__(self) -> None:  # noqa: B027
+    def __init__(self) -> None:
         """Initialize the fuzzer. Subclasses may override but must accept no arguments."""
+        self.last_variant: str | None = (
+            None  # Set by mutate() to record chosen sub-attack(s)
+        )
 
     @abstractmethod
     def mutate(self, dataset: Dataset) -> Dataset:

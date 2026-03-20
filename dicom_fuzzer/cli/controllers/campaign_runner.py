@@ -246,18 +246,24 @@ class CampaignRunner:
         return "unknown"
 
     def _save_mutation_map(self, generator: DICOMGenerator) -> None:
-        """Persist filename->strategy mapping so crash reports include mutation info."""
+        """Persist filename->strategy/variant mapping so crash reports include mutation info."""
         strategy_map = generator.file_strategy_map
         if not strategy_map:
             return
+        variant_map = generator.file_variant_map
         output_dir = Path(self.args.output)
         map_path = output_dir / "mutation_map.json"
         try:
+            combined = {
+                filename: {
+                    "strategy": strategy,
+                    "variant": variant_map.get(filename),
+                }
+                for filename, strategy in strategy_map.items()
+            }
             with open(map_path, "w") as f:
-                json.dump(strategy_map, f, indent=2)
-            logger.debug(
-                "Mutation map saved: %s (%d entries)", map_path, len(strategy_map)
-            )
+                json.dump(combined, f, indent=2)
+            logger.debug("Mutation map saved: %s (%d entries)", map_path, len(combined))
         except Exception as e:
             logger.warning("Failed to save mutation map: %s", e)
 

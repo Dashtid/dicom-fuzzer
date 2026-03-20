@@ -2,7 +2,6 @@
 
 - Parse DICOM files via pydicom with force-read for malformed inputs
 - Validate file size, structure, and transfer syntax
-- Extract pixel data as numpy arrays (deferred import)
 - Context-managed temporary dataset modifications
 - Deep copy support for safe mutation workflows
 """
@@ -11,15 +10,12 @@ import copy
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pydicom
 from pydicom.dataset import Dataset
 from pydicom.errors import InvalidDicomError
 from pydicom.tag import Tag
-
-if TYPE_CHECKING:
-    import numpy as np
 
 from dicom_fuzzer.core.exceptions import (
     ParsingError,
@@ -308,83 +304,6 @@ class DicomParser:
 
         return private_tags
 
-    def get_pixel_data(self, validate: bool = True) -> "np.ndarray[Any, Any] | None":
-        """Extract pixel array with validation.
-
-        Args:
-            validate: Whether to validate pixel data integrity
-
-        Returns:
-            Numpy array of pixel data or None if not present
-
-        Raises:
-            ValidationError: If pixel data validation fails
-
-        """
-        try:
-            if not hasattr(self.dataset, "pixel_array"):
-                return None
-
-            pixel_array = self.dataset.pixel_array
-
-            if validate:
-                self._validate_pixel_data(pixel_array)
-
-            return pixel_array
-
-        except Exception as e:
-            logger.error("Failed to extract pixel data: %s", e)
-            if validate:
-                raise ValidationError(
-                    f"Pixel data validation failed: {e}",
-                    error_code="PIXEL_DATA_INVALID",
-                ) from e
-            return None
-
-    def _validate_pixel_data(self, pixel_array: "np.ndarray[Any, Any]") -> None:
-        """Validate pixel data integrity and safety.
-
-        Args:
-            pixel_array: Pixel data to validate
-
-        Raises:
-            ValidationError: If validation fails
-
-        """
-        # Check array properties
-        if pixel_array.size == 0:
-            raise ValidationError("Pixel array is empty")
-
-        # Check for reasonable image dimensions
-        if pixel_array.ndim not in {2, 3, 4}:
-            raise ValidationError(f"Invalid pixel array dimensions: {pixel_array.ndim}")
-
-        # Check for excessive memory usage (>500MB)
-        memory_size = pixel_array.nbytes
-        max_memory = 500 * 1024 * 1024
-        if memory_size > max_memory:
-            raise ValidationError(
-                f"Pixel data too large: {memory_size} bytes",
-                error_code="PIXEL_DATA_TOO_LARGE",
-            )
-
-    def get_transfer_syntax(self) -> str | None:
-        """Get the transfer syntax of the DICOM file.
-
-        Returns:
-            Transfer syntax UID or None if not available
-
-        """
-        try:
-            file_meta = getattr(self.dataset, "file_meta", None)
-            if file_meta is None:
-                return None
-            transfer_syntax = file_meta.get("TransferSyntaxUID", None)
-            return str(transfer_syntax) if transfer_syntax is not None else None
-        except Exception as e:
-            logger.warning("Failed to get transfer syntax: %s", e)
-            return None
-
     def is_compressed(self) -> bool:
         """Check if the DICOM file uses compressed transfer syntax.
 
@@ -392,8 +311,16 @@ class DicomParser:
             True if compressed, False otherwise
 
         """
-        transfer_syntax = self.get_transfer_syntax()
-        if not transfer_syntax:
+        try:
+            file_meta = getattr(self.dataset, "file_meta", None)
+            if file_meta is None:
+                return False
+            transfer_syntax = file_meta.get("TransferSyntaxUID", None)
+            if transfer_syntax is None:
+                return False
+            transfer_syntax_str = str(transfer_syntax)
+        except Exception as e:
+            logger.warning("Failed to get transfer syntax: %s", e)
             return False
 
         # Common compressed transfer syntaxes
@@ -409,7 +336,7 @@ class DicomParser:
             "1.2.840.10008.1.2.5",  # RLE Lossless
         }
 
-        return transfer_syntax in compressed_syntaxes
+        return transfer_syntax_str in compressed_syntaxes
 
     @contextmanager
     def temporary_mutation(self) -> Generator[Dataset, None, None]:

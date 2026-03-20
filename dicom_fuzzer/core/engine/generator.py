@@ -77,6 +77,7 @@ class DICOMGenerator:
         self.cumulative_strategies: dict[str, int] = {}
         self.mutator = DicomMutator()
         self.file_strategy_map: dict[str, str] = {}
+        self.file_variant_map: dict[str, str] = {}
 
     @property
     def known_strategy_names(self) -> list[str]:
@@ -333,6 +334,9 @@ class DICOMGenerator:
                 self.stats.record_success(strategies_applied)
                 if strategies_applied:
                     self.file_strategy_map[output_path.name] = strategies_applied[0]
+                    variant = getattr(strategy_obj, "last_variant", None)
+                    if variant:
+                        self.file_variant_map[output_path.name] = variant
                 return output_path
             except self._SAVE_ERRORS as e:
                 if attempt < max_retries - 1 and self._try_recover(
