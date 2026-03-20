@@ -81,7 +81,9 @@ class PixelFuzzer(FormatFuzzerBase):
         ]
 
         # Apply 1-2 mutations
-        for mutation in random.sample(mutations, k=random.randint(1, 2)):
+        selected = random.sample(mutations, k=random.randint(1, 2))
+        self.last_variant = ",".join(m.__name__ for m in selected)
+        for mutation in selected:
             try:
                 dataset = mutation(dataset)
             except Exception as e:

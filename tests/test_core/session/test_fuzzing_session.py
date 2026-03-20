@@ -242,6 +242,31 @@ class TestFuzzingSession:
         assert len(record.mutations) == 3
         assert session.stats["mutations_applied"] == 3
 
+    def test_mutation_variant_stored(self, temp_dirs):
+        """variant field must be stored in MutationRecord and default to None."""
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(temp_dirs["output"]),
+            reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
+        )
+        session.start_file_fuzzing(
+            source_file=Path("test.dcm"),
+            output_file=Path("out.dcm"),
+            severity="low",
+        )
+
+        session.record_mutation(
+            strategy_name="pixel",
+            mutation_type="format_fuzzing",
+            variant="_dimension_mismatch,_rescale_attack",
+        )
+        session.record_mutation(strategy_name="header", mutation_type="format_fuzzing")
+
+        mutations = list(session.current_file_record.mutations)
+        assert mutations[0].variant == "_dimension_mismatch,_rescale_attack"
+        assert mutations[1].variant is None
+
     def test_crash_recording(self, temp_dirs):
         """Test crash recording with artifact preservation."""
         session = FuzzingSession(

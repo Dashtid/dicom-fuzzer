@@ -108,3 +108,56 @@ class TestLogStrategyTable:
             runner._log_strategy_table(data)
 
         assert len(caplog.records) == 0
+
+
+class TestSaveMutationMap:
+    """Tests for _save_mutation_map writing the strategy+variant format."""
+
+    def test_writes_strategy_and_variant(self, tmp_path):
+        """mutation_map.json must contain {strategy, variant} dicts when variant present."""
+        from unittest.mock import MagicMock
+
+        runner = _runner(tmp_path)
+        generator = MagicMock()
+        generator.file_strategy_map = {"fuzz_001.dcm": "pixel"}
+        generator.file_variant_map = {
+            "fuzz_001.dcm": "_dimension_mismatch,_rescale_attack"
+        }
+
+        runner._save_mutation_map(generator)
+
+        map_path = tmp_path / "fuzzed" / "mutation_map.json"
+        assert map_path.exists()
+        data = json.loads(map_path.read_text())
+        assert data["fuzz_001.dcm"]["strategy"] == "pixel"
+        assert data["fuzz_001.dcm"]["variant"] == "_dimension_mismatch,_rescale_attack"
+
+    def test_variant_null_when_not_in_variant_map(self, tmp_path):
+        """variant must be null for files absent from file_variant_map."""
+        from unittest.mock import MagicMock
+
+        runner = _runner(tmp_path)
+        generator = MagicMock()
+        generator.file_strategy_map = {"fuzz_001.dcm": "header"}
+        generator.file_variant_map = {}
+
+        runner._save_mutation_map(generator)
+
+        map_path = tmp_path / "fuzzed" / "mutation_map.json"
+        data = json.loads(map_path.read_text())
+        assert data["fuzz_001.dcm"]["strategy"] == "header"
+        assert data["fuzz_001.dcm"]["variant"] is None
+
+    def test_noop_when_strategy_map_empty(self, tmp_path):
+        """_save_mutation_map writes nothing when file_strategy_map is empty."""
+        from unittest.mock import MagicMock
+
+        runner = _runner(tmp_path)
+        generator = MagicMock()
+        generator.file_strategy_map = {}
+        generator.file_variant_map = {}
+
+        runner._save_mutation_map(generator)
+
+        map_path = tmp_path / "fuzzed" / "mutation_map.json"
+        assert not map_path.exists()

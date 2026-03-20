@@ -44,6 +44,9 @@ class MutationRecord(SerializableMixin):
     original_value: str | None = None  # Value before mutation
     mutated_value: str | None = None  # Value after mutation
     parameters: dict[str, Any] = field(default_factory=dict)  # Strategy parameters
+    variant: str | None = (
+        None  # Which sub-attack was chosen (e.g. "_dimension_mismatch")
+    )
 
 
 @dataclass
@@ -222,6 +225,7 @@ class FuzzingSession:
         original_value: Any | None = None,
         mutated_value: Any | None = None,
         parameters: dict[str, Any] | None = None,
+        variant: str | None = None,
     ) -> None:
         """Record a mutation applied to the current file.
 
@@ -233,6 +237,7 @@ class FuzzingSession:
             original_value: Original value before mutation
             mutated_value: Value after mutation
             parameters: Additional parameters used in mutation
+            variant: Sub-attack(s) chosen within the strategy (comma-separated method names)
 
         """
         if not self.current_file_record:
@@ -254,6 +259,7 @@ class FuzzingSession:
             original_value=orig_str,
             mutated_value=mut_str,
             parameters=parameters or {},
+            variant=variant,
         )
 
         self.current_file_record.mutations.append(mutation)

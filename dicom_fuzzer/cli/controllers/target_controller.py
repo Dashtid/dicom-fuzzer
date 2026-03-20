@@ -91,7 +91,9 @@ class TargetTestingController:
             file_id_map: dict[Path, str] = {}
             for f in files:
                 resolved = f.resolve()
-                strategy = mutation_map.get(f.name, "")
+                entry = mutation_map.get(f.name, {})
+                strategy = entry.get("strategy", "")
+                variant = entry.get("variant")
                 file_id = session.start_file_fuzzing(
                     source_file=resolved,
                     output_file=resolved,
@@ -101,6 +103,7 @@ class TargetTestingController:
                     session.record_mutation(
                         strategy_name=strategy,
                         mutation_type="format_fuzzing",
+                        variant=variant,
                     )
                 session.end_file_fuzzing(resolved)
                 file_id_map[resolved] = file_id
@@ -180,8 +183,14 @@ class TargetTestingController:
         cli.divider()
 
     @staticmethod
-    def _load_mutation_map(files: list[Path]) -> dict[str, str]:
-        """Load filename->strategy mapping written by the generation phase."""
+    def _load_mutation_map(
+        files: list[Path],
+    ) -> dict[str, dict[str, str | None]]:
+        """Load filename->strategy/variant mapping written by the generation phase.
+
+        Handles both the old format ({filename: strategy_str}) and the current
+        format ({filename: {"strategy": str, "variant": str | null}}).
+        """
         if not files:
             return {}
         # mutation_map.json lives in the same directory as the fuzzed files
@@ -190,9 +199,19 @@ class TargetTestingController:
             return {}
         try:
             with open(map_path) as f:
-                data: dict[str, str] = json.load(f)
-            logger.info("Loaded mutation map: %d entries", len(data))
-            return data
+                raw: dict[str, object] = json.load(f)
+            # Normalize: old entries are plain strings; new entries are dicts
+            normalized: dict[str, dict[str, str | None]] = {}
+            for filename, value in raw.items():
+                if isinstance(value, dict):
+                    normalized[filename] = {
+                        "strategy": value.get("strategy", ""),
+                        "variant": value.get("variant"),
+                    }
+                else:
+                    normalized[filename] = {"strategy": str(value), "variant": None}
+            logger.info("Loaded mutation map: %d entries", len(normalized))
+            return normalized
         except Exception as e:
             logger.warning("Failed to load mutation map: %s", e)
             return {}
