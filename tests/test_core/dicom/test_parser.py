@@ -5,8 +5,6 @@ Tests cover:
 - Basic parsing functionality
 - Security validation
 - Metadata extraction
-- Pixel data handling
-- Transfer syntax detection
 - Edge cases and error handling
 """
 
@@ -109,46 +107,8 @@ class TestMetadataExtraction:
         assert "PixelData" not in str(metadata)
 
 
-class TestPixelDataHandling:
-    """Test pixel data extraction and validation."""
-
-    def test_get_pixel_data_from_image(self, dicom_with_pixels):
-        """Test extraction of pixel data from image."""
-        parser = DicomParser(dicom_with_pixels)
-        pixel_data = parser.get_pixel_data()
-
-        assert pixel_data is not None
-        assert isinstance(pixel_data, np.ndarray)
-        assert pixel_data.size > 0
-
-    def test_get_pixel_data_without_validation(self, dicom_with_pixels):
-        """Test pixel data extraction without validation."""
-        parser = DicomParser(dicom_with_pixels)
-        pixel_data = parser.get_pixel_data(validate=False)
-
-        assert pixel_data is not None
-        assert isinstance(pixel_data, np.ndarray)
-
-    def test_get_pixel_data_from_non_image_returns_none(self, sample_dicom_file):
-        """Test that non-image DICOM returns None for pixel data."""
-        parser = DicomParser(sample_dicom_file)
-
-        # If no pixel data, should return None gracefully
-        pixel_data = parser.get_pixel_data()
-        # Could be None or could raise exception depending on implementation
-        assert pixel_data is None or isinstance(pixel_data, np.ndarray)
-
-
 class TestTransferSyntax:
     """Test transfer syntax detection and compression handling."""
-
-    def test_get_transfer_syntax(self, sample_dicom_file):
-        """Test transfer syntax extraction."""
-        parser = DicomParser(sample_dicom_file)
-        transfer_syntax = parser.get_transfer_syntax()
-
-        assert transfer_syntax is not None
-        assert isinstance(transfer_syntax, str)
 
     def test_is_compressed_detection(self, sample_dicom_file):
         """Test compression detection."""
@@ -277,10 +237,6 @@ class TestIntegration:
         # Extract metadata
         metadata = parser.extract_metadata()
         assert metadata is not None
-
-        # Get transfer syntax
-        transfer_syntax = parser.get_transfer_syntax()
-        assert transfer_syntax is not None
 
         # Check compression status
         is_compressed = parser.is_compressed()
@@ -413,15 +369,6 @@ class TestParserEdgeCases:
         assert parser.dataset is not None
         assert parser.dataset.PatientID == "TEST001"
 
-    def test_get_transfer_syntax_with_explicit_vr(self, sample_dicom_file):
-        """Test transfer syntax detection for explicit VR."""
-        parser = DicomParser(sample_dicom_file)
-
-        transfer_syntax = parser.get_transfer_syntax()
-        # Should return some transfer syntax
-        assert transfer_syntax is not None
-        assert isinstance(transfer_syntax, str)
-
     def test_path_is_directory_raises_error(self, tmp_path):
         """Test that directory path raises SecurityViolationError (line 97)."""
         with pytest.raises(SecurityViolationError, match="not a regular file"):
@@ -493,80 +440,6 @@ class TestParserEdgeCases:
 
         with pytest.raises(ParsingError, match="Dataset not available"):
             _ = parser.dataset
-
-    def test_validate_pixel_data_empty_array(self, tmp_path):
-        """Test pixel validation with empty array (line 322)."""
-        from unittest.mock import PropertyMock, patch
-
-        import numpy as np
-        import pydicom
-        from pydicom.uid import ExplicitVRLittleEndian
-
-        # Create DICOM
-        file_meta = pydicom.Dataset()
-        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
-        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
-
-        ds = pydicom.Dataset()
-        ds.file_meta = file_meta
-        ds.PatientID = "TEST123"
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        ds.SOPInstanceUID = "1.2.3.4.5"
-
-        test_file = tmp_path / "test_empty.dcm"
-        ds.save_as(test_file, enforce_file_format=True)
-
-        parser = DicomParser(test_file)
-
-        # Mock pixel_array to return empty array
-        with patch.object(
-            type(parser.dataset),
-            "pixel_array",
-            new_callable=PropertyMock,
-            return_value=np.array([]),
-        ):
-            from dicom_fuzzer.core.exceptions import ValidationError
-
-            with pytest.raises(ValidationError, match="empty"):
-                parser.get_pixel_data(validate=True)
-
-    def test_validate_pixel_data_invalid_dimensions(self, tmp_path):
-        """Test pixel validation with invalid dimensions (line 326)."""
-        from unittest.mock import PropertyMock, patch
-
-        import numpy as np
-        import pydicom
-        from pydicom.uid import ExplicitVRLittleEndian
-
-        # Create DICOM
-        file_meta = pydicom.Dataset()
-        file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
-        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        file_meta.MediaStorageSOPInstanceUID = "1.2.3.4.5"
-
-        ds = pydicom.Dataset()
-        ds.file_meta = file_meta
-        ds.PatientID = "TEST123"
-        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        ds.SOPInstanceUID = "1.2.3.4.5"
-
-        test_file = tmp_path / "test_dims.dcm"
-        ds.save_as(test_file, enforce_file_format=True)
-
-        parser = DicomParser(test_file)
-
-        # Mock pixel_array to return 5D array (invalid)
-        with patch.object(
-            type(parser.dataset),
-            "pixel_array",
-            new_callable=PropertyMock,
-            return_value=np.zeros((2, 2, 2, 2, 2)),
-        ):
-            from dicom_fuzzer.core.exceptions import ValidationError
-
-            with pytest.raises(ValidationError, match="Invalid pixel array dimensions"):
-                parser.get_pixel_data(validate=True)
 
 
 class TestCoverageMissingLines:
@@ -681,7 +554,6 @@ class TestCoverageMissingLines:
 
     def test_pixel_array_access_lines_225_226(self, tmp_path):
         """Test pixel_array access and metadata update (lines 225-226)."""
-        import numpy as np
         import pydicom
         from pydicom.uid import ExplicitVRLittleEndian
 
@@ -787,45 +659,14 @@ class TestCoverageMissingLines:
         # The code should handle any exceptions gracefully
         assert "private_tags" in metadata
 
-    def test_pixel_data_no_validate_line_309(self, dicom_with_pixels):
-        """Test get_pixel_data no validate on exception (line 309)."""
-        from unittest.mock import PropertyMock, patch
-
-        parser = DicomParser(dicom_with_pixels)
-
-        # Mock pixel_array to raise exception
-        with patch.object(
-            type(parser.dataset), "pixel_array", new_callable=PropertyMock
-        ) as mock_pixel:
-            mock_pixel.side_effect = RuntimeError("Mock error")
-            result = parser.get_pixel_data(validate=False)
-            assert result is None  # Line 309
-
-    def test_get_transfer_syntax_exception_lines_345_347(self, sample_dicom_file):
-        """Test exception handling in get_transfer_syntax (lines 345-347)."""
-        from unittest.mock import patch
-
-        parser = DicomParser(sample_dicom_file)
-
-        # Mock getattr within the parser module scope instead of builtins
-        # This is safer and doesn't leave global state pollution
-        with patch(
-            "dicom_fuzzer.core.dicom.parser.getattr",
-            side_effect=RuntimeError("Mock error"),
-        ):
-            result = parser.get_transfer_syntax()
-            assert result is None  # Line 374 (exception caught, returns None)
-
     def test_is_compressed_no_transfer_syntax_line_357(self, sample_dicom_file):
-        """Test is_compressed returns False when no transfer syntax (line 357)."""
-        from unittest.mock import patch
-
+        """Test is_compressed returns False when file_meta is absent."""
         parser = DicomParser(sample_dicom_file)
 
-        # Mock get_transfer_syntax to return None
-        with patch.object(parser, "get_transfer_syntax", return_value=None):
-            result = parser.is_compressed()
-            assert result is False  # Line 357
+        # Simulate missing file_meta to exercise the early-return path
+        parser._dataset.file_meta = None
+        result = parser.is_compressed()
+        assert result is False
 
     def test_private_tag_extraction_exception_lines_274_275(self, sample_dicom_file):
         """Test exception handling in private tag extraction (lines 274-275)."""
@@ -1464,7 +1305,6 @@ class TestExtractMetadataPixelDataMutationKilling:
 
     def test_has_pixel_data_true_value(self, tmp_path):
         """Verify has_pixel_data is exactly True (not 1 or truthy)."""
-        import numpy as np
         import pydicom
         from pydicom.uid import ExplicitVRLittleEndian
 
@@ -1526,7 +1366,6 @@ class TestExtractMetadataPixelDataMutationKilling:
 
     def test_rows_exact_value(self, tmp_path):
         """Verify rows metadata matches exact value."""
-        import numpy as np
         import pydicom
         from pydicom.uid import ExplicitVRLittleEndian
 
@@ -1562,7 +1401,6 @@ class TestExtractMetadataPixelDataMutationKilling:
 
     def test_bits_allocated_exact_value(self, tmp_path):
         """Verify bits_allocated metadata matches exact value."""
-        import numpy as np
         import pydicom
         from pydicom.uid import ExplicitVRLittleEndian
 
@@ -1600,7 +1438,6 @@ class TestExtractMetadataPixelDataMutationKilling:
 
     def test_samples_per_pixel_exact_value(self, tmp_path):
         """Verify samples_per_pixel metadata matches exact value."""
-        import numpy as np
         import pydicom
         from pydicom.uid import ExplicitVRLittleEndian
 
@@ -1636,7 +1473,6 @@ class TestExtractMetadataPixelDataMutationKilling:
 
     def test_image_shape_tuple(self, tmp_path):
         """Verify image_shape is a tuple with correct dimensions."""
-        import numpy as np
         import pydicom
         from pydicom.uid import ExplicitVRLittleEndian
 
@@ -1672,7 +1508,6 @@ class TestExtractMetadataPixelDataMutationKilling:
 
     def test_image_dtype_string(self, tmp_path):
         """Verify image_dtype is a string representation."""
-        import numpy as np
         import pydicom
         from pydicom.uid import ExplicitVRLittleEndian
 
