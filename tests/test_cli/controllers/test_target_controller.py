@@ -710,3 +710,31 @@ class TestLoadMutationMap:
         """Empty file list must return empty dict without error."""
         result = TargetTestingController._load_mutation_map([])
         assert result == {}
+
+    def test_wrapped_format_with_seed_unwraps_correctly(self, tmp_path: Path) -> None:
+        """New {seed, mutations} wrapper format must be unwrapped transparently."""
+        import json
+
+        fuzz_dir = tmp_path / "fuzzed"
+        fuzz_dir.mkdir()
+        map_path = fuzz_dir / "mutation_map.json"
+        map_path.write_text(
+            json.dumps(
+                {
+                    "seed": 42,
+                    "mutations": {
+                        "fuzz_001.dcm": {
+                            "strategy": "pixel",
+                            "variant": "_extreme_contradiction",
+                        }
+                    },
+                }
+            )
+        )
+        f = fuzz_dir / "fuzz_001.dcm"
+        f.write_bytes(b"")
+
+        result = TargetTestingController._load_mutation_map([f])
+
+        assert result["fuzz_001.dcm"]["strategy"] == "pixel"
+        assert result["fuzz_001.dcm"]["variant"] == "_extreme_contradiction"

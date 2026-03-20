@@ -66,14 +66,19 @@ class DicomMutator:
     Uses the Strategy Pattern to manage different fuzzing approaches.
     """
 
-    def __init__(self, config: dict[str, Any] | None = None):
+    def __init__(self, config: dict[str, Any] | None = None, seed: int | None = None):
         """Initialize the mutator.
 
         Args:
             config: Optional configuration dictionary for customizing behavior
+            seed: Random seed for reproducible mutations. If set, calls random.seed().
 
         """
         self.config = config or {}
+        self.seed = seed
+        if seed is not None:
+            random.seed(seed)
+            logger.debug("DicomMutator seeded with: %d", seed)
         self.strategies: list[MutationStrategy] = []
         self.current_session: MutationSession | None = None
         self._strategy_cache: dict[tuple[Any, ...], list[MutationStrategy]] = {}

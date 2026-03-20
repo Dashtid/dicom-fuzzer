@@ -726,5 +726,32 @@ class TestGeneratorBatchProcessing:
             assert generator.stats.successful == len(files)
 
 
+class TestDICOMGeneratorSeed:
+    """Test DICOMGenerator seed parameter."""
+
+    def test_explicit_seed_stored(self, temp_dir):
+        """Explicit seed is stored as-is."""
+        generator = DICOMGenerator(output_dir=str(temp_dir), seed=42)
+        assert generator.seed == 42
+
+    def test_auto_seed_generated(self, temp_dir):
+        """Seed is auto-generated as a positive int when not provided."""
+        generator = DICOMGenerator(output_dir=str(temp_dir))
+        assert isinstance(generator.seed, int)
+        assert generator.seed >= 0
+
+    def test_auto_seeds_differ(self, temp_dir):
+        """Two generators without explicit seeds get different seeds (with overwhelming probability)."""
+        g1 = DICOMGenerator(output_dir=str(temp_dir / "a"))
+        g2 = DICOMGenerator(output_dir=str(temp_dir / "b"))
+        # 1-in-2^32 chance of collision — acceptable for a test
+        assert g1.seed != g2.seed
+
+    def test_explicit_seed_passed_to_mutator(self, temp_dir):
+        """The explicit seed propagates to the underlying DicomMutator."""
+        generator = DICOMGenerator(output_dir=str(temp_dir), seed=7)
+        assert generator.mutator.seed == 7
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

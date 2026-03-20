@@ -87,7 +87,7 @@ class TestMain:
         result = main([str(input_file), "-o", str(output_dir), "-n", "10"])
 
         assert result == 0
-        mock_gen_cls.assert_called_once_with(output_dir=str(output_dir))
+        mock_gen_cls.assert_called_once_with(output_dir=str(output_dir), seed=None)
         mock_gen.generate_batch.assert_called_once_with(str(input_file), count=10)
 
         captured = capsys.readouterr()

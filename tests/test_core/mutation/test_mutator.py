@@ -731,5 +731,31 @@ class TestAdditionalCoverage:
         assert mutator.current_session.end_time is not None
 
 
+class TestDicomMutatorSeed:
+    """Test DicomMutator seed parameter."""
+
+    def test_seed_param_accepted(self):
+        """seed param accepted and stored without error."""
+        mutator = DicomMutator(config={"auto_register_strategies": False}, seed=42)
+        assert mutator.seed == 42
+
+    def test_seed_none_is_default(self):
+        """seed defaults to None when not provided."""
+        mutator = DicomMutator(config={"auto_register_strategies": False})
+        assert mutator.seed is None
+
+    def test_seed_sets_random_state(self):
+        """Providing a seed makes random calls reproducible."""
+        import random
+
+        DicomMutator(config={"auto_register_strategies": False}, seed=99)
+        val1 = random.random()
+
+        DicomMutator(config={"auto_register_strategies": False}, seed=99)
+        val2 = random.random()
+
+        assert val1 == val2
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
