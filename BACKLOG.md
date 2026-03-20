@@ -60,25 +60,6 @@ validation:
 - `extreme_dimensions` and `extreme_bits` should be the primary crash vectors; `rows_larger`
   (10x multiplier) is weaker than just setting `Rows=65535`.
 
-## pixel_fuzzer.py: Missing tag attacks
-
-**Location:** `dicom_fuzzer/attacks/format/pixel_fuzzer.py`
-
-Several pixel-related tags that can cause crashes or rendering failures are not covered:
-
-- **PixelRepresentation** (0028,0103): 0=unsigned, 1=signed two's complement. Setting
-  this to 1 on a file with 0=unsigned data (or vice versa) causes display inversion or
-  sign-extension misreads. Set to invalid values (2, 255) to test parser robustness.
-- **NumberOfFrames** mismatch: Declare N frames but supply pixel data for only 1 (or
-  declare 1 but supply data for N). Multi-frame viewers are especially susceptible.
-- **SmallestImagePixelValue / LargestImagePixelValue**: Set range wider than actual data,
-  narrower than actual, or inverted (Smallest > Largest). Affects auto-windowing logic.
-- **RescaleSlope / RescaleIntercept**: Set slope to 0, NaN, Inf, or very large values.
-  Affects CT/modality LUT transforms. NaN/Inf specifically crash floating-point display
-  pipelines.
-- **WindowCenter / WindowWidth**: Set Width to 0 or negative (divide-by-zero in
-  windowing formula). Set Center and Width combinations that result in empty display range.
-
 ## Formalize variant terminology and add crash replay capability
 
 **Location:** `dicom_fuzzer/attacks/format/` (all fuzzers), `dicom_fuzzer/core/engine/generator.py`, `dicom_fuzzer/core/mutation/mutator.py`, `dicom_fuzzer/core/session/fuzzing_session.py`
@@ -1046,12 +1027,8 @@ tiers:
 
 **Straightforward consolidation (module-level, same scope):**
 
-- `attacks/format/metadata_fuzzer.py` -- 4 blocks from `.dicom_dictionaries`
-- `attacks/format/conformance_fuzzer.py` -- 2 consecutive blocks from `.dicom_dictionaries`
-- `attacks/network/pdu_mixin.py` -- 2 blocks from `.base`
-- `attacks/network/tls_mixin.py` -- 2 blocks from `.base`
-- `cli/utils/output.py` -- duplicate `Console` import from `rich.console`;
-  2 blocks from `rich.progress`
+- `attacks/format/metadata_fuzzer.py` -- 4 blocks from `.dicom_dictionaries` ✓ done
+- `attacks/format/conformance_fuzzer.py` -- 2 consecutive blocks from `.dicom_dictionaries` ✓ done
 
 **Verify before consolidating (may be intentional lazy imports):**
 
@@ -1073,6 +1050,11 @@ Check each one before merging:
 
 **Leave alone (legitimate pattern):**
 
+- `attacks/network/pdu_mixin.py` -- runtime block + TYPE_CHECKING block;
+  standard Python practice, same as the exemption below
+- `attacks/network/tls_mixin.py` -- same
+- `cli/utils/output.py` -- rich imports are lazy (inside `_get_console()`)
+  to defer CLI startup cost; intentional, not accidental splitting
 - `cli/controllers/network_controller.py` -- split across a
   `TYPE_CHECKING` guard; this is standard Python practice and must stay
   split
