@@ -1027,8 +1027,10 @@ tiers:
 
 **Straightforward consolidation (module-level, same scope):**
 
-- `attacks/format/metadata_fuzzer.py` -- 4 blocks from `.dicom_dictionaries` ✓ done
-- `attacks/format/conformance_fuzzer.py` -- 2 consecutive blocks from `.dicom_dictionaries` ✓ done
+None remaining. The split blocks in `metadata_fuzzer.py` and `conformance_fuzzer.py`
+were enforced by ruff's isort rule: aliased imports (`from X import Y as Z`) are
+always split into their own block. Consolidating them triggers an I001 error and ruff
+immediately reverts the change. These splits are linter-enforced, not accidental.
 
 **Verify before consolidating (may be intentional lazy imports):**
 
