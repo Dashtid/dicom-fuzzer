@@ -61,25 +61,28 @@ class PixelFuzzer(FormatFuzzerBase):
             Mutated dataset.
 
         """
-        mutations = [
-            self._dimension_mismatch,
-            self._bit_depth_attack,
-            self._photometric_confusion,
-            self._samples_per_pixel_attack,
-            self._planar_configuration_attack,
-            self._pixel_representation_attack,
-            self._number_of_frames_mismatch,
-            self._pixel_value_range_attack,
-            self._rescale_attack,
-            self._window_attack,
-            self._extreme_contradiction,
-            self._pixel_data_truncation,
-            self._pixel_data_random_garbage,
-            self._pixel_data_oversized,
+        structural = [
+            self._dimension_mismatch,  # [STRUCTURAL] buffer overread (rows/cols vs data)
+            self._bit_depth_attack,  # [STRUCTURAL] allocation math violations
+            self._samples_per_pixel_attack,  # [STRUCTURAL] channel count mismatch vs data size
+            self._number_of_frames_mismatch,  # [STRUCTURAL] count vs actual frame data
+            self._pixel_value_range_attack,  # [STRUCTURAL] divide-by-zero in normalization
+            self._rescale_attack,  # [STRUCTURAL] divide-by-zero / NaN in HU pipeline
+            self._window_attack,  # [STRUCTURAL] divide-by-zero in display pipeline
+            self._extreme_contradiction,  # [STRUCTURAL] multi-field overflow allocation
+            self._pixel_data_truncation,  # [STRUCTURAL] buffer read past end
+            self._pixel_data_random_garbage,  # [STRUCTURAL] all decode paths exercised
+            self._pixel_data_oversized,  # [STRUCTURAL] heap overread / OOM
+        ]
+        content = [
+            self._photometric_confusion,  # [CONTENT] string value, parser moves on
+            self._pixel_representation_attack,  # [CONTENT] sign flip, no alloc effect
+            self._planar_configuration_attack,  # [CONTENT] interleave mode, display issue
         ]
 
-        # Apply 1-2 mutations
-        selected = random.sample(mutations, k=random.randint(1, 2))
+        selected = random.sample(structural, k=random.randint(1, 2))
+        if random.random() < 0.33:
+            selected.append(random.choice(content))
         self.last_variant = ",".join(m.__name__ for m in selected)
         for mutation in selected:
             try:

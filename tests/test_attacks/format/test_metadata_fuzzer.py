@@ -6,10 +6,17 @@ Tests cover patient info mutation and random date generation.
 import random
 from unittest.mock import MagicMock, patch
 
+import pytest
 from pydicom.dataset import Dataset
+from pydicom.tag import Tag
 
 from dicom_fuzzer.attacks.format.base import FormatFuzzerBase
 from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
+
+
+@pytest.fixture
+def fuzzer() -> MetadataFuzzer:
+    return MetadataFuzzer()
 
 
 class TestMetadataFuzzerInit:
@@ -328,3 +335,109 @@ class TestRandomPnAttack:
         assert len(results) > 5, (
             f"Expected more than 5 unique values from 50 calls, got {len(results)}"
         )
+
+
+class TestMetadataStructuralMutations:
+    """Tests for the three structural mutation methods added in the audit pass."""
+
+    _UID_TAGS = [
+        "SOPClassUID",
+        "SOPInstanceUID",
+        "StudyInstanceUID",
+        "SeriesInstanceUID",
+    ]
+
+    @pytest.fixture
+    def uid_dataset(self) -> Dataset:
+        """Dataset with all four required UID tags present."""
+        ds = Dataset()
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.SOPInstanceUID = "1.2.3.4.5.6.7.8.9"
+        ds.StudyInstanceUID = "1.2.3.4.5"
+        ds.SeriesInstanceUID = "1.2.3.4.6"
+        return ds
+
+    def test_required_tag_removal_removes_a_uid(
+        self, fuzzer: MetadataFuzzer, uid_dataset: Dataset
+    ) -> None:
+        """_required_tag_removal must delete at least one required UID over repeated calls."""
+        removed = False
+        for _ in range(20):
+            ds = Dataset()
+            ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+            ds.SOPInstanceUID = "1.2.3.4.5.6.7.8.9"
+            ds.StudyInstanceUID = "1.2.3.4.5"
+            ds.SeriesInstanceUID = "1.2.3.4.6"
+            fuzzer._required_tag_removal(ds)
+            if any(not hasattr(ds, uid) for uid in self._UID_TAGS):
+                removed = True
+                break
+        assert removed
+
+    def test_required_tag_removal_noop_on_empty_dataset(
+        self, fuzzer: MetadataFuzzer
+    ) -> None:
+        """_required_tag_removal must not raise when no UID tags are present."""
+        fuzzer._required_tag_removal(Dataset())  # must not raise
+
+    def test_vr_length_boundary_sets_oversized_value(
+        self, fuzzer: MetadataFuzzer
+    ) -> None:
+        """_vr_length_boundary_attack must set at least one field beyond its VR maxlen."""
+        vr_limits = {
+            "Modality": 16,
+            "PatientSex": 16,
+            "StudyID": 16,
+            "AccessionNumber": 16,
+            "StationName": 16,
+            "InstitutionName": 64,
+            "PatientID": 64,
+            "SeriesDescription": 64,
+        }
+        ds = Dataset()
+        fuzzer._vr_length_boundary_attack(ds)
+        found = any(
+            hasattr(ds, attr) and len(str(getattr(ds, attr))) > maxlen
+            for attr, maxlen in vr_limits.items()
+        )
+        assert found
+
+    def test_delimiter_byte_injection_embeds_dicom_delimiter(
+        self, fuzzer: MetadataFuzzer
+    ) -> None:
+        """_delimiter_byte_injection must embed FFFE-prefixed bytes in a text field."""
+        targets = [
+            Tag(0x0010, 0x0010),  # PatientName
+            Tag(0x0008, 0x0080),  # InstitutionName
+            Tag(0x0008, 0x1030),  # StudyDescription
+            Tag(0x0008, 0x103E),  # SeriesDescription
+        ]
+        ds = Dataset()
+        fuzzer._delimiter_byte_injection(ds)
+        found = False
+        for tag in targets:
+            try:
+                val = ds[tag].value
+                if isinstance(val, (bytes, bytearray)) and b"\xfe\xff" in val:
+                    found = True
+                    break
+            except KeyError:
+                continue
+        assert found
+
+    def test_mutate_always_applies_structural_attack(
+        self, fuzzer: MetadataFuzzer
+    ) -> None:
+        """mutate() must always select from the structural pool (never all-content runs)."""
+        structural_names = {
+            "_required_tag_removal",
+            "_vr_length_boundary_attack",
+            "_delimiter_byte_injection",
+        }
+        for _ in range(30):
+            ds = Dataset()
+            fuzzer.mutate(ds)
+            fired = set(fuzzer.last_variant.split(","))
+            assert fired & structural_names, (
+                f"No structural method fired; last_variant={fuzzer.last_variant!r}"
+            )
