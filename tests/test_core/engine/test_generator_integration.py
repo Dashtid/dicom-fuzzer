@@ -22,6 +22,7 @@ from dicom_fuzzer.core.engine.generator import DICOMGenerator
 # Increase timeout: strategies like sequence create deeply nested structures
 # that take longer to serialize on slower CI runners.
 pytestmark = [
+    pytest.mark.slow,
     pytest.mark.filterwarnings("ignore::UserWarning"),
     pytest.mark.timeout(120),
 ]

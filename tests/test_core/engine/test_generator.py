@@ -163,6 +163,7 @@ class TestFilenameGeneration:
             # Verify hex characters
             assert all(c in "0123456789abcdef" for c in hex_part)
 
+    @pytest.mark.timeout(60)
     def test_filename_uniqueness(self, sample_dicom_file, temp_dir):
         """Test that all generated filenames are unique."""
         output_dir = temp_dir / "output"
