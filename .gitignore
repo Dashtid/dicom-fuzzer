@@ -166,6 +166,8 @@ test_results.txt
 .hypothesis/
 .pytest_cache/
 .testmondata
+.testmondata-shm
+.testmondata-wal
 cover/
 
 # Translations
