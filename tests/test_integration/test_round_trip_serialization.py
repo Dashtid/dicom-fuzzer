@@ -619,17 +619,12 @@ class TestDeepNestingBoundary:
 
 
 # =============================================================================
-# 9. Skipped Categories (documentation only)
+# 9. Intentionally excluded test categories
 # =============================================================================
-class TestSkippedCategories:
-    """Document strategies intentionally excluded from round-trip testing."""
-
-    @pytest.mark.skip(reason="CVE payloads operate at raw byte level, not Dataset")
-    def test_cve_payloads(self):
-        pass
-
-    @pytest.mark.skip(
-        reason="CompressedPixelFuzzer creates binary corruption via encapsulate()"
-    )
-    def test_compressed_pixel_fuzzer(self):
-        pass
+# CVE payloads: operate at raw byte level (mutate_bytes), not at Dataset level.
+# Round-trip tests verify Dataset -> serialize -> deserialize -> compare, which
+# is meaningless for byte-level mutations. See tests/test_attacks/cve/.
+#
+# CompressedPixelFuzzer: creates binary corruption via pydicom's encapsulate(),
+# producing transfer-syntax-specific encodings that cannot be round-tripped
+# without the matching codec installed. Excluded from the matrix by design.
