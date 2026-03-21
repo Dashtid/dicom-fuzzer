@@ -139,6 +139,54 @@ class TestPixelDataMutations:
         assert isinstance(result, Dataset)
         assert not hasattr(result, "PixelData")
 
+    def test_byte_flip_changes_content(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """Byte flip must change at least one byte in the buffer."""
+        original = bytes(pixel_dataset.PixelData)
+        result = fuzzer._pixel_data_byte_flip(pixel_dataset)
+        assert isinstance(result, Dataset)
+        assert bytes(result.PixelData) != original
+
+    def test_byte_flip_preserves_length(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """Byte flip must not change the buffer length."""
+        original_len = len(pixel_dataset.PixelData)
+        result = fuzzer._pixel_data_byte_flip(pixel_dataset)
+        assert len(result.PixelData) == original_len
+
+    def test_byte_flip_noop_without_pixel_data(self, fuzzer: PixelFuzzer) -> None:
+        """Byte flip on a dataset without PixelData must return unchanged."""
+        ds = Dataset()
+        result = fuzzer._pixel_data_byte_flip(ds)
+        assert isinstance(result, Dataset)
+        assert not hasattr(result, "PixelData")
+
+    def test_fill_pattern_is_uniform(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """Fill pattern must produce a buffer of all 0x00 or all 0xFF."""
+        result = fuzzer._pixel_data_fill_pattern(pixel_dataset)
+        assert isinstance(result, Dataset)
+        buf = bytes(result.PixelData)
+        assert all(b == 0x00 for b in buf) or all(b == 0xFF for b in buf)
+
+    def test_fill_pattern_preserves_length(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        """Fill pattern must not change the buffer length."""
+        original_len = len(pixel_dataset.PixelData)
+        result = fuzzer._pixel_data_fill_pattern(pixel_dataset)
+        assert len(result.PixelData) == original_len
+
+    def test_fill_pattern_noop_without_pixel_data(self, fuzzer: PixelFuzzer) -> None:
+        """Fill pattern on a dataset without PixelData must return unchanged."""
+        ds = Dataset()
+        result = fuzzer._pixel_data_fill_pattern(ds)
+        assert isinstance(result, Dataset)
+        assert not hasattr(result, "PixelData")
+
     def test_mutate_returns_dataset_with_pixel_data(
         self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
     ) -> None:
