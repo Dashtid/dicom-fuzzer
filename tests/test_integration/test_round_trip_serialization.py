@@ -61,6 +61,8 @@ from dicom_fuzzer.attacks.multiframe.pixel_truncation import (
 )
 from dicom_fuzzer.attacks.multiframe.shared_group import SharedGroupStrategy
 
+pytestmark = pytest.mark.slow
+
 # =============================================================================
 # Constants
 # =============================================================================
