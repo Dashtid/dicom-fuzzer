@@ -278,29 +278,24 @@ minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
-    # Skip slow tests by default; run with: pytest -m slow  or  pytest -m ""
-    "-m", "not slow",
+    # testmon selects only tests affected by changed source files via coverage-based
+    # dependency tracking. Replaces both -m "not slow" (slow tests won't run unless
+    # their dependencies change) and -n auto (serial 50 tests << parallel 4177).
+    # Cold start builds .testmondata coverage map once (~14 min), then fast.
+    # xdist excluded: SQLite file-locking on Windows is incompatible with 14 workers
+    # racing to initialize the same DB (confirmed broken on Windows + Python 3.13
+    # even in testmon v2.2.0 which fixed this on Linux).
+    # pytest-randomly excluded: random ordering corrupts the dependency map.
+    # CI is unaffected: ci.yml overrides addopts entirely with -o "addopts=".
+    "--testmon",
+    "-p", "no:randomly",
     # Modern import mode (pytest 2025 best practice for new projects)
     "--import-mode=importlib",
-    # Parallel execution via pytest-xdist (worksteal balances mixed-speed tests)
-    # All tests use tmp_path isolation so workers never share state
-    "-n=auto",
-    "--dist=worksteal",
-    # NOTE: --testmon is intentionally NOT in default addopts.
-    # testmon deactivates its smart selection when -m is used (our -m "not slow"
-    # filter triggers this), making it passive-only. Combined with xdist, the
-    # first run also hits SQLite lock contention on .testmondata.
-    # To use testmon manually: pytest --testmon -p no:randomly
-    # Reduce output verbosity for faster execution (less I/O overhead)
     "-q",
-    # Short tracebacks reduce output processing time
     "--tb=short",
-    # Show test durations (slowest 10 tests)
     "--durations=10",
     # NOTE: --reruns removed from local default; flaky-test retries belong in CI only.
     # CI adds --reruns=2 --reruns-delay=1 explicitly in ci.yml.
-    # Coverage: pytest --cov or coverage run -m pytest (see [tool.coverage.*])
-    # CI/CD enforces 55% minimum coverage threshold via GitHub Actions
 ]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
