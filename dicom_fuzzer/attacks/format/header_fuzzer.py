@@ -302,16 +302,20 @@ class HeaderFuzzer(FormatFuzzerBase):
             Mutated dataset
 
         """
-        mutations = [
-            self._overlong_strings,
-            self._missing_required_tags,
-            self._boundary_values,
-            self._comprehensive_vr_mutations,
-            self._numeric_vr_mutations,
-            self._uid_mutations,
+        structural = [
+            self._overlong_strings,  # [STRUCTURAL] allocation attack (1024-char buffers)
+            self._missing_required_tags,  # [STRUCTURAL] forces parse failure on required fields
+            self._boundary_values,  # [STRUCTURAL] raw byte overflow in US fields
+            self._comprehensive_vr_mutations,  # [STRUCTURAL] type/length violations per VR
+        ]
+        content = [
+            self._numeric_vr_mutations,  # [CONTENT] valid-range integers, parser reads fine
+            self._uid_mutations,  # [CONTENT] string format violations, no alloc effect
         ]
 
-        selected = random.sample(mutations, k=random.randint(2, 4))
+        selected = random.sample(structural, k=random.randint(1, 2))
+        if random.random() < 0.33:
+            selected.append(random.choice(content))
         self.last_variant = ",".join(m.__name__ for m in selected)
         for mutation in selected:
             dataset = mutation(dataset)
