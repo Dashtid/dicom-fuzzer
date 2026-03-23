@@ -179,7 +179,9 @@ class MetadataFuzzer(FormatFuzzerBase):
             b"\xfe\xff\xdd\xe0\x00\x00\x00\x00",  # Seq delim + zero length
         ]
         targets = [
-            (Tag(0x0010, 0x0010), "PN"),  # PatientName
+            # LO VR only: pydicom keeps bytes as-is for LO, which preserves
+            # the raw delimiter pattern. PN converts bytes to string on storage,
+            # stripping the binary payload before it reaches a parser.
             (Tag(0x0008, 0x0080), "LO"),  # InstitutionName
             (Tag(0x0008, 0x1030), "LO"),  # StudyDescription
             (Tag(0x0008, 0x103E), "LO"),  # SeriesDescription

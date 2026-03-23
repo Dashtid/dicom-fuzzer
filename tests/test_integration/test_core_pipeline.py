@@ -178,10 +178,12 @@ class TestModuleInteractionAndDataFlow:
         mutator = DicomMutator()
         dataset = pydicom.dcmread(str(sample_dicom_file))
         # Use strategies that modify values but don't delete required tags.
-        # Aggressive strategies (structure, header, conformance) intentionally
-        # remove/corrupt fundamental tags and would fail this test by design.
+        # Aggressive strategies (structure, header, conformance, metadata)
+        # intentionally remove/corrupt fundamental tags and would fail this
+        # test by design. "metadata" now has _required_tag_removal in its
+        # structural pool, so it is excluded here.
         mutated_ds = mutator.apply_mutations(
-            dataset, strategy_names=["metadata", "pixel", "calibration"]
+            dataset, strategy_names=["pixel", "calibration"]
         )
 
         assert hasattr(mutated_ds, "StudyInstanceUID")
