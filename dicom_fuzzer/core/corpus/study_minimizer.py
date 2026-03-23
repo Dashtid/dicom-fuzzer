@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
 from dicom_fuzzer.utils.logger import get_logger
 
 if TYPE_CHECKING:
@@ -406,7 +407,6 @@ def create_crash_test_from_runner(
         Function that tests if a study crashes
 
     """
-    from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
 
     def test_crash(study_dir: Path) -> bool:
         # Get first slice to test (or use directory as argument)

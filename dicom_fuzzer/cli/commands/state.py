@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import traceback
 from pathlib import Path
 from typing import Any
 
@@ -146,8 +147,6 @@ def run_fuzz(args: argparse.Namespace) -> int:
     except Exception as e:
         print(f"[-] Fuzzing failed: {e}")
         if args.verbose:
-            import traceback
-
             traceback.print_exc()
         return 1
 

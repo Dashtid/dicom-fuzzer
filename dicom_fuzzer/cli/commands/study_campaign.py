@@ -21,20 +21,18 @@ import traceback
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
+from dicom_fuzzer.attacks.series.study_mutator import (
+    StudyMutationStrategy,
+    StudyMutator,
+)
 from dicom_fuzzer.cli.base import SubcommandBase
 from dicom_fuzzer.core.harness.target_runner import (
     ExecutionResult,
     ExecutionStatus,
     TargetRunner,
 )
-
-if TYPE_CHECKING:
-    from dicom_fuzzer.attacks.series.study_mutator import (
-        StudyMutationStrategy,
-        StudyMutator,
-    )
 
 
 @dataclass
@@ -301,8 +299,6 @@ def _run_single_test(
         dict with keys: status, is_failure, error_message, records
 
     """
-    from dicom_fuzzer.attacks.series.study_mutator import StudyMutator
-
     result_info: dict[str, Any] = {
         "status": "error",
         "is_failure": False,
@@ -600,8 +596,6 @@ def _run_campaign_loop(
         True if campaign was stopped early (e.g., --stop-on-crash).
 
     """
-    from dicom_fuzzer.attacks.series.study_mutator import StudyMutator
-
     test_id = 0
     try:
         for severity in severities:
@@ -726,11 +720,6 @@ def run_campaign(args: argparse.Namespace) -> int:
     _log_campaign_header(target_path, study_path, output_path, args, log_file)
 
     try:
-        from dicom_fuzzer.attacks.series.study_mutator import (
-            StudyMutationStrategy,
-            StudyMutator,
-        )
-
         # Setup target runner with process monitoring
         runner = TargetRunner(
             target_executable=str(target_path),

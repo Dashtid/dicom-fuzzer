@@ -17,6 +17,8 @@ import hashlib
 import json
 import shutil
 import sys
+import tempfile
+import traceback
 from pathlib import Path
 from typing import Any
 
@@ -469,8 +471,6 @@ def run_minimize_study(args: argparse.Namespace) -> int:
     except Exception as e:
         print(f"[-] Minimization failed: {e}")
         if args.verbose:
-            import traceback
-
             traceback.print_exc()
         return 1
 
@@ -487,8 +487,6 @@ def _generate_single_study(
 
     Returns True on success, False on error.
     """
-    import tempfile
-
     study = mutator.load_study(source_dir)
     mutated_datasets, records = mutator.mutate_study(
         study, strategy=strategy, mutation_count=args.mutations_per_study
@@ -602,8 +600,6 @@ def run_generate_study(args: argparse.Namespace) -> int:
     except Exception as e:
         print(f"[-] Generation failed: {e}")
         if args.verbose:
-            import traceback
-
             traceback.print_exc()
         return 1
 
