@@ -52,7 +52,7 @@ class TestPrivateTagFuzzerInit:
         """Test that mutation_strategies list is defined."""
         assert hasattr(fuzzer, "mutation_strategies")
         assert isinstance(fuzzer.mutation_strategies, list)
-        assert len(fuzzer.mutation_strategies) == 10
+        assert len(fuzzer.mutation_strategies) == 9
 
     def test_all_strategies_callable(self, fuzzer: PrivateTagFuzzer) -> None:
         """Test that all strategies are callable methods."""
@@ -335,12 +335,14 @@ class TestPrivateTagFuzzerIntegration:
     def test_preserves_standard_tags(
         self, fuzzer: PrivateTagFuzzer, sample_dataset: Dataset
     ) -> None:
-        """Test that standard tags are preserved."""
-        original_name = sample_dataset.PatientName
+        """Test that non-targeted standard tags survive fuzzing.
+
+        _creator_overwrite is intentionally designed to write to standard group
+        numbers (including PatientName at 0010,0010). Modality (0008,0060) is
+        never a write target so it must survive any mutation.
+        """
         original_modality = sample_dataset.Modality
-        random.seed(42)
         result = fuzzer.mutate(sample_dataset)
-        assert result.PatientName == original_name
         assert result.Modality == original_modality
 
 
