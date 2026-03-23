@@ -76,8 +76,24 @@ class ConformanceFuzzer(FormatFuzzerBase):
             Mutated dataset with conformance violations
 
         """
-        num_strategies = random.randint(1, 2)
-        selected = random.sample(self.mutation_strategies, num_strategies)
+        structural = [
+            self._missing_file_meta,  # [STRUCTURAL] removes required parse-time headers
+            self._corrupted_file_meta,  # [STRUCTURAL] wrong preamble/version/length
+            self._sop_transfer_mismatch,  # [STRUCTURAL] forces wrong decoder pipeline
+            self._invalid_transfer_syntax,  # [STRUCTURAL] activates unknown codec path
+        ]
+        content = [
+            self._invalid_sop_class,  # [CONTENT] UID string swap, parser reads fine
+            self._implementation_uid_attack,  # [CONTENT] UID strings, no parse effect
+            self._uid_format_violations,  # [CONTENT] UID strings, no parse effect
+            self._retired_syntax_attack,  # [CONTENT] mostly UID/string swaps
+            self._version_mismatch,  # [CONTENT] version bytes, parser ignores
+            self._modality_sop_mismatch,  # [CONTENT] string tags, no structural effect
+        ]
+
+        selected = random.sample(structural, k=1)
+        if random.random() < 0.33:
+            selected.append(random.choice(content))
         self.last_variant = ",".join(s.__name__ for s in selected)
 
         for strategy in selected:

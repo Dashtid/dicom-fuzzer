@@ -90,8 +90,24 @@ class EncodingFuzzer(FormatFuzzerBase):
             Mutated dataset with encoding corruptions
 
         """
-        num_strategies = random.randint(1, 3)
-        selected = random.sample(self.mutation_strategies, num_strategies)
+        structural = [
+            self._invalid_utf8_sequences,  # [STRUCTURAL] invalid bytes crash UTF-8 decoders
+            self._null_byte_injection,  # [STRUCTURAL] C-string truncation and bypasses
+            self._overlong_utf8,  # [STRUCTURAL] CVE-2000-0884 class bypass attacks
+            self._escape_sequence_injection,  # [STRUCTURAL] ISO 2022 state machine confusion
+            self._surrogate_pair_attack,  # [STRUCTURAL] invalid UTF-8 surrogates
+        ]
+        content = [
+            self._invalid_charset_value,  # [CONTENT] charset declaration, not actual bytes
+            self._charset_data_mismatch,  # [CONTENT] parser reads both strings fine
+            self._bom_injection,  # [CONTENT] BOMs in text, handled gracefully
+            self._control_character_injection,  # [CONTENT] display issue, not parser crash
+            self._mixed_encoding_attack,  # [CONTENT] mixed strings, parser reads them
+        ]
+
+        selected = random.sample(structural, k=random.randint(1, 2))
+        if random.random() < 0.33:
+            selected.append(random.choice(content))
         self.last_variant = ",".join(s.__name__ for s in selected)
 
         for strategy in selected:
