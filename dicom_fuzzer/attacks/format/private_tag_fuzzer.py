@@ -19,6 +19,7 @@ from __future__ import annotations
 import random
 
 from pydicom.dataset import Dataset
+from pydicom.sequence import Sequence
 from pydicom.tag import Tag
 
 from dicom_fuzzer.utils.logger import get_logger
@@ -227,8 +228,6 @@ class PrivateTagFuzzer(FormatFuzzerBase):
 
             elif attack == "sequence_where_primitive":
                 # Use SQ where primitive expected
-                from pydicom.sequence import Sequence
-
                 item = Dataset()
                 item.add_new(Tag(0x0008, 0x0100), "SH", "CODE")
                 dataset.add_new(Tag(group, 0x1010), "SQ", Sequence([item]))
@@ -369,8 +368,6 @@ class PrivateTagFuzzer(FormatFuzzerBase):
         than standard sequences.
         """
         try:
-            from pydicom.sequence import Sequence
-
             group = random.choice(PRIVATE_GROUPS)
             dataset.add_new(Tag(group, 0x0010), "LO", "SEQUENCE_TEST")
 
