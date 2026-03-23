@@ -26,7 +26,6 @@ from .base import FormatFuzzerBase
 logger = get_logger(__name__)
 
 # DICOM file layout constants
-_PREAMBLE_SIZE = 128
 _DICM_MAGIC = b"DICM"
 _DICM_OFFSET = 128
 _DATA_OFFSET = 132  # preamble (128) + "DICM" (4)
