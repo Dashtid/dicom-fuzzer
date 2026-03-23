@@ -17,6 +17,8 @@ Attacks:
 - Raw PixelData buffer truncation
 - Raw PixelData random garbage replacement
 - Raw PixelData oversized buffer injection
+- Raw PixelData byte flip (XOR ~1% of bytes)
+- Raw PixelData fill pattern (uniform 0x00 or 0xFF)
 """
 
 from __future__ import annotations
@@ -73,6 +75,8 @@ class PixelFuzzer(FormatFuzzerBase):
             self._pixel_data_truncation,  # [STRUCTURAL] buffer read past end
             self._pixel_data_random_garbage,  # [STRUCTURAL] all decode paths exercised
             self._pixel_data_oversized,  # [STRUCTURAL] heap overread / OOM
+            self._pixel_data_byte_flip,  # [STRUCTURAL] XOR corruption trips decoders
+            self._pixel_data_fill_pattern,  # [STRUCTURAL] uniform buffer exposes decode failures
         ]
         content = [
             self._photometric_confusion,  # [CONTENT] string value, parser moves on
@@ -507,4 +511,45 @@ class PixelFuzzer(FormatFuzzerBase):
             dataset.PixelData = data + os.urandom(extra_len)
         except Exception as e:
             logger.debug("Pixel data oversized attack failed: %s", e)
+        return dataset
+
+    def _pixel_data_byte_flip(self, dataset: Dataset) -> Dataset:
+        """XOR ~1% of PixelData bytes with a random non-zero value.
+
+        Flips a small fraction of bytes to produce a subtly corrupted buffer.
+        Exercises parsers that partially validate pixel content before rendering
+        — single-pixel errors are more likely to reach deep decode paths than
+        total garbage or truncation.
+        """
+        pixel_data = getattr(dataset, "PixelData", None)
+        if not pixel_data:
+            return dataset
+        try:
+            data = bytes(pixel_data)
+            n_flips = max(1, min(len(data) // 100, len(data)))
+            indices = random.sample(range(len(data)), n_flips)
+            buf = bytearray(data)
+            for i in indices:
+                buf[i] ^= random.randint(1, 255)
+            dataset.PixelData = bytes(buf)
+        except Exception as e:
+            logger.debug("Pixel data byte flip attack failed: %s", e)
+        return dataset
+
+    def _pixel_data_fill_pattern(self, dataset: Dataset) -> Dataset:
+        """Replace entire PixelData buffer with a uniform fill (0x00 or 0xFF).
+
+        Uniform fills exercise LUT and window/level handling edge cases:
+        0x00 (all black) hits min-clamp paths; 0xFF (all white) hits max-clamp
+        and overflow paths. Some viewers special-case these and skip decoding.
+        """
+        pixel_data = getattr(dataset, "PixelData", None)
+        if not pixel_data:
+            return dataset
+        try:
+            data = bytes(pixel_data)
+            fill_byte = random.choice([0x00, 0xFF])
+            dataset.PixelData = bytes([fill_byte] * len(data))
+        except Exception as e:
+            logger.debug("Pixel data fill pattern attack failed: %s", e)
         return dataset
