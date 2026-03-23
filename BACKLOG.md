@@ -526,6 +526,155 @@ The 2 strategies that are seed-agnostic (`FrameCountMismatch`, `DimensionOverflo
 could be registered independently as a partial win, but do not register the full 10
 until seeds and guards are in place.
 
+## Empirically validate mutation reweighting with per-strategy crash telemetry
+
+**Context:** `dicom_fuzzer/core/session/fuzzing_session.py`,
+`dicom_fuzzer/core/reporting/`, `dicom_fuzzer/attacks/format/`
+
+**Background (2026-03-21):**
+
+The structural/content audit classified all mutation methods across 18 fuzzers
+and reweighted dispatch pools to favour structural mutations. That classification
+was based on static analysis — whether a method can plausibly reach a code path
+that triggers a crash. The next step is empirical: run campaigns and measure
+whether the reweighting actually increases crash rate per CPU-hour.
+
+Without this follow-up, the reweighting is an educated guess that may need
+correction.
+
+### What to measure
+
+- **Crash rate per strategy**: crashes / total files produced, broken down by
+  `strategy_name`. Already capturable from `session_<id>.json` + crash records.
+- **Which method fired on crash files**: `MutationRecord.variant` already tracks
+  the method name(s) selected. Cross-reference crash files against their
+  `MutationRecord` to identify which methods are actually producing crashes vs.
+  noise. Requires that `session_<id>.json` is written before a campaign is
+  interrupted by a crash.
+- **Before/after comparison**: run a baseline campaign (e.g., 10,000 files) on
+  main before the reweighting, then the same campaign after. Compare crash counts
+  and crash-producing strategy distribution.
+
+### Work items
+
+1. Add a `crash_by_strategy` summary to `FuzzingSession` / the HTML report:
+   for each crash, look up the strategy from `MutationRecord` and bin it. This
+   is a reporting change, not a fuzzer change.
+2. After the first campaign post-reweighting, review the per-strategy crash
+   distribution. If content-heavy strategies (MetadataFuzzer, EncodingFuzzer)
+   are still producing zero crashes, consider removing their content pools
+   entirely rather than keeping them at 33%.
+3. If structural methods that were classified as "high potential" also produce
+   zero crashes across a large run, reclassify and downweight them too.
+
+### Priority
+
+High — this closes the feedback loop on the reweighting work and prevents the
+structural/content classification from becoming stale. Do this after the first
+full campaign run post-reweighting.
+
+## Second-pass structural audit: DictionaryFuzzer and minor-offender fuzzers
+
+**Context:** `dicom_fuzzer/attacks/format/dictionary_fuzzer.py`,
+`dicom_fuzzer/attacks/format/sequence_fuzzer.py`,
+`dicom_fuzzer/attacks/format/reference_fuzzer.py`,
+`dicom_fuzzer/attacks/format/calibration_fuzzer.py`
+
+**Background (2026-03-21):**
+
+The first-pass reweighting (implemented in the same session as this item was
+written) addressed the six highest-impact fuzzers:
+MetadataFuzzer, EncodingFuzzer, ConformanceFuzzer, PixelFuzzer, HeaderFuzzer,
+PrivateTagFuzzer. A second pass is needed for:
+
+### DictionaryFuzzer — entire strategy is content
+
+`mutate()` replaces 2-5 tag values with plausible-but-wrong values from dictionaries
+(e.g., a date value in a name field, a valid-but-wrong UID). The parser handles these
+correctly and moves on. Zero crash potential.
+
+Options:
+
+- **Redesign as a structural fuzzer**: replace `TAG_TO_DICTIONARY` lookup with
+  VR-type-confusion mutations (write a DS value where PN is expected, inject
+  a value longer than the VR's maxlen, inject null bytes into a VR that forbids
+  them). These would be parsed by the same dispatch path but would exercise
+  allocation and bounds logic.
+- **Remove from the campaign pool**: if empirical data (see item above) shows
+  DictionaryFuzzer produces zero crashes after 50,000+ files, consider removing
+  it from the default strategy pool. Keep the class for explicit use.
+
+### SequenceFuzzer minor content methods
+
+`_mixed_encoding_sequence` and `_circular_reference_attack` are content/low-value.
+`_circular_reference_attack` creates UID cross-references between items — the
+parser does not follow UIDs at parse time so this is a no-op at the structural
+level. Replace with a structural equivalent: item A contains a nested copy of
+its own data (byte duplication), or item B has a length field pointing into A's
+bytes.
+
+### ReferenceFuzzer minor content methods
+
+`_orphan_reference`, `_reference_type_mismatch`, `_mismatched_study_reference`
+are low-value because parsers do not resolve references at read time. The
+structural high-value methods (`_massive_reference_chain`, `_duplicate_references`,
+`_circular_reference`) are already retained. Consider removing the three low-value
+methods from the dispatch pool if empirical data confirms they contribute nothing.
+
+### CalibrationFuzzer
+
+`fuzz_slice_thickness` (zero/negative/mismatch) is content — thickness is a
+display value, not a parsing parameter. Remove from dispatch or replace with a
+structural mismatch: declare N slices in SliceVector but supply data for M.
+
+### Priority
+
+Medium. Complete after empirical validation (item above) confirms the
+first-pass reweighting improved crash rates. Use the per-strategy crash data
+to prioritise which of these to address first.
+
+## Enforce structural/content classification as code comments
+
+**Context:** `dicom_fuzzer/attacks/format/` (all fuzzers)
+
+**Background (2026-03-21):**
+
+The structural/content classification was produced as part of the mutation audit
+(2026-03-21) but lives only in the backlog and git history. As new mutation
+methods are added to fuzzers, there is no mechanism to prevent a developer from
+inadvertently adding a content-only method to a structural dispatch pool.
+
+### What to add
+
+A `# [STRUCTURAL]` or `# [CONTENT]` tag on the line where each method is added
+to the `mutations` list inside `mutate()`. Example:
+
+```python
+structural = [
+    self._dimension_mismatch,        # [STRUCTURAL] buffer overread
+    self._number_of_frames_mismatch, # [STRUCTURAL] count vs actual data
+    self._pixel_data_truncation,     # [STRUCTURAL] read past end
+]
+content = [
+    self._photometric_confusion,     # [CONTENT] string value, parser moves on
+    self._pixel_representation_attack, # [CONTENT] sign flip, no alloc effect
+]
+```
+
+This makes the classification visible at review time without adding runtime
+overhead. A PR reviewer can immediately see if a new method is being added to
+the wrong pool.
+
+Optionally: add a `# structural_audit: 2026-03-21` comment at the top of each
+fuzzer's `mutate()` method indicating when the method pool was last audited.
+This turns stale classifications into a visible signal — if the audit date is
+12 months old, the reviewer knows to re-examine.
+
+### Priority
+
+Low. Pure documentation. Do as part of any future fuzzer modification, not as
+a standalone task. The benefit compounds over time as the codebase grows.
+
 **Work items (after prerequisites are met):**
 
 - Design `can_mutate()` override per strategy (not a blanket `NumberOfFrames > 1` —

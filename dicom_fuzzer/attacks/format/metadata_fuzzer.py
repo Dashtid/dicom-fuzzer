@@ -3,6 +3,9 @@
 Category: generic
 
 Attacks:
+- Required UID tag removal (SOPClassUID, StudyInstanceUID, etc.)
+- VR length boundary violations (CS/SH/LO fields at maxlen + 1)
+- DICOM delimiter byte injection into text fields
 - Patient identifier injection (SQL, XSS, path traversal in PatientID/Name)
 - Patient demographics boundary values (age, weight, size, sex)
 - Study metadata corruption (dates, times, IDs, accession numbers)
@@ -16,6 +19,7 @@ import random
 from datetime import datetime, timedelta
 
 from pydicom.dataset import Dataset
+from pydicom.tag import Tag
 
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -48,24 +52,18 @@ class MetadataFuzzer(FormatFuzzerBase):
         super().__init__()
         self.fake_names = ["Smith^John", "Doe^Jane", "Johnson^Mike"]
 
-        self._attack_categories = [
-            self._patient_identifier_attack,
-            self._patient_demographics_attack,
-            self._study_metadata_attack,
-            self._series_metadata_attack,
-            self._institution_personnel_attack,
-        ]
-
     @property
     def strategy_name(self) -> str:
         """Return the strategy name for identification."""
         return "metadata"
 
     def mutate(self, dataset: Dataset) -> Dataset:
-        """Apply random metadata mutations across 1-3 attack categories.
+        """Apply metadata mutations, always including at least one structural attack.
 
-        This is the FormatFuzzerBase interface method. It applies broader
-        metadata fuzzing beyond just patient identifiers.
+        Structural methods (required tag removal, VR length violations, delimiter
+        injection) fire on every call. Content methods (string injection payloads)
+        fire with 1-in-3 probability to maintain coverage breadth without dominating
+        the mutation budget.
 
         Args:
             dataset: DICOM dataset to mutate
@@ -74,11 +72,22 @@ class MetadataFuzzer(FormatFuzzerBase):
             Mutated dataset
 
         """
-        num_categories = random.randint(1, 3)
-        selected = random.sample(
-            self._attack_categories,
-            k=min(num_categories, len(self._attack_categories)),
-        )
+        structural = [
+            self._required_tag_removal,  # [STRUCTURAL] missing required UID halts routing
+            self._vr_length_boundary_attack,  # [STRUCTURAL] VR maxlen+1 buffer boundary
+            self._delimiter_byte_injection,  # [STRUCTURAL] DICOM delimiter bytes in text field
+        ]
+        content = [
+            self._patient_identifier_attack,  # [CONTENT] SQL/XSS/path traversal in text fields
+            self._patient_demographics_attack,  # [CONTENT] invalid codes / floats, parser reads fine
+            self._study_metadata_attack,  # [CONTENT] date/string fields, no parse effect
+            self._series_metadata_attack,  # [CONTENT] description strings, no parse effect
+            self._institution_personnel_attack,  # [CONTENT] name/address fields, no parse effect
+        ]
+
+        selected = random.sample(structural, k=1)
+        if random.random() < 0.33:
+            selected.append(random.choice(content))
         self.last_variant = ",".join(a.__name__ for a in selected)
 
         for attack in selected:
@@ -108,7 +117,81 @@ class MetadataFuzzer(FormatFuzzerBase):
         dataset.PatientBirthDate = self._random_date()
         return dataset
 
-    # --- Attack Categories ---
+    # --- Structural Attacks ---
+
+    def _required_tag_removal(self, dataset: Dataset) -> None:
+        """Remove one required Type 1 DICOM identifier tag.
+
+        SOPClassUID, SOPInstanceUID, StudyInstanceUID, and SeriesInstanceUID
+        are required for routing and identification. Parsers that do not guard
+        against missing UIDs may crash or misroute the file.
+        """
+        candidates = [
+            "SOPClassUID",
+            "SOPInstanceUID",
+            "StudyInstanceUID",
+            "SeriesInstanceUID",
+        ]
+        tag = random.choice(candidates)
+        try:
+            if hasattr(dataset, tag):
+                delattr(dataset, tag)
+        except Exception as e:
+            logger.debug("Required tag removal failed for %s: %s", tag, e)
+
+    def _vr_length_boundary_attack(self, dataset: Dataset) -> None:
+        """Set a VR-typed field to one byte over its declared maximum length.
+
+        CS (Code String) max = 16 chars. SH (Short String) max = 16 chars.
+        LO (Long String) max = 64 chars. Setting values at maxlen + 1 exercises
+        boundary checks and fixed-size buffer allocations in target parsers.
+        """
+        attacks = [
+            # (attribute, value at maxlen + 1)
+            ("Modality", "A" * 17),  # CS max=16
+            ("PatientSex", "M" * 17),  # CS max=16
+            ("StudyID", "S" * 17),  # SH max=16
+            ("AccessionNumber", "A" * 17),  # SH max=16
+            ("StationName", "S" * 17),  # SH max=16
+            ("InstitutionName", "I" * 65),  # LO max=64
+            ("PatientID", "P" * 65),  # LO max=64
+            ("SeriesDescription", "D" * 65),  # LO max=64
+        ]
+        attr, value = random.choice(attacks)
+        try:
+            setattr(dataset, attr, value)
+        except Exception as e:
+            logger.debug("VR length boundary attack failed for %s: %s", attr, e)
+
+    def _delimiter_byte_injection(self, dataset: Dataset) -> None:
+        """Inject DICOM structural delimiter bytes into a text field.
+
+        DICOM Item (FFFE,E000) and Sequence Delimiter (FFFE,E0DD) bytes embedded
+        in a text value confuse parsers that scan for these patterns in the byte
+        stream before validating the enclosing VR type.
+        """
+        delimiter_payloads = [
+            b"\xfe\xff\x00\xe0",  # Item tag (FFFE,E000)
+            b"\xfe\xff\xdd\xe0",  # Sequence Delimiter (FFFE,E0DD)
+            b"\xfe\xff\x0d\xe0",  # Item Delimitation Item (FFFE,E00D)
+            b"Text\xfe\xff\x00\xe0More",  # Item delimiter embedded in text
+            b"\xfe\xff\x00\xe0" * 4,  # Repeated item delimiters
+            b"\xfe\xff\xdd\xe0\x00\x00\x00\x00",  # Seq delim + zero length
+        ]
+        targets = [
+            (Tag(0x0010, 0x0010), "PN"),  # PatientName
+            (Tag(0x0008, 0x0080), "LO"),  # InstitutionName
+            (Tag(0x0008, 0x1030), "LO"),  # StudyDescription
+            (Tag(0x0008, 0x103E), "LO"),  # SeriesDescription
+        ]
+        payload = random.choice(delimiter_payloads)
+        tag, vr = random.choice(targets)
+        try:
+            dataset.add_new(tag, vr, payload)
+        except Exception as e:
+            logger.debug("Delimiter byte injection failed: %s", e)
+
+    # --- Content Attack Categories ---
 
     def _patient_identifier_attack(self, dataset: Dataset) -> None:
         """Attack patient identifier fields with malformed values.

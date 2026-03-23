@@ -74,16 +74,16 @@ class PrivateTagFuzzer(FormatFuzzerBase):
         """Initialize the private tag fuzzer."""
         super().__init__()
         self.mutation_strategies = [
-            self._missing_creator,
-            self._wrong_creator,
-            self._creator_collision,
-            self._invalid_private_vr,
-            self._oversized_private_data,
-            self._private_tag_injection,
-            self._creator_overwrite,
-            self._reserved_group_attack,
-            self._private_sequence_attack,
-            self._binary_blob_injection,
+            self._missing_creator,  # [STRUCTURAL] missing creator breaks private block parsing
+            self._wrong_creator,  # [STRUCTURAL] unrecognized creator ID + size attacks
+            self._creator_collision,  # [STRUCTURAL] overlapping creator blocks
+            self._invalid_private_vr,  # [STRUCTURAL] type confusion on private elements
+            self._oversized_private_data,  # [STRUCTURAL] 10KB-1MB allocation pressure
+            self._creator_overwrite,  # [STRUCTURAL] hijack standard group numbers
+            self._reserved_group_attack,  # [STRUCTURAL] reserved group numbers (0x0001, 0xFFFF)
+            self._private_sequence_attack,  # [STRUCTURAL] deep nesting (50 levels)
+            self._binary_blob_injection,  # [STRUCTURAL] file format confusion (JPEG/ELF in OB)
+            # _private_tag_injection omitted: [CONTENT] SQL/XSS string payloads, no crash potential
         ]
 
     @property
