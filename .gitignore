@@ -165,6 +165,9 @@ test_results.txt
 *.py.cover
 .hypothesis/
 .pytest_cache/
+.testmondata
+.testmondata-shm
+.testmondata-wal
 cover/
 
 # Translations
@@ -444,6 +447,3 @@ mutation-report/
 
 # Personal study notes
 STUDY_PLAN.md
-
-# Development backlog
-BACKLOG.md

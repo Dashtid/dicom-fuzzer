@@ -163,6 +163,7 @@ class TestFilenameGeneration:
             # Verify hex characters
             assert all(c in "0123456789abcdef" for c in hex_part)
 
+    @pytest.mark.timeout(60)
     def test_filename_uniqueness(self, sample_dicom_file, temp_dir):
         """Test that all generated filenames are unique."""
         output_dir = temp_dir / "output"
@@ -450,6 +451,52 @@ class TestIntegration:
         for f in files_from_sample + files_from_minimal:
             assert f.exists()
 
+    def test_known_strategy_names_returns_all_registered(self, temp_dir):
+        """known_strategy_names returns one name per registered strategy."""
+        output_dir = temp_dir / "output"
+        generator = DICOMGenerator(output_dir=str(output_dir))
+
+        names = generator.known_strategy_names
+
+        assert len(names) == len(generator.mutator.strategies)
+        assert all(isinstance(n, str) for n in names)
+        # Names match what mutator reports directly
+        assert sorted(names) == sorted(
+            s.strategy_name for s in generator.mutator.strategies
+        )
+
+    def test_cumulative_strategies_accumulates_across_batches(
+        self, sample_dicom_file, temp_dir
+    ):
+        """cumulative_strategies grows (or stays equal) after a second batch."""
+        output_dir = temp_dir / "output"
+        generator = DICOMGenerator(output_dir=str(output_dir))
+
+        generator.generate_batch(
+            sample_dicom_file, count=5, strategies=["metadata", "header"]
+        )
+        after_batch1 = sum(generator.cumulative_strategies.values())
+
+        generator.generate_batch(
+            sample_dicom_file, count=5, strategies=["metadata", "header"]
+        )
+        after_batch2 = sum(generator.cumulative_strategies.values())
+
+        assert after_batch2 >= after_batch1
+
+    def test_cumulative_strategies_zero_hit_detection(self, temp_dir):
+        """Before any batch, all known strategies have zero cumulative hits."""
+        output_dir = temp_dir / "output"
+        generator = DICOMGenerator(output_dir=str(output_dir))
+
+        zero_hit = [
+            n
+            for n in generator.known_strategy_names
+            if generator.cumulative_strategies.get(n, 0) == 0
+        ]
+
+        assert len(zero_hit) == len(generator.known_strategy_names)
+
 
 class TestGeneratorErrorHandling:
     """Test error handling in DICOMGenerator."""
@@ -472,6 +519,7 @@ class TestGeneratorErrorHandling:
         assert "TypeError" in stats.error_types
         assert stats.error_types["TypeError"] == 1
 
+    @pytest.mark.timeout(300)
     def test_generate_with_skip_write_errors_true(self, sample_dicom_file, temp_dir):
         """Test generator skips files with write errors."""
         output_dir = temp_dir / "skip_errors"
@@ -600,7 +648,7 @@ class TestGeneratorErrorHandling:
 
         # Mock _apply_mutations to return None (simulating handled error)
         with patch.object(generator, "_apply_mutations") as mock_apply:
-            mock_apply.return_value = (None, [])
+            mock_apply.return_value = (None, [], None)
 
             files = generator.generate_batch(sample_dicom_file, count=5)
 
@@ -677,6 +725,33 @@ class TestGeneratorBatchProcessing:
             # Note: strategies_used may be empty if random selection skipped all
             # fuzzers for all files (probability ~0.8% per file, compounded)
             assert generator.stats.successful == len(files)
+
+
+class TestDICOMGeneratorSeed:
+    """Test DICOMGenerator seed parameter."""
+
+    def test_explicit_seed_stored(self, temp_dir):
+        """Explicit seed is stored as-is."""
+        generator = DICOMGenerator(output_dir=str(temp_dir), seed=42)
+        assert generator.seed == 42
+
+    def test_auto_seed_generated(self, temp_dir):
+        """Seed is auto-generated as a positive int when not provided."""
+        generator = DICOMGenerator(output_dir=str(temp_dir))
+        assert isinstance(generator.seed, int)
+        assert generator.seed >= 0
+
+    def test_auto_seeds_differ(self, temp_dir):
+        """Two generators without explicit seeds get different seeds (with overwhelming probability)."""
+        g1 = DICOMGenerator(output_dir=str(temp_dir / "a"))
+        g2 = DICOMGenerator(output_dir=str(temp_dir / "b"))
+        # 1-in-2^32 chance of collision — acceptable for a test
+        assert g1.seed != g2.seed
+
+    def test_explicit_seed_passed_to_mutator(self, temp_dir):
+        """The explicit seed propagates to the underlying DicomMutator."""
+        generator = DICOMGenerator(output_dir=str(temp_dir), seed=7)
+        assert generator.mutator.seed == 7
 
 
 if __name__ == "__main__":

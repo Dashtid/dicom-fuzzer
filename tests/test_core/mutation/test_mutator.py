@@ -2,7 +2,7 @@
 Comprehensive tests for DICOM Mutation Engine.
 
 Tests cover:
-- MutationRecord dataclass
+- InternalMutationRecord dataclass
 - MutationSession dataclass
 - DicomMutator initialization and configuration
 - Strategy registration and management
@@ -21,17 +21,17 @@ from hypothesis import strategies as st
 
 from dicom_fuzzer.core.mutation.mutator import (
     DicomMutator,
-    MutationRecord,
+    InternalMutationRecord,
     MutationSession,
 )
 
 
-class TestMutationRecord:
-    """Test MutationRecord dataclass."""
+class TestInternalMutationRecord:
+    """Test InternalMutationRecord dataclass."""
 
     def test_record_creation_with_defaults(self):
         """Test creating mutation record with default values."""
-        record = MutationRecord()
+        record = InternalMutationRecord()
 
         assert record.mutation_id != ""
         assert len(record.mutation_id) == 8  # UUID prefix
@@ -46,7 +46,7 @@ class TestMutationRecord:
         """Test creating mutation record with specific values."""
         timestamp = datetime.now(UTC)
 
-        record = MutationRecord(
+        record = InternalMutationRecord(
             mutation_id="test123",
             strategy_name="metadata_fuzzer",
             timestamp=timestamp,
@@ -66,15 +66,15 @@ class TestMutationRecord:
 
     def test_record_unique_ids(self):
         """Test that mutation records get unique IDs."""
-        record1 = MutationRecord()
-        record2 = MutationRecord()
+        record1 = InternalMutationRecord()
+        record2 = InternalMutationRecord()
 
         assert record1.mutation_id != record2.mutation_id
 
     def test_record_timestamp_automatic(self):
         """Test that timestamps are automatically generated."""
         before = datetime.now(UTC)
-        record = MutationRecord()
+        record = InternalMutationRecord()
         after = datetime.now(UTC)
 
         assert before <= record.timestamp <= after
@@ -100,7 +100,7 @@ class TestMutationSession:
         """Test creating session with specific values."""
         start_time = datetime.now(UTC)
         end_time = datetime.now(UTC)
-        mutations = [MutationRecord(), MutationRecord()]
+        mutations = [InternalMutationRecord(), InternalMutationRecord()]
 
         session = MutationSession(
             session_id="sess123",
@@ -729,6 +729,32 @@ class TestAdditionalCoverage:
         # current_session stays set after end_session() so callers can still read it
         assert mutator.current_session is not None
         assert mutator.current_session.end_time is not None
+
+
+class TestDicomMutatorSeed:
+    """Test DicomMutator seed parameter."""
+
+    def test_seed_param_accepted(self):
+        """seed param accepted and stored without error."""
+        mutator = DicomMutator(config={"auto_register_strategies": False}, seed=42)
+        assert mutator.seed == 42
+
+    def test_seed_none_is_default(self):
+        """seed defaults to None when not provided."""
+        mutator = DicomMutator(config={"auto_register_strategies": False})
+        assert mutator.seed is None
+
+    def test_seed_sets_random_state(self):
+        """Providing a seed makes random calls reproducible."""
+        import random
+
+        DicomMutator(config={"auto_register_strategies": False}, seed=99)
+        val1 = random.random()
+
+        DicomMutator(config={"auto_register_strategies": False}, seed=99)
+        val2 = random.random()
+
+        assert val1 == val2
 
 
 if __name__ == "__main__":

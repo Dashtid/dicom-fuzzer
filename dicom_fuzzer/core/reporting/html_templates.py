@@ -6,7 +6,7 @@ enhanced_reporter.py to improve maintainability and separation of concerns.
 
 from __future__ import annotations
 
-from typing import Final
+from typing import Any, Final
 
 # =============================================================================
 # CSS Styles -- used by html_document_start() and enhanced_reporter.py
@@ -380,6 +380,136 @@ def html_document_end() -> str:
 
     """
     return """
+    </div>
+</body>
+</html>
+"""
+
+
+def legacy_html_document(
+    report: dict[str, Any],
+    stats: dict[str, Any],
+    config: dict[str, Any],
+    alert_html: str,
+    hang_rate: float,
+) -> str:
+    """Generate a complete legacy HTML report document.
+
+    Args:
+        report: Full session report dict (must contain "timestamp" key)
+        stats: Statistics sub-dict from the report
+        config: Configuration sub-dict from the report
+        alert_html: Pre-rendered alert/warning/success HTML block
+        hang_rate: Hang rate as a float (0-100)
+
+    Returns:
+        Complete HTML document as a string
+
+    """
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DICOM Viewer Fuzzing Report</title>
+    <style>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }}
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }}
+        h1 {{
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }}
+        h2 {{
+            color: #34495e;
+            margin-top: 30px;
+        }}
+        .summary-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }}
+        .metric-card {{
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }}
+        .metric-value {{
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #2980b9;
+        }}
+        .metric-label {{
+            color: #7f8c8d;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }}
+        .alert {{ background: #e74c3c; color: white; padding: 20px; border-radius: 5px; margin: 20px 0; }}
+        .warning {{ background: #f39c12; color: white; padding: 20px; border-radius: 5px; margin: 20px 0; }}
+        .success {{ background: #27ae60; color: white; padding: 20px; border-radius: 5px; margin: 20px 0; }}
+        .config-table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }}
+        .config-table th, .config-table td {{
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }}
+        .config-table th {{
+            background: #34495e;
+            color: white;
+        }}
+        .timestamp {{ color: #95a5a6; font-size: 0.9em; }}
+        code {{ background: #ecf0f1; padding: 2px 6px; border-radius: 3px; font-family: monospace; }}
+        .severity-high {{ color: #e74c3c; font-weight: bold; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DICOM Viewer Security Assessment</h1>
+        <p class="timestamp">Generated: {report["timestamp"]}</p>
+        {alert_html}
+        <h2>Test Configuration</h2>
+        <table class="config-table">
+            <tr><th>Parameter</th><th>Value</th></tr>
+            <tr><td><strong>Target Application</strong></td><td><code>{config.get("viewer_path", "N/A")}</code></td></tr>
+            <tr><td><strong>Input Directory</strong></td><td><code>{config.get("input_dir", "N/A")}</code></td></tr>
+            <tr><td><strong>Output Directory</strong></td><td><code>{config.get("output_dir", "N/A")}</code></td></tr>
+            <tr><td><strong>Timeout (seconds)</strong></td><td>{config.get("timeout", "N/A")}</td></tr>
+        </table>
+        <h2>Test Results</h2>
+        <div class="summary-grid">
+            <div class="metric-card"><div class="metric-value">{stats.get("files_processed", 0)}</div><div class="metric-label">Files Processed</div></div>
+            <div class="metric-card"><div class="metric-value">{stats.get("files_fuzzed", 0)}</div><div class="metric-label">Files Fuzzed</div></div>
+            <div class="metric-card"><div class="metric-value">{stats.get("files_generated", 0)}</div><div class="metric-label">Files Generated</div></div>
+            <div class="metric-card"><div class="metric-value">{stats.get("viewer_crashes", 0)}</div><div class="metric-label">Crashes</div></div>
+            <div class="metric-card"><div class="metric-value">{stats.get("viewer_hangs", 0)}</div><div class="metric-label">Hangs/Timeouts</div></div>
+            <div class="metric-card"><div class="metric-value">{hang_rate:.1f}%</div><div class="metric-label">Hang Rate</div></div>
+        </div>
+        <h2>Recommendations</h2>
+        <ul>
+            <li>Investigate hang logs in <code>{config.get("output_dir", "output")}</code></li>
+            <li>Test fuzzed files manually to reproduce and debug</li>
+            <li>Implement robust input validation for DICOM file parsing</li>
+            <li>Add timeout mechanisms in the DICOM parser</li>
+        </ul>
+        <p class="timestamp">Report generated by DICOM Fuzzer.</p>
     </div>
 </body>
 </html>

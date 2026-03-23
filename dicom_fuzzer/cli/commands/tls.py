@@ -19,6 +19,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from dicom_fuzzer.cli.base import SubcommandBase
+
 
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for tls subcommand."""
@@ -220,18 +222,29 @@ def run_list_vulns(args: argparse.Namespace) -> int:
     return 0
 
 
+class TlsCommand(SubcommandBase):
+    """TLS security testing subcommand."""
+
+    @classmethod
+    def build_parser(cls) -> argparse.ArgumentParser:
+        """Return the argument parser for this subcommand."""
+        return create_parser()
+
+    @classmethod
+    def execute(cls, args: argparse.Namespace) -> int:
+        """Run the subcommand."""
+        if args.scan:
+            return run_scan(args)
+        elif args.list_vulns:
+            return run_list_vulns(args)
+        else:
+            cls.build_parser().print_help()
+            return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for tls subcommand."""
-    parser = create_parser()
-    args = parser.parse_args(argv)
-
-    if args.scan:
-        return run_scan(args)
-    elif args.list_vulns:
-        return run_list_vulns(args)
-    else:
-        parser.print_help()
-        return 1
+    return TlsCommand.main(argv)
 
 
 if __name__ == "__main__":

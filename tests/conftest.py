@@ -3,7 +3,7 @@ Pytest configuration and shared fixtures for DICOM-Fuzzer tests.
 
 Optimizations for 4k+ tests:
 - Auto-cleanup of orphaned .coverage.* files
-- Worksteal distribution for parallel testing
+- testmon smart selection: only runs tests affected by changed source files
 - Session-scoped fixtures for expensive setup
 """
 

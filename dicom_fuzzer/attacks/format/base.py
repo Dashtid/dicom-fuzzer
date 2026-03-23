@@ -29,8 +29,11 @@ class FormatFuzzerBase(ABC):
 
     """
 
-    def __init__(self) -> None:  # noqa: B027
+    def __init__(self) -> None:
         """Initialize the fuzzer. Subclasses may override but must accept no arguments."""
+        self.last_variant: str | None = (
+            None  # Set by mutate() to record chosen sub-attack(s)
+        )
 
     @abstractmethod
     def mutate(self, dataset: Dataset) -> Dataset:
@@ -56,6 +59,25 @@ class FormatFuzzerBase(ABC):
     def can_mutate(self, dataset: Dataset) -> bool:
         """Check if this strategy can mutate the dataset. Override if needed."""
         return True
+
+    def mutate_bytes(self, file_data: bytes) -> bytes:
+        """Apply binary-level mutations to an already-serialized DICOM byte stream.
+
+        Called by the engine after mutate() and dcmwrite(), giving the strategy
+        a second pass on the raw bytes. Override in subclasses that need to
+        corrupt data that pydicom would correct during serialization (e.g. tag
+        ordering, duplicate tags, length fields).
+
+        The default implementation returns file_data unchanged.
+
+        Args:
+            file_data: Complete DICOM file bytes (preamble + DICM + elements)
+
+        Returns:
+            Possibly-modified byte string
+
+        """
+        return file_data
 
 
 __all__ = ["FormatFuzzerBase"]

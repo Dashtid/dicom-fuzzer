@@ -50,6 +50,7 @@ class CampaignRunner:
         self.input_files = input_files
         self.selected_strategies = selected_strategies
         self.is_directory_input = len(input_files) > 1
+        self.seed: int | None = getattr(args, "seed", None)
 
         # Calculate number of files to generate per input
         _count = getattr(args, "count", None)
@@ -95,7 +96,10 @@ class CampaignRunner:
         logger.info("Generating up to %d fuzzed files...", total_expected)
         start_time = time.time()
 
-        generator = DICOMGenerator(self.args.output, skip_write_errors=True)
+        generator = DICOMGenerator(
+            self.args.output, skip_write_errors=True, seed=self.seed
+        )
+        self.seed = generator.seed  # capture auto-generated seed if not provided
         files: list[Path] = []
 
         # Process each input file
@@ -109,6 +113,9 @@ class CampaignRunner:
 
         # Persist mutation map so target testing can link crashes to strategies
         self._save_mutation_map(generator)
+
+        self._save_session_json(results_data)
+        self._log_strategy_table(results_data)
 
         return files, results_data
 
@@ -243,18 +250,25 @@ class CampaignRunner:
         return "unknown"
 
     def _save_mutation_map(self, generator: DICOMGenerator) -> None:
-        """Persist filename->strategy mapping so crash reports include mutation info."""
+        """Persist filename->strategy/variant mapping so crash reports include mutation info."""
         strategy_map = generator.file_strategy_map
         if not strategy_map:
             return
+        variant_map = generator.file_variant_map
         output_dir = Path(self.args.output)
         map_path = output_dir / "mutation_map.json"
         try:
+            combined = {
+                filename: {
+                    "strategy": strategy,
+                    "variant": variant_map.get(filename),
+                }
+                for filename, strategy in strategy_map.items()
+            }
+            output = {"seed": self.seed, "mutations": combined}
             with open(map_path, "w") as f:
-                json.dump(strategy_map, f, indent=2)
-            logger.debug(
-                "Mutation map saved: %s (%d entries)", map_path, len(strategy_map)
-            )
+                json.dump(output, f, indent=2)
+            logger.debug("Mutation map saved: %s (%d entries)", map_path, len(combined))
         except Exception as e:
             logger.warning("Failed to save mutation map: %s", e)
 
@@ -284,6 +298,7 @@ class CampaignRunner:
 
         results_data: dict[str, Any] = {
             "status": "success",
+            "seed": getattr(self, "seed", None),
             "generated_count": len(files),
             "skipped_count": skipped,
             "duration_seconds": round(elapsed_time, 2),
@@ -299,7 +314,48 @@ class CampaignRunner:
         ):
             results_data["strategies_used"] = generator.cumulative_strategies
 
+        # Compute per-strategy hit rates against total generated files
+        total_generated = len(files)
+        known = generator.known_strategy_names
+        if known and total_generated > 0:
+            hit_rates: dict[str, dict[str, Any]] = {}
+            for name in known:
+                hits = generator.cumulative_strategies.get(name, 0)
+                hit_rates[name] = {
+                    "hits": hits,
+                    "hit_rate_pct": round(hits / total_generated * 100, 1),
+                }
+            results_data["strategy_hit_rates"] = hit_rates
+
         return results_data
+
+    def _save_session_json(self, results_data: dict[str, Any]) -> None:
+        """Persist results_data to <run_dir>/reports/json/session.json."""
+        run_dir = Path(self.args.output).parent
+        reports_dir = run_dir / "reports" / "json"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        session_path = reports_dir / "session.json"
+        try:
+            with open(session_path, "w") as f:
+                json.dump(results_data, f, indent=2)
+            logger.debug("Session JSON saved: %s", session_path)
+        except Exception as e:
+            logger.warning("Failed to save session JSON: %s", e)
+
+    def _log_strategy_table(self, results_data: dict[str, Any]) -> None:
+        """Log strategy hit-rate table; emit WARNING for zero-hit strategies."""
+        hit_rates = results_data.get("strategy_hit_rates")
+        if not hit_rates:
+            return
+        logger.info("Strategy hit rates:")
+        logger.info("  %-35s %6s %9s", "strategy", "hits", "hit_rate%")
+        logger.info("  %s", "-" * 55)
+        for name, data in sorted(hit_rates.items()):
+            hits = data["hits"]
+            rate = data["hit_rate_pct"]
+            logger.info("  %-35s %6d %8.1f%%", name, hits, rate)
+            if hits == 0:
+                logger.warning("Zero-hit strategy: %s", name)
 
     def display_results(
         self,

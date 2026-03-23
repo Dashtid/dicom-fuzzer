@@ -53,6 +53,7 @@ SUBCOMMANDS: dict[str, str] = {
     "stress": "dicom_fuzzer.cli.commands.stress",
     "target": "dicom_fuzzer.cli.commands.target",
     "report": "dicom_fuzzer.cli.commands.reports",  # Report generation
+    "triage": "dicom_fuzzer.cli.commands.triage",  # Crash triage
     "generate-seeds": "dicom_fuzzer.cli.commands.seeds",
 }
 

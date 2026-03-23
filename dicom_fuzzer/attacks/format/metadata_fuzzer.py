@@ -79,6 +79,7 @@ class MetadataFuzzer(FormatFuzzerBase):
             self._attack_categories,
             k=min(num_categories, len(self._attack_categories)),
         )
+        self.last_variant = ",".join(a.__name__ for a in selected)
 
         for attack in selected:
             try:

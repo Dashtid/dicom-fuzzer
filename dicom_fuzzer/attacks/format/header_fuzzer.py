@@ -311,7 +311,9 @@ class HeaderFuzzer(FormatFuzzerBase):
             self._uid_mutations,
         ]
 
-        for mutation in random.sample(mutations, k=random.randint(2, 4)):
+        selected = random.sample(mutations, k=random.randint(2, 4))
+        self.last_variant = ",".join(m.__name__ for m in selected)
+        for mutation in selected:
             dataset = mutation(dataset)
         return dataset
 

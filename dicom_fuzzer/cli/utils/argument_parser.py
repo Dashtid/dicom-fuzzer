@@ -113,6 +113,17 @@ def _add_basic_args(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Output results in JSON format (useful for CI/CD pipelines)",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        metavar="INT",
+        help=(
+            "Random seed for reproducible fuzzing. "
+            "If not set, a seed is auto-generated and written to session.json. "
+            "Pass the same seed to reproduce a crash."
+        ),
+    )
     parser.add_argument("--version", action="version", version=VERSION)
 
 

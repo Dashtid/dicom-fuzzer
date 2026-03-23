@@ -15,6 +15,8 @@ import json
 import sys
 from pathlib import Path
 
+from dicom_fuzzer.cli.base import SubcommandBase
+
 
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for target subcommand."""
@@ -75,56 +77,67 @@ Calibration Phases:
     return parser
 
 
+class TargetCommand(SubcommandBase):
+    """Target calibration subcommand."""
+
+    @classmethod
+    def build_parser(cls) -> argparse.ArgumentParser:
+        """Return the argument parser for this subcommand."""
+        return create_parser()
+
+    @classmethod
+    def execute(cls, args: argparse.Namespace) -> int:
+        """Run the subcommand."""
+        target_path = Path(args.executable)
+        if not target_path.exists():
+            print(f"[-] Target not found: {target_path}", file=sys.stderr)
+            return 1
+
+        corpus_path = Path(args.corpus) if args.corpus else None
+        if corpus_path and not corpus_path.exists():
+            print(f"[-] Corpus not found: {corpus_path}", file=sys.stderr)
+            return 1
+
+        if not args.json:
+            print("\n" + "=" * 70)
+            print("  DICOM Fuzzer - Target Calibration")
+            print("=" * 70)
+            print(f"  Target: {target_path}")
+            if corpus_path:
+                print(f"  Corpus: {corpus_path}")
+            print("=" * 70 + "\n")
+
+        try:
+            from dicom_fuzzer.core.harness.target_calibrator import calibrate_target
+
+            result = calibrate_target(
+                target=target_path,
+                corpus=corpus_path,
+                verbose=args.verbose,
+            )
+
+            if args.json:
+                print(json.dumps(result.to_dict(), indent=2))
+            else:
+                result.print_summary()
+
+            return 0
+
+        except FileNotFoundError as e:
+            print(f"[-] Error: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:
+            print(f"[-] Calibration failed: {e}", file=sys.stderr)
+            if args.verbose:
+                import traceback
+
+                traceback.print_exc()
+            return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for target subcommand."""
-    parser = create_parser()
-    args = parser.parse_args(argv)
-
-    target_path = Path(args.executable)
-    if not target_path.exists():
-        print(f"[-] Target not found: {target_path}", file=sys.stderr)
-        return 1
-
-    corpus_path = Path(args.corpus) if args.corpus else None
-    if corpus_path and not corpus_path.exists():
-        print(f"[-] Corpus not found: {corpus_path}", file=sys.stderr)
-        return 1
-
-    if not args.json:
-        print("\n" + "=" * 70)
-        print("  DICOM Fuzzer - Target Calibration")
-        print("=" * 70)
-        print(f"  Target: {target_path}")
-        if corpus_path:
-            print(f"  Corpus: {corpus_path}")
-        print("=" * 70 + "\n")
-
-    try:
-        from dicom_fuzzer.core.harness.target_calibrator import calibrate_target
-
-        result = calibrate_target(
-            target=target_path,
-            corpus=corpus_path,
-            verbose=args.verbose,
-        )
-
-        if args.json:
-            print(json.dumps(result.to_dict(), indent=2))
-        else:
-            result.print_summary()
-
-        return 0
-
-    except FileNotFoundError as e:
-        print(f"[-] Error: {e}", file=sys.stderr)
-        return 1
-    except Exception as e:
-        print(f"[-] Calibration failed: {e}", file=sys.stderr)
-        if args.verbose:
-            import traceback
-
-            traceback.print_exc()
-        return 1
+    return TargetCommand.main(argv)
 
 
 if __name__ == "__main__":
