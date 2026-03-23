@@ -701,6 +701,62 @@ class TestSessionReporting:
         assert "files_per_minute" in summary
 
 
+class TestExtractMetadataPixelFields:
+    """Test that _extract_metadata captures pixel metadata tags."""
+
+    @pytest.fixture
+    def pixel_dicom_file(self, tmp_path):
+        """Create a DICOM file with pixel metadata fields set."""
+        from pydicom.uid import generate_uid
+
+        file_meta = Dataset()
+        file_meta.TransferSyntaxUID = ImplicitVRLittleEndian
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = generate_uid()
+        file_meta.ImplementationClassUID = generate_uid()
+
+        filename = tmp_path / "pixel_test.dcm"
+        ds = FileDataset(str(filename), {}, file_meta=file_meta, preamble=b"\0" * 128)
+
+        ds.PatientName = "Test^Patient"
+        ds.PatientID = "PIX001"
+        ds.StudyInstanceUID = generate_uid()
+        ds.SeriesInstanceUID = generate_uid()
+        ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+        ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+        ds.Modality = "CT"
+
+        ds.Rows = 64
+        ds.Columns = 128
+        ds.BitsAllocated = 16
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.PixelRepresentation = 0
+        ds.NumberOfFrames = 3
+
+        ds.save_as(filename, write_like_original=False)
+        return filename
+
+    def test_extract_metadata_includes_pixel_fields(self, tmp_path, pixel_dicom_file):
+        """Pixel metadata tags must appear in extracted metadata."""
+        session = FuzzingSession(
+            session_name="test_session",
+            output_dir=str(tmp_path / "output"),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
+
+        metadata = session._extract_metadata(pixel_dicom_file)
+
+        assert metadata["Rows"] == "64"
+        assert metadata["Columns"] == "128"
+        assert metadata["BitsAllocated"] == "16"
+        assert metadata["SamplesPerPixel"] == "1"
+        assert metadata["PhotometricInterpretation"] == "MONOCHROME2"
+        assert metadata["PixelRepresentation"] == "0"
+        assert metadata["NumberOfFrames"] == "3"
+
+
 class TestHelperMethods:
     """Test helper methods."""
 

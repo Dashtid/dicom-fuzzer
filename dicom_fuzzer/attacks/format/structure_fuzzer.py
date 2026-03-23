@@ -185,6 +185,7 @@ class StructureFuzzer(FormatFuzzerBase):
         # Randomly select 1-2 corruption strategies to apply
         num_strategies = random.randint(1, 2)
         selected_strategies = random.sample(self.corruption_strategies, num_strategies)
+        self.last_variant = ",".join(s.__name__ for s in selected_strategies)
 
         for strategy in selected_strategies:
             dataset = strategy(dataset)

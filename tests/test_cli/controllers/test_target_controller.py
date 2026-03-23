@@ -649,3 +649,92 @@ class TestGenerateReport:
         report_path = TargetTestingController._generate_report(mock_session, tmp_path)
 
         assert report_path is None
+
+
+class TestLoadMutationMap:
+    """Tests for _load_mutation_map backward-compat and new format parsing."""
+
+    def test_new_format_returns_strategy_and_variant(self, tmp_path: Path) -> None:
+        """New dict-value format must be returned as-is."""
+        import json
+
+        fuzz_dir = tmp_path / "fuzzed"
+        fuzz_dir.mkdir()
+        map_path = fuzz_dir / "mutation_map.json"
+        map_path.write_text(
+            json.dumps(
+                {
+                    "fuzz_001.dcm": {
+                        "strategy": "pixel",
+                        "variant": "_dimension_mismatch",
+                    }
+                }
+            )
+        )
+        f = fuzz_dir / "fuzz_001.dcm"
+        f.write_bytes(b"")
+
+        result = TargetTestingController._load_mutation_map([f])
+
+        assert result["fuzz_001.dcm"]["strategy"] == "pixel"
+        assert result["fuzz_001.dcm"]["variant"] == "_dimension_mismatch"
+
+    def test_old_format_normalizes_to_dict(self, tmp_path: Path) -> None:
+        """Old string-value format must be normalized to {strategy, variant: None}."""
+        import json
+
+        fuzz_dir = tmp_path / "fuzzed"
+        fuzz_dir.mkdir()
+        map_path = fuzz_dir / "mutation_map.json"
+        map_path.write_text(json.dumps({"fuzz_001.dcm": "header"}))
+        f = fuzz_dir / "fuzz_001.dcm"
+        f.write_bytes(b"")
+
+        result = TargetTestingController._load_mutation_map([f])
+
+        assert result["fuzz_001.dcm"]["strategy"] == "header"
+        assert result["fuzz_001.dcm"]["variant"] is None
+
+    def test_missing_map_returns_empty(self, tmp_path: Path) -> None:
+        """Missing mutation_map.json must return empty dict without error."""
+        fuzz_dir = tmp_path / "fuzzed"
+        fuzz_dir.mkdir()
+        f = fuzz_dir / "fuzz_001.dcm"
+        f.write_bytes(b"")
+
+        result = TargetTestingController._load_mutation_map([f])
+
+        assert result == {}
+
+    def test_empty_files_list_returns_empty(self) -> None:
+        """Empty file list must return empty dict without error."""
+        result = TargetTestingController._load_mutation_map([])
+        assert result == {}
+
+    def test_wrapped_format_with_seed_unwraps_correctly(self, tmp_path: Path) -> None:
+        """New {seed, mutations} wrapper format must be unwrapped transparently."""
+        import json
+
+        fuzz_dir = tmp_path / "fuzzed"
+        fuzz_dir.mkdir()
+        map_path = fuzz_dir / "mutation_map.json"
+        map_path.write_text(
+            json.dumps(
+                {
+                    "seed": 42,
+                    "mutations": {
+                        "fuzz_001.dcm": {
+                            "strategy": "pixel",
+                            "variant": "_extreme_contradiction",
+                        }
+                    },
+                }
+            )
+        )
+        f = fuzz_dir / "fuzz_001.dcm"
+        f.write_bytes(b"")
+
+        result = TargetTestingController._load_mutation_map([f])
+
+        assert result["fuzz_001.dcm"]["strategy"] == "pixel"
+        assert result["fuzz_001.dcm"]["variant"] == "_extreme_contradiction"

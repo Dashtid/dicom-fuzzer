@@ -163,6 +163,7 @@ class TestFilenameGeneration:
             # Verify hex characters
             assert all(c in "0123456789abcdef" for c in hex_part)
 
+    @pytest.mark.timeout(60)
     def test_filename_uniqueness(self, sample_dicom_file, temp_dir):
         """Test that all generated filenames are unique."""
         output_dir = temp_dir / "output"
@@ -724,6 +725,33 @@ class TestGeneratorBatchProcessing:
             # Note: strategies_used may be empty if random selection skipped all
             # fuzzers for all files (probability ~0.8% per file, compounded)
             assert generator.stats.successful == len(files)
+
+
+class TestDICOMGeneratorSeed:
+    """Test DICOMGenerator seed parameter."""
+
+    def test_explicit_seed_stored(self, temp_dir):
+        """Explicit seed is stored as-is."""
+        generator = DICOMGenerator(output_dir=str(temp_dir), seed=42)
+        assert generator.seed == 42
+
+    def test_auto_seed_generated(self, temp_dir):
+        """Seed is auto-generated as a positive int when not provided."""
+        generator = DICOMGenerator(output_dir=str(temp_dir))
+        assert isinstance(generator.seed, int)
+        assert generator.seed >= 0
+
+    def test_auto_seeds_differ(self, temp_dir):
+        """Two generators without explicit seeds get different seeds (with overwhelming probability)."""
+        g1 = DICOMGenerator(output_dir=str(temp_dir / "a"))
+        g2 = DICOMGenerator(output_dir=str(temp_dir / "b"))
+        # 1-in-2^32 chance of collision — acceptable for a test
+        assert g1.seed != g2.seed
+
+    def test_explicit_seed_passed_to_mutator(self, temp_dir):
+        """The explicit seed propagates to the underlying DicomMutator."""
+        generator = DICOMGenerator(output_dir=str(temp_dir), seed=7)
+        assert generator.mutator.seed == 7
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import struct
 import sys
@@ -60,6 +61,7 @@ class DICOMGenerator:
         self,
         output_dir: str | Path = "./artifacts/fuzzed",
         skip_write_errors: bool = True,
+        seed: int | None = None,
     ) -> None:
         """Initialize the generator.
 
@@ -68,6 +70,7 @@ class DICOMGenerator:
             skip_write_errors: If True, skip files that can't be written due to
                              invalid mutations (good for fuzzing). If False,
                              raise errors (good for debugging).
+            seed: Random seed for reproducible runs. Auto-generated if None.
 
         """
         self.output_dir = Path(output_dir)
@@ -75,8 +78,12 @@ class DICOMGenerator:
         self.skip_write_errors = skip_write_errors
         self.stats = GenerationStats()
         self.cumulative_strategies: dict[str, int] = {}
-        self.mutator = DicomMutator()
+        self.seed: int = (
+            seed if seed is not None else int.from_bytes(os.urandom(4), "big")
+        )
+        self.mutator = DicomMutator(seed=self.seed)
         self.file_strategy_map: dict[str, str] = {}
+        self.file_variant_map: dict[str, str] = {}
 
     @property
     def known_strategy_names(self) -> list[str]:
@@ -333,6 +340,9 @@ class DICOMGenerator:
                 self.stats.record_success(strategies_applied)
                 if strategies_applied:
                     self.file_strategy_map[output_path.name] = strategies_applied[0]
+                    variant = getattr(strategy_obj, "last_variant", None)
+                    if variant:
+                        self.file_variant_map[output_path.name] = variant
                 return output_path
             except self._SAVE_ERRORS as e:
                 if attempt < max_retries - 1 and self._try_recover(

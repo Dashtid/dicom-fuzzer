@@ -108,3 +108,95 @@ class TestLogStrategyTable:
             runner._log_strategy_table(data)
 
         assert len(caplog.records) == 0
+
+
+class TestSaveMutationMap:
+    """Tests for _save_mutation_map writing the strategy+variant format."""
+
+    def test_writes_strategy_and_variant(self, tmp_path):
+        """mutation_map.json must contain {seed, mutations} wrapper with strategy+variant dicts."""
+        from unittest.mock import MagicMock
+
+        runner = _runner(tmp_path)
+        runner.seed = 42
+        generator = MagicMock()
+        generator.file_strategy_map = {"fuzz_001.dcm": "pixel"}
+        generator.file_variant_map = {
+            "fuzz_001.dcm": "_dimension_mismatch,_rescale_attack"
+        }
+
+        runner._save_mutation_map(generator)
+
+        map_path = tmp_path / "fuzzed" / "mutation_map.json"
+        assert map_path.exists()
+        data = json.loads(map_path.read_text())
+        assert data["seed"] == 42
+        assert data["mutations"]["fuzz_001.dcm"]["strategy"] == "pixel"
+        assert (
+            data["mutations"]["fuzz_001.dcm"]["variant"]
+            == "_dimension_mismatch,_rescale_attack"
+        )
+
+    def test_variant_null_when_not_in_variant_map(self, tmp_path):
+        """variant must be null for files absent from file_variant_map."""
+        from unittest.mock import MagicMock
+
+        runner = _runner(tmp_path)
+        runner.seed = 99
+        generator = MagicMock()
+        generator.file_strategy_map = {"fuzz_001.dcm": "header"}
+        generator.file_variant_map = {}
+
+        runner._save_mutation_map(generator)
+
+        map_path = tmp_path / "fuzzed" / "mutation_map.json"
+        data = json.loads(map_path.read_text())
+        assert data["mutations"]["fuzz_001.dcm"]["strategy"] == "header"
+        assert data["mutations"]["fuzz_001.dcm"]["variant"] is None
+
+    def test_noop_when_strategy_map_empty(self, tmp_path):
+        """_save_mutation_map writes nothing when file_strategy_map is empty."""
+        from unittest.mock import MagicMock
+
+        runner = _runner(tmp_path)
+        generator = MagicMock()
+        generator.file_strategy_map = {}
+        generator.file_variant_map = {}
+
+        runner._save_mutation_map(generator)
+
+        map_path = tmp_path / "fuzzed" / "mutation_map.json"
+        assert not map_path.exists()
+
+
+class TestSeedInOutputs:
+    """Tests that the seed appears in session.json and mutation_map.json."""
+
+    def test_session_json_contains_seed(self, tmp_path):
+        """_save_session_json must include the seed field."""
+        runner = _runner(tmp_path)
+        runner.seed = 42
+        data = {"status": "success", "seed": runner.seed, "generated_count": 5}
+
+        runner._save_session_json(data)
+
+        session_path = tmp_path / "reports" / "json" / "session.json"
+        loaded = json.loads(session_path.read_text())
+        assert loaded["seed"] == 42
+
+    def test_mutation_map_seed_matches_runner_seed(self, tmp_path):
+        """mutation_map.json seed key must match runner.seed."""
+        from unittest.mock import MagicMock
+
+        runner = _runner(tmp_path)
+        runner.seed = 1234
+        generator = MagicMock()
+        generator.file_strategy_map = {"fuzz_001.dcm": "metadata"}
+        generator.file_variant_map = {}
+
+        runner._save_mutation_map(generator)
+
+        map_path = tmp_path / "fuzzed" / "mutation_map.json"
+        data = json.loads(map_path.read_text())
+        assert data["seed"] == 1234
+        assert "fuzz_001.dcm" in data["mutations"]

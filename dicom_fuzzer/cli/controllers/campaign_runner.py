@@ -50,6 +50,7 @@ class CampaignRunner:
         self.input_files = input_files
         self.selected_strategies = selected_strategies
         self.is_directory_input = len(input_files) > 1
+        self.seed: int | None = getattr(args, "seed", None)
 
         # Calculate number of files to generate per input
         _count = getattr(args, "count", None)
@@ -95,7 +96,10 @@ class CampaignRunner:
         logger.info("Generating up to %d fuzzed files...", total_expected)
         start_time = time.time()
 
-        generator = DICOMGenerator(self.args.output, skip_write_errors=True)
+        generator = DICOMGenerator(
+            self.args.output, skip_write_errors=True, seed=self.seed
+        )
+        self.seed = generator.seed  # capture auto-generated seed if not provided
         files: list[Path] = []
 
         # Process each input file
@@ -246,18 +250,25 @@ class CampaignRunner:
         return "unknown"
 
     def _save_mutation_map(self, generator: DICOMGenerator) -> None:
-        """Persist filename->strategy mapping so crash reports include mutation info."""
+        """Persist filename->strategy/variant mapping so crash reports include mutation info."""
         strategy_map = generator.file_strategy_map
         if not strategy_map:
             return
+        variant_map = generator.file_variant_map
         output_dir = Path(self.args.output)
         map_path = output_dir / "mutation_map.json"
         try:
+            combined = {
+                filename: {
+                    "strategy": strategy,
+                    "variant": variant_map.get(filename),
+                }
+                for filename, strategy in strategy_map.items()
+            }
+            output = {"seed": self.seed, "mutations": combined}
             with open(map_path, "w") as f:
-                json.dump(strategy_map, f, indent=2)
-            logger.debug(
-                "Mutation map saved: %s (%d entries)", map_path, len(strategy_map)
-            )
+                json.dump(output, f, indent=2)
+            logger.debug("Mutation map saved: %s (%d entries)", map_path, len(combined))
         except Exception as e:
             logger.warning("Failed to save mutation map: %s", e)
 
@@ -287,6 +298,7 @@ class CampaignRunner:
 
         results_data: dict[str, Any] = {
             "status": "success",
+            "seed": getattr(self, "seed", None),
             "generated_count": len(files),
             "skipped_count": skipped,
             "duration_seconds": round(elapsed_time, 2),

@@ -32,8 +32,11 @@ class MutationStrategy(Protocol):
 
 
 @dataclass
-class MutationRecord:
-    """Record of a single mutation applied to a file."""
+class InternalMutationRecord:
+    """Record of a single mutation applied to a file (internal tracking only).
+
+    Not serialized; use MutationRecord in fuzzing_session.py for session JSON output.
+    """
 
     mutation_id: str = field(default_factory=generate_short_id)
     strategy_name: str = ""
@@ -50,7 +53,7 @@ class MutationSession:
 
     session_id: str = field(default_factory=generate_short_id)
     original_file_info: dict[str, Any] = field(default_factory=dict)
-    mutations: list[MutationRecord] = field(default_factory=list)
+    mutations: list[InternalMutationRecord] = field(default_factory=list)
     start_time: datetime = field(default_factory=lambda: datetime.now(UTC))
     end_time: datetime | None = None
     total_mutations: int = 0
@@ -63,14 +66,19 @@ class DicomMutator:
     Uses the Strategy Pattern to manage different fuzzing approaches.
     """
 
-    def __init__(self, config: dict[str, Any] | None = None):
+    def __init__(self, config: dict[str, Any] | None = None, seed: int | None = None):
         """Initialize the mutator.
 
         Args:
             config: Optional configuration dictionary for customizing behavior
+            seed: Random seed for reproducible mutations. If set, calls random.seed().
 
         """
         self.config = config or {}
+        self.seed = seed
+        if seed is not None:
+            random.seed(seed)
+            logger.debug("DicomMutator seeded with: %d", seed)
         self.strategies: list[MutationStrategy] = []
         self.current_session: MutationSession | None = None
         self._strategy_cache: dict[tuple[Any, ...], list[MutationStrategy]] = {}
@@ -339,7 +347,7 @@ class DicomMutator:
             logger.warning("No active session - cannot record mutation")
             return
 
-        mutation_record = MutationRecord(
+        mutation_record = InternalMutationRecord(
             strategy_name=strategy.strategy_name,
             description=f"Applied {strategy.strategy_name}",
             success=success,
