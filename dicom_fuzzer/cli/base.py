@@ -20,13 +20,13 @@ class SubcommandBase(ABC):
     @abstractmethod
     def build_parser(cls) -> argparse.ArgumentParser:
         """Return the argument parser for this subcommand."""
-        ...
+        pass
 
     @classmethod
     @abstractmethod
     def execute(cls, args: argparse.Namespace) -> int:
         """Run the subcommand. Returns exit code (0 = success)."""
-        ...
+        pass
 
     @classmethod
     def main(cls, argv: list[str] | None = None) -> int:
