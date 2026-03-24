@@ -112,6 +112,7 @@ class EnhancedReportGenerator:
         html += self._formatter.format_session_overview(session_info, stats)
         html += self._formatter.format_crash_summary(crashes, fuzzed_files)
         html += self._formatter.format_crash_details(crashes, fuzzed_files)
+        html += self._analytics.format_crash_by_strategy(crashes)
         html += self._analytics.format_mutation_analysis(fuzzed_files, crashes)
         if data.get("strategies_used"):
             html += self._analytics.format_strategy_hit_rate(data["strategies_used"])
