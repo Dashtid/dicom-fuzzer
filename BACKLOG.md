@@ -1129,3 +1129,28 @@ reproduction commands are tracked.
 **Needs decision:** Is this worth stubbing out visibly (e.g. a TODO comment at the field
 site) or leaving as-is until the replay item is implemented? Should it be mentioned as a
 dependency in the variant terminology item?
+
+## Investigate test_files_are_valid_dicom flakiness under load
+
+**Location:** `tests/test_core/engine/test_generator.py::TestFileSaving::test_files_are_valid_dicom`
+
+**Observed (2026-03-24):** Fails intermittently when the full test suite (~4300 tests)
+runs under parallelism or high load. Passes consistently in isolation. Seen across
+multiple independent full-suite runs on the same day, always the same test.
+
+**Likely cause:** The test generates DICOM files and validates them. Under load, a
+timing or resource contention issue (temp directory cleanup, file handle leak, or
+generator non-determinism) may cause a file to be written incompletely or not at all
+before the validation assertion runs.
+
+**Work items:**
+
+1. Run the test 50-100 times in isolation to confirm it never fails alone
+2. Run it under `pytest-xdist` parallelism to reproduce the failure reliably
+3. Inspect the test for shared temp directory usage, missing `sync()`/flush calls,
+   or non-deterministic random state that depends on global RNG
+4. Fix root cause -- likely add explicit file flush, use a unique temp path per run,
+   or seed the generator deterministically in this test
+
+**Priority:** Low unless the failure rate increases. One failure in ~4300 tests is
+acceptable noise but should not be left undiagnosed indefinitely.
