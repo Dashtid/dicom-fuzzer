@@ -442,7 +442,20 @@ class FuzzingSession:
                 for file_id, record in self.fuzzed_files.items()
             },
             "crashes": [crash.to_dict() for crash in self.crashes],
+            "crash_by_strategy": self._compute_crash_by_strategy(),
         }
+
+    def _compute_crash_by_strategy(self) -> dict[str, int]:
+        """Count crashes attributed to each strategy.
+
+        A crash credits every strategy that was applied to the file that crashed.
+        Sorted descending by crash count.
+        """
+        counts: dict[str, int] = {}
+        for crash in self.crashes:
+            for strategy_name, _ in crash.mutation_sequence:
+                counts[strategy_name] = counts.get(strategy_name, 0) + 1
+        return dict(sorted(counts.items(), key=lambda x: x[1], reverse=True))
 
     def save_session_report(
         self,

@@ -105,6 +105,49 @@ class ReportAnalytics:
 
         return html
 
+    def format_crash_by_strategy(self, crashes: list[dict[str, Any]]) -> str:
+        """Return an HTML table section showing crash counts per strategy.
+
+        Each crash credits every strategy that was applied to the file that
+        crashed (a file can have 1-2 strategies). Sorted by crash count descending.
+
+        Args:
+            crashes: List of crash record dicts from session data.
+
+        Returns:
+            HTML string, or empty string if there are no crashes.
+
+        """
+        if not crashes:
+            return ""
+
+        counts: dict[str, int] = {}
+        for crash in crashes:
+            for entry in crash.get("mutation_sequence", []):
+                strategy_name = entry[0] if isinstance(entry, (list, tuple)) else entry
+                counts[strategy_name] = counts.get(strategy_name, 0) + 1
+
+        if not counts:
+            return ""
+
+        total_crashes = len(crashes)
+        rows = ""
+        for name, count in sorted(counts.items(), key=lambda x: -x[1]):
+            pct = (count / total_crashes * 100) if total_crashes > 0 else 0
+            rows += (
+                f"<tr><td>{escape_html(name)}</td>"
+                f"<td>{count}</td>"
+                f"<td>{pct:.1f}%</td></tr>"
+            )
+
+        return (
+            "<h2>Crashes by Strategy</h2>"
+            "<table><thead><tr>"
+            "<th>Strategy</th><th>Crashes</th><th>% of Total</th>"
+            "</tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+        )
+
     def format_strategy_hit_rate(self, strategies_used: dict[str, int]) -> str:
         """Return an HTML table section showing strategy hit counts and share."""
         if not strategies_used:

@@ -357,6 +357,57 @@ class TestFuzzingSession:
         assert "session_info" in data
         assert data["session_info"]["session_name"] == "test"
 
+    def test_generate_session_report_crash_by_strategy(self, temp_dirs):
+        """crash_by_strategy counts crashes per strategy in the session report."""
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(temp_dirs["output"]),
+            reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
+        )
+
+        # File 1: mutated by "pixel", crashes
+        file_id_1 = session.start_file_fuzzing(
+            source_file=temp_dirs["output"] / "seed.dcm",
+            output_file=temp_dirs["output"] / "out1.dcm",
+            severity="moderate",
+        )
+        session.record_mutation(strategy_name="pixel", mutation_type="dim_mismatch")
+        (temp_dirs["output"] / "out1.dcm").write_text("dummy")
+        session.end_file_fuzzing(temp_dirs["output"] / "out1.dcm", success=True)
+        session.record_crash(file_id=file_id_1, crash_type="crash")
+
+        # File 2: mutated by "metadata", crashes
+        file_id_2 = session.start_file_fuzzing(
+            source_file=temp_dirs["output"] / "seed.dcm",
+            output_file=temp_dirs["output"] / "out2.dcm",
+            severity="moderate",
+        )
+        session.record_mutation(strategy_name="metadata", mutation_type="injection")
+        (temp_dirs["output"] / "out2.dcm").write_text("dummy")
+        session.end_file_fuzzing(temp_dirs["output"] / "out2.dcm", success=True)
+        session.record_crash(file_id=file_id_2, crash_type="crash")
+
+        # File 3: mutated by "pixel" again, crashes
+        file_id_3 = session.start_file_fuzzing(
+            source_file=temp_dirs["output"] / "seed.dcm",
+            output_file=temp_dirs["output"] / "out3.dcm",
+            severity="moderate",
+        )
+        session.record_mutation(strategy_name="pixel", mutation_type="truncation")
+        (temp_dirs["output"] / "out3.dcm").write_text("dummy")
+        session.end_file_fuzzing(temp_dirs["output"] / "out3.dcm", success=True)
+        session.record_crash(file_id=file_id_3, crash_type="crash")
+
+        report = session.generate_session_report()
+
+        assert "crash_by_strategy" in report
+        cbs = report["crash_by_strategy"]
+        assert cbs["pixel"] == 2
+        assert cbs["metadata"] == 1
+        # pixel has more crashes so it comes first (dict preserves insertion order)
+        assert list(cbs.keys())[0] == "pixel"
+
     def test_statistics_tracking(self, temp_dirs):
         """Test statistics are tracked correctly."""
         session = FuzzingSession(
