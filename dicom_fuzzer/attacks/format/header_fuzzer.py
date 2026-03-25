@@ -20,6 +20,14 @@ from pydicom.dataset import Dataset
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+from .dicom_dictionaries import (
+    BOUNDARY_AGE_STRINGS,
+    BUFFER_OVERFLOW_STRINGS,
+    INVALID_DATES,
+    INVALID_PN_VALUES,
+    INVALID_TIMES,
+    NUMERIC_VR_BOUNDARIES,
+)
 from .uid_attacks import INVALID_UIDS, UID_TAG_NAMES
 
 logger = get_logger(__name__)
@@ -91,8 +99,7 @@ VR_MUTATIONS = {
     ],
     # LO - Long String (max 64 chars)
     "LO": [
-        "A" * 65,  # Over limit
-        "A" * 1024,  # Way over limit
+        *BUFFER_OVERFLOW_STRINGS[:2],  # 65 and 1024 chars
         "\x00" * 10,  # Null bytes
         "Line1\nLine2",  # Newline (invalid)
         "\r\nCRLF",  # CRLF
@@ -117,11 +124,9 @@ VR_MUTATIONS = {
     ],
     # PN - Person Name (5 component groups, 64 chars each)
     "PN": [
-        "A" * 65 + "^" + "B" * 65,  # Both components over limit
-        "Family^Given^Middle^Prefix^Suffix^Extra",  # 6 components (max 5)
-        "\x00Name",  # Null byte
-        "=Ideographic=Phonetic",  # Component groups without alphabetic
-        "A" * 1000,  # Very long single component
+        *INVALID_PN_VALUES[
+            :5
+        ],  # Overlong components, too many groups, null, missing alphabetic, very long
     ],
     # SH - Short String (max 16 chars)
     "SH": [
@@ -227,22 +232,11 @@ VR_MUTATIONS = {
     ],
     # DA - Date (YYYYMMDD format, 8 chars)
     "DA": [
-        "INVALID",  # Non-date
-        "99999999",  # Invalid date
-        "20251332",  # Month > 12
-        "20250145",  # Day > 31
-        "2025-01-01",  # Wrong format
-        "",  # Empty
-        "1",  # Too short
+        *INVALID_DATES[:7],
     ],
     # TM - Time (HHMMSS.FFFFFF format)
     "TM": [
-        "999999",  # Hours > 23
-        "126000",  # Minutes > 59
-        "120075",  # Seconds > 59
-        "ABCDEF",  # Non-numeric
-        "12:30:45",  # Wrong format
-        "",  # Empty
+        *INVALID_TIMES[:6],
     ],
     # IS - Integer String (max 12 chars)
     "IS": [
@@ -387,14 +381,7 @@ class HeaderFuzzer(FormatFuzzerBase):
 
         # Test age with boundary values
         if hasattr(dataset, "PatientAge"):
-            boundary_ages = [
-                "000Y",  # Zero age
-                "999Y",  # Very old
-                "001D",  # One day old
-                "999W",  # 999 weeks
-                "000M",  # Zero months
-            ]
-            dataset.PatientAge = random.choice(boundary_ages)
+            dataset.PatientAge = random.choice(BOUNDARY_AGE_STRINGS)
 
         # Test string length boundaries
         if hasattr(dataset, "PatientName"):
@@ -450,21 +437,14 @@ class HeaderFuzzer(FormatFuzzerBase):
         in parsers. Values are all within valid range for their VR type so
         pydicom can serialize them without recovery.
         """
-        numeric_attacks = {
-            "US": [0, 1, 65534, 65535],
-            "SS": [-32768, -1, 0, 32767],
-            "UL": [0, 1, 2147483647, 4294967295],
-            "SL": [-2147483648, -1, 0, 2147483647],
-        }
-
         for elem in dataset:
             if not hasattr(elem, "VR"):
                 continue
 
             vr = elem.VR
-            if vr in numeric_attacks and random.random() > 0.7:
+            if vr in NUMERIC_VR_BOUNDARIES and random.random() > 0.7:
                 try:
-                    attack_value = random.choice(numeric_attacks[vr])
+                    attack_value = random.choice(NUMERIC_VR_BOUNDARIES[vr])
                     elem.value = attack_value
                 except Exception as e:
                     logger.debug("Numeric VR attack rejected for %s: %s", vr, e)

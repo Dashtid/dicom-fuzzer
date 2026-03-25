@@ -25,7 +25,11 @@ from pydicom.tag import Tag
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
-from .dicom_dictionaries import BINARY_FILE_HEADERS, INJECTION_PAYLOADS
+from .dicom_dictionaries import (
+    BINARY_FILE_HEADERS,
+    INJECTION_PAYLOADS,
+    MALICIOUS_CREATOR_NAMES,
+)
 
 logger = get_logger(__name__)
 
@@ -47,16 +51,11 @@ KNOWN_CREATORS = [
     "SPI-P-GV-CT Release 1",  # Various
 ]
 
-# Fake/malicious creators for testing
+# Fake/malicious creators for testing.
+# Unique structural violations + injection payloads from central dict.
 MALICIOUS_CREATORS = [
-    "",  # Empty
-    "A" * 100,  # Overlong
-    "CREATOR\x00HIDDEN",  # Embedded null
-    "CREATOR\nNEWLINE",  # Embedded newline
-    "../../../etc/passwd",  # Path traversal attempt
-    "<script>alert(1)</script>",  # XSS attempt
-    "'; DROP TABLE patients; --",  # SQL injection attempt
-    "\x00\x01\x02\x03",  # Binary data
+    *MALICIOUS_CREATOR_NAMES,
+    *INJECTION_PAYLOADS[:3],  # Path traversal, SQL, XSS
 ]
 
 # Common private tag groups

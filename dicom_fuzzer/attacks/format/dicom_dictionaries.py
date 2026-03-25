@@ -516,6 +516,51 @@ BUFFER_OVERFLOW_STRINGS: list[str] = [
 ]
 
 # Binary file headers that may be misinterpreted by parsers.
+# Invalid/problematic SpecificCharacterSet values.
+# Complements CHARACTER_SETS (valid values) with values that violate the spec.
+INVALID_CHARSETS: list[str] = [
+    "INVALID_CHARSET",
+    "UTF-16",  # Not supported in DICOM
+    "UTF-32",
+    "ISO_IR 999",  # Non-existent
+    "\\ISO_IR 100",  # Backslash prefix
+    "ISO_IR 100\\ISO_IR 100",  # Duplicate entry
+    "",  # Empty with multi-byte data
+    "\x01",  # SOH control character
+    "A" * 100,  # Overlong
+]
+
+# DICOM AS VR (Age String) boundary values.
+# Format: NNNU where NNN is digits and U is D/W/M/Y.
+BOUNDARY_AGE_STRINGS: list[str] = [
+    "000Y",  # Zero age
+    "999Y",  # Very old (upper boundary)
+    "001D",  # One day old
+    "999W",  # 999 weeks
+    "000M",  # Zero months
+]
+
+# Boundary integers for numeric VR types (US/SS/UL/SL).
+# Values are valid for their VR type so pydicom can serialize them without
+# recovery. Purpose: trigger integer overflow/underflow in target parsers.
+NUMERIC_VR_BOUNDARIES: dict[str, list[int]] = {
+    "US": [0, 1, 65534, 65535],
+    "SS": [-32768, -1, 0, 32767],
+    "UL": [0, 1, 2147483647, 4294967295],
+    "SL": [-2147483648, -1, 0, 2147483647],
+}
+
+# Attack variants for DICOM private creator ID fields.
+# Unique items only (empty, overlong, embedded control chars, binary data).
+# For injection attacks (path traversal, XSS, SQL) use INJECTION_PAYLOADS.
+MALICIOUS_CREATOR_NAMES: list[str] = [
+    "",  # Empty creator
+    "A" * 100,  # Overlong (LO max is 64)
+    "CREATOR\x00HIDDEN",  # Embedded null
+    "CREATOR\nNEWLINE",  # Embedded newline
+    "\x00\x01\x02\x03",  # Raw binary data
+]
+
 BINARY_FILE_HEADERS: list[bytes] = [
     b"MZ" + b"\x00" * 100,  # PE / Windows executable
     b"\x7fELF" + b"\x00" * 100,  # ELF / Linux executable
