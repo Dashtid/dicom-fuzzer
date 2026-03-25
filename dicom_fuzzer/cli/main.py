@@ -55,6 +55,7 @@ SUBCOMMANDS: dict[str, str] = {
     "report": "dicom_fuzzer.cli.commands.reports",  # Report generation
     "triage": "dicom_fuzzer.cli.commands.triage",  # Crash triage
     "generate-seeds": "dicom_fuzzer.cli.commands.seeds",
+    "replay": "dicom_fuzzer.cli.commands.replay",  # Decompose fuzzed files
 }
 
 
