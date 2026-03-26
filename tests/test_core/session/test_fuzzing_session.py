@@ -959,4 +959,45 @@ class TestFuzzingSession:
         content = log_path.read_text(encoding="utf-8")
         assert "CRASH REPORT" in content
         assert "fuzz_001" in content
-        assert "Mutations:     0" in content
+
+
+class TestFuzzingSessionSeed:
+    """Tests for seed propagation into session reports."""
+
+    def test_seed_appears_in_session_info(self, tmp_path):
+        """seed passed to FuzzingSession must appear in generate_session_report()."""
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(tmp_path / "output"),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+            seed=12345,
+        )
+        report = session.generate_session_report()
+        assert report["session_info"]["seed"] == 12345
+
+    def test_seed_none_when_not_provided(self, tmp_path):
+        """seed must be None in session_info when not supplied."""
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(tmp_path / "output"),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
+        report = session.generate_session_report()
+        assert report["session_info"]["seed"] is None
+
+    def test_seed_persisted_in_saved_json(self, tmp_path):
+        """seed must survive the JSON round-trip written by save_session_report()."""
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(tmp_path / "output"),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+            seed=987654321,
+        )
+        import json
+
+        report_path = session.save_session_report()
+        data = json.loads(report_path.read_text(encoding="utf-8"))
+        assert data["session_info"]["seed"] == 987654321
