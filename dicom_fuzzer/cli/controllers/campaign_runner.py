@@ -387,6 +387,7 @@ class CampaignRunner:
                 "Skipped": skipped,
                 "Duration": f"{elapsed_time:.2f}s ({files_per_sec:.1f} files/sec)",
                 "Output": str(self.args.output),
+                "Seed": str(results_data.get("seed", "n/a")),
             }
 
             if "strategies_used" in results_data:

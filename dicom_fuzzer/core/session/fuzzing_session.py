@@ -122,6 +122,7 @@ class FuzzingSession:
         config: dict[str, Any] | None = None,
         session_id: str | None = None,
         crashes_dir: str | None = None,
+        seed: int | None = None,
     ):
         """Initialize fuzzing session tracker.
 
@@ -132,6 +133,7 @@ class FuzzingSession:
             config: Fuzzer configuration (optional)
             session_id: Explicit session ID (overrides auto-generated)
             crashes_dir: Directory for crash files (default: ./crashes/<session_id>)
+            seed: RNG seed used during generation (for reproducibility reporting)
 
         """
         # Support both old (session_name) and new (session_id) API
@@ -147,6 +149,7 @@ class FuzzingSession:
             self.session_id = generate_session_id()
 
         self.config = config or {}
+        self.seed = seed
         self.start_time = datetime.now()
 
         # Directory structure
@@ -432,6 +435,7 @@ class FuzzingSession:
             "session_info": {
                 "session_id": self.session_id,
                 "session_name": self.session_name,
+                "seed": self.seed,
                 "start_time": self.start_time.isoformat(),
                 "end_time": end_time.isoformat(),
                 "duration_seconds": duration,

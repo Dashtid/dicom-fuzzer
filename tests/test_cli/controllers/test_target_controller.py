@@ -738,3 +738,62 @@ class TestLoadMutationMap:
 
         assert result["fuzz_001.dcm"]["strategy"] == "pixel"
         assert result["fuzz_001.dcm"]["variant"] == "_extreme_contradiction"
+
+
+class TestLoadSeedFromMap:
+    """Tests for _load_seed_from_map seed extraction."""
+
+    def test_returns_seed_from_wrapped_format(self, tmp_path: Path) -> None:
+        """Must return the integer seed from the {seed, mutations} format."""
+        import json
+
+        fuzz_dir = tmp_path / "fuzzed"
+        fuzz_dir.mkdir()
+        map_path = fuzz_dir / "mutation_map.json"
+        map_path.write_text(
+            json.dumps(
+                {
+                    "seed": 99999,
+                    "mutations": {
+                        "fuzz_001.dcm": {"strategy": "pixel", "variant": None}
+                    },
+                }
+            )
+        )
+        f = fuzz_dir / "fuzz_001.dcm"
+        f.write_bytes(b"")
+
+        result = TargetTestingController._load_seed_from_map([f])
+
+        assert result == 99999
+
+    def test_returns_none_when_seed_absent(self, tmp_path: Path) -> None:
+        """Old-format map with no seed key must return None."""
+        import json
+
+        fuzz_dir = tmp_path / "fuzzed"
+        fuzz_dir.mkdir()
+        map_path = fuzz_dir / "mutation_map.json"
+        map_path.write_text(json.dumps({"fuzz_001.dcm": "header"}))
+        f = fuzz_dir / "fuzz_001.dcm"
+        f.write_bytes(b"")
+
+        result = TargetTestingController._load_seed_from_map([f])
+
+        assert result is None
+
+    def test_returns_none_when_map_missing(self, tmp_path: Path) -> None:
+        """Missing mutation_map.json must return None without error."""
+        fuzz_dir = tmp_path / "fuzzed"
+        fuzz_dir.mkdir()
+        f = fuzz_dir / "fuzz_001.dcm"
+        f.write_bytes(b"")
+
+        result = TargetTestingController._load_seed_from_map([f])
+
+        assert result is None
+
+    def test_returns_none_for_empty_files_list(self) -> None:
+        """Empty file list must return None without error."""
+        result = TargetTestingController._load_seed_from_map([])
+        assert result is None

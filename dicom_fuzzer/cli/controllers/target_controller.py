@@ -84,8 +84,10 @@ class TargetTestingController:
                 },
             )
 
-            # Load mutation map (filename -> strategy) from generation phase
+            # Load mutation map (filename -> strategy) and seed from generation phase
             mutation_map = TargetTestingController._load_mutation_map(files)
+            campaign_seed = TargetTestingController._load_seed_from_map(files)
+            session.seed = campaign_seed
 
             # Register all test files with the session
             file_id_map: dict[Path, str] = {}
@@ -221,6 +223,23 @@ class TargetTestingController:
         except Exception as e:
             logger.warning("Failed to load mutation map: %s", e)
             return {}
+
+    @staticmethod
+    def _load_seed_from_map(files: list[Path]) -> int | None:
+        """Extract the RNG seed from mutation_map.json written by the generation phase."""
+        if not files:
+            return None
+        map_path = files[0].parent / "mutation_map.json"
+        if not map_path.exists():
+            return None
+        try:
+            with open(map_path) as f:
+                raw: dict[str, object] = json.load(f)
+            seed = raw.get("seed")
+            return int(seed) if isinstance(seed, (int, float, str)) else None
+        except Exception as e:
+            logger.warning("Failed to read seed from mutation map: %s", e)
+            return None
 
     @staticmethod
     def _create_runner(

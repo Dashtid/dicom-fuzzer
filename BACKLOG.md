@@ -312,55 +312,6 @@ fuzzer self-select based on SOPClassUID. The engine offers every seed
 to every fuzzer; specialized fuzzers skip seeds they don't understand.
 No engine changes needed.
 
-## Expand DictionaryFuzzer TAG_TO_DICTIONARY for CS VR tags
-
-**Context:** `dicom_fuzzer/attacks/format/dictionary_fuzzer.py`
-
-`TAG_TO_DICTIONARY` currently maps 18 tags to value dictionaries.
-DICOM PS3.6 defines ~4,000+ tags total. The biggest gap is CS
-(Code String) tags -- there are ~300 of them, each with an enumerated
-set of valid values (e.g., ImageType: ORIGINAL/DERIVED/PRIMARY/SECONDARY,
-BodyPartExamined: HEAD/CHEST/ABDOMEN, Laterality: L/R, etc.).
-
-Currently, CS tags not in `TAG_TO_DICTIONARY` fall through to the
-random-dictionary fallback (line 251), which picks a value from an
-unrelated dictionary. This produces obviously invalid data (a date
-string in a laterality field) rather than plausible-but-wrong data
-(R in a field that should be L for this study).
-
-### What to add
-
-Priority CS tags with enumerated values worth mapping:
-
-- `ImageType` (0008,0008): ORIGINAL, DERIVED, PRIMARY, SECONDARY, etc.
-- `BodyPartExamined` (0018,0015): HEAD, CHEST, ABDOMEN, PELVIS, etc.
-- `Laterality` (0020,0060): L, R
-- `PatientPosition` (0018,5100): HFS, HFP, FFS, FFP, etc.
-- `ConversionType` (0008,0064): DV, DI, DF, WSD, SD, SI, etc.
-- `PresentationIntentType` (0008,0068): FOR PROCESSING, FOR PRESENTATION
-- `LossyImageCompression` (0028,2110): 00, 01
-
-Also, DA/TM/PN tags beyond the 2 dates and 2 times currently mapped:
-
-- `ContentDate` (0008,0023), `AcquisitionDate` (0008,0022)
-- `ContentTime` (0008,0033), `AcquisitionTime` (0008,0032)
-- `ReferringPhysicianName` (0008,0090), `PerformingPhysicianName` (0008,1050)
-
-### Implementation approach
-
-Two options:
-
-1. **Manual expansion**: Add ~20-30 high-value CS tags with curated value
-   lists in `dicom_dictionaries.py`. Straightforward, easy to audit for
-   FDA submissions.
-2. **Runtime VR detection**: Use pydicom's data dictionary at runtime to
-   detect CS VR tags and apply generic CS mutations (wrong case, wrong
-   length, unknown codes). More coverage, less precision.
-
-Option 1 is recommended as a first step. Option 2 could supplement later.
-
-Medium effort, low risk.
-
 ## Unify reporting CSS/HTML systems
 
 **Location:** `dicom_fuzzer/core/reporting/html_templates.py`,
@@ -1025,70 +976,6 @@ group.
 
 Large effort overall. Each fuzzer is a contained unit so the work can
 be done incrementally, one fuzzer at a time, without cross-file risk.
-
-## Consolidate split same-module imports across the repo
-
-**Location:** repo-wide (`dicom_fuzzer/`)
-
-Multiple files import from the same module in separate `from X import`
-blocks instead of one combined block. This is an artifact of incremental
-development: each time a new symbol was needed from a module, a new
-import line was appended rather than extending the existing one. The
-result looks like `metadata_fuzzer.py` lines 23-34 -- four consecutive
-blocks from `.dicom_dictionaries` that should be one.
-
-A full scan found **16 files** with this pattern. They fall into three
-tiers:
-
-**Straightforward consolidation (module-level, same scope):**
-
-None remaining. The split blocks in `metadata_fuzzer.py` and `conformance_fuzzer.py`
-were enforced by ruff's isort rule: aliased imports (`from X import Y as Z`) are
-always split into their own block. Consolidating them triggers an I001 error and ruff
-immediately reverts the change. These splits are linter-enforced, not accidental.
-
-**Verify before consolidating (may be intentional lazy imports):**
-
-These files import inside function bodies, which defers the import cost
-to the call site. This is sometimes deliberate for CLI startup time.
-Check each one before merging:
-
-- `cli/commands/calibrate.py` -- `CalibrationFuzzer` at lines 41 and 197
-- `cli/commands/corpus.py` -- `study_minimizer` at lines 51 and 392
-- `cli/commands/state.py` -- `state_aware_fuzzer` at lines 37, 107, 164
-- `cli/commands/study.py` -- `study_mutator` at lines 41 and 195
-- `cli/commands/study_campaign.py` -- `study_mutator` at lines 34, 304,
-  603, 729 (4 separate imports)
-- `core/corpus/study_minimizer.py` -- `target_runner` at lines 20 and 409
-- `core/harness/target_runner.py` -- `dicom_fuzzer.core.crash` at lines
-  18, 23, 157; `process_monitor` at lines 165 and 562
-- `attacks/format/private_tag_fuzzer.py` -- `pydicom.sequence` imported
-  inside two function bodies
-
-**Leave alone (legitimate pattern):**
-
-- `attacks/network/pdu_mixin.py` -- runtime block + TYPE_CHECKING block;
-  standard Python practice, same as the exemption below
-- `attacks/network/tls_mixin.py` -- same
-- `cli/utils/output.py` -- rich imports are lazy (inside `_get_console()`)
-  to defer CLI startup cost; intentional, not accidental splitting
-- `cli/controllers/network_controller.py` -- split across a
-  `TYPE_CHECKING` guard; this is standard Python practice and must stay
-  split
-- `cli/controllers/campaign_runner.py` -- `tqdm` imported twice with
-  different aliases (`tqdm` / `tqdm_iter`); intentionally distinct uses
-- `attacks/network/dimse/dataset_mutator.py` -- `types` in
-  `TYPE_CHECKING` guard plus runtime imports; leave as-is
-
-### Fix
-
-For the straightforward tier: merge into one `from X import (A, B, C)`
-block. For the lazy-import tier: read each function to determine whether
-the in-function import is avoiding a circular dependency or just
-accidental placement; consolidate to the top only if it is safe.
-
-Small-medium effort. No behavior change. Run the test suite after each
-file to confirm nothing broke.
 
 ---
 
