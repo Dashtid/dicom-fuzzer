@@ -797,3 +797,57 @@ class TestLoadSeedFromMap:
         """Empty file list must return None without error."""
         result = TargetTestingController._load_seed_from_map([])
         assert result is None
+
+
+class TestLoadMutationMapBinaryMutations:
+    """Tests for binary_mutations key in _load_mutation_map output."""
+
+    def test_reads_binary_mutations_from_map(self, tmp_path: Path) -> None:
+        """binary_mutations list in mutation_map.json must appear in normalized entry."""
+        import json
+
+        fuzz_dir = tmp_path / "fuzzed"
+        fuzz_dir.mkdir()
+        map_path = fuzz_dir / "mutation_map.json"
+        map_path.write_text(
+            json.dumps(
+                {
+                    "seed": 1,
+                    "mutations": {
+                        "f.dcm": {
+                            "strategy": "structure",
+                            "variant": None,
+                            "binary_mutations": ["_corrupt_tag_ordering"],
+                        }
+                    },
+                }
+            )
+        )
+        f = fuzz_dir / "f.dcm"
+        f.write_bytes(b"")
+
+        result = TargetTestingController._load_mutation_map([f])
+
+        assert result["f.dcm"]["binary_mutations"] == ["_corrupt_tag_ordering"]
+
+    def test_binary_mutations_defaults_empty_when_absent(self, tmp_path: Path) -> None:
+        """Entry without binary_mutations key must yield [] in normalized output."""
+        import json
+
+        fuzz_dir = tmp_path / "fuzzed"
+        fuzz_dir.mkdir()
+        map_path = fuzz_dir / "mutation_map.json"
+        map_path.write_text(
+            json.dumps(
+                {
+                    "seed": 2,
+                    "mutations": {"f.dcm": {"strategy": "header", "variant": None}},
+                }
+            )
+        )
+        f = fuzz_dir / "f.dcm"
+        f.write_bytes(b"")
+
+        result = TargetTestingController._load_mutation_map([f])
+
+        assert result["f.dcm"]["binary_mutations"] == []
