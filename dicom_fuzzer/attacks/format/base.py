@@ -34,6 +34,9 @@ class FormatFuzzerBase(ABC):
         self.last_variant: str | None = (
             None  # Set by mutate() to record chosen sub-attack(s)
         )
+        self._applied_binary_mutations: list[
+            str
+        ] = []  # Set by mutate_bytes() to record which binary attacks ran
 
     @abstractmethod
     def mutate(self, dataset: Dataset) -> Dataset:

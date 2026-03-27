@@ -255,6 +255,7 @@ class CampaignRunner:
         if not strategy_map:
             return
         variant_map = generator.file_variant_map
+        binary_map = generator.file_binary_mutations_map
         output_dir = Path(self.args.output)
         map_path = output_dir / "mutation_map.json"
         try:
@@ -262,6 +263,7 @@ class CampaignRunner:
                 filename: {
                     "strategy": strategy,
                     "variant": variant_map.get(filename),
+                    "binary_mutations": binary_map.get(filename, []),
                 }
                 for filename, strategy in strategy_map.items()
             }

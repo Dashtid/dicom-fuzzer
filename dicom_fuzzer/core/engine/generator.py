@@ -84,6 +84,7 @@ class DICOMGenerator:
         self.mutator = DicomMutator(seed=self.seed)
         self.file_strategy_map: dict[str, str] = {}
         self.file_variant_map: dict[str, str] = {}
+        self.file_binary_mutations_map: dict[str, list[str]] = {}
 
     @property
     def known_strategy_names(self) -> list[str]:
@@ -343,6 +344,9 @@ class DICOMGenerator:
                     variant = getattr(strategy_obj, "last_variant", None)
                     if variant:
                         self.file_variant_map[output_path.name] = variant
+                binary_muts = getattr(strategy_obj, "_applied_binary_mutations", [])
+                if binary_muts:
+                    self.file_binary_mutations_map[output_path.name] = list(binary_muts)
                 return output_path
             except self._SAVE_ERRORS as e:
                 if attempt < max_retries - 1 and self._try_recover(

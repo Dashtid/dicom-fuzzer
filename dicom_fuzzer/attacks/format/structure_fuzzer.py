@@ -560,6 +560,7 @@ class StructureFuzzer(FormatFuzzerBase):
             Possibly-modified byte string
 
         """
+        self._applied_binary_mutations = []
         if len(file_data) < _DATA_OFFSET + 4:
             return file_data
         if file_data[_DICM_OFFSET:_DATA_OFFSET] != _DICM_MAGIC:
@@ -576,6 +577,7 @@ class StructureFuzzer(FormatFuzzerBase):
         for attack in selected:
             try:
                 result = attack(result)
+                self._applied_binary_mutations.append(attack.__name__)
             except Exception as e:
                 logger.debug("Binary attack %s failed: %s", attack.__name__, e)
         return result

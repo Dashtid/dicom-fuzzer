@@ -96,6 +96,7 @@ class TargetTestingController:
                 entry = mutation_map.get(f.name, {})
                 strategy = entry.get("strategy", "")
                 variant = entry.get("variant")
+                binary_mutations = entry.get("binary_mutations") or []
                 file_id = session.start_file_fuzzing(
                     source_file=resolved,
                     output_file=resolved,
@@ -106,6 +107,7 @@ class TargetTestingController:
                         strategy_name=strategy,
                         mutation_type="format_fuzzing",
                         variant=variant,
+                        binary_mutations=binary_mutations or None,
                     )
                 session.end_file_fuzzing(resolved)
                 file_id_map[resolved] = file_id
@@ -187,7 +189,7 @@ class TargetTestingController:
     @staticmethod
     def _load_mutation_map(
         files: list[Path],
-    ) -> dict[str, dict[str, str | None]]:
+    ) -> dict[str, dict[str, Any]]:
         """Load filename->strategy/variant mapping written by the generation phase.
 
         Handles both the old format ({filename: strategy_str}) and the current
@@ -209,15 +211,20 @@ class TargetTestingController:
             else:
                 entries = raw
             # Normalize: old entries are plain strings; new entries are dicts
-            normalized: dict[str, dict[str, str | None]] = {}
+            normalized: dict[str, dict[str, Any]] = {}
             for filename, value in entries.items():
                 if isinstance(value, dict):
                     normalized[filename] = {
                         "strategy": value.get("strategy", ""),
                         "variant": value.get("variant"),
+                        "binary_mutations": list(value.get("binary_mutations") or []),
                     }
                 else:
-                    normalized[filename] = {"strategy": str(value), "variant": None}
+                    normalized[filename] = {
+                        "strategy": str(value),
+                        "variant": None,
+                        "binary_mutations": [],
+                    }
             logger.info("Loaded mutation map: %d entries", len(normalized))
             return normalized
         except Exception as e:
