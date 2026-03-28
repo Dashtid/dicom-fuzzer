@@ -745,3 +745,39 @@ class TestMutateBytes:
         noop = _ConcreteNoOp()
         data = b"some data"
         assert noop.mutate_bytes(data) is data
+
+
+class TestAppliedBinaryMutations:
+    """Tests for _applied_binary_mutations side-channel on StructureFuzzer."""
+
+    def test_populated_after_valid_dicom(self):
+        """_applied_binary_mutations must be a non-empty list of strings after a successful call."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        populated = False
+        for _ in range(50):
+            fuzzer.mutate_bytes(file_data)
+            if fuzzer._applied_binary_mutations:
+                assert all(
+                    isinstance(name, str) for name in fuzzer._applied_binary_mutations
+                )
+                populated = True
+                break
+        assert populated, "_applied_binary_mutations never populated in 50 runs"
+
+    def test_cleared_on_each_call(self):
+        """Each call to mutate_bytes() must reset _applied_binary_mutations (no accumulation)."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        # First call
+        fuzzer.mutate_bytes(file_data)
+        first_count = len(fuzzer._applied_binary_mutations)
+        # Second call — list must reflect only the second call's attacks
+        fuzzer.mutate_bytes(file_data)
+        second_count = len(fuzzer._applied_binary_mutations)
+        # Both counts must be in [0, 2]; if they accumulated the second would be > 2
+        assert second_count <= 2, "accumulation detected: count exceeded maximum of 2"
+        # The list is independent — not the sum of both calls
+        assert first_count + second_count <= 4, (
+            "sanity: each call selects at most 2 attacks"
+        )

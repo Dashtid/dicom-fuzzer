@@ -39,16 +39,20 @@ class SequenceFuzzer(FormatFuzzerBase):
     def __init__(self) -> None:
         """Initialize the sequence fuzzer with attack patterns."""
         super().__init__()
-        self.mutation_strategies = [
-            self._deep_nesting_attack,
-            self._item_length_mismatch,
-            self._empty_required_sequence,
-            self._orphan_item_attack,
-            self._circular_reference_attack,
-            self._delimiter_corruption,
-            self._mixed_encoding_sequence,
-            self._massive_item_count,
+        self.structural_strategies = [
+            self._deep_nesting_attack,  # [STRUCTURAL] 50-1000 nesting levels — call-stack exhaustion
+            self._item_length_mismatch,  # [STRUCTURAL] extreme-length strings in items — buffer overflow
+            self._empty_required_sequence,  # [STRUCTURAL] empty sequence where items required — null-pointer
+            self._orphan_item_attack,  # [STRUCTURAL] Item bytes in private data — byte-scanning confusion
+            self._delimiter_corruption,  # [STRUCTURAL] delimiter bytes in text fields — state machine violation
+            self._massive_item_count,  # [STRUCTURAL] 1000-10000 items — allocation exhaustion
         ]
+        self.content_strategies = [
+            self._circular_reference_attack,  # [CONTENT] circular UIDs stored and ignored at parse time
+            self._mixed_encoding_sequence,  # [CONTENT] mixed charsets per item — rendering issue, not crash
+        ]
+        # Combined for backward compatibility
+        self.mutation_strategies = self.structural_strategies + self.content_strategies
 
     @property
     def strategy_name(self) -> str:
@@ -65,8 +69,9 @@ class SequenceFuzzer(FormatFuzzerBase):
             Mutated dataset with sequence corruptions
 
         """
-        num_strategies = random.randint(1, 2)
-        selected = random.sample(self.mutation_strategies, num_strategies)
+        selected = random.sample(self.structural_strategies, k=random.randint(1, 2))
+        if random.random() < 0.33:
+            selected.append(random.choice(self.content_strategies))
         self.last_variant = ",".join(s.__name__ for s in selected)
 
         for strategy in selected:

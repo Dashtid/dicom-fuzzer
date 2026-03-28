@@ -39,13 +39,16 @@ class RTStructureSetFuzzer(FormatFuzzerBase):
     def __init__(self) -> None:
         """Initialize the RT structure set fuzzer with attack strategies."""
         super().__init__()
-        self.mutation_strategies = [
-            self._contour_data_corruption,
-            self._contour_point_count_mismatch,
-            self._roi_cross_reference_attack,
-            self._contour_geometric_type_mismatch,
-            self._frame_of_reference_corruption,
+        self.structural_strategies = [
+            self._contour_point_count_mismatch,  # [STRUCTURAL] NumberOfContourPoints vs ContourData length — array indexing OOB
         ]
+        self.content_strategies = [
+            self._contour_data_corruption,  # [CONTENT] NaN/Inf/extreme in DS values — math lib, not parser
+            self._roi_cross_reference_attack,  # [CONTENT] ROINumber reference integrity — stored fine
+            self._contour_geometric_type_mismatch,  # [CONTENT] GeometricType string — metadata, stored fine
+            self._frame_of_reference_corruption,  # [CONTENT] FoR UID — cross-reference integrity
+        ]
+        self.mutation_strategies = self.structural_strategies + self.content_strategies
 
     @property
     def strategy_name(self) -> str:
@@ -67,8 +70,11 @@ class RTStructureSetFuzzer(FormatFuzzerBase):
             Mutated dataset with contour/ROI corruptions
 
         """
-        num_strategies = random.randint(1, 2)
-        selected = random.sample(self.mutation_strategies, num_strategies)
+        selected = list(
+            self.structural_strategies
+        )  # only 1 structural — always pick it
+        if random.random() < 0.33:
+            selected.append(random.choice(self.content_strategies))
         self.last_variant = ",".join(s.__name__ for s in selected)
 
         for strategy in selected:

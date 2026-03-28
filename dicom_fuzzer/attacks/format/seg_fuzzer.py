@@ -37,12 +37,15 @@ class SegmentationFuzzer(FormatFuzzerBase):
     def __init__(self) -> None:
         """Initialize the segmentation fuzzer with attack strategies."""
         super().__init__()
-        self.mutation_strategies = [
-            self._segment_sequence_corruption,
-            self._segment_frame_mapping_attack,
-            self._binary_pixel_type_mismatch,
-            self._referenced_series_corruption,
+        self.structural_strategies = [
+            self._segment_sequence_corruption,  # [STRUCTURAL] SegmentSequence numbering/structure corruption
+            self._segment_frame_mapping_attack,  # [STRUCTURAL] SegmentIdentificationSequence — frame indexing OOB
+            self._binary_pixel_type_mismatch,  # [STRUCTURAL] SegmentationType vs BitsAllocated — allocation mismatch
         ]
+        self.content_strategies = [
+            self._referenced_series_corruption,  # [CONTENT] ReferencedSeriesSequence UIDs — cross-reference integrity
+        ]
+        self.mutation_strategies = self.structural_strategies + self.content_strategies
 
     @property
     def strategy_name(self) -> str:
@@ -64,8 +67,9 @@ class SegmentationFuzzer(FormatFuzzerBase):
             Mutated dataset with segmentation corruptions
 
         """
-        num_strategies = random.randint(1, 2)
-        selected = random.sample(self.mutation_strategies, num_strategies)
+        selected = random.sample(self.structural_strategies, k=random.randint(1, 2))
+        if random.random() < 0.33:
+            selected.append(random.choice(self.content_strategies))
         self.last_variant = ",".join(s.__name__ for s in selected)
 
         for strategy in selected:

@@ -124,6 +124,7 @@ class TestSaveMutationMap:
         generator.file_variant_map = {
             "fuzz_001.dcm": "_dimension_mismatch,_rescale_attack"
         }
+        generator.file_binary_mutations_map = {}
 
         runner._save_mutation_map(generator)
 
@@ -146,6 +147,7 @@ class TestSaveMutationMap:
         generator = MagicMock()
         generator.file_strategy_map = {"fuzz_001.dcm": "header"}
         generator.file_variant_map = {}
+        generator.file_binary_mutations_map = {}
 
         runner._save_mutation_map(generator)
 
@@ -193,6 +195,7 @@ class TestSeedInOutputs:
         generator = MagicMock()
         generator.file_strategy_map = {"fuzz_001.dcm": "metadata"}
         generator.file_variant_map = {}
+        generator.file_binary_mutations_map = {}
 
         runner._save_mutation_map(generator)
 
