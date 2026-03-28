@@ -482,6 +482,8 @@ INJECTION_PAYLOADS: list[str] = [
     "\x00\x00\x00\x00",
     # HTML-encoded XSS
     "&lt;img src=x onerror=alert(1)&gt;",
+    # Newline flood (log injection, header splitting, metadata field overflow)
+    "\n" * 500,
 ]
 
 # Integer boundary values as strings (for DICOM string VR fields like IS/DS).
