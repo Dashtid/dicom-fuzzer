@@ -44,14 +44,12 @@ class TestMultiFrameFuzzerPublicAPI:
         params = list(sig.parameters.keys())
         assert params == ["dataset"]
 
-    def test_can_mutate_returns_true_by_default(self) -> None:
-        """can_mutate() defaults to True for all multiframe strategies."""
+    def test_unconditional_strategies_always_mutate(self) -> None:
+        """FrameCountMismatch and DimensionOverflow fire on any dataset."""
         dataset = Dataset()
         for cls in [
             FrameCountMismatchStrategy,
-            FrameTimeCorruptionStrategy,
             DimensionOverflowStrategy,
-            FrameIncrementStrategy,
         ]:
             assert cls().can_mutate(dataset) is True
 

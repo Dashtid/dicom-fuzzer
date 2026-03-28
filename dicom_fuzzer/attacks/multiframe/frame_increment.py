@@ -31,6 +31,10 @@ class FrameIncrementStrategy(MultiFrameFuzzerBase):
         """Return the strategy name."""
         return "frame_increment_invalid"
 
+    def can_mutate(self, dataset: Dataset) -> bool:
+        """Only mutate datasets that already have FrameIncrementPointer."""
+        return hasattr(dataset, "FrameIncrementPointer")
+
     def mutate(self, dataset: Dataset) -> Dataset:
         """Apply one randomly-selected mutation and return the mutated dataset."""
         return self._mutate_impl(dataset, 1)[0]

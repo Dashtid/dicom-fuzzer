@@ -38,6 +38,13 @@ class SharedGroupStrategy(MultiFrameFuzzerBase):
         """Return the strategy name."""
         return "shared_group_corruption"
 
+    def can_mutate(self, dataset: Dataset) -> bool:
+        """Only mutate multiframe datasets (NumberOfFrames > 1)."""
+        try:
+            return int(getattr(dataset, "NumberOfFrames", 1)) > 1
+        except (ValueError, TypeError):
+            return False
+
     def mutate(self, dataset: Dataset) -> Dataset:
         """Apply one randomly-selected mutation and return the mutated dataset."""
         return self._mutate_impl(dataset, 1)[0]
