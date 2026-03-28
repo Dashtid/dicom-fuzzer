@@ -325,3 +325,38 @@ class TestMutateIntegration:
         ds = Dataset()
         result = fuzzer.mutate(ds)
         assert isinstance(result, Dataset)
+
+
+# =============================================================================
+# Structural method tests (new in feat/mutation-audit)
+# =============================================================================
+class TestCorruptRadiopharmaceuticalSequence:
+    """Tests for PetFuzzer._corrupt_radiopharmaceutical_sequence."""
+
+    def test_returns_dataset(self, fuzzer: PetFuzzer) -> None:
+        """Method returns a Dataset without raising."""
+        ds = Dataset()
+        ds.SOPClassUID = _PET_SOP_CLASS_UID
+        result = fuzzer._corrupt_radiopharmaceutical_sequence(ds)
+        assert isinstance(result, Dataset)
+
+    def test_runs_on_empty_dataset(self, fuzzer: PetFuzzer) -> None:
+        """Method does not raise on a dataset with no PET-specific tags."""
+        result = fuzzer._corrupt_radiopharmaceutical_sequence(Dataset())
+        assert isinstance(result, Dataset)
+
+    def test_all_attack_variants(self, fuzzer: PetFuzzer) -> None:
+        """All four sub-attacks execute without exception."""
+        attacks = [
+            "empty_sequence",
+            "count_mismatch",
+            "missing_sequence",
+            "extra_nesting",
+        ]
+        for attack in attacks:
+            ds = Dataset()
+            ds.SOPClassUID = _PET_SOP_CLASS_UID
+            with pytest.MonkeyPatch().context() as mp:
+                mp.setattr("random.choice", lambda _: attack)
+                result = fuzzer._corrupt_radiopharmaceutical_sequence(copy.deepcopy(ds))
+            assert isinstance(result, Dataset)

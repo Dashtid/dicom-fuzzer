@@ -38,18 +38,24 @@ class ReferenceFuzzer(FormatFuzzerBase):
     def __init__(self) -> None:
         """Initialize the reference fuzzer."""
         super().__init__()
-        self.mutation_strategies = [
-            self._orphan_reference,
-            self._circular_reference,
-            self._self_reference,
-            self._invalid_frame_reference,
-            self._mismatched_study_reference,
-            self._broken_series_reference,
-            self._frame_of_reference_attack,
-            self._duplicate_references,
-            self._massive_reference_chain,
-            self._reference_type_mismatch,
+        self.structural_strategies = [
+            self._uid_length_overflow,  # [STRUCTURAL] UID >64 chars overflows fixed-length copy buffers
+            self._uid_non_ascii,  # [STRUCTURAL] non-ASCII bytes crash byte-scanning UID validators
         ]
+        self.content_strategies = [
+            self._orphan_reference,  # [CONTENT] non-existent SOP instance — stored fine at parse time
+            self._circular_reference,  # [CONTENT] circular UIDs — stored fine at parse time
+            self._self_reference,  # [CONTENT] self-referential UIDs — stored fine
+            self._invalid_frame_reference,  # [CONTENT] out-of-range frame numbers — rendering issue
+            self._mismatched_study_reference,  # [CONTENT] study hierarchy mismatch — integrity issue
+            self._broken_series_reference,  # [CONTENT] empty/duplicate refs — integrity issue
+            self._frame_of_reference_attack,  # [CONTENT] FoR UID — spatial reference integrity
+            self._duplicate_references,  # [CONTENT] identical refs — stored fine
+            self._massive_reference_chain,  # [CONTENT] long UID chains — performance, not crash
+            self._reference_type_mismatch,  # [CONTENT] wrong SOP class in ref — integrity issue
+        ]
+        # Combined for backward compatibility (len == 12)
+        self.mutation_strategies = self.structural_strategies + self.content_strategies
 
     @property
     def strategy_name(self) -> str:
@@ -66,8 +72,9 @@ class ReferenceFuzzer(FormatFuzzerBase):
             Mutated dataset with reference corruptions
 
         """
-        num_strategies = random.randint(1, 2)
-        selected = random.sample(self.mutation_strategies, num_strategies)
+        selected = random.sample(self.structural_strategies, k=1)
+        if random.random() < 0.15:
+            selected.append(random.choice(self.content_strategies))
         self.last_variant = ",".join(s.__name__ for s in selected)
 
         for strategy in selected:
@@ -528,5 +535,49 @@ class ReferenceFuzzer(FormatFuzzerBase):
 
         except Exception as e:
             logger.debug("Reference type mismatch attack failed: %s", e)
+
+        return dataset
+
+    def _uid_length_overflow(self, dataset: Dataset) -> Dataset:
+        """Set a UID field to a string exceeding the DICOM 64-character maximum.
+
+        DICOM PS3.5 §9.1 specifies UIDs must be ≤64 characters. Parsers that
+        copy UIDs into fixed-length stack or heap buffers, or that validate
+        length with off-by-one checks, may overflow or panic on overlong UIDs.
+        """
+        length = random.choice([65, 128, 1024])
+        uid_value = "1.2.3." + "4" * (length - 6)
+
+        tag = random.choice(["SOPInstanceUID", "StudyInstanceUID", "SeriesInstanceUID"])
+        try:
+            setattr(dataset, tag, uid_value)
+        except Exception as e:
+            logger.debug("UID length overflow attack failed: %s", e)
+
+        return dataset
+
+    def _uid_non_ascii(self, dataset: Dataset) -> Dataset:
+        """Inject non-ASCII bytes into a UID field.
+
+        DICOM UIDs must only contain digits (0-9) and dots. Parsers that
+        iterate UID bytes as signed chars may mis-classify bytes >0x7F as
+        negative, and parsers expecting ASCII-only input may crash or skip
+        validation on unexpected byte values.
+        """
+        base = "1.2.840.10008.5.1.4.1.1.2"
+        attack = random.choice(["high_bytes", "null_byte", "unicode_chars"])
+
+        try:
+            if attack == "high_bytes":
+                uid_value = base + "\xff\xfe\x80\x81"
+            elif attack == "null_byte":
+                uid_value = base + "\x00" + "1.2.3"
+            else:
+                uid_value = base + "\u00e9\u00e0\u00fc"  # non-ASCII Unicode
+
+            tag = random.choice(["SOPInstanceUID", "StudyInstanceUID"])
+            setattr(dataset, tag, uid_value)
+        except Exception as e:
+            logger.debug("UID non-ASCII attack failed: %s", e)
 
         return dataset

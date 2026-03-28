@@ -61,14 +61,17 @@ class EncapsulatedPdfFuzzer(FormatFuzzerBase):
     def __init__(self) -> None:
         """Initialize the encapsulated PDF fuzzer with attack strategies."""
         super().__init__()
-        self.mutation_strategies = [
-            self._document_size_attack,
-            self._mime_type_mismatch,
-            self._malformed_pdf_injection,
-            self._pdf_metadata_corruption,
-            self._pdf_structure_corruption,
-            self._type_confusion,
+        self.structural_strategies = [
+            self._document_size_attack,  # [STRUCTURAL] zero/truncated doc — allocation boundary
+            self._malformed_pdf_injection,  # [STRUCTURAL] non-PDF headers trigger codec dispatch failure
+            self._pdf_structure_corruption,  # [STRUCTURAL] corrupt xref/streams/page tree — PDF parser crash
+            self._type_confusion,  # [STRUCTURAL] non-bytes in OB field — VR dispatch failure
         ]
+        self.content_strategies = [
+            self._mime_type_mismatch,  # [CONTENT] wrong MIMEType string — metadata only
+            self._pdf_metadata_corruption,  # [CONTENT] DocumentTitle strings — no parse effect
+        ]
+        self.mutation_strategies = self.structural_strategies + self.content_strategies
 
     @property
     def strategy_name(self) -> str:
@@ -90,8 +93,9 @@ class EncapsulatedPdfFuzzer(FormatFuzzerBase):
             Mutated dataset with document payload corruptions
 
         """
-        num_strategies = random.randint(1, 2)
-        selected = random.sample(self.mutation_strategies, num_strategies)
+        selected = random.sample(self.structural_strategies, k=random.randint(1, 2))
+        if random.random() < 0.33:
+            selected.append(random.choice(self.content_strategies))
         self.last_variant = ",".join(s.__name__ for s in selected)
 
         for strategy in selected:

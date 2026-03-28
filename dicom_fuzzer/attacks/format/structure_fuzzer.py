@@ -155,12 +155,12 @@ class StructureFuzzer(FormatFuzzerBase):
         """Initialize the structure fuzzer with attack patterns."""
         super().__init__()
         self.corruption_strategies = [
-            self._corrupt_tag_ordering,
-            self._corrupt_length_fields,
-            self._insert_unexpected_tags,
-            self._duplicate_tags,
-            self._length_field_attacks,
-            self._vm_mismatch_attacks,
+            self._corrupt_tag_ordering,  # [STRUCTURAL] shuffled elements violate strict-parser sort assumption
+            self._corrupt_length_fields,  # [STRUCTURAL] overflow/underflow/null patterns in string length fields
+            self._insert_unexpected_tags,  # [STRUCTURAL] reserved/invalid group tags trigger unguarded handlers
+            self._duplicate_tags,  # [STRUCTURAL] duplicate tag presence crashes parsers assuming uniqueness
+            self._length_field_attacks,  # [STRUCTURAL] extreme/zero/negative/odd/boundary length values
+            self._vm_mismatch_attacks,  # [STRUCTURAL] VM mismatch — wrong array allocation size
         ]
 
     @property
