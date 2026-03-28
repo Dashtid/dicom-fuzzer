@@ -51,7 +51,7 @@ class TestReferenceFuzzerInit:
         """Test that mutation_strategies list is defined."""
         assert hasattr(fuzzer, "mutation_strategies")
         assert isinstance(fuzzer.mutation_strategies, list)
-        assert len(fuzzer.mutation_strategies) == 10
+        assert len(fuzzer.mutation_strategies) == 12
 
     def test_all_strategies_callable(self, fuzzer: ReferenceFuzzer) -> None:
         """Test that all strategies are callable methods."""
@@ -370,3 +370,50 @@ class TestReferenceFuzzerIntegration:
         random.seed(42)
         result = fuzzer.mutate(sample_dataset)
         assert result.PatientName == original_name
+
+
+# =============================================================================
+# Structural method tests (new in feat/mutation-audit)
+# =============================================================================
+class TestUidLengthOverflow:
+    """Tests for ReferenceFuzzer._uid_length_overflow."""
+
+    def test_returns_dataset(self, fuzzer: ReferenceFuzzer) -> None:
+        """_uid_length_overflow returns a Dataset without raising."""
+        ds = Dataset()
+        ds.SOPInstanceUID = generate_uid()
+        ds.StudyInstanceUID = generate_uid()
+        result = fuzzer._uid_length_overflow(ds)
+        assert isinstance(result, Dataset)
+
+    def test_uid_field_exceeds_64_chars(self, fuzzer: ReferenceFuzzer) -> None:
+        """After the attack, the targeted UID field is longer than 64 characters."""
+        ds = Dataset()
+        ds.SOPInstanceUID = generate_uid()
+        ds.StudyInstanceUID = generate_uid()
+        ds.SeriesInstanceUID = generate_uid()
+        result = fuzzer._uid_length_overflow(ds)
+        uid_fields = ["SOPInstanceUID", "StudyInstanceUID", "SeriesInstanceUID"]
+        overlong = any(
+            len(str(getattr(result, f, ""))) > 64
+            for f in uid_fields
+            if hasattr(result, f)
+        )
+        assert overlong
+
+
+class TestUidNonAscii:
+    """Tests for ReferenceFuzzer._uid_non_ascii."""
+
+    def test_returns_dataset(self, fuzzer: ReferenceFuzzer) -> None:
+        """_uid_non_ascii returns a Dataset without raising."""
+        ds = Dataset()
+        ds.SOPInstanceUID = generate_uid()
+        ds.StudyInstanceUID = generate_uid()
+        result = fuzzer._uid_non_ascii(ds)
+        assert isinstance(result, Dataset)
+
+    def test_runs_on_empty_dataset(self, fuzzer: ReferenceFuzzer) -> None:
+        """_uid_non_ascii does not raise on a dataset with no UID fields."""
+        result = fuzzer._uid_non_ascii(Dataset())
+        assert isinstance(result, Dataset)

@@ -38,13 +38,16 @@ class RTDoseFuzzer(FormatFuzzerBase):
     def __init__(self) -> None:
         """Initialize the RT dose fuzzer with attack strategies."""
         super().__init__()
-        self.mutation_strategies = [
-            self._dose_grid_scaling_attack,
-            self._dvh_sequence_corruption,
-            self._grid_frame_offset_attack,
-            self._dose_type_enumeration_attack,
-            self._referenced_rt_plan_corruption,
+        self.structural_strategies = [
+            self._grid_frame_offset_attack,  # [STRUCTURAL] GridFrameOffsetVector length vs NumberOfFrames — indexing OOB
+            self._dvh_sequence_corruption,  # [STRUCTURAL] DVH bin count mismatch — wrong-sized array copy
         ]
+        self.content_strategies = [
+            self._dose_grid_scaling_attack,  # [CONTENT] DoseGridScaling is a rendering multiplier
+            self._dose_type_enumeration_attack,  # [CONTENT] DoseType/DoseSummationType string enums
+            self._referenced_rt_plan_corruption,  # [CONTENT] RT Plan UID cross-reference integrity
+        ]
+        self.mutation_strategies = self.structural_strategies + self.content_strategies
 
     @property
     def strategy_name(self) -> str:
@@ -66,8 +69,9 @@ class RTDoseFuzzer(FormatFuzzerBase):
             Mutated dataset with dose-specific corruptions
 
         """
-        num_strategies = random.randint(1, 2)
-        selected = random.sample(self.mutation_strategies, num_strategies)
+        selected = random.sample(self.structural_strategies, k=random.randint(1, 2))
+        if random.random() < 0.33:
+            selected.append(random.choice(self.content_strategies))
         self.last_variant = ",".join(s.__name__ for s in selected)
 
         for strategy in selected:

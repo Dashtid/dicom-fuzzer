@@ -599,7 +599,7 @@ class TestSeries3DReportGenerator:
         assert "<style>" in html
         assert "</style>" in html
         assert "container" in html
-        assert "summary-grid" in html
+        assert "stats-grid" in html
 
     def test_json_report_avg_mutations_per_series(self, tmp_path):
         """Test JSON report calculates avg_mutations_per_series."""

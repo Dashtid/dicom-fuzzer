@@ -38,13 +38,16 @@ class NuclearMedicineFuzzer(FormatFuzzerBase):
     def __init__(self) -> None:
         """Initialize the nuclear medicine fuzzer with attack strategies."""
         super().__init__()
-        self.mutation_strategies = [
-            self._energy_window_corruption,
-            self._detector_geometry_mismatch,
-            self._rotation_parameter_attack,
-            radiopharmaceutical_attacks,
-            self._slice_count_mismatch,
+        self.structural_strategies = [
+            self._energy_window_corruption,  # [STRUCTURAL] empty-sequence + inverted-range attacks
+            self._detector_geometry_mismatch,  # [STRUCTURAL] count mismatch + invalid types in sequence
+            self._slice_count_mismatch,  # [STRUCTURAL] frame count vs NumberOfSlices — allocation/indexing
+            radiopharmaceutical_attacks,  # [STRUCTURAL] RadiopharmaceuticalInformationSequence corruption
         ]
+        self.content_strategies = [
+            self._rotation_parameter_attack,  # [CONTENT] SPECT angles and frame counts — reconstruction values only
+        ]
+        self.mutation_strategies = self.structural_strategies + self.content_strategies
 
     @property
     def strategy_name(self) -> str:
@@ -66,8 +69,9 @@ class NuclearMedicineFuzzer(FormatFuzzerBase):
             Mutated dataset with NM-specific corruptions
 
         """
-        num_strategies = random.randint(1, 2)
-        selected = random.sample(self.mutation_strategies, num_strategies)
+        selected = random.sample(self.structural_strategies, k=random.randint(1, 2))
+        if random.random() < 0.33:
+            selected.append(random.choice(self.content_strategies))
         self.last_variant = ",".join(s.__name__ for s in selected)
 
         for strategy in selected:
