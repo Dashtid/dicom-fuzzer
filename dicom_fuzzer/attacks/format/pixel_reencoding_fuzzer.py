@@ -169,6 +169,11 @@ class PixelReencodingFuzzer(FormatFuzzerBase):
         ]
 
     @property
+    def target_types(self) -> frozenset[str]:
+        """RLE re-encoding attacks target image viewers, not PACS/web services."""
+        return frozenset({"viewer"})
+
+    @property
     def strategy_name(self) -> str:
         """Return the strategy name for identification."""
         return "pixel_reencoding"
