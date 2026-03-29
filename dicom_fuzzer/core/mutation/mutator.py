@@ -121,6 +121,9 @@ class DicomMutator:
         from dicom_fuzzer.attacks.format.nm_fuzzer import NuclearMedicineFuzzer
         from dicom_fuzzer.attacks.format.pet_fuzzer import PetFuzzer
         from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
+        from dicom_fuzzer.attacks.format.pixel_reencoding_fuzzer import (
+            PixelReencodingFuzzer,
+        )
         from dicom_fuzzer.attacks.format.private_tag_fuzzer import PrivateTagFuzzer
         from dicom_fuzzer.attacks.format.reference_fuzzer import ReferenceFuzzer
         from dicom_fuzzer.attacks.format.rt_dose_fuzzer import RTDoseFuzzer
@@ -169,6 +172,7 @@ class DicomMutator:
             NuclearMedicineFuzzer,
             PetFuzzer,
             PixelFuzzer,
+            PixelReencodingFuzzer,
             PrivateTagFuzzer,
             RTDoseFuzzer,
             RTStructureSetFuzzer,
