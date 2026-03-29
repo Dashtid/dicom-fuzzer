@@ -24,8 +24,21 @@ from .study_minimizer import (
     MinimizedStudy,
     StudyMinimizer,
 )
+from .synthetic_seeds import (
+    SEED_FACTORIES,
+    create_pdf_seed,
+    create_rtss_seed,
+    create_seg_seed,
+    save_seed,
+)
 
 __all__ = [
+    # Synthetic seed generators
+    "SEED_FACTORIES",
+    "create_pdf_seed",
+    "create_rtss_seed",
+    "create_seg_seed",
+    "save_seed",
     # Corpus minimization
     "STRIP_TAGS",
     "MoonLightMinimizer",
