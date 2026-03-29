@@ -49,6 +49,11 @@ class PixelFuzzer(FormatFuzzerBase):
         super().__init__()
 
     @property
+    def target_types(self) -> frozenset[str]:
+        """Pixel rendering attacks target image viewers, not PACS/web services."""
+        return frozenset({"viewer"})
+
+    @property
     def strategy_name(self) -> str:
         """Return the strategy name for identification."""
         return "pixel"

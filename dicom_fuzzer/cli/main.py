@@ -337,6 +337,32 @@ def _is_potential_dicom(file_path: Path, extensions: set[str]) -> bool:
     return False
 
 
+def parse_target_types(type_str: str | None) -> frozenset[str] | None:
+    """Parse a comma-separated target-type string into a frozenset.
+
+    Args:
+        type_str: Comma-separated target types (``"viewer"``, ``"web"``,
+            ``"pacs"``), or None to mean "all".
+
+    Returns:
+        frozenset of validated type strings, or None when no filter is active.
+
+    """
+    if not type_str or not type_str.strip():
+        return None
+
+    valid = {"viewer", "web", "pacs"}
+    requested = {t.strip().lower() for t in type_str.split(",")}
+    invalid = requested - valid
+    if invalid:
+        print(
+            f"[!] Unknown target type(s) {invalid} ignored. "
+            f"Valid choices: {', '.join(sorted(valid))}"
+        )
+    result = requested & valid
+    return frozenset(result) if result else None
+
+
 def parse_strategies(strategies_str: str | None) -> list[str]:
     """Parse comma-separated strategy list.
 
@@ -595,6 +621,7 @@ def main() -> int:
         recursive = getattr(args, "recursive", False)
         input_files = validate_input_path(args.input_file, recursive)
         selected_strategies = parse_strategies(getattr(args, "strategies", None))
+        target_types = parse_target_types(getattr(args, "target_type", None))
 
         passed, _ = pre_campaign_health_check(
             run_dir,
@@ -606,7 +633,9 @@ def main() -> int:
             cli.error("Pre-flight check failed. Fix issues and retry.")
             return 1
 
-        runner = CampaignRunner(args, input_files, selected_strategies)
+        runner = CampaignRunner(
+            args, input_files, selected_strategies, target_types=target_types
+        )
         runner.display_header()
         files, results_data = runner.generate_files()
         runner.display_results(files, results_data, json_mode, quiet_mode)

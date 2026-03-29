@@ -296,6 +296,7 @@ class DicomMutator:
 
         Caches results based on dataset features for performance.
         """
+        target_types: frozenset[str] | None = self.config.get("target_types")
         cache_key = (
             tuple(sorted(dataset.dir())),  # Tags present in dataset
             getattr(dataset, "Modality", None),  # str | None (CS VR, VM=1)
@@ -303,6 +304,7 @@ class DicomMutator:
             tuple(sorted(strategy_names))
             if strategy_names
             else None,  # Requested strategies
+            tuple(sorted(target_types)) if target_types else None,  # Target type filter
         )
 
         # Check cache first
@@ -317,6 +319,14 @@ class DicomMutator:
             # Check if specific strategies were requested
             if strategy_names and strategy.strategy_name not in strategy_names:
                 continue
+
+            # Check target type scope — strategies without the attribute default to all types
+            if target_types:
+                strategy_scope: frozenset[str] = getattr(
+                    strategy, "target_types", frozenset({"viewer", "web", "pacs"})
+                )
+                if strategy_scope.isdisjoint(target_types):
+                    continue
 
             try:
                 if strategy.can_mutate(dataset):

@@ -103,6 +103,19 @@ def _add_basic_args(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--target-type",
+        type=str,
+        dest="target_type",
+        metavar="TYPE",
+        help=(
+            "Restrict fuzzing to attacks relevant to the given target category. "
+            "Choices: viewer, web, pacs. Comma-separated for multiple: "
+            "'viewer,web'. Default: all categories. "
+            "viewer=rendering attacks, web=injection/parser attacks, "
+            "pacs=modality-specific storage attacks."
+        ),
+    )
+    parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging output"
     )
     parser.add_argument(
