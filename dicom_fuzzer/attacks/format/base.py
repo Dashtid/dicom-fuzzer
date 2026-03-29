@@ -59,6 +59,16 @@ class FormatFuzzerBase(ABC):
     def strategy_name(self) -> str:
         """Return the strategy name for identification."""
 
+    @property
+    def target_types(self) -> frozenset[str]:
+        """Return the set of target categories this fuzzer is relevant to.
+
+        Valid values: ``"viewer"``, ``"web"``, ``"pacs"``.  Override in
+        subclasses to restrict scope.  The default covers all three so
+        existing fuzzers remain active for every ``--target-type`` value.
+        """
+        return frozenset({"viewer", "web", "pacs"})
+
     def can_mutate(self, dataset: Dataset) -> bool:
         """Check if this strategy can mutate the dataset. Override if needed."""
         return True
