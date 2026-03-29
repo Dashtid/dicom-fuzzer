@@ -4,8 +4,6 @@ import argparse
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from dicom_fuzzer.cli.commands.seeds import create_parser, main
 
 
@@ -17,11 +15,11 @@ class TestCreateParser:
         parser = create_parser()
         assert isinstance(parser, argparse.ArgumentParser)
 
-    def test_input_required(self):
-        """Test input argument is required."""
+    def test_input_optional(self):
+        """Test input argument is optional (--synthetic makes it unnecessary)."""
         parser = create_parser()
-        with pytest.raises(SystemExit):
-            parser.parse_args([])
+        args = parser.parse_args([])
+        assert args.input is None
 
     def test_input_positional(self):
         """Test input is a positional argument."""
