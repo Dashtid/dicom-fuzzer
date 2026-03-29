@@ -225,3 +225,39 @@ class TestMutate:
         fuzzer = CalibrationFuzzer()
         result = fuzzer.mutate(ds)
         assert isinstance(result, pydicom.Dataset)
+
+
+class TestVrTypeConfusion:
+    """Tests for CalibrationFuzzer._vr_type_confusion."""
+
+    def test_returns_dataset(self):
+        """Method returns a Dataset without raising."""
+        ds = pydicom.Dataset()
+        ds.PixelSpacing = [0.5, 0.5]
+        fuzzer = CalibrationFuzzer()
+        result = fuzzer._vr_type_confusion(ds)
+        assert isinstance(result, pydicom.Dataset)
+
+    def test_runs_on_empty_dataset(self):
+        """Method does not raise on a dataset with no PixelSpacing."""
+        result = CalibrationFuzzer()._vr_type_confusion(pydicom.Dataset())
+        assert isinstance(result, pydicom.Dataset)
+
+
+class TestOversizedNumericString:
+    """Tests for CalibrationFuzzer._oversized_numeric_string."""
+
+    def test_returns_dataset(self):
+        """Method returns a Dataset without raising."""
+        ds = pydicom.Dataset()
+        ds.SliceThickness = 5.0
+        ds.SpacingBetweenSlices = 5.0
+        ds.RescaleSlope = 1.0
+        fuzzer = CalibrationFuzzer()
+        result = fuzzer._oversized_numeric_string(ds)
+        assert isinstance(result, pydicom.Dataset)
+
+    def test_runs_on_empty_dataset(self):
+        """Method does not raise on a dataset with no numeric calibration tags."""
+        result = CalibrationFuzzer()._oversized_numeric_string(pydicom.Dataset())
+        assert isinstance(result, pydicom.Dataset)

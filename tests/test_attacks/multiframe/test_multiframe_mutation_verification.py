@@ -557,3 +557,104 @@ class TestDimensionIndex:
         ):
             result, records = strategy._mutate_impl(ds, mutation_count=1)
         assert len(result.DimensionIndexSequence) >= 4
+
+
+# =============================================================================
+# can_mutate() Guards
+# =============================================================================
+class TestCanMutateGuards:
+    """Verify can_mutate() guards filter strategies correctly by dataset type."""
+
+    @pytest.fixture
+    def single_frame_ds(self):
+        """Minimal single-frame dataset — no PixelData, NumberOfFrames=1."""
+        ds = Dataset()
+        ds.NumberOfFrames = 1
+        ds.Rows = 512
+        ds.Columns = 512
+        return ds
+
+    @pytest.fixture
+    def no_pixel_ds(self):
+        """Multiframe dataset without PixelData."""
+        ds = Dataset()
+        ds.NumberOfFrames = 10
+        ds.Rows = 512
+        ds.Columns = 512
+        return ds
+
+    # --- NumberOfFrames > 1 strategies ---
+
+    @pytest.mark.parametrize(
+        "strategy_cls",
+        [
+            DimensionIndexStrategy,
+            FrameTimeCorruptionStrategy,
+            FunctionalGroupStrategy,
+            PerFrameDimensionStrategy,
+            SharedGroupStrategy,
+        ],
+    )
+    def test_multiframe_guard_true_when_multiframe(self, strategy_cls, multiframe_ds):
+        assert strategy_cls().can_mutate(multiframe_ds) is True
+
+    @pytest.mark.parametrize(
+        "strategy_cls",
+        [
+            DimensionIndexStrategy,
+            FrameTimeCorruptionStrategy,
+            FunctionalGroupStrategy,
+            PerFrameDimensionStrategy,
+            SharedGroupStrategy,
+        ],
+    )
+    def test_multiframe_guard_false_when_single_frame(
+        self, strategy_cls, single_frame_ds
+    ):
+        assert strategy_cls().can_mutate(single_frame_ds) is False
+
+    @pytest.mark.parametrize(
+        "strategy_cls",
+        [
+            DimensionIndexStrategy,
+            FrameTimeCorruptionStrategy,
+            FunctionalGroupStrategy,
+            PerFrameDimensionStrategy,
+            SharedGroupStrategy,
+        ],
+    )
+    def test_multiframe_guard_false_when_no_number_of_frames(self, strategy_cls):
+        ds = Dataset()  # no NumberOfFrames attribute
+        assert strategy_cls().can_mutate(ds) is False
+
+    # --- PixelData strategies ---
+
+    def test_encapsulated_pixel_true_when_pixel_data(self, multiframe_ds):
+        assert EncapsulatedPixelStrategy().can_mutate(multiframe_ds) is True
+
+    def test_encapsulated_pixel_false_when_no_pixel_data(self, no_pixel_ds):
+        assert EncapsulatedPixelStrategy().can_mutate(no_pixel_ds) is False
+
+    def test_pixel_truncation_true_when_pixel_data(self, multiframe_ds):
+        assert PixelDataTruncationStrategy().can_mutate(multiframe_ds) is True
+
+    def test_pixel_truncation_false_when_no_pixel_data(self, no_pixel_ds):
+        assert PixelDataTruncationStrategy().can_mutate(no_pixel_ds) is False
+
+    # --- FrameIncrementPointer strategy ---
+
+    def test_frame_increment_true_when_pointer_present(self):
+        ds = Dataset()
+        ds.FrameIncrementPointer = Tag(0x0018, 0x1063)
+        assert FrameIncrementStrategy().can_mutate(ds) is True
+
+    def test_frame_increment_false_when_no_pointer(self, single_frame_ds):
+        assert FrameIncrementStrategy().can_mutate(single_frame_ds) is False
+
+    # --- Unconditional strategies: always True ---
+
+    def test_dimension_overflow_always_true_on_single_frame(self, single_frame_ds):
+        assert DimensionOverflowStrategy().can_mutate(single_frame_ds) is True
+
+    def test_frame_count_mismatch_always_true_on_single_frame(self, single_frame_ds):
+        assert FrameCountMismatchStrategy().can_mutate(single_frame_ds) is True

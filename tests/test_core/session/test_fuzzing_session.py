@@ -1001,3 +1001,59 @@ class TestFuzzingSessionSeed:
         report_path = session.save_session_report()
         data = json.loads(report_path.read_text(encoding="utf-8"))
         assert data["session_info"]["seed"] == 987654321
+
+
+class TestMutationRecordBinaryMutations:
+    """Tests for binary_mutations field on MutationRecord and record_mutation()."""
+
+    def _make_session(self, tmp_path: Path) -> FuzzingSession:
+        return FuzzingSession(
+            session_name="test",
+            output_dir=str(tmp_path / "output"),
+            reports_dir=str(tmp_path / "reports"),
+            crashes_dir=str(tmp_path / "crashes"),
+        )
+
+    def test_default_binary_mutations_empty(self):
+        """MutationRecord.binary_mutations must default to [] when not provided."""
+        record = MutationRecord(
+            mutation_id="mut_1",
+            strategy_name="StructureFuzzer",
+            timestamp=datetime.now(),
+        )
+        assert record.binary_mutations == []
+
+    def test_record_mutation_stores_binary_mutations(self, tmp_path: Path):
+        """record_mutation() with binary_mutations list must store it in the MutationRecord."""
+        session = self._make_session(tmp_path)
+        session.start_file_fuzzing(
+            source_file=tmp_path / "src.dcm",
+            output_file=tmp_path / "out.dcm",
+            severity="high",
+        )
+        session.record_mutation(
+            strategy_name="StructureFuzzer",
+            mutation_type="format_fuzzing",
+            binary_mutations=["_corrupt_tag_ordering", "_binary_duplicate_tag"],
+        )
+        mutation = session.current_file_record.mutations[-1]
+        assert mutation.binary_mutations == [
+            "_corrupt_tag_ordering",
+            "_binary_duplicate_tag",
+        ]
+
+    def test_record_mutation_binary_mutations_none_becomes_empty(self, tmp_path: Path):
+        """record_mutation() with binary_mutations=None must store [] in the MutationRecord."""
+        session = self._make_session(tmp_path)
+        session.start_file_fuzzing(
+            source_file=tmp_path / "src.dcm",
+            output_file=tmp_path / "out.dcm",
+            severity="low",
+        )
+        session.record_mutation(
+            strategy_name="StructureFuzzer",
+            mutation_type="format_fuzzing",
+            binary_mutations=None,
+        )
+        mutation = session.current_file_record.mutations[-1]
+        assert mutation.binary_mutations == []

@@ -14,6 +14,7 @@ from __future__ import annotations
 import random
 
 from pydicom.dataset import Dataset
+from pydicom.sequence import Sequence
 
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -37,12 +38,16 @@ class PetFuzzer(FormatFuzzerBase):
     def __init__(self) -> None:
         """Initialize the PET fuzzer with attack strategies."""
         super().__init__()
-        self.mutation_strategies = [
-            self._suv_calibration_chain_attack,
-            radiopharmaceutical_attacks,
-            self._temporal_parameter_corruption,
-            self._corrected_image_flag_attack,
+        self.structural_strategies = [
+            self._corrupt_radiopharmaceutical_sequence,  # [STRUCTURAL] empty/malformed RadiopharmaceuticalInformationSequence
         ]
+        self.content_strategies = [
+            self._suv_calibration_chain_attack,  # [CONTENT] calibration chain metadata values
+            radiopharmaceutical_attacks,  # [CONTENT] radiopharmaceutical tag values
+            self._temporal_parameter_corruption,  # [CONTENT] decay/timing parameter values
+            self._corrected_image_flag_attack,  # [CONTENT] CorrectedImage flag combinations
+        ]
+        self.mutation_strategies = self.structural_strategies + self.content_strategies
 
     @property
     def strategy_name(self) -> str:
@@ -64,8 +69,11 @@ class PetFuzzer(FormatFuzzerBase):
             Mutated dataset with PET-specific corruptions
 
         """
-        num_strategies = random.randint(1, 2)
-        selected = random.sample(self.mutation_strategies, num_strategies)
+        selected = list(
+            self.structural_strategies
+        )  # always run the 1 structural attack
+        if random.random() < 0.33:
+            selected.append(random.choice(self.content_strategies))
         self.last_variant = ",".join(s.__name__ for s in selected)
 
         for strategy in selected:
@@ -195,6 +203,47 @@ class PetFuzzer(FormatFuzzerBase):
                     del dataset.AttenuationCorrectionMethod
         except Exception as e:
             logger.debug("Corrected image flag attack failed: %s", e)
+
+        return dataset
+
+    def _corrupt_radiopharmaceutical_sequence(self, dataset: Dataset) -> Dataset:
+        """Corrupt the RadiopharmaceuticalInformationSequence structure.
+
+        Attacks the sequence's structural integrity rather than its values.
+        An empty sequence where at least one item is required triggers
+        null-pointer dereferences in viewers that index directly into the
+        sequence. A count mismatch vs NumberOfRadionuclides causes
+        off-by-one allocation in viewers that pre-allocate per radionuclide.
+        """
+        attack = random.choice(
+            ["empty_sequence", "count_mismatch", "missing_sequence", "extra_nesting"]
+        )
+
+        try:
+            if attack == "empty_sequence":
+                # Parser expects >= 1 item; empty sequence causes index-0 crash
+                dataset.RadiopharmaceuticalInformationSequence = Sequence([])
+
+            elif attack == "count_mismatch":
+                # 5 items but NumberOfRadionuclides says 1 — allocation mismatch
+                items = [Dataset() for _ in range(5)]
+                dataset.RadiopharmaceuticalInformationSequence = Sequence(items)
+                dataset.NumberOfRadionuclides = 1
+
+            elif attack == "missing_sequence":
+                # Remove entirely — viewers that don't guard against absence crash
+                if hasattr(dataset, "RadiopharmaceuticalInformationSequence"):
+                    del dataset.RadiopharmaceuticalInformationSequence
+                dataset.NumberOfRadionuclides = 3  # claims 3 but sequence absent
+
+            elif attack == "extra_nesting":
+                # Nest a sequence inside a sequence item where a flat value expected
+                inner = Dataset()
+                inner.RadiopharmaceuticalInformationSequence = Sequence([Dataset()])
+                dataset.RadiopharmaceuticalInformationSequence = Sequence([inner])
+
+        except Exception as e:
+            logger.debug("Radiopharmaceutical sequence corruption failed: %s", e)
 
         return dataset
 

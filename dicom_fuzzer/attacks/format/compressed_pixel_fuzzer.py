@@ -56,14 +56,14 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
         """Initialize the compressed pixel fuzzer."""
         super().__init__()
         self.mutation_strategies = [
-            self._corrupt_jpeg_markers,
-            self._corrupt_jpeg_dimensions,
-            self._corrupt_jpeg2000_codestream,
-            self._corrupt_rle_segments,
-            self._corrupt_fragment_offsets,
-            self._corrupt_encapsulation_structure,
-            self._inject_malformed_frame,
-            self._frame_count_mismatch,
+            self._corrupt_jpeg_markers,  # [STRUCTURAL] marker corruption → infinite loop / buffer overflow in codec
+            self._corrupt_jpeg_dimensions,  # [STRUCTURAL] SOF vs DICOM Rows/Columns mismatch → allocation error
+            self._corrupt_jpeg2000_codestream,  # [STRUCTURAL] SIZ/COD marker corruption → codestream parser crash
+            self._corrupt_rle_segments,  # [STRUCTURAL] wrong segment counts/offsets → out-of-bounds reads
+            self._corrupt_fragment_offsets,  # [STRUCTURAL] invalid Basic Offset Table → random memory access
+            self._corrupt_encapsulation_structure,  # [STRUCTURAL] wrong Item/Delimiter tags break encapsulation parser
+            self._inject_malformed_frame,  # [STRUCTURAL] bad frame among valid frames — per-frame allocator
+            self._frame_count_mismatch,  # [STRUCTURAL] declared frames vs actual encapsulated frames — allocation mismatch
         ]
 
     @property

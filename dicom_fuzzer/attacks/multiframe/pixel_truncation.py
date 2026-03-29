@@ -30,6 +30,10 @@ class PixelDataTruncationStrategy(MultiFrameFuzzerBase):
         """Return the strategy name."""
         return "pixel_data_truncation"
 
+    def can_mutate(self, dataset: Dataset) -> bool:
+        """Only mutate datasets that carry pixel data."""
+        return hasattr(dataset, "PixelData")
+
     def mutate(self, dataset: Dataset) -> Dataset:
         """Apply one randomly-selected mutation and return the mutated dataset."""
         return self._mutate_impl(dataset, 1)[0]

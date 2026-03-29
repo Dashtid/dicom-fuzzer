@@ -14,6 +14,7 @@ from __future__ import annotations
 import random
 
 from pydicom.dataset import Dataset
+from pydicom.sequence import Sequence
 
 from dicom_fuzzer.utils.logger import get_logger
 
@@ -277,22 +278,63 @@ class CalibrationFuzzer(FormatFuzzerBase):
         return dataset
 
     def mutate(self, dataset: Dataset) -> Dataset:
-        """Apply calibration mutations (FormatFuzzerBase interface)."""
-        fuzzers = [
-            self.fuzz_pixel_spacing,
-            self.fuzz_hounsfield_rescale,
-            self.fuzz_window_level,
-            self.fuzz_slice_thickness,
+        """Apply calibration mutations (FormatFuzzerBase interface).
+
+        Always runs one structural attack (VR-type confusion or oversized DS
+        string). Randomly adds one content attack (calibration value corruption)
+        at 33% probability.
+        """
+        structural = [self._vr_type_confusion, self._oversized_numeric_string]
+        content = [
+            self.fuzz_pixel_spacing,  # [CONTENT] calibration values — rendering only
+            self.fuzz_hounsfield_rescale,  # [CONTENT] HU slope/intercept — rendering only
+            self.fuzz_window_level,  # [CONTENT] display window — rendering only
+            self.fuzz_slice_thickness,  # [CONTENT] calibration value — rendering only
         ]
 
+        selected = random.sample(structural, k=1)
+        if random.random() < 0.33:
+            selected.append(random.choice(content))
+
         applied: list[str] = []
-        for fuzzer in fuzzers:
-            if random.random() < 0.5:
-                try:
-                    dataset = fuzzer(dataset)
-                    applied.append(fuzzer.__name__)
-                except Exception as e:
-                    logger.debug("Calibration %s failed: %s", fuzzer.__name__, e)
+        for attack in selected:
+            try:
+                dataset = attack(dataset)
+                applied.append(attack.__name__)
+            except Exception as e:
+                logger.debug("Calibration %s failed: %s", attack.__name__, e)
         self.last_variant = ",".join(applied) if applied else None
 
+        return dataset
+
+    def _vr_type_confusion(self, dataset: Dataset) -> Dataset:
+        """Replace a DS-VR calibration field with a Sequence object.
+
+        PixelSpacing is declared DS (Decimal String). Replacing it with a
+        pydicom Sequence causes VR-dispatch paths in parsers to attempt reading
+        a sequence structure as a decimal string — wrong-type allocation or an
+        illegal memory access.
+        """
+        try:
+            item = Dataset()
+            item.PixelSpacing = [1.0, 1.0]
+            dataset.PixelSpacing = Sequence([item])
+        except Exception as e:
+            logger.debug("VR type confusion attack failed: %s", e)
+        return dataset
+
+    def _oversized_numeric_string(self, dataset: Dataset) -> Dataset:
+        """Set a DS-VR field to a string far exceeding the 16-byte DS maximum.
+
+        DS (Decimal String) VR has a declared maximum of 16 bytes per value
+        component. VR copy routines that allocate based on the declared maximum
+        will overflow when presented with a value thousands of times larger.
+        """
+        # 100 KB string — 6250x the DS 16-byte maximum
+        oversized = "1." + "2" * 102400
+        tag = random.choice(["SliceThickness", "SpacingBetweenSlices", "RescaleSlope"])
+        try:
+            setattr(dataset, tag, oversized)
+        except Exception as e:
+            logger.debug("Oversized numeric string attack failed: %s", e)
         return dataset

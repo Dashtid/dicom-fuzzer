@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
+from dicom_fuzzer.utils.anonymizer import anonymize_patient_info
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
@@ -99,11 +100,10 @@ class MetadataFuzzer(FormatFuzzerBase):
         return dataset
 
     def mutate_patient_info(self, dataset: Dataset) -> Dataset:
-        """Generate believable but fake patient data.
+        """Replace patient identifiers with fake but believable values.
 
-        This method is preserved for backward compatibility. It always
-        sets PatientID, PatientName, and PatientBirthDate with values
-        from the fake_ids and fake_names lists.
+        Delegates to :func:`dicom_fuzzer.utils.anonymizer.anonymize_patient_info`.
+        Kept on the class for backward compatibility with existing callers.
 
         Args:
             dataset: DICOM dataset to mutate
@@ -112,10 +112,7 @@ class MetadataFuzzer(FormatFuzzerBase):
             Mutated dataset (same object)
 
         """
-        dataset.PatientID = f"PAT{random.randint(1000, 9999):06d}"
-        dataset.PatientName = random.choice(self.fake_names)
-        dataset.PatientBirthDate = self._random_date()
-        return dataset
+        return anonymize_patient_info(dataset)
 
     # --- Structural Attacks ---
 

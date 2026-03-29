@@ -19,6 +19,7 @@ from typing import Any
 
 import pydicom
 
+from dicom_fuzzer.core.crash.models import CrashRecord
 from dicom_fuzzer.core.serialization import SerializableMixin
 from dicom_fuzzer.utils.hashing import hash_file
 from dicom_fuzzer.utils.identifiers import (
@@ -47,6 +48,9 @@ class MutationRecord(SerializableMixin):
     variant: str | None = (
         None  # Which sub-attack was chosen (e.g. "_dimension_mismatch")
     )
+    binary_mutations: list[str] = field(
+        default_factory=list
+    )  # Binary-level attacks applied post-serialization
 
 
 @dataclass
@@ -72,39 +76,6 @@ class FuzzedFileRecord(SerializableMixin):
     # Test results (populated if tested against a viewer)
     test_result: str | None = None  # success, crash, hang, error
     crash_details: dict[str, Any] | None = None
-
-
-@dataclass
-class CrashRecord(SerializableMixin):
-    """Detailed crash record with full forensic information.
-
-    Links crash back to exact file and mutation history that caused it.
-    """
-
-    crash_id: str
-    timestamp: datetime
-    crash_type: str  # crash, hang, exception
-    severity: str  # critical, high, medium, low
-
-    # Link to fuzzed file
-    fuzzed_file_id: str
-    fuzzed_file_path: str
-
-    # Crash details
-    return_code: int | None = None
-    exception_type: str | None = None
-    exception_message: str | None = None
-    stack_trace: str | None = None
-
-    # Artifacts
-    crash_log_path: str | None = None
-    preserved_sample_path: str | None = None
-
-    # Reproducibility
-    reproduction_command: str | None = None
-
-    # Mutation tracking for deduplication
-    mutation_sequence: list[tuple[Any, ...]] = field(default_factory=list)
 
 
 class FuzzingSession:
@@ -229,6 +200,7 @@ class FuzzingSession:
         mutated_value: Any | None = None,
         parameters: dict[str, Any] | None = None,
         variant: str | None = None,
+        binary_mutations: list[str] | None = None,
     ) -> None:
         """Record a mutation applied to the current file.
 
@@ -241,6 +213,7 @@ class FuzzingSession:
             mutated_value: Value after mutation
             parameters: Additional parameters used in mutation
             variant: Sub-attack(s) chosen within the strategy (comma-separated method names)
+            binary_mutations: Binary-level attacks applied post-serialization
 
         """
         if not self.current_file_record:
@@ -263,6 +236,7 @@ class FuzzingSession:
             mutated_value=mut_str,
             parameters=parameters or {},
             variant=variant,
+            binary_mutations=binary_mutations or [],
         )
 
         self.current_file_record.mutations.append(mutation)

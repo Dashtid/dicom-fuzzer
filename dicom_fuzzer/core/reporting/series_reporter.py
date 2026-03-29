@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any
 
 from dicom_fuzzer.utils.identifiers import generate_timestamp_id
 
+from .html_templates import REPORT_CSS
+
 if TYPE_CHECKING:
     from dicom_fuzzer.attacks.series.series_mutator import SeriesMutationRecord
 
@@ -173,6 +175,7 @@ class Series3DReportGenerator:
 
     def _generate_html_header(self, campaign_name: str) -> str:
         """Generate HTML header with CSS styling."""
+        generated_at = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -180,137 +183,38 @@ class Series3DReportGenerator:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{campaign_name} - 3D Series Fuzzing Report</title>
     <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            color: #333;
-        }}
-        .container {{
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            padding: 40px;
-        }}
-        h1 {{
-            color: #667eea;
-            margin-bottom: 10px;
-            font-size: 2.5em;
-            border-bottom: 3px solid #667eea;
-            padding-bottom: 10px;
-        }}
-        h2 {{
-            color: #764ba2;
-            margin-top: 30px;
-            margin-bottom: 15px;
-            font-size: 1.8em;
-        }}
-        h3 {{
-            color: #555;
-            margin-top: 20px;
-            margin-bottom: 10px;
-            font-size: 1.3em;
-        }}
-        .summary-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin: 20px 0;
-        }}
-        .stat-card {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }}
-        .stat-card .label {{
-            font-size: 0.9em;
-            opacity: 0.9;
-            margin-bottom: 5px;
-        }}
-        .stat-card .value {{
-            font-size: 2em;
-            font-weight: bold;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
-        th, td {{
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }}
-        th {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-weight: 600;
-        }}
-        tr:hover {{
-            background-color: #f5f5f5;
-        }}
-        .badge {{
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 0.85em;
-            font-weight: 600;
-        }}
-        .badge-minimal {{ background: #4CAF50; color: white; }}
-        .badge-moderate {{ background: #FF9800; color: white; }}
-        .badge-aggressive {{ background: #f44336; color: white; }}
-        .badge-extreme {{ background: #9C27B0; color: white; }}
-        .progress-bar {{
-            background: #e0e0e0;
-            border-radius: 10px;
-            height: 20px;
-            overflow: hidden;
-            margin: 10px 0;
-        }}
-        .progress-fill {{
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            height: 100%;
-            transition: width 0.3s ease;
-        }}
-        .timestamp {{
-            color: #999;
-            font-size: 0.9em;
-            margin-top: 10px;
-        }}
+        {REPORT_CSS}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>{campaign_name}</h1>
-        <p class="timestamp">Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        <div class="header">
+            <h1>{campaign_name}</h1>
+            <p class="subtitle">3D Series Fuzzing Report &mdash; Generated: {generated_at}</p>
+        </div>
+        <div class="content">
 """
 
     def _generate_summary_section(self, report: Series3DReport) -> str:
         """Generate summary statistics section."""
         return f"""
-        <h2>[+] Campaign Summary</h2>
-        <div class="summary-grid">
+        <h2>Campaign Summary</h2>
+        <div class="stats-grid">
             <div class="stat-card">
-                <div class="label">Series Fuzzed</div>
-                <div class="value">{report.total_series_fuzzed}</div>
+                <div class="stat-label">Series Fuzzed</div>
+                <div class="stat-value">{report.total_series_fuzzed}</div>
             </div>
             <div class="stat-card">
-                <div class="label">Total Mutations</div>
-                <div class="value">{report.total_mutations_applied}</div>
+                <div class="stat-label">Total Mutations</div>
+                <div class="stat-value">{report.total_mutations_applied}</div>
             </div>
             <div class="stat-card">
-                <div class="label">Crashes Found</div>
-                <div class="value">{report.total_crashes}</div>
+                <div class="stat-label">Crashes Found</div>
+                <div class="stat-value">{report.total_crashes}</div>
             </div>
             <div class="stat-card">
-                <div class="label">Avg Mutations/Series</div>
-                <div class="value">{report.total_mutations_applied / max(report.total_series_fuzzed, 1):.1f}</div>
+                <div class="stat-label">Avg Mutations/Series</div>
+                <div class="stat-value">{report.total_mutations_applied / max(report.total_series_fuzzed, 1):.1f}</div>
             </div>
         </div>
 """
@@ -320,11 +224,9 @@ class Series3DReportGenerator:
         effectiveness = report.get_strategy_effectiveness()
 
         if not effectiveness:
-            return (
-                "<h2>[+] Strategy Effectiveness</h2><p>No strategy data available.</p>"
-            )
+            return "<h2>Strategy Effectiveness</h2><p>No strategy data available.</p>"
 
-        html = "<h2>[+] Strategy Effectiveness</h2>"
+        html = "<h2>Strategy Effectiveness</h2>"
         html += "<table><thead><tr>"
         html += "<th>Strategy</th><th>Usage Count</th><th>Avg Mutations/Series</th><th>Series Coverage</th>"
         html += "</tr></thead><tbody>"
@@ -347,7 +249,7 @@ class Series3DReportGenerator:
 
     def _generate_series_details_section(self, report: Series3DReport) -> str:
         """Generate detailed series information section."""
-        html = "<h2>[+] Series Details</h2>"
+        html = "<h2>Series Details</h2>"
 
         if not report.series_summaries:
             return html + "<p>No series data available.</p>"
@@ -371,7 +273,7 @@ class Series3DReportGenerator:
 
     def _generate_crash_section(self, report: Series3DReport) -> str:
         """Generate crash information section."""
-        html = f"<h2>[!] Crashes Found ({report.total_crashes})</h2>"
+        html = f"<h2>Crashes Found ({report.total_crashes})</h2>"
 
         if report.total_crashes == 0:
             return html + "<p>No crashes detected during this campaign.</p>"
@@ -383,6 +285,7 @@ class Series3DReportGenerator:
     def _generate_html_footer(self) -> str:
         """Generate HTML footer."""
         return """
+        </div>
     </div>
 </body>
 </html>

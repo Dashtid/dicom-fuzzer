@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Any
 
 from dicom_fuzzer.core.constants import Severity
-from dicom_fuzzer.core.session.fuzzing_session import CrashRecord
+from dicom_fuzzer.core.crash.models import CrashRecord
 from dicom_fuzzer.utils.hashing import md5_hash
 from dicom_fuzzer.utils.logger import get_logger
 

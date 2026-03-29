@@ -136,8 +136,8 @@ class DictionaryFuzzer(FormatFuzzerBase):
     def _get_mutation_value(self, tag_int: int) -> str | int | float:
         """Get a mutation value: 70% valid dictionary values, 30% edge cases.
 
-        Valid values are realistic-but-wrong (e.g., swapping "CT" for "MR").
-        Edge cases are tricky strings (empty, overlong, null bytes, special chars).
+        Valid values are realistic-but-wrong (e.g., swapping "CT" for "MR").  [CONTENT]
+        Edge cases are tricky strings (empty, overlong, null bytes, special chars). [STRUCTURAL-ish]
         This mix produces files that pass initial validation but stress deeper code.
         """
         if random.random() < 0.7:

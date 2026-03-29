@@ -9,7 +9,7 @@ from dicom_fuzzer.core.crash.crash_triage import (
     ExploitabilityRating,
     Severity,
 )
-from dicom_fuzzer.core.session.fuzzing_session import CrashRecord
+from dicom_fuzzer.core.crash.models import CrashRecord
 
 
 @pytest.fixture

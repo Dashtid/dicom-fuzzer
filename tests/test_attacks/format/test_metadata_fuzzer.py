@@ -69,7 +69,9 @@ class TestMutatePatientInfo:
         fuzzer = MetadataFuzzer()
         dataset = MagicMock()
 
-        with patch.object(fuzzer, "_random_date", return_value="19800515"):
+        with patch(
+            "dicom_fuzzer.utils.anonymizer._random_dob", return_value="19800515"
+        ):
             result = fuzzer.mutate_patient_info(dataset)
 
         assert result.PatientBirthDate == "19800515"
