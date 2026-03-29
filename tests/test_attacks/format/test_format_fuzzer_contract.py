@@ -165,3 +165,16 @@ class TestFormatFuzzerContract:
         # Should not raise
         result = fuzzer.mutate(ds)
         assert isinstance(result, Dataset)
+
+    @pytest.mark.parametrize("fuzzer", ALL_FUZZERS, ids=FUZZER_IDS)
+    def test_target_types_is_valid_frozenset(self, fuzzer):
+        """target_types must be a non-empty frozenset of valid category strings."""
+        valid_types = {"viewer", "web", "pacs"}
+        tt = fuzzer.target_types
+        assert isinstance(tt, frozenset), (
+            f"{type(fuzzer).__name__}.target_types must be a frozenset"
+        )
+        assert len(tt) > 0, f"{type(fuzzer).__name__}.target_types must not be empty"
+        assert tt <= valid_types, (
+            f"{type(fuzzer).__name__}.target_types contains unknown values: {tt - valid_types}"
+        )
