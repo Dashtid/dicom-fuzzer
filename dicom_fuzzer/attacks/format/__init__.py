@@ -13,6 +13,7 @@ Generic fuzzers (work on any SOP class):
 - HeaderFuzzer: VR and tag mutations (all 27 DICOM VRs)
 - MetadataFuzzer: Patient/study metadata mutations
 - PixelFuzzer: Image dimension and pixel data mutations
+- PixelReencodingFuzzer: Re-encode uncompressed pixels as RLE then mutate
 - PrivateTagFuzzer: Vendor-specific tag violations
 - ReferenceFuzzer: Link integrity and reference chain attacks
 - SequenceFuzzer: Nested sequence and item structure attacks
@@ -39,6 +40,7 @@ from .metadata_fuzzer import MetadataFuzzer
 from .nm_fuzzer import NuclearMedicineFuzzer
 from .pet_fuzzer import PetFuzzer
 from .pixel_fuzzer import PixelFuzzer
+from .pixel_reencoding_fuzzer import PixelReencodingFuzzer
 from .private_tag_fuzzer import PrivateTagFuzzer
 from .reference_fuzzer import ReferenceFuzzer
 from .rt_dose_fuzzer import RTDoseFuzzer
@@ -60,6 +62,7 @@ __all__ = [
     "NuclearMedicineFuzzer",
     "PetFuzzer",
     "PixelFuzzer",
+    "PixelReencodingFuzzer",
     "PrivateTagFuzzer",
     "RTDoseFuzzer",
     "RTStructureSetFuzzer",
