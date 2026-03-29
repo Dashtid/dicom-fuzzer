@@ -2,6 +2,7 @@
 
 from .crash_analyzer import CrashAnalyzer
 from .crash_triage import CrashTriage, CrashTriageEngine, ExploitabilityRating
+from .models import CrashRecord
 from .windows_crash_handler import (
     WindowsCrashHandler,
     WindowsCrashInfo,
@@ -9,6 +10,7 @@ from .windows_crash_handler import (
 
 __all__ = [
     "CrashAnalyzer",
+    "CrashRecord",
     "CrashTriage",
     "CrashTriageEngine",
     "ExploitabilityRating",

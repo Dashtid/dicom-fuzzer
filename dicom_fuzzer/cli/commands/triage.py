@@ -19,7 +19,7 @@ from pathlib import Path
 
 from dicom_fuzzer.cli.base import SubcommandBase
 from dicom_fuzzer.core.crash import CrashTriageEngine
-from dicom_fuzzer.core.session.fuzzing_session import CrashRecord
+from dicom_fuzzer.core.crash.models import CrashRecord
 
 __all__ = ["TriageCommand", "main"]
 
