@@ -313,11 +313,11 @@ class TestMutateMethod:
         """Test that mutate() preserves fields it does not target."""
         fuzzer = MetadataFuzzer()
         dataset = Dataset()
-        dataset.Modality = "CT"
+        dataset.Rows = 512  # pixel-geometry field; MetadataFuzzer never targets this
 
         fuzzer.mutate(dataset)
 
-        assert dataset.Modality == "CT"
+        assert dataset.Rows == 512
 
 
 class TestFormatFuzzerBaseCompliance:
