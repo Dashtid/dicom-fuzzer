@@ -138,12 +138,11 @@ Study-level fuzzing with target testing.
 dicom-fuzzer study-campaign --target ./viewer.exe --study ./study -o ./output
 ```
 
-| Option            | Default | Description               |
-| ----------------- | ------- | ------------------------- |
-| `--target EXE`    | -       | Target application        |
-| `--study DIR`     | -       | Study directory           |
-| `--adapter NAME`  | -       | Viewer adapter (affinity) |
-| `--stop-on-crash` | false   | Stop on first crash       |
+| Option            | Default | Description         |
+| ----------------- | ------- | ------------------- |
+| `--target EXE`    | -       | Target application  |
+| `--study DIR`     | -       | Study directory     |
+| `--stop-on-crash` | false   | Stop on first crash |
 
 ---
 
