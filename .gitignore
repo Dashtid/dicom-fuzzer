@@ -70,6 +70,8 @@ auth.yaml
 *.dicom
 *.DCM
 *.DICOM
+# Bundled seed corpus (PHI-free, public test data)
+!/dicom-seeds/**/*.dcm
 /test_data/*.dcm
 /fixtures/*.dcm
 /patient_data/
