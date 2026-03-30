@@ -24,7 +24,6 @@ dicom-fuzzer/
 │   │   ├── session/       # Campaign lifecycle
 │   │   ├── reporting/     # HTML/JSON report generation
 │   │   ├── harness/       # Target execution and process monitoring
-│   │   ├── adapters/      # Viewer-specific automation
 │   │   └── analytics/     # Campaign analytics and visualization
 │   ├── attacks/       # Attack modules (format, series, network, multiframe)
 │   ├── utils/         # Utilities
