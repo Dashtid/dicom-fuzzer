@@ -398,7 +398,7 @@ def parse_strategies(strategies_str: str | None) -> list[str]:
 
 
 def _check_dependencies(issues: list[str], warnings: list[str]) -> None:
-    """Check Python version and required dependencies."""
+    """Check Python version and required/optional dependencies."""
     if sys.version_info < (3, 11):
         warnings.append(
             f"Python {sys.version_info.major}.{sys.version_info.minor} "
@@ -410,10 +410,22 @@ def _check_dependencies(issues: list[str], warnings: list[str]) -> None:
     except ImportError:
         issues.append("Missing required dependency: pydicom")
 
-    try:
-        import psutil  # noqa: F401
-    except ImportError:
-        warnings.append("Missing optional dependency: psutil (for resource monitoring)")
+    # Optional dependencies -- warn once at startup so the user doesn't
+    # discover them mid-campaign.
+    _optional = {
+        "psutil": "GUI mode, resource monitoring (pip install psutil)",
+        "minidump": "Windows crash dump analysis (pip install minidump)",
+        "tqdm": "progress bars (pip install tqdm)",
+        "rich": "rich console output (pip install rich)",
+        "matplotlib": "chart generation in reports (pip install matplotlib)",
+        "jinja2": "enhanced HTML reports (pip install jinja2)",
+    }
+    missing = []
+    for pkg, purpose in _optional.items():
+        if importlib.util.find_spec(pkg) is None:
+            missing.append(f"  {pkg} -- {purpose}")
+    if missing:
+        warnings.append("Missing optional dependencies:\n" + "\n".join(missing))
 
 
 def _check_disk_space(output_dir: Path, issues: list[str], warnings: list[str]) -> None:
