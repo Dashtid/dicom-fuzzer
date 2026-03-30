@@ -56,6 +56,7 @@ SUBCOMMANDS: dict[str, str] = {
     "triage": "dicom_fuzzer.cli.commands.triage",  # Crash triage
     "generate-seeds": "dicom_fuzzer.cli.commands.seeds",
     "replay": "dicom_fuzzer.cli.commands.replay",  # Decompose fuzzed files
+    "sanitize": "dicom_fuzzer.cli.commands.sanitize",  # Strip PHI from seeds
 }
 
 
