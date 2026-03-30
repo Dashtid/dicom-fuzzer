@@ -51,6 +51,11 @@ class RTStructureSetFuzzer(FormatFuzzerBase):
         self.mutation_strategies = self.structural_strategies + self.content_strategies
 
     @property
+    def target_types(self) -> frozenset[str]:
+        """RT Structure Set attacks are only relevant to PACS servers handling RT SOP classes."""
+        return frozenset({"pacs"})
+
+    @property
     def strategy_name(self) -> str:
         """Return the strategy name for identification."""
         return "rt_structure_set"
