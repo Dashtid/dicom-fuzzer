@@ -62,6 +62,7 @@ class DICOMGenerator:
         output_dir: str | Path = "./artifacts/fuzzed",
         skip_write_errors: bool = True,
         seed: int | None = None,
+        safety_mode: str | None = None,
     ) -> None:
         """Initialize the generator.
 
@@ -71,6 +72,7 @@ class DICOMGenerator:
                              invalid mutations (good for fuzzing). If False,
                              raise errors (good for debugging).
             seed: Random seed for reproducible runs. Auto-generated if None.
+            safety_mode: Critical-tag preservation mode (off/lenient/strict).
 
         """
         self.output_dir = Path(output_dir)
@@ -81,7 +83,12 @@ class DICOMGenerator:
         self.seed: int = (
             seed if seed is not None else int.from_bytes(os.urandom(4), "big")
         )
-        self.mutator = DicomMutator(seed=self.seed)
+        mutator_config = (
+            {"safety_mode": safety_mode}
+            if safety_mode and safety_mode != "off"
+            else None
+        )
+        self.mutator = DicomMutator(seed=self.seed, config=mutator_config)
         self.file_strategy_map: dict[str, str] = {}
         self.file_variant_map: dict[str, str] = {}
         self.file_binary_mutations_map: dict[str, list[str]] = {}

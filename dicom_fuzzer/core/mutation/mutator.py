@@ -336,7 +336,26 @@ class DicomMutator:
         self, dataset: Dataset, strategy: MutationStrategy
     ) -> Dataset:
         """Apply a single mutation and track the results."""
-        mutated_dataset = strategy.mutate(dataset)
+        safety_mode = self.config.get("safety_mode")
+        if safety_mode and safety_mode != "off":
+            from dicom_fuzzer.core.mutation.safety import (
+                restore_critical_tags,
+                snapshot_critical_tags,
+            )
+
+            snap = snapshot_critical_tags(dataset, safety_mode)
+            mutated_dataset = strategy.mutate(dataset)
+            restored = restore_critical_tags(mutated_dataset, snap, safety_mode)
+            if restored:
+                logger.debug(
+                    "Safety mode '%s': restored %d critical tag(s) after %s",
+                    safety_mode,
+                    restored,
+                    strategy.strategy_name,
+                )
+        else:
+            mutated_dataset = strategy.mutate(dataset)
+
         self._record_mutation(strategy, success=True)
         return mutated_dataset
 
