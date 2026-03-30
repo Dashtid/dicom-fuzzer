@@ -7,26 +7,6 @@ Items are roughly ordered by priority within each section.
 
 ## Active items
 
-### Make reports minimalistic and professional
-
-**Location:** `dicom_fuzzer/core/reporting/html_templates.py` (REPORT_CSS),
-`dicom_fuzzer/core/reporting/series_reporter.py` (inline CSS)
-
-CSS is now unified (PR #200) but the styling is still flashy rather than
-professional:
-
-- Purple gradient body background (`linear-gradient(135deg, #667eea, #764ba2)`)
-- Hover animations on stat cards (`transform: translateY(-5px)`)
-- Gradient stat cards with heavy box shadows (`0 20px 60px`)
-- Giant 3em stat values
-- Gradient table headers
-- `[+]` CLI-style text prefixes in HTML headings
-- 2em icon text in alert/status boxes
-
-**Fix:** Replace with clean, flat styling: white/light gray backgrounds,
-subtle borders instead of shadows, standard-sized text, no animations,
-no gradients. Professional enough for FDA submission attachments.
-
 ### Pre-mutation safety checks
 
 **Removed from:** `dicom_fuzzer/core/mutation/mutator.py`
@@ -55,9 +35,9 @@ should have built-in sanitization that strips or replaces identifiable
 metadata before using seed files in a campaign.
 
 Patient anonymization was extracted to `dicom_fuzzer/utils/anonymizer.py`
-(PR #201). What remains: a pre-processing step in the engine or a
-standalone CLI subcommand (`dicom-fuzzer sanitize <seed-dir>`) that
-strips PHI from seed files before they enter the corpus.
+(PR #201). What remains: a standalone CLI subcommand
+(`dicom-fuzzer sanitize <seed-dir>`) that uses `anonymize_patient_info()`
+to strip PHI from seed files before they enter the corpus.
 
 ### Seed corpus diversification (medium/low priority remaining)
 
@@ -92,24 +72,6 @@ sequences and parameters.
 **Implementation:** Expand `DictionaryFuzzer.TAG_TO_DICTIONARY` with
 MR-specific tags or add MR parameters to `CalibrationFuzzer`. Requires
 MR seed files. Low-medium effort.
-
-### Register multiframe strategies in DicomMutator dispatch pool
-
-**Location:** `dicom_fuzzer/attacks/multiframe/`, `dicom_fuzzer/core/mutation/mutator.py`
-
-`can_mutate()` guards are now in place for all 10 multiframe strategies
-(PR #202). What remains: register them in `DicomMutator`'s strategy pool
-so they fire during standard campaigns (currently explicit-only).
-
-**Work items:**
-
-- Import and register strategies with their guards in `DicomMutator`
-- Run `tests/test_attacks/format/test_format_fuzzer_verification.py` --
-  strategy count will increase from 88 to ~98
-- Requires multiframe seed files for effective testing
-
-The 2 strategies that are seed-agnostic (`FrameCountMismatch`,
-`DimensionOverflow`) could be registered independently as a partial win.
 
 ### Empirically validate mutation reweighting with per-strategy crash telemetry
 
@@ -158,6 +120,10 @@ first-pass reweighting improved crash rates.
 **Prerequisite:** Centralize payloads is done (PR #194). Taxonomy can
 now be applied to the centralized payloads.
 
+**Status:** `metadata_fuzzer.py`'s `_random_pn_attack()` already
+implements the three-family pattern. Remaining: apply it to the 12
+fuzzers that still mix families.
+
 **Proposed three-family taxonomy:**
 
 - **Boundary**: Empty strings, max-length violations, zero/negative
@@ -166,17 +132,16 @@ now be applied to the centralized payloads.
   invalid encoding sequences
 - **Injection**: SQL, XSS, path traversal, Log4Shell, ANSI escapes
 
-**Heavy mixing (all three families entangled):** metadata_fuzzer,
-structure_fuzzer, header_fuzzer, encoding_fuzzer, sequence_fuzzer,
-private_tag_fuzzer, rt_dose_fuzzer, rtss_fuzzer, seg_fuzzer, nm_fuzzer,
-pet_fuzzer, encapsulated_pdf_fuzzer
+**Heavy mixing (all three families entangled):** structure_fuzzer,
+header_fuzzer, encoding_fuzzer, sequence_fuzzer, private_tag_fuzzer,
+rt_dose_fuzzer, rtss_fuzzer, seg_fuzzer, nm_fuzzer, pet_fuzzer,
+encapsulated_pdf_fuzzer, calibration_fuzzer
 
 **Already focused (no change needed):** pixel_fuzzer,
-compressed_pixel_fuzzer, reference_fuzzer, uid_attacks, dictionary_fuzzer
+compressed_pixel_fuzzer, reference_fuzzer, uid_attacks, dictionary_fuzzer,
+metadata_fuzzer
 
-Start with `metadata_fuzzer.py` as the reference implementation (since
-`_random_pn_attack()` already demonstrates the pattern). Large effort
-overall but can be done incrementally per-fuzzer.
+Large effort overall but can be done incrementally per-fuzzer.
 
 ### Build unique-crash-over-time curve (crash discovery saturation)
 
@@ -197,6 +162,20 @@ submissions.
 4. Wire at campaign end
 
 Medium effort. All net-new code.
+
+### Surface MultiFrameMutationRecord details in campaign reports
+
+All 10 multiframe strategies are now registered in `DicomMutator` and
+fire during standard campaigns. However, `_mutate_impl()` returns
+per-frame detail records that the public `mutate()` wrapper discards.
+
+**Work items:**
+
+- Extend `MutationRecord` with optional `frame_mutations: list[MultiFrameMutationRecord]`
+- Surface frame-level details in session JSON and HTML reports
+- The `MultiFrameMutationRecord` class already exists with `to_dict()`
+
+Medium effort. Now actionable since multiframe dispatch is live.
 
 ---
 
@@ -223,32 +202,25 @@ Fails intermittently under parallelism or high load. Passes consistently
 in isolation. Documented in PR #193. Low priority unless failure rate
 increases.
 
-### Surface MultiFrameMutationRecord details in campaign reports
-
-`_mutate_impl()` returns per-frame detail records that the public
-`mutate()` wrapper discards. Once multiframe strategies are in the
-dispatch pool, extend `MutationRecord` with `frame_mutations` and
-surface in session JSON/HTML reports. Depends on multiframe dispatch
-registration.
-
 ### Wire strategy effectiveness into CampaignAnalyzer and FuzzingVisualizer
 
 `CampaignAnalyzer.analyze_strategy_effectiveness()` and
 `FuzzingVisualizer.plot_strategy_effectiveness()` exist but are never
-called. The simple text-table + JSON path (PR #191) already answers
-the FDA question. Full analytics pipeline is future work.
+called from the campaign pipeline. The simple text-table + JSON path
+(PR #191) already answers the FDA question. Full analytics pipeline
+wiring is future work.
 
 ### Series attacks: investigate before wiring into campaign pipeline
 
 The series attack module operates on file lists, not single datasets.
-Requires design work before integration. Do not wire until the interface
-is fully understood.
+Used by `study-campaign` command but not wired into the main
+single-file fuzzing pipeline. Requires design work before integration.
 
-### Merge/disambiguate corpus_minimization.py and corpus_minimizer.py
+### End-of-campaign auto-triage
 
-Two confusingly named modules doing related but distinct work. Consider
-consolidating into `corpus/strip.py`, `corpus/minimize.py`,
-`corpus/sync.py`, `corpus/coverage.py`. Medium effort.
+`dicom-fuzzer triage` CLI exists. Follow-on: call it automatically at
+campaign end. Needs decision on hook point (CampaignRunner session-close
+vs. CLI layer).
 
 ---
 
@@ -256,10 +228,10 @@ consolidating into `corpus/strip.py`, `corpus/minimize.py`,
 
 ### Full DICOM SOP Class coverage
 
-186 active Storage SOP Class UIDs across ~17 domains. Current: 12
-generic fuzzers + 6 modality-specific fuzzers. Full coverage would
-require ~40-44 total fuzzers. Roughly 10-14 weeks of focused work;
-diminishing returns past ~30 fuzzers.
+186 active Storage SOP Class UIDs across ~17 domains. Current: 19
+format fuzzers + 10 multiframe strategies = 29 total. Full coverage
+would require ~40-44 total fuzzers. Roughly 10-14 weeks of focused
+work; diminishing returns past ~30 fuzzers.
 
 ### Add coverage-guided fuzzing
 
@@ -271,37 +243,25 @@ change.
 
 ---
 
-## Needs investigation / decision
-
-### End-of-campaign auto-triage
-
-`dicom-fuzzer triage` CLI exists. Follow-on: call it automatically at
-campaign end. Needs decision on hook point (CampaignRunner session-close
-vs. CLI layer).
-
-### CrashRecord.reproduction_command
-
-`reproduction_command: str | None` is always `None`. Now that
-`replay --decompose` exists (PR #195), this field could be populated
-during decompose so crashes are self-documenting.
-
----
-
 ## Completed (reference only)
 
-| Item                                                           | PR(s)            |
-| -------------------------------------------------------------- | ---------------- |
-| Audit mutations for crash potential (structural/content split) | #188, #198       |
-| Formalize variant terminology + replay --decompose             | #195, #184, #197 |
-| Re-encode pixel data (PixelReencodingFuzzer)                   | #204             |
-| Attack mode / scope filtering (--target-type)                  | #205             |
-| Move mutate_patient_info to utils/anonymizer.py                | #201             |
-| Centralize attack payloads in dicom_dictionaries               | #194             |
-| Seed corpus diversification (SEG, RTSS, PDF)                   | #206             |
-| Unify reporting CSS/HTML systems                               | #200             |
-| Consolidate crash data types (CrashRecord)                     | #203             |
-| Add can_mutate() guards to multiframe strategies               | #202             |
-| Track binary mutations in MutationRecord                       | #197             |
-| Seed fuzzer engine + log RNG seed                              | #184, #185       |
-| crash_by_strategy telemetry                                    | #191             |
-| Structural mutation reweighting                                | #188             |
+| Item                                                           | PR(s)                         |
+| -------------------------------------------------------------- | ----------------------------- |
+| Audit mutations for crash potential (structural/content split) | #188, #198                    |
+| Formalize variant terminology + replay --decompose             | #195, #184, #197              |
+| Re-encode pixel data (PixelReencodingFuzzer)                   | #204                          |
+| Attack mode / scope filtering (--target-type)                  | #205                          |
+| Move mutate_patient_info to utils/anonymizer.py                | #201                          |
+| Centralize attack payloads in dicom_dictionaries               | #194                          |
+| Seed corpus diversification (SEG, RTSS, PDF)                   | #206                          |
+| Unify reporting CSS/HTML systems                               | #200                          |
+| Make reports minimalistic and professional                     | #200 (CSS cleaned up)         |
+| Consolidate crash data types (CrashRecord)                     | #203                          |
+| Add can_mutate() guards to multiframe strategies               | #202                          |
+| Register multiframe strategies in DicomMutator dispatch        | (all 10 registered)           |
+| Track binary mutations in MutationRecord                       | #197                          |
+| Seed fuzzer engine + log RNG seed                              | #184, #185                    |
+| crash_by_strategy telemetry                                    | #191                          |
+| Structural mutation reweighting                                | #188                          |
+| Merge/disambiguate corpus_minimization vs corpus_minimizer     | (corpus_minimizer.py deleted) |
+| CrashRecord.reproduction_command always None                   | (conditionally populated now) |
