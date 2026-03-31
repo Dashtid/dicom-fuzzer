@@ -19,6 +19,27 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
+## Optional Dependencies
+
+Core fuzzing works out of the box. For target testing and reporting,
+install the optional packages:
+
+```bash
+pip install psutil minidump tqdm rich matplotlib jinja2 pywinauto
+```
+
+| Package    | Required for                        |
+| ---------- | ----------------------------------- |
+| psutil     | `--gui-mode`, resource monitoring   |
+| minidump   | Windows crash dump analysis         |
+| tqdm       | Progress bars                       |
+| rich       | Rich console output                 |
+| matplotlib | Chart generation in reports         |
+| jinja2     | Enhanced HTML reports               |
+| pywinauto  | `--response-aware` dialog detection |
+
+Missing packages are reported at startup during pre-flight checks.
+
 ## Basic Usage
 
 ```bash
