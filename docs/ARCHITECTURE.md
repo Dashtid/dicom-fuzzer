@@ -9,6 +9,9 @@ Mutation-based fuzzer for robustness testing of DICOM viewers and parsers.
 - structlog (logging)
 - pytest/Hypothesis (testing)
 
+Optional: psutil, minidump, tqdm, rich, matplotlib, jinja2, pywinauto
+(see [QUICKSTART.md](QUICKSTART.md) for details)
+
 ## Project Structure
 
 ```text
@@ -75,7 +78,7 @@ Reporting (HTML/JSON)
 
 ```text
 attacks/
-├── format/               # DICOM file format attacks (18 fuzzers, all inherit FormatFuzzerBase)
+├── format/               # DICOM file format attacks (19 fuzzers, all inherit FormatFuzzerBase)
 │   ├── FormatFuzzerBase      # ABC: mutate(dataset) + strategy_name
 │   ├── HeaderFuzzer          # VR and tag mutations
 │   ├── PixelFuzzer           # Image dimensions, pixel data
