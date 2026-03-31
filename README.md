@@ -13,6 +13,9 @@ git clone https://github.com/Dashtid/DICOM-Fuzzer.git
 cd DICOM-Fuzzer
 uv sync
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+
+# Optional (for target testing, crash analysis, and reports)
+pip install psutil minidump tqdm rich matplotlib jinja2 pywinauto
 ```
 
 ## Quick Start
@@ -32,9 +35,10 @@ dicom-fuzzer generate-seeds input.dcm -c 500 -o ./seeds/
 
 ### Fuzzing
 
-- 18 mutation strategies across 3 tiers: metadata, structure/encoding, pixel/modality-specific
-- 18 format fuzzers (generic + modality-specific: SEG, RTSS, RT Dose, NM, PET, Encapsulated PDF)
-- 10 multiframe strategies (frame count, temporal, dimensional, encapsulated pixel) -- WIP
+- 29 mutation strategies: 19 format fuzzers + 10 multiframe strategies
+- Modality-specific fuzzers: SEG, RTSS, RT Dose, NM, PET, Encapsulated PDF, Pixel Reencoding
+- Target scope filtering (`--target-type viewer|web|pacs`)
+- Safety mode (`--safety-mode strict`) to preserve critical tags for deep parser testing
 - 3D series fuzzing (CT/MRI volumetric data) -- WIP
 - Study-level cross-series attacks -- WIP
 - Network protocol fuzzing (DIMSE, TLS) -- WIP
@@ -49,7 +53,7 @@ dicom-fuzzer generate-seeds input.dcm -c 500 -o ./seeds/
 
 ### Integration
 
-- CLI with 11 subcommands
+- CLI with 14 subcommands
 - Python API for custom workflows
 - Docker container for isolated execution
 - CI/CD compatible
@@ -57,12 +61,14 @@ dicom-fuzzer generate-seeds input.dcm -c 500 -o ./seeds/
 ## CLI Reference
 
 ```bash
-dicom-fuzzer --help              # Main fuzzing campaign
-dicom-fuzzer target --help       # Target testing
+dicom-fuzzer --help                 # Main fuzzing campaign
+dicom-fuzzer target --help          # Target testing
 dicom-fuzzer generate-seeds --help  # Seed corpus generation
-dicom-fuzzer report --help       # Report generation
-dicom-fuzzer corpus --help       # Corpus management
-dicom-fuzzer tls --help          # TLS/auth testing
+dicom-fuzzer sanitize --help        # Strip PHI from seed files
+dicom-fuzzer replay --help          # Decompose fuzzed files
+dicom-fuzzer report --help          # Report generation
+dicom-fuzzer triage --help          # Crash triaging
+dicom-fuzzer corpus --help          # Corpus management
 ```
 
 See [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE.md) for full command documentation.
@@ -87,7 +93,7 @@ for i in range(100):
 dicom-fuzzer/
 ├── dicom_fuzzer/    # Main package
 │   ├── attacks/     # Attack modules (format, series, network, multiframe)
-│   ├── cli/         # Command-line interface (11 subcommands)
+│   ├── cli/         # Command-line interface (14 subcommands)
 │   ├── core/        # Engine, mutation, corpus, crash analysis, harness, reporting
 │   └── utils/       # Logging, hashing, identifiers
 ├── tests/           # Test suite
