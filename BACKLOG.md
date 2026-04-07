@@ -1,224 +1,307 @@
 # Backlog
 
-Prioritized work items for reaching a complete DICOM fuzzing product.
-Organized by branch and priority. Each item sized for 1 atomic session.
+Prioritized work items for a complete DICOM fuzzing product.
+Each item is sized for 1 atomic Claude Code session. Items include
+exact tags, values, and CVE/issue references for implementation.
 
 ---
 
-## Format fuzzing (Branch 1 -- Production)
+## Format fuzzing -- P0: Crash-rate improvements
 
-### P0: Present-but-empty value attacks (.NET crash pattern)
+### Empty/present-value attacks (EmptyValueFuzzer)
 
-**Rationale:** fo-dicom (the .NET DICOM library Hermes likely uses)
-has crashed repeatedly on tags that are _present but empty_. .NET code
-does `element.Get<string>()` without null/empty checks. This is the
-highest-yield gap for improving crash rate against Hermes.
+**Goal:** New fuzzer targeting the .NET "present but empty" crash
+pattern. fo-dicom crashes when tags exist with zero-length values
+because .NET code calls `element.Get<T>()` without null/empty checks.
 
-**New attacks to add (to existing fuzzers or a new EmptyValueFuzzer):**
+**Implementation:** New `EmptyValueFuzzer` in `attacks/format/`.
+Each attack: add the tag with an empty value (not delete -- present
+but empty). `can_mutate()` returns True for any dataset.
 
-- Empty `PixelSpacing` (0028,0030) -- rendering crash (fo-dicom #2043)
-- Empty `VOILUTFunction` (0028,1056) -- rendering crash (fo-dicom #1891)
-- Empty `SpecificCharacterSet` (0008,0005) -- write crash (fo-dicom #1879)
-- Empty `ImagePositionPatient` (0020,0032) -- geometry crash (fo-dicom #2067)
-- Empty `ImageOrientationPatient` (0020,0037) -- geometry crash (fo-dicom #2067)
-- Empty `WindowWidth` (0028,1051) / `WindowCenter` (0028,1050)
-- `WindowWidth` = 0 or -1 (fo-dicom #1905)
-- Comma-decimal in DS values: "1,5" not "1.5" (fo-dicom #1296)
-- Empty `SharedFunctionalGroupsSequence` (5200,9229) -- zero items,
-  causes IndexOutOfBounds (fo-dicom #1884)
+**Attacks (9 total, each maps to a fo-dicom crash):**
 
-**Effort:** 1 day. High crash-rate impact.
+1. `_empty_pixel_spacing`: Set (0028,0030) PixelSpacing to `""`.
+   Crashes ImageData construction. (fo-dicom #2043, fixed 5.2.5)
 
-### P0: Binary delimiter attacks (CVE pattern)
+2. `_empty_voi_lut_function`: Set (0028,1056) VOILUTFunction to `""`.
+   Crashes on "must contain a single value, but contains 0".
+   (fo-dicom #1891, fixed 5.2.0)
 
-**Rationale:** Every major DICOM library has had CVEs from malformed
-sequence/pixel data delimiters: libdicom use-after-free (CVE-2024-24793),
-fo-dicom missing SequenceDelimitationItem (#1339), GDCM fragment
-underflow (CVE-2025-11266).
+3. `_empty_specific_charset`: Set (0008,0005) SpecificCharacterSet
+   to `""`. IndexOutOfRangeException in GetEncodings()[0].
+   (fo-dicom #1879, fixed 5.1.4)
 
-**New attacks (enhance CompressedPixelFuzzer + StructureFuzzer):**
+4. `_empty_image_position`: Set (0020,0032) ImagePositionPatient
+   to `""`. Geometry pipeline crash. (fo-dicom #2067)
 
-- Remove `SequenceDelimitationItem` (FFFE,E0DD) from encapsulated
-  pixel data -- forces parser to read past end of data
-- Zero-length final pixel data fragment (fo-dicom #1586)
-- Fragment length that triggers unsigned integer underflow in offset
-  calculation (CVE-2025-11266 pattern)
-- Append orphan delimiter items (FFFE,E00D / FFFE,E0DD) at file EOF
-  outside any sequence (fo-dicom #1958)
-- Embedded delimiter bytes inside fragment data (pydicom #1140)
-- Fragment count vs NumberOfFrames mismatch with specific arithmetic
-  relationships (not random -- crafted to trigger underflow)
+5. `_empty_image_orientation`: Set (0020,0037)
+   ImageOrientationPatient to `""`. (fo-dicom #2067)
 
-**Effort:** 2 days. High crash-rate impact (CVE-proven patterns).
+6. `_zero_window_width`: Set (0028,1051) WindowWidth to `0` or
+   `0.001` or `-1`. Division-by-zero in windowing. (fo-dicom #1905)
 
-### P1: VR confusion attacks
+7. `_comma_decimal_string`: Replace `.` with `,` in DS-VR tags
+   (SliceThickness, PixelSpacing, etc). "1,5" instead of "1.5".
+   Locale-specific parsing crash. (fo-dicom #1296)
 
-**Rationale:** .NET parsers that switch behavior based on VR crash
-when VR=UN is used for tags with well-known VRs (fo-dicom #1941).
+8. `_empty_shared_functional_group`: Set (5200,9229)
+   SharedFunctionalGroupsSequence to empty Sequence (zero items).
+   IndexOutOfBoundsException in FunctionalGroupValues[0].
+   (fo-dicom #1884, fixed 5.1.5)
 
-**New attacks (enhance HeaderFuzzer):**
+9. `_empty_window_center`: Set (0028,1050) WindowCenter to `""`.
+   Null reference in LUT pipeline.
 
-- Replace known VRs with UN at binary level after serialization
-- Whitespace bytes (0x20, 0x0A, 0x0D) in length field positions
-  (fo-dicom #1847 -- blank char in length field)
-- Blank characters in VR field positions
-- Group length tags with VR=UN (fo-dicom #1941)
+**structural pool:** All 9 attacks are structural (trigger parser/
+renderer code paths, not just data substitution).
 
-**Effort:** 1 day. Medium crash-rate impact.
+**Tests:** Parametrized test per attack verifying tag is present
+and empty after mutation. Integration test with round-trip serialize.
 
-### P1: MR modality-specific fuzzing
+**Effort:** 1 session (~2 hours).
+
+### Binary encapsulation attacks (enhance CompressedPixelFuzzer)
+
+**Goal:** Add CVE-proven encapsulated pixel data attacks that
+target the fragment parsing arithmetic. Every major DICOM library
+has had CVEs here.
+
+**New sub-attacks (6 total):**
+
+1. `_ultra_short_fragment`: Create encapsulated PixelData fragment
+   (FFFE,E000 Item) with length 0, 1, or 2 bytes. Triggers unsigned
+   integer underflow when parser does `buffer[length - 3]`.
+   (CVE-2025-11266, GDCM <= 3.0.24, CISA ICSMA-25-345-01)
+
+   Concrete bytes:
+
+   ```
+   FE FF 00 E0 00 00 00 00  # Fragment Item, length=0
+   FE FF 00 E0 01 00 00 00 FF  # Fragment Item, length=1
+   FE FF 00 E0 02 00 00 00 FF D8  # Fragment Item, length=2
+   ```
+
+2. `_remove_sequence_delimiter`: Strip the final 8 bytes
+   (FFFE,E0DD + 0x00000000) from encapsulated pixel data. Parser
+   reads past end of data. (fo-dicom #1339, fixed 5.1.4)
+
+3. `_delimiter_in_fragment_content`: Inject `\xFE\xFF\xDD\xE0`
+   (SequenceDelimitationItem tag bytes) inside a pixel data
+   fragment's content. Parser mistakenly treats it as end-of-data,
+   then parses remaining pixel bytes as DICOM tags.
+   (pydicom #1140)
+
+4. `_zero_length_final_fragment`: Add an empty (0-length) fragment
+   as the last fragment before the SequenceDelimitationItem.
+   (fo-dicom #1586)
+
+5. `_orphan_delimiter_at_eof`: Append raw delimiter bytes
+   (FE FF 0D E0 or FE FF DD E0) after the dataset, outside any
+   sequence context. (fo-dicom #1958)
+
+6. `_fragment_offset_underflow`: Set Basic Offset Table entry to
+   a value larger than the actual fragment data, causing the parser
+   to compute a negative (underflowed) buffer index when subtracting
+   fragment header sizes. (CVE-2025-11266 arithmetic pattern)
+
+**Implementation:** These operate at the binary level (mutate_bytes)
+since pydicom's API normalizes the encapsulation. Use the existing
+`_apply_binary_mutations` path in StructureFuzzer as reference.
+
+**Tests:** Each sub-attack tested with a minimal encapsulated
+dataset (CT with JPEG Baseline transfer syntax).
+
+**Effort:** 2 sessions (~4 hours total).
+
+### VR field corruption at binary level (enhance StructureFuzzer)
+
+**Goal:** Corrupt the 2-byte VR field in Explicit VR transfer
+syntax at the binary level after serialization. Targets .NET
+parser VR detection logic.
+
+**New sub-attacks (4 total):**
+
+1. `_whitespace_vr`: Replace VR bytes with `\x20\x0A` (space +
+   line feed). fo-dicom VR detection fails. (fo-dicom #1847)
+
+2. `_null_vr`: Replace VR bytes with `\x00\x00`.
+
+3. `_dash_vr`: Replace VR bytes with `\x2D\x2D` ("--"). Parser
+   returns `DicomReaderResult.Suspended`, truncating dataset.
+   (fo-dicom #1660)
+
+4. `_vr_un_substitution`: Replace known VRs (UI, DS, CS, LO)
+   with UN. Forces parser into fallback path with different
+   length semantics. (fo-dicom #1941)
+
+**Implementation:** Binary-level via `mutate_bytes()`. Find VR
+byte positions by scanning for known VR strings at tag+4 offsets.
+
+**Tests:** Verify binary output contains corrupted VR at expected
+offset. Round-trip test that pydicom can still parse with force=True.
+
+**Effort:** 1 session (~2 hours).
+
+### Overlay origin attacks (new sub-attacks in PixelFuzzer or new OverlayFuzzer)
+
+**Goal:** Test overlay rendering with invalid overlay parameters.
+
+**Attacks (3 total):**
+
+1. `_negative_overlay_origin`: Set (6000,0050) OverlayOrigin to
+   `[-100, -100]`. IndexOutOfRangeException in overlay rendering.
+   (fo-dicom #1559)
+
+2. `_overlay_dimension_mismatch`: Set (6000,0010) OverlayRows and
+   (6000,0011) OverlayColumns larger than image dimensions.
+
+3. `_overlay_bit_position`: Set (6000,0102) OverlayBitPosition to
+   non-zero value with (6000,0100) OverlayBitsAllocated = 1.
+   Undefined behavior in bit extraction. (fo-dicom #2087)
+
+**Effort:** 1 session (~1.5 hours).
+
+### Private SQ as last file element (enhance PrivateTagFuzzer)
+
+**Goal:** Trigger parser read-past-EOF on private sequences.
+
+**Attack:** Append a private SQ tag (e.g., 7001,1001) as the very
+last element in the serialized file. Give it one or more empty
+sequence items (Item tag + Item Delimiter with no data between).
+Parser's `IsPrivateSequence()` tries to peek beyond EOF.
+(fo-dicom #487, #220)
+
+**Effort:** 0.5 session (add to existing PrivateTagFuzzer).
+
+### Odd-length pixel data (enhance PixelFuzzer)
+
+**Goal:** Force pixel data to have an odd byte count. Violates
+DICOM Part 5 Section 8 (all elements must have even length).
+Triggers padding/truncation bugs in transcoding and rendering.
+(fo-dicom #1403)
+
+**Effort:** 0.5 session.
+
+---
+
+## Format fuzzing -- P1: Modality expansion
+
+### MR modality-specific fuzzing
 
 Expand DictionaryFuzzer or CalibrationFuzzer with MR-specific tags:
-EchoTime, RepetitionTime, FlipAngle, InversionTime,
-MagneticFieldStrength, DiffusionBValue. MR is ~30% of clinical DICOM
-volume. MR seed file already in corpus. Low-medium effort.
+EchoTime (0018,0081), RepetitionTime (0018,0080), FlipAngle
+(0018,1314), InversionTime (0018,0082), MagneticFieldStrength
+(0018,0087), DiffusionBValue. MR seed already in corpus.
 
-### P2: Deep sequence nesting variants
+**Effort:** 1 session.
 
-The one confirmed Hermes crash was from self-referencing sequences.
-Explore more variations:
+### DX/CR modality fuzzer
 
-- Mutual references (A->B->A)
-- Long chains (A->B->C->...->Z->A)
-- Sequence items with corrupted delimitation bytes
-- Self-referencing at different nesting depths
+DX seed already in corpus. Add DX-specific attacks: ExposureInuAs,
+DistanceSourceToDetector, ExposureTime, KVP boundary values.
 
-**Effort:** 1 day.
-
-### P2: Transfer syntax codec attacks
-
-PixelReencodingFuzzer does RLE. Extend to JPEG Baseline, JPEG 2000,
-JPEG-LS with corrupted codec streams that are structurally valid
-enough to reach the decoder but corrupt enough to trigger buffer
-overflows in the decompression path.
-
-**Effort:** 2-3 days.
-
-### P2: Extend modality coverage
-
-Currently 6 modality-specific fuzzers. Clinical gaps: DX, US, MG,
-Enhanced CT/MR. Each needs seed files + SOP-specific fuzzers.
+**Effort:** 1 session.
 
 ---
 
-## Multiframe fuzzing (Branch 2 -- Production)
+## Multiframe fuzzing -- P1
 
-### P1: Functional group attacks (.NET crash pattern)
+### Functional group crash attacks
 
-Empty/invalid values in PerFrameFunctionalGroupsSequence items cause
-IndexOutOfBounds in fo-dicom rendering. Add:
+Empty/invalid values in PerFrameFunctionalGroupsSequence:
 
 - Empty FrameContentSequence items
 - Invalid numeric values in PlanePositionSequence
-- Invalid PlaneOrientationSequence values
-- Mismatched number of items vs NumberOfFrames
+- Mismatched item count vs NumberOfFrames
+- Empty SharedFunctionalGroupsSequence (fo-dicom #1884)
 
-**Effort:** 1 day.
+**Effort:** 1 session.
 
-### P1: Concurrent field mismatches
+### Concurrent field mismatches
 
-Strategies currently apply 1 attack per invocation. Add multi-field
-contradictions (NumberOfFrames + BitsAllocated + SamplesPerPixel all
-wrong simultaneously). Parsers assume mutually-consistent fields.
+NumberOfFrames + BitsAllocated + SamplesPerPixel all wrong
+simultaneously. Parsers assume mutually-consistent fields.
 
-**Effort:** 1 day.
-
-### P2: Shared vs per-frame attribute conflicts
-
-Both SharedFunctionalGroupsSequence and PerFrameFunctionalGroupsSequence
-present with same tag but conflicting values. Tests parser
-priority/override logic.
-
-**Effort:** 1 day.
+**Effort:** 1 session.
 
 ---
 
-## Series/Study fuzzing (Branch 3 -- Production)
+## Series/Study fuzzing -- P2
 
-### P2: Temporal (4D) series attacks
+### Temporal (4D) series attacks
 
-Add TemporalSeriesStrategy: InstanceCreationTime chaos, frame-to-frame
-temporal delta violations, temporal discontinuity injection.
+InstanceCreationTime chaos, temporal delta violations,
+discontinuity injection for cardiac/perfusion imaging.
 
-**Effort:** 2 days.
+**Effort:** 2 sessions.
 
-### P2: Registration geometry attacks
+### Registration geometry attacks
 
-Multiple series claiming same FrameOfReferenceUID with conflicting
+Multiple series with same FrameOfReferenceUID but conflicting
 ImagePositionPatient. FoR UID orphaning.
 
-**Effort:** 1 day.
+**Effort:** 1 session.
 
 ---
 
-## Network protocol fuzzing (Branch 4 -- Prototype)
+## Network protocol fuzzing -- Prototype to Production
 
-Architecture is well-designed but every core function is a stub.
-
-### P0: Implement PDU binary format (PS3.8 Section 7)
+### P0: PDU binary format (PS3.8 Section 7)
 
 7 PDU type constructors: A-ASSOCIATE-RQ/AC/RJ, P-DATA-TF,
-A-RELEASE-RQ/RP, A-ABORT. This is the foundation.
+A-RELEASE-RQ/RP, A-ABORT. Variable-length encoding. Foundation
+for all network fuzzing.
 
-**Effort:** 2-3 days.
+**Effort:** 2-3 sessions.
 
-### P0: Wire state machine to PDU receiver
+### P0: State machine wiring
 
-Connect DICOMStateMachine transitions to actual PDU receipt/send.
-Implement StateAwareFuzzer.fuzz().
+Connect DICOMStateMachine to actual PDU receipt/send. Implement
+StateAwareFuzzer.fuzz() for invalid state transitions.
 
-**Effort:** 1-2 days.
+**Effort:** 1-2 sessions.
 
-### P0: Implement DIMSE command generation
+### P0: DIMSE command generation
 
 C-STORE, C-FIND, C-MOVE, C-ECHO PDU packing with embedded datasets.
 
-**Effort:** 2 days.
+**Effort:** 2 sessions.
 
-### P1: Implement real TLS testing
+### P1: Real TLS testing
 
 Replace hardcoded vulnerability enumeration with actual TLS probes.
 
-**Effort:** 1-2 days.
+**Effort:** 1-2 sessions.
 
 ### P1: Query/Retrieve fuzzing
 
-C-FIND/C-MOVE with complex query tag corruption, wildcard injection.
+C-FIND/C-MOVE with query tag corruption, wildcard injection.
 
-**Effort:** 1-2 days.
-
-### P2: Authentication negotiation fuzzing
-
-ACSE user identity negotiation fuzzing at association level.
-
-**Effort:** 1 day.
+**Effort:** 1-2 sessions.
 
 ---
 
 ## Campaign & validation
 
-### Run full campaign against Hermes
+### Full campaign run against Hermes
 
-Full overnight run with 9 seeds, analyze crash-by-strategy data.
-No code changes -- just runtime. Blocked on completing the run.
+Overnight run with 9 seeds + 30s timeout. Analyze crash-by-strategy.
 
 ### Second-pass structural audit
 
-After campaign data: review DictionaryFuzzer, SequenceFuzzer,
-ReferenceFuzzer, CalibrationFuzzer low-value methods. Remove or
-redesign content-only strategies that produce zero crashes.
+After campaign data: remove/redesign zero-crash strategies.
 
 ---
 
 ## Low priority / deferred
 
-- Structural/content code comments (pure documentation)
-- CrashAnalyzer rename (no functional impact)
-- Test flakiness investigation (low failure rate)
-- Strategy effectiveness charts (text-table already works)
-- End-of-campaign auto-triage (needs hook point decision)
-- Overlay data attacks (rare rendering path)
-- VOI LUT / Palette color corruption (uncommon)
+- Structural/content code comments
+- CrashAnalyzer rename
+- Test flakiness investigation
+- Strategy effectiveness charts
+- End-of-campaign auto-triage
+- VOI LUT / Palette color corruption
+- Authentication negotiation fuzzing
 
 ---
 
@@ -226,13 +309,11 @@ redesign content-only strategies that produce zero crashes.
 
 ### Full DICOM SOP Class coverage
 
-186 Storage SOP Classes, ~17 domains. Current 29 strategies cover
-the core. Full coverage: ~40-44 fuzzers. Diminishing returns past ~30.
+186 Storage SOP Classes. Current 29 strategies. Target ~40-44.
 
 ### Coverage-guided fuzzing
 
-Instrument target (DynamoRIO/Frida), feed coverage back, implement
-seed selection. Major architectural change.
+DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 
 ---
 
