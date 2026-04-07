@@ -124,6 +124,21 @@ def _add_basic_args(parser: argparse.ArgumentParser) -> None:
             "Pass the same seed to reproduce a crash."
         ),
     )
+    parser.add_argument(
+        "--safety-mode",
+        type=str,
+        choices=["off", "lenient", "strict"],
+        default="off",
+        dest="safety_mode",
+        metavar="MODE",
+        help=(
+            "Preserve critical DICOM tags during mutation. "
+            "'off' (default): no restrictions. "
+            "'lenient': preserve TransferSyntaxUID (files stay parseable). "
+            "'strict': preserve all identity/routing UIDs (files reach deep "
+            "parser code paths)."
+        ),
+    )
     parser.add_argument("--version", action="version", version=VERSION)
 
 

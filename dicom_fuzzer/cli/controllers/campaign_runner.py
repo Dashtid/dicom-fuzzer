@@ -37,6 +37,7 @@ class CampaignRunner:
         args: Namespace,
         input_files: list[Path],
         selected_strategies: list[str] | None = None,
+        safety_mode: str | None = None,
     ):
         """Initialize the campaign runner.
 
@@ -44,11 +45,13 @@ class CampaignRunner:
             args: Parsed command-line arguments
             input_files: List of input DICOM files
             selected_strategies: List of strategy names to use
+            safety_mode: Critical-tag preservation mode (off/lenient/strict)
 
         """
         self.args = args
         self.input_files = input_files
         self.selected_strategies = selected_strategies
+        self.safety_mode = safety_mode
         self.is_directory_input = len(input_files) > 1
         self.seed: int | None = getattr(args, "seed", None)
 
@@ -83,6 +86,8 @@ class CampaignRunner:
             cli.detail("Strategies", ", ".join(self.selected_strategies))
         else:
             cli.detail("Strategies", "all (metadata, header, pixel)")
+        if self.safety_mode and self.safety_mode != "off":
+            cli.detail("Safety mode", self.safety_mode)
         cli.divider()
 
     def generate_files(self) -> tuple[list[Path], dict[str, Any]]:
@@ -97,7 +102,10 @@ class CampaignRunner:
         start_time = time.time()
 
         generator = DICOMGenerator(
-            self.args.output, skip_write_errors=True, seed=self.seed
+            self.args.output,
+            skip_write_errors=True,
+            seed=self.seed,
+            safety_mode=self.safety_mode,
         )
         self.seed = generator.seed  # capture auto-generated seed if not provided
         files: list[Path] = []

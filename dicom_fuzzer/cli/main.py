@@ -618,7 +618,10 @@ def main() -> int:
             cli.error("Pre-flight check failed. Fix issues and retry.")
             return 1
 
-        runner = CampaignRunner(args, input_files, selected_strategies)
+        safety_mode = getattr(args, "safety_mode", "off")
+        runner = CampaignRunner(
+            args, input_files, selected_strategies, safety_mode=safety_mode
+        )
         runner.display_header()
         files, results_data = runner.generate_files()
         runner.display_results(files, results_data, json_mode, quiet_mode)
