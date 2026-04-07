@@ -32,10 +32,6 @@ class FrameCountMismatchStrategy(MultiFrameFuzzerBase):
         """Return the strategy name."""
         return "frame_count_mismatch"
 
-    def mutate(self, dataset: Dataset) -> Dataset:
-        """Apply one randomly-selected mutation and return the mutated dataset."""
-        return self._mutate_impl(dataset, 1)[0]
-
     def _mutate_impl(
         self,
         dataset: Dataset,

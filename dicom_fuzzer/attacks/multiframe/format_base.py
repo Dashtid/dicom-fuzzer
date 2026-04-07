@@ -83,6 +83,19 @@ class MultiFrameFuzzerBase(FormatFuzzerBase):
     # has been set to a huge value by a prior FrameCountMismatch mutation.
     _MAX_FRAME_COUNT: int = 100
 
+    def _mutate_impl(
+        self, dataset: Dataset, count: int
+    ) -> tuple[Dataset, list[MultiFrameMutationRecord]]:
+        """Apply *count* mutations. Subclasses must override."""
+        raise NotImplementedError
+
+    def mutate(self, dataset: Dataset) -> Dataset:
+        """Apply one mutation and capture the attack type as last_variant."""
+        ds, records = self._mutate_impl(dataset, 1)
+        if records:
+            self.last_variant = records[0].details.get("attack_type", "")
+        return ds
+
     def _get_frame_count(self, dataset: Dataset) -> int:
         """Return the number of frames declared in the dataset (1 if absent).
 
