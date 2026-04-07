@@ -45,10 +45,6 @@ class SharedGroupStrategy(MultiFrameFuzzerBase):
         except (ValueError, TypeError):
             return False
 
-    def mutate(self, dataset: Dataset) -> Dataset:
-        """Apply one randomly-selected mutation and return the mutated dataset."""
-        return self._mutate_impl(dataset, 1)[0]
-
     def _ensure_sfg(self, dataset: Dataset) -> Dataset:
         """Ensure SharedFunctionalGroupsSequence exists and return first item."""
         if not hasattr(dataset, "SharedFunctionalGroupsSequence"):
