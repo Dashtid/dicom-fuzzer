@@ -283,7 +283,26 @@ C-FIND/C-MOVE with query tag corruption, wildcard injection.
 
 ## Campaign & validation
 
-### Full campaign run against Hermes
+### CVE-to-strategy coverage audit
+
+**Goal:** Systematic cross-reference of every known DICOM CVE
+(2022-2026) against existing mutation strategies. Confirm each
+CVE's crash pattern is covered by at least one strategy, and
+identify gaps where new attacks are needed.
+
+**Scope:**
+
+- Source: private CVE reference repo (curated list of DICOM CVEs
+  across fo-dicom, DCMTK, GDCM, libdicom, pydicom, MicroDicom,
+  Merge DICOM Toolkit, Orthanc, OsiriX, Sante PACS)
+- For each CVE: document the trigger pattern, map it to the
+  strategy that covers it (or flag as gap)
+- Output: coverage matrix (CVE x strategy) and list of unmatched
+  CVEs to drive new strategy development
+
+**Effort:** 1 session.
+
+### Full campaign run
 
 Overnight run with 9 seeds + 30s timeout. Analyze crash-by-strategy.
 

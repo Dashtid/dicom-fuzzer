@@ -35,7 +35,7 @@ dicom-fuzzer generate-seeds input.dcm -c 500 -o ./seeds/
 
 ### Fuzzing
 
-- **Format fuzzing (production):** 20 single-file mutation strategies targeting VR types, pixel data, sequences, encoding, and modality-specific tags
+- **Format fuzzing (production):** 19 single-file mutation strategies targeting VR types, pixel data, sequences, encoding, and modality-specific tags
 - Modality-specific fuzzers: SEG, RTSS, RT Dose, NM, PET, Encapsulated PDF, Pixel Reencoding
 - Target scope filtering (`--target-type viewer|web|pacs`)
 - Multiframe fuzzing (WIP): 10 strategies for enhanced imaging objects -- functional groups, frame counts, dimension indices
