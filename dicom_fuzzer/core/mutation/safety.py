@@ -38,7 +38,6 @@ _TIER_2_FILE_META: frozenset[str] = frozenset(
 _TIER_2_DATASET: frozenset[str] = frozenset({"SOPClassUID"})
 
 # Tier 3 -- file rejected at PACS routing / storage stage.
-_TIER_3_FILE_META: frozenset[str] = frozenset()
 _TIER_3_DATASET: frozenset[str] = frozenset(
     {"SOPInstanceUID", "StudyInstanceUID", "SeriesInstanceUID"}
 )

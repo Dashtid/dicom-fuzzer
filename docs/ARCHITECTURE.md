@@ -17,7 +17,7 @@ Optional: psutil, minidump, tqdm, rich, matplotlib, jinja2, pywinauto
 ```text
 dicom-fuzzer/
 ├── dicom_fuzzer/
-│   ├── cli/           # Command-line interface (11 subcommands)
+│   ├── cli/           # Command-line interface
 │   ├── core/          # Core logic
 │   │   ├── dicom/         # Parsing, validation, series detection
 │   │   ├── mutation/      # Mutation engine and strategies
@@ -76,9 +76,13 @@ Reporting (HTML/JSON)
 
 ## Attack Architecture
 
+Format fuzzing is the current focus and production-ready with confirmed
+vulnerability findings. Multiframe, series, and network branches are
+functional but under active development.
+
 ```text
 attacks/
-├── format/               # DICOM file format attacks (19 fuzzers, all inherit FormatFuzzerBase)
+├── format/               # DICOM file format attacks -- PRODUCTION (20 fuzzers, all inherit FormatFuzzerBase)
 │   ├── FormatFuzzerBase      # ABC: mutate(dataset) + strategy_name
 │   ├── HeaderFuzzer          # VR and tag mutations
 │   ├── PixelFuzzer           # Image dimensions, pixel data
@@ -92,14 +96,7 @@ attacks/
 │   ├── PrivateTagFuzzer      # Vendor-specific tags
 │   ├── CalibrationFuzzer     # Measurement/calibration
 │   └── DictionaryFuzzer      # Domain-based dictionary mutations
-├── series/               # Multi-slice 3D volume mutations
-│   ├── Series3DMutator       # Main class with mixins
-│   ├── CoreMutationsMixin    # Metadata, slice operations
-│   ├── Reconstruction3DAttacksMixin  # 3D reconstruction
-│   ├── TemporalAttacksMixin  # Cross-slice temporal
-│   ├── StudyMutator          # Cross-series study-level
-│   └── ParallelSeriesMutator # Multi-process wrapper
-├── multiframe/           # Multi-frame mutation strategies (10 strategies, all extend MultiFrameFuzzerBase)
+├── multiframe/           # Multi-frame mutation strategies -- WIP (10 strategies, all extend MultiFrameFuzzerBase)
 │   ├── FrameCountMismatchStrategy   # NumberOfFrames vs actual frame data
 │   ├── FrameTimeCorruptionStrategy  # FrameTime / FrameIncrementPointer
 │   ├── FrameIncrementStrategy       # FrameIncrementPointer tag corruption
@@ -110,7 +107,14 @@ attacks/
 │   ├── EncapsulatedPixelStrategy    # BOT/EOT fragments, offset table attacks
 │   ├── PixelDataTruncationStrategy  # Pixel data truncation vs frame count
 │   └── SharedGroupStrategy          # Shared functional group mutations
-└── network/              # Network protocol fuzzing (experimental)
+├── series/               # Multi-slice 3D volume mutations -- WIP
+│   ├── Series3DMutator       # Main class with mixins
+│   ├── CoreMutationsMixin    # Metadata, slice operations
+│   ├── Reconstruction3DAttacksMixin  # 3D reconstruction
+│   ├── TemporalAttacksMixin  # Cross-slice temporal
+│   ├── StudyMutator          # Cross-series study-level
+│   └── ParallelSeriesMutator # Multi-process wrapper
+└── network/              # Network protocol fuzzing -- WIP
     ├── dimse/                # DIMSE protocol layer
     ├── tls/                  # TLS security testing
     └── stateful/             # Stateful protocol fuzzing
