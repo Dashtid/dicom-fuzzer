@@ -35,13 +35,12 @@ dicom-fuzzer generate-seeds input.dcm -c 500 -o ./seeds/
 
 ### Fuzzing
 
-- 29 mutation strategies: 19 format fuzzers + 10 multiframe strategies
+- **Format fuzzing (production):** 20 single-file mutation strategies targeting VR types, pixel data, sequences, encoding, and modality-specific tags
 - Modality-specific fuzzers: SEG, RTSS, RT Dose, NM, PET, Encapsulated PDF, Pixel Reencoding
 - Target scope filtering (`--target-type viewer|web|pacs`)
-- Safety mode (`--safety-mode strict`) to preserve critical tags for deep parser testing
-- 3D series fuzzing (CT/MRI volumetric data) -- WIP
-- Study-level cross-series attacks -- WIP
-- Network protocol fuzzing (DIMSE, TLS) -- WIP
+- Multiframe fuzzing (WIP): 10 strategies for enhanced imaging objects -- functional groups, frame counts, dimension indices
+- Series/study fuzzing (WIP): cross-series geometry, temporal ordering, patient consistency
+- Network protocol fuzzing (WIP): PDU construction, DIMSE commands, state machine, TLS
 
 ### Analysis
 
