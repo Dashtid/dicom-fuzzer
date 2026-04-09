@@ -5,6 +5,31 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.1] - 2026-04-09 - Unbundle seed corpus
+
+Course-correction on the "bundled PHI-free seed corpus" feature shipped in
+1.10.0. The bundled files were too downscaled to exercise realistic parser
+code paths (e.g. 128x128 CT stubs where clinical data is 512x512), and
+shipping sample data alongside the tool mixed concerns between "fuzzer" and
+"dataset". Users should bring their own clinical seeds (sanitized with
+`dicom-fuzzer sanitize`) or generate synthetic ones with `generate-seeds`.
+
+### Removed
+
+- **Bundled `dicom-seeds/` `.dcm` files** -- all 9 modality sample files
+  deleted from version control. The directory scaffolding (modality
+  subfolders, `.gitkeep` files, README) is retained as a local template.
+- **`.gitignore` exception** for `/dicom-seeds/**/*.dcm` -- removed. The
+  general `*.dcm` exclusion now applies everywhere, including `dicom-seeds/`,
+  acting as a last-line PHI-leak defense.
+
+### Changed
+
+- **`dicom-seeds/README.md`** -- rewritten to reflect its new purpose as a
+  local-only seed-building area. Documents sourcing guidance (public datasets,
+  `generate-seeds` for synthetic, `sanitize` for in-house clinical data) and
+  notes that `-c N` is per-seed-file, not total.
+
 ## [1.10.0] - 2026-04-08 - Reproducibility, Safety & CLI Expansion
 
 Feature release focused on reproducible fuzzing campaigns, PHI handling, and

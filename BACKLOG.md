@@ -283,6 +283,62 @@ C-FIND/C-MOVE with query tag corruption, wildcard injection.
 
 ## Campaign & validation
 
+### Build local high-quality DICOM seed corpus
+
+**Goal:** Assemble a diverse, realistic seed corpus in the local-only
+`dicom-seeds/` directory (gitignored as of 1.10.1). Replaces the removed
+bundled stub corpus with seeds that actually exercise parser code paths.
+
+**Quality bar (per modality):**
+
+- **CT**: 512x512, 12-bit, IVLE. At least 3 variants from different
+  vendors (GE, Siemens, Canon) to capture divergent private-tag patterns.
+- **MR**: 256x256 or 320x320, 12-bit, IVLE. At least 2 sequences
+  (T1, T2) and 1 enhanced MR (multiframe) example.
+- **DX**: 1024x1024+, 8-14 bit. CR and DR variants.
+- **NM**: Multiframe (>50 frames), 128x128, 16-bit IVLE. One dual-isotope
+  and one SPECT example.
+- **PET**: 128x128 or 144x144, 16-bit, IVLE. Both attenuation-corrected
+  and uncorrected variants.
+- **RT Dose**: Full dose cube (>100 frames), 32-bit float, EVLE.
+- **RT Struct**: Real structure set with >=20 ROIs, dense contour data
+  (>=10k points total). The 2.5KB stub previously bundled was useless.
+- **SEG**: Multiframe segmentation with multiple segments, 1-bit,
+  matching a real CT/MR geometry.
+- **Encapsulated PDF**: Real clinical report PDF (>=5 pages).
+
+**Sources:**
+
+1. **TCIA (The Cancer Imaging Archive)** -- public, already de-identified.
+   Prioritize LIDC-IDRI for CT, BraTS for MR, NSCLC-Radiomics for RT.
+2. **pydicom/pydicom-data** -- small but diverse, CC0-licensed.
+3. **In-house clinical data** sanitized via `dicom-fuzzer sanitize`.
+   Review sanitized output for residual PHI before committing to local
+   corpus (check PatientName, PatientID, InstitutionName, private tags).
+
+**Process:**
+
+1. Download candidate seeds to a staging area.
+2. Verify with `pydicom.dcmread()` that each parses cleanly (baseline).
+3. Run `dicom-fuzzer sanitize` even on "public" datasets as defense-in-depth.
+4. Inspect file sizes and header dimensions against the quality bar above.
+5. Copy into the appropriate `dicom-seeds/<modality>/` subdirectory using
+   the filename convention documented in `dicom-seeds/README.md`.
+6. Run a baseline `dicom-fuzzer <seed> -c 10` dry-run and confirm all
+   modality-applicable strategies fire (non-zero hit counts in output).
+7. Keep a local note of the provenance of each seed (source dataset,
+   series UID, any manual modifications) outside version control.
+
+**Non-goals:**
+
+- **Do not commit any of these files.** The `.gitignore` excludes `*.dcm`
+  globally and the `dicom-seeds/**` exception was removed in 1.10.1.
+- **Do not redistribute** -- even "public" dataset files often have
+  license constraints that prohibit redistribution as part of a tool.
+
+**Effort:** Ongoing. Start with CT (highest-value for Hermes campaign),
+then MR, then RT. The full corpus is a multi-session effort.
+
 ### CVE-to-strategy coverage audit
 
 **Goal:** Systematic cross-reference of every known DICOM CVE
