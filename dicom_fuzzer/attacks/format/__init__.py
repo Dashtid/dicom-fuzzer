@@ -9,6 +9,7 @@ Generic fuzzers (work on any SOP class):
 - CompressedPixelFuzzer: JPEG/JPEG2000/RLE encapsulation corruption
 - ConformanceFuzzer: SOP Class and Transfer Syntax validation
 - DictionaryFuzzer: Domain-aware mutations from DICOM data dictionaries
+- EmptyValueFuzzer: Present-but-empty tag mutations (.NET Get<T>() crash pattern)
 - EncodingFuzzer: Character set and text encoding violations
 - HeaderFuzzer: VR and tag mutations (all 27 DICOM VRs)
 - MetadataFuzzer: Patient/study metadata mutations
@@ -33,6 +34,7 @@ from .calibration_fuzzer import CalibrationFuzzer
 from .compressed_pixel_fuzzer import CompressedPixelFuzzer
 from .conformance_fuzzer import ConformanceFuzzer
 from .dictionary_fuzzer import DictionaryFuzzer
+from .empty_value_fuzzer import EmptyValueFuzzer
 from .encapsulated_pdf_fuzzer import EncapsulatedPdfFuzzer
 from .encoding_fuzzer import EncodingFuzzer
 from .header_fuzzer import HeaderFuzzer
@@ -54,6 +56,7 @@ __all__ = [
     "CompressedPixelFuzzer",
     "ConformanceFuzzer",
     "DictionaryFuzzer",
+    "EmptyValueFuzzer",
     "EncapsulatedPdfFuzzer",
     "EncodingFuzzer",
     "FormatFuzzerBase",

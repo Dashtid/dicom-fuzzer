@@ -112,6 +112,7 @@ class DicomMutator:
         )
         from dicom_fuzzer.attacks.format.conformance_fuzzer import ConformanceFuzzer
         from dicom_fuzzer.attacks.format.dictionary_fuzzer import DictionaryFuzzer
+        from dicom_fuzzer.attacks.format.empty_value_fuzzer import EmptyValueFuzzer
         from dicom_fuzzer.attacks.format.encapsulated_pdf_fuzzer import (
             EncapsulatedPdfFuzzer,
         )
@@ -165,6 +166,7 @@ class DicomMutator:
             CompressedPixelFuzzer,
             ConformanceFuzzer,
             DictionaryFuzzer,
+            EmptyValueFuzzer,
             EncapsulatedPdfFuzzer,
             EncodingFuzzer,
             HeaderFuzzer,
