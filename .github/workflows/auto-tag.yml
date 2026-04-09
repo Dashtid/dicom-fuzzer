@@ -18,7 +18,8 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: write  # tag creation and push
+  actions: write   # gh workflow run (dispatches release.yml)
 
 jobs:
   auto-tag:

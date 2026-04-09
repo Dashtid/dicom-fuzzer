@@ -8,15 +8,52 @@ Mutation-based fuzzer for robustness testing of DICOM medical imaging viewers an
 
 ## Installation
 
+### For end users (run the CLI)
+
+Install from PyPI as an isolated tool so `dicom-fuzzer` is on your PATH everywhere, without polluting your system Python:
+
+```bash
+# Recommended: uv (fast, modern)
+uv tool install dicom-fuzzer
+
+# Alternative: pipx (same idea, different manager)
+pipx install dicom-fuzzer
+
+# Alternative: pip into the active environment
+pip install dicom-fuzzer
+```
+
+After installation:
+
+```bash
+dicom-fuzzer --help
+```
+
+Optional extras are needed only for specific features (target process monitoring, Windows crash dump parsing, HTML reports, GUI automation):
+
+```bash
+uv tool install "dicom-fuzzer[all]"
+# or, if you only need specific extras:
+pip install dicom-fuzzer psutil minidump tqdm rich matplotlib jinja2 pywinauto
+```
+
+### For contributors (develop the code)
+
 ```bash
 git clone https://github.com/Dashtid/DICOM-Fuzzer.git
 cd DICOM-Fuzzer
 uv sync
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-
-# Optional (for target testing, crash analysis, and reports)
-pip install psutil minidump tqdm rich matplotlib jinja2 pywinauto
+source .venv/Scripts/activate  # Windows/Git Bash
+# source .venv/bin/activate    # macOS/Linux
 ```
+
+To run your local checkout as a global CLI while developing:
+
+```bash
+uv tool install --editable .
+```
+
+Source edits take effect immediately with no reinstall.
 
 ## Quick Start
 

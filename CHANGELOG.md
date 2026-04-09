@@ -5,6 +5,69 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-04-08 - Reproducibility, Safety & CLI Expansion
+
+Feature release focused on reproducible fuzzing campaigns, PHI handling, and
+CLI surface area. Also includes a major CLI architecture refactor (SubcommandBase
+ABC) and reweighted mutation dispatch to favour structural attacks.
+
+### Added
+
+- **`dicom-fuzzer sanitize` subcommand** -- strips PHI from seed files using the
+  shared patient anonymization utility. Runs on entire directories.
+- **`--safety-mode` flag** -- preserves critical DICOM tags during mutation so
+  fuzzed files remain parseable enough to exercise viewer code paths.
+- **`dicom-fuzzer triage` subcommand** -- exposes `CrashTriageEngine` via CLI for
+  severity and exploitability scoring of captured crashes.
+- **`dicom-fuzzer replay --decompose`** -- decomposes a fuzzed file into its
+  individual mutations for delta debugging.
+- **PHI-free DICOM seed corpus** -- bundles sanitized samples for all 9 modalities
+  so users can run campaigns without providing their own data.
+- **`PixelReencodingFuzzer`** -- pure-Python RLE Lossless re-encoding attack for
+  pixel data transfer syntax fuzzing.
+- **Seeded fuzzer engine** -- `--seed` surfaced in `FuzzingSession` JSON and
+  campaign console output, making crash reproduction deterministic.
+- **Pixel attacks**: `byte_flip` and `fill_pattern` raw PixelData mutations.
+- **Strategy hit-rate telemetry** -- per-strategy hit counts and
+  `crash_by_strategy` now appear in session reports and HTML campaign output.
+- **Binary mutation tracking** -- `MutationRecord` gains a `variant` field and
+  binary mutations are recorded in `mutation_map.json` for replay.
+
+### Changed
+
+- **Mutation dispatch reweighted** -- structural attacks now receive higher
+  weight than content mutations in the default dispatch pool, improving hit
+  rates on parser-layer bugs.
+- **`pixel_fuzzer` strengthened** -- dropped low-value content mutations in
+  favour of structural attacks; added 5 missing tag attack methods.
+- **`can_mutate()` guards** -- added to all 8 multiframe strategies so
+  dispatch skips incompatible datasets cleanly instead of raising.
+- **Pre-flight dependency check** -- now covers all optional packages
+  (`psutil`, `minidump`, `tqdm`, `rich`, `matplotlib`, `jinja2`, `pywinauto`).
+
+### Refactored
+
+- **`SubcommandBase` ABC** -- all 11 CLI subcommands migrated to a shared
+  base class, eliminating duplicated argparse/handler boilerplate.
+- **`CrashRecord` moved to `core/crash/models.py`** -- fixes a dependency
+  inversion where the crash analyzer imported from the reporter.
+- **Patient anonymization extracted to `utils/anonymizer.py`** -- single
+  source of truth for PHI handling, shared between `sanitize` and session code.
+- **`MultiFrameMutationRecord` moved to attacks layer** -- and dead sibling
+  types deleted.
+- **Injection payloads centralized** -- `_INJECTION_PAYLOADS` removed from
+  `encapsulated_pdf_fuzzer` in favour of `dicom_dictionaries`.
+- **`reports.py` CLI separated from utility library** -- report generation
+  internals no longer coupled to CLI wiring.
+
+### Fixed
+
+- Code scanning alerts resolved.
+- Flaky Python 3.13 test failures in `structure` and `pixel_fuzzer` tests.
+- Metadata fuzzer test regressions caused by structural-pool changes.
+- `private_tag_fuzzer` tests updated for 9-strategy dispatch pool.
+- Stale test assertions across the board after main-branch changes.
+
 ## [1.9.1] - 2026-03-15 - Architecture Unification & Cleanup
 
 Refactoring release. No new attack surface. Focuses on pipeline unification,
