@@ -5,6 +5,23 @@ All notable changes to DICOM-Fuzzer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`EmptyValueFuzzer`** -- new format fuzzer targeting the .NET
+  "present but empty" crash pattern. Adds nine structural attacks that
+  insert target tags with zero-length values (or, for comma-decimal,
+  locale-incompatible strings patched at the byte level). Each attack
+  maps to a fixed fo-dicom issue: empty PixelSpacing (#2043), empty
+  VOILUTFunction (#1891), empty SpecificCharacterSet (#1879), empty
+  ImagePositionPatient/ImageOrientationPatient (#2067), zero/negative
+  WindowWidth (#1905), comma-as-decimal DS values (#1296), empty
+  SharedFunctionalGroupsSequence (#1884), and empty WindowCenter.
+  Comma-decimal substitution runs in `mutate_bytes()` because pydicom
+  validates DS values as floats on assignment. Registered in
+  `DicomMutator` (now 20 format + 10 multiframe = 30 strategies).
+
 ## [1.10.1] - 2026-04-09 - Unbundle seed corpus
 
 Course-correction on the "bundled PHI-free seed corpus" feature shipped in

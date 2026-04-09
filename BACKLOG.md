@@ -8,58 +8,6 @@ exact tags, values, and CVE/issue references for implementation.
 
 ## Format fuzzing -- P0: Crash-rate improvements
 
-### Empty/present-value attacks (EmptyValueFuzzer)
-
-**Goal:** New fuzzer targeting the .NET "present but empty" crash
-pattern. fo-dicom crashes when tags exist with zero-length values
-because .NET code calls `element.Get<T>()` without null/empty checks.
-
-**Implementation:** New `EmptyValueFuzzer` in `attacks/format/`.
-Each attack: add the tag with an empty value (not delete -- present
-but empty). `can_mutate()` returns True for any dataset.
-
-**Attacks (9 total, each maps to a fo-dicom crash):**
-
-1. `_empty_pixel_spacing`: Set (0028,0030) PixelSpacing to `""`.
-   Crashes ImageData construction. (fo-dicom #2043, fixed 5.2.5)
-
-2. `_empty_voi_lut_function`: Set (0028,1056) VOILUTFunction to `""`.
-   Crashes on "must contain a single value, but contains 0".
-   (fo-dicom #1891, fixed 5.2.0)
-
-3. `_empty_specific_charset`: Set (0008,0005) SpecificCharacterSet
-   to `""`. IndexOutOfRangeException in GetEncodings()[0].
-   (fo-dicom #1879, fixed 5.1.4)
-
-4. `_empty_image_position`: Set (0020,0032) ImagePositionPatient
-   to `""`. Geometry pipeline crash. (fo-dicom #2067)
-
-5. `_empty_image_orientation`: Set (0020,0037)
-   ImageOrientationPatient to `""`. (fo-dicom #2067)
-
-6. `_zero_window_width`: Set (0028,1051) WindowWidth to `0` or
-   `0.001` or `-1`. Division-by-zero in windowing. (fo-dicom #1905)
-
-7. `_comma_decimal_string`: Replace `.` with `,` in DS-VR tags
-   (SliceThickness, PixelSpacing, etc). "1,5" instead of "1.5".
-   Locale-specific parsing crash. (fo-dicom #1296)
-
-8. `_empty_shared_functional_group`: Set (5200,9229)
-   SharedFunctionalGroupsSequence to empty Sequence (zero items).
-   IndexOutOfBoundsException in FunctionalGroupValues[0].
-   (fo-dicom #1884, fixed 5.1.5)
-
-9. `_empty_window_center`: Set (0028,1050) WindowCenter to `""`.
-   Null reference in LUT pipeline.
-
-**structural pool:** All 9 attacks are structural (trigger parser/
-renderer code paths, not just data substitution).
-
-**Tests:** Parametrized test per attack verifying tag is present
-and empty after mutation. Integration test with round-trip serialize.
-
-**Effort:** 1 session (~2 hours).
-
 ### Binary encapsulation attacks (enhance CompressedPixelFuzzer)
 
 **Goal:** Add CVE-proven encapsulated pixel data attacks that
@@ -420,3 +368,4 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | Surface multiframe attack type via last_variant                | #217                              |
 | Mutation taxonomy (boundary/malformed/injection)               | Dropped (research: not effective) |
 | Crash discovery saturation curve                               | Dropped (insufficient crash data) |
+| EmptyValueFuzzer (9 present-but-empty .NET crash attacks)      | (20 format fuzzers total)         |
