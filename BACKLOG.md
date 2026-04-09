@@ -61,35 +61,6 @@ dataset (CT with JPEG Baseline transfer syntax).
 
 **Effort:** 2 sessions (~4 hours total).
 
-### VR field corruption at binary level (enhance StructureFuzzer)
-
-**Goal:** Corrupt the 2-byte VR field in Explicit VR transfer
-syntax at the binary level after serialization. Targets .NET
-parser VR detection logic.
-
-**New sub-attacks (4 total):**
-
-1. `_whitespace_vr`: Replace VR bytes with `\x20\x0A` (space +
-   line feed). fo-dicom VR detection fails. (fo-dicom #1847)
-
-2. `_null_vr`: Replace VR bytes with `\x00\x00`.
-
-3. `_dash_vr`: Replace VR bytes with `\x2D\x2D` ("--"). Parser
-   returns `DicomReaderResult.Suspended`, truncating dataset.
-   (fo-dicom #1660)
-
-4. `_vr_un_substitution`: Replace known VRs (UI, DS, CS, LO)
-   with UN. Forces parser into fallback path with different
-   length semantics. (fo-dicom #1941)
-
-**Implementation:** Binary-level via `mutate_bytes()`. Find VR
-byte positions by scanning for known VR strings at tag+4 offsets.
-
-**Tests:** Verify binary output contains corrupted VR at expected
-offset. Round-trip test that pydicom can still parse with force=True.
-
-**Effort:** 1 session (~2 hours).
-
 ### Overlay origin attacks (new sub-attacks in PixelFuzzer or new OverlayFuzzer)
 
 **Goal:** Test overlay rendering with invalid overlay parameters.
@@ -368,4 +339,5 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | Surface multiframe attack type via last_variant                | #217                              |
 | Mutation taxonomy (boundary/malformed/injection)               | Dropped (research: not effective) |
 | Crash discovery saturation curve                               | Dropped (insufficient crash data) |
-| EmptyValueFuzzer (9 present-but-empty .NET crash attacks)      | (20 format fuzzers total)         |
+| EmptyValueFuzzer (9 present-but-empty .NET crash attacks)      | #229                              |
+| StructureFuzzer binary VR corruption (whitespace/null/dash/UN) | (4 binary attacks added)          |

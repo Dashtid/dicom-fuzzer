@@ -9,6 +9,7 @@ Attacks:
 - Duplicate tag entries
 - Value Multiplicity (VM) violations
 - Binary-level tag ordering, duplicate tag, and length field corruption
+- Binary-level VR field corruption (whitespace, null, dash, UN substitution)
 """
 
 from __future__ import annotations
@@ -570,6 +571,10 @@ class StructureFuzzer(FormatFuzzerBase):
             self._binary_corrupt_tag_ordering,
             self._binary_duplicate_tag,
             self._binary_corrupt_length_field,
+            self._binary_whitespace_vr,
+            self._binary_null_vr,
+            self._binary_dash_vr,
+            self._binary_vr_un_substitution,
         ]
         num = random.randint(1, 2)
         selected = random.sample(binary_attacks, num)
@@ -693,3 +698,162 @@ class StructureFuzzer(FormatFuzzerBase):
 
         result[len_offset : len_offset + len_size] = corrupt
         return bytes(result)
+
+    # ------------------------------------------------------------------
+    # Binary VR field corruption attacks
+    #
+    # Target the VR (Value Representation) field in Explicit VR Little
+    # Endian data elements. For short-VR elements, the 2-byte VR sits
+    # at `elem_start + 4`, followed by a 2-byte length field. Rewriting
+    # those 2 bytes in place is a minimal, length-preserving mutation
+    # that breaks parser VR detection logic.
+    #
+    # Each attack maps to a fixed fo-dicom issue:
+    #
+    #   _binary_whitespace_vr      -> #1847 (space+LF trips VR detection)
+    #   _binary_null_vr            -> null bytes fail VR lookup
+    #   _binary_dash_vr            -> #1660 (parser Suspended, truncation)
+    #   _binary_vr_un_substitution -> #1941 (UN forces 4-byte length read
+    #                                        on a file that still has a
+    #                                        2-byte length field, causing
+    #                                        parser/data desync)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _select_short_vr_element(
+        file_data: bytes,
+    ) -> tuple[int, bytes] | None:
+        """Pick a random short-VR (2-byte length) element and return its VR offset.
+
+        Returns ``(vr_offset, original_vr_bytes)`` on success, or ``None`` if the
+        file has no DICOM magic or no short-VR elements. Long-VR elements
+        (OB/OW/SQ/UN/etc.) are excluded because their length encoding differs
+        and in-place 2-byte VR overwrites would produce different desync
+        patterns that deserve their own dedicated attacks.
+
+        Args:
+            file_data: Complete DICOM file bytes
+
+        Returns:
+            Tuple of (vr_offset, original_vr_bytes) or None
+
+        """
+        if not StructureFuzzer._is_valid_dicom(file_data):
+            return None
+        elements = _parse_dicom_elements(file_data, _DATA_OFFSET)
+        short_vr_elements = [e for e in elements if e[3] == 2]
+        if not short_vr_elements:
+            return None
+        elem_start, _, _, _ = random.choice(short_vr_elements)
+        vr_offset = elem_start + 4
+        original_vr = file_data[vr_offset : vr_offset + 2]
+        return vr_offset, original_vr
+
+    @staticmethod
+    def _overwrite_vr_bytes(file_data: bytes, vr_offset: int, new_vr: bytes) -> bytes:
+        """Rewrite the 2 VR bytes at ``vr_offset`` with ``new_vr``.
+
+        Assumes caller has already validated ``vr_offset + 2 <= len(file_data)``
+        via _select_short_vr_element. Length-preserving.
+        """
+        assert len(new_vr) == 2, "VR field is exactly 2 bytes"
+        result = bytearray(file_data)
+        result[vr_offset : vr_offset + 2] = new_vr
+        return bytes(result)
+
+    def _binary_whitespace_vr(self, file_data: bytes) -> bytes:
+        """Replace a short-VR field with 0x20 0x0A (space + LF).
+
+        fo-dicom #1847. Parser VR detection uses ``isalpha()``/uppercase
+        checks on the 2-byte VR field; whitespace fails this check and
+        trips the fallback path, which historically dereferenced unchecked
+        state and crashed.
+
+        Args:
+            file_data: Complete DICOM file bytes
+
+        Returns:
+            File bytes with one VR field overwritten, or file_data unchanged
+
+        """
+        selection = self._select_short_vr_element(file_data)
+        if selection is None:
+            return file_data
+        vr_offset, _ = selection
+        return self._overwrite_vr_bytes(file_data, vr_offset, b"\x20\x0a")
+
+    def _binary_null_vr(self, file_data: bytes) -> bytes:
+        """Replace a short-VR field with 0x00 0x00 (null bytes).
+
+        Null VR bytes fail ASCII uppercase VR detection and trip fallback
+        code paths that may dereference a null VR lookup or cast the VR
+        to an int/enum.
+
+        Args:
+            file_data: Complete DICOM file bytes
+
+        Returns:
+            File bytes with one VR field overwritten, or file_data unchanged
+
+        """
+        selection = self._select_short_vr_element(file_data)
+        if selection is None:
+            return file_data
+        vr_offset, _ = selection
+        return self._overwrite_vr_bytes(file_data, vr_offset, b"\x00\x00")
+
+    def _binary_dash_vr(self, file_data: bytes) -> bytes:
+        """Replace a short-VR field with 0x2D 0x2D (two dashes "--").
+
+        fo-dicom #1660. The parser recognises "--" as a sentinel and
+        returns ``DicomReaderResult.Suspended``, truncating the dataset.
+        Downstream code that assumed the dataset was complete then
+        accesses missing tags and crashes.
+
+        Args:
+            file_data: Complete DICOM file bytes
+
+        Returns:
+            File bytes with one VR field overwritten, or file_data unchanged
+
+        """
+        selection = self._select_short_vr_element(file_data)
+        if selection is None:
+            return file_data
+        vr_offset, _ = selection
+        return self._overwrite_vr_bytes(file_data, vr_offset, b"--")
+
+    def _binary_vr_un_substitution(self, file_data: bytes) -> bytes:
+        """Replace a short-VR field with "UN" (Unknown VR, long-VR encoding).
+
+        fo-dicom #1941. UN is a long-VR that uses ``reserved(2) + length(4)``
+        after the 2-byte VR, but the file's original short-VR element was
+        encoded with a 2-byte length directly after the VR. After this
+        substitution the parser sees "UN", skips 2 bytes (thinks they're
+        reserved), and reads the next 4 bytes as a 32-bit length — which is
+        now completely unrelated to the actual element size. Result: either
+        a buffer over-read, a negative allocation, or a total parser desync
+        that corrupts every subsequent element.
+
+        This attack only fires on elements whose ORIGINAL VR was not "UN",
+        so the mutation is guaranteed to change the byte stream.
+
+        Args:
+            file_data: Complete DICOM file bytes
+
+        Returns:
+            File bytes with one VR field overwritten, or file_data unchanged
+
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        elements = _parse_dicom_elements(file_data, _DATA_OFFSET)
+        # Filter: must be short-VR AND not already "UN".
+        candidates = [
+            e for e in elements if e[3] == 2 and file_data[e[0] + 4 : e[0] + 6] != b"UN"
+        ]
+        if not candidates:
+            return file_data
+        elem_start, _, _, _ = random.choice(candidates)
+        vr_offset = elem_start + 4
+        return self._overwrite_vr_bytes(file_data, vr_offset, b"UN")
