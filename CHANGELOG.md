@@ -22,6 +22,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   validates DS values as floats on assignment. Registered in
   `DicomMutator` (now 20 format + 10 multiframe = 30 strategies).
 
+- **`StructureFuzzer` binary VR corruption** -- four new binary-level
+  attacks in `StructureFuzzer.mutate_bytes()` that rewrite the 2-byte
+  VR field of a randomly selected short-VR element (length-preserving
+  in-place byte substitution). Each attack maps to a fo-dicom VR
+  detection issue: `_binary_whitespace_vr` sends `0x20 0x0A` (#1847),
+  `_binary_null_vr` sends `0x00 0x00`, `_binary_dash_vr` sends `"--"`
+  (#1660, parser returns `DicomReaderResult.Suspended`), and
+  `_binary_vr_un_substitution` sends `"UN"` (#1941, forces the parser
+  to read a 4-byte length from bytes that were originally a 2-byte
+  length, causing total desync of every subsequent element). The
+  binary attack pool in `StructureFuzzer.mutate_bytes` grows from 3
+  to 7 attacks; the 1-2-per-call sampling window is unchanged.
+
 ## [1.10.1] - 2026-04-09 - Unbundle seed corpus
 
 Course-correction on the "bundled PHI-free seed corpus" feature shipped in

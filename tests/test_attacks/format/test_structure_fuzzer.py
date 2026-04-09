@@ -9,6 +9,7 @@ import struct
 from unittest.mock import patch
 
 import pydicom
+import pytest
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.tag import Tag
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
@@ -693,6 +694,128 @@ class TestBinaryCorruptLengthField:
         fuzzer = StructureFuzzer()
         garbage = b"\x00" * 256
         assert fuzzer._binary_corrupt_length_field(garbage) is garbage
+
+
+# ---------------------------------------------------------------------------
+# Binary attack: VR field corruption (4 variants)
+# ---------------------------------------------------------------------------
+
+
+VR_ATTACK_METHODS_AND_BYTES = [
+    ("_binary_whitespace_vr", b"\x20\x0a"),
+    ("_binary_null_vr", b"\x00\x00"),
+    ("_binary_dash_vr", b"--"),
+    ("_binary_vr_un_substitution", b"UN"),
+]
+
+
+class TestBinaryVrCorruption:
+    """Shared tests for the 4 binary VR corruption attacks."""
+
+    @pytest.mark.parametrize(
+        ("method_name", "expected_vr"), VR_ATTACK_METHODS_AND_BYTES
+    )
+    def test_returns_bytes(self, method_name, expected_vr):
+        """Each VR attack must return bytes."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        method = getattr(fuzzer, method_name)
+        result = method(file_data)
+        assert isinstance(result, bytes)
+
+    @pytest.mark.parametrize(
+        ("method_name", "expected_vr"), VR_ATTACK_METHODS_AND_BYTES
+    )
+    def test_length_preserved(self, method_name, expected_vr):
+        """Output length must match input (VR rewrite is 1:1 byte substitution)."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        method = getattr(fuzzer, method_name)
+        result = method(file_data)
+        assert len(result) == len(file_data)
+
+    @pytest.mark.parametrize(
+        ("method_name", "expected_vr"), VR_ATTACK_METHODS_AND_BYTES
+    )
+    def test_preserves_preamble_and_magic(self, method_name, expected_vr):
+        """First 132 bytes (preamble + DICM) must not be touched."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        method = getattr(fuzzer, method_name)
+        result = method(file_data)
+        assert result[:_DATA_OFFSET] == file_data[:_DATA_OFFSET]
+
+    @pytest.mark.parametrize(
+        ("method_name", "expected_vr"), VR_ATTACK_METHODS_AND_BYTES
+    )
+    def test_non_dicom_passthrough(self, method_name, expected_vr):
+        """Non-DICOM bytes must be returned unchanged (identity)."""
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        method = getattr(fuzzer, method_name)
+        assert method(garbage) is garbage
+
+    @pytest.mark.parametrize(
+        ("method_name", "expected_vr"), VR_ATTACK_METHODS_AND_BYTES
+    )
+    def test_short_input_passthrough(self, method_name, expected_vr):
+        """Input shorter than DATA_OFFSET returned unchanged."""
+        fuzzer = StructureFuzzer()
+        short = b"\x00" * 20
+        method = getattr(fuzzer, method_name)
+        assert method(short) is short
+
+    @pytest.mark.parametrize(
+        ("method_name", "expected_vr"), VR_ATTACK_METHODS_AND_BYTES
+    )
+    def test_expected_vr_bytes_present(self, method_name, expected_vr):
+        """After mutation the expected VR pattern must appear at a VR offset.
+
+        Uses the ORIGINAL file's element offsets (because re-parsing the
+        mutated file can misbehave -- e.g. UN substitution makes the parser
+        treat the element as long-VR on the second pass). The mutations are
+        length-preserving 2-byte rewrites, so VR offsets don't move.
+        """
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        # Snapshot short-VR element offsets from the ORIGINAL bytes.
+        vr_offsets = [
+            elem_start + 4
+            for elem_start, _, _, len_size in _parse_dicom_elements(
+                file_data, _DATA_OFFSET
+            )
+            if len_size == 2
+        ]
+        assert vr_offsets, "fixture must contain short-VR elements"
+
+        method = getattr(fuzzer, method_name)
+        # Run up to 20 times to cover the random element selection
+        found = False
+        for _ in range(20):
+            result = method(file_data)
+            if result == file_data:
+                continue
+            if any(result[off : off + 2] == expected_vr for off in vr_offsets):
+                found = True
+                break
+        assert found, (
+            f"{method_name}: expected VR bytes {expected_vr!r} not found "
+            f"at any original short-VR offset over 20 runs"
+        )
+
+    def test_un_substitution_never_targets_existing_un(self):
+        """_binary_vr_un_substitution must not pick an element whose original VR is already UN.
+
+        This guarantees every successful call produces a byte-level change.
+        """
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        # Run many times -- the minimal fixture has no UN elements, so every
+        # successful call must differ from the input.
+        differs = any(
+            fuzzer._binary_vr_un_substitution(file_data) != file_data for _ in range(10)
+        )
+        assert differs, "UN substitution produced no change in 10 runs"
 
 
 # ---------------------------------------------------------------------------
