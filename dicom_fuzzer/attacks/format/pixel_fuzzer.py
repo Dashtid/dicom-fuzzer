@@ -2,7 +2,7 @@
 
 Category: generic
 
-Attacks:
+Dataset-level attacks:
 - SamplesPerPixel mismatch and invalid values
 - PlanarConfiguration manipulation
 - Row/column dimension mismatch with pixel data size
@@ -19,18 +19,33 @@ Attacks:
 - Raw PixelData oversized buffer injection
 - Raw PixelData byte flip (XOR ~1% of bytes)
 - Raw PixelData fill pattern (uniform 0x00 or 0xFF)
+- Overlay origin negative (fo-dicom #1559)
+- Overlay dimension mismatch
+- Overlay bit position undefined behavior (fo-dicom #2087)
+
+Binary-level attacks (mutate_bytes):
+- Odd-length pixel data (fo-dicom #1403)
 """
 
 from __future__ import annotations
 
 import os
 import random
+import struct
 
 from pydicom.dataset import Dataset
+from pydicom.tag import Tag
 
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
+
+# Binary-level constants for mutate_bytes
+_PIXEL_DATA_TAG = b"\xe0\x7f\x10\x00"  # (7FE0,0010) little-endian
+_UNDEFINED_LENGTH = b"\xff\xff\xff\xff"
+_DICM_MAGIC = b"DICM"
+_DICM_OFFSET = 128
+_DATA_OFFSET = 132
 
 logger = get_logger(__name__)
 
@@ -77,6 +92,9 @@ class PixelFuzzer(FormatFuzzerBase):
             self._pixel_data_oversized,  # [STRUCTURAL] heap overread / OOM
             self._pixel_data_byte_flip,  # [STRUCTURAL] XOR corruption trips decoders
             self._pixel_data_fill_pattern,  # [STRUCTURAL] uniform buffer exposes decode failures
+            self._negative_overlay_origin,  # [STRUCTURAL] overlay compositing IndexOutOfRange
+            self._overlay_dimension_mismatch,  # [STRUCTURAL] overlay >> image dims -> OOM / overread
+            self._overlay_bit_position,  # [STRUCTURAL] bit extraction UB on non-zero position
         ]
         content = [
             self._photometric_confusion,  # [CONTENT] string value, parser moves on
@@ -553,3 +571,159 @@ class PixelFuzzer(FormatFuzzerBase):
         except Exception as e:
             logger.debug("Pixel data fill pattern attack failed: %s", e)
         return dataset
+
+    # ------------------------------------------------------------------
+    # Overlay attacks
+    # ------------------------------------------------------------------
+
+    def _add_overlay_scaffold(self, dataset: Dataset) -> None:
+        """Set the minimum overlay tags needed for a parser to attempt rendering.
+
+        Sets OverlayRows/Columns to match image dimensions (or 64),
+        OverlayBitsAllocated to 1, OverlayOrigin to [1, 1], and
+        provides minimal zero-filled OverlayData.
+        """
+        rows = getattr(dataset, "Rows", 64)
+        cols = getattr(dataset, "Columns", 64)
+        dataset.add_new(Tag(0x6000, 0x0010), "US", rows)  # OverlayRows
+        dataset.add_new(Tag(0x6000, 0x0011), "US", cols)  # OverlayColumns
+        dataset.add_new(Tag(0x6000, 0x0040), "CS", "G")  # OverlayType (Graphics)
+        dataset.add_new(Tag(0x6000, 0x0050), "SS", [1, 1])  # OverlayOrigin
+        dataset.add_new(Tag(0x6000, 0x0100), "US", 1)  # OverlayBitsAllocated
+        dataset.add_new(Tag(0x6000, 0x0102), "US", 0)  # OverlayBitPosition
+        # Minimal overlay data: ceil(rows * cols / 8) zero bytes
+        data_len = (rows * cols + 7) // 8
+        dataset.add_new(Tag(0x6000, 0x3000), "OB", b"\x00" * data_len)
+
+    def _negative_overlay_origin(self, dataset: Dataset) -> Dataset:
+        """Set OverlayOrigin to negative coordinates.
+
+        fo-dicom #1559. Overlay compositing uses the origin as a pixel
+        offset into the image buffer. Negative values cause
+        IndexOutOfRangeException when the renderer indexes
+        ``image[row + origin_y, col + origin_x]``.
+        """
+        self._add_overlay_scaffold(dataset)
+        dataset[Tag(0x6000, 0x0050)].value = [-100, -100]
+        return dataset
+
+    def _overlay_dimension_mismatch(self, dataset: Dataset) -> Dataset:
+        """Set OverlayRows/Columns much larger than image dimensions.
+
+        When overlay dimensions exceed the image, the renderer either
+        allocates a huge compositing buffer (OOM) or reads past the
+        end of the image buffer during overlay blending.
+        """
+        self._add_overlay_scaffold(dataset)
+        dataset[Tag(0x6000, 0x0010)].value = 64000  # OverlayRows
+        dataset[Tag(0x6000, 0x0011)].value = 64000  # OverlayColumns
+        # OverlayData stays small — the mismatch is the attack
+        return dataset
+
+    def _overlay_bit_position(self, dataset: Dataset) -> Dataset:
+        """Set OverlayBitPosition to a non-zero value with BitsAllocated=1.
+
+        fo-dicom #2087. When BitsAllocated is 1, the overlay bit
+        extraction code computes ``(pixel >> BitPosition) & 1``.
+        A non-zero BitPosition with single-bit allocation causes
+        undefined behavior — the shift may exceed the word size or
+        read from the wrong bit plane entirely.
+        """
+        self._add_overlay_scaffold(dataset)
+        dataset[Tag(0x6000, 0x0102)].value = random.choice([7, 15, 31])
+        return dataset
+
+    # ------------------------------------------------------------------
+    # Binary-level odd-length pixel data attack
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _find_native_pixel_data(
+        file_data: bytes,
+    ) -> tuple[int, int, int] | None:
+        """Locate native (non-encapsulated) Pixel Data in raw DICOM bytes.
+
+        Returns ``(length_field_offset, value_offset, value_length)`` for
+        the Pixel Data element if it has a definite (even) length, or
+        ``None`` if the element is encapsulated (undefined length), absent,
+        or the file is too short to parse.
+        """
+        idx = file_data.rfind(_PIXEL_DATA_TAG)
+        if idx < 0:
+            return None
+
+        pos = idx + 4  # past the 4-byte tag
+
+        # Explicit VR: next 2 bytes are "OW" or "OB"
+        if pos + 2 <= len(file_data) and file_data[pos : pos + 2] in (b"OW", b"OB"):
+            # Long-VR: VR(2) + reserved(2) + length(4)
+            length_field_offset = pos + 4
+        else:
+            # Implicit VR: length(4) immediately after tag
+            length_field_offset = pos
+
+        if length_field_offset + 4 > len(file_data):
+            return None
+        length_bytes = file_data[length_field_offset : length_field_offset + 4]
+        if length_bytes == _UNDEFINED_LENGTH:
+            return None  # encapsulated — not native
+
+        value_length = struct.unpack_from("<I", file_data, length_field_offset)[0]
+        value_offset = length_field_offset + 4
+        return length_field_offset, value_offset, value_length
+
+    def mutate_bytes(self, file_data: bytes) -> bytes:
+        """Apply binary-level pixel data mutations (odd-length attack).
+
+        Locates native Pixel Data in the serialized byte stream and
+        makes its length odd, violating DICOM Part 5 Section 8.
+        Returns file_data unchanged if no native pixel data is found.
+        """
+        self._applied_binary_mutations = []
+
+        if len(file_data) < _DATA_OFFSET + 4:
+            return file_data
+        if file_data[_DICM_OFFSET:_DATA_OFFSET] != _DICM_MAGIC:
+            return file_data
+
+        info = self._find_native_pixel_data(file_data)
+        if info is None:
+            return file_data
+
+        try:
+            result = self._binary_odd_length_pixel_data(file_data, info)
+            if result is not file_data:
+                self._applied_binary_mutations.append("_binary_odd_length_pixel_data")
+            return result
+        except Exception as e:
+            logger.debug("Binary odd-length attack failed: %s", e)
+            return file_data
+
+    @staticmethod
+    def _binary_odd_length_pixel_data(
+        file_data: bytes, info: tuple[int, int, int]
+    ) -> bytes:
+        """Make the Pixel Data element's length field odd.
+
+        fo-dicom #1403. DICOM Part 5 Section 8 requires all elements to
+        have even length. pydicom pads values with a trailing null byte
+        on write. This attack subtracts 1 from the length field and
+        removes the last (padding) byte, producing a structurally valid
+        but spec-violating odd-length element that triggers padding/
+        truncation bugs in parsers and transcoders.
+        """
+        length_field_offset, value_offset, value_length = info
+
+        if value_length == 0 or value_length % 2 != 0:
+            return file_data  # already odd or empty
+
+        value_end = value_offset + value_length
+        if value_end > len(file_data):
+            return file_data
+
+        new_length = value_length - 1
+        result = bytearray(file_data)
+        struct.pack_into("<I", result, length_field_offset, new_length)
+        # Remove the last byte (the padding byte pydicom added)
+        result = result[: value_end - 1] + result[value_end:]
+        return bytes(result)

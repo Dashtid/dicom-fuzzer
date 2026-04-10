@@ -5,10 +5,15 @@ Tests cover pixel metadata mutation strategies.
 
 from __future__ import annotations
 
+import io
+import struct
 from unittest.mock import MagicMock, patch
 
+import pydicom
 import pytest
-from pydicom.dataset import Dataset
+from pydicom.dataset import Dataset, FileMetaDataset
+from pydicom.tag import Tag
+from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
 from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
 
@@ -467,3 +472,137 @@ class TestWindowAttack:
         """Method must always return a Dataset."""
         result = fuzzer._window_attack(pixel_dataset)
         assert isinstance(result, Dataset)
+
+
+# =============================================================================
+# Overlay attacks
+# =============================================================================
+
+
+class TestNegativeOverlayOrigin:
+    """Tests for _negative_overlay_origin (fo-dicom #1559)."""
+
+    def test_returns_dataset(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        result = fuzzer._negative_overlay_origin(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+    def test_overlay_origin_is_negative(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        result = fuzzer._negative_overlay_origin(pixel_dataset)
+        origin = result[Tag(0x6000, 0x0050)].value
+        assert origin[0] < 0 and origin[1] < 0
+
+    def test_overlay_data_present(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        result = fuzzer._negative_overlay_origin(pixel_dataset)
+        assert Tag(0x6000, 0x3000) in result
+
+
+class TestOverlayDimensionMismatch:
+    """Tests for _overlay_dimension_mismatch."""
+
+    def test_returns_dataset(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        result = fuzzer._overlay_dimension_mismatch(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+    def test_overlay_rows_exceed_image(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        result = fuzzer._overlay_dimension_mismatch(pixel_dataset)
+        overlay_rows = result[Tag(0x6000, 0x0010)].value
+        assert overlay_rows > pixel_dataset.Rows
+
+    def test_overlay_columns_exceed_image(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        result = fuzzer._overlay_dimension_mismatch(pixel_dataset)
+        overlay_cols = result[Tag(0x6000, 0x0011)].value
+        assert overlay_cols > pixel_dataset.Columns
+
+
+class TestOverlayBitPosition:
+    """Tests for _overlay_bit_position (fo-dicom #2087)."""
+
+    def test_returns_dataset(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        result = fuzzer._overlay_bit_position(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+    def test_bit_position_non_zero(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        result = fuzzer._overlay_bit_position(pixel_dataset)
+        bit_pos = result[Tag(0x6000, 0x0102)].value
+        assert bit_pos > 0
+
+    def test_bits_allocated_is_one(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        result = fuzzer._overlay_bit_position(pixel_dataset)
+        bits_alloc = result[Tag(0x6000, 0x0100)].value
+        assert bits_alloc == 1
+
+
+# =============================================================================
+# Binary-level odd-length pixel data attack
+# =============================================================================
+
+
+def _make_native_pixel_dicom_bytes() -> bytes:
+    """Build a minimal DICOM file with native (non-encapsulated) pixel data."""
+    ds = Dataset()
+    ds.file_meta = FileMetaDataset()
+    ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    ds.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    ds.file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    ds.PatientID = "TEST001"
+    ds.Rows = 4
+    ds.Columns = 4
+    ds.BitsAllocated = 8
+    ds.BitsStored = 8
+    ds.HighBit = 7
+    ds.SamplesPerPixel = 1
+    ds.PixelRepresentation = 0
+    ds.PixelData = b"\x00" * 16
+
+    buf = io.BytesIO()
+    pydicom.dcmwrite(buf, ds, enforce_file_format=True)
+    return buf.getvalue()
+
+
+class TestBinaryOddLengthPixelData:
+    """Tests for _binary_odd_length_pixel_data (fo-dicom #1403)."""
+
+    def test_returns_bytes(self) -> None:
+        fuzzer = PixelFuzzer()
+        file_data = _make_native_pixel_dicom_bytes()
+        result = fuzzer.mutate_bytes(file_data)
+        assert isinstance(result, bytes)
+
+    def test_output_1_byte_shorter(self) -> None:
+        fuzzer = PixelFuzzer()
+        file_data = _make_native_pixel_dicom_bytes()
+        result = fuzzer.mutate_bytes(file_data)
+        assert len(result) == len(file_data) - 1
+
+    def test_pixel_data_length_is_odd(self) -> None:
+        fuzzer = PixelFuzzer()
+        file_data = _make_native_pixel_dicom_bytes()
+        result = fuzzer.mutate_bytes(file_data)
+        info = PixelFuzzer._find_native_pixel_data(result)
+        assert info is not None
+        length_field_offset = info[0]
+        new_length = struct.unpack_from("<I", result, length_field_offset)[0]
+        assert new_length % 2 == 1
+
+    def test_non_dicom_passthrough(self) -> None:
+        fuzzer = PixelFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer.mutate_bytes(garbage) == garbage
+
+    def test_applied_binary_mutations_populated(self) -> None:
+        fuzzer = PixelFuzzer()
+        file_data = _make_native_pixel_dicom_bytes()
+        fuzzer.mutate_bytes(file_data)
+        assert fuzzer._applied_binary_mutations == ["_binary_odd_length_pixel_data"]
