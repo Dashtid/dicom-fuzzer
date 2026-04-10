@@ -4,9 +4,10 @@ Systematic cross-reference of every known DICOM CVE (2022-2026) against
 the fuzzer's 30 mutation strategies. Identifies covered trigger patterns
 and gaps driving new backlog items.
 
-**Last updated:** 2026-04-10
+**Last updated:** 2026-04-10 (round 2 deep dive)
 **Strategies audited:** 30 (20 format + 10 multiframe)
-**CVEs catalogued:** ~130 total, ~80 file-parsing (in scope)
+**CVEs catalogued:** ~140 total, ~85 file-parsing (in scope)
+**CISA ICS Medical Advisories cross-referenced:** 23 (2022-2026)
 
 ---
 
@@ -384,14 +385,16 @@ New issues found in deep dive (not yet targeted):
 
 | Metric                               | Value |
 | ------------------------------------ | ----- |
-| Total CVEs catalogued                | ~130  |
-| File-parsing CVEs (in scope)         | ~80   |
+| Total CVEs catalogued                | ~140  |
+| File-parsing CVEs (in scope)         | ~85   |
 | Network/auth/web CVEs (out of scope) | ~55   |
 | Covered trigger patterns             | 16    |
-| CVEs matched by existing strategies  | ~65   |
+| CVEs matched by existing strategies  | ~70   |
 | Gaps identified                      | 13    |
 | CVEs in gaps                         | ~15   |
-| Coverage rate                        | ~81%  |
+| Coverage rate                        | ~82%  |
+| CISA ICS Medical Advisories          | 23    |
+| Research rounds completed            | 2     |
 
 ### CWE Distribution (file-parsing CVEs)
 
@@ -421,6 +424,70 @@ New issues found in deep dive (not yet targeted):
 | MicroDicom   | 6                 | ~6 covered (generic buffer/length)   |
 | libdicom     | 2                 | 0 covered, 2 gaps (G10)              |
 | MedDream     | 4 (parsing)       | ~4 covered (stack BOF)               |
+
+---
+
+## Round 2 Deep Dive Addendum
+
+Second research pass targeted blind spots from round 1: libraries with
+no initial results, CISA ICS-CERT full listing, ZDI advisory details,
+Exploit-DB, GHSA database, fo-dicom release notes, and academic research.
+
+### Additional CVEs Found
+
+| CVE        | Library                   | CWE | Trigger                                                    | Maps To |
+| ---------- | ------------------------- | --- | ---------------------------------------------------------- | ------- |
+| 2025-53644 | OpenCV (via Weasis)       | 457 | Uninitialized ptr in opj_jp2_read_header from crafted JP2K | C3      |
+| 2023-5059  | Sante FFT Imaging         | 125 | OOB read in DICOM parsing                                  | C10     |
+| 2024-1696  | Sante FFT Imaging         | 787 | OOB write in DICOM parsing                                 | C10     |
+| 2025-0568  | Sante PACS Server         | 119 | DCM file memory corruption on C-STORE ingestion            | C10     |
+| 2025-0569  | Sante PACS Server         | 119 | DCM file memory corruption (variant 2)                     | C10     |
+| 2025-27598 | ImageSharp (fo-dicom dep) | 787 | GIF LzwDecoder OOB write from crafted frame dims           | Niche   |
+
+### Additional fo-dicom Issues
+
+| Issue | Trigger                                                        | Impact                             |
+| ----- | -------------------------------------------------------------- | ---------------------------------- |
+| #1977 | DicomDirectory deep record nesting -> recursive stack overflow | Fixed 5.2.3. Maps to G5 (DICOMDIR) |
+
+### Libraries Confirmed Clean (No CVEs 2022-2026)
+
+dcm4che/dcm4chee (Java), Imebra/DicomHero, cornerstone.js,
+ClearCanvas, Horos (unmaintained since 2023), 3D Slicer.
+
+### ZDI Sante Detail Clarifications
+
+Round 1 listed Sante as "trigger details sparse." ZDI advisories
+now provide format-level specifics:
+
+- **ZDI-22-247** (CVE-2022-24055): **GIF** parser OOB read -- Sante
+  parses GIF thumbnails in Icon Image Sequence (0088,0200)
+- **ZDI-22-254** (CVE-2022-24062): **JP2** UAF -- distinct from J2K
+  OOB writes; object freed during JP2 box parsing then re-accessed
+- **ZDI-26-104** (CVE-2026-2034): DCM buffer overflow -- explicit
+  "lack of proper validation of length prior to copying to buffer"
+
+### Academic/Industry Research Patterns
+
+| Pattern                             | Source                                | Covered?                       |
+| ----------------------------------- | ------------------------------------- | ------------------------------ |
+| DICOM PE/ELF preamble polyglot      | Praetorian ELFDICOM 2025, PEDICOM     | **G11**                        |
+| JSON config polyglot in preamble    | Shielder/Orthanc CVE-2023-33466       | **G11**                        |
+| Deflated LE transfer syntax bomb    | ACM CCS 2022 poster                   | **G3**                         |
+| DICOM-XML XXE / entity expansion    | Merge CVE-2024-23913                  | Future (no XML output)         |
+| Steganography in private tags / LSB | PMC 2022 research                     | Partial (detection, not crash) |
+| C-STORE injection without auth      | Gatewatcher 2024, Forescout honeypots | Future (network module)        |
+
+### Round 2 Conclusion
+
+No new gap IDs needed. All new findings map to existing covered
+patterns (C3, C10) or existing gaps (G3, G5, G11). The DICOM-XML
+attack surface (Merge CVE-2024-23913) is noted for future work
+but requires a different output format. The 13-gap list from
+round 1 is comprehensive for file-based fuzzing.
+
+**Updated statistics**: ~140 CVEs total (up from ~130), ~85
+file-parsing (up from ~80). Coverage rate unchanged at ~81%.
 
 ---
 
