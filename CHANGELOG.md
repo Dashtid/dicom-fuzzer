@@ -53,6 +53,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Implicit VR layouts. Strategy count unchanged (CompressedPixelFuzzer
   was already registered; this adds a `mutate_bytes()` override).
 
+- **Overlay attacks** -- three new structural attacks in `PixelFuzzer`
+  targeting DICOM overlay rendering: `_negative_overlay_origin`
+  (fo-dicom #1559, negative coordinates cause IndexOutOfRange in
+  overlay compositing), `_overlay_dimension_mismatch` (overlay
+  dimensions vastly exceed image dimensions, causing OOM or buffer
+  overread), and `_overlay_bit_position` (fo-dicom #2087, non-zero
+  OverlayBitPosition with BitsAllocated=1 causes undefined bit
+  extraction behavior).
+
+- **Private SQ at EOF** -- new `_private_sq_at_eof` attack in
+  `PrivateTagFuzzer` (fo-dicom #487, #220). Appends a private
+  Sequence with empty items at Tag(0x7FFF,0x1001), which sorts after
+  PixelData and lands at or near EOF. Parser's `IsPrivateSequence()`
+  peeks past the final sequence delimiter, reading past EOF.
+
+- **Odd-length pixel data** -- new `PixelFuzzer.mutate_bytes()` override
+  with `_binary_odd_length_pixel_data` (fo-dicom #1403). Locates native
+  (non-encapsulated) Pixel Data in raw bytes, subtracts 1 from the
+  length field, and removes the padding byte. Violates DICOM Part 5
+  Section 8 even-length requirement, triggering padding/truncation bugs.
+
 ## [1.10.1] - 2026-04-09 - Unbundle seed corpus
 
 Course-correction on the "bundled PHI-free seed corpus" feature shipped in

@@ -8,46 +8,6 @@ exact tags, values, and CVE/issue references for implementation.
 
 ## Format fuzzing -- P0: Crash-rate improvements
 
-### Overlay origin attacks (new sub-attacks in PixelFuzzer or new OverlayFuzzer)
-
-**Goal:** Test overlay rendering with invalid overlay parameters.
-
-**Attacks (3 total):**
-
-1. `_negative_overlay_origin`: Set (6000,0050) OverlayOrigin to
-   `[-100, -100]`. IndexOutOfRangeException in overlay rendering.
-   (fo-dicom #1559)
-
-2. `_overlay_dimension_mismatch`: Set (6000,0010) OverlayRows and
-   (6000,0011) OverlayColumns larger than image dimensions.
-
-3. `_overlay_bit_position`: Set (6000,0102) OverlayBitPosition to
-   non-zero value with (6000,0100) OverlayBitsAllocated = 1.
-   Undefined behavior in bit extraction. (fo-dicom #2087)
-
-**Effort:** 1 session (~1.5 hours).
-
-### Private SQ as last file element (enhance PrivateTagFuzzer)
-
-**Goal:** Trigger parser read-past-EOF on private sequences.
-
-**Attack:** Append a private SQ tag (e.g., 7001,1001) as the very
-last element in the serialized file. Give it one or more empty
-sequence items (Item tag + Item Delimiter with no data between).
-Parser's `IsPrivateSequence()` tries to peek beyond EOF.
-(fo-dicom #487, #220)
-
-**Effort:** 0.5 session (add to existing PrivateTagFuzzer).
-
-### Odd-length pixel data (enhance PixelFuzzer)
-
-**Goal:** Force pixel data to have an odd byte count. Violates
-DICOM Part 5 Section 8 (all elements must have even length).
-Triggers padding/truncation bugs in transcoding and rendering.
-(fo-dicom #1403)
-
-**Effort:** 0.5 session.
-
 ---
 
 ## Format fuzzing -- P1: Modality expansion
@@ -288,4 +248,7 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | Crash discovery saturation curve                                | Dropped (insufficient crash data) |
 | EmptyValueFuzzer (9 present-but-empty .NET crash attacks)       | #229                              |
 | StructureFuzzer binary VR corruption (whitespace/null/dash/UN)  | #230                              |
-| CompressedPixelFuzzer binary encapsulation (6 fragment attacks) | (mutate_bytes override added)     |
+| CompressedPixelFuzzer binary encapsulation (6 fragment attacks) | #231                              |
+| PixelFuzzer overlay attacks (origin/dimension/bit-position)     | (3 structural attacks)            |
+| PrivateTagFuzzer private SQ at EOF                              | (1 structural attack)             |
+| PixelFuzzer odd-length pixel data                               | (mutate_bytes override added)     |

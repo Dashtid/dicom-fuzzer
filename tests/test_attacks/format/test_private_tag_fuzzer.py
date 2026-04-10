@@ -52,7 +52,7 @@ class TestPrivateTagFuzzerInit:
         """Test that mutation_strategies list is defined."""
         assert hasattr(fuzzer, "mutation_strategies")
         assert isinstance(fuzzer.mutation_strategies, list)
-        assert len(fuzzer.mutation_strategies) == 9
+        assert len(fuzzer.mutation_strategies) == 10
 
     def test_all_strategies_callable(self, fuzzer: PrivateTagFuzzer) -> None:
         """Test that all strategies are callable methods."""
@@ -365,3 +365,41 @@ class TestModuleConstants:
         """Test PRIVATE_GROUPS are odd numbers."""
         for group in PRIVATE_GROUPS:
             assert group % 2 == 1, f"Group {group:04X} is not odd"
+
+
+# =============================================================================
+# Private SQ at EOF
+# =============================================================================
+
+
+class TestPrivateSqAtEof:
+    """Tests for _private_sq_at_eof (fo-dicom #487, #220)."""
+
+    def test_returns_dataset(
+        self, fuzzer: PrivateTagFuzzer, sample_dataset: Dataset
+    ) -> None:
+        result = fuzzer._private_sq_at_eof(sample_dataset)
+        assert isinstance(result, Dataset)
+
+    def test_private_sq_tag_present(
+        self, fuzzer: PrivateTagFuzzer, sample_dataset: Dataset
+    ) -> None:
+        result = fuzzer._private_sq_at_eof(sample_dataset)
+        sq_tag = Tag(0x7FFF, 0x1001)
+        assert sq_tag in result
+        assert result[sq_tag].VR == "SQ"
+
+    def test_private_creator_present(
+        self, fuzzer: PrivateTagFuzzer, sample_dataset: Dataset
+    ) -> None:
+        result = fuzzer._private_sq_at_eof(sample_dataset)
+        creator_tag = Tag(0x7FFF, 0x0010)
+        assert creator_tag in result
+        assert result[creator_tag].value == "FUZZ_EOF"
+
+    def test_sequence_has_items(
+        self, fuzzer: PrivateTagFuzzer, sample_dataset: Dataset
+    ) -> None:
+        result = fuzzer._private_sq_at_eof(sample_dataset)
+        sq = result[Tag(0x7FFF, 0x1001)].value
+        assert len(sq) >= 1

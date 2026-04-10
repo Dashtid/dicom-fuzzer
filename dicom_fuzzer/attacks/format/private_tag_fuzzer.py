@@ -82,6 +82,7 @@ class PrivateTagFuzzer(FormatFuzzerBase):
             self._reserved_group_attack,  # [STRUCTURAL] reserved group numbers (0x0001, 0xFFFF)
             self._private_sequence_attack,  # [STRUCTURAL] deep nesting (50 levels)
             self._binary_blob_injection,  # [STRUCTURAL] file format confusion (JPEG/ELF in OB)
+            self._private_sq_at_eof,  # [STRUCTURAL] EOF peek past private SQ (fo-dicom #487, #220)
             # _private_tag_injection omitted: [CONTENT] SQL/XSS string payloads, no crash potential
         ]
 
@@ -443,4 +444,25 @@ class PrivateTagFuzzer(FormatFuzzerBase):
         except Exception as e:
             logger.debug(f"Binary blob injection failed: {e}")
 
+        return dataset
+
+    def _private_sq_at_eof(self, dataset: Dataset) -> Dataset:
+        """Append a private Sequence as the last element in the dataset.
+
+        fo-dicom #487, #220. Uses group 0x7FFF which sorts after all
+        standard tags including PixelData (0x7FE0), placing the SQ at
+        or near the end of the serialized file. The sequence contains
+        one or more empty items (Item tag + Item Delimiter with no data
+        between them). The parser's ``IsPrivateSequence()`` method
+        tries to peek at the byte after the final sequence delimiter,
+        reading past EOF.
+        """
+        try:
+            # Private Creator for group 0x7FFF
+            dataset.add_new(Tag(0x7FFF, 0x0010), "LO", "FUZZ_EOF")
+            # Private SQ with 2 empty items
+            item1, item2 = Dataset(), Dataset()
+            dataset.add_new(Tag(0x7FFF, 0x1001), "SQ", Sequence([item1, item2]))
+        except Exception as e:
+            logger.debug("Private SQ at EOF attack failed: %s", e)
         return dataset
