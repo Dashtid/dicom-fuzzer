@@ -35,6 +35,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   binary attack pool in `StructureFuzzer.mutate_bytes` grows from 3
   to 7 attacks; the 1-2-per-call sampling window is unchanged.
 
+- **`CompressedPixelFuzzer` binary encapsulation attacks** -- six new
+  binary-level attacks in a new `CompressedPixelFuzzer.mutate_bytes()`
+  override that corrupt encapsulated pixel data fragment structures
+  post-serialization. Each attack targets a distinct fragment parsing
+  bug that pydicom normalizes away at the Dataset level:
+  `_binary_ultra_short_fragment` (CVE-2025-11266, GDCM underflow on
+  fragments with 0-2 bytes), `_binary_remove_sequence_delimiter`
+  (fo-dicom #1339, parser reads past EOF), `_binary_delimiter_in_fragment`
+  (pydicom #1140, premature truncation on embedded delimiter bytes),
+  `_binary_zero_length_final_fragment` (fo-dicom #1586, empty allocation
+  crash), `_binary_orphan_delimiter_at_eof` (fo-dicom #1958, state machine
+  re-entry outside sequence context), and `_binary_fragment_offset_underflow`
+  (CVE-2025-11266 arithmetic, BOT entry exceeds data size causing
+  unsigned underflow). A `_find_encapsulated_region()` helper locates
+  the Pixel Data element in raw bytes, handling both Explicit and
+  Implicit VR layouts. Strategy count unchanged (CompressedPixelFuzzer
+  was already registered; this adds a `mutate_bytes()` override).
+
 ## [1.10.1] - 2026-04-09 - Unbundle seed corpus
 
 Course-correction on the "bundled PHI-free seed corpus" feature shipped in

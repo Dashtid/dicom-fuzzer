@@ -2,19 +2,28 @@
 
 Category: generic
 
-Attacks:
+Dataset-level attacks:
 - JPEG marker corruption and dimension manipulation
 - JPEG 2000 codestream corruption
 - RLE segment corruption
 - Fragment offset table corruption
 - Encapsulation structure violations (missing delimiters, wrong tags, nesting)
 - Malformed frame injection and frame count mismatch
+
+Binary-level attacks (mutate_bytes):
+- Ultra-short fragment (CVE-2025-11266)
+- Remove sequence delimiter (fo-dicom #1339)
+- Delimiter embedded in fragment content (pydicom #1140)
+- Zero-length final fragment (fo-dicom #1586)
+- Orphan delimiter at EOF (fo-dicom #1958)
+- Fragment offset underflow (CVE-2025-11266 arithmetic)
 """
 
 from __future__ import annotations
 
 import random
 import struct
+from typing import NamedTuple
 
 from pydicom.dataset import Dataset
 from pydicom.encaps import encapsulate
@@ -43,6 +52,77 @@ JP2_SOC = b"\xff\x4f"  # Start of codestream
 JP2_SIZ = b"\xff\x51"  # Image and tile size
 JP2_COD = b"\xff\x52"  # Coding style default
 JP2_EOC = b"\xff\xd9"  # End of codestream
+
+# DICOM encapsulated pixel data binary constants
+_PIXEL_DATA_TAG = b"\xe0\x7f\x10\x00"  # (7FE0,0010) little-endian
+_ITEM_TAG = b"\xfe\xff\x00\xe0"  # (FFFE,E000) Item
+_SEQ_DELIM = b"\xfe\xff\xdd\xe0"  # (FFFE,E0DD) Sequence Delimitation
+_ITEM_DELIM = b"\xfe\xff\x0d\xe0"  # (FFFE,E00D) Item Delimitation
+_UNDEFINED_LENGTH = b"\xff\xff\xff\xff"
+_DICM_MAGIC = b"DICM"
+_DICM_OFFSET = 128
+_DATA_OFFSET = 132  # preamble (128) + "DICM" (4)
+
+
+class EncapsRegion(NamedTuple):
+    """Byte-offset map of an encapsulated Pixel Data element."""
+
+    bot_offset: int  # offset of first Item tag (BOT)
+    bot_length: int  # BOT item value length (may be 0)
+    first_fragment_offset: int  # offset of first data fragment Item tag
+    seq_delim_offset: int  # offset of Sequence Delimitation tag, or -1
+
+
+def _find_encapsulated_region(file_data: bytes) -> EncapsRegion | None:
+    """Locate the encapsulated Pixel Data region in raw DICOM bytes.
+
+    Scans for the Pixel Data tag (7FE0,0010) with undefined length,
+    handling both Explicit VR (OB/OW + reserved + 4-byte length = 12 bytes
+    header) and Implicit VR (4-byte length = 8 bytes header).
+
+    Returns an ``EncapsRegion`` describing the BOT and fragment layout,
+    or ``None`` if no encapsulated pixel data is found.
+    """
+    # Find the last occurrence of the Pixel Data tag (main dataset, not nested)
+    idx = file_data.rfind(_PIXEL_DATA_TAG)
+    if idx < 0:
+        return None
+
+    pos = idx + 4  # past the 4-byte tag
+
+    # Determine Explicit VR vs Implicit VR.
+    # In Explicit VR the next 2 bytes are a VR string (e.g. "OB", "OW").
+    if pos + 2 <= len(file_data) and file_data[pos : pos + 2] in (b"OB", b"OW"):
+        # Explicit VR long-form: VR(2) + reserved(2) + length(4)
+        pos += 2 + 2  # skip VR + reserved
+    # else: Implicit VR: length(4) immediately follows the tag
+
+    if pos + 4 > len(file_data):
+        return None
+    length_bytes = file_data[pos : pos + 4]
+    if length_bytes != _UNDEFINED_LENGTH:
+        return None  # definite-length pixel data -- not encapsulated
+    pos += 4  # past the undefined-length field
+
+    # pos now points to the first Item tag (BOT).
+    if pos + 8 > len(file_data):
+        return None
+    if file_data[pos : pos + 4] != _ITEM_TAG:
+        return None  # expected BOT Item tag
+
+    bot_offset = pos
+    bot_length = struct.unpack_from("<I", file_data, pos + 4)[0]
+    first_fragment_offset = bot_offset + 8 + bot_length
+
+    # Scan forward for the Sequence Delimitation Item.
+    seq_delim_offset = file_data.find(_SEQ_DELIM, first_fragment_offset)
+
+    return EncapsRegion(
+        bot_offset=bot_offset,
+        bot_length=bot_length,
+        first_fragment_offset=first_fragment_offset,
+        seq_delim_offset=seq_delim_offset,
+    )
 
 
 class CompressedPixelFuzzer(FormatFuzzerBase):
@@ -489,3 +569,191 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
             logger.debug("Frame count mismatch failed: %s", e)
 
         return dataset
+
+    # ------------------------------------------------------------------
+    # Binary-level encapsulated pixel data attacks
+    #
+    # These operate on the raw serialized byte stream *after* dcmwrite(),
+    # because pydicom normalizes encapsulation structure on write and
+    # cannot express the malformations these attacks require.
+    # ------------------------------------------------------------------
+
+    def mutate_bytes(self, file_data: bytes) -> bytes:
+        """Apply binary-level encapsulated pixel data corruptions.
+
+        Locates the encapsulated Pixel Data element in the serialized
+        byte stream and selects 1-2 attacks to apply. Returns file_data
+        unchanged if no encapsulated pixel data is found or the file
+        is not valid DICOM.
+        """
+        self._applied_binary_mutations = []
+
+        if len(file_data) < _DATA_OFFSET + 4:
+            return file_data
+        if file_data[_DICM_OFFSET:_DATA_OFFSET] != _DICM_MAGIC:
+            return file_data
+
+        region = _find_encapsulated_region(file_data)
+        if region is None:
+            return file_data
+
+        binary_attacks = [
+            self._binary_ultra_short_fragment,
+            self._binary_remove_sequence_delimiter,
+            self._binary_delimiter_in_fragment,
+            self._binary_zero_length_final_fragment,
+            self._binary_orphan_delimiter_at_eof,
+            self._binary_fragment_offset_underflow,
+        ]
+        num = random.randint(1, 2)
+        selected = random.sample(binary_attacks, num)
+        result = file_data
+        for attack in selected:
+            try:
+                result = attack(result, region)
+                self._applied_binary_mutations.append(attack.__name__)
+            except Exception as e:
+                logger.debug("Binary encaps attack %s failed: %s", attack.__name__, e)
+        return result
+
+    def _binary_ultra_short_fragment(
+        self, file_data: bytes, region: EncapsRegion
+    ) -> bytes:
+        """Replace the first data fragment with a 0, 1, or 2-byte payload.
+
+        CVE-2025-11266 (GDCM <= 3.0.24). Fragment parsing arithmetic does
+        ``buffer[length - 3]`` which underflows when the fragment has fewer
+        than 3 bytes, producing an out-of-bounds write.
+        """
+        frag_off = region.first_fragment_offset
+        if frag_off + 8 > len(file_data):
+            return file_data
+        if file_data[frag_off : frag_off + 4] != _ITEM_TAG:
+            return file_data
+
+        orig_length = struct.unpack_from("<I", file_data, frag_off + 4)[0]
+        frag_end = frag_off + 8 + orig_length
+
+        # Pick a short payload variant
+        short_payloads = [
+            b"",  # length = 0
+            b"\xff",  # length = 1
+            b"\xff\xd8",  # length = 2 (JPEG SOI)
+        ]
+        payload = random.choice(short_payloads)
+        new_frag = _ITEM_TAG + struct.pack("<I", len(payload)) + payload
+
+        return file_data[:frag_off] + new_frag + file_data[frag_end:]
+
+    def _binary_remove_sequence_delimiter(
+        self, file_data: bytes, region: EncapsRegion
+    ) -> bytes:
+        """Strip the Sequence Delimitation Item from the encapsulated data.
+
+        fo-dicom #1339 (fixed 5.1.4). Without the 8-byte terminator
+        ``FE FF DD E0 00 00 00 00`` the parser reads past the end of the
+        pixel data into subsequent elements or past EOF.
+        """
+        if region.seq_delim_offset < 0:
+            return file_data
+        return (
+            file_data[: region.seq_delim_offset]
+            + file_data[region.seq_delim_offset + 8 :]
+        )
+
+    def _binary_delimiter_in_fragment(
+        self, file_data: bytes, region: EncapsRegion
+    ) -> bytes:
+        """Inject Sequence Delimitation tag bytes inside a fragment's value.
+
+        pydicom #1140. Parsers using ``read_undefined_length_value()``
+        scan for the ``FE FF DD E0`` byte pattern; if it appears inside
+        a fragment's payload the parser prematurely truncates the data.
+        """
+        frag_off = region.first_fragment_offset
+        if frag_off + 8 > len(file_data):
+            return file_data
+        if file_data[frag_off : frag_off + 4] != _ITEM_TAG:
+            return file_data
+
+        orig_length = struct.unpack_from("<I", file_data, frag_off + 4)[0]
+        if orig_length < 4:
+            return file_data  # too small to inject into
+
+        value_start = frag_off + 8
+        value_end = value_start + orig_length
+        if value_end > len(file_data):
+            return file_data
+
+        # Inject the sequence delimiter tag bytes at a random position
+        inject_pos = random.randint(0, orig_length - 1)
+        value = file_data[value_start:value_end]
+        poisoned = value[:inject_pos] + _SEQ_DELIM + value[inject_pos:]
+        new_length = struct.pack("<I", len(poisoned))
+        new_frag = _ITEM_TAG + new_length + poisoned
+
+        return file_data[:frag_off] + new_frag + file_data[value_end:]
+
+    def _binary_zero_length_final_fragment(
+        self, file_data: bytes, region: EncapsRegion
+    ) -> bytes:
+        """Insert a zero-length fragment Item just before the Sequence Delimiter.
+
+        fo-dicom #1586. An empty (0-length) fragment causes an empty
+        allocation or null-pointer dereference in per-fragment decode loops
+        that assume every fragment contains at least some data.
+        """
+        if region.seq_delim_offset < 0:
+            return file_data
+
+        empty_frag = _ITEM_TAG + b"\x00\x00\x00\x00"  # 8 bytes: tag + length=0
+        pos = region.seq_delim_offset
+        return file_data[:pos] + empty_frag + file_data[pos:]
+
+    def _binary_orphan_delimiter_at_eof(
+        self, file_data: bytes, region: EncapsRegion
+    ) -> bytes:
+        """Append a raw delimiter tag after the entire dataset.
+
+        fo-dicom #1958. Delimiter bytes outside any sequence context cause
+        the parser to re-enter the sequence state machine unexpectedly,
+        leading to use-after-free or state corruption.
+        """
+        orphan = random.choice([_SEQ_DELIM, _ITEM_DELIM])
+        return file_data + orphan
+
+    def _binary_fragment_offset_underflow(
+        self, file_data: bytes, region: EncapsRegion
+    ) -> bytes:
+        """Set a Basic Offset Table entry to a value larger than the data.
+
+        CVE-2025-11266 arithmetic pattern. When the parser subtracts
+        fragment header sizes from the declared offset, the result
+        underflows (unsigned), producing a huge buffer index that reads
+        or writes out of bounds.
+        """
+        if region.bot_length < 4:
+            return file_data  # empty BOT, nothing to corrupt
+
+        bot_value_start = region.bot_offset + 8  # past Item tag + length
+        num_entries = region.bot_length // 4
+        entry_idx = random.randrange(num_entries)
+        entry_offset = bot_value_start + entry_idx * 4
+
+        if entry_offset + 4 > len(file_data):
+            return file_data
+
+        # Value must exceed total encapsulated data size so the parser
+        # underflows when subtracting fragment header sizes from it.
+        total_size = len(file_data) - region.bot_offset
+        overflow_value = random.choice(
+            [
+                total_size + 0x10000,  # modest overflow
+                0x7FFFFFFF,  # half uint32 max
+                0xFFFFFFFE,  # near uint32 max
+            ]
+        )
+
+        result = bytearray(file_data)
+        struct.pack_into("<I", result, entry_offset, overflow_value)
+        return bytes(result)
