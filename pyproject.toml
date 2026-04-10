@@ -45,7 +45,7 @@ dependencies = [
     "structlog>=23.0.0",
     "rich>=13.0.0",
     "tqdm>=4.66.0",           # Progress bars for CLI
-    "cryptography>=41.0.0",
+    "cryptography>=46.0.7",
     "psutil>=5.9.0",
 ]
 
