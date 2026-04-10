@@ -8,59 +8,6 @@ exact tags, values, and CVE/issue references for implementation.
 
 ## Format fuzzing -- P0: Crash-rate improvements
 
-### Binary encapsulation attacks (enhance CompressedPixelFuzzer)
-
-**Goal:** Add CVE-proven encapsulated pixel data attacks that
-target the fragment parsing arithmetic. Every major DICOM library
-has had CVEs here.
-
-**New sub-attacks (6 total):**
-
-1. `_ultra_short_fragment`: Create encapsulated PixelData fragment
-   (FFFE,E000 Item) with length 0, 1, or 2 bytes. Triggers unsigned
-   integer underflow when parser does `buffer[length - 3]`.
-   (CVE-2025-11266, GDCM <= 3.0.24, CISA ICSMA-25-345-01)
-
-   Concrete bytes:
-
-   ```
-   FE FF 00 E0 00 00 00 00  # Fragment Item, length=0
-   FE FF 00 E0 01 00 00 00 FF  # Fragment Item, length=1
-   FE FF 00 E0 02 00 00 00 FF D8  # Fragment Item, length=2
-   ```
-
-2. `_remove_sequence_delimiter`: Strip the final 8 bytes
-   (FFFE,E0DD + 0x00000000) from encapsulated pixel data. Parser
-   reads past end of data. (fo-dicom #1339, fixed 5.1.4)
-
-3. `_delimiter_in_fragment_content`: Inject `\xFE\xFF\xDD\xE0`
-   (SequenceDelimitationItem tag bytes) inside a pixel data
-   fragment's content. Parser mistakenly treats it as end-of-data,
-   then parses remaining pixel bytes as DICOM tags.
-   (pydicom #1140)
-
-4. `_zero_length_final_fragment`: Add an empty (0-length) fragment
-   as the last fragment before the SequenceDelimitationItem.
-   (fo-dicom #1586)
-
-5. `_orphan_delimiter_at_eof`: Append raw delimiter bytes
-   (FE FF 0D E0 or FE FF DD E0) after the dataset, outside any
-   sequence context. (fo-dicom #1958)
-
-6. `_fragment_offset_underflow`: Set Basic Offset Table entry to
-   a value larger than the actual fragment data, causing the parser
-   to compute a negative (underflowed) buffer index when subtracting
-   fragment header sizes. (CVE-2025-11266 arithmetic pattern)
-
-**Implementation:** These operate at the binary level (mutate_bytes)
-since pydicom's API normalizes the encapsulation. Use the existing
-`_apply_binary_mutations` path in StructureFuzzer as reference.
-
-**Tests:** Each sub-attack tested with a minimal encapsulated
-dataset (CT with JPEG Baseline transfer syntax).
-
-**Effort:** 2 sessions (~4 hours total).
-
 ### Overlay origin attacks (new sub-attacks in PixelFuzzer or new OverlayFuzzer)
 
 **Goal:** Test overlay rendering with invalid overlay parameters.
@@ -313,31 +260,32 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 
 ## Completed (reference only)
 
-| Item                                                           | PR(s)                             |
-| -------------------------------------------------------------- | --------------------------------- |
-| Audit mutations for crash potential (structural/content split) | #188, #198                        |
-| Formalize variant terminology + replay --decompose             | #195, #184, #197                  |
-| Re-encode pixel data (PixelReencodingFuzzer)                   | #204                              |
-| Attack mode / scope filtering (--target-type)                  | #205                              |
-| Move mutate_patient_info to utils/anonymizer.py                | #201                              |
-| Centralize attack payloads in dicom_dictionaries               | #194                              |
-| Seed corpus diversification (SEG, RTSS, PDF)                   | #206                              |
-| Unify reporting CSS/HTML systems                               | #200                              |
-| Make reports minimalistic and professional                     | #200 (CSS cleaned up)             |
-| Consolidate crash data types (CrashRecord)                     | #203                              |
-| Add can_mutate() guards to multiframe strategies               | #202                              |
-| Register multiframe strategies in DicomMutator dispatch        | (all 10 registered)               |
-| Track binary mutations in MutationRecord                       | #197                              |
-| Seed fuzzer engine + log RNG seed                              | #184, #185                        |
-| crash_by_strategy telemetry                                    | #191                              |
-| Structural mutation reweighting                                | #188                              |
-| Merge/disambiguate corpus_minimization vs corpus_minimizer     | (corpus_minimizer.py deleted)     |
-| CrashRecord.reproduction_command always None                   | (conditionally populated)         |
-| Pre-mutation safety checks (--safety-mode)                     | #209                              |
-| Seed file sanitization (dicom-fuzzer sanitize)                 | #210                              |
-| Seed corpus diversification (MR, DX, NM, PT, RTDOSE, RTSTRUCT) | (seed corpus populated)           |
-| Surface multiframe attack type via last_variant                | #217                              |
-| Mutation taxonomy (boundary/malformed/injection)               | Dropped (research: not effective) |
-| Crash discovery saturation curve                               | Dropped (insufficient crash data) |
-| EmptyValueFuzzer (9 present-but-empty .NET crash attacks)      | #229                              |
-| StructureFuzzer binary VR corruption (whitespace/null/dash/UN) | (4 binary attacks added)          |
+| Item                                                            | PR(s)                             |
+| --------------------------------------------------------------- | --------------------------------- |
+| Audit mutations for crash potential (structural/content split)  | #188, #198                        |
+| Formalize variant terminology + replay --decompose              | #195, #184, #197                  |
+| Re-encode pixel data (PixelReencodingFuzzer)                    | #204                              |
+| Attack mode / scope filtering (--target-type)                   | #205                              |
+| Move mutate_patient_info to utils/anonymizer.py                 | #201                              |
+| Centralize attack payloads in dicom_dictionaries                | #194                              |
+| Seed corpus diversification (SEG, RTSS, PDF)                    | #206                              |
+| Unify reporting CSS/HTML systems                                | #200                              |
+| Make reports minimalistic and professional                      | #200 (CSS cleaned up)             |
+| Consolidate crash data types (CrashRecord)                      | #203                              |
+| Add can_mutate() guards to multiframe strategies                | #202                              |
+| Register multiframe strategies in DicomMutator dispatch         | (all 10 registered)               |
+| Track binary mutations in MutationRecord                        | #197                              |
+| Seed fuzzer engine + log RNG seed                               | #184, #185                        |
+| crash_by_strategy telemetry                                     | #191                              |
+| Structural mutation reweighting                                 | #188                              |
+| Merge/disambiguate corpus_minimization vs corpus_minimizer      | (corpus_minimizer.py deleted)     |
+| CrashRecord.reproduction_command always None                    | (conditionally populated)         |
+| Pre-mutation safety checks (--safety-mode)                      | #209                              |
+| Seed file sanitization (dicom-fuzzer sanitize)                  | #210                              |
+| Seed corpus diversification (MR, DX, NM, PT, RTDOSE, RTSTRUCT)  | (seed corpus populated)           |
+| Surface multiframe attack type via last_variant                 | #217                              |
+| Mutation taxonomy (boundary/malformed/injection)                | Dropped (research: not effective) |
+| Crash discovery saturation curve                                | Dropped (insufficient crash data) |
+| EmptyValueFuzzer (9 present-but-empty .NET crash attacks)       | #229                              |
+| StructureFuzzer binary VR corruption (whitespace/null/dash/UN)  | #230                              |
+| CompressedPixelFuzzer binary encapsulation (6 fragment attacks) | (mutate_bytes override added)     |
