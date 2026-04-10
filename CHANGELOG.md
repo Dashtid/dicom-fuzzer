@@ -74,6 +74,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   length field, and removes the padding byte. Violates DICOM Part 5
   Section 8 even-length requirement, triggering padding/truncation bugs.
 
+- **CVE-to-strategy coverage matrix** -- `docs/CVE_AUDIT.md`
+  mapping ~130 DICOM CVEs (2022-2026) against 30 mutation strategies.
+  Identifies 16 covered trigger patterns (~81% of file-parsing CVEs)
+  and 13 gaps (G1-G13) driving new backlog items across P1 and P2.
+  Deep-dive research covered DCMTK (27 CVEs), GDCM (9), Sante (26+),
+  MicroDicom (7), Orthanc (9), libdicom (2), MedDream (10+), OsiriX
+  (3), plus ~40 fo-dicom crash issues with no formal CVEs.
+
 ## [1.10.1] - 2026-04-09 - Unbundle seed corpus
 
 Course-correction on the "bundled PHI-free seed corpus" feature shipped in

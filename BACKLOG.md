@@ -8,6 +8,168 @@ exact tags, values, and CVE/issue references for implementation.
 
 ## Format fuzzing -- P0: Crash-rate improvements
 
+(All P0 items completed in PRs #229-#232.)
+
+---
+
+## Format fuzzing -- P1: CVE gap coverage
+
+Items identified by the CVE-to-strategy coverage audit
+(`docs/CVE_AUDIT.md`). Each gap references specific
+CVEs and proposes the target fuzzer.
+
+### G1: PALETTE COLOR + LUT overflow (extend PixelFuzzer)
+
+**Goal:** Set PhotometricInterpretation to "PALETTE COLOR" with
+extreme Rows\*Columns that overflow 32-bit in LUT allocation,
+and/or set LUT descriptor entry count larger than actual LUT data.
+
+**CVEs:**
+
+- Orthanc CVE-2026-5443: width\*height 32-bit overflow in
+  PALETTE COLOR pixel validation -> heap buffer overflow
+- Orthanc CVE-2026-5445: pixel indices > palette size -> OOB read
+- GDCM CVE-2024-22391 (TALOS-2024-1924): LookupTable::SetLUT
+  entry count > buffer -> heap buffer overflow
+
+**Tags:** PhotometricInterpretation (0028,0004),
+RedPaletteColorLookupTableDescriptor (0028,1101),
+RedPaletteColorLookupTableData (0028,1201), Rows, Columns.
+
+**Effort:** 1 session (~1 hour).
+
+### G9: HighBit >= BitsAllocated (extend PixelFuzzer)
+
+**Goal:** Set HighBit to a value >= BitsAllocated. The pixel
+min/max calculation uses HighBit as an array index without
+bounds checking, producing an OOB write.
+
+**CVEs:**
+
+- DCMTK CVE-2024-52333 (TALOS-2024-2121, CVSS 8.4):
+  DiInputPixelTemplate::determineMinMax() uses HighBit as index
+- DCMTK CVE-2024-47796 (TALOS-2024-2122, CVSS 8.4): same
+  class, `nowindow` functionality
+
+**Tags:** HighBit (0028,0102), BitsAllocated (0028,0100).
+
+**Effort:** 0.5 session (verify existing \_bit_depth_attack
+covers this exact combo; add explicit attack if not).
+
+### G12: Photometric Interpretation -> wrong codec path (extend PixelFuzzer)
+
+**Goal:** Set PhotometricInterpretation to YBR_RCT, YBR_ICT,
+or other uncommon values on pixel data encoded for a different
+color space. The JPEG codec selects the wrong color conversion
+function, reading/writing with mismatched buffer expectations.
+
+**CVEs:**
+
+- GDCM CVE-2025-53618 (TALOS-2025-2210, CVSS 7.4):
+  JPEGBITSCodec grayscale_convert() invoked with wrong buffer
+- GDCM CVE-2025-53619: null_convert() path
+- DCMTK CVE-2025-9732 (CWE-787): OOB write in YBR-to-RGB
+
+**Tags:** PhotometricInterpretation (0028,0004).
+
+**Effort:** 0.5 session (add YBR_RCT, YBR_ICT, YBR_FULL_422
+to existing \_photometric_confusion).
+
+### G4: UL-as-US dimension type confusion (extend StructureFuzzer)
+
+**Goal:** Replace VR "US" with "UL" on Rows/Columns tags at the
+binary level. UL expects 4-byte value; the file still has a
+2-byte value, so the parser reads into the next element.
+
+**CVE:** Orthanc CVE-2026-5442 -- dimension fields as VR UL
+instead of US -> huge dimensions overflow frame-size calculation.
+
+**Tags:** Rows (0028,0010), Columns (0028,0011) -- binary VR.
+
+**Effort:** 0.5 session.
+
+### G8: Non-standard VR in file meta (extend ConformanceFuzzer or StructureFuzzer)
+
+**Goal:** Insert a DICOM element with fabricated VR (e.g., "ZZ")
+in the File Meta Information header (group 0002). Parsers that
+allocate based on VR-implied length without bounds checking
+consume gigabytes of heap from a tiny file.
+
+**CVE:** GDCM CVE-2026-3650 (CWE-401, **UNPATCHED** as of
+April 2026): ~150-byte file with non-standard VR in file meta
+causes allocation of ~4.2 GB. CISA ICSMA-26-083-01.
+
+**Effort:** 0.5 session.
+
+### G6: Format string injection (extend HeaderFuzzer or EncodingFuzzer)
+
+**Goal:** Add %s, %n, %x, %p payloads to string VR fields
+(LO, SH, PN, LT). Targets C/C++ parsers that pass DICOM string
+values to printf-family functions.
+
+**CVE:** Merge DICOM CVE-2024-23914 (CWE-134): format string
+vuln in MC_Open_Association() via Application Context Name.
+
+**Effort:** 0.5 session.
+
+### G13: OverlayData shorter than dimensions (extend PixelFuzzer)
+
+**Goal:** Set OverlayRows\*OverlayColumns to imply more overlay
+bytes than OverlayData actually contains. Renderer reads past
+the end of the overlay buffer.
+
+**Issue:** fo-dicom #1728: RenderImage IndexOutOfRangeException
+in BitArray.Get when OverlayData is shorter than expected.
+
+**Note:** Existing overlay attacks create full overlay data via
+\_add_overlay_scaffold(). Need a variant with truncated data.
+
+**Effort:** 0.5 session.
+
+### G7: VOI LUT / Palette LUT corruption
+
+**Goal:** Add VOILUTSequence with type-confused entries (e.g.,
+OW data where IS is expected), and Palette LUT with mismatched
+descriptor (declared entry count != actual data size).
+
+**CVEs:**
+
+- DCMTK CVE-2024-28130 (TALOS-2024-1957, CVSS 7.5): incorrect
+  type conversion in DVPSSoftcopyVOI_PList::createFromImage()
+- fo-dicom #1062: VOI LUT Sequence without Modality LUT ->
+  IndexOutOfRangeException
+
+**Effort:** 1-2 sessions (new fuzzer or extend CalibrationFuzzer).
+
+### G2: JPEG-LS codec corruption (extend CompressedPixelFuzzer)
+
+**Goal:** Add JPEG-LS Lossless (1.2.840.10008.1.2.4.80) and
+Near-Lossless (1.2.840.10008.1.2.4.81) transfer syntax support
+with malformed JPEG-LS codestream markers.
+
+**CVE:** DCMTK CVE-2025-2357 (CWE-119): memory corruption in
+dcmjpls JPEG-LS decoder.
+
+**Effort:** 1 session.
+
+### G10: Duplicate tags in file meta information (extend StructureFuzzer)
+
+**Goal:** Insert duplicate elements in group 0002 (File Meta
+Information). Parsers using hash-map insertion with
+destroy-on-collision double-free the original element.
+
+**CVEs:**
+
+- libdicom CVE-2024-24793 (TALOS-2024-1931, CVSS 8.1):
+  use-after-free from duplicate tags in file meta
+- libdicom CVE-2024-24794: same, sequence end parsing
+
+**Note:** StructureFuzzer.\_binary_duplicate_tag explicitly SKIPS
+group 0002. This gap requires a new binary attack that targets
+file meta specifically.
+
+**Effort:** 1 session.
+
 ---
 
 ## Format fuzzing -- P1: Modality expansion
@@ -49,6 +211,55 @@ NumberOfFrames + BitsAllocated + SamplesPerPixel all wrong
 simultaneously. Parsers assume mutually-consistent fields.
 
 **Effort:** 1 session.
+
+---
+
+## Format fuzzing -- P2: CVE gap coverage (larger scope)
+
+### G3: Decompression bomb (deflated transfer syntax)
+
+**Goal:** Create a DICOM file with Deflated Explicit VR Little
+Endian transfer syntax (UID 1.2.840.10008.1.2.1.99) containing
+a crafted deflate stream with >1000:1 compression ratio.
+
+**CVEs:**
+
+- Orthanc CVE-2026-5438 (CWE-400): gzip payload with no
+  decompressed size limit -> memory exhaustion
+- Orthanc CVE-2026-5439 (CWE-400): ZIP archive bomb via
+  forged uncompressed size metadata
+- ACM CCS 2022 research: Deflated LE transfer syntax as zip bomb
+
+**Effort:** 2-4 sessions (new CompressedPixelFuzzer attack or
+dedicated DecompressionBombFuzzer).
+
+### G5: DICOMDIR path traversal
+
+**Goal:** Generate malicious DICOMDIR with ReferencedFileID
+containing "../" sequences or absolute paths. FileSet operations
+then read/write/delete outside the DICOM file-set root.
+
+**CVE:** pydicom CVE-2026-32711 (CWE-22, CVSS 7.8): pathlib
+`/` operator discards left operand if right is absolute.
+Fixed pydicom 3.0.2 / 2.4.5.
+
+**Effort:** 2 sessions (new fuzzer, different attack surface).
+
+### G11: Preamble polyglot (PE/ELF/JSON payload)
+
+**Goal:** Inject PE, ELF, or JSON headers into the 128-byte
+DICOM preamble. The file is simultaneously valid DICOM and
+valid executable/data. Targets systems that dispatch on file
+magic or process the preamble as structured data.
+
+**CVEs / Research:**
+
+- CVE-2019-11687: DICOM PE polyglot (original research)
+- Praetorian ELFDICOM 2025: Linux ELF variant
+- Orthanc CVE-2023-33466: JSON in preamble -> config overwrite
+  -> Lua RCE chain
+
+**Effort:** 2 sessions (extend HeaderFuzzer or new attack).
 
 ---
 
@@ -165,25 +376,6 @@ bundled stub corpus with seeds that actually exercise parser code paths.
 **Effort:** Ongoing. Start with CT (highest-value for Hermes campaign),
 then MR, then RT. The full corpus is a multi-session effort.
 
-### CVE-to-strategy coverage audit
-
-**Goal:** Systematic cross-reference of every known DICOM CVE
-(2022-2026) against existing mutation strategies. Confirm each
-CVE's crash pattern is covered by at least one strategy, and
-identify gaps where new attacks are needed.
-
-**Scope:**
-
-- Source: private CVE reference repo (curated list of DICOM CVEs
-  across fo-dicom, DCMTK, GDCM, libdicom, pydicom, MicroDicom,
-  Merge DICOM Toolkit, Orthanc, OsiriX, Sante PACS)
-- For each CVE: document the trigger pattern, map it to the
-  strategy that covers it (or flag as gap)
-- Output: coverage matrix (CVE x strategy) and list of unmatched
-  CVEs to drive new strategy development
-
-**Effort:** 1 session.
-
 ### Full campaign run
 
 Overnight run with 9 seeds + 30s timeout. Analyze crash-by-strategy.
@@ -201,7 +393,6 @@ After campaign data: remove/redesign zero-crash strategies.
 - Test flakiness investigation
 - Strategy effectiveness charts
 - End-of-campaign auto-triage
-- VOI LUT / Palette color corruption
 - Authentication negotiation fuzzing
 
 ---
@@ -210,7 +401,7 @@ After campaign data: remove/redesign zero-crash strategies.
 
 ### Full DICOM SOP Class coverage
 
-186 Storage SOP Classes. Current 29 strategies. Target ~40-44.
+186 Storage SOP Classes. Current 30 strategies. Target ~40-44.
 
 ### Coverage-guided fuzzing
 
@@ -252,3 +443,4 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | PixelFuzzer overlay attacks (origin/dimension/bit-position)     | (3 structural attacks)            |
 | PrivateTagFuzzer private SQ at EOF                              | (1 structural attack)             |
 | PixelFuzzer odd-length pixel data                               | (mutate_bytes override added)     |
+| CVE-to-strategy coverage audit (~130 CVEs, 13 gaps)             | docs/CVE_AUDIT.md                 |
