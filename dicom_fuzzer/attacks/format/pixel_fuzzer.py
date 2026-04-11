@@ -95,6 +95,8 @@ class PixelFuzzer(FormatFuzzerBase):
             self._negative_overlay_origin,  # [STRUCTURAL] overlay compositing IndexOutOfRange
             self._overlay_dimension_mismatch,  # [STRUCTURAL] overlay >> image dims -> OOM / overread
             self._overlay_bit_position,  # [STRUCTURAL] bit extraction UB on non-zero position
+            self._palette_color_overflow,  # [STRUCTURAL] LUT descriptor count > data -> heap overflow
+            self._overlay_data_truncation,  # [STRUCTURAL] OverlayData shorter than dims -> OOB read
         ]
         content = [
             self._photometric_confusion,  # [CONTENT] string value, parser moves on
@@ -246,6 +248,7 @@ class PixelFuzzer(FormatFuzzerBase):
             [
                 "bits_stored_greater",
                 "high_bit_invalid",
+                "highbit_exceeds_allocated",
                 "bits_allocated_mismatch",
                 "zero_bits",
                 "extreme_bits",
@@ -261,6 +264,12 @@ class PixelFuzzer(FormatFuzzerBase):
                 # HighBit should be BitsStored - 1
                 if hasattr(dataset, "BitsStored"):
                     dataset.HighBit = dataset.BitsStored + 10
+            elif attack == "highbit_exceeds_allocated":
+                # DCMTK CVE-2024-52333/47796: HighBit used as array index
+                # without bounds check in determineMinMax(); when
+                # HighBit >= BitsAllocated the index overflows the buffer.
+                bits_alloc = getattr(dataset, "BitsAllocated", 8)
+                dataset.HighBit = bits_alloc + random.choice([0, 7, 15, 31])
             elif attack == "bits_allocated_mismatch":
                 # Change BitsAllocated without changing pixel data
                 current = getattr(dataset, "BitsAllocated", 8)
@@ -290,6 +299,14 @@ class PixelFuzzer(FormatFuzzerBase):
             "",
             "X" * 100,
             "\x00MONO",
+            # GDCM CVE-2025-53618/53619, DCMTK CVE-2025-9732: wrong color
+            # conversion path selected when PI doesn't match pixel data encoding
+            "YBR_FULL",
+            "YBR_FULL_422",
+            "YBR_PARTIAL_422",
+            "YBR_ICT",
+            "YBR_RCT",
+            "PALETTE COLOR",
         ]
 
         try:
@@ -631,6 +648,51 @@ class PixelFuzzer(FormatFuzzerBase):
         """
         self._add_overlay_scaffold(dataset)
         dataset[Tag(0x6000, 0x0102)].value = random.choice([7, 15, 31])
+        return dataset
+
+    def _palette_color_overflow(self, dataset: Dataset) -> Dataset:
+        """Set PALETTE COLOR photometric with mismatched LUT descriptor.
+
+        Orthanc CVE-2026-5443, CVE-2026-5445, GDCM CVE-2024-22391
+        (TALOS-2024-1924). Sets PhotometricInterpretation to
+        "PALETTE COLOR" and adds LUT descriptor tags whose declared
+        entry count exceeds the actual LUT data size. The parser
+        allocates based on the descriptor count but the data is
+        shorter, causing a heap buffer overflow during LUT indexing.
+        """
+        dataset.PhotometricInterpretation = "PALETTE COLOR"
+        dataset.SamplesPerPixel = 1
+        dataset.BitsAllocated = 8
+        dataset.BitsStored = 8
+        dataset.HighBit = 7
+        dataset.PixelRepresentation = 0
+
+        # LUT descriptor: [number_of_entries, first_stored_value, bits_per_entry]
+        # Claim 4096 entries but provide only 16 bytes of data.
+        descriptor = [4096, 0, 16]
+        small_lut_data = b"\x00" * 16  # only 8 entries worth (16 bytes / 2)
+
+        for _color, desc_tag, data_tag in [
+            ("Red", 0x1101, 0x1201),
+            ("Green", 0x1102, 0x1202),
+            ("Blue", 0x1103, 0x1203),
+        ]:
+            dataset.add_new(Tag(0x0028, desc_tag), "US", descriptor)
+            dataset.add_new(Tag(0x0028, data_tag), "OW", small_lut_data)
+
+        return dataset
+
+    def _overlay_data_truncation(self, dataset: Dataset) -> Dataset:
+        """Set full overlay dimensions but truncate OverlayData.
+
+        fo-dicom #1728. The overlay renderer assumes OverlayData is
+        at least ``ceil(OverlayRows * OverlayColumns / 8)`` bytes.
+        When the data is shorter, ``BitArray.Get()`` throws
+        IndexOutOfRangeException reading past the buffer end.
+        """
+        self._add_overlay_scaffold(dataset)
+        # Scaffold set correct-length data; overwrite with 1 byte
+        dataset[Tag(0x6000, 0x3000)].value = b"\xff"
         return dataset
 
     # ------------------------------------------------------------------
