@@ -6,46 +6,6 @@ exact tags, values, and CVE/issue references for implementation.
 
 ---
 
-## Format fuzzing -- P1: Modality expansion
-
-### MR modality-specific fuzzing
-
-Expand DictionaryFuzzer or CalibrationFuzzer with MR-specific tags:
-EchoTime (0018,0081), RepetitionTime (0018,0080), FlipAngle
-(0018,1314), InversionTime (0018,0082), MagneticFieldStrength
-(0018,0087), DiffusionBValue. MR seed already in corpus.
-
-**Effort:** 1 session.
-
-### DX/CR modality fuzzer
-
-DX seed already in corpus. Add DX-specific attacks: ExposureInuAs,
-DistanceSourceToDetector, ExposureTime, KVP boundary values.
-
-**Effort:** 1 session.
-
----
-
-## Multiframe fuzzing -- P1
-
-### Functional group crash attacks
-
-Empty/invalid values in PerFrameFunctionalGroupsSequence:
-
-- Empty FrameContentSequence items
-- Invalid numeric values in PlanePositionSequence
-- Mismatched item count vs NumberOfFrames
-- Empty SharedFunctionalGroupsSequence (fo-dicom #1884)
-
-**Effort:** 1 session.
-
-### Concurrent field mismatches
-
-NumberOfFrames + BitsAllocated + SamplesPerPixel all wrong
-simultaneously. Parsers assume mutually-consistent fields.
-
-**Effort:** 1 session.
-
 ---
 
 ## Format fuzzing -- P2: CVE gap coverage (larger scope)
@@ -229,3 +189,7 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | Fully untrack dicom-seeds directory                            | #236                          |
 | P1 CVE quick wins: G1, G4, G6, G8, G9, G12, G13 (7 gaps)       | (7 attacks across 3 fuzzers)  |
 | P1 CVE medium: G2 JPEG-LS, G7 VOI LUT, G10 duplicate meta      | (3 attacks across 3 fuzzers)  |
+| MR modality expansion (6 attack types in CalibrationFuzzer)    | (fuzz_mr_parameters)          |
+| DX/CR modality expansion (5 attack types in CalibrationFuzzer) | (fuzz_dx_parameters)          |
+| Multiframe functional group crash attacks (2 new attacks)      | (empty frame content + NaN)   |
+| Concurrent field mismatches (PixelFuzzer)                      | (\_concurrent_field_mismatch) |

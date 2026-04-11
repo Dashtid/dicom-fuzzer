@@ -104,6 +104,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   duplicates a group 0002 element to trigger UAF in parsers with
   hash-map destroy-on-collision (libdicom CVE-2024-24793/24794).
 
+- **MR modality expansion** -- `fuzz_mr_parameters` in CalibrationFuzzer
+  with 6 attack types targeting EchoTime, RepetitionTime, FlipAngle,
+  InversionTime, MagneticFieldStrength, and DiffusionBValue.
+
+- **DX/CR modality expansion** -- `fuzz_dx_parameters` in CalibrationFuzzer
+  with 5 attack types targeting ExposureInuAs, KVP,
+  DistanceSourceToDetector, and ExposureTime.
+
+- **Multiframe functional group crash attacks** -- 2 new attacks in
+  FunctionalGroupStrategy: `_attack_empty_frame_content` and
+  `_attack_invalid_plane_position` (NaN/Inf ImagePositionPatient).
+
+- **Concurrent field mismatches** -- `_concurrent_field_mismatch` in
+  PixelFuzzer sets NumberOfFrames + BitsAllocated + SamplesPerPixel
+  all to invalid values simultaneously.
+
 ## [1.10.1] - 2026-04-09 - Unbundle seed corpus
 
 Course-correction on the "bundled PHI-free seed corpus" feature shipped in

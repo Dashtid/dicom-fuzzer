@@ -294,6 +294,8 @@ class CalibrationFuzzer(FormatFuzzerBase):
             self.fuzz_hounsfield_rescale,  # [CONTENT] HU slope/intercept — rendering only
             self.fuzz_window_level,  # [CONTENT] display window — rendering only
             self.fuzz_slice_thickness,  # [CONTENT] calibration value — rendering only
+            self.fuzz_mr_parameters,  # [CONTENT] MR-specific acquisition parameters
+            self.fuzz_dx_parameters,  # [CONTENT] DX/CR-specific exposure parameters
         ]
 
         selected = random.sample(structural, k=1)
@@ -390,4 +392,74 @@ class CalibrationFuzzer(FormatFuzzerBase):
 
         except Exception as e:
             logger.debug("VOI LUT corruption failed: %s", e)
+        return dataset
+
+    def fuzz_mr_parameters(
+        self, dataset: Dataset, attack_type: str | None = None
+    ) -> Dataset:
+        """Fuzz MR-specific acquisition parameters.
+
+        Targets numeric fields that MR processing pipelines use for
+        sequence timing, flip angle calculations, and diffusion
+        weighting. Zero/negative/extreme values cause division-by-zero
+        in timing calculations and NaN propagation in derived values.
+        """
+        if attack_type is None:
+            attack_type = random.choice(
+                [
+                    "zero_echo_time",
+                    "negative_repetition_time",
+                    "extreme_flip_angle",
+                    "nan_inversion_time",
+                    "zero_magnetic_field",
+                    "extreme_diffusion",
+                ]
+            )
+
+        if attack_type == "zero_echo_time":
+            dataset.EchoTime = 0.0
+        elif attack_type == "negative_repetition_time":
+            dataset.RepetitionTime = -1.0
+        elif attack_type == "extreme_flip_angle":
+            dataset.FlipAngle = random.choice([0.0, -90.0, 360.0, 99999.0])
+        elif attack_type == "nan_inversion_time":
+            dataset.InversionTime = float("nan")
+        elif attack_type == "zero_magnetic_field":
+            dataset.MagneticFieldStrength = 0.0
+        elif attack_type == "extreme_diffusion":
+            dataset.add_new(0x00189087, "FD", random.choice([0.0, -1.0, 1e15]))
+
+        return dataset
+
+    def fuzz_dx_parameters(
+        self, dataset: Dataset, attack_type: str | None = None
+    ) -> Dataset:
+        """Fuzz DX/CR-specific exposure and geometry parameters.
+
+        Targets numeric fields in radiographic acquisition that
+        processing pipelines use for dose calculations, geometric
+        magnification, and image quality metrics.
+        """
+        if attack_type is None:
+            attack_type = random.choice(
+                [
+                    "zero_exposure",
+                    "negative_kvp",
+                    "extreme_distance",
+                    "zero_exposure_time",
+                    "nan_exposure",
+                ]
+            )
+
+        if attack_type == "zero_exposure":
+            dataset.ExposureInuAs = 0
+        elif attack_type == "negative_kvp":
+            dataset.KVP = random.choice([-1.0, 0.0, 999.0])
+        elif attack_type == "extreme_distance":
+            dataset.DistanceSourceToDetector = random.choice([0.0, -100.0, 1e10])
+        elif attack_type == "zero_exposure_time":
+            dataset.ExposureTime = 0
+        elif attack_type == "nan_exposure":
+            dataset.ExposureInuAs = random.choice([0, -1, 2147483647])
+
         return dataset
