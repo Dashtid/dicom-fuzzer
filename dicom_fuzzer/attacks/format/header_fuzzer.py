@@ -104,12 +104,19 @@ VR_MUTATIONS = {
         "Line1\nLine2",  # Newline (invalid)
         "\r\nCRLF",  # CRLF
         "Unicode: \u2603\u2764",  # Unicode snowman and heart
+        # Merge DICOM CVE-2024-23914: format string injection for C/C++ parsers
+        "%s%s%s%s%s",
+        "%n%n%n%n",
+        "%x%x%x%x",
+        "%.9999999s",
     ],
     # LT - Long Text (max 10240 chars)
     "LT": [
         "A" * 10241,  # Over limit
         "A" * 100000,  # Way over limit
         "\x00" * 100,  # Null bytes
+        "%s%s%s%s%s%s%s%s",  # Format string injection (CVE-2024-23914)
+        "%n%n%n%n%n%n%n%n",
     ],
     # OB - Other Byte (arbitrary bytes)
     "OB": [
@@ -127,6 +134,8 @@ VR_MUTATIONS = {
         *INVALID_PN_VALUES[
             :5
         ],  # Overlong components, too many groups, null, missing alphabetic, very long
+        "%s%s%s%s%s",  # Format string injection (CVE-2024-23914)
+        "%n%n%n%n",
     ],
     # SH - Short String (max 16 chars)
     "SH": [
@@ -134,6 +143,8 @@ VR_MUTATIONS = {
         "A" * 256,  # Way over limit
         "\x00SHORT",  # Null byte
         "WITH\nNEWLINE",  # Newline
+        "%s%s%s%s",  # Format string injection (CVE-2024-23914)
+        "%n%n%n%n",
     ],
     # SL - Signed Long (32-bit signed integer)
     "SL": [
@@ -154,6 +165,8 @@ VR_MUTATIONS = {
         "A" * 1025,  # Over limit
         "A" * 10000,  # Way over limit
         "\x00" * 50,  # Null bytes
+        "%s%s%s%s",  # Format string injection (CVE-2024-23914)
+        "%p%p%p%p",
     ],
     # UC - Unlimited Characters (no max)
     "UC": [
