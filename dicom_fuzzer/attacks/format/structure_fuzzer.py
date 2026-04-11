@@ -577,6 +577,7 @@ class StructureFuzzer(FormatFuzzerBase):
             self._binary_vr_un_substitution,
             self._binary_dimension_vr_ul,
             self._binary_nonstandard_vr_meta,
+            self._binary_duplicate_meta_tag,
         ]
         num = random.randint(1, 2)
         selected = random.sample(binary_attacks, num)
@@ -930,3 +931,57 @@ class StructureFuzzer(FormatFuzzerBase):
             return file_data
         vr_offset = random.choice(candidates)
         return self._overwrite_vr_bytes(file_data, vr_offset, b"ZZ")
+
+    @staticmethod
+    def _parse_meta_elements(
+        file_data: bytes,
+    ) -> list[tuple[int, int]]:
+        """Parse group 0002 elements and return (start, end) byte offsets.
+
+        Walks Explicit VR elements in the File Meta Information header
+        (group 0002) and returns their byte ranges. Stops at the first
+        non-0002 group or on parse error.
+        """
+        results: list[tuple[int, int]] = []
+        pos = _DATA_OFFSET
+        data_len = len(file_data)
+        while pos + 8 <= data_len:
+            group = int.from_bytes(file_data[pos : pos + 2], "little")
+            if group != 0x0002:
+                break
+            elem_start = pos
+            vr = file_data[pos + 4 : pos + 6]
+            if vr in _LONG_VRS:
+                if pos + 12 > data_len:
+                    break
+                length = int.from_bytes(file_data[pos + 8 : pos + 12], "little")
+                pos = pos + 12 + length
+            else:
+                if pos + 8 > data_len:
+                    break
+                length = int.from_bytes(file_data[pos + 6 : pos + 8], "little")
+                pos = pos + 8 + length
+            if pos > data_len:
+                break
+            results.append((elem_start, pos))
+        return results
+
+    def _binary_duplicate_meta_tag(self, file_data: bytes) -> bytes:
+        """Duplicate a group 0002 element within the file meta header.
+
+        libdicom CVE-2024-24793/24794 (TALOS-2024-1931, CVSS 8.1).
+        Parsers using hash-map insertion with destroy-on-collision
+        double-free the original element when they encounter a
+        duplicate tag in the File Meta Information header. The standard
+        ``_binary_duplicate_tag`` skips group 0002, so this attack
+        targets meta elements specifically.
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        meta_elems = self._parse_meta_elements(file_data)
+        if not meta_elems:
+            return file_data
+        src_start, src_end = random.choice(meta_elems)
+        elem_bytes = file_data[src_start:src_end]
+        # Insert the duplicate right after the original element
+        return file_data[:src_end] + elem_bytes + file_data[src_end:]

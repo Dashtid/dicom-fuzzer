@@ -261,3 +261,30 @@ class TestOversizedNumericString:
         """Method does not raise on a dataset with no numeric calibration tags."""
         result = CalibrationFuzzer()._oversized_numeric_string(pydicom.Dataset())
         assert isinstance(result, pydicom.Dataset)
+
+
+# ---------------------------------------------------------------------------
+# G7: VOI LUT / Palette LUT corruption
+# ---------------------------------------------------------------------------
+
+
+class TestVoiLutCorruption:
+    """Tests for _voi_lut_corruption (DCMTK CVE-2024-28130, fo-dicom #1062)."""
+
+    def test_returns_dataset(self):
+        ds = pydicom.Dataset()
+        result = CalibrationFuzzer()._voi_lut_corruption(ds)
+        assert isinstance(result, pydicom.Dataset)
+
+    def test_voi_lut_sequence_present(self):
+        ds = pydicom.Dataset()
+        result = CalibrationFuzzer()._voi_lut_corruption(ds)
+        assert hasattr(result, "VOILUTSequence")
+        assert len(result.VOILUTSequence) >= 1
+
+    def test_lut_item_has_descriptor_and_data(self):
+        ds = pydicom.Dataset()
+        result = CalibrationFuzzer()._voi_lut_corruption(ds)
+        item = result.VOILUTSequence[0]
+        assert 0x00283002 in item  # LUTDescriptor
+        assert 0x00283006 in item  # LUTData

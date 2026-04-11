@@ -6,49 +6,6 @@ exact tags, values, and CVE/issue references for implementation.
 
 ---
 
-## Format fuzzing -- P1: CVE gap coverage (medium effort)
-
-### G7: VOI LUT / Palette LUT corruption
-
-Add VOILUTSequence with type-confused entries (e.g., OW data
-where IS is expected), and Palette LUT with mismatched descriptor
-(declared entry count != actual data size).
-
-- DCMTK CVE-2024-28130 (TALOS-2024-1957, CVSS 7.5): incorrect
-  type conversion in DVPSSoftcopyVOI_PList::createFromImage()
-- fo-dicom #1062: VOI LUT Sequence without Modality LUT ->
-  IndexOutOfRangeException
-
-**Effort:** 1-2 sessions. New fuzzer or extend CalibrationFuzzer.
-
-### G2: JPEG-LS codec corruption (extend CompressedPixelFuzzer)
-
-Add JPEG-LS Lossless (1.2.840.10008.1.2.4.80) and Near-Lossless
-(1.2.840.10008.1.2.4.81) transfer syntax support with malformed
-JPEG-LS codestream markers.
-
-- DCMTK CVE-2025-2357 (CWE-119): memory corruption in dcmjpls
-  JPEG-LS decoder
-
-**Effort:** 1 session.
-
-### G10: Duplicate tags in file meta (extend StructureFuzzer)
-
-Insert duplicate elements in group 0002 (File Meta Information).
-Parsers using hash-map insertion with destroy-on-collision
-double-free the original element.
-
-- libdicom CVE-2024-24793 (TALOS-2024-1931, CVSS 8.1):
-  use-after-free from duplicate tags in file meta
-- libdicom CVE-2024-24794: same, sequence end parsing
-
-Note: `_binary_duplicate_tag` explicitly skips group 0002. This
-gap requires a new binary attack targeting file meta specifically.
-
-**Effort:** 1 session.
-
----
-
 ## Format fuzzing -- P1: Modality expansion
 
 ### MR modality-specific fuzzing
@@ -271,3 +228,4 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | CVE-to-strategy coverage audit (~140 CVEs, 13 gaps, 2 rounds)  | #234, #235                    |
 | Fully untrack dicom-seeds directory                            | #236                          |
 | P1 CVE quick wins: G1, G4, G6, G8, G9, G12, G13 (7 gaps)       | (7 attacks across 3 fuzzers)  |
+| P1 CVE medium: G2 JPEG-LS, G7 VOI LUT, G10 duplicate meta      | (3 attacks across 3 fuzzers)  |

@@ -66,7 +66,7 @@ class TestCompressedPixelFuzzerInit:
         """Test that mutation_strategies list is defined."""
         assert hasattr(fuzzer, "mutation_strategies")
         assert isinstance(fuzzer.mutation_strategies, list)
-        assert len(fuzzer.mutation_strategies) == 8
+        assert len(fuzzer.mutation_strategies) == 9
 
     def test_all_strategies_callable(self, fuzzer: CompressedPixelFuzzer) -> None:
         """Test that all strategies are callable methods."""
@@ -705,3 +705,54 @@ class TestMutateBytesIntegration:
         fuzzer.mutate_bytes(file_data)
         fuzzer.mutate_bytes(file_data)
         assert len(fuzzer._applied_binary_mutations) <= 2
+
+
+# =============================================================================
+# G2: JPEG-LS codec corruption
+# =============================================================================
+
+
+class TestCorruptJpeglsCodestream:
+    """Tests for _corrupt_jpegls_codestream (DCMTK CVE-2025-2357)."""
+
+    def test_returns_dataset(
+        self, fuzzer: CompressedPixelFuzzer, sample_dataset: Dataset
+    ) -> None:
+        result = fuzzer._corrupt_jpegls_codestream(sample_dataset)
+        assert isinstance(result, Dataset)
+
+    def test_pixel_data_present(
+        self, fuzzer: CompressedPixelFuzzer, sample_dataset: Dataset
+    ) -> None:
+        result = fuzzer._corrupt_jpegls_codestream(sample_dataset)
+        assert Tag(0x7FE0, 0x0010) in result
+
+    def test_transfer_syntax_is_jpegls(
+        self, fuzzer: CompressedPixelFuzzer, sample_dataset: Dataset
+    ) -> None:
+        from pydicom.uid import JPEGLSLossless
+
+        result = fuzzer._corrupt_jpegls_codestream(sample_dataset)
+        assert result.file_meta.TransferSyntaxUID == JPEGLSLossless
+
+    def test_all_variants_produce_pixel_data(
+        self, fuzzer: CompressedPixelFuzzer, sample_dataset: Dataset
+    ) -> None:
+        """Each attack variant must produce PixelData."""
+        from unittest.mock import patch
+
+        for variant in [
+            "truncated_sof55",
+            "invalid_lse_params",
+            "missing_sos",
+            "extreme_dimensions",
+        ]:
+            ds = Dataset()
+            ds.PatientName = "Test"
+            ds.Rows = 64
+            ds.Columns = 64
+            ds.file_meta = FileMetaDataset()
+            ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+            with patch("random.choice", return_value=variant):
+                result = fuzzer._corrupt_jpegls_codestream(ds)
+            assert Tag(0x7FE0, 0x0010) in result, f"variant {variant} missing PixelData"

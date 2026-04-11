@@ -284,7 +284,11 @@ class CalibrationFuzzer(FormatFuzzerBase):
         string). Randomly adds one content attack (calibration value corruption)
         at 33% probability.
         """
-        structural = [self._vr_type_confusion, self._oversized_numeric_string]
+        structural = [
+            self._vr_type_confusion,
+            self._oversized_numeric_string,
+            self._voi_lut_corruption,
+        ]
         content = [
             self.fuzz_pixel_spacing,  # [CONTENT] calibration values — rendering only
             self.fuzz_hounsfield_rescale,  # [CONTENT] HU slope/intercept — rendering only
@@ -337,4 +341,53 @@ class CalibrationFuzzer(FormatFuzzerBase):
             setattr(dataset, tag, oversized)
         except Exception as e:
             logger.debug("Oversized numeric string attack failed: %s", e)
+        return dataset
+
+    def _voi_lut_corruption(self, dataset: Dataset) -> Dataset:
+        """Add a VOI LUT Sequence with type-confused or mismatched entries.
+
+        DCMTK CVE-2024-28130 (TALOS-2024-1957, CVSS 7.5): incorrect type
+        conversion in DVPSSoftcopyVOI_PList::createFromImage(). fo-dicom
+        #1062: VOI LUT Sequence without Modality LUT causes
+        IndexOutOfRangeException in VOISequenceLUT indexer.
+
+        Attacks:
+        - VOI LUT descriptor claiming more entries than data provides
+        - VOI LUT data with wrong VR (OW instead of expected US/SS)
+        - VOI LUT Sequence present without any Modality LUT
+        """
+        attack = random.choice(
+            [
+                "descriptor_mismatch",
+                "missing_modality_lut",
+                "type_confused_data",
+            ]
+        )
+
+        try:
+            lut_item = Dataset()
+            if attack == "descriptor_mismatch":
+                # Descriptor says 4096 entries but data has only 16 bytes
+                lut_item.add_new(0x00283002, "US", [4096, 0, 16])  # LUTDescriptor
+                lut_item.add_new(0x00283006, "OW", b"\x00" * 16)  # LUTData
+            elif attack == "missing_modality_lut":
+                # Valid-looking VOI LUT but no RescaleSlope/Intercept
+                lut_item.add_new(0x00283002, "US", [256, 0, 8])
+                lut_item.add_new(0x00283006, "OW", b"\x00" * 512)
+                # Explicitly remove modality LUT if present
+                for tag_name in ("RescaleSlope", "RescaleIntercept", "RescaleType"):
+                    if hasattr(dataset, tag_name):
+                        delattr(dataset, tag_name)
+            elif attack == "type_confused_data":
+                # LUT descriptor declares 16-bit entries but data is 8-bit garbage
+                lut_item.add_new(0x00283002, "US", [256, 0, 16])
+                lut_item.add_new(
+                    0x00283006, "OW", b"\xff" * 128
+                )  # half the expected size
+
+            lut_item.LUTExplanation = "FUZZER_VOI"
+            dataset.VOILUTSequence = Sequence([lut_item])
+
+        except Exception as e:
+            logger.debug("VOI LUT corruption failed: %s", e)
         return dataset

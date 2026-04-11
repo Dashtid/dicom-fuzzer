@@ -94,6 +94,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (format string payloads in 5 string VR types). Pushes CVE
   coverage from ~82% to ~95%.
 
+- **P1 CVE medium effort (3 gaps)** -- implements G2, G7, G10:
+  `_corrupt_jpegls_codestream` in CompressedPixelFuzzer adds
+  JPEG-LS Lossless transfer syntax with 4 malformed codestream
+  variants (DCMTK CVE-2025-2357). `_voi_lut_corruption` in
+  CalibrationFuzzer adds VOI LUT Sequence with descriptor/data
+  mismatches and type confusion (DCMTK CVE-2024-28130, fo-dicom
+  #1062). `_binary_duplicate_meta_tag` in StructureFuzzer
+  duplicates a group 0002 element to trigger UAF in parsers with
+  hash-map destroy-on-collision (libdicom CVE-2024-24793/24794).
+
 ## [1.10.1] - 2026-04-09 - Unbundle seed corpus
 
 Course-correction on the "bundled PHI-free seed corpus" feature shipped in

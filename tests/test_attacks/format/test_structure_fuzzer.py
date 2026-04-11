@@ -984,3 +984,36 @@ class TestBinaryNonstandardVrMeta:
         fuzzer = StructureFuzzer()
         garbage = b"\x00" * 256
         assert fuzzer._binary_nonstandard_vr_meta(garbage) is garbage
+
+
+# ---------------------------------------------------------------------------
+# Binary attack: G10 duplicate tags in file meta
+# ---------------------------------------------------------------------------
+
+
+class TestBinaryDuplicateMetaTag:
+    """Tests for _binary_duplicate_meta_tag (libdicom CVE-2024-24793/24794)."""
+
+    def test_returns_bytes(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_duplicate_meta_tag(file_data)
+        assert isinstance(result, bytes)
+
+    def test_output_longer_than_input(self):
+        """Duplicating an element must grow the file."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_duplicate_meta_tag(file_data)
+        assert len(result) > len(file_data)
+
+    def test_preserves_preamble_and_magic(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_duplicate_meta_tag(file_data)
+        assert result[:_DATA_OFFSET] == file_data[:_DATA_OFFSET]
+
+    def test_non_dicom_passthrough(self):
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_duplicate_meta_tag(garbage) is garbage
