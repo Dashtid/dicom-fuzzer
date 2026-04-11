@@ -284,12 +284,18 @@ class CalibrationFuzzer(FormatFuzzerBase):
         string). Randomly adds one content attack (calibration value corruption)
         at 33% probability.
         """
-        structural = [self._vr_type_confusion, self._oversized_numeric_string]
+        structural = [
+            self._vr_type_confusion,
+            self._oversized_numeric_string,
+            self._voi_lut_corruption,
+        ]
         content = [
             self.fuzz_pixel_spacing,  # [CONTENT] calibration values — rendering only
             self.fuzz_hounsfield_rescale,  # [CONTENT] HU slope/intercept — rendering only
             self.fuzz_window_level,  # [CONTENT] display window — rendering only
             self.fuzz_slice_thickness,  # [CONTENT] calibration value — rendering only
+            self.fuzz_mr_parameters,  # [CONTENT] MR-specific acquisition parameters
+            self.fuzz_dx_parameters,  # [CONTENT] DX/CR-specific exposure parameters
         ]
 
         selected = random.sample(structural, k=1)
@@ -337,4 +343,123 @@ class CalibrationFuzzer(FormatFuzzerBase):
             setattr(dataset, tag, oversized)
         except Exception as e:
             logger.debug("Oversized numeric string attack failed: %s", e)
+        return dataset
+
+    def _voi_lut_corruption(self, dataset: Dataset) -> Dataset:
+        """Add a VOI LUT Sequence with type-confused or mismatched entries.
+
+        DCMTK CVE-2024-28130 (TALOS-2024-1957, CVSS 7.5): incorrect type
+        conversion in DVPSSoftcopyVOI_PList::createFromImage(). fo-dicom
+        #1062: VOI LUT Sequence without Modality LUT causes
+        IndexOutOfRangeException in VOISequenceLUT indexer.
+
+        Attacks:
+        - VOI LUT descriptor claiming more entries than data provides
+        - VOI LUT data with wrong VR (OW instead of expected US/SS)
+        - VOI LUT Sequence present without any Modality LUT
+        """
+        attack = random.choice(
+            [
+                "descriptor_mismatch",
+                "missing_modality_lut",
+                "type_confused_data",
+            ]
+        )
+
+        try:
+            lut_item = Dataset()
+            if attack == "descriptor_mismatch":
+                # Descriptor says 4096 entries but data has only 16 bytes
+                lut_item.add_new(0x00283002, "US", [4096, 0, 16])  # LUTDescriptor
+                lut_item.add_new(0x00283006, "OW", b"\x00" * 16)  # LUTData
+            elif attack == "missing_modality_lut":
+                # Valid-looking VOI LUT but no RescaleSlope/Intercept
+                lut_item.add_new(0x00283002, "US", [256, 0, 8])
+                lut_item.add_new(0x00283006, "OW", b"\x00" * 512)
+                # Explicitly remove modality LUT if present
+                for tag_name in ("RescaleSlope", "RescaleIntercept", "RescaleType"):
+                    if hasattr(dataset, tag_name):
+                        delattr(dataset, tag_name)
+            elif attack == "type_confused_data":
+                # LUT descriptor declares 16-bit entries but data is 8-bit garbage
+                lut_item.add_new(0x00283002, "US", [256, 0, 16])
+                lut_item.add_new(
+                    0x00283006, "OW", b"\xff" * 128
+                )  # half the expected size
+
+            lut_item.LUTExplanation = "FUZZER_VOI"
+            dataset.VOILUTSequence = Sequence([lut_item])
+
+        except Exception as e:
+            logger.debug("VOI LUT corruption failed: %s", e)
+        return dataset
+
+    def fuzz_mr_parameters(
+        self, dataset: Dataset, attack_type: str | None = None
+    ) -> Dataset:
+        """Fuzz MR-specific acquisition parameters.
+
+        Targets numeric fields that MR processing pipelines use for
+        sequence timing, flip angle calculations, and diffusion
+        weighting. Zero/negative/extreme values cause division-by-zero
+        in timing calculations and NaN propagation in derived values.
+        """
+        if attack_type is None:
+            attack_type = random.choice(
+                [
+                    "zero_echo_time",
+                    "negative_repetition_time",
+                    "extreme_flip_angle",
+                    "nan_inversion_time",
+                    "zero_magnetic_field",
+                    "extreme_diffusion",
+                ]
+            )
+
+        if attack_type == "zero_echo_time":
+            dataset.EchoTime = 0.0
+        elif attack_type == "negative_repetition_time":
+            dataset.RepetitionTime = -1.0
+        elif attack_type == "extreme_flip_angle":
+            dataset.FlipAngle = random.choice([0.0, -90.0, 360.0, 99999.0])
+        elif attack_type == "nan_inversion_time":
+            dataset.InversionTime = float("nan")
+        elif attack_type == "zero_magnetic_field":
+            dataset.MagneticFieldStrength = 0.0
+        elif attack_type == "extreme_diffusion":
+            dataset.add_new(0x00189087, "FD", random.choice([0.0, -1.0, 1e15]))
+
+        return dataset
+
+    def fuzz_dx_parameters(
+        self, dataset: Dataset, attack_type: str | None = None
+    ) -> Dataset:
+        """Fuzz DX/CR-specific exposure and geometry parameters.
+
+        Targets numeric fields in radiographic acquisition that
+        processing pipelines use for dose calculations, geometric
+        magnification, and image quality metrics.
+        """
+        if attack_type is None:
+            attack_type = random.choice(
+                [
+                    "zero_exposure",
+                    "negative_kvp",
+                    "extreme_distance",
+                    "zero_exposure_time",
+                    "nan_exposure",
+                ]
+            )
+
+        if attack_type == "zero_exposure":
+            dataset.ExposureInuAs = 0
+        elif attack_type == "negative_kvp":
+            dataset.KVP = random.choice([-1.0, 0.0, 999.0])
+        elif attack_type == "extreme_distance":
+            dataset.DistanceSourceToDetector = random.choice([0.0, -100.0, 1e10])
+        elif attack_type == "zero_exposure_time":
+            dataset.ExposureTime = 0
+        elif attack_type == "nan_exposure":
+            dataset.ExposureInuAs = random.choice([0, -1, 2147483647])
+
         return dataset

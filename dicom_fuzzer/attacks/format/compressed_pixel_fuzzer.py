@@ -31,6 +31,7 @@ from pydicom.tag import Tag
 from pydicom.uid import (
     JPEG2000Lossless,
     JPEGBaseline8Bit,
+    JPEGLSLossless,
     RLELossless,
 )
 
@@ -52,6 +53,11 @@ JP2_SOC = b"\xff\x4f"  # Start of codestream
 JP2_SIZ = b"\xff\x51"  # Image and tile size
 JP2_COD = b"\xff\x52"  # Coding style default
 JP2_EOC = b"\xff\xd9"  # End of codestream
+
+# JPEG-LS markers
+JPLS_SOF55 = b"\xff\xf7"  # JPEG-LS Start of Frame
+JPLS_LSE = b"\xff\xf8"  # JPEG-LS Preset Parameters
+JPLS_SOS = b"\xff\xda"  # Start of Scan (shared with JPEG)
 
 # DICOM encapsulated pixel data binary constants
 _PIXEL_DATA_TAG = b"\xe0\x7f\x10\x00"  # (7FE0,0010) little-endian
@@ -144,6 +150,7 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
             self._corrupt_encapsulation_structure,  # [STRUCTURAL] wrong Item/Delimiter tags break encapsulation parser
             self._inject_malformed_frame,  # [STRUCTURAL] bad frame among valid frames — per-frame allocator
             self._frame_count_mismatch,  # [STRUCTURAL] declared frames vs actual encapsulated frames — allocation mismatch
+            self._corrupt_jpegls_codestream,  # [STRUCTURAL] JPEG-LS decoder memory corruption (CVE-2025-2357)
         ]
 
     @property
@@ -394,6 +401,86 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
 
         except Exception as e:
             logger.debug("RLE corruption failed: %s", e)
+
+        return dataset
+
+    def _corrupt_jpegls_codestream(self, dataset: Dataset) -> Dataset:
+        """Create malformed JPEG-LS codestream data with LS transfer syntax.
+
+        DCMTK CVE-2025-2357 (CWE-119). Memory corruption in the dcmjpls
+        JPEG-LS decoder when processing crafted JPEG-LS codestream markers.
+        JPEG-LS uses SOF-55 (0xFF 0xF7) for frame header and LSE (0xFF 0xF8)
+        for preset parameters, with the same SOI/EOI/SOS markers as JPEG.
+        """
+        attack = random.choice(
+            [
+                "truncated_sof55",
+                "invalid_lse_params",
+                "missing_sos",
+                "extreme_dimensions",
+            ]
+        )
+
+        try:
+            if attack == "truncated_sof55":
+                # SOF-55 marker with truncated length -- decoder reads past buffer
+                fake_jpls = (
+                    JPEG_SOI
+                    + JPLS_SOF55
+                    + b"\x00\x03"  # length=3 (too short for SOF55 which needs >= 11)
+                    + b"\x08"  # precision
+                    + JPEG_EOI
+                )
+
+            elif attack == "invalid_lse_params":
+                # LSE marker with garbage preset parameters
+                sof55_data = struct.pack(">BHHBB", 8, 64, 64, 1, 1)  # valid SOF-55
+                fake_jpls = (
+                    JPEG_SOI
+                    + JPLS_SOF55
+                    + struct.pack(">H", len(sof55_data) + 2)
+                    + sof55_data
+                    + JPLS_LSE
+                    + b"\x00\x04"  # length=4 (too short)
+                    + b"\xff\xff"  # garbage preset ID
+                    + JPEG_EOI
+                )
+
+            elif attack == "missing_sos":
+                # Valid SOF-55 but no SOS marker -- decoder expects scan data
+                sof55_data = struct.pack(">BHHBB", 8, 64, 64, 1, 1)
+                fake_jpls = (
+                    JPEG_SOI
+                    + JPLS_SOF55
+                    + struct.pack(">H", len(sof55_data) + 2)
+                    + sof55_data
+                    + JPEG_EOI  # EOI without SOS
+                )
+
+            elif attack == "extreme_dimensions":
+                # SOF-55 with extreme dimensions -> integer overflow in allocation
+                sof55_data = struct.pack(">BHHBB", 16, 65535, 65535, 3, 1)
+                fake_jpls = (
+                    JPEG_SOI
+                    + JPLS_SOF55
+                    + struct.pack(">H", len(sof55_data) + 2)
+                    + sof55_data
+                    + b"\x00" * 100  # garbage scan data
+                    + JPEG_EOI
+                )
+
+            else:
+                return dataset
+
+            encapsulated = encapsulate([fake_jpls])
+            dataset.add_new(Tag(0x7FE0, 0x0010), "OB", encapsulated)
+            dataset.NumberOfFrames = 1
+
+            if hasattr(dataset, "file_meta"):
+                dataset.file_meta.TransferSyntaxUID = JPEGLSLossless
+
+        except Exception as e:
+            logger.debug("JPEG-LS corruption failed: %s", e)
 
         return dataset
 

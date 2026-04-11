@@ -688,6 +688,27 @@ class TestPhotometricYbrVariants:
 
 
 # =============================================================================
+# Concurrent field mismatches
+# =============================================================================
+
+
+class TestConcurrentFieldMismatch:
+    """Tests for _concurrent_field_mismatch."""
+
+    def test_returns_dataset(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        result = fuzzer._concurrent_field_mismatch(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+    def test_all_three_fields_set(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        result = fuzzer._concurrent_field_mismatch(pixel_dataset)
+        assert hasattr(result, "NumberOfFrames")
+        assert hasattr(result, "BitsAllocated")
+        assert hasattr(result, "SamplesPerPixel")
+
+
+# =============================================================================
 # G13: OverlayData shorter than dimensions
 # =============================================================================
 

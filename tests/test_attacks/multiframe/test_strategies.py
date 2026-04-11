@@ -233,6 +233,29 @@ class TestFunctionalGroupStrategy:
         assert isinstance(records, list)
         assert len(records) >= 1
 
+    def test_empty_frame_content_attack(self) -> None:
+        """Test _attack_empty_frame_content creates empty FrameContentSequence."""
+        dataset = Dataset()
+        dataset.NumberOfFrames = 3
+        strategy = FunctionalGroupStrategy()
+        record = strategy._attack_empty_frame_content(dataset)
+        assert record.details["attack_type"] == "empty_frame_content_sequence"
+        pfg = dataset.PerFrameFunctionalGroupsSequence
+        assert len(pfg) == 3
+        assert len(pfg[0].FrameContentSequence) == 0
+
+    def test_invalid_plane_position_attack(self) -> None:
+        """Test _attack_invalid_plane_position sets NaN/Inf positions."""
+        dataset = Dataset()
+        dataset.NumberOfFrames = 2
+        strategy = FunctionalGroupStrategy()
+        record = strategy._attack_invalid_plane_position(dataset)
+        assert record.details["attack_type"] == "invalid_plane_position"
+        pfg = dataset.PerFrameFunctionalGroupsSequence
+        assert len(pfg) == 2
+        pos = pfg[0].PlanePositionSequence[0].ImagePositionPatient
+        assert len(pos) == 3
+
 
 class TestPixelDataTruncationStrategy:
     """Tests for PixelDataTruncationStrategy."""
