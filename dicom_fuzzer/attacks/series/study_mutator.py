@@ -55,6 +55,7 @@ class StudyMutationStrategy(Enum):
     PATIENT_CONSISTENCY = "patient_consistency"
     STUDY_METADATA = "study_metadata"
     MIXED_MODALITY_STUDY = "mixed_modality_study"
+    REGISTRATION_GEOMETRY = "registration_geometry"
 
 
 @dataclass
@@ -232,6 +233,7 @@ class StudyMutator:
             StudyMutationStrategy.PATIENT_CONSISTENCY.value: self._mutate_patient_consistency,
             StudyMutationStrategy.STUDY_METADATA.value: self._mutate_study_metadata,
             StudyMutationStrategy.MIXED_MODALITY_STUDY.value: self._mutate_mixed_modality,
+            StudyMutationStrategy.REGISTRATION_GEOMETRY.value: self._mutate_registration_geometry,
         }[strategy]
 
         mutated_datasets, records = strategy_method(all_datasets, study, mutation_count)
@@ -950,5 +952,227 @@ class StudyMutator:
                         details={"attack_type": attack_type},
                     )
                 )
+
+        return all_datasets, records
+
+    def _reg_attack_shared_for_conflicting_position(
+        self,
+        all_datasets: list[list[Dataset]],
+        study: DicomStudy,
+    ) -> list[StudyMutationRecord]:
+        """Same FrameOfReferenceUID but large ImagePositionPatient offset between series.
+
+        Viewers assume co-registered series sharing a FoR are spatially consistent.
+        Injecting a 1000mm offset forces registration algorithms to resolve an
+        irreconcilable spatial conflict without leaving the shared coordinate frame.
+        """
+        if len(all_datasets) < 2:
+            return []
+
+        shared_for = generate_uid()
+        records: list[StudyMutationRecord] = []
+
+        for i, series_datasets in enumerate(all_datasets):
+            for ds in series_datasets:
+                ds.FrameOfReferenceUID = shared_for
+                if i > 0:
+                    # Offset by 1000mm in each axis — physically impossible overlap
+                    original_pos = getattr(ds, "ImagePositionPatient", None)
+                    offset = 1000.0 * i
+                    ds.ImagePositionPatient = [offset, offset, offset]
+                    records.append(
+                        StudyMutationRecord(
+                            strategy="registration_geometry",
+                            series_index=i,
+                            series_uid=study.series_list[i].series_uid,
+                            tag="ImagePositionPatient",
+                            original_value=str(original_pos)
+                            if original_pos
+                            else "<none>",
+                            mutated_value=f"[{offset}, {offset}, {offset}]",
+                            severity=self.severity,
+                            details={
+                                "attack_type": "shared_for_conflicting_position",
+                                "shared_for": shared_for,
+                                "offset_mm": offset,
+                            },
+                        )
+                    )
+                    break  # One record per series is sufficient
+
+        return records
+
+    def _reg_attack_spatial_overlap(
+        self,
+        all_datasets: list[list[Dataset]],
+        study: DicomStudy,
+    ) -> list[StudyMutationRecord]:
+        """Same FoR UID with identical ImagePositionPatient across all series.
+
+        Forces all series to occupy exactly the same spatial location within the
+        same FoR. Registration and fusion algorithms receive duplicate geometry
+        and must either pick one, average, or crash.
+        """
+        if len(all_datasets) < 2:
+            return []
+
+        shared_for = generate_uid()
+        records: list[StudyMutationRecord] = []
+
+        # Collect reference positions from series 0
+        ref_positions = [
+            getattr(ds, "ImagePositionPatient", [0.0, 0.0, 0.0])
+            for ds in all_datasets[0]
+        ]
+
+        for i, series_datasets in enumerate(all_datasets):
+            for ds in series_datasets:
+                ds.FrameOfReferenceUID = shared_for
+            if i > 0:
+                for j, ds in enumerate(series_datasets):
+                    ref_pos = (
+                        ref_positions[j % len(ref_positions)]
+                        if ref_positions
+                        else [0.0, 0.0, 0.0]
+                    )
+                    ds.ImagePositionPatient = list(ref_pos)
+                records.append(
+                    StudyMutationRecord(
+                        strategy="registration_geometry",
+                        series_index=i,
+                        series_uid=study.series_list[i].series_uid,
+                        tag="ImagePositionPatient",
+                        original_value="<various>",
+                        mutated_value="<copied_from_series_0>",
+                        severity=self.severity,
+                        details={
+                            "attack_type": "spatial_overlap",
+                            "shared_for": shared_for,
+                            "source_series_index": 0,
+                        },
+                    )
+                )
+
+        return records
+
+    def _reg_attack_contradictory_orientation(
+        self,
+        all_datasets: list[list[Dataset]],
+        study: DicomStudy,
+    ) -> list[StudyMutationRecord]:
+        """Same FoR UID but negated ImageOrientationPatient for alternating series.
+
+        Series sharing a FrameOfReferenceUID are expected to have compatible
+        orientations. Flipping the row/column cosines while keeping the same FoR
+        creates an irreconcilable orientation conflict in the shared coordinate frame.
+        """
+        if len(all_datasets) < 2:
+            return []
+
+        shared_for = generate_uid()
+        records: list[StudyMutationRecord] = []
+
+        for i, series_datasets in enumerate(all_datasets):
+            for ds in series_datasets:
+                ds.FrameOfReferenceUID = shared_for
+                if i % 2 == 1:
+                    original_orient = getattr(ds, "ImageOrientationPatient", None)
+                    if original_orient:
+                        ds.ImageOrientationPatient = [
+                            -float(v) for v in original_orient
+                        ]
+
+            if i % 2 == 1:
+                sample = series_datasets[0] if series_datasets else None
+                orient_val = (
+                    getattr(sample, "ImageOrientationPatient", None) if sample else None
+                )
+                records.append(
+                    StudyMutationRecord(
+                        strategy="registration_geometry",
+                        series_index=i,
+                        series_uid=study.series_list[i].series_uid,
+                        tag="ImageOrientationPatient",
+                        original_value="<original>",
+                        mutated_value=str(orient_val) if orient_val else "<negated>",
+                        severity=self.severity,
+                        details={
+                            "attack_type": "contradictory_orientation",
+                            "shared_for": shared_for,
+                        },
+                    )
+                )
+
+        return records
+
+    def _reg_attack_for_uid_orphan(
+        self,
+        all_datasets: list[list[Dataset]],
+        study: DicomStudy,
+    ) -> list[StudyMutationRecord]:
+        """Each series gets a unique FoR while PositionReferenceIndicator cites a phantom UID.
+
+        The spatial anchor (PositionReferenceIndicator) points to a FoR that no
+        series in the study claims. Viewers that follow DICOM PS3.3 C.7.4.1 to
+        resolve spatial relationships across series find the reference UID orphaned.
+        """
+        phantom_for = generate_uid()
+        records: list[StudyMutationRecord] = []
+
+        for i, series_datasets in enumerate(all_datasets):
+            unique_for = generate_uid()
+            for ds in series_datasets:
+                original = getattr(ds, "FrameOfReferenceUID", None)
+                ds.FrameOfReferenceUID = unique_for
+                # PositionReferenceIndicator (0020,1040) names the anatomical landmark
+                # used to define the FoR origin — point it at the phantom UID
+                ds.PositionReferenceIndicator = phantom_for
+            records.append(
+                StudyMutationRecord(
+                    strategy="registration_geometry",
+                    series_index=i,
+                    series_uid=study.series_list[i].series_uid,
+                    tag="FrameOfReferenceUID/PositionReferenceIndicator",
+                    original_value=str(original) if original else "<none>",
+                    mutated_value=f"for={unique_for[:16]}... ref={phantom_for[:16]}...",
+                    severity=self.severity,
+                    details={
+                        "attack_type": "for_uid_orphan",
+                        "phantom_for": phantom_for,
+                        "series_for": unique_for,
+                    },
+                )
+            )
+
+        return records
+
+    def _mutate_registration_geometry(
+        self,
+        all_datasets: list[list[Dataset]],
+        study: DicomStudy,
+        mutation_count: int,
+    ) -> tuple[list[list[Dataset]], list[StudyMutationRecord]]:
+        """Strategy 6: Registration Geometry Attacks.
+
+        Exploits multi-series spatial registration by creating FoR/geometry conflicts:
+        - Same FoR with a 1000mm ImagePositionPatient offset between series
+        - Same FoR with identical slice positions (spatial aliasing)
+        - Same FoR with negated ImageOrientationPatient (orientation conflict)
+        - Per-series FoR UIDs with orphaned PositionReferenceIndicator
+
+        Targets: Registration algorithms, fusion viewers (PET/CT, MR/CT),
+        treatment planning systems, multi-series 3D reconstruction.
+        """
+        attack_handlers = [
+            self._reg_attack_shared_for_conflicting_position,
+            self._reg_attack_spatial_overlap,
+            self._reg_attack_contradictory_orientation,
+            self._reg_attack_for_uid_orphan,
+        ]
+        records: list[StudyMutationRecord] = []
+
+        for _ in range(mutation_count):
+            handler = random.choice(attack_handlers)
+            records.extend(handler(all_datasets, study))
 
         return all_datasets, records

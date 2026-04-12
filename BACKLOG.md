@@ -63,12 +63,10 @@ discontinuity injection for cardiac/perfusion imaging.
 
 **Effort:** 2 sessions.
 
-### Registration geometry attacks
+### ~~Registration geometry attacks~~ DONE
 
 Multiple series with same FrameOfReferenceUID but conflicting
 ImagePositionPatient. FoR UID orphaning.
-
-**Effort:** 1 session.
 
 ---
 
@@ -193,3 +191,4 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | DX/CR modality expansion (5 attack types in CalibrationFuzzer) | (fuzz_dx_parameters)          |
 | Multiframe functional group crash attacks (2 new attacks)      | (empty frame content + NaN)   |
 | Concurrent field mismatches (PixelFuzzer)                      | (\_concurrent_field_mismatch) |
+| Registration geometry attacks (4 sub-attacks in StudyMutator)  | (REGISTRATION_GEOMETRY)       |
