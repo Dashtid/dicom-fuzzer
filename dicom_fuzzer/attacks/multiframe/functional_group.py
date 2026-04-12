@@ -119,6 +119,64 @@ class FunctionalGroupStrategy(MultiFrameFuzzerBase):
             details={"attack_type": "deeply_nested_corruption", "nesting_depth": 10},
         )
 
+    def _attack_empty_frame_content(self, dataset: Dataset) -> MultiFrameMutationRecord:
+        """Set FrameContentSequence to an empty Sequence within each per-frame group.
+
+        Targets parsers that index into FrameContentSequence[0] without
+        checking the item count. An empty sequence causes
+        IndexOutOfRangeException on the first access.
+        """
+        frame_count = self._get_frame_count(dataset)
+        items = []
+        for _ in range(frame_count):
+            fg = Dataset()
+            fg.FrameContentSequence = Sequence([])  # empty -- no items
+            items.append(fg)
+        dataset.PerFrameFunctionalGroupsSequence = Sequence(items)
+        return MultiFrameMutationRecord(
+            strategy=self.strategy_name,
+            tag="PerFrameFunctionalGroupsSequence.FrameContentSequence",
+            original_value="<populated>",
+            mutated_value="<empty_sequence>",
+            severity=self.severity,
+            details={"attack_type": "empty_frame_content_sequence"},
+        )
+
+    def _attack_invalid_plane_position(
+        self, dataset: Dataset
+    ) -> MultiFrameMutationRecord:
+        """Set PlanePositionSequence with NaN/Inf/extreme ImagePositionPatient.
+
+        Targets geometry pipelines that use ImagePositionPatient for
+        slice positioning and 3D reconstruction. NaN propagates through
+        all downstream calculations; Inf causes overflow in distance
+        computations; extreme values cause coordinate-system overflow.
+        """
+        frame_count = self._get_frame_count(dataset)
+        items = []
+        invalid_positions = [
+            [float("nan"), float("nan"), float("nan")],
+            [float("inf"), 0.0, 0.0],
+            [0.0, float("-inf"), 0.0],
+            [1e15, 1e15, 1e15],
+            [-1e15, -1e15, -1e15],
+        ]
+        for _i in range(frame_count):
+            fg = Dataset()
+            pos_item = Dataset()
+            pos_item.ImagePositionPatient = random.choice(invalid_positions)
+            fg.PlanePositionSequence = Sequence([pos_item])
+            items.append(fg)
+        dataset.PerFrameFunctionalGroupsSequence = Sequence(items)
+        return MultiFrameMutationRecord(
+            strategy=self.strategy_name,
+            tag="PerFrameFunctionalGroupsSequence.PlanePositionSequence",
+            original_value="<valid_positions>",
+            mutated_value="<nan_inf_extreme>",
+            severity=self.severity,
+            details={"attack_type": "invalid_plane_position"},
+        )
+
     def _mutate_impl(
         self,
         dataset: Dataset,
@@ -132,6 +190,8 @@ class FunctionalGroupStrategy(MultiFrameFuzzerBase):
             self._attack_empty_items,
             self._attack_null_sequence,
             self._attack_deeply_nested,
+            self._attack_empty_frame_content,
+            self._attack_invalid_plane_position,
         ]
 
         for _ in range(mutation_count):

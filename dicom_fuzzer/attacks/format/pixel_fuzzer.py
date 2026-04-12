@@ -97,6 +97,7 @@ class PixelFuzzer(FormatFuzzerBase):
             self._overlay_bit_position,  # [STRUCTURAL] bit extraction UB on non-zero position
             self._palette_color_overflow,  # [STRUCTURAL] LUT descriptor count > data -> heap overflow
             self._overlay_data_truncation,  # [STRUCTURAL] OverlayData shorter than dims -> OOB read
+            self._concurrent_field_mismatch,  # [STRUCTURAL] all pixel fields wrong simultaneously
         ]
         content = [
             self._photometric_confusion,  # [CONTENT] string value, parser moves on
@@ -587,6 +588,23 @@ class PixelFuzzer(FormatFuzzerBase):
             dataset.PixelData = bytes([fill_byte] * len(data))
         except Exception as e:
             logger.debug("Pixel data fill pattern attack failed: %s", e)
+        return dataset
+
+    def _concurrent_field_mismatch(self, dataset: Dataset) -> Dataset:
+        """Set NumberOfFrames, BitsAllocated, and SamplesPerPixel all wrong.
+
+        Parsers assume these three fields are mutually consistent
+        and use their product (frames * rows * cols * samples *
+        bits/8) to compute buffer sizes. When all three are wrong
+        simultaneously the allocation is wildly incorrect, causing
+        heap overflow or OOM that single-field attacks miss.
+        """
+        try:
+            dataset.NumberOfFrames = random.choice([0, 999, 65535])
+            dataset.BitsAllocated = random.choice([1, 3, 48, 128])
+            dataset.SamplesPerPixel = random.choice([0, 5, 255])
+        except Exception as e:
+            logger.debug("Concurrent field mismatch failed: %s", e)
         return dataset
 
     # ------------------------------------------------------------------
