@@ -298,6 +298,52 @@ class DIMSEMessage:
 
         return command_pdv + data_pdv
 
+    def to_p_data_tf_pdu(self) -> bytes:
+        """Encode as a complete, sendable P-DATA-TF PDU (PS3.8 9.3.5).
+
+        Unlike ``encode()`` which returns raw PDV bytes, this method returns
+        a complete PDU ready to write to a TCP socket. The command dataset
+        and (optional) data dataset are each wrapped in their own P-DATA-TF
+        PDU and concatenated.
+
+        Command PDU uses is_command=True; data PDU uses is_command=False.
+        Both use is_last=True (single-fragment per dataset).
+
+        Returns:
+            One or two concatenated P-DATA-TF PDUs as bytes.
+
+        """
+        from dicom_fuzzer.attacks.network.builder import DICOMProtocolBuilder
+
+        # Build command dataset bytes (with group length prepended)
+        command_bytes = b"".join(e.encode() for e in self.command_elements)
+        group_length_elem = DICOMElement(
+            tag=(0x0000, 0x0000),
+            vr="UL",
+            value=len(command_bytes),
+        )
+        command_bytes = group_length_elem.encode() + command_bytes
+
+        command_pdu = DICOMProtocolBuilder.build_p_data_tf(
+            command_bytes,
+            context_id=self.presentation_context_id,
+            is_command=True,
+            is_last=True,
+        )
+
+        if not self.data_elements:
+            return command_pdu
+
+        data_bytes = b"".join(e.encode() for e in self.data_elements)
+        data_pdu = DICOMProtocolBuilder.build_p_data_tf(
+            data_bytes,
+            context_id=self.presentation_context_id,
+            is_command=False,
+            is_last=True,
+        )
+
+        return command_pdu + data_pdu
+
 
 @dataclass
 class DIMSEFuzzingConfig:

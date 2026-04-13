@@ -23,6 +23,10 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Generator
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pydicom
 
 from dicom_fuzzer.core.types import DIMSECommand
 
@@ -229,6 +233,77 @@ class DIMSECommandBuilder:
             command=DIMSECommand.C_GET_RQ,
             command_elements=command_elements,
             data_elements=query_elements,
+        )
+
+    def build_c_store_from_pydicom(
+        self,
+        dataset: pydicom.Dataset,
+        priority: int = 0,
+    ) -> DIMSEMessage:
+        """Build a C-STORE-RQ message from a real pydicom Dataset.
+
+        Serializes *dataset* using pydicom's Implicit VR Little Endian
+        encoding and embeds the bytes as the C-STORE data payload. The
+        SOP Class UID and SOP Instance UID are taken directly from the
+        dataset's ``SOPClassUID`` and ``SOPInstanceUID`` attributes.
+
+        Args:
+            dataset: pydicom Dataset to embed. Must have SOPClassUID and
+                SOPInstanceUID attributes.
+            priority: DIMSE priority (0=MEDIUM, 1=HIGH, 2=LOW).
+
+        Returns:
+            DIMSE message with command and data elements ready for
+            ``to_p_data_tf_pdu()``.
+
+        """
+        import io
+
+        import pydicom
+
+        sop_class = str(
+            getattr(dataset, "SOPClassUID", SOPClass.CT_IMAGE_STORAGE.value)
+        )
+        sop_instance = str(
+            getattr(dataset, "SOPInstanceUID", UIDGenerator().generate_valid_uid())
+        )
+
+        command_elements = [
+            DICOMElement(self.AFFECTED_SOP_CLASS_UID, "UI", sop_class),
+            DICOMElement(self.COMMAND_FIELD, "US", DIMSECommand.C_STORE_RQ.value),
+            DICOMElement(self.MESSAGE_ID, "US", self._next_message_id()),
+            DICOMElement(self.PRIORITY, "US", priority),
+            DICOMElement(self.DATA_SET_TYPE, "US", self.DATA_SET_PRESENT),
+            DICOMElement(self.AFFECTED_SOP_INSTANCE_UID, "UI", sop_instance),
+        ]
+
+        # Serialize the pydicom dataset to bytes.  Datasets from real DICOM
+        # files will have file_meta; bare datasets (e.g. from tests / fuzzer
+        # synthesis) will not.  Use write_like_original=True when file_meta
+        # exists so pydicom preserves the original encoding; fall back to
+        # encoding only the data-set elements as Implicit VR LE otherwise.
+        from pydicom.filebase import DicomBytesIO
+        from pydicom.filewriter import write_dataset
+
+        has_meta = bool(getattr(dataset, "file_meta", None))
+        if has_meta:
+            buf = io.BytesIO()
+            pydicom.dcmwrite(buf, dataset, write_like_original=True)
+            raw = buf.getvalue()
+        else:
+            # Encode just the dataset elements without any file meta or preamble
+            dicom_buf = DicomBytesIO()
+            dicom_buf.is_implicit_VR = True
+            dicom_buf.is_little_endian = True
+            write_dataset(dicom_buf, dataset)
+            raw = dicom_buf.getvalue()
+
+        data_payload = DICOMElement((0x7FFF, 0xFFFF), "OB", raw)
+
+        return DIMSEMessage(
+            command=DIMSECommand.C_STORE_RQ,
+            command_elements=command_elements,
+            data_elements=[data_payload],
         )
 
 

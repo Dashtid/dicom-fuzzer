@@ -29,23 +29,11 @@ ImagePositionPatient. FoR UID orphaning.
 
 ### ~~P0: State machine wiring~~ DONE
 
-### P0: DIMSE command generation
+### ~~P0: DIMSE command generation~~ DONE
 
-C-STORE, C-FIND, C-MOVE, C-ECHO PDU packing with embedded datasets.
+### ~~P1: Real TLS testing~~ DONE
 
-**Effort:** 2 sessions.
-
-### P1: Real TLS testing
-
-Replace hardcoded vulnerability enumeration with actual TLS probes.
-
-**Effort:** 1-2 sessions.
-
-### P1: Query/Retrieve fuzzing
-
-C-FIND/C-MOVE with query tag corruption, wildcard injection.
-
-**Effort:** 1-2 sessions.
+### ~~P1: Query/Retrieve fuzzing~~ DONE
 
 ---
 
@@ -84,7 +72,7 @@ After campaign data: remove/redesign zero-crash strategies.
 
 ### Full DICOM SOP Class coverage
 
-186 Storage SOP Classes. Current 30 strategies. Target ~40-44.
+186 Storage SOP Classes. Current 40 strategies. Target ~44-48.
 
 ### Coverage-guided fuzzing
 
@@ -139,3 +127,11 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | G3: Decompression bomb 128MB/512MB/1GB/corrupted (DeflateBombFuzzer)               | (deflate_bomb strategy)        |
 | Temporal (4D) attacks: InstanceCreationTime, delta violations, cardiac TriggerTime | (3 sub-attacks in strategy 12) |
 | P0: State machine wiring: StatefulFuzzer.fuzz(), execute_event() PDU building      | (build_pdu_for_event + types)  |
+| P0: DIMSE PDU packing: DIMSEMessage.to_p_data_tf_pdu() + C-STORE from pydicom      | (26 new tests)                 |
+| WaveformFuzzer: 14 ECG/waveform channel-count/OOB attacks (strategy 34)            | (31 new tests)                 |
+| StructuredReportFuzzer: 12 SR ContentSequence tree attacks (strategy 35)           | (26 new tests)                 |
+| UltrasoundFuzzer: 12 US frame/Doppler/region geometry attacks (strategy 36)        | (31 new tests)                 |
+| MammographyFuzzer: 12 MG/DBT geometry and calibration attacks (strategy 37)        | (29 new tests)                 |
+| XRayAngiographyFuzzer: 12 XA/XRF CINE, dose, geometry attacks (strategy 38)        | (30 new tests)                 |
+| SpectroscopyFuzzer: 12 MR Spectroscopy data/frequency attacks (strategy 39)        | (27 new tests)                 |
+| ParametricMapFuzzer: 12 quantitative MRI RWV mapping attacks (strategy 40)         | (26 new tests)                 |
