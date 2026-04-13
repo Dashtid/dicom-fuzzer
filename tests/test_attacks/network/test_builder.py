@@ -249,3 +249,264 @@ class TestClassConstants:
             DICOMProtocolBuilder.PATIENT_ROOT_QR_MOVE
             == b"1.2.840.10008.5.1.4.1.2.1.2\x00"
         )
+
+
+# ---------------------------------------------------------------------------
+# New PDU builder tests: A-ASSOCIATE-AC, A-ASSOCIATE-RJ, A-RELEASE-RQ/RP, A-ABORT, P-DATA-TF
+# ---------------------------------------------------------------------------
+
+
+class TestBuildAAssociateAC:
+    """Tests for build_a_associate_ac (PS3.8 9.3.3)."""
+
+    def test_returns_bytes(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_associate_ac()
+        assert isinstance(pdu, bytes)
+
+    def test_pdu_type_byte(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_associate_ac()
+        assert pdu[0] == PDUType.A_ASSOCIATE_AC.value  # 0x02
+
+    def test_reserved_byte_zero(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_associate_ac()
+        assert pdu[1] == 0x00
+
+    def test_length_field_matches_payload(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_associate_ac()
+        declared_len = struct.unpack(">L", pdu[2:6])[0]
+        assert declared_len == len(pdu) - 6
+
+    def test_protocol_version_is_one(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_associate_ac()
+        version = struct.unpack(">H", pdu[6:8])[0]
+        assert version == 1
+
+    def test_accepted_context_type_0x21(self) -> None:
+        """Presentation context response items must use type 0x21."""
+        pdu = DICOMProtocolBuilder.build_a_associate_ac(
+            accepted_contexts=[(1, 0, DICOMProtocolBuilder.IMPLICIT_VR_LITTLE_ENDIAN)]
+        )
+        assert b"\x21" in pdu
+
+    def test_accepted_result_zero_in_payload(self) -> None:
+        """result=0 (accepted) must appear in the context response item."""
+        pdu = DICOMProtocolBuilder.build_a_associate_ac(
+            accepted_contexts=[(1, 0, DICOMProtocolBuilder.IMPLICIT_VR_LITTLE_ENDIAN)]
+        )
+        # PDU must contain the accepted transfer syntax UID
+        assert DICOMProtocolBuilder.IMPLICIT_VR_LITTLE_ENDIAN in pdu
+
+    def test_rejected_context_result_code(self) -> None:
+        """result=4 (transfer-syntax-not-supported) encodes correctly."""
+        pdu = DICOMProtocolBuilder.build_a_associate_ac(
+            accepted_contexts=[(1, 4, DICOMProtocolBuilder.IMPLICIT_VR_LITTLE_ENDIAN)]
+        )
+        # result byte 4 must appear somewhere in the variable items section (after byte 74)
+        assert b"\x04" in pdu[74:]
+
+    def test_multiple_contexts_encoded(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_associate_ac(
+            accepted_contexts=[
+                (1, 0, DICOMProtocolBuilder.IMPLICIT_VR_LITTLE_ENDIAN),
+                (3, 4, DICOMProtocolBuilder.EXPLICIT_VR_LITTLE_ENDIAN),
+            ]
+        )
+        # Both context IDs should appear in the PDU
+        assert b"\x01" in pdu[74:]
+        assert b"\x03" in pdu[74:]
+
+    def test_ae_titles_padded_to_16(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_associate_ac(
+            calling_ae="SCU", called_ae="SCP"
+        )
+        # Called AE starts at byte 10 (after 6-byte header + 2 version + 2 reserved)
+        called = pdu[10:26]
+        calling = pdu[26:42]
+        assert len(called) == 16
+        assert len(calling) == 16
+
+
+class TestBuildAAssociateRJ:
+    """Tests for build_a_associate_rj (PS3.8 9.3.4)."""
+
+    def test_returns_bytes(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_associate_rj()
+        assert isinstance(pdu, bytes)
+
+    def test_total_length_is_10_bytes(self) -> None:
+        """A-ASSOCIATE-RJ is always exactly 10 bytes."""
+        pdu = DICOMProtocolBuilder.build_a_associate_rj()
+        assert len(pdu) == 10
+
+    def test_pdu_type_byte(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_associate_rj()
+        assert pdu[0] == PDUType.A_ASSOCIATE_RJ.value  # 0x03
+
+    def test_length_field_is_4(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_associate_rj()
+        declared_len = struct.unpack(">L", pdu[2:6])[0]
+        assert declared_len == 4
+
+    def test_result_byte_encodes(self) -> None:
+        for result in (1, 2):
+            pdu = DICOMProtocolBuilder.build_a_associate_rj(result=result)
+            assert pdu[7] == result
+
+    def test_source_byte_encodes(self) -> None:
+        for source in (1, 2, 3):
+            pdu = DICOMProtocolBuilder.build_a_associate_rj(source=source)
+            assert pdu[8] == source
+
+    def test_reason_byte_encodes(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_associate_rj(reason=7)
+        assert pdu[9] == 7
+
+    def test_reserved_byte_is_zero(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_associate_rj()
+        assert pdu[6] == 0x00  # first reserved byte after 6-byte header
+
+
+class TestBuildAReleaseRQ:
+    """Tests for build_a_release_rq (PS3.8 9.3.7)."""
+
+    def test_returns_bytes(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_release_rq()
+        assert isinstance(pdu, bytes)
+
+    def test_total_length_is_10_bytes(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_release_rq()
+        assert len(pdu) == 10
+
+    def test_pdu_type_byte(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_release_rq()
+        assert pdu[0] == PDUType.A_RELEASE_RQ.value  # 0x05
+
+    def test_length_field_is_4(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_release_rq()
+        declared_len = struct.unpack(">L", pdu[2:6])[0]
+        assert declared_len == 4
+
+    def test_payload_is_all_zeros(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_release_rq()
+        assert pdu[6:] == b"\x00" * 4
+
+
+class TestBuildAReleaseRP:
+    """Tests for build_a_release_rp (PS3.8 9.3.8)."""
+
+    def test_returns_bytes(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_release_rp()
+        assert isinstance(pdu, bytes)
+
+    def test_total_length_is_10_bytes(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_release_rp()
+        assert len(pdu) == 10
+
+    def test_pdu_type_byte(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_release_rp()
+        assert pdu[0] == PDUType.A_RELEASE_RP.value  # 0x06
+
+    def test_differs_from_rq_type_only(self) -> None:
+        rq = DICOMProtocolBuilder.build_a_release_rq()
+        rp = DICOMProtocolBuilder.build_a_release_rp()
+        assert rq[0] != rp[0]
+        assert rq[1:] == rp[1:]  # everything else identical
+
+    def test_payload_is_all_zeros(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_release_rp()
+        assert pdu[6:] == b"\x00" * 4
+
+
+class TestBuildAAbort:
+    """Tests for build_a_abort (PS3.8 9.3.9)."""
+
+    def test_returns_bytes(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_abort()
+        assert isinstance(pdu, bytes)
+
+    def test_total_length_is_10_bytes(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_abort()
+        assert len(pdu) == 10
+
+    def test_pdu_type_byte(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_abort()
+        assert pdu[0] == PDUType.A_ABORT.value  # 0x07
+
+    def test_length_field_is_4(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_abort()
+        declared_len = struct.unpack(">L", pdu[2:6])[0]
+        assert declared_len == 4
+
+    def test_source_provider(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_abort(source=0)
+        assert pdu[8] == 0
+
+    def test_source_user(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_abort(source=2)
+        assert pdu[8] == 2
+
+    def test_reason_encodes(self) -> None:
+        for reason in (0, 1, 2, 4, 5, 6):
+            pdu = DICOMProtocolBuilder.build_a_abort(reason=reason)
+            assert pdu[9] == reason
+
+    def test_reserved_bytes_are_zero(self) -> None:
+        pdu = DICOMProtocolBuilder.build_a_abort()
+        assert pdu[6] == 0x00
+        assert pdu[7] == 0x00
+
+
+class TestBuildPDataTF:
+    """Tests for build_p_data_tf (PS3.8 9.3.5)."""
+
+    def test_returns_bytes(self) -> None:
+        pdu = DICOMProtocolBuilder.build_p_data_tf(b"TESTDATA")
+        assert isinstance(pdu, bytes)
+
+    def test_pdu_type_byte(self) -> None:
+        pdu = DICOMProtocolBuilder.build_p_data_tf(b"TESTDATA")
+        assert pdu[0] == PDUType.P_DATA_TF.value  # 0x04
+
+    def test_length_field_matches_payload(self) -> None:
+        pdu = DICOMProtocolBuilder.build_p_data_tf(b"TESTDATA")
+        declared_len = struct.unpack(">L", pdu[2:6])[0]
+        assert declared_len == len(pdu) - 6
+
+    def test_pdv_item_length_includes_header(self) -> None:
+        data = b"TESTDATA"
+        pdu = DICOMProtocolBuilder.build_p_data_tf(data)
+        # PDV item length field at offset 6 (4 bytes big-endian)
+        pdv_item_len = struct.unpack(">I", pdu[6:10])[0]
+        # PDV item = 2-byte header + payload
+        assert pdv_item_len == len(data) + 2
+
+    def test_context_id_encodes(self) -> None:
+        pdu = DICOMProtocolBuilder.build_p_data_tf(b"X", context_id=3)
+        assert pdu[10] == 3
+
+    def test_command_control_bit(self) -> None:
+        pdu = DICOMProtocolBuilder.build_p_data_tf(b"X", is_command=True, is_last=False)
+        control = pdu[11]
+        assert control & 0x01  # command bit set
+        assert not (control & 0x02)  # last-fragment bit clear
+
+    def test_last_fragment_control_bit(self) -> None:
+        pdu = DICOMProtocolBuilder.build_p_data_tf(b"X", is_command=False, is_last=True)
+        control = pdu[11]
+        assert not (control & 0x01)  # command bit clear
+        assert control & 0x02  # last-fragment bit set
+
+    def test_both_bits_set_for_single_command_fragment(self) -> None:
+        pdu = DICOMProtocolBuilder.build_p_data_tf(b"X", is_command=True, is_last=True)
+        control = pdu[11]
+        assert control & 0x03 == 0x03
+
+    def test_payload_preserved(self) -> None:
+        payload = b"DICOM_DATA_PAYLOAD_12345"
+        pdu = DICOMProtocolBuilder.build_p_data_tf(payload)
+        assert payload in pdu
+
+    def test_empty_payload(self) -> None:
+        pdu = DICOMProtocolBuilder.build_p_data_tf(b"")
+        assert isinstance(pdu, bytes)
+        assert len(pdu) == 12  # 6 header + 4 PDV-item-length + 1 ctx-id + 1 control
