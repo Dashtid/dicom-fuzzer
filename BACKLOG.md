@@ -29,11 +29,7 @@ ImagePositionPatient. FoR UID orphaning.
 
 ### ~~P0: State machine wiring~~ DONE
 
-### P0: DIMSE command generation
-
-C-STORE, C-FIND, C-MOVE, C-ECHO PDU packing with embedded datasets.
-
-**Effort:** 2 sessions.
+### ~~P0: DIMSE command generation~~ DONE
 
 ### P1: Real TLS testing
 
@@ -139,3 +135,4 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | G3: Decompression bomb 128MB/512MB/1GB/corrupted (DeflateBombFuzzer)               | (deflate_bomb strategy)        |
 | Temporal (4D) attacks: InstanceCreationTime, delta violations, cardiac TriggerTime | (3 sub-attacks in strategy 12) |
 | P0: State machine wiring: StatefulFuzzer.fuzz(), execute_event() PDU building      | (build_pdu_for_event + types)  |
+| P0: DIMSE PDU packing: DIMSEMessage.to_p_data_tf_pdu() + C-STORE from pydicom      | (26 new tests)                 |
