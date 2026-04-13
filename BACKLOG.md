@@ -25,13 +25,7 @@ ImagePositionPatient. FoR UID orphaning.
 
 ## Network protocol fuzzing -- Prototype to Production
 
-### P0: PDU binary format (PS3.8 Section 7)
-
-7 PDU type constructors: A-ASSOCIATE-RQ/AC/RJ, P-DATA-TF,
-A-RELEASE-RQ/RP, A-ABORT. Variable-length encoding. Foundation
-for all network fuzzing.
-
-**Effort:** 2-3 sessions.
+### ~~P0: PDU binary format (PS3.8 Section 7)~~ DONE
 
 ### P0: State machine wiring
 
