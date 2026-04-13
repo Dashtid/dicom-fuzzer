@@ -48,6 +48,7 @@ from .header_fuzzer import HeaderFuzzer
 from .mammography_fuzzer import MammographyFuzzer
 from .metadata_fuzzer import MetadataFuzzer
 from .nm_fuzzer import NuclearMedicineFuzzer
+from .parametric_map_fuzzer import ParametricMapFuzzer
 from .pet_fuzzer import PetFuzzer
 from .pixel_fuzzer import PixelFuzzer
 from .pixel_reencoding_fuzzer import PixelReencodingFuzzer
@@ -79,6 +80,7 @@ __all__ = [
     "MammographyFuzzer",
     "MetadataFuzzer",
     "NuclearMedicineFuzzer",
+    "ParametricMapFuzzer",
     "PetFuzzer",
     "PixelFuzzer",
     "PixelReencodingFuzzer",

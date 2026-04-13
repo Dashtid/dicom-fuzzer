@@ -123,6 +123,9 @@ class DicomMutator:
         from dicom_fuzzer.attacks.format.mammography_fuzzer import MammographyFuzzer
         from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
         from dicom_fuzzer.attacks.format.nm_fuzzer import NuclearMedicineFuzzer
+        from dicom_fuzzer.attacks.format.parametric_map_fuzzer import (
+            ParametricMapFuzzer,
+        )
         from dicom_fuzzer.attacks.format.pet_fuzzer import PetFuzzer
         from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
         from dicom_fuzzer.attacks.format.pixel_reencoding_fuzzer import (
@@ -184,6 +187,7 @@ class DicomMutator:
             MammographyFuzzer,
             MetadataFuzzer,
             NuclearMedicineFuzzer,
+            ParametricMapFuzzer,
             PetFuzzer,
             PixelFuzzer,
             PreambleFuzzer,
