@@ -27,12 +27,7 @@ ImagePositionPatient. FoR UID orphaning.
 
 ### ~~P0: PDU binary format (PS3.8 Section 7)~~ DONE
 
-### P0: State machine wiring
-
-Connect DICOMStateMachine to actual PDU receipt/send. Implement
-StateAwareFuzzer.fuzz() for invalid state transitions.
-
-**Effort:** 1-2 sessions.
+### ~~P0: State machine wiring~~ DONE
 
 ### P0: DIMSE command generation
 
@@ -143,3 +138,4 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | G5: DICOMDIR path traversal + deep nesting (DicomdirFuzzer)                        | (dicomdir strategy)            |
 | G3: Decompression bomb 128MB/512MB/1GB/corrupted (DeflateBombFuzzer)               | (deflate_bomb strategy)        |
 | Temporal (4D) attacks: InstanceCreationTime, delta violations, cardiac TriggerTime | (3 sub-attacks in strategy 12) |
+| P0: State machine wiring: StatefulFuzzer.fuzz(), execute_event() PDU building      | (build_pdu_for_event + types)  |

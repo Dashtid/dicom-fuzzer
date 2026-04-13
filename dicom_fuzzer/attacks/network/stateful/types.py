@@ -45,9 +45,11 @@ class TransitionResult:
         from_state: Starting state
         to_state: Ending state
         event: Event that was sent
+        message_sent: PDU bytes generated and sent for this event (if any)
         response: Response received (if any)
         error: Error message (if failed)
         duration_ms: Time taken in milliseconds
+        is_invalid_transition: True when event is a protocol violation in from_state
 
     """
 
@@ -55,9 +57,11 @@ class TransitionResult:
     from_state: AssociationState
     to_state: AssociationState
     event: ProtocolEvent
+    message_sent: bytes | None = None
     response: bytes | None = None
     error: str | None = None
     duration_ms: float = 0.0
+    is_invalid_transition: bool = False
 
 
 @dataclass
