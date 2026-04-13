@@ -134,6 +134,7 @@ class DicomMutator:
         from dicom_fuzzer.attacks.format.rtss_fuzzer import RTStructureSetFuzzer
         from dicom_fuzzer.attacks.format.seg_fuzzer import SegmentationFuzzer
         from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
+        from dicom_fuzzer.attacks.format.sr_fuzzer import StructuredReportFuzzer
         from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
         from dicom_fuzzer.attacks.format.waveform_fuzzer import WaveformFuzzer
         from dicom_fuzzer.attacks.multiframe.dimension_index import (
@@ -188,6 +189,7 @@ class DicomMutator:
             ReferenceFuzzer,
             SegmentationFuzzer,
             SequenceFuzzer,
+            StructuredReportFuzzer,
             StructureFuzzer,
             WaveformFuzzer,
             # Multi-frame strategies
