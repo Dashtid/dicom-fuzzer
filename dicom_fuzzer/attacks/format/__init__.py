@@ -57,6 +57,7 @@ from .rt_dose_fuzzer import RTDoseFuzzer
 from .rtss_fuzzer import RTStructureSetFuzzer
 from .seg_fuzzer import SegmentationFuzzer
 from .sequence_fuzzer import SequenceFuzzer
+from .spectroscopy_fuzzer import SpectroscopyFuzzer
 from .sr_fuzzer import StructuredReportFuzzer
 from .structure_fuzzer import StructureFuzzer
 from .ultrasound_fuzzer import UltrasoundFuzzer
@@ -87,6 +88,7 @@ __all__ = [
     "ReferenceFuzzer",
     "SegmentationFuzzer",
     "SequenceFuzzer",
+    "SpectroscopyFuzzer",
     "StructuredReportFuzzer",
     "StructureFuzzer",
     "UltrasoundFuzzer",
