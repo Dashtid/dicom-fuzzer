@@ -59,6 +59,17 @@ Examples:
         help="Output results as JSON",
     )
 
+    parser.add_argument(
+        "--report-dir",
+        "-r",
+        type=Path,
+        default=None,
+        help=(
+            "Cluster crashes by signature and write one markdown report per "
+            "unique cluster + an index.md to this directory."
+        ),
+    )
+
     return parser
 
 
@@ -121,6 +132,15 @@ class TriageCommand(SubcommandBase):
         triages = [t for t in triages if t.priority_score >= args.min_priority]
 
         session_id = data.get("session_id", args.session_json.stem)
+
+        if args.report_dir is not None:
+            from dicom_fuzzer.core.crash.triage_report import write_cluster_reports
+
+            written = write_cluster_reports(crashes, args.report_dir, engine=engine)
+            print(
+                f"[+] Wrote {len(written)} markdown files "
+                f"({len(written) - 1} clusters) to {args.report_dir}"
+            )
 
         if getattr(args, "json", False):
             output = {
