@@ -17,13 +17,11 @@ Generic fuzzers (work on any SOP class):
 - MetadataFuzzer: Patient/study metadata mutations
 - PixelFuzzer: Image dimension and pixel data mutations
 - PixelReencodingFuzzer: Re-encode uncompressed pixels as RLE then mutate
+- PreambleFuzzer: 128-byte preamble polyglot attacks (PE/ELF/JSON headers)
 - PrivateTagFuzzer: Vendor-specific tag violations
 - ReferenceFuzzer: Link integrity and reference chain attacks
 - SequenceFuzzer: Nested sequence and item structure attacks
 - StructureFuzzer: File structure and length field mutations
-- PresentationStateFuzzer: GSPS/CSPS VOI LUT, graphic annotation, and reference chain attacks
-- StructuredReportFuzzer: SR ContentSequence tree corruption, type mismatch, and nesting attacks
-- WaveformFuzzer: Waveform/ECG channel-count/sample-count overflow and OOB attacks
 
 Modality-specific fuzzers (require matching seed files):
 - EncapsulatedPdfFuzzer: Encapsulated PDF document payload mutations
@@ -32,7 +30,6 @@ Modality-specific fuzzers (require matching seed files):
 - RTDoseFuzzer: RT Dose grid scaling and DVH structure attacks
 - RTStructureSetFuzzer: RT Structure Set contour and ROI attacks
 - SegmentationFuzzer: Segmentation segment/frame mapping attacks
-- UltrasoundFuzzer: US frame-count, Doppler region, and pixel geometry attacks
 """
 
 from .base import FormatFuzzerBase
@@ -46,59 +43,43 @@ from .empty_value_fuzzer import EmptyValueFuzzer
 from .encapsulated_pdf_fuzzer import EncapsulatedPdfFuzzer
 from .encoding_fuzzer import EncodingFuzzer
 from .header_fuzzer import HeaderFuzzer
-from .mammography_fuzzer import MammographyFuzzer
 from .metadata_fuzzer import MetadataFuzzer
 from .nm_fuzzer import NuclearMedicineFuzzer
-from .parametric_map_fuzzer import ParametricMapFuzzer
 from .pet_fuzzer import PetFuzzer
 from .pixel_fuzzer import PixelFuzzer
 from .pixel_reencoding_fuzzer import PixelReencodingFuzzer
-from .presentation_state_fuzzer import PresentationStateFuzzer
+from .preamble_fuzzer import PreambleFuzzer
 from .private_tag_fuzzer import PrivateTagFuzzer
 from .reference_fuzzer import ReferenceFuzzer
 from .rt_dose_fuzzer import RTDoseFuzzer
 from .rtss_fuzzer import RTStructureSetFuzzer
-from .secondary_capture_fuzzer import SecondaryCaptureFuzzer
 from .seg_fuzzer import SegmentationFuzzer
 from .sequence_fuzzer import SequenceFuzzer
-from .spectroscopy_fuzzer import SpectroscopyFuzzer
-from .sr_fuzzer import StructuredReportFuzzer
 from .structure_fuzzer import StructureFuzzer
-from .ultrasound_fuzzer import UltrasoundFuzzer
-from .waveform_fuzzer import WaveformFuzzer
-from .xa_fuzzer import XRayAngiographyFuzzer
 
 __all__ = [
     "CalibrationFuzzer",
     "CompressedPixelFuzzer",
+    "ConformanceFuzzer",
     "DeflateBombFuzzer",
     "DicomdirFuzzer",
-    "ConformanceFuzzer",
     "DictionaryFuzzer",
     "EmptyValueFuzzer",
     "EncapsulatedPdfFuzzer",
     "EncodingFuzzer",
     "FormatFuzzerBase",
     "HeaderFuzzer",
-    "MammographyFuzzer",
     "MetadataFuzzer",
     "NuclearMedicineFuzzer",
-    "ParametricMapFuzzer",
     "PetFuzzer",
-    "PresentationStateFuzzer",
     "PixelFuzzer",
     "PixelReencodingFuzzer",
+    "PreambleFuzzer",
     "PrivateTagFuzzer",
     "RTDoseFuzzer",
     "RTStructureSetFuzzer",
     "ReferenceFuzzer",
-    "SecondaryCaptureFuzzer",
     "SegmentationFuzzer",
     "SequenceFuzzer",
-    "SpectroscopyFuzzer",
-    "StructuredReportFuzzer",
     "StructureFuzzer",
-    "UltrasoundFuzzer",
-    "WaveformFuzzer",
-    "XRayAngiographyFuzzer",
 ]

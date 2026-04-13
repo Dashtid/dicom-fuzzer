@@ -195,7 +195,7 @@ class TestFuzzerIntegration:
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        assert len(generator.mutator.strategies) == 42
+        assert len(generator.mutator.strategies) == 33
         strategy_names = [s.strategy_name for s in generator.mutator.strategies]
         expected_format = [
             "calibration",
@@ -208,28 +208,19 @@ class TestFuzzerIntegration:
             "encapsulated_pdf",
             "encoding",
             "header",
-            "mammography",
             "metadata",
             "nuclear_medicine",
-            "parametric_map",
             "pet",
             "pixel",
             "pixel_reencoding",
             "preamble",
-            "presentation_state",
             "private_tag",
             "reference",
             "rt_dose",
             "rt_structure_set",
-            "secondary_capture",
             "segmentation",
             "sequence",
-            "spectroscopy",
             "structure",
-            "structured_report",
-            "ultrasound",
-            "waveform",
-            "xray_angiography",
         ]
         expected_multiframe = [
             "dimension_index_attack",

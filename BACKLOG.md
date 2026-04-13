@@ -6,6 +6,33 @@ exact tags, values, and CVE/issue references for implementation.
 
 ---
 
+## Scope policy (2026-04-13)
+
+Format fuzzers are only worth adding when a matching seed exists in
+`dicom-seeds/`. Current seed corpus modalities: CT, DX, MR, NM, PET,
+RT-Dose, RT-Struct, SEG, encapsulated-PDF (9 modalities). Fuzzers for
+SOP classes outside this set produce no crashes against the actual
+target (Hermes.exe with these seeds) because `can_mutate()` returns
+False for every campaign input.
+
+Going forward:
+
+1. Format work focuses on **CVE gap coverage within the 9 seed modalities**.
+2. New modality fuzzers (US, MG, XA, MRS, PM, SC, PR, VL, SR, Waveform,
+   etc.) require seed corpus expansion first.
+3. Non-format work (network/DIMSE deepening, campaign tooling, crash
+   triage automation, coverage-guided fuzzing) is the higher-leverage track.
+
+---
+
+## P1: CVE gap audit refocus on seed-corpus modalities
+
+Re-read `docs/CVE_AUDIT.md` and filter the ~140 CVEs / 13 gap list to
+only those affecting CT, MR, PET, NM, DX, RT-Dose, RT-Struct, SEG, or
+encapsulated-PDF SOP classes. Identify which gaps are still uncovered
+within this scope. Output: a short addendum to CVE_AUDIT.md listing
+"in-scope gaps" with target fuzzer + attack.
+
 ---
 
 ## Format fuzzing -- P2: CVE gap coverage (larger scope)
@@ -72,7 +99,9 @@ After campaign data: remove/redesign zero-crash strategies.
 
 ### Full DICOM SOP Class coverage
 
-186 Storage SOP Classes. Current 41 strategies. Target ~44-48.
+186 Storage SOP Classes. Current 33 strategies (23 in-scope format + 10
+multiframe). Out-of-scope modality fuzzers were removed; expand seed
+corpus first before adding more.
 
 ### Coverage-guided fuzzing
 
@@ -128,11 +157,4 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | Temporal (4D) attacks: InstanceCreationTime, delta violations, cardiac TriggerTime | (3 sub-attacks in strategy 12) |
 | P0: State machine wiring: StatefulFuzzer.fuzz(), execute_event() PDU building      | (build_pdu_for_event + types)  |
 | P0: DIMSE PDU packing: DIMSEMessage.to_p_data_tf_pdu() + C-STORE from pydicom      | (26 new tests)                 |
-| WaveformFuzzer: 14 ECG/waveform channel-count/OOB attacks (strategy 34)            | (31 new tests)                 |
-| StructuredReportFuzzer: 12 SR ContentSequence tree attacks (strategy 35)           | (26 new tests)                 |
-| UltrasoundFuzzer: 12 US frame/Doppler/region geometry attacks (strategy 36)        | (31 new tests)                 |
-| MammographyFuzzer: 12 MG/DBT geometry and calibration attacks (strategy 37)        | (29 new tests)                 |
-| XRayAngiographyFuzzer: 12 XA/XRF CINE, dose, geometry attacks (strategy 38)        | (30 new tests)                 |
-| SpectroscopyFuzzer: 12 MR Spectroscopy data/frequency attacks (strategy 39)        | (27 new tests)                 |
-| ParametricMapFuzzer: 12 quantitative MRI RWV mapping attacks (strategy 40)         | (26 new tests)                 |
-| SecondaryCaptureFuzzer: 12 SC pixel geometry/color space attacks (strategy 41)     | (32 new tests)                 |
+| Removed 9 out-of-scope modality fuzzers (Waveform/SR/US/MG/XA/MRS/PM/SC/PR)        | (scope policy 2026-04-13)      |
