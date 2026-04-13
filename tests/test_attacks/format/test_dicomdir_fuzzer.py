@@ -104,9 +104,22 @@ class TestAbsolutePath:
     def test_referenced_file_id_is_absolute(self, fuzzer, dataset):
         result = fuzzer._absolute_path(dataset)
         file_id = result.DirectoryRecordSequence[0].ReferencedFileID
-        # First component should be absolute (starts with / or C:\ etc.)
-        first = str(file_id[0])
-        assert first.startswith("/") or "\\" in first or first.startswith("\\\\")
+        # pydicom uses \ as CS VR delimiter, so Windows paths like
+        # "C:\Windows\..." are split into ["C:", "Windows", ...].
+        # Normalise to a list of string components then join for inspection.
+        components = [file_id] if isinstance(file_id, str) else list(file_id)
+        joined = "".join(str(c) for c in components)
+        first = str(components[0])
+        # /etc/passwd  -> first="/etc/passwd" (starts with /)
+        # /proc/self   -> first="/proc/self/mem" (starts with /)
+        # C:\Windows   -> split -> first="C:" or "C" (Windows drive letter)
+        # \\evil.inval -> split -> first="" (empty UNC prefix) + "evil" later
+        assert (
+            first.startswith("/")
+            or first in ("C:", "C")
+            or first == ""  # UNC path: \\ splits to empty first component
+            or "evil" in joined  # fallback for UNC marker
+        )
 
     def test_multiple_runs_vary(self, fuzzer):
         """Absolute path selection varies across runs."""
