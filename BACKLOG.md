@@ -72,7 +72,7 @@ After campaign data: remove/redesign zero-crash strategies.
 
 ### Full DICOM SOP Class coverage
 
-186 Storage SOP Classes. Current 40 strategies. Target ~44-48.
+186 Storage SOP Classes. Current 41 strategies. Target ~44-48.
 
 ### Coverage-guided fuzzing
 
@@ -135,3 +135,4 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | XRayAngiographyFuzzer: 12 XA/XRF CINE, dose, geometry attacks (strategy 38)        | (30 new tests)                 |
 | SpectroscopyFuzzer: 12 MR Spectroscopy data/frequency attacks (strategy 39)        | (27 new tests)                 |
 | ParametricMapFuzzer: 12 quantitative MRI RWV mapping attacks (strategy 40)         | (26 new tests)                 |
+| SecondaryCaptureFuzzer: 12 SC pixel geometry/color space attacks (strategy 41)     | (32 new tests)                 |
