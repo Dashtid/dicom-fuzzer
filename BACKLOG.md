@@ -128,3 +128,4 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | Temporal (4D) attacks: InstanceCreationTime, delta violations, cardiac TriggerTime | (3 sub-attacks in strategy 12) |
 | P0: State machine wiring: StatefulFuzzer.fuzz(), execute_event() PDU building      | (build_pdu_for_event + types)  |
 | P0: DIMSE PDU packing: DIMSEMessage.to_p_data_tf_pdu() + C-STORE from pydicom      | (26 new tests)                 |
+| WaveformFuzzer: 14 ECG/waveform channel-count/OOB attacks (strategy 34)            | (31 new tests)                 |

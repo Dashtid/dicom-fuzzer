@@ -21,6 +21,7 @@ Generic fuzzers (work on any SOP class):
 - ReferenceFuzzer: Link integrity and reference chain attacks
 - SequenceFuzzer: Nested sequence and item structure attacks
 - StructureFuzzer: File structure and length field mutations
+- WaveformFuzzer: Waveform/ECG channel-count/sample-count overflow and OOB attacks
 
 Modality-specific fuzzers (require matching seed files):
 - EncapsulatedPdfFuzzer: Encapsulated PDF document payload mutations
@@ -54,6 +55,7 @@ from .rtss_fuzzer import RTStructureSetFuzzer
 from .seg_fuzzer import SegmentationFuzzer
 from .sequence_fuzzer import SequenceFuzzer
 from .structure_fuzzer import StructureFuzzer
+from .waveform_fuzzer import WaveformFuzzer
 
 __all__ = [
     "CalibrationFuzzer",
@@ -79,4 +81,5 @@ __all__ = [
     "SegmentationFuzzer",
     "SequenceFuzzer",
     "StructureFuzzer",
+    "WaveformFuzzer",
 ]
