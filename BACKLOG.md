@@ -90,7 +90,7 @@ After campaign data: remove/redesign zero-crash strategies.
 - CrashAnalyzer rename
 - Test flakiness investigation
 - Strategy effectiveness charts
-- End-of-campaign auto-triage
+- End-of-campaign auto-triage hook (CLI clustering + reports landed; just need the campaign_runner wire-up)
 - Authentication negotiation fuzzing
 
 ---

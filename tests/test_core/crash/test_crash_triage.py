@@ -434,3 +434,53 @@ class TestSeverityEdgeCases:
         triage = engine.triage_crash(crash)
         # Should return HIGH because heap is in ["heap", "memory", "control_flow"]
         assert triage.severity == Severity.HIGH
+
+
+class TestClusterCrashes:
+    """cluster_crashes() must group identical-signature crashes together."""
+
+    def test_empty_list_returns_empty_dict(self, engine):
+        assert engine.cluster_crashes([]) == {}
+
+    def test_single_crash_creates_one_cluster(self, engine, critical_crash):
+        clusters = engine.cluster_crashes([critical_crash])
+        assert len(clusters) == 1
+        assert list(clusters.values())[0] == [critical_crash]
+
+    def test_distinct_crashes_create_distinct_clusters(
+        self, engine, critical_crash, low_crash
+    ):
+        clusters = engine.cluster_crashes([critical_crash, low_crash])
+        assert len(clusters) == 2
+
+    def test_identical_signatures_collapse_into_one_cluster(
+        self, engine, critical_crash
+    ):
+        from copy import deepcopy
+
+        # Same crash_type/exception/stack -> same signature even with
+        # different crash_id and fuzzed_file_path
+        dup1 = deepcopy(critical_crash)
+        dup1.crash_id = "crash_dup1"
+        dup1.fuzzed_file_path = "other_input.dcm"
+        dup2 = deepcopy(critical_crash)
+        dup2.crash_id = "crash_dup2"
+        dup2.fuzzed_file_path = "yet_another.dcm"
+
+        clusters = engine.cluster_crashes([critical_crash, dup1, dup2])
+        assert len(clusters) == 1
+        assert len(list(clusters.values())[0]) == 3
+
+    def test_input_order_preserved_within_cluster(self, engine, critical_crash):
+        from copy import deepcopy
+
+        a = deepcopy(critical_crash)
+        a.crash_id = "first"
+        b = deepcopy(critical_crash)
+        b.crash_id = "second"
+        c = deepcopy(critical_crash)
+        c.crash_id = "third"
+
+        clusters = engine.cluster_crashes([a, b, c])
+        cluster = list(clusters.values())[0]
+        assert [x.crash_id for x in cluster] == ["first", "second", "third"]
