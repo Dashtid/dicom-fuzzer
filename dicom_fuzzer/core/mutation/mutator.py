@@ -136,6 +136,9 @@ class DicomMutator:
         from dicom_fuzzer.attacks.format.reference_fuzzer import ReferenceFuzzer
         from dicom_fuzzer.attacks.format.rt_dose_fuzzer import RTDoseFuzzer
         from dicom_fuzzer.attacks.format.rtss_fuzzer import RTStructureSetFuzzer
+        from dicom_fuzzer.attacks.format.secondary_capture_fuzzer import (
+            SecondaryCaptureFuzzer,
+        )
         from dicom_fuzzer.attacks.format.seg_fuzzer import SegmentationFuzzer
         from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
         from dicom_fuzzer.attacks.format.spectroscopy_fuzzer import SpectroscopyFuzzer
@@ -196,6 +199,7 @@ class DicomMutator:
             RTDoseFuzzer,
             RTStructureSetFuzzer,
             ReferenceFuzzer,
+            SecondaryCaptureFuzzer,
             SegmentationFuzzer,
             SequenceFuzzer,
             SpectroscopyFuzzer,

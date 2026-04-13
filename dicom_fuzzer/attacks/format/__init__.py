@@ -56,6 +56,7 @@ from .private_tag_fuzzer import PrivateTagFuzzer
 from .reference_fuzzer import ReferenceFuzzer
 from .rt_dose_fuzzer import RTDoseFuzzer
 from .rtss_fuzzer import RTStructureSetFuzzer
+from .secondary_capture_fuzzer import SecondaryCaptureFuzzer
 from .seg_fuzzer import SegmentationFuzzer
 from .sequence_fuzzer import SequenceFuzzer
 from .spectroscopy_fuzzer import SpectroscopyFuzzer
@@ -88,6 +89,7 @@ __all__ = [
     "RTDoseFuzzer",
     "RTStructureSetFuzzer",
     "ReferenceFuzzer",
+    "SecondaryCaptureFuzzer",
     "SegmentationFuzzer",
     "SequenceFuzzer",
     "SpectroscopyFuzzer",
