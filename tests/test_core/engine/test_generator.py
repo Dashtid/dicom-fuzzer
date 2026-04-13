@@ -195,7 +195,7 @@ class TestFuzzerIntegration:
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        assert len(generator.mutator.strategies) == 41
+        assert len(generator.mutator.strategies) == 42
         strategy_names = [s.strategy_name for s in generator.mutator.strategies]
         expected_format = [
             "calibration",
@@ -216,6 +216,7 @@ class TestFuzzerIntegration:
             "pixel",
             "pixel_reencoding",
             "preamble",
+            "presentation_state",
             "private_tag",
             "reference",
             "rt_dose",
