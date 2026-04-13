@@ -31,6 +31,7 @@ Modality-specific fuzzers (require matching seed files):
 - RTDoseFuzzer: RT Dose grid scaling and DVH structure attacks
 - RTStructureSetFuzzer: RT Structure Set contour and ROI attacks
 - SegmentationFuzzer: Segmentation segment/frame mapping attacks
+- UltrasoundFuzzer: US frame-count, Doppler region, and pixel geometry attacks
 """
 
 from .base import FormatFuzzerBase
@@ -57,6 +58,7 @@ from .seg_fuzzer import SegmentationFuzzer
 from .sequence_fuzzer import SequenceFuzzer
 from .sr_fuzzer import StructuredReportFuzzer
 from .structure_fuzzer import StructureFuzzer
+from .ultrasound_fuzzer import UltrasoundFuzzer
 from .waveform_fuzzer import WaveformFuzzer
 
 __all__ = [
@@ -84,5 +86,6 @@ __all__ = [
     "SequenceFuzzer",
     "StructuredReportFuzzer",
     "StructureFuzzer",
+    "UltrasoundFuzzer",
     "WaveformFuzzer",
 ]
