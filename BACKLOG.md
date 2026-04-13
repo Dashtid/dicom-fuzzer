@@ -31,17 +31,9 @@ ImagePositionPatient. FoR UID orphaning.
 
 ### ~~P0: DIMSE command generation~~ DONE
 
-### P1: Real TLS testing
+### ~~P1: Real TLS testing~~ DONE
 
-Replace hardcoded vulnerability enumeration with actual TLS probes.
-
-**Effort:** 1-2 sessions.
-
-### P1: Query/Retrieve fuzzing
-
-C-FIND/C-MOVE with query tag corruption, wildcard injection.
-
-**Effort:** 1-2 sessions.
+### ~~P1: Query/Retrieve fuzzing~~ DONE
 
 ---
 
