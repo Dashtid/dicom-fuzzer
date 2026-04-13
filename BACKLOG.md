@@ -130,3 +130,4 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | P0: DIMSE PDU packing: DIMSEMessage.to_p_data_tf_pdu() + C-STORE from pydicom      | (26 new tests)                 |
 | WaveformFuzzer: 14 ECG/waveform channel-count/OOB attacks (strategy 34)            | (31 new tests)                 |
 | StructuredReportFuzzer: 12 SR ContentSequence tree attacks (strategy 35)           | (26 new tests)                 |
+| UltrasoundFuzzer: 12 US frame/Doppler/region geometry attacks (strategy 36)        | (31 new tests)                 |

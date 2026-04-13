@@ -120,6 +120,7 @@ class DicomMutator:
         )
         from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
         from dicom_fuzzer.attacks.format.header_fuzzer import HeaderFuzzer
+        from dicom_fuzzer.attacks.format.mammography_fuzzer import MammographyFuzzer
         from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
         from dicom_fuzzer.attacks.format.nm_fuzzer import NuclearMedicineFuzzer
         from dicom_fuzzer.attacks.format.pet_fuzzer import PetFuzzer
@@ -178,6 +179,7 @@ class DicomMutator:
             EncapsulatedPdfFuzzer,
             EncodingFuzzer,
             HeaderFuzzer,
+            MammographyFuzzer,
             MetadataFuzzer,
             NuclearMedicineFuzzer,
             PetFuzzer,

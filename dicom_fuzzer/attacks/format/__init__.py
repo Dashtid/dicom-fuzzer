@@ -45,6 +45,7 @@ from .empty_value_fuzzer import EmptyValueFuzzer
 from .encapsulated_pdf_fuzzer import EncapsulatedPdfFuzzer
 from .encoding_fuzzer import EncodingFuzzer
 from .header_fuzzer import HeaderFuzzer
+from .mammography_fuzzer import MammographyFuzzer
 from .metadata_fuzzer import MetadataFuzzer
 from .nm_fuzzer import NuclearMedicineFuzzer
 from .pet_fuzzer import PetFuzzer
@@ -73,6 +74,7 @@ __all__ = [
     "EncodingFuzzer",
     "FormatFuzzerBase",
     "HeaderFuzzer",
+    "MammographyFuzzer",
     "MetadataFuzzer",
     "NuclearMedicineFuzzer",
     "PetFuzzer",
