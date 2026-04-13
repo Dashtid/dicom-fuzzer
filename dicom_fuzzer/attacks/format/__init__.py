@@ -21,6 +21,7 @@ Generic fuzzers (work on any SOP class):
 - ReferenceFuzzer: Link integrity and reference chain attacks
 - SequenceFuzzer: Nested sequence and item structure attacks
 - StructureFuzzer: File structure and length field mutations
+- PresentationStateFuzzer: GSPS/CSPS VOI LUT, graphic annotation, and reference chain attacks
 - StructuredReportFuzzer: SR ContentSequence tree corruption, type mismatch, and nesting attacks
 - WaveformFuzzer: Waveform/ECG channel-count/sample-count overflow and OOB attacks
 
@@ -52,6 +53,7 @@ from .parametric_map_fuzzer import ParametricMapFuzzer
 from .pet_fuzzer import PetFuzzer
 from .pixel_fuzzer import PixelFuzzer
 from .pixel_reencoding_fuzzer import PixelReencodingFuzzer
+from .presentation_state_fuzzer import PresentationStateFuzzer
 from .private_tag_fuzzer import PrivateTagFuzzer
 from .reference_fuzzer import ReferenceFuzzer
 from .rt_dose_fuzzer import RTDoseFuzzer
@@ -83,6 +85,7 @@ __all__ = [
     "NuclearMedicineFuzzer",
     "ParametricMapFuzzer",
     "PetFuzzer",
+    "PresentationStateFuzzer",
     "PixelFuzzer",
     "PixelReencodingFuzzer",
     "PrivateTagFuzzer",
