@@ -38,20 +38,6 @@ read/write/delete outside the DICOM file-set root.
 
 **Effort:** 2 sessions (new fuzzer, different attack surface).
 
-### G11: Preamble polyglot (PE/ELF/JSON payload)
-
-Inject PE, ELF, or JSON headers into the 128-byte DICOM preamble.
-The file is simultaneously valid DICOM and valid executable/data.
-Targets systems that dispatch on file magic or process the preamble
-as structured data.
-
-- CVE-2019-11687: DICOM PE polyglot (original research)
-- Praetorian ELFDICOM 2025: Linux ELF variant
-- Orthanc CVE-2023-33466: JSON in preamble -> config overwrite
-  -> Lua RCE chain
-
-**Effort:** 2 sessions.
-
 ---
 
 ## Series/Study fuzzing -- P2
@@ -192,3 +178,4 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | Multiframe functional group crash attacks (2 new attacks)      | (empty frame content + NaN)   |
 | Concurrent field mismatches (PixelFuzzer)                      | (\_concurrent_field_mismatch) |
 | Registration geometry attacks (4 sub-attacks in StudyMutator)  | (REGISTRATION_GEOMETRY)       |
+| G11: Preamble polyglot (PE/ELF/JSON/ff/random, PreambleFuzzer) | (preamble strategy)           |
