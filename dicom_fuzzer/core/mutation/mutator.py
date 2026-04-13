@@ -120,36 +120,21 @@ class DicomMutator:
         )
         from dicom_fuzzer.attacks.format.encoding_fuzzer import EncodingFuzzer
         from dicom_fuzzer.attacks.format.header_fuzzer import HeaderFuzzer
-        from dicom_fuzzer.attacks.format.mammography_fuzzer import MammographyFuzzer
         from dicom_fuzzer.attacks.format.metadata_fuzzer import MetadataFuzzer
         from dicom_fuzzer.attacks.format.nm_fuzzer import NuclearMedicineFuzzer
-        from dicom_fuzzer.attacks.format.parametric_map_fuzzer import (
-            ParametricMapFuzzer,
-        )
         from dicom_fuzzer.attacks.format.pet_fuzzer import PetFuzzer
         from dicom_fuzzer.attacks.format.pixel_fuzzer import PixelFuzzer
         from dicom_fuzzer.attacks.format.pixel_reencoding_fuzzer import (
             PixelReencodingFuzzer,
         )
         from dicom_fuzzer.attacks.format.preamble_fuzzer import PreambleFuzzer
-        from dicom_fuzzer.attacks.format.presentation_state_fuzzer import (
-            PresentationStateFuzzer,
-        )
         from dicom_fuzzer.attacks.format.private_tag_fuzzer import PrivateTagFuzzer
         from dicom_fuzzer.attacks.format.reference_fuzzer import ReferenceFuzzer
         from dicom_fuzzer.attacks.format.rt_dose_fuzzer import RTDoseFuzzer
         from dicom_fuzzer.attacks.format.rtss_fuzzer import RTStructureSetFuzzer
-        from dicom_fuzzer.attacks.format.secondary_capture_fuzzer import (
-            SecondaryCaptureFuzzer,
-        )
         from dicom_fuzzer.attacks.format.seg_fuzzer import SegmentationFuzzer
         from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
-        from dicom_fuzzer.attacks.format.spectroscopy_fuzzer import SpectroscopyFuzzer
-        from dicom_fuzzer.attacks.format.sr_fuzzer import StructuredReportFuzzer
         from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
-        from dicom_fuzzer.attacks.format.ultrasound_fuzzer import UltrasoundFuzzer
-        from dicom_fuzzer.attacks.format.waveform_fuzzer import WaveformFuzzer
-        from dicom_fuzzer.attacks.format.xa_fuzzer import XRayAngiographyFuzzer
         from dicom_fuzzer.attacks.multiframe.dimension_index import (
             DimensionIndexStrategy,
         )
@@ -190,28 +175,19 @@ class DicomMutator:
             EncapsulatedPdfFuzzer,
             EncodingFuzzer,
             HeaderFuzzer,
-            MammographyFuzzer,
             MetadataFuzzer,
             NuclearMedicineFuzzer,
-            ParametricMapFuzzer,
             PetFuzzer,
             PixelFuzzer,
-            PresentationStateFuzzer,
             PreambleFuzzer,
             PixelReencodingFuzzer,
             PrivateTagFuzzer,
             RTDoseFuzzer,
             RTStructureSetFuzzer,
             ReferenceFuzzer,
-            SecondaryCaptureFuzzer,
             SegmentationFuzzer,
             SequenceFuzzer,
-            SpectroscopyFuzzer,
-            StructuredReportFuzzer,
             StructureFuzzer,
-            UltrasoundFuzzer,
-            WaveformFuzzer,
-            XRayAngiographyFuzzer,
             # Multi-frame strategies
             DimensionIndexStrategy,
             DimensionOverflowStrategy,
