@@ -24,20 +24,6 @@ crafted deflate stream with >1000:1 compression ratio.
 
 **Effort:** 2-4 sessions.
 
-### G5: DICOMDIR path traversal
-
-Generate malicious DICOMDIR with ReferencedFileID containing
-"../" sequences or absolute paths. FileSet operations then
-read/write/delete outside the DICOM file-set root.
-
-- pydicom CVE-2026-32711 (CWE-22, CVSS 7.8): pathlib `/`
-  operator discards left operand if right is absolute. Fixed
-  pydicom 3.0.2 / 2.4.5.
-- fo-dicom #1977: DicomDirectory deep record nesting -> recursive
-  stack overflow (fixed 5.2.3)
-
-**Effort:** 2 sessions (new fuzzer, different attack surface).
-
 ---
 
 ## Series/Study fuzzing -- P2
@@ -179,3 +165,4 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | Concurrent field mismatches (PixelFuzzer)                      | (\_concurrent_field_mismatch) |
 | Registration geometry attacks (4 sub-attacks in StudyMutator)  | (REGISTRATION_GEOMETRY)       |
 | G11: Preamble polyglot (PE/ELF/JSON/ff/random, PreambleFuzzer) | (preamble strategy)           |
+| G5: DICOMDIR path traversal + deep nesting (DicomdirFuzzer)    | (dicomdir strategy)           |
