@@ -8,6 +8,62 @@ exact tags, values, and CVE/issue references for implementation.
 
 ---
 
+## Scope policy (2026-04-13)
+
+Format fuzzers are only worth adding when a matching seed exists in
+`dicom-seeds/`. Current seed corpus modalities: CT, DX, MR, NM, PET,
+RT-Dose, RT-Struct, SEG, encapsulated-PDF (9 modalities). Fuzzers for
+SOP classes outside this set produce no crashes against the actual
+target (Hermes.exe with these seeds) because `can_mutate()` returns
+False for every campaign input.
+
+Going forward:
+
+1. Format work should focus on **CVE gap coverage within the 9 seed
+   modalities**, not new modality fuzzers.
+2. New modality fuzzers (US, MG, XA, MRS, PM, SC, PR, VL, SR,
+   Waveform, etc.) require seed corpus expansion first.
+3. Non-format work (network/DIMSE deepening, campaign tooling, crash
+   triage automation, coverage-guided fuzzing) is the higher-leverage
+   track.
+
+---
+
+## P0: Remove out-of-scope strategies (follow-up to PR #244)
+
+After PR #244 merges, delete the 9 strategies whose SOP classes have
+no matching seed in `dicom-seeds/`:
+
+- WaveformFuzzer (strategy 34)
+- StructuredReportFuzzer (35)
+- UltrasoundFuzzer (36)
+- MammographyFuzzer (37)
+- XRayAngiographyFuzzer (38)
+- SpectroscopyFuzzer (39)
+- ParametricMapFuzzer (40)
+- SecondaryCaptureFuzzer (41)
+- PresentationStateFuzzer (42)
+
+For each: delete fuzzer file, delete test file, remove from
+`attacks/format/__init__.py` (import + **all**), remove from
+`core/mutation/mutator.py` (import + registration list), update
+`tests/test_core/engine/test_generator.py` (count and expected_format).
+Target final count: 33 strategies (24 in-scope format + 10 multiframe -
+1 for whatever ends up dropped). Update CVE_AUDIT.md if any of these
+covered specific CVEs. Update memory: "Codebase Structure" total count.
+
+---
+
+## P1: CVE gap audit refocus on seed-corpus modalities
+
+Re-read `docs/CVE_AUDIT.md` and filter the ~140 CVEs / 13 gap list to
+only those affecting CT, MR, PET, NM, DX, RT-Dose, RT-Struct, SEG, or
+encapsulated-PDF SOP classes. Identify which gaps are still uncovered
+within this scope. Output: a short addendum to CVE_AUDIT.md listing
+"in-scope gaps" with target fuzzer + attack.
+
+---
+
 ## Format fuzzing -- P2: CVE gap coverage (larger scope)
 
 ---
@@ -72,7 +128,7 @@ After campaign data: remove/redesign zero-crash strategies.
 
 ### Full DICOM SOP Class coverage
 
-186 Storage SOP Classes. Current 41 strategies. Target ~44-48.
+186 Storage SOP Classes. Current 42 strategies. Target ~44-48.
 
 ### Coverage-guided fuzzing
 
@@ -136,3 +192,4 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | SpectroscopyFuzzer: 12 MR Spectroscopy data/frequency attacks (strategy 39)        | (27 new tests)                 |
 | ParametricMapFuzzer: 12 quantitative MRI RWV mapping attacks (strategy 40)         | (26 new tests)                 |
 | SecondaryCaptureFuzzer: 12 SC pixel geometry/color space attacks (strategy 41)     | (32 new tests)                 |
+| PresentationStateFuzzer: 12 GSPS/CSPS VOI LUT and annotation attacks (strategy 42) | (38 new tests)                 |
