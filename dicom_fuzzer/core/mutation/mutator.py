@@ -111,6 +111,7 @@ class DicomMutator:
             CompressedPixelFuzzer,
         )
         from dicom_fuzzer.attacks.format.conformance_fuzzer import ConformanceFuzzer
+        from dicom_fuzzer.attacks.format.deflate_bomb_fuzzer import DeflateBombFuzzer
         from dicom_fuzzer.attacks.format.dicomdir_fuzzer import DicomdirFuzzer
         from dicom_fuzzer.attacks.format.dictionary_fuzzer import DictionaryFuzzer
         from dicom_fuzzer.attacks.format.empty_value_fuzzer import EmptyValueFuzzer
@@ -166,6 +167,7 @@ class DicomMutator:
         for fuzzer_cls in [
             CalibrationFuzzer,
             CompressedPixelFuzzer,
+            DeflateBombFuzzer,
             DicomdirFuzzer,
             ConformanceFuzzer,
             DictionaryFuzzer,

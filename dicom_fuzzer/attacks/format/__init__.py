@@ -6,6 +6,7 @@ These generate edge cases and malformed data for discovering parser bugs.
 
 Generic fuzzers (work on any SOP class):
 - CalibrationFuzzer: Deterministic calibration mutations for testing
+- DeflateBombFuzzer: Decompression bomb via Deflated LE transfer syntax
 - DicomdirFuzzer: DICOMDIR path traversal and deep-nesting attacks
 - CompressedPixelFuzzer: JPEG/JPEG2000/RLE encapsulation corruption
 - ConformanceFuzzer: SOP Class and Transfer Syntax validation
@@ -34,6 +35,7 @@ from .base import FormatFuzzerBase
 from .calibration_fuzzer import CalibrationFuzzer
 from .compressed_pixel_fuzzer import CompressedPixelFuzzer
 from .conformance_fuzzer import ConformanceFuzzer
+from .deflate_bomb_fuzzer import DeflateBombFuzzer
 from .dicomdir_fuzzer import DicomdirFuzzer
 from .dictionary_fuzzer import DictionaryFuzzer
 from .empty_value_fuzzer import EmptyValueFuzzer
@@ -56,6 +58,7 @@ from .structure_fuzzer import StructureFuzzer
 __all__ = [
     "CalibrationFuzzer",
     "CompressedPixelFuzzer",
+    "DeflateBombFuzzer",
     "DicomdirFuzzer",
     "ConformanceFuzzer",
     "DictionaryFuzzer",
