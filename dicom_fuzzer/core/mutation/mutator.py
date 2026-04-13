@@ -139,6 +139,7 @@ class DicomMutator:
         from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
         from dicom_fuzzer.attacks.format.ultrasound_fuzzer import UltrasoundFuzzer
         from dicom_fuzzer.attacks.format.waveform_fuzzer import WaveformFuzzer
+        from dicom_fuzzer.attacks.format.xa_fuzzer import XRayAngiographyFuzzer
         from dicom_fuzzer.attacks.multiframe.dimension_index import (
             DimensionIndexStrategy,
         )
@@ -196,6 +197,7 @@ class DicomMutator:
             StructureFuzzer,
             UltrasoundFuzzer,
             WaveformFuzzer,
+            XRayAngiographyFuzzer,
             # Multi-frame strategies
             DimensionIndexStrategy,
             DimensionOverflowStrategy,

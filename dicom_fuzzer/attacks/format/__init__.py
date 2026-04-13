@@ -61,6 +61,7 @@ from .sr_fuzzer import StructuredReportFuzzer
 from .structure_fuzzer import StructureFuzzer
 from .ultrasound_fuzzer import UltrasoundFuzzer
 from .waveform_fuzzer import WaveformFuzzer
+from .xa_fuzzer import XRayAngiographyFuzzer
 
 __all__ = [
     "CalibrationFuzzer",
@@ -90,4 +91,5 @@ __all__ = [
     "StructureFuzzer",
     "UltrasoundFuzzer",
     "WaveformFuzzer",
+    "XRayAngiographyFuzzer",
 ]
