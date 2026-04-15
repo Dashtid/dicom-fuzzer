@@ -88,7 +88,7 @@ After campaign data: remove/redesign zero-crash strategies.
 
 - Structural/content code comments
 - CrashAnalyzer rename
-- Test flakiness investigation
+- ~~Test flakiness investigation~~ DONE (test_generator.py flakes fixed)
 - Strategy effectiveness charts
 - End-of-campaign auto-triage hook (CLI clustering + reports landed; just need the campaign_runner wire-up)
 - Authentication negotiation fuzzing
