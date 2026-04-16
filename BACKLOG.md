@@ -87,11 +87,19 @@ After campaign data: remove/redesign zero-crash strategies.
 ## Low priority / deferred
 
 - Structural/content code comments
-- CrashAnalyzer rename
-- ~~Test flakiness investigation~~ DONE (test_generator.py flakes fixed)
-- Strategy effectiveness charts
-- End-of-campaign auto-triage hook (CLI clustering + reports landed; just need the campaign_runner wire-up)
-- Authentication negotiation fuzzing
+- Authentication negotiation fuzzing (network module extension)
+
+Dropped as not worth doing:
+
+- **CrashAnalyzer rename**: 52 refs across 8 files, pure mechanical churn,
+  no functional win. Current naming (CrashAnalyzer = capture, CrashTriageEngine
+  = score, WindowsCrashHandler = platform) is annoying but not actively
+  confusing. Revisit only if touching those files for another reason.
+- **Strategy effectiveness charts**: `_log_strategy_table()` already prints
+  hit-rates + zero-hit WARNINGs to the campaign log. A bar chart wouldn't
+  be more readable than the text table and would pull matplotlib into a
+  non-optional path. Would only pay off for stakeholder presentations or
+  cross-campaign dashboards, neither of which is the current use case.
 
 ---
 
