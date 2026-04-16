@@ -185,7 +185,7 @@ can be directed at high-crash-potential attacks.
 | `_circular_reference_attack` | CONTENT    | Circular UIDs — stored and ignored at parse time                              |
 | `_mixed_encoding_sequence`   | CONTENT    | Mixed charsets per item — rendering issue, not parse crash                    |
 
-**Status**: needs structural/content split in `__init__` and `mutate()`.
+**Status**: split implemented.
 
 ---
 
@@ -200,7 +200,7 @@ can be directed at high-crash-potential attacks.
 | `_mime_type_mismatch`       | CONTENT    | Wrong MIMEType string — metadata, parser stores and continues          |
 | `_pdf_metadata_corruption`  | CONTENT    | DocumentTitle / ConceptNameCodeSequence strings — content only         |
 
-**Status**: needs structural/content split in `__init__` and `mutate()`.
+**Status**: split implemented.
 
 ---
 
@@ -213,7 +213,7 @@ can be directed at high-crash-potential attacks.
 | `_slice_count_mismatch`       | STRUCTURAL | Frame count vs NumberOfSlices mismatch — allocation/indexing error                        |
 | `_rotation_parameter_attack`  | CONTENT    | SPECT rotation angles/steps — rendering/reconstruction values only                        |
 
-**Status**: needs structural/content split in `__init__` and `mutate()`.
+**Status**: split implemented.
 
 ---
 
@@ -227,7 +227,7 @@ can be directed at high-crash-potential attacks.
 | `_dose_type_enumeration_attack`  | CONTENT    | DoseType/DoseSummationType string enumerations — stored, not executed  |
 | `_referenced_rt_plan_corruption` | CONTENT    | Plan UID cross-references — integrity issue, not parse crash           |
 
-**Status**: needs structural/content split in `__init__` and `mutate()`.
+**Status**: split implemented.
 
 ---
 
@@ -241,7 +241,7 @@ can be directed at high-crash-potential attacks.
 | `_contour_geometric_type_mismatch` | CONTENT    | ContourGeometricType string — metadata, stored fine                     |
 | `_frame_of_reference_corruption`   | CONTENT    | FrameOfReference UID — cross-reference integrity                        |
 
-**Status**: needs structural/content split in `__init__` and `mutate()`.
+**Status**: split implemented.
 
 ---
 
@@ -254,7 +254,7 @@ can be directed at high-crash-potential attacks.
 | `_binary_pixel_type_mismatch`   | STRUCTURAL | SegmentationType vs BitsAllocated — allocation size mismatch           |
 | `_referenced_series_corruption` | CONTENT    | ReferencedSeriesSequence UIDs — cross-reference integrity only         |
 
-**Status**: needs structural/content split in `__init__` and `mutate()`.
+**Status**: split implemented.
 
 ---
 
@@ -275,7 +275,7 @@ can be directed at high-crash-potential attacks.
 | `_uid_length_overflow`        | STRUCTURAL | **NEW** — UID > 64 chars overflows fixed-length UID copy buffers      |
 | `_uid_non_ascii`              | STRUCTURAL | **NEW** — non-ASCII bytes in UID crash byte-scanning UID validators   |
 
-**Status**: add 2 structural methods; existing 10 demoted to content at 15%.
+**Status**: implemented -- 2 new structural methods added, existing 10 demoted to content at 15%.
 
 ---
 
@@ -288,7 +288,7 @@ can be directed at high-crash-potential attacks.
 | `_corrected_image_flag_attack`          | CONTENT    | CorrectedImage flag combinations — stored fine                             |
 | `_corrupt_radiopharmaceutical_sequence` | STRUCTURAL | **NEW** — empty/malformed RadiopharmaceuticalInformationSequence structure |
 
-**Status**: add 1 structural method; existing 3 demoted to content at 33%.
+**Status**: implemented -- `_corrupt_radiopharmaceutical_sequence` added; existing 3 demoted to content at 33%.
 
 ---
 
@@ -303,7 +303,7 @@ can be directed at high-crash-potential attacks.
 | `_vr_type_confusion`        | STRUCTURAL | **NEW** — put Sequence item in DS field; VR-dispatch allocates wrong type |
 | `_oversized_numeric_string` | STRUCTURAL | **NEW** — 100 KB PixelSpacing string overflows VR fixed-copy buffers      |
 
-**Status**: add 2 structural methods; existing 4 demoted to content at 33%.
+**Status**: implemented -- 2 new structural methods added; existing 4 demoted to content at 33%.
 
 ---
 
@@ -317,23 +317,23 @@ annotations; no logic changes needed.
 
 ## Summary
 
-| Fuzzer                | Structural | Content | Status                     |
-| --------------------- | ---------- | ------- | -------------------------- |
-| StructureFuzzer       | 9          | 0       | Annotate only              |
-| CompressedPixelFuzzer | 8          | 0       | Annotate only              |
-| PixelFuzzer           | 9          | 3       | Already split              |
-| MetadataFuzzer        | 3          | 6       | Already split              |
-| ConformanceFuzzer     | 7          | 3       | Already split              |
-| EncodingFuzzer        | 7          | 3       | Already split              |
-| HeaderFuzzer          | 6          | 0       | Already annotated          |
-| PrivateTagFuzzer      | 9          | 1       | Already annotated          |
-| SequenceFuzzer        | 6          | 2       | **Split needed**           |
-| EncapsulatedPDFFuzzer | 4          | 2       | **Split needed**           |
-| NMFuzzer              | 3          | 1       | **Split needed**           |
-| RTDoseFuzzer          | 2          | 3       | **Split needed**           |
-| RTSSFuzzer            | 1          | 4       | **Split needed**           |
-| SegmentationFuzzer    | 3          | 1       | **Split needed**           |
-| ReferenceFuzzer       | 0+2 new    | 10      | **New structural + split** |
-| PetFuzzer             | 0+1 new    | 3       | **New structural + split** |
-| CalibrationFuzzer     | 0+2 new    | 4       | **New structural + split** |
-| DictionaryFuzzer      | ~30%       | ~70%    | Annotate only              |
+| Fuzzer                | Structural | Content | Status                      |
+| --------------------- | ---------- | ------- | --------------------------- |
+| StructureFuzzer       | 9          | 0       | Annotate only               |
+| CompressedPixelFuzzer | 8          | 0       | Annotate only               |
+| PixelFuzzer           | 9          | 3       | Already split               |
+| MetadataFuzzer        | 3          | 6       | Already split               |
+| ConformanceFuzzer     | 7          | 3       | Already split               |
+| EncodingFuzzer        | 7          | 3       | Already split               |
+| HeaderFuzzer          | 6          | 0       | Already annotated           |
+| PrivateTagFuzzer      | 9          | 1       | Already annotated           |
+| SequenceFuzzer        | 6          | 2       | Split implemented           |
+| EncapsulatedPDFFuzzer | 4          | 2       | Split implemented           |
+| NMFuzzer              | 3          | 1       | Split implemented           |
+| RTDoseFuzzer          | 2          | 3       | Split implemented           |
+| RTSSFuzzer            | 1          | 4       | Split implemented           |
+| SegmentationFuzzer    | 3          | 1       | Split implemented           |
+| ReferenceFuzzer       | 0+2 new    | 10      | New structural + split impl |
+| PetFuzzer             | 0+1 new    | 3       | New structural + split impl |
+| CalibrationFuzzer     | 0+2 new    | 4       | New structural + split impl |
+| DictionaryFuzzer      | ~30%       | ~70%    | Annotate only               |
