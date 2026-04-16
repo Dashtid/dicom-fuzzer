@@ -6,32 +6,58 @@ exact tags, values, and CVE/issue references for implementation.
 
 ---
 
-## Scope policy (2026-04-13)
+## Scope policy (2026-04-13, refined 2026-04-16)
 
 Format fuzzers are only worth adding when a matching seed exists in
-`dicom-seeds/`. Current seed corpus modalities: CT, DX, MR, NM, PET,
-RT-Dose, RT-Struct, SEG, encapsulated-PDF (9 modalities). Fuzzers for
-SOP classes outside this set produce no crashes against the actual
-target (Hermes.exe with these seeds) because `can_mutate()` returns
-False for every campaign input.
+`dicom-seeds/` **and** Hermes.exe actually reads that SOP class.
+
+Hermes.exe's supported SOP classes (from its binary):
+
+- 1.2.840.10008.5.1.4.1.1.2 -- CT Image Storage
+- 1.2.840.10008.5.1.4.1.1.4 -- MR Image Storage
+- 1.2.840.10008.5.1.4.1.1.7 -- Secondary Capture Image Storage
+- 1.2.840.10008.5.1.4.1.1.7.4 -- Multi-frame True Color SC
+- 1.2.840.10008.5.1.4.1.1.20 -- NM Image Storage
+- 1.2.840.10008.5.1.4.1.1.66.4 -- Segmentation Storage
+- 1.2.840.10008.5.1.4.1.1.104.1 -- Encapsulated PDF Storage
+- 1.2.840.10008.5.1.4.1.1.128 -- PET Image Storage
+- 1.2.840.10008.5.1.4.1.1.481.2 -- RT Dose Storage
+- 1.2.840.10008.5.1.4.1.1.481.3 -- RT Structure Set Storage
+
+Current seed corpus modalities (after dropping DX): CT, MR, NM, PET,
+RT-Dose, RT-Struct, SEG, encapsulated-PDF (**8 modalities**). DX was
+removed because Hermes does not list DX in its supported SOP classes
+-- mutated DX files are rejected at load and produce no crash signal.
 
 Going forward:
 
-1. Format work focuses on **CVE gap coverage within the 9 seed modalities**.
-2. New modality fuzzers (US, MG, XA, MRS, PM, SC, PR, VL, SR, Waveform,
-   etc.) require seed corpus expansion first.
-3. Non-format work (network/DIMSE deepening, campaign tooling, crash
+1. Format work focuses on **CVE gap coverage within the 8 seed modalities**.
+2. Two Hermes-supported modalities still lack seeds: SC and
+   Multi-frame True Color SC. Sourcing these unlocks reinstating
+   `SecondaryCaptureFuzzer` (deleted in #246).
+3. The other 8 deleted modality fuzzers (US, MG, XA, MRS, PM, PR, SR,
+   Waveform) target SOP classes Hermes does not support -- leave them
+   deleted.
+4. Non-format work (network/DIMSE deepening, campaign tooling, crash
    triage automation, coverage-guided fuzzing) is the higher-leverage track.
 
 ---
 
-## P1: CVE gap audit refocus on seed-corpus modalities
+## Format fuzzing -- P2: Reinstate SecondaryCaptureFuzzer
 
-Re-read `docs/CVE_AUDIT.md` and filter the ~140 CVEs / 13 gap list to
-only those affecting CT, MR, PET, NM, DX, RT-Dose, RT-Struct, SEG, or
-encapsulated-PDF SOP classes. Identify which gaps are still uncovered
-within this scope. Output: a short addendum to CVE_AUDIT.md listing
-"in-scope gaps" with target fuzzer + attack.
+Hermes supports Secondary Capture (SOP 1.2.840.10008.5.1.4.1.1.7) and
+Multi-frame True Color SC (1.2.840.10008.5.1.4.1.1.7.4) but the seed
+corpus has no SC files. Sourcing 2-3 SC files into `dicom-seeds/sc/`
+unlocks reinstating `SecondaryCaptureFuzzer` (deleted in #246). The
+fuzzer code is already written -- `git show 45648248 --` can recover
+it. Steps:
+
+1. Drop 2-3 clinical SC files (screenshots, scanned images) in
+   `dicom-seeds/sc/`, sanitised via `dicom-fuzzer sanitize`.
+2. Revert the fuzzer + test deletions from PR #246.
+3. Re-register in `attacks/format/__init__.py` and
+   `core/mutation/mutator.py`.
+4. Bump `test_generator.py` strategy count 33 -> 34.
 
 ---
 
@@ -76,7 +102,7 @@ for quality bar per modality and sourcing process.
 
 ### Full campaign run
 
-Overnight run with 9 seeds + 30s timeout. Analyze crash-by-strategy.
+Overnight run with 8 seeds + 30s timeout. Analyze crash-by-strategy.
 
 ### Second-pass structural audit
 
