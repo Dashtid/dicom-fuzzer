@@ -4,10 +4,11 @@ Systematic cross-reference of every known DICOM CVE (2022-2026) against
 the fuzzer's 30 mutation strategies. Identifies covered trigger patterns
 and gaps driving new backlog items.
 
-**Last updated:** 2026-04-10 (round 2 deep dive)
-**Strategies audited:** 30 (20 format + 10 multiframe)
+**Last updated:** 2026-04-13 (refocus addendum -- see end of file)
+**Strategies audited:** 33 (23 format + 10 multiframe, post PR #246)
 **CVEs catalogued:** ~140 total, ~85 file-parsing (in scope)
 **CISA ICS Medical Advisories cross-referenced:** 23 (2022-2026)
+**Gap status:** All 13 P1/P2 gaps closed (G1-G13). See addendum.
 
 ---
 
@@ -514,3 +515,95 @@ file-parsing (up from ~80). Coverage rate unchanged at ~81%.
 6. **Preamble polyglot is a cross-domain attack** -- PE/ELF/JSON in
    128-byte preamble enables novel exploitation chains (Orthanc RCE
    via JSON preamble -> config overwrite -> Lua execution).
+
+---
+
+## 2026-04-13 Refocus Addendum: Scope and Gap Closure
+
+### Scope
+
+Since this project's primary target is Hermes.exe driven by the
+`dicom-seeds/` corpus, only CVEs/patterns that can be triggered by
+files matching one of the 9 seed modalities are actionable:
+
+CT, DX, MR, NM, PET, RT-Dose, RT-Struct, SEG, encapsulated-PDF.
+
+Nine modality fuzzers (Waveform/SR/US/MG/XA/MRS/PM/SC/PR) were
+removed in PR #246 because no matching seed exists; their
+`can_mutate()` always returned False during campaigns.
+
+**In-scope vs out-of-scope CVE breakdown:**
+
+Almost every CVE in the audit is **parser-level** (file meta, length
+fields, encoding, sequence structure, pixel codecs, overlay,
+PALETTE COLOR, VOI LUT, DICOMDIR, preamble, deflate). Parser-level
+CVEs fire regardless of SOP class -- they are in scope for every
+seed modality.
+
+The audit catalogues **zero** CVEs that are bound exclusively to the
+SOP classes of the removed fuzzers (no SR ContentSequence CVEs, no
+US Doppler region CVEs, no MG/DBT-specific CVEs, etc.). All 13 gaps
+and all 16 covered patterns remain in-scope.
+
+### Gap Closure Status (all 13 P1/P2 gaps shipped)
+
+| Gap | Pattern                                     | Status        | Strategy                               |
+| --- | ------------------------------------------- | ------------- | -------------------------------------- |
+| G1  | PALETTE COLOR + LUT overflow                | DONE (P1 QW)  | PixelFuzzer                            |
+| G2  | JPEG-LS codec corruption                    | DONE (P1 med) | CompressedPixelFuzzer                  |
+| G3  | Deflated transfer syntax bomb               | DONE (P2)     | DeflateBombFuzzer                      |
+| G4  | UL-as-US dimension VR confusion             | DONE (P1 QW)  | StructureFuzzer (binary)               |
+| G5  | DICOMDIR path traversal                     | DONE (P2)     | DicomdirFuzzer                         |
+| G6  | Format string injection                     | DONE (P1 QW)  | EncodingFuzzer / HeaderFuzzer          |
+| G7  | VOI LUT / Palette LUT corruption            | DONE (P1 med) | CalibrationFuzzer                      |
+| G8  | Non-standard VR in file meta                | DONE (P1 QW)  | StructureFuzzer / ConformanceFuzzer    |
+| G9  | HighBit >= BitsAllocated                    | DONE (P1 QW)  | PixelFuzzer (\_bit_depth_attack combo) |
+| G10 | Duplicate tags in file meta                 | DONE (P1 med) | StructureFuzzer (group 0002 variant)   |
+| G11 | Preamble polyglot (PE/ELF/JSON)             | DONE (P2)     | PreambleFuzzer                         |
+| G12 | PhotometricInterpretation -> codec mismatch | DONE (P1 QW)  | PixelFuzzer (\_photometric_confusion)  |
+| G13 | OverlayData shorter than dims               | DONE (P1 QW)  | PixelFuzzer (overlay attacks)          |
+
+**Updated coverage estimate:** ~95%+ of catalogued file-parsing
+trigger patterns are now exercised. Remaining ~5% are either niche
+fo-dicom issues (see below) or out-of-scope (network/HTTP/config).
+
+### Candidate Next Work (in-scope, lower priority)
+
+The 4 fo-dicom issues marked "Niche" in round 2 are the only
+remaining named gaps within scope. None has a CVE assigned and
+none is high-impact, but they are concrete and small:
+
+| Issue                       | Trigger                                   | Notes                                                                                 |
+| --------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------- |
+| fo-dicom #1009              | SQ with explicit length = 0               | Infinite loop in DicomReader. Add to StructureFuzzer mutate_bytes.                    |
+| fo-dicom #763               | Null tag (0000,0000) in encapsulated frag | Add to CompressedPixelFuzzer mutate_bytes.                                            |
+| fo-dicom #1386              | SV/UV VR with wrong length-field size     | Requires SV/UV-aware mutation in StructureFuzzer; new VRs added in DICOM 2024.        |
+| fo-dicom #1982 (still OPEN) | SkipLargeTags read mode + SQ VR           | Read-mode-specific; only triggers when target uses SkipLargeTags. Verify Hermes does. |
+
+### Out-of-Scope Reminders
+
+- **Network-only CVEs** (DCMTK storescp, dcmqrscp, OS injection,
+  symlink path traversal, DIMSE NULL deref): covered by the network
+  module (StatefulFuzzer/DIMSEFuzzer/TLSSecurityTester), not file
+  fuzzing.
+- **DICOM-XML / XXE** (Merge CVE-2024-23913): no XML output path in
+  the current target; defer.
+- **HTTP / REST API** (Orthanc CVE-2026-5440): defer until web
+  module exists.
+- **Config / Lua RCE chains** (Orthanc CVE-2023-33466 post-preamble):
+  G11 preamble polyglot covers the file-side trigger; the post-
+  exploitation chain is environment-specific.
+
+### Conclusion
+
+The CVE_AUDIT objective ("close every named CVE pattern within
+target scope") is effectively complete for file fuzzing. Future
+format-fuzzer work should be either:
+
+1. Address the 4 niche fo-dicom issues above (small, ~0.5h each).
+2. Wait for new CVE disclosures (revisit this audit quarterly).
+3. Expand the seed corpus (US/MG/XA/etc.) which then unlocks
+   reinstating the modality fuzzers removed in PR #246.
+
+Higher-leverage tracks remain: campaign tooling, crash triage
+automation, coverage-guided fuzzing, and network module deepening.
