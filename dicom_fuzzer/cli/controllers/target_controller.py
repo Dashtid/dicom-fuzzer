@@ -133,6 +133,20 @@ class TargetTestingController:
                 f"({tests_per_sec:.1f} tests/sec)"
             )
 
+            # Re-save session.json so crashes recorded above are persisted.
+            # The initial save in campaign_runner happens BEFORE target
+            # testing, so without this the crashes list in session.json
+            # would always be empty.
+            session_json = output_dir / "reports" / "json" / "session.json"
+            if session_json.parent.exists():
+                try:
+                    session.save_session_report(session_json)
+                    logger.debug(
+                        "Session JSON re-saved with crash data: %s", session_json
+                    )
+                except Exception as e:
+                    logger.warning("Failed to re-save session JSON: %s", e)
+
             # Generate HTML report
             report_path = TargetTestingController._generate_report(session, output_dir)
             if report_path:
@@ -340,12 +354,24 @@ class TargetTestingController:
                     severity = "medium"
 
             exit_code = getattr(result, "exit_code", None)
-            if not exception_message and exit_code is not None:
-                exception_message = f"Process exited with code {exit_code}"
+            mem_exceeded = getattr(result, "memory_limit_exceeded", False)
+            peak_mem = getattr(result, "peak_memory_mb", 0.0)
+
+            if mem_exceeded:
+                crash_type = "memory_limit"
+                if not exception_message:
+                    exception_message = f"Memory limit exceeded: {peak_mem:.1f}MB"
+                if not exception_type:
+                    exception_type = "MemoryLimitExceeded"
+                severity = "high"
+            else:
+                crash_type = "crash"
+                if not exception_message and exit_code is not None:
+                    exception_message = f"Process exited with code {exit_code}"
 
             session.record_crash(
                 file_id=file_id,
-                crash_type="crash",
+                crash_type=crash_type,
                 severity=severity,
                 return_code=exit_code,
                 exception_type=exception_type,
