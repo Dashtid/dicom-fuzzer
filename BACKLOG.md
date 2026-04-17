@@ -43,24 +43,6 @@ Going forward:
 
 ---
 
-## Format fuzzing -- P2: Reinstate SecondaryCaptureFuzzer
-
-Hermes supports Secondary Capture (SOP 1.2.840.10008.5.1.4.1.1.7) and
-Multi-frame True Color SC (1.2.840.10008.5.1.4.1.1.7.4) but the seed
-corpus has no SC files. Sourcing 2-3 SC files into `dicom-seeds/sc/`
-unlocks reinstating `SecondaryCaptureFuzzer` (deleted in #246). The
-fuzzer code is already written -- `git show 45648248 --` can recover
-it. Steps:
-
-1. Drop 2-3 clinical SC files (screenshots, scanned images) in
-   `dicom-seeds/sc/`, sanitised via `dicom-fuzzer sanitize`.
-2. Revert the fuzzer + test deletions from PR #246.
-3. Re-register in `attacks/format/__init__.py` and
-   `core/mutation/mutator.py`.
-4. Bump `test_generator.py` strategy count 33 -> 34.
-
----
-
 ## Format fuzzing -- P2: CVE gap coverage (larger scope)
 
 ---
@@ -94,19 +76,22 @@ ImagePositionPatient. FoR UID orphaning.
 
 ### Build local high-quality DICOM seed corpus
 
-Assemble a diverse, realistic seed corpus in the local-only
-`dicom-seeds/` directory (fully gitignored). See project wiki
-for quality bar per modality and sourcing process.
+Maintain a diverse, realistic seed corpus in the local-only
+`dicom-seeds/` directory (fully gitignored). Current state after
+2026-04-17 audit: 11 files across 9 modalities, each with realistic
+clinical dimensions and tag counts.
 
-**Effort:** Ongoing.
+**Effort:** Ongoing. Refresh when Hermes adds new supported SOP classes.
 
 ### Full campaign run
 
-Overnight run with 8 seeds + 30s timeout. Analyze crash-by-strategy.
+Overnight run with `-c 200` across all 11 seeds (~2200 files, 60s
+timeout). Analyze crash-by-strategy for statistical significance.
 
 ### Second-pass structural audit
 
-After campaign data: remove/redesign zero-crash strategies.
+After the larger campaign: remove/redesign zero-crash strategies
+using saturation-curve data.
 
 ---
 
@@ -192,3 +177,8 @@ DynamoRIO/Frida instrumentation, coverage feedback, seed selection.
 | P0: State machine wiring: StatefulFuzzer.fuzz(), execute_event() PDU building      | (build_pdu_for_event + types)  |
 | P0: DIMSE PDU packing: DIMSEMessage.to_p_data_tf_pdu() + C-STORE from pydicom      | (26 new tests)                 |
 | Removed 9 out-of-scope modality fuzzers (Waveform/SR/US/MG/XA/MRS/PM/SC/PR)        | (scope policy 2026-04-13)      |
+| Reinstate SecondaryCaptureFuzzer (SC is Hermes-supported)                          | #257                           |
+| Auto-triage campaign hook + CWE-400 crash classification                           | #249                           |
+| Markdown report conversion (campaign + series3d reporters)                         | #258                           |
+| Round-robin strategy selection + campaign structural audit                         | #259                           |
+| Seed corpus quality pass (rich SEG/RT-Struct/PDF, trimmed SC from 8 to 3)          | (2026-04-17 local only)        |
