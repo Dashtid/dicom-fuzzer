@@ -122,12 +122,31 @@ class DICOMGenerator:
         self.stats = GenerationStats()
         self.mutator.start_session()
 
+        # Round-robin pass: generate one file per applicable strategy
+        # so modality-specific strategies that match this seed are
+        # guaranteed at least one attempt. Remaining budget fills with
+        # random selection (the default path).
+        applicable = self.mutator._get_applicable_strategies(base_dataset, strategies)
+        round_robin_names = [s.strategy_name for s in applicable]
+        remaining = count
+
         # Suppress pydicom warnings during generation -- mutations
         # intentionally create malformed data that triggers warnings
         # (encoding failures, VR mismatches, oversized elements).
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="pydicom")
-            for _i in range(count):
+
+            # Phase 1: one file per applicable strategy (round-robin)
+            for name in round_robin_names:
+                if remaining <= 0:
+                    break
+                result = self._generate_single_file(base_dataset, [name])
+                if result is not None:
+                    generated_files.append(result)
+                remaining -= 1
+
+            # Phase 2: fill remaining budget with random selection
+            for _i in range(remaining):
                 result = self._generate_single_file(base_dataset, strategies)
                 if result is not None:
                     generated_files.append(result)
