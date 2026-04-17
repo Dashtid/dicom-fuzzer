@@ -155,6 +155,31 @@ class CrashTriageEngine:
         triages = [self.triage_crash(crash) for crash in crashes]
         return sorted(triages, key=lambda t: t.priority_score, reverse=True)
 
+    def cluster_crashes(
+        self, crashes: list[CrashRecord]
+    ) -> dict[str, list[CrashRecord]]:
+        """Group crashes by signature so duplicate bugs collapse into one cluster.
+
+        The signature is the same hash used by `_generate_crash_id` -- crashes
+        with identical crash_type + exception_type + exception_message + stack
+        trace get the same key. Useful for deduplicating campaign output where
+        50 fuzzed inputs may all hit the same underlying bug.
+
+        Args:
+            crashes: List of crash records to cluster.
+
+        Returns:
+            Mapping of signature -> list of crashes sharing that signature.
+            Order within each list preserves the input order so the first
+            crash in a cluster is the earliest occurrence.
+
+        """
+        clusters: dict[str, list[CrashRecord]] = {}
+        for crash in crashes:
+            signature = self._generate_crash_id(crash)
+            clusters.setdefault(signature, []).append(crash)
+        return clusters
+
     def get_triage_summary(self, triages: list[CrashTriage]) -> dict[str, Any]:
         """Get summary statistics for triage results.
 

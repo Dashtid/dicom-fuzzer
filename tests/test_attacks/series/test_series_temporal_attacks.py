@@ -644,3 +644,209 @@ class TestRandomness:
 
         # Same number of records with same seed
         assert len(records1) == len(records2)
+
+
+# ---------------------------------------------------------------------------
+# New Temporal Attack Tests (InstanceCreationTime, delta violations, cardiac)
+# ---------------------------------------------------------------------------
+
+
+class TestInstanceCreationChaos:
+    """Test _temporal_instance_creation_chaos helper."""
+
+    def test_produces_record(self, mutator, sample_datasets):
+        records: list = []
+        mutator._temporal_instance_creation_chaos(sample_datasets, records)
+        assert len(records) == 1
+        assert records[0].tag == "InstanceCreationTime"
+        assert records[0].details["attack_type"] == "instance_creation_chaos"
+
+    def test_past_date_sub(self, mutator, sample_datasets):
+        import unittest.mock as mock
+
+        with mock.patch("random.choice", side_effect=["past_date"]):
+            records: list = []
+            mutator._temporal_instance_creation_chaos(sample_datasets, records)
+        assert records[0].details["sub"] == "past_date"
+        assert any(
+            getattr(ds, "InstanceCreationDate", None) == "19000101"
+            for ds in sample_datasets
+        )
+
+    def test_future_date_sub(self, mutator, sample_datasets):
+        import unittest.mock as mock
+
+        with mock.patch("random.choice", side_effect=["future_date"]):
+            records: list = []
+            mutator._temporal_instance_creation_chaos(sample_datasets, records)
+        assert records[0].details["sub"] == "future_date"
+        assert any(
+            getattr(ds, "InstanceCreationDate", None) == "99991231"
+            for ds in sample_datasets
+        )
+
+    def test_invalid_time_sub(self, mutator, sample_datasets):
+        import unittest.mock as mock
+
+        with mock.patch("random.choice", side_effect=["invalid_time"]):
+            records: list = []
+            mutator._temporal_instance_creation_chaos(sample_datasets, records)
+        assert records[0].details["sub"] == "invalid_time"
+        assert any(
+            getattr(ds, "InstanceCreationTime", None) == "25:00:00"
+            for ds in sample_datasets
+        )
+
+    def test_empty_time_sub(self, mutator, sample_datasets):
+        import unittest.mock as mock
+
+        with mock.patch("random.choice", side_effect=["empty_time"]):
+            records: list = []
+            mutator._temporal_instance_creation_chaos(sample_datasets, records)
+        assert records[0].details["sub"] == "empty_time"
+        assert any(
+            getattr(ds, "InstanceCreationTime", None) == "" for ds in sample_datasets
+        )
+
+    def test_via_mutate_temporal_inconsistency(
+        self, mutator, sample_datasets, mock_series
+    ):
+        def mock_choice(x):
+            if isinstance(x, list) and "instance_creation" in x:
+                return "instance_creation"
+            return x[0] if isinstance(x, list) and x else x
+
+        with pytest.MonkeyPatch().context() as m:
+            m.setattr(random, "choice", mock_choice)
+            _, records = mutator._mutate_temporal_inconsistency(
+                sample_datasets, mock_series, mutation_count=1
+            )
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "instance_creation_chaos"
+
+
+class TestDeltaViolation:
+    """Test _temporal_delta_violation helper."""
+
+    def test_produces_record(self, mutator, sample_datasets):
+        records: list = []
+        mutator._temporal_delta_violation(sample_datasets, records)
+        assert len(records) == 1
+        assert records[0].tag == "AcquisitionTime"
+        assert records[0].details["attack_type"] == "delta_violation"
+
+    def test_negative_delta_sub(self, mutator, sample_datasets):
+        import unittest.mock as mock
+
+        with mock.patch("random.choice", side_effect=["negative_delta"]):
+            records: list = []
+            mutator._temporal_delta_violation(sample_datasets, records)
+        assert records[0].details["sub"] == "negative_delta"
+        # Times should be descending
+        times = [ds.AcquisitionTime for ds in sample_datasets]
+        assert times[0] > times[1] > times[2]
+
+    def test_zero_delta_sub(self, mutator, sample_datasets):
+        import unittest.mock as mock
+
+        with mock.patch("random.choice", side_effect=["zero_delta"]):
+            records: list = []
+            mutator._temporal_delta_violation(sample_datasets, records)
+        assert records[0].details["sub"] == "zero_delta"
+        assert sample_datasets[0].AcquisitionTime == sample_datasets[1].AcquisitionTime
+
+    def test_huge_delta_sub(self, mutator, sample_datasets):
+        import unittest.mock as mock
+
+        with mock.patch("random.choice", side_effect=["huge_delta"]):
+            records: list = []
+            mutator._temporal_delta_violation(sample_datasets, records)
+        assert records[0].details["sub"] == "huge_delta"
+        assert sample_datasets[0].AcquisitionTime == "000000.000000"
+        assert sample_datasets[1].AcquisitionTime == "230000.000000"
+
+    def test_skips_single_dataset(self, mutator, mock_series):
+        records: list = []
+        mutator._temporal_delta_violation([Dataset()], records)
+        assert len(records) == 0  # no-op for single slice
+
+    def test_via_mutate_temporal_inconsistency(
+        self, mutator, sample_datasets, mock_series
+    ):
+        def mock_choice(x):
+            if isinstance(x, list) and "delta_violation" in x:
+                return "delta_violation"
+            return x[0] if isinstance(x, list) and x else x
+
+        with pytest.MonkeyPatch().context() as m:
+            m.setattr(random, "choice", mock_choice)
+            _, records = mutator._mutate_temporal_inconsistency(
+                sample_datasets, mock_series, mutation_count=1
+            )
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "delta_violation"
+
+
+class TestCardiacTriggerChaos:
+    """Test _temporal_cardiac_trigger_chaos helper."""
+
+    def test_produces_record(self, mutator, sample_datasets):
+        records: list = []
+        mutator._temporal_cardiac_trigger_chaos(sample_datasets, records)
+        assert len(records) == 1
+        assert records[0].tag == "TriggerTime"
+        assert records[0].details["attack_type"] == "cardiac_trigger_chaos"
+
+    def test_negative_trigger_sub(self, mutator, sample_datasets):
+        import unittest.mock as mock
+
+        with mock.patch("random.choice", side_effect=["negative_trigger"]):
+            records: list = []
+            mutator._temporal_cardiac_trigger_chaos(sample_datasets, records)
+        assert records[0].details["sub"] == "negative_trigger"
+        assert all(ds.TriggerTime == -1.0 for ds in sample_datasets)
+
+    def test_exceed_rr_sub(self, mutator, sample_datasets):
+        import unittest.mock as mock
+
+        with mock.patch("random.choice", side_effect=["exceed_rr"]):
+            records: list = []
+            mutator._temporal_cardiac_trigger_chaos(sample_datasets, records)
+        assert records[0].details["sub"] == "exceed_rr"
+        assert all(ds.TriggerTime == 5000.0 for ds in sample_datasets)
+        assert all(ds.HeartRate == 60 for ds in sample_datasets)
+
+    def test_zero_trigger_sub(self, mutator, sample_datasets):
+        import unittest.mock as mock
+
+        with mock.patch("random.choice", side_effect=["zero_trigger"]):
+            records: list = []
+            mutator._temporal_cardiac_trigger_chaos(sample_datasets, records)
+        assert records[0].details["sub"] == "zero_trigger"
+        assert all(ds.TriggerTime == 0.0 for ds in sample_datasets)
+
+    def test_nan_trigger_sub(self, mutator, sample_datasets):
+        import math
+        import unittest.mock as mock
+
+        with mock.patch("random.choice", side_effect=["nan_trigger"]):
+            records: list = []
+            mutator._temporal_cardiac_trigger_chaos(sample_datasets, records)
+        assert records[0].details["sub"] == "nan_trigger"
+        assert all(math.isnan(ds.TriggerTime) for ds in sample_datasets)
+
+    def test_via_mutate_temporal_inconsistency(
+        self, mutator, sample_datasets, mock_series
+    ):
+        def mock_choice(x):
+            if isinstance(x, list) and "cardiac_trigger" in x:
+                return "cardiac_trigger"
+            return x[0] if isinstance(x, list) and x else x
+
+        with pytest.MonkeyPatch().context() as m:
+            m.setattr(random, "choice", mock_choice)
+            _, records = mutator._mutate_temporal_inconsistency(
+                sample_datasets, mock_series, mutation_count=1
+            )
+        assert len(records) == 1
+        assert records[0].details["attack_type"] == "cardiac_trigger_chaos"

@@ -6,6 +6,8 @@ These generate edge cases and malformed data for discovering parser bugs.
 
 Generic fuzzers (work on any SOP class):
 - CalibrationFuzzer: Deterministic calibration mutations for testing
+- DeflateBombFuzzer: Decompression bomb via Deflated LE transfer syntax
+- DicomdirFuzzer: DICOMDIR path traversal and deep-nesting attacks
 - CompressedPixelFuzzer: JPEG/JPEG2000/RLE encapsulation corruption
 - ConformanceFuzzer: SOP Class and Transfer Syntax validation
 - DictionaryFuzzer: Domain-aware mutations from DICOM data dictionaries
@@ -15,6 +17,7 @@ Generic fuzzers (work on any SOP class):
 - MetadataFuzzer: Patient/study metadata mutations
 - PixelFuzzer: Image dimension and pixel data mutations
 - PixelReencodingFuzzer: Re-encode uncompressed pixels as RLE then mutate
+- PreambleFuzzer: 128-byte preamble polyglot attacks (PE/ELF/JSON headers)
 - PrivateTagFuzzer: Vendor-specific tag violations
 - ReferenceFuzzer: Link integrity and reference chain attacks
 - SequenceFuzzer: Nested sequence and item structure attacks
@@ -26,6 +29,7 @@ Modality-specific fuzzers (require matching seed files):
 - PetFuzzer: PET SUV calibration chain and decay parameter attacks
 - RTDoseFuzzer: RT Dose grid scaling and DVH structure attacks
 - RTStructureSetFuzzer: RT Structure Set contour and ROI attacks
+- SecondaryCaptureFuzzer: SC pixel geometry and color space attacks
 - SegmentationFuzzer: Segmentation segment/frame mapping attacks
 """
 
@@ -33,6 +37,8 @@ from .base import FormatFuzzerBase
 from .calibration_fuzzer import CalibrationFuzzer
 from .compressed_pixel_fuzzer import CompressedPixelFuzzer
 from .conformance_fuzzer import ConformanceFuzzer
+from .deflate_bomb_fuzzer import DeflateBombFuzzer
+from .dicomdir_fuzzer import DicomdirFuzzer
 from .dictionary_fuzzer import DictionaryFuzzer
 from .empty_value_fuzzer import EmptyValueFuzzer
 from .encapsulated_pdf_fuzzer import EncapsulatedPdfFuzzer
@@ -43,10 +49,12 @@ from .nm_fuzzer import NuclearMedicineFuzzer
 from .pet_fuzzer import PetFuzzer
 from .pixel_fuzzer import PixelFuzzer
 from .pixel_reencoding_fuzzer import PixelReencodingFuzzer
+from .preamble_fuzzer import PreambleFuzzer
 from .private_tag_fuzzer import PrivateTagFuzzer
 from .reference_fuzzer import ReferenceFuzzer
 from .rt_dose_fuzzer import RTDoseFuzzer
 from .rtss_fuzzer import RTStructureSetFuzzer
+from .secondary_capture_fuzzer import SecondaryCaptureFuzzer
 from .seg_fuzzer import SegmentationFuzzer
 from .sequence_fuzzer import SequenceFuzzer
 from .structure_fuzzer import StructureFuzzer
@@ -55,6 +63,8 @@ __all__ = [
     "CalibrationFuzzer",
     "CompressedPixelFuzzer",
     "ConformanceFuzzer",
+    "DeflateBombFuzzer",
+    "DicomdirFuzzer",
     "DictionaryFuzzer",
     "EmptyValueFuzzer",
     "EncapsulatedPdfFuzzer",
@@ -66,10 +76,12 @@ __all__ = [
     "PetFuzzer",
     "PixelFuzzer",
     "PixelReencodingFuzzer",
+    "PreambleFuzzer",
     "PrivateTagFuzzer",
     "RTDoseFuzzer",
     "RTStructureSetFuzzer",
     "ReferenceFuzzer",
+    "SecondaryCaptureFuzzer",
     "SegmentationFuzzer",
     "SequenceFuzzer",
     "StructureFuzzer",

@@ -3416,17 +3416,18 @@ class TestMutateInterface:
             "ww": calibration_dataset.WindowWidth,
             "st": calibration_dataset.SliceThickness,
         }
+        missing = object()
         found = False
         for _ in range(20):
             ds = copy.deepcopy(calibration_dataset)
             result = cal_fuzzer.mutate(ds)
             changed = (
-                list(result.PixelSpacing) != orig["ps"]
-                or result.RescaleSlope != orig["slope"]
-                or result.RescaleIntercept != orig["intercept"]
-                or result.WindowCenter != orig["wc"]
-                or result.WindowWidth != orig["ww"]
-                or result.SliceThickness != orig["st"]
+                list(getattr(result, "PixelSpacing", missing)) != orig["ps"]
+                or getattr(result, "RescaleSlope", missing) != orig["slope"]
+                or getattr(result, "RescaleIntercept", missing) != orig["intercept"]
+                or getattr(result, "WindowCenter", missing) != orig["wc"]
+                or getattr(result, "WindowWidth", missing) != orig["ww"]
+                or getattr(result, "SliceThickness", missing) != orig["st"]
             )
             if changed:
                 found = True

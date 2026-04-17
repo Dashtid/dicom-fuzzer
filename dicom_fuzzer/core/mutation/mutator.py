@@ -111,6 +111,8 @@ class DicomMutator:
             CompressedPixelFuzzer,
         )
         from dicom_fuzzer.attacks.format.conformance_fuzzer import ConformanceFuzzer
+        from dicom_fuzzer.attacks.format.deflate_bomb_fuzzer import DeflateBombFuzzer
+        from dicom_fuzzer.attacks.format.dicomdir_fuzzer import DicomdirFuzzer
         from dicom_fuzzer.attacks.format.dictionary_fuzzer import DictionaryFuzzer
         from dicom_fuzzer.attacks.format.empty_value_fuzzer import EmptyValueFuzzer
         from dicom_fuzzer.attacks.format.encapsulated_pdf_fuzzer import (
@@ -125,10 +127,14 @@ class DicomMutator:
         from dicom_fuzzer.attacks.format.pixel_reencoding_fuzzer import (
             PixelReencodingFuzzer,
         )
+        from dicom_fuzzer.attacks.format.preamble_fuzzer import PreambleFuzzer
         from dicom_fuzzer.attacks.format.private_tag_fuzzer import PrivateTagFuzzer
         from dicom_fuzzer.attacks.format.reference_fuzzer import ReferenceFuzzer
         from dicom_fuzzer.attacks.format.rt_dose_fuzzer import RTDoseFuzzer
         from dicom_fuzzer.attacks.format.rtss_fuzzer import RTStructureSetFuzzer
+        from dicom_fuzzer.attacks.format.secondary_capture_fuzzer import (
+            SecondaryCaptureFuzzer,
+        )
         from dicom_fuzzer.attacks.format.seg_fuzzer import SegmentationFuzzer
         from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
         from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
@@ -164,6 +170,8 @@ class DicomMutator:
         for fuzzer_cls in [
             CalibrationFuzzer,
             CompressedPixelFuzzer,
+            DeflateBombFuzzer,
+            DicomdirFuzzer,
             ConformanceFuzzer,
             DictionaryFuzzer,
             EmptyValueFuzzer,
@@ -174,11 +182,13 @@ class DicomMutator:
             NuclearMedicineFuzzer,
             PetFuzzer,
             PixelFuzzer,
+            PreambleFuzzer,
             PixelReencodingFuzzer,
             PrivateTagFuzzer,
             RTDoseFuzzer,
             RTStructureSetFuzzer,
             ReferenceFuzzer,
+            SecondaryCaptureFuzzer,
             SegmentationFuzzer,
             SequenceFuzzer,
             StructureFuzzer,

@@ -82,6 +82,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   MicroDicom (7), Orthanc (9), libdicom (2), MedDream (10+), OsiriX
   (3), plus ~40 fo-dicom crash issues with no formal CVEs.
 
+- **P1 CVE quick wins (7 gaps)** -- implements G1, G4, G6, G8, G9,
+  G12, G13 from the CVE audit: PALETTE COLOR + LUT overflow
+  (CVE-2026-5443, CVE-2024-22391), HighBit >= BitsAllocated
+  (CVE-2024-52333), Photometric YBR codec mismatch (CVE-2025-53618),
+  OverlayData truncation (fo-dicom #1728), UL-as-US dimension VR
+  confusion (CVE-2026-5442), non-standard VR in file meta
+  (CVE-2026-3650, UNPATCHED), and format string injection
+  (CVE-2024-23914). Extends PixelFuzzer (4 attacks),
+  StructureFuzzer (2 binary attacks, pool 7->9), and HeaderFuzzer
+  (format string payloads in 5 string VR types). Pushes CVE
+  coverage from ~82% to ~95%.
+
+- **P1 CVE medium effort (3 gaps)** -- implements G2, G7, G10:
+  `_corrupt_jpegls_codestream` in CompressedPixelFuzzer adds
+  JPEG-LS Lossless transfer syntax with 4 malformed codestream
+  variants (DCMTK CVE-2025-2357). `_voi_lut_corruption` in
+  CalibrationFuzzer adds VOI LUT Sequence with descriptor/data
+  mismatches and type confusion (DCMTK CVE-2024-28130, fo-dicom
+  #1062). `_binary_duplicate_meta_tag` in StructureFuzzer
+  duplicates a group 0002 element to trigger UAF in parsers with
+  hash-map destroy-on-collision (libdicom CVE-2024-24793/24794).
+
+- **MR modality expansion** -- `fuzz_mr_parameters` in CalibrationFuzzer
+  with 6 attack types targeting EchoTime, RepetitionTime, FlipAngle,
+  InversionTime, MagneticFieldStrength, and DiffusionBValue.
+
+- **DX/CR modality expansion** -- `fuzz_dx_parameters` in CalibrationFuzzer
+  with 5 attack types targeting ExposureInuAs, KVP,
+  DistanceSourceToDetector, and ExposureTime.
+
+- **Multiframe functional group crash attacks** -- 2 new attacks in
+  FunctionalGroupStrategy: `_attack_empty_frame_content` and
+  `_attack_invalid_plane_position` (NaN/Inf ImagePositionPatient).
+
+- **Concurrent field mismatches** -- `_concurrent_field_mismatch` in
+  PixelFuzzer sets NumberOfFrames + BitsAllocated + SamplesPerPixel
+  all to invalid values simultaneously.
+
 ## [1.10.1] - 2026-04-09 - Unbundle seed corpus
 
 Course-correction on the "bundled PHI-free seed corpus" feature shipped in

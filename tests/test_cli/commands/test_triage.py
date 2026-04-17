@@ -126,3 +126,31 @@ class TestTriageJsonFlag:
         assert "triages" in parsed
         assert "summary" in parsed
         assert parsed["session_id"] == "sess_abc"
+
+
+class TestTriageReportDir:
+    """--report-dir writes per-cluster markdown files to disk."""
+
+    def test_report_dir_writes_index_and_cluster_files(self, tmp_path, capsys):
+        session_file = tmp_path / "session.json"
+        session_file.write_text(json.dumps(_make_session([_make_crash("SIGSEGV")])))
+        report_dir = tmp_path / "triage_reports"
+
+        result = main([str(session_file), "--report-dir", str(report_dir)])
+        assert result == 0
+        assert (report_dir / "index.md").is_file()
+        assert any(report_dir.glob("cluster_*.md"))
+
+        captured = capsys.readouterr()
+        assert "Wrote" in captured.out
+        assert str(report_dir) in captured.out
+
+    def test_report_dir_with_no_crashes_writes_nothing(self, tmp_path):
+        # Empty crashes list returns early before report dir is touched
+        session_file = tmp_path / "session.json"
+        session_file.write_text(json.dumps(_make_session([])))
+        report_dir = tmp_path / "triage_reports"
+
+        result = main([str(session_file), "--report-dir", str(report_dir)])
+        assert result == 0
+        assert not report_dir.exists()

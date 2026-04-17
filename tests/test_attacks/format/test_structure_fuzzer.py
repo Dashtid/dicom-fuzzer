@@ -904,3 +904,116 @@ class TestAppliedBinaryMutations:
         assert first_count + second_count <= 4, (
             "sanity: each call selects at most 2 attacks"
         )
+
+
+# ---------------------------------------------------------------------------
+# Binary attack: G4 UL-as-US dimension type confusion
+# ---------------------------------------------------------------------------
+
+
+class TestBinaryDimensionVrUl:
+    """Tests for _binary_dimension_vr_ul (Orthanc CVE-2026-5442)."""
+
+    def test_returns_bytes(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_dimension_vr_ul(file_data)
+        assert isinstance(result, bytes)
+
+    def test_length_preserved(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_dimension_vr_ul(file_data)
+        assert len(result) == len(file_data)
+
+    def test_ul_present_at_dimension_tag(self):
+        """VR 'UL' must appear at a Rows or Columns tag offset."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_dimension_vr_ul(file_data)
+        rows_tag = b"\x28\x00\x10\x00"
+        cols_tag = b"\x28\x00\x11\x00"
+        found = False
+        for tag_bytes in (rows_tag, cols_tag):
+            idx = result.find(tag_bytes, _DATA_OFFSET)
+            if idx >= 0 and result[idx + 4 : idx + 6] == b"UL":
+                found = True
+                break
+        assert found, "UL not found at Rows or Columns VR offset"
+
+    def test_non_dicom_passthrough(self):
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_dimension_vr_ul(garbage) is garbage
+
+
+# ---------------------------------------------------------------------------
+# Binary attack: G8 non-standard VR in file meta
+# ---------------------------------------------------------------------------
+
+
+class TestBinaryNonstandardVrMeta:
+    """Tests for _binary_nonstandard_vr_meta (GDCM CVE-2026-3650)."""
+
+    def test_returns_bytes(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_nonstandard_vr_meta(file_data)
+        assert isinstance(result, bytes)
+
+    def test_length_preserved(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_nonstandard_vr_meta(file_data)
+        assert len(result) == len(file_data)
+
+    def test_zz_present_in_meta_region(self):
+        """'ZZ' must appear somewhere in the file meta region."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_nonstandard_vr_meta(file_data)
+        # The file meta region starts at _DATA_OFFSET and extends until
+        # the first non-0002 group. Since we just need to verify "ZZ"
+        # was written, check it differs from the original and that "ZZ"
+        # appears in the meta-plausible region (first ~200 bytes of data).
+        assert result != file_data, "No mutation produced"
+        meta_region = result[_DATA_OFFSET : _DATA_OFFSET + 300]
+        assert b"ZZ" in meta_region, "ZZ not found in file meta region"
+
+    def test_non_dicom_passthrough(self):
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_nonstandard_vr_meta(garbage) is garbage
+
+
+# ---------------------------------------------------------------------------
+# Binary attack: G10 duplicate tags in file meta
+# ---------------------------------------------------------------------------
+
+
+class TestBinaryDuplicateMetaTag:
+    """Tests for _binary_duplicate_meta_tag (libdicom CVE-2024-24793/24794)."""
+
+    def test_returns_bytes(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_duplicate_meta_tag(file_data)
+        assert isinstance(result, bytes)
+
+    def test_output_longer_than_input(self):
+        """Duplicating an element must grow the file."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_duplicate_meta_tag(file_data)
+        assert len(result) > len(file_data)
+
+    def test_preserves_preamble_and_magic(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_duplicate_meta_tag(file_data)
+        assert result[:_DATA_OFFSET] == file_data[:_DATA_OFFSET]
+
+    def test_non_dicom_passthrough(self):
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_duplicate_meta_tag(garbage) is garbage

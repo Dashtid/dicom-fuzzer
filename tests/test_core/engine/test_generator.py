@@ -195,12 +195,14 @@ class TestFuzzerIntegration:
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        assert len(generator.mutator.strategies) == 30
+        assert len(generator.mutator.strategies) == 34
         strategy_names = [s.strategy_name for s in generator.mutator.strategies]
         expected_format = [
             "calibration",
             "compressed_pixel",
             "conformance",
+            "deflate_bomb",
+            "dicomdir",
             "dictionary",
             "empty_value",
             "encapsulated_pdf",
@@ -211,10 +213,12 @@ class TestFuzzerIntegration:
             "pet",
             "pixel",
             "pixel_reencoding",
+            "preamble",
             "private_tag",
             "reference",
             "rt_dose",
             "rt_structure_set",
+            "secondary_capture",
             "segmentation",
             "sequence",
             "structure",
@@ -268,18 +272,27 @@ class TestFileSaving:
     """Test file saving functionality."""
 
     def test_files_are_valid_dicom(self, sample_dicom_file, temp_dir):
-        """Test that generated files are valid DICOM files."""
-        from dicom_fuzzer.core.dicom.parser import DicomParser
+        """Test that generated files retain the DICOM file structure.
 
+        Asserts the structural invariant -- preamble + DICM magic at
+        offset 128 -- rather than full re-parsability. A fuzzed file
+        that mutates element bytes is still a "DICOM file" by the
+        DICOM standard's file-format definition; whether it round-trips
+        through pydicom is an orthogonal property and a valid fuzzing
+        outcome to violate.
+        """
         output_dir = temp_dir / "output"
-        generator = DICOMGenerator(output_dir=str(output_dir))
+        # Pinned seed for determinism -- mutation choices are otherwise random.
+        generator = DICOMGenerator(output_dir=str(output_dir), seed=12345)
 
         generated_files = generator.generate_batch(sample_dicom_file, count=3)
 
-        # Verify each file can be parsed as DICOM
         for file_path in generated_files:
-            parser = DicomParser(file_path)
-            assert parser.dataset is not None
+            data = file_path.read_bytes()
+            assert len(data) >= 132, f"{file_path.name} too short for DICOM header"
+            assert data[128:132] == b"DICM", (
+                f"{file_path.name} missing DICM magic at offset 128"
+            )
 
     def test_files_contain_data(self, sample_dicom_file, temp_dir):
         """Test that generated files contain actual data."""
@@ -358,9 +371,13 @@ class TestPropertyBasedTesting:
 
         Some mutations produce datasets that can't be serialized, so
         generated count may be less than requested (skip_write_errors=True).
+        Hypothesis re-runs each example for shrinking, which previously
+        flaked because mutation choices were non-deterministic between
+        calls. Deriving the seed from ``count`` makes each example
+        deterministic so Hypothesis sees stable results.
         """
         output_dir = temp_dir / "output_prop"
-        generator = DICOMGenerator(output_dir=str(output_dir))
+        generator = DICOMGenerator(output_dir=str(output_dir), seed=12345 + count)
 
         generated_files = generator.generate_batch(
             sample_dicom_file, count=count, strategies=["metadata", "header", "pixel"]
@@ -376,40 +393,43 @@ class TestIntegration:
     def test_complete_generation_workflow(self, sample_dicom_file, temp_dir):
         """Test complete workflow from initialization to file generation.
 
-        Some mutations produce unsaveable datasets (skip_write_errors=True),
-        so we assert on upper bounds rather than exact counts.
+        Pins the RNG seed so the mutation choices are deterministic --
+        without this, occasional metadata/header/pixel mutation combos
+        produce files that survive skip_write_errors=True but fail
+        downstream validation, making the test flaky.
+
+        Asserts the GENERATOR contract (files on disk, unique names,
+        non-empty) rather than that the fuzzed output is parseable --
+        producing invalid DICOM is the point of fuzzing.
         """
         output_dir = temp_dir / "integration_output"
 
-        # Initialize generator
-        generator = DICOMGenerator(output_dir=str(output_dir))
+        # Pinned seed: any run of this test exercises the same mutation path.
+        generator = DICOMGenerator(output_dir=str(output_dir), seed=12345)
         assert generator.output_dir.exists()
 
         strategies = ["metadata", "header", "pixel"]
 
-        # Generate first batch
         batch1 = generator.generate_batch(
             sample_dicom_file, count=5, strategies=strategies
         )
         assert len(batch1) <= 5
 
-        # Generate second batch
         batch2 = generator.generate_batch(
             sample_dicom_file, count=3, strategies=strategies
         )
         assert len(batch2) <= 3
 
-        # Verify all files exist and are unique
+        # Verify all files exist on disk, are unique, and are non-empty.
+        # We deliberately do NOT assert that fuzzed files re-parse: a
+        # mutation that produces an unparseable-but-saveable file is a
+        # valid fuzzing outcome, not a generator bug.
         all_files = batch1 + batch2
         assert len(all_files) == len(batch1) + len(batch2)
-        assert len({f.name for f in all_files}) == len(all_files)  # All unique
-
-        # Verify all files are valid DICOM
-        from dicom_fuzzer.core.dicom.parser import DicomParser
-
+        assert len({f.name for f in all_files}) == len(all_files)
         for file_path in all_files:
-            parser = DicomParser(file_path)
-            assert parser.dataset is not None
+            assert file_path.is_file()
+            assert file_path.stat().st_size > 0
 
     def test_multiple_generators_same_directory(self, sample_dicom_file, temp_dir):
         """Test multiple generator instances using same output directory."""

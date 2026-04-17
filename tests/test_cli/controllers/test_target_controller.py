@@ -508,6 +508,8 @@ class TestRecordCrashes:
         crash_result.test_file = resolved
         crash_result.exit_code = 1
         crash_result.windows_crash_info = None
+        crash_result.memory_limit_exceeded = False
+        crash_result.peak_memory_mb = 0.0
 
         results = {s: [] for s in ExecutionStatus}
         results[ExecutionStatus.CRASH] = [crash_result]
@@ -584,6 +586,8 @@ class TestRecordCrashes:
         crash_result.test_file = resolved
         crash_result.exit_code = -1073741819  # 0xC0000005
         crash_result.windows_crash_info = crash_info
+        crash_result.memory_limit_exceeded = False
+        crash_result.peak_memory_mb = 0.0
 
         results = {s: [] for s in ExecutionStatus}
         results[ExecutionStatus.CRASH] = [crash_result]

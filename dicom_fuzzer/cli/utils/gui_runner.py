@@ -44,6 +44,7 @@ class GUIExecutionResult:
     peak_memory_mb: float
     crashed: bool  # True only if app crashed BEFORE timeout
     timed_out: bool  # True if we killed it after timeout (normal for GUI)
+    memory_limit_exceeded: bool = False  # True if killed due to memory limit
     stdout: str = ""
     stderr: str = ""
     windows_crash_info: Any = field(default=None, repr=False)
@@ -135,17 +136,18 @@ class GUITargetRunner:
 
     def _monitor_process(
         self, process: subprocess.Popen[bytes], test_file_path: Path, start_time: float
-    ) -> tuple[bool, bool, float, int | None]:
+    ) -> tuple[bool, bool, float, int | None, bool]:
         """Monitor process until timeout, crash, or normal exit.
 
         Returns:
-            Tuple of (crashed, timed_out, peak_memory, exit_code)
+            Tuple of (crashed, timed_out, peak_memory, exit_code, mem_killed)
 
         """
         poll_interval = 0.1
         peak_memory = 0.0
         crashed = False
         timed_out = False
+        mem_killed = False
         exit_code = None
 
         while True:
@@ -181,11 +183,12 @@ class GUITargetRunner:
             peak_memory = max(peak_memory, mem_mb)
             if exceeded:
                 crashed = True
+                mem_killed = True
                 break
 
             time.sleep(poll_interval)
 
-        return crashed, timed_out, peak_memory, exit_code
+        return crashed, timed_out, peak_memory, exit_code, mem_killed
 
     def _check_memory(
         self, process: subprocess.Popen[bytes]
@@ -251,6 +254,7 @@ class GUITargetRunner:
         start_time = time.time()
         crashed = False
         timed_out = False
+        mem_killed = False
         peak_memory = 0.0
         exit_code = None
         stdout_data = ""
@@ -274,8 +278,8 @@ class GUITargetRunner:
                 time.sleep(self.startup_delay)
                 start_time = time.time()
 
-            crashed, timed_out, peak_memory, exit_code = self._monitor_process(
-                process, test_file_path, start_time
+            crashed, timed_out, peak_memory, exit_code, mem_killed = (
+                self._monitor_process(process, test_file_path, start_time)
             )
 
         except Exception as e:
@@ -318,6 +322,7 @@ class GUITargetRunner:
             peak_memory_mb=peak_memory,
             crashed=crashed,
             timed_out=timed_out,
+            memory_limit_exceeded=mem_killed,
             stdout=stdout_data,
             stderr=stderr_data,
             windows_crash_info=crash_info,

@@ -348,6 +348,143 @@ class TemporalAttacksMixin:
             )
         )
 
+    def _temporal_instance_creation_chaos(
+        self, datasets: list[Dataset], records: list[SeriesMutationRecord]
+    ) -> None:
+        """Corrupt InstanceCreationTime/Date to disagree with AcquisitionTime.
+
+        DICOM PS3.3 C.12.1: InstanceCreationDate/Time describe when the
+        SOP Instance was created -- typically very close to AcquisitionTime.
+        Implementations that sort or correlate instances by creation time
+        (rather than AcquisitionTime) may produce incorrect multi-frame
+        reconstructions when these fields diverge.
+        """
+        slice_idx = random.randint(0, len(datasets) - 1)
+        ds = datasets[slice_idx]
+        sub = random.choice(["past_date", "future_date", "invalid_time", "empty_time"])
+        if sub == "past_date":
+            ds.InstanceCreationDate = "19000101"
+            ds.InstanceCreationTime = "000000.000000"
+            mutated = "19000101 000000.000000"
+        elif sub == "future_date":
+            ds.InstanceCreationDate = "99991231"
+            ds.InstanceCreationTime = "235959.999999"
+            mutated = "99991231 235959.999999"
+        elif sub == "invalid_time":
+            ds.InstanceCreationTime = "25:00:00"
+            mutated = "25:00:00"
+        else:  # empty_time
+            ds.InstanceCreationTime = ""
+            mutated = ""
+        records.append(
+            SeriesMutationRecord(
+                strategy="temporal_inconsistency",
+                slice_index=slice_idx,
+                tag="InstanceCreationTime",
+                original_value="<matches_acquisition>",
+                mutated_value=mutated,
+                severity=self.severity,
+                details={"attack_type": "instance_creation_chaos", "sub": sub},
+            )
+        )
+
+    def _temporal_delta_violation(
+        self, datasets: list[Dataset], records: list[SeriesMutationRecord]
+    ) -> None:
+        """Inject impossible time deltas between consecutive slices.
+
+        For a correctly ordered series AcquisitionTime[i+1] > AcquisitionTime[i].
+        Three violation patterns:
+        - negative_delta: later slices get earlier times (order reversal per slice)
+        - zero_delta: consecutive slices share identical timestamps
+        - huge_delta: a 23-hour jump between adjacent slices
+
+        Targets 4D cardiac/perfusion viewers that compute inter-frame
+        timing from AcquisitionTime without range-checking the deltas.
+        """
+        if len(datasets) < 2:
+            return
+        sub = random.choice(["negative_delta", "zero_delta", "huge_delta"])
+        if sub == "negative_delta":
+            # Descending time: each slice 1 minute earlier than the previous
+            for i, ds in enumerate(datasets):
+                seconds = 120000 - i * 100  # 120000 HHMMSS, subtract 100s = 1m40s
+                ds.AcquisitionTime = f"{max(0, seconds):06d}.000000"
+            mutated = "descending per slice"
+        elif sub == "zero_delta":
+            # First two slices share the same timestamp
+            datasets[0].AcquisitionTime = "120000.000000"
+            datasets[1].AcquisitionTime = "120000.000000"
+            mutated = "slices 0+1 share 120000.000000"
+        else:  # huge_delta
+            # 23-hour gap between slice 0 and slice 1
+            datasets[0].AcquisitionTime = "000000.000000"
+            datasets[1].AcquisitionTime = "230000.000000"
+            mutated = "0->1: 23-hour gap"
+        records.append(
+            SeriesMutationRecord(
+                strategy="temporal_inconsistency",
+                slice_index=None,
+                tag="AcquisitionTime",
+                original_value="<monotone_increasing>",
+                mutated_value=mutated,
+                severity=self.severity,
+                details={"attack_type": "delta_violation", "sub": sub},
+            )
+        )
+
+    def _temporal_cardiac_trigger_chaos(
+        self, datasets: list[Dataset], records: list[SeriesMutationRecord]
+    ) -> None:
+        """Corrupt TriggerTime for cardiac gating attacks.
+
+        TriggerTime (0018,1060) is the time in milliseconds from the
+        R-wave trigger to the image acquisition in cardiac-gated series.
+        At a typical heart rate of 60 bpm the RR interval is 1000 ms, so
+        valid TriggerTime values fall in [0, 1000).
+
+        Attack patterns:
+        - negative_trigger: TriggerTime < 0 (impossible)
+        - exceed_rr: TriggerTime > expected RR interval (contradicts HeartRate)
+        - zero_trigger: all slices at TriggerTime=0 (duplicate cardiac phases)
+        - nan_trigger: non-numeric string value
+
+        Targets cardiac cine viewers and perfusion maps that interpolate
+        between trigger times without validating the range.
+        """
+        sub = random.choice(
+            ["negative_trigger", "exceed_rr", "zero_trigger", "nan_trigger"]
+        )
+        if sub == "negative_trigger":
+            for ds in datasets:
+                ds.TriggerTime = -1.0
+            mutated = "-1.0"
+        elif sub == "exceed_rr":
+            # At 60 bpm RR=1000 ms; set trigger to 5000 ms (5x overshoot)
+            for ds in datasets:
+                ds.TriggerTime = 5000.0
+                ds.HeartRate = 60
+            mutated = "5000.0 (RR@60bpm=1000ms)"
+        elif sub == "zero_trigger":
+            for ds in datasets:
+                ds.TriggerTime = 0.0
+            mutated = "0.0 (all phases identical)"
+        else:  # nan_trigger
+            for ds in datasets:
+                ds.TriggerTime = float("nan")
+            mutated = "NaN"
+        records.append(
+            SeriesMutationRecord(
+                strategy="temporal_inconsistency",
+                slice_index=None,
+                tag="TriggerTime",
+                original_value="<valid_cardiac_phase>",
+                mutated_value=mutated,
+                severity=self.severity,
+                details={"attack_type": "cardiac_trigger_chaos", "sub": sub},
+            )
+        )
+
     def _mutate_temporal_inconsistency(
         self, datasets: list[Dataset], series: DicomSeries, mutation_count: int
     ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
@@ -359,8 +496,12 @@ class TemporalAttacksMixin:
         - Extreme time values (year 1900, year 9999)
         - Invalid time format strings
         - AcquisitionTime conflicts with InstanceNumber order
+        - InstanceCreationTime/Date disagreeing with AcquisitionTime
+        - Impossible inter-slice time deltas (negative, zero, 23-hour)
+        - Cardiac TriggerTime outside valid RR interval
 
-        Targets: 4D reconstruction, temporal sorting, cine viewers
+        Targets: 4D reconstruction, temporal sorting, cine viewers,
+        cardiac gating, and perfusion map generation.
         """
         records: list[SeriesMutationRecord] = []
         attacks = [
@@ -371,6 +512,9 @@ class TemporalAttacksMixin:
             "invalid",
             "reversal",
             "subsecond",
+            "instance_creation",
+            "delta_violation",
+            "cardiac_trigger",
         ]
 
         for _ in range(mutation_count):
@@ -389,5 +533,11 @@ class TemporalAttacksMixin:
                 self._temporal_reversal(datasets, records)
             elif attack == "subsecond":
                 self._temporal_subsecond(datasets, records)
+            elif attack == "instance_creation":
+                self._temporal_instance_creation_chaos(datasets, records)
+            elif attack == "delta_violation":
+                self._temporal_delta_violation(datasets, records)
+            elif attack == "cardiac_trigger":
+                self._temporal_cardiac_trigger_chaos(datasets, records)
 
         return datasets, records

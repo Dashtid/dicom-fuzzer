@@ -606,3 +606,126 @@ class TestBinaryOddLengthPixelData:
         file_data = _make_native_pixel_dicom_bytes()
         fuzzer.mutate_bytes(file_data)
         assert fuzzer._applied_binary_mutations == ["_binary_odd_length_pixel_data"]
+
+
+# =============================================================================
+# G1: PALETTE COLOR + LUT overflow
+# =============================================================================
+
+
+class TestPaletteColorOverflow:
+    """Tests for _palette_color_overflow (CVE-2026-5443, CVE-2024-22391)."""
+
+    def test_returns_dataset(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        result = fuzzer._palette_color_overflow(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+    def test_photometric_is_palette(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        result = fuzzer._palette_color_overflow(pixel_dataset)
+        assert result.PhotometricInterpretation == "PALETTE COLOR"
+
+    def test_lut_descriptor_exceeds_data(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        result = fuzzer._palette_color_overflow(pixel_dataset)
+        desc = list(result[Tag(0x0028, 0x1101)].value)
+        data = result[Tag(0x0028, 0x1201)].value
+        declared_entries = desc[0]
+        actual_entries = len(data) // 2  # 2 bytes per entry (16-bit LUT)
+        assert declared_entries > actual_entries
+
+
+# =============================================================================
+# G9: HighBit >= BitsAllocated
+# =============================================================================
+
+
+class TestHighBitExceedsAllocated:
+    """Tests for _bit_depth_attack highbit_exceeds_allocated (CVE-2024-52333)."""
+
+    def test_highbit_exceeds_allocated(self, fuzzer: PixelFuzzer) -> None:
+        ds = Dataset()
+        ds.BitsAllocated = 8
+        ds.BitsStored = 8
+        ds.HighBit = 7
+        # Force the specific attack type
+        from unittest.mock import patch
+
+        with patch(
+            "random.choice",
+            side_effect=lambda x: (
+                "highbit_exceeds_allocated"
+                if isinstance(x, list) and "highbit_exceeds_allocated" in x
+                else x[0]
+            ),
+        ):
+            result = fuzzer._bit_depth_attack(ds)
+        assert result.HighBit >= result.BitsAllocated
+
+
+# =============================================================================
+# G12: Photometric -> wrong codec path (YBR variants)
+# =============================================================================
+
+
+class TestPhotometricYbrVariants:
+    """Tests for _photometric_confusion YBR additions (CVE-2025-53618)."""
+
+    def test_ybr_variants_in_payload_list(self, fuzzer: PixelFuzzer) -> None:
+        """Over many runs, at least one YBR variant must appear."""
+        ds = Dataset()
+        ds.SamplesPerPixel = 1
+        found_ybr = False
+        for _ in range(200):
+            result = fuzzer._photometric_confusion(Dataset(SamplesPerPixel=1))
+            pi = getattr(result, "PhotometricInterpretation", "")
+            if "YBR" in str(pi):
+                found_ybr = True
+                break
+        assert found_ybr, "No YBR photometric selected in 200 runs"
+
+
+# =============================================================================
+# Concurrent field mismatches
+# =============================================================================
+
+
+class TestConcurrentFieldMismatch:
+    """Tests for _concurrent_field_mismatch."""
+
+    def test_returns_dataset(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        result = fuzzer._concurrent_field_mismatch(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+    def test_all_three_fields_set(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        result = fuzzer._concurrent_field_mismatch(pixel_dataset)
+        assert hasattr(result, "NumberOfFrames")
+        assert hasattr(result, "BitsAllocated")
+        assert hasattr(result, "SamplesPerPixel")
+
+
+# =============================================================================
+# G13: OverlayData shorter than dimensions
+# =============================================================================
+
+
+class TestOverlayDataTruncation:
+    """Tests for _overlay_data_truncation (fo-dicom #1728)."""
+
+    def test_returns_dataset(self, fuzzer: PixelFuzzer, pixel_dataset: Dataset) -> None:
+        result = fuzzer._overlay_data_truncation(pixel_dataset)
+        assert isinstance(result, Dataset)
+
+    def test_overlay_data_truncated(
+        self, fuzzer: PixelFuzzer, pixel_dataset: Dataset
+    ) -> None:
+        result = fuzzer._overlay_data_truncation(pixel_dataset)
+        overlay_data = result[Tag(0x6000, 0x3000)].value
+        rows = result[Tag(0x6000, 0x0010)].value
+        cols = result[Tag(0x6000, 0x0011)].value
+        expected = (rows * cols + 7) // 8
+        assert len(overlay_data) < expected
