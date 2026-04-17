@@ -923,8 +923,6 @@ class StructureFuzzer(FormatFuzzerBase):
                 length = int.from_bytes(file_data[pos + 8 : pos + 12], "little")
                 pos += 12 + length
             else:
-                if pos + 8 > data_len:
-                    break
                 length = int.from_bytes(file_data[pos + 6 : pos + 8], "little")
                 pos += 8 + length
         if not candidates:
@@ -957,8 +955,6 @@ class StructureFuzzer(FormatFuzzerBase):
                 length = int.from_bytes(file_data[pos + 8 : pos + 12], "little")
                 pos = pos + 12 + length
             else:
-                if pos + 8 > data_len:
-                    break
                 length = int.from_bytes(file_data[pos + 6 : pos + 8], "little")
                 pos = pos + 8 + length
             if pos > data_len:
