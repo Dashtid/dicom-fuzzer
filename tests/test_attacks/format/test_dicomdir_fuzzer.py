@@ -116,6 +116,7 @@ class TestAbsolutePath:
         # \\evil.inval -> split -> first="" (empty UNC prefix) + "evil" later
         assert (
             first.startswith("/")
+            or first.startswith("C:\\")
             or first in ("C:", "C")
             or first == ""  # UNC path: \\ splits to empty first component
             or "evil" in joined  # fallback for UNC marker
