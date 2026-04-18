@@ -262,10 +262,13 @@ class GUITargetRunner:
 
         process = None
         try:
+            # DEVNULL (not PIPE) to avoid Windows pipe-buffer deadlock:
+            # if Hermes fills the ~4-64KB pipe before we drain it, the
+            # process blocks and the monitor loop sees it as still alive.
             process = subprocess.Popen(
                 [str(self.target_executable), str(test_file_path)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 creationflags=(
                     getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
                     if sys.platform == "win32"
@@ -291,8 +294,6 @@ class GUITargetRunner:
             execution_time = time.time() - start_time
             if process and process.poll() is None:
                 self._kill_process_tree(process)
-            if process:
-                stdout_data, stderr_data = self._capture_output(process)
 
         status = ExecutionStatus.CRASH if crashed else ExecutionStatus.SUCCESS
 
@@ -373,8 +374,8 @@ class GUITargetRunner:
         try:
             process = subprocess.Popen(
                 [str(self.target_executable), str(seed_file)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 creationflags=(
                     getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
                     if sys.platform == "win32"
