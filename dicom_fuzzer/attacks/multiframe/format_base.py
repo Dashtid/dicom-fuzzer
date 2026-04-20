@@ -96,25 +96,42 @@ class MultiFrameFuzzerBase(FormatFuzzerBase):
             self.last_variant = records[0].details.get("attack_type", "")
         return ds
 
+    @staticmethod
+    def _safe_int(value: Any, default: int) -> int:
+        """Coerce a pydicom value to int, returning default on failure.
+
+        Upstream strategies may set image-geometry tags to strings or
+        negative values; downstream code that does arithmetic or struct
+        packing needs a well-formed positive int.
+        """
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return default
+
     def _get_frame_count(self, dataset: Dataset) -> int:
         """Return the number of frames declared in the dataset (1 if absent).
 
         Capped at _MAX_FRAME_COUNT to prevent allocation failures when the
-        tag contains an attacker-controlled large value.
+        tag contains an attacker-controlled large value. Clamped to >= 1
+        because negative counts break struct-pack format strings
+        (`struct.pack(f"<{-5}I", ...)` -> "bad char in struct format").
         """
         if not hasattr(dataset, "NumberOfFrames"):
             return 1
-        try:
-            return min(int(dataset.NumberOfFrames), self._MAX_FRAME_COUNT)
-        except (ValueError, TypeError):
-            return 1
+        raw = self._safe_int(dataset.NumberOfFrames, 1)
+        return max(1, min(raw, self._MAX_FRAME_COUNT))
 
     def _calculate_frame_size(self, dataset: Dataset) -> int:
         """Return the expected byte size of a single frame (capped for safety)."""
-        rows = min(getattr(dataset, "Rows", 0), 4096)
-        cols = min(getattr(dataset, "Columns", 0), 4096)
-        bits_allocated = min(getattr(dataset, "BitsAllocated", 8), 64)
-        samples_per_pixel = min(getattr(dataset, "SamplesPerPixel", 1), 4)
+        rows = min(self._safe_int(getattr(dataset, "Rows", 0), 0), 4096)
+        cols = min(self._safe_int(getattr(dataset, "Columns", 0), 0), 4096)
+        bits_allocated = min(
+            self._safe_int(getattr(dataset, "BitsAllocated", 8), 8), 64
+        )
+        samples_per_pixel = min(
+            self._safe_int(getattr(dataset, "SamplesPerPixel", 1), 1), 4
+        )
         return rows * cols * (bits_allocated // 8) * samples_per_pixel
 
 
