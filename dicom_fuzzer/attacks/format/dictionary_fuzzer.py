@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import copy
 import random
+import sys
 
 from pydicom.dataset import Dataset
 
@@ -114,11 +115,25 @@ class DictionaryFuzzer(FormatFuzzerBase):
             Mutated dataset
 
         """
-        mutated = copy.deepcopy(dataset)
+        # deepcopy so mutating element values does not leak back to the caller's
+        # dataset (pydicom's Dataset.copy() is shallow and shares DataElement
+        # instances). Real clinical multi-frame datasets (e.g. NM with 118
+        # frames + per-frame functional groups) can overflow Python's default
+        # 1000-frame recursion limit during deepcopy, so bump it for the call
+        # and restore afterwards. If a pathological dataset still overflows
+        # 10000, fall back to shallow copy -- better to risk leaking one
+        # mutation back to the caller than to skip the file entirely.
+        _old_limit = sys.getrecursionlimit()
+        sys.setrecursionlimit(max(_old_limit, 10000))
+        try:
+            mutated = copy.deepcopy(dataset)
+        except RecursionError:
+            mutated = dataset.copy()
+        finally:
+            sys.setrecursionlimit(_old_limit)
 
         num_mutations = self._get_num_mutations(len(dataset))
 
-        # Select tags to mutate
         available_tags = list(dataset.keys())
         if not available_tags:
             return mutated
@@ -127,7 +142,6 @@ class DictionaryFuzzer(FormatFuzzerBase):
             available_tags, min(num_mutations, len(available_tags))
         )
 
-        # Apply mutations
         for tag in tags_to_mutate:
             self._mutate_tag(mutated, tag)
 
