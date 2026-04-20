@@ -295,8 +295,12 @@ class DicomMutator:
                 mutations_applied += 1
 
             except Exception as e:
-                logger.error("Mutation failed: %s", e)
-                # Record the failed mutation
+                logger.error(
+                    "Mutation failed in %s: %s: %s",
+                    strategy.strategy_name,
+                    type(e).__name__,
+                    e,
+                )
                 self._record_mutation(strategy, success=False, error=str(e))
 
         return mutated_dataset

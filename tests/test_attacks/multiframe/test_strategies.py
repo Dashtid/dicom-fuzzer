@@ -574,6 +574,27 @@ class TestSharedGroupAttackTypes:
         assert records[0].details["attack_type"] == "empty_shared_groups"
         assert len(ds_with_sfg.SharedFunctionalGroupsSequence) == 0
 
+    def test_attack_chain_empty_then_populate(self, ds_with_sfg: Dataset) -> None:
+        """Regression: _attack_empty followed by another attack must not IndexError.
+
+        _ensure_sfg previously only checked hasattr(), so after _attack_empty
+        set the sequence to Sequence([]), the next attack hit an empty
+        sequence and crashed on [0].
+        """
+        from unittest.mock import patch
+
+        strategy = SharedGroupStrategy()
+        # Chain: empty, then corrupt_pixel_measures (needs sfg[0])
+        with patch(
+            "random.choice",
+            side_effect=["empty_shared_groups", "corrupt_pixel_measures"],
+        ):
+            _, records = strategy._mutate_impl(ds_with_sfg, mutation_count=2)
+
+        assert len(records) == 2
+        # Sequence was repopulated by second attack
+        assert len(ds_with_sfg.SharedFunctionalGroupsSequence) >= 1
+
     def test_corrupt_pixel_measures(self, ds_with_sfg: Dataset) -> None:
         """Test corrupt_pixel_measures sets invalid spacing/thickness."""
         from unittest.mock import patch
