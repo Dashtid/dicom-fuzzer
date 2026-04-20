@@ -72,12 +72,32 @@ dicom-fuzzer generate-seeds input.dcm -c 500 -o ./seeds/
 
 ### Fuzzing
 
-- **Format fuzzing (production):** 19 single-file mutation strategies targeting VR types, pixel data, sequences, encoding, and modality-specific tags
-- Modality-specific fuzzers: SEG, RTSS, RT Dose, NM, PET, Encapsulated PDF, Pixel Reencoding
+- **Format fuzzing (production):** 24 single-file mutation strategies targeting VR types, pixel data, sequences, encoding, and modality-specific tags
+- Modality-specific fuzzers: CT/MR calibration, NM, PET, RT Dose, RT Structure Set, Segmentation, Secondary Capture, Encapsulated PDF, Pixel Reencoding
 - Target scope filtering (`--target-type viewer|web|pacs`)
 - Multiframe fuzzing (WIP): 10 strategies for enhanced imaging objects -- functional groups, frame counts, dimension indices
 - Series/study fuzzing (WIP): cross-series geometry, temporal ordering, patient consistency
 - Network protocol fuzzing (WIP): PDU construction, DIMSE commands, state machine, TLS
+
+### Supported SOP classes
+
+Seed corpus plus dedicated fuzzer coverage (mutations are only
+meaningful when both exist):
+
+| Modality          | SOP Class UID                 | Modality fuzzer     |
+| ----------------- | ----------------------------- | ------------------- |
+| CT Image          | 1.2.840.10008.5.1.4.1.1.2     | `calibration`       |
+| MR Image          | 1.2.840.10008.5.1.4.1.1.4     | `calibration`       |
+| NM Image          | 1.2.840.10008.5.1.4.1.1.20    | `nuclear_medicine`  |
+| PET Image         | 1.2.840.10008.5.1.4.1.1.128   | `pet`               |
+| RT Dose           | 1.2.840.10008.5.1.4.1.1.481.2 | `rt_dose`           |
+| RT Structure Set  | 1.2.840.10008.5.1.4.1.1.481.3 | `rt_structure_set`  |
+| Segmentation      | 1.2.840.10008.5.1.4.1.1.66.4  | `segmentation`      |
+| Secondary Capture | 1.2.840.10008.5.1.4.1.1.7     | `secondary_capture` |
+| Encapsulated PDF  | 1.2.840.10008.5.1.4.1.1.104.1 | `encapsulated_pdf`  |
+
+Generic fuzzers (`structure`, `metadata`, `header`, `preamble`,
+`sequence`, `dictionary`, etc.) run across all modalities.
 
 ### Analysis
 
@@ -85,7 +105,7 @@ dicom-fuzzer generate-seeds input.dcm -c 500 -o ./seeds/
 - Crash triaging with severity and exploitability scoring
 - Test case minimization
 - Corpus management
-- HTML campaign reports with per-strategy hit rates
+- Markdown campaign reports with per-strategy hit rates
 
 ### Integration
 
