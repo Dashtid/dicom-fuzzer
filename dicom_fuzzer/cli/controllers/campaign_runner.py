@@ -10,6 +10,7 @@ import logging
 import time
 from argparse import Namespace
 from collections.abc import Iterable
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,11 @@ from dicom_fuzzer.core.engine import DICOMGenerator
 from dicom_fuzzer.utils.logger import suppress_console
 
 logger = logging.getLogger(__name__)
+
+try:
+    _PKG_VERSION = version("dicom-fuzzer")
+except PackageNotFoundError:
+    _PKG_VERSION = "unknown"
 
 # Check for tqdm availability
 try:
@@ -68,7 +74,7 @@ class CampaignRunner:
         """Display campaign header information."""
         recursive = getattr(self.args, "recursive", False)
 
-        cli.header("DICOM Fuzzer - Fuzzing Campaign", "v1.6.0")
+        cli.header("DICOM Fuzzer - Fuzzing Campaign", f"v{_PKG_VERSION}")
         if self.is_directory_input:
             cli.detail(
                 "Input", f"{self.args.input_file} ({len(self.input_files)} files)"
