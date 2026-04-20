@@ -431,3 +431,23 @@ class TestMutateIntegration:
         result = fuzzer.mutate(ds)
         assert result is not None
         assert isinstance(result, Dataset)
+
+    def test_mutate_large_multiframe_no_recursion_error(
+        self, fuzzer: DictionaryFuzzer
+    ) -> None:
+        """Regression: NM 118-frame-equivalent depth must not overflow stack.
+
+        Previously used copy.deepcopy() which blew Python's default 1000-frame
+        recursion limit on real clinical NM studies.
+        """
+        from pydicom.sequence import Sequence
+
+        ds = Dataset()
+        ds.PatientName = "Regression^Deep"
+        ds.NumberOfFrames = "118"
+        # 120 per-frame functional groups (matches our NM seed)
+        ds.PerFrameFunctionalGroupsSequence = Sequence([Dataset() for _ in range(120)])
+
+        # Must not raise RecursionError
+        result = fuzzer.mutate(ds)
+        assert isinstance(result, Dataset)
