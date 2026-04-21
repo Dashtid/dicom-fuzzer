@@ -691,6 +691,7 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
             self._binary_zero_length_final_fragment,
             self._binary_orphan_delimiter_at_eof,
             self._binary_fragment_offset_underflow,
+            self._binary_null_tag_in_fragment,
         ]
         num = random.randint(1, 2)
         selected = random.sample(binary_attacks, num)
@@ -843,4 +844,29 @@ class CompressedPixelFuzzer(FormatFuzzerBase):
 
         result = bytearray(file_data)
         struct.pack_into("<I", result, entry_offset, overflow_value)
+        return bytes(result)
+
+    def _binary_null_tag_in_fragment(
+        self, file_data: bytes, region: EncapsRegion
+    ) -> bytes:
+        """Replace the first fragment's Item tag with a null tag (0000,0000).
+
+        fo-dicom #763. Inside encapsulated PixelData the parser scans for
+        Item tags ``(FFFE,E000)`` and the Sequence Delimitation Item
+        ``(FFFE,E0DD)``. A null tag (0000,0000) is neither, but it has a
+        valid 8-byte tag+length header; parsers that don't validate the
+        tag value can dereference uninitialized state or throw
+        DicomFileException unhandled, taking down the host process.
+
+        Replaces only the 4-byte Item tag at the first fragment's
+        position, keeping the original length and payload so the byte
+        layout remains parseable up to the corrupted tag.
+        """
+        frag_off = region.first_fragment_offset
+        if frag_off + 8 > len(file_data):
+            return file_data
+        if file_data[frag_off : frag_off + 4] != _ITEM_TAG:
+            return file_data
+        result = bytearray(file_data)
+        result[frag_off : frag_off + 4] = b"\x00\x00\x00\x00"
         return bytes(result)
