@@ -46,8 +46,14 @@ class SharedGroupStrategy(MultiFrameFuzzerBase):
             return False
 
     def _ensure_sfg(self, dataset: Dataset) -> Dataset:
-        """Ensure SharedFunctionalGroupsSequence exists and return first item."""
-        if not hasattr(dataset, "SharedFunctionalGroupsSequence"):
+        """Ensure SharedFunctionalGroupsSequence exists and return first item.
+
+        Handles the case where a prior attack in the same mutation loop
+        (e.g. `_attack_empty`) set the sequence to `Sequence([])` -- we
+        need to repopulate so subsequent attacks can index [0].
+        """
+        sfg = getattr(dataset, "SharedFunctionalGroupsSequence", None)
+        if sfg is None or len(sfg) == 0:
             dataset.SharedFunctionalGroupsSequence = Sequence([Dataset()])
         return dataset.SharedFunctionalGroupsSequence[0]  # type: ignore[no-any-return]
 

@@ -44,6 +44,7 @@ class GUIExecutionResult:
     peak_memory_mb: float
     crashed: bool  # True only if app crashed BEFORE timeout
     timed_out: bool  # True if we killed it after timeout (normal for GUI)
+    memory_limit_exceeded: bool = False  # True if killed due to memory limit
     stdout: str = ""
     stderr: str = ""
     windows_crash_info: Any = field(default=None, repr=False)
@@ -135,17 +136,18 @@ class GUITargetRunner:
 
     def _monitor_process(
         self, process: subprocess.Popen[bytes], test_file_path: Path, start_time: float
-    ) -> tuple[bool, bool, float, int | None]:
+    ) -> tuple[bool, bool, float, int | None, bool]:
         """Monitor process until timeout, crash, or normal exit.
 
         Returns:
-            Tuple of (crashed, timed_out, peak_memory, exit_code)
+            Tuple of (crashed, timed_out, peak_memory, exit_code, mem_killed)
 
         """
         poll_interval = 0.1
         peak_memory = 0.0
         crashed = False
         timed_out = False
+        mem_killed = False
         exit_code = None
 
         while True:
@@ -181,11 +183,12 @@ class GUITargetRunner:
             peak_memory = max(peak_memory, mem_mb)
             if exceeded:
                 crashed = True
+                mem_killed = True
                 break
 
             time.sleep(poll_interval)
 
-        return crashed, timed_out, peak_memory, exit_code
+        return crashed, timed_out, peak_memory, exit_code, mem_killed
 
     def _check_memory(
         self, process: subprocess.Popen[bytes]
@@ -251,6 +254,7 @@ class GUITargetRunner:
         start_time = time.time()
         crashed = False
         timed_out = False
+        mem_killed = False
         peak_memory = 0.0
         exit_code = None
         stdout_data = ""
@@ -258,10 +262,13 @@ class GUITargetRunner:
 
         process = None
         try:
+            # DEVNULL (not PIPE) to avoid Windows pipe-buffer deadlock:
+            # if Hermes fills the ~4-64KB pipe before we drain it, the
+            # process blocks and the monitor loop sees it as still alive.
             process = subprocess.Popen(
                 [str(self.target_executable), str(test_file_path)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 creationflags=(
                     getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
                     if sys.platform == "win32"
@@ -274,8 +281,8 @@ class GUITargetRunner:
                 time.sleep(self.startup_delay)
                 start_time = time.time()
 
-            crashed, timed_out, peak_memory, exit_code = self._monitor_process(
-                process, test_file_path, start_time
+            crashed, timed_out, peak_memory, exit_code, mem_killed = (
+                self._monitor_process(process, test_file_path, start_time)
             )
 
         except Exception as e:
@@ -287,8 +294,6 @@ class GUITargetRunner:
             execution_time = time.time() - start_time
             if process and process.poll() is None:
                 self._kill_process_tree(process)
-            if process:
-                stdout_data, stderr_data = self._capture_output(process)
 
         status = ExecutionStatus.CRASH if crashed else ExecutionStatus.SUCCESS
 
@@ -318,6 +323,7 @@ class GUITargetRunner:
             peak_memory_mb=peak_memory,
             crashed=crashed,
             timed_out=timed_out,
+            memory_limit_exceeded=mem_killed,
             stdout=stdout_data,
             stderr=stderr_data,
             windows_crash_info=crash_info,
@@ -368,8 +374,8 @@ class GUITargetRunner:
         try:
             process = subprocess.Popen(
                 [str(self.target_executable), str(seed_file)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 creationflags=(
                     getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
                     if sys.platform == "win32"
