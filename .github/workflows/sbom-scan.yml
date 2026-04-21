@@ -1,0 +1,69 @@
+name: SBOM Vulnerability Scan
+
+# Generates a fresh SPDX-JSON SBOM with Syft, scans it with Grype, enriches the
+# findings with the CISA Known Exploited Vulnerabilities (KEV) catalog, and
+# uploads results to GitHub Code Scanning plus a downloadable HTML report.
+#
+# Complements the existing Trivy filesystem scan in security.yml by scanning at
+# the package-manifest level (pyproject.toml / uv.lock) with KEV enrichment.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly on Monday at 06:00 UTC — new CVEs are typically published mid-week,
+    # so Monday catches the previous week's disclosures.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    name: Syft + Grype + KEV
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Install Grype
+        uses: anchore/scan-action/download-grype@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v5
+        with:
+          python-version: '3.13'
+
+      - name: Install sbom-sentinel
+        run: pip install sbom-sentinel
+
+      - name: Run scan (SARIF + Markdown report)
+        run: |
+          sbom-sentinel -v run \
+            --target . \
+            --name dicom-fuzzer \
+            --format sarif \
+            --fail-on critical
+
+      - name: Upload SARIF to Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13  # v4
+        with:
+          sarif_file: artifacts/json
+          category: sbom-sentinel
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v5
+        with:
+          name: sbom-sentinel-${{ github.run_id }}
+          path: |
+            sbom_output/
+            artifacts/
+            logs/
+          retention-days: 90
