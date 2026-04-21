@@ -134,11 +134,17 @@ class TestEndToEndFuzzingWorkflow:
         assert metadata is not None
         assert "patient_name" in metadata
 
-        mutator = DicomMutator()
+        # Seed the mutator for determinism; apply_mutations randomly selects
+        # from ~34 registered strategies, some of which legitimately delete
+        # tags (e.g. structure/empty_value attacks). Asserting a specific tag
+        # survives is wrong -- assert structural invariants instead.
+        mutator = DicomMutator(seed=42)
         dataset = pydicom.dcmread(str(sample_dicom_file))
         mutated_ds = mutator.apply_mutations(dataset)
         assert mutated_ds is not None
-        assert hasattr(mutated_ds, "PatientName")
+        assert isinstance(mutated_ds, Dataset)
+        # File meta must survive -- without it the file isn't DICOM anymore.
+        assert hasattr(mutated_ds, "file_meta")
 
 
 class TestModuleInteractionAndDataFlow:
