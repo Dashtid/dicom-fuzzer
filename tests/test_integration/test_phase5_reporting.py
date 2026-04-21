@@ -197,8 +197,8 @@ class TestSeries3DReportGenerator:
         assert generator.output_dir == tmp_path
         assert tmp_path.exists()
 
-    def test_generate_html_report(self, tmp_path):
-        """Test HTML report generation."""
+    def test_generate_report(self, tmp_path):
+        """Test markdown report generation."""
         generator = Series3DReportGenerator(output_dir=str(tmp_path))
 
         # Create test report
@@ -211,14 +211,12 @@ class TestSeries3DReportGenerator:
         )
         report.add_series_summary(summary)
 
-        # Generate HTML
-        html_path = generator.generate_html_report(report)
+        report_path = generator.generate_html_report(report)
 
-        assert html_path.exists()
-        assert html_path.suffix == ".html"
+        assert report_path.exists()
+        assert report_path.suffix == ".md"
 
-        # Check HTML content
-        content = html_path.read_text(encoding="utf-8")
+        content = report_path.read_text(encoding="utf-8")
         assert "Test Campaign" in content
         assert "Series Fuzzed" in content
         assert "Total Mutations" in content
