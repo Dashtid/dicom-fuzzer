@@ -1017,3 +1017,123 @@ class TestBinaryDuplicateMetaTag:
         fuzzer = StructureFuzzer()
         garbage = b"\x00" * 256
         assert fuzzer._binary_duplicate_meta_tag(garbage) is garbage
+
+
+class TestBinarySqZeroLength:
+    """fo-dicom #1009: SQ explicit length=0 -> infinite-loop trigger."""
+
+    def test_returns_bytes(self):
+        fuzzer = StructureFuzzer()
+        result = fuzzer._binary_sq_zero_length(_make_minimal_dicom_bytes())
+        assert isinstance(result, bytes)
+
+    def test_appends_12_bytes(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sq_zero_length(file_data)
+        assert len(result) == len(file_data) + 12
+
+    def test_preserves_preamble_and_magic(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sq_zero_length(file_data)
+        assert result[:_DATA_OFFSET] == file_data[:_DATA_OFFSET]
+
+    def test_appended_blob_has_sq_vr_and_zero_length(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sq_zero_length(file_data)
+        appended = result[len(file_data) :]
+        assert appended[4:6] == b"SQ"
+        # Last 4 bytes are the 4-byte length field
+        assert appended[8:12] == b"\x00\x00\x00\x00"
+
+    def test_non_dicom_passthrough(self):
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_sq_zero_length(garbage) is garbage
+
+
+class TestBinarySvUvWrongLength:
+    """fo-dicom #1386: SV/UV VR (DICOM 2024) length-encoding desync."""
+
+    def test_returns_bytes(self):
+        fuzzer = StructureFuzzer()
+        result = fuzzer._binary_sv_uv_wrong_length(_make_minimal_dicom_bytes())
+        assert isinstance(result, bytes)
+
+    def test_appends_20_bytes(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sv_uv_wrong_length(file_data)
+        # 4 tag + 2 VR + 2 reserved + 4 length + 8 value = 20
+        assert len(result) == len(file_data) + 20
+
+    def test_appended_vr_is_sv_or_uv(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        # Try several times since VR is randomly chosen between SV and UV
+        seen_vrs = set()
+        for _ in range(20):
+            result = fuzzer._binary_sv_uv_wrong_length(file_data)
+            seen_vrs.add(result[len(file_data) + 4 : len(file_data) + 6])
+        assert seen_vrs.issubset({b"SV", b"UV"})
+        assert seen_vrs  # at least one was produced
+
+    def test_preserves_preamble_and_magic(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sv_uv_wrong_length(file_data)
+        assert result[:_DATA_OFFSET] == file_data[:_DATA_OFFSET]
+
+    def test_non_dicom_passthrough(self):
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_sv_uv_wrong_length(garbage) is garbage
+
+
+class TestBinarySqUndefinedWithHugeValue:
+    """fo-dicom #1982: SQ undefined length + lying item length."""
+
+    def test_returns_bytes(self):
+        fuzzer = StructureFuzzer()
+        result = fuzzer._binary_sq_undefined_with_huge_value(
+            _make_minimal_dicom_bytes()
+        )
+        assert isinstance(result, bytes)
+
+    def test_appends_28_bytes(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sq_undefined_with_huge_value(file_data)
+        # 12 SQ header + 8 item + 8 seq delim = 28
+        assert len(result) == len(file_data) + 28
+
+    def test_sq_has_undefined_length(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sq_undefined_with_huge_value(file_data)
+        appended = result[len(file_data) :]
+        # First 4 bytes after VR+reserved are the 4-byte length
+        assert appended[4:6] == b"SQ"
+        assert appended[8:12] == b"\xff\xff\xff\xff"
+
+    def test_item_has_huge_declared_length(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sq_undefined_with_huge_value(file_data)
+        appended = result[len(file_data) :]
+        # Item tag is at offset 12, length at offset 16
+        assert appended[12:16] == b"\xfe\xff\x00\xe0"
+        assert appended[16:20] == b"\xff\xff\xff\x7f"
+
+    def test_ends_with_sequence_delimiter(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sq_undefined_with_huge_value(file_data)
+        assert result.endswith(b"\xfe\xff\xdd\xe0\x00\x00\x00\x00")
+
+    def test_non_dicom_passthrough(self):
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_sq_undefined_with_huge_value(garbage) is garbage
