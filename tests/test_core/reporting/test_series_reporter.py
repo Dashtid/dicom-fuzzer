@@ -389,7 +389,7 @@ class TestSeries3DReportGenerator:
         report_path = generator.generate_html_report(report)
 
         assert report_path.exists()
-        assert report_path.suffix == ".html"
+        assert report_path.suffix == ".md"
         assert "series3d_report_" in report_path.name
 
     def test_generate_html_report_contains_campaign_name(self, tmp_path):
@@ -567,39 +567,14 @@ class TestSeries3DReportGenerator:
 
         assert data["series_details"][0]["coverage_percentage"] == 50.0
 
-    def test_html_report_contains_valid_html_structure(self, tmp_path):
-        """Test HTML report has valid HTML structure."""
+    def test_report_has_markdown_structure(self, tmp_path):
+        """Test report has valid markdown structure."""
         generator = Series3DReportGenerator(str(tmp_path))
-
         report = Series3DReport(campaign_name="Test Campaign")
         report_path = generator.generate_html_report(report)
-
-        with open(report_path, encoding="utf-8") as f:
-            html = f.read()
-
-        # Check for basic HTML structure
-        assert "<!DOCTYPE html>" in html
-        assert '<html lang="en">' in html
-        assert "<head>" in html
-        assert "</head>" in html
-        assert "<body>" in html
-        assert "</body>" in html
-        assert "</html>" in html
-
-    def test_html_report_includes_css_styling(self, tmp_path):
-        """Test HTML report includes CSS styling."""
-        generator = Series3DReportGenerator(str(tmp_path))
-
-        report = Series3DReport(campaign_name="Test Campaign")
-        report_path = generator.generate_html_report(report)
-
-        with open(report_path, encoding="utf-8") as f:
-            html = f.read()
-
-        assert "<style>" in html
-        assert "</style>" in html
-        assert "container" in html
-        assert "stats-grid" in html
+        content = report_path.read_text(encoding="utf-8")
+        assert content.startswith("#")
+        assert "| Metric | Value |" in content
 
     def test_json_report_avg_mutations_per_series(self, tmp_path):
         """Test JSON report calculates avg_mutations_per_series."""
