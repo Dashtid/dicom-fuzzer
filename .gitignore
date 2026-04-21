@@ -66,10 +66,9 @@ auth.yaml
 .apikey
 
 # DICOM Files (may contain PHI/PII)
-# dicom-seeds/ is a local-only directory where users build their own
-# high-quality seed corpus. Its .dcm contents are intentionally untracked
-# to prevent accidental PHI commits. The directory scaffolding (modality
-# subfolders + .gitkeep files + README.md) is tracked; the data is not.
+# dicom-seeds/ is entirely local-only. Users build their own seed corpus
+# following the README in the repo wiki. Nothing inside is tracked.
+dicom-seeds/
 *.dcm
 *.dicom
 *.DCM
