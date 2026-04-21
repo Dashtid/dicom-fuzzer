@@ -42,13 +42,13 @@ jobs:
       - name: Install sbom-sentinel
         run: pip install sbom-sentinel
 
-      - name: Run scan (SARIF + HTML)
+      - name: Run scan (SARIF + Markdown report)
         run: |
           sbom-sentinel -v run \
             --target . \
             --name dicom-fuzzer \
             --format sarif \
-            --report-format html
+            --fail-on critical
 
       - name: Upload SARIF to Code Scanning
         if: always()
