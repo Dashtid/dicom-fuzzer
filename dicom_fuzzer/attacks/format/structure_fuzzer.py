@@ -578,6 +578,9 @@ class StructureFuzzer(FormatFuzzerBase):
             self._binary_dimension_vr_ul,
             self._binary_nonstandard_vr_meta,
             self._binary_duplicate_meta_tag,
+            self._binary_sq_zero_length,
+            self._binary_sv_uv_wrong_length,
+            self._binary_sq_undefined_with_huge_value,
         ]
         num = random.randint(1, 2)
         selected = random.sample(binary_attacks, num)
@@ -981,3 +984,87 @@ class StructureFuzzer(FormatFuzzerBase):
         elem_bytes = file_data[src_start:src_end]
         # Insert the duplicate right after the original element
         return file_data[:src_end] + elem_bytes + file_data[src_end:]
+
+    def _binary_sq_zero_length(self, file_data: bytes) -> bytes:
+        """Inject a synthetic SQ element with explicit length = 0.
+
+        fo-dicom #1009. A Sequence with explicit length zero is a degenerate
+        construct: the parser expects items inside but reads zero bytes,
+        and some implementations enter an infinite loop trying to find the
+        next item delimiter. We append a fresh SQ element rather than
+        mutating an existing one so the attack is deterministic and the
+        rest of the file remains intact.
+
+        The injected element uses a private tag (0009,0010) with VR "SQ",
+        2-byte reserved (0x0000), 4-byte length (0x00000000), no items.
+        Total: 12 bytes.
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        # (0009,0010) "SQ" reserved=0 length=0
+        sq_blob = (
+            b"\x09\x00\x10\x00"  # tag (0009,0010) LE
+            + b"SQ"  # VR
+            + b"\x00\x00"  # reserved
+            + b"\x00\x00\x00\x00"  # explicit length = 0
+        )
+        return file_data + sq_blob
+
+    def _binary_sv_uv_wrong_length(self, file_data: bytes) -> bytes:
+        """Inject an SV/UV VR element with mismatched length-field encoding.
+
+        fo-dicom #1386. SV (Signed 64-bit Very Long) and UV (Unsigned
+        64-bit Very Long) were added in DICOM 2024. They are long-VRs
+        and must use the ``reserved(2) + length(4)`` encoding. Older
+        parsers that don't know about SV/UV fall back to short-VR
+        encoding (2-byte length immediately after the VR), reading the
+        2 reserved bytes as a length. The result is a parser desync
+        that corrupts every subsequent element.
+
+        We append a synthetic SV element with the correct long-VR
+        encoding (8 bytes of value, length=8). A non-SV/UV-aware parser
+        sees length = 0 (the reserved field) followed by garbage.
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        vr = random.choice([b"SV", b"UV"])
+        # (0009,0011) <VR> reserved=0 length=8 + 8 bytes value
+        elem = (
+            b"\x09\x00\x11\x00"  # tag (0009,0011) LE
+            + vr  # VR (SV or UV)
+            + b"\x00\x00"  # reserved
+            + b"\x08\x00\x00\x00"  # length = 8
+            + b"\x01\x02\x03\x04\x05\x06\x07\x08"  # 8-byte value
+        )
+        return file_data + elem
+
+    def _binary_sq_undefined_with_huge_value(self, file_data: bytes) -> bytes:
+        """Append SQ with undefined length and an item that lies about its size.
+
+        fo-dicom #1982 (still OPEN upstream). When a reader uses a mode
+        that skips large tags by seeking forward by the declared length,
+        an SQ with undefined length (0xFFFFFFFF) confuses the
+        seek/skip state machine because the actual end is the Sequence
+        Delimitation Item, not a length-driven offset. If the contained
+        item ALSO uses a huge declared length, the parser may seek past
+        EOF or into unrelated data.
+
+        Appended structure (all explicit VR LE):
+          (0009,0012) SQ reserved=0 length=0xFFFFFFFF
+          (FFFE,E000) item, length=0x7FFFFFFF (lies -- way beyond EOF)
+          (FFFE,E0DD) Sequence Delimitation Item, length=0
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        sq_header = (
+            b"\x09\x00\x12\x00"  # tag (0009,0012)
+            + b"SQ"
+            + b"\x00\x00"  # reserved
+            + b"\xff\xff\xff\xff"  # undefined length
+        )
+        item_with_lying_length = (
+            b"\xfe\xff\x00\xe0"  # (FFFE,E000) Item
+            + b"\xff\xff\xff\x7f"  # length = INT32_MAX (0x7FFFFFFF)
+        )
+        seq_delim = b"\xfe\xff\xdd\xe0\x00\x00\x00\x00"  # (FFFE,E0DD) length=0
+        return file_data + sq_header + item_with_lying_length + seq_delim

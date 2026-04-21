@@ -756,3 +756,47 @@ class TestCorruptJpeglsCodestream:
             with patch("random.choice", return_value=variant):
                 result = fuzzer._corrupt_jpegls_codestream(ds)
             assert Tag(0x7FE0, 0x0010) in result, f"variant {variant} missing PixelData"
+
+
+class TestBinaryNullTagInFragment:
+    """fo-dicom #763: null tag (0000,0000) in encapsulated fragment."""
+
+    def test_returns_bytes(self):
+        fuzzer = CompressedPixelFuzzer()
+        file_data = _make_encapsulated_dicom_bytes()
+        region = _find_encapsulated_region(file_data)
+        result = fuzzer._binary_null_tag_in_fragment(file_data, region)
+        assert isinstance(result, bytes)
+
+    def test_output_same_length_as_input(self):
+        fuzzer = CompressedPixelFuzzer()
+        file_data = _make_encapsulated_dicom_bytes()
+        region = _find_encapsulated_region(file_data)
+        result = fuzzer._binary_null_tag_in_fragment(file_data, region)
+        assert len(result) == len(file_data)
+
+    def test_first_fragment_tag_is_now_null(self):
+        fuzzer = CompressedPixelFuzzer()
+        file_data = _make_encapsulated_dicom_bytes()
+        region = _find_encapsulated_region(file_data)
+        result = fuzzer._binary_null_tag_in_fragment(file_data, region)
+        frag_off = region.first_fragment_offset
+        assert result[frag_off : frag_off + 4] == b"\x00\x00\x00\x00"
+
+    def test_length_field_unchanged(self):
+        """The 4 bytes after the tag (length field) must be preserved."""
+        fuzzer = CompressedPixelFuzzer()
+        file_data = _make_encapsulated_dicom_bytes()
+        region = _find_encapsulated_region(file_data)
+        result = fuzzer._binary_null_tag_in_fragment(file_data, region)
+        frag_off = region.first_fragment_offset
+        assert (
+            result[frag_off + 4 : frag_off + 8]
+            == file_data[frag_off + 4 : frag_off + 8]
+        )
+
+    def test_non_encapsulated_passthrough(self):
+        fuzzer = CompressedPixelFuzzer()
+        garbage = b"\x00" * 256
+        region = EncapsRegion(0, 0, 200, -1)
+        assert fuzzer._binary_null_tag_in_fragment(garbage, region) is garbage
