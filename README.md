@@ -147,15 +147,18 @@ for i in range(100):
 
 ```text
 dicom-fuzzer/
-├── dicom_fuzzer/    # Main package
+├── dicom_fuzzer/    # Main package (installed by `pip install dicom-fuzzer`)
 │   ├── attacks/     # Attack modules (format, series, network, multiframe)
 │   ├── cli/         # Command-line interface (14 subcommands)
 │   ├── core/        # Engine, mutation, corpus, crash analysis, harness, reporting
 │   └── utils/       # Logging, hashing, identifiers
 ├── tests/           # Test suite
 ├── docs/            # Documentation
+├── examples/        # Reference targets + maintainer tooling (not installed)
 └── artifacts/       # Runtime output (gitignored)
 ```
+
+`examples/` holds the fo-dicom network harness (DIMSE SCP the network fuzzer points at) and the pydicom smoke analyzer (post-campaign corpus QA). See [examples/README.md](examples/README.md).
 
 ## Documentation
 

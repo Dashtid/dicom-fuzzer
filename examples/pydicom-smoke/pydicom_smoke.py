@@ -8,7 +8,7 @@ summary identifying candidate pydicom bugs worth filing upstream.
 Not part of the CLI. One-shot analysis script invoked directly.
 
 Usage:
-    python -m dicom_fuzzer.tools.pydicom_smoke <corpus_dir> [--out DIR] [--timeout SEC]
+    python examples/pydicom-smoke/pydicom_smoke.py <corpus_dir> [--out DIR] [--timeout SEC]
 
 The corpus is expected to contain files produced by a dicom-fuzzer
 campaign (so most files ARE malformed on purpose). We are looking for
