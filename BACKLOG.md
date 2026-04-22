@@ -26,6 +26,89 @@ Going forward:
 
 ---
 
+## Attack strategy audit (2026-04-22)
+
+Full per-module maturity assessment in [docs/STRATEGY_AUDIT.md](docs/STRATEGY_AUDIT.md).
+Summary:
+
+| Module     | Maturity | Strategies         | Tests | Binary attacks            |
+| ---------- | -------- | ------------------ | ----- | ------------------------- |
+| Format     | mature   | 23                 | ~1260 | 13 (Structure) + 4 others |
+| Multiframe | growing  | 10                 | ~180  | 0                         |
+| Series     | growing  | 18 (12+6)          | ~335  | 0                         |
+| Network    | mature   | DIMSE+TLS+Stateful | ~595  | PDU-level                 |
+
+---
+
+## Format fuzzing -- P3: architectural depth (from audit)
+
+- **Generic `mutate_bytes` length-field sweep.** Today only
+  StructureFuzzer has a length-field binary attack. Extract it as
+  a base-class helper so every format fuzzer can opt into length
+  corruption. See audit section 1.
+- **Nested-SQ recursion bomb in SequenceFuzzer.** Configurable
+  depth (default 10k). Current nesting is ad-hoc and shallow.
+- **Cross-reference attacks.** AT/AE/UI forward references that
+  point at nonexistent tags, at themselves, or form cycles.
+
+## Multiframe fuzzing -- P2: close the binary-attack gap
+
+- **Multiframe-aware BOT corruption.** Add `mutate_bytes` to
+  EncapsulatedPixelStrategy that knows NumberOfFrames and can
+  create N-mismatched offsets (CompressedPixelFuzzer's BOT attack
+  is single-frame unaware).
+- **Extended Offset Table (EOT) fuzzing.** DICOM 2022 tag
+  (7FE0,0001) is untouched. New strategy class.
+- **Shared/per-frame ambiguity.** Replicate a value in both
+  SharedFunctionalGroupsSequence and PerFrameFunctionalGroupsSequence
+  to test viewer precedence logic.
+
+## Series/study fuzzing -- P2: close obvious gaps
+
+- **Circular ReferencedSeriesSequence** (A->B->A) to test
+  depth-first traversal safety.
+- **Singular geometry matrices** (zero-determinant Transform
+  via ImagePositionPatient + ImageOrientationPatient) to crash
+  reconstruction matrix-inversion paths.
+- **Same SOPInstanceUID across series** to test archiver
+  instance-dedup logic.
+- **Fault isolation for ParallelSeriesMutator** (per-worker
+  try/except; pool survives single worker crash).
+
+## Network fuzzing -- P3: complete the state machine
+
+- **Wire `timing_attacks.py` + `resource_attacks.py` into
+  `StatefulFuzzer.generate_fuzz_sequences()`.** Modules exist but
+  no campaign calls into them.
+- **TLS cert chain fuzzing.** Expired certs, self-signed chains,
+  wrong-CN, CRL/OCSP revocation scenarios.
+- **User-identity negotiation fuzzing** (PS3.7 User-Identity
+  Sub-Item: username/password, Kerberos, SAML, JWT).
+
+---
+
+## Open-source target adoption -- P1
+
+Currently testing only against `Hermes.exe` (proprietary).
+`docs/STRATEGY_AUDIT.md` evaluates open-source alternatives.
+Primary recommendation: **Orthanc 1.12.10** (known-vulnerable
+baseline for regression) + **DCMTK** (secondary, format-heavy
+batch target). See audit "Open-source target research" section
+for full reasoning and integration plan.
+
+Concrete work:
+
+- **Pin Orthanc 1.12.10 locally** as regression baseline. Our
+  fuzzer should reproduce CVE-2026-5437..5445.
+- **Add `--target-mode` option** with `hermes`, `orthanc-file`,
+  `orthanc-dimse` variants.
+- **Separate artifact roots** (`artifacts/campaigns/orthanc/`)
+  so Hermes data stays isolated.
+- **Coordinated disclosure flow** if a new crash is found against
+  patched versions.
+
+---
+
 ## Campaign & validation -- P1
 
 ### Build local high-quality DICOM seed corpus
