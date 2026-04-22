@@ -193,6 +193,15 @@ def _add_target_args(parser: argparse.ArgumentParser) -> None:
             "Only used with --gui-mode. (default: 3.0)"
         ),
     )
+    parser.add_argument(
+        "--no-auto-triage",
+        action="store_true",
+        help=(
+            "Disable automatic crash triage at end of campaign. By default "
+            "the campaign writes per-cluster markdown reports to "
+            "<run_dir>/reports/triage/ when crashes are detected."
+        ),
+    )
 
 
 def _add_resource_args(parser: argparse.ArgumentParser) -> None:

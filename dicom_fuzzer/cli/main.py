@@ -563,6 +563,71 @@ def _run_optional_controllers(
     return 0
 
 
+def _run_auto_triage(run_dir: Path) -> None:
+    """Auto-cluster crashes from session.json and write markdown reports.
+
+    Looks for `<run_dir>/reports/json/session.json`, loads any crashes,
+    and writes per-cluster reports to `<run_dir>/reports/triage/`.
+    Silent when the session has no crashes. All errors are logged but
+    never raised -- triage is best-effort and must not fail a campaign.
+    """
+    session_path = run_dir / "reports" / "json" / "session.json"
+    if not session_path.exists():
+        return
+
+    try:
+        from datetime import datetime
+
+        from dicom_fuzzer.core.crash.crash_triage import CrashTriageEngine
+        from dicom_fuzzer.core.crash.models import CrashRecord
+        from dicom_fuzzer.core.crash.triage_report import write_cluster_reports
+
+        with open(session_path) as f:
+            data = json.load(f)
+
+        raw = data.get("crashes", [])
+        if not raw:
+            return
+
+        crashes: list[CrashRecord] = []
+        for c in raw:
+            try:
+                crashes.append(
+                    CrashRecord(
+                        crash_id=c.get("crash_id", ""),
+                        timestamp=datetime.fromisoformat(c["timestamp"]),
+                        crash_type=c.get("crash_type", "UNKNOWN"),
+                        severity=c.get("severity", "medium"),
+                        fuzzed_file_id=c.get("fuzzed_file_id", ""),
+                        fuzzed_file_path=c.get("fuzzed_file_path", ""),
+                        return_code=c.get("return_code"),
+                        exception_type=c.get("exception_type"),
+                        exception_message=c.get("exception_message"),
+                        stack_trace=c.get("stack_trace"),
+                        crash_log_path=c.get("crash_log_path"),
+                        preserved_sample_path=c.get("preserved_sample_path"),
+                        reproduction_command=c.get("reproduction_command"),
+                        mutation_sequence=c.get("mutation_sequence", []),
+                    )
+                )
+            except (KeyError, ValueError) as e:
+                logger.warning("Skipping malformed crash record during triage: %s", e)
+
+        if not crashes:
+            return
+
+        triage_dir = run_dir / "reports" / "triage"
+        engine = CrashTriageEngine()
+        written = write_cluster_reports(crashes, triage_dir, engine=engine)
+        cluster_count = len(written) - 1  # subtract index.md
+        cli.info(
+            f"Auto-triage: {len(crashes)} crashes -> {cluster_count} unique "
+            f"clusters. Reports: {triage_dir}"
+        )
+    except Exception as e:
+        logger.warning("Auto-triage failed: %s", e)
+
+
 def main() -> int:
     """Execute DICOM fuzzing campaign with specified parameters.
 
@@ -627,9 +692,14 @@ def main() -> int:
         files, results_data = runner.generate_files()
         runner.display_results(files, results_data, json_mode, quiet_mode)
 
-        return _run_optional_controllers(
+        controller_result = _run_optional_controllers(
             args, files, input_files, run_dir, resource_limits
         )
+
+        if not getattr(args, "no_auto_triage", False):
+            _run_auto_triage(run_dir)
+
+        return controller_result
 
     except KeyboardInterrupt:
         print("\n\n[INTERRUPTED] Campaign stopped by user")
