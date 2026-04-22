@@ -112,33 +112,25 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run tests (group ${{ matrix.group }}/10)
-        # Split tests across 10 jobs to reduce memory usage and prevent OOM kills
-        # Coverage only on group 1 to avoid merging complexity
+        # Split tests across 10 jobs to reduce memory usage and prevent OOM kills.
+        # Every group runs with --cov so the merged report covers the full suite.
+        # COVERAGE_FILE makes each cell write to a unique data file so the coverage
+        # job can combine them without clobbering.
+        env:
+          COVERAGE_FILE: .coverage.py${{ matrix.python-version }}-g${{ matrix.group }}
         run: |
-          if [ "${{ matrix.group }}" == "1" ]; then
-            uv run pytest tests/ -m "not slow" -o "addopts=" --splits 10 --group ${{ matrix.group }} --cov=dicom_fuzzer --cov-report=xml --cov-report=term-missing --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
-          else
-            uv run pytest tests/ -m "not slow" -o "addopts=" --splits 10 --group ${{ matrix.group }} --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
-          fi
+          uv run pytest tests/ -m "not slow" -o "addopts=" --splits 10 --group ${{ matrix.group }} --cov=dicom_fuzzer --cov-branch --cov-report= --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
         timeout-minutes: 20
 
-      - name: Archive coverage report
-        if: matrix.group == 1 && matrix.python-version == '3.13'
+      - name: Upload coverage data
+        if: matrix.python-version == '3.13'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v5
         with:
-          name: coverage-xml-report
-          path: coverage.xml
-          retention-days: 30
-          if-no-files-found: ignore
-
-      - name: Upload coverage to Codecov
-        if: matrix.group == 1 && matrix.python-version == '3.13'
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
-        with:
-          files: ./coverage.xml
-          flags: unittests
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
+          name: coverage-data-py${{ matrix.python-version }}-g${{ matrix.group }}
+          path: .coverage.py${{ matrix.python-version }}-g${{ matrix.group }}
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Archive test results
         if: always()
@@ -149,6 +141,54 @@ jobs:
             junit.xml
             .pytest_cache/
           retention-days: 7
+
+  coverage:
+    name: Merge Coverage & Upload to Codecov
+    runs-on: ubuntu-latest
+    needs: test
+    # Don't block the whole pipeline if Codecov has an outage.
+    if: always() && needs.test.result != 'cancelled'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Download all coverage data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v4
+        with:
+          pattern: coverage-data-py3.13-g*
+          merge-multiple: true
+          path: .
+
+      - name: Combine coverage and emit XML
+        run: |
+          uv run coverage combine
+          uv run coverage xml -o coverage.xml
+          uv run coverage report --skip-covered || true
+
+      - name: Archive merged coverage
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v5
+        with:
+          name: coverage-xml-report
+          path: coverage.xml
+          retention-days: 30
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   build:
     name: Build Package
