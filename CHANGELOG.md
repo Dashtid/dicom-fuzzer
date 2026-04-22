@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-04-20 - CVE coverage, crash triage, campaign quality
+
+Major release driven by a ~140-CVE audit and the first real campaigns
+against Hermes.exe. Closes all 13 named CVE coverage gaps, reinstates
+Secondary Capture support after a scope refocus, converts reports to
+Markdown, and fixes two show-stopping bugs that stalled multi-hour
+GUI campaigns. Final strategy set: **24 format + 10 multiframe = 34
+strategies**.
+
 ### Added
 
 - **`EmptyValueFuzzer`** -- new format fuzzer targeting the .NET
@@ -119,6 +128,149 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Concurrent field mismatches** -- `_concurrent_field_mismatch` in
   PixelFuzzer sets NumberOfFrames + BitsAllocated + SamplesPerPixel
   all to invalid values simultaneously.
+
+- **Registration geometry attacks** -- 4 sub-attacks in `StudyMutator`
+  (REGISTRATION_GEOMETRY) covering FrameOfReferenceUID orphaning and
+  conflicting ImagePositionPatient across series with shared FoR.
+
+- **Temporal (4D) series attacks** -- 3 sub-attacks in series
+  strategy 12: InstanceCreationTime jitter, cardiac TriggerTime
+  violations, per-slice delta inversion.
+
+- **P0 network protocol fuzzing** -- `StatefulFuzzer.fuzz()` now wires
+  PS3.8 PDU building (7 PDU type builders) and
+  `execute_event()`. `DIMSEMessage.to_p_data_tf_pdu()` packs C-STORE
+  requests directly from pydicom datasets (26 new tests).
+
+- **P1 network protocol fuzzing** -- real-socket TLS probing via
+  `TLSSecurityTester`; full C-FIND / C-STORE / C-MOVE DIMSE fuzzing
+  via `DIMSEFuzzer`.
+
+- **`PresentationStateFuzzer`** (strategy 42, later deleted) -- GSPS
+  / CSPS VOI LUT and annotation attacks. Removed in #246 as part of
+  scope refocus.
+
+- **Crash triage clustering** -- `CrashTriageEngine.cluster_crashes()`
+  groups crashes by md5 signature (crash_type + exception +
+  stack). Ships as auto-clustered markdown reports via
+  `dicom_fuzzer/core/crash/triage_report.py`: one file per cluster
+  plus an `index.md` ordered by priority.
+
+- **Auto-triage campaign hook** -- campaigns automatically run crash
+  clustering at the end and write markdown reports to
+  `<run_dir>/reports/triage/`. Disable with `--no-auto-triage`.
+
+- **Round-robin strategy selection** --
+  `DICOMGenerator.generate_batch()` now runs a two-phase selection:
+  Phase 1 generates one file per applicable strategy (guaranteeing
+  every strategy fires at least once per seed), Phase 2 fills the
+  remaining budget with random sampling. Fixes 6 modality-specific
+  strategies that were getting zero files due to statistical
+  undersampling at `-c 50`.
+
+- **CWE-400 OOM classification** --
+  `GUIExecutionResult.memory_limit_exceeded` is now set when the
+  runner kills Hermes for exceeding the memory cap. Crashes
+  classified as `memory_limit` / `MemoryLimitExceeded` in the session
+  report so OOM kills don't get conflated with real crashes.
+
+- **Supported SOP classes table in README** -- 9-row table listing
+  every modality where both a seed file and a dedicated (or
+  compatible) fuzzer exist.
+
+- **Campaign structural audit** (`docs/CAMPAIGN_AUDIT_20260416.md`) --
+  post-mortem of the 700-file campaign: 8 crashing strategies, 6
+  never-hit (pre round-robin), 20 zero-crash. Drove the round-robin
+  fix above.
+
+### Changed
+
+- **Scope policy** -- format fuzzers now only added when a matching
+  seed exists in `dicom-seeds/` **and** Hermes.exe actually reads
+  that SOP class. DX was dropped from scope (Hermes does not support
+  DX SOP class; mutated DX files are rejected at load).
+
+- **Reports converted from HTML to Markdown** -- both the enhanced
+  campaign reporter and the Series3D reporter now emit `.md` files
+  instead of `.html`. `html_templates.py` gutted to a stub; CSS
+  removed. Makes reports diffable, grep-able, and renderable in any
+  git hosting UI.
+
+- **Round-robin strategy selection** already covered under Added,
+  but also a behavior change -- campaigns are no longer vulnerable
+  to the "never-hit" problem for modality-specific strategies.
+
+- **All seed files gitignored** (`*phi*`, `*.dcm` in
+  `dicom-seeds/`) -- prevent accidental commits of clinical
+  data. Seed corpus is local-only.
+
+- **Seed corpus quality pass (2026-04-17)** -- 11 files across 9
+  modalities, each verified to parse cleanly with proper File Meta
+  and realistic clinical tag counts. SEG went from 2KB/2 frames to
+  74KB/30 frames/3 segments; RT-Struct from 3KB/3 ROIs to
+  145KB/15 ROIs with contour data; encapsulated-PDF now a 3-page
+  dose report. SC directory holds 3 files (grayscale dose report,
+  RGB clinical photo, JPEG-compressed RGB) -- trimmed from 8
+  pydicom fixtures.
+
+### Fixed
+
+- **Windows pipe-buffer deadlock in GUI campaigns** -- `gui_runner`
+  used `subprocess.PIPE` for Hermes stdout/stderr but only drained
+  them in a `finally` block. On Windows, ~4-64KB pipe buffers fill
+  on chatty targets, the child blocks, and the monitor's
+  `process.poll()` keeps returning None -- the 60s timeout never
+  fires. Switched to `subprocess.DEVNULL`; crash classification uses
+  the NTSTATUS exit code, so no functional loss.
+
+- **40 silent mutation errors per 2200-file campaign** -- four
+  strategies had unguarded paths (`DictionaryFuzzer` deepcopy
+  recursion, `SharedGroupStrategy._ensure_sfg` empty-sequence,
+  `MultiFrameFuzzerBase._calculate_frame_size` int-vs-str, negative
+  frame count producing `struct.pack("<{-5}I"...)` "bad char"). The
+  mutator now also logs `Mutation failed in <strategy>: <ExcType>:
+  <msg>` so any future errors are diagnosable from the log alone.
+
+- **Session JSON crashes gap** -- session.json was written before
+  target testing and never re-saved, so all campaigns reported zero
+  crashes even when crashes existed. `target_controller` now
+  re-saves after `_record_crashes()`.
+
+- **Flaky CI tests** -- three test_generator flakes fixed via pinned
+  Hypothesis seeds derived from parameter (deterministic shrinking);
+  RescaleSlope AttributeError from `_voi_lut_corruption` deletion;
+  DICOMDIR path assertion on Linux (pydicom doesn't split `C:\...`
+  by backslash on non-Windows).
+
+- **Crash persistence pipeline** -- crashes captured mid-campaign
+  now round-trip correctly through session.json, triage clustering,
+  and markdown report generation.
+
+### Security
+
+- **pytest >= 9.0.3** -- tmpdir handling vulnerability.
+- **pillow >= 12.2.0** -- CVE-2026-40192 FITS GZIP decompression bomb.
+- **cryptography >= 46.0.7** -- buffer overflow on non-contiguous
+  buffers.
+- **CodeQL warnings resolved** -- 2 redundant `pos + 8 > data_len`
+  comparisons in `structure_fuzzer._parse_meta_elements` removed
+  (guaranteed by the enclosing while loop).
+
+### Removed
+
+- **9 out-of-scope modality fuzzers** (Waveform, SR, US, MG, XA,
+  MRS, PM, SC, PR) -- target SOP classes Hermes does not
+  support. Strategy count dropped 42 -> 33. Note SC was later
+  reinstated (back up to 34) after seed corpus was expanded to cover
+  Secondary Capture.
+
+- **DX modality from scope** -- Hermes does not list DX in its
+  supported SOP classes; mutated DX files are rejected at load and
+  produce no crash signal.
+
+- **HTML campaign reports** -- replaced by Markdown (see Changed
+  above). `REPORT_CSS` is now an empty-string stub for import
+  compatibility but emits nothing.
 
 ## [1.10.1] - 2026-04-09 - Unbundle seed corpus
 

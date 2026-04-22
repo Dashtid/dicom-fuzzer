@@ -6,9 +6,14 @@ Centralizes all command-line argument definitions for the main fuzzing command.
 from __future__ import annotations
 
 import argparse
+from importlib.metadata import PackageNotFoundError, version
 
-# Version string for the fuzzer
-VERSION = "DICOM Fuzzer v1.7.0"
+try:
+    _PKG_VERSION = version("dicom-fuzzer")
+except PackageNotFoundError:
+    _PKG_VERSION = "unknown"
+
+VERSION = f"DICOM Fuzzer v{_PKG_VERSION}"
 
 
 def create_parser() -> argparse.ArgumentParser:
