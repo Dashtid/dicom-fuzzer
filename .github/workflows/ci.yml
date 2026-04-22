@@ -124,7 +124,7 @@ jobs:
 
       - name: Archive coverage report
         if: matrix.group == 1 && matrix.python-version == '3.13'
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v5
         with:
           name: coverage-xml-report
           path: coverage.xml
@@ -133,7 +133,7 @@ jobs:
 
       - name: Archive test results
         if: always()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v5
         with:
           name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}-group${{ matrix.group }}
           path: |
@@ -174,7 +174,7 @@ jobs:
           fi
 
       - name: Pytest coverage comment
-        uses: MishaKav/pytest-coverage-comment@287292879eaaff04116f36d3eb1a670f6e5df1a4  # main
+        uses: MishaKav/pytest-coverage-comment@dd5b80bde6d16941f336518e92929e89069d8451  # main
         if: steps.coverage-check.outputs.exists == 'true'
         with:
           pytest-xml-coverage-path: ./coverage.xml
@@ -214,7 +214,7 @@ jobs:
           uv run twine check dist/*
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v5
         with:
           name: dist-packages
           path: dist/
