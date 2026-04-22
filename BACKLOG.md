@@ -86,57 +86,42 @@ Key gap: Multiframe and Series have no binary-level attacks.
 
 ---
 
-## Test coverage -- P1
+## Test coverage -- P2
 
-Codecov reports **31%** as of 2026-04-22 (first upload after wiring
-Codecov in PR #279). Target: **80%+**.
+Codecov reported **31%** as of 2026-04-22 (first upload after wiring
+Codecov in PR #279). Local full-suite coverage: **90%**. The gap is
+a CI measurement artifact, resolved by PR #281.
 
-### Root cause
+### Root cause (historical)
 
-CI only runs `pytest --cov` on matrix split group 1 of 10
-(`ci.yml:118`, "Coverage only on group 1 to avoid merging
-complexity"). That measures the coverage contribution of ~10% of
-the test suite. The other 90% of tests run without coverage
-instrumentation, so everything they exercise shows as uncovered
-even though the tests exist and pass.
+Before PR #281, CI only ran `pytest --cov` on matrix split group 1
+of 10. That measured the coverage contribution of ~10% of the test
+suite; the other 90% of tests ran without instrumentation, so
+everything they exercised showed as uncovered. After PR #281 every
+cell runs with `--cov` and a dedicated `coverage` job merges the 10
+data files before uploading to Codecov.
 
-A single local run on group 1 shows 36% coverage (matches the
-Codecov number after ignore rules). Running all tests locally
-with coverage should push the number substantially higher without
-writing a single new test.
+### Remaining work
 
-### Planned work
+Once Codecov reflects the real ~90% baseline, the only files still
+below 80% are CLI/session plumbing:
 
-1. **Fix CI to measure coverage across all splits.** Pass
-   `--cov` on every group, upload 10 `.coverage.*` artifacts,
-   merge via `coverage combine` in a dedicated job, upload the
-   merged XML to Codecov. Expected outcome: coverage jumps from
-   31% toward the real number (likely 75-85%).
+- `cli/commands/samples.py` -- 46%
+- `cli/commands/study_campaign.py` -- 56%
+- `cli/base.py` -- 57%
+- `attacks/series/parallel_mutator.py` -- 60%
+- `core/session/resource_manager.py` -- 61%
 
-2. **Identify genuinely under-tested modules from the merged
-   report.** Focus candidates based on the g1 run:
-   - `core/corpus/corpus_minimization.py` (8%)
-   - `core/reporting/triage_report.py`, `formatters.py`,
-     `report_utils.py`, `report_analytics.py` (7-12%)
-   - `core/dicom/series_detector.py` (10%)
-   - `core/mutation/safety.py` (18%)
-   - `utils/sanitizer.py` (12%)
-   - `cli/main.py`, `cli/controllers/*` (11-30%)
+Write targeted tests for these, prioritized by user-facing impact:
+`samples` (user-invoked CLI), `study_campaign` (campaign
+entrypoint), then `parallel_mutator` (concurrency paths that
+benefit most from tests).
 
-3. **Write targeted tests for whichever modules are still under
-   60% after step 1.** Prioritize hot paths (anything invoked
-   from the CLI on every run) over dead code.
+### Why P2, not P1
 
-### Why this matters
-
-- Coverage is a signal for regression safety; 31% means most of
-  the code has no safety net against refactor-induced breakage.
-- The CVE coverage work is done, but module-level test coverage
-  lags. Low coverage on crash triage and corpus minimization is
-  especially concerning -- those are the paths that run after a
-  crash, when correctness matters most.
-- Fuzzer work continues regardless, but high coverage makes it
-  cheaper to land.
+Once PR #281 lands, the repo is at ~90% coverage. The tail is real
+work but narrow. Fuzzer development (target adoption, campaign
+tooling) is higher leverage than squeezing out the last 10 points.
 
 ---
 
