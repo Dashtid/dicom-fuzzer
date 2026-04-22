@@ -26,10 +26,7 @@ Going forward:
 
 ---
 
-## Attack strategy audit (2026-04-22)
-
-Full per-module maturity assessment in [docs/STRATEGY_AUDIT.md](docs/STRATEGY_AUDIT.md).
-Summary:
+## Module maturity (2026-04-22)
 
 | Module     | Maturity | Strategies         | Tests | Binary attacks            |
 | ---------- | -------- | ------------------ | ----- | ------------------------- |
@@ -38,14 +35,16 @@ Summary:
 | Series     | growing  | 18 (12+6)          | ~335  | 0                         |
 | Network    | mature   | DIMSE+TLS+Stateful | ~595  | PDU-level                 |
 
+Key gap: Multiframe and Series have no binary-level attacks.
+
 ---
 
-## Format fuzzing -- P3: architectural depth (from audit)
+## Format fuzzing -- P3: architectural depth
 
 - **Generic `mutate_bytes` length-field sweep.** Today only
   StructureFuzzer has a length-field binary attack. Extract it as
   a base-class helper so every format fuzzer can opt into length
-  corruption. See audit section 1.
+  corruption.
 - **Nested-SQ recursion bomb in SequenceFuzzer.** Configurable
   depth (default 10k). Current nesting is ad-hoc and shallow.
 - **Cross-reference attacks.** AT/AE/UI forward references that
@@ -89,23 +88,41 @@ Summary:
 
 ## Open-source target adoption -- P1
 
-Currently testing only against `Hermes.exe` (proprietary).
-`docs/STRATEGY_AUDIT.md` evaluates open-source alternatives.
-Primary recommendation: **Orthanc 1.12.10** (known-vulnerable
-baseline for regression) + **DCMTK** (secondary, format-heavy
-batch target). See audit "Open-source target research" section
-for full reasoning and integration plan.
+Current target is `Hermes.exe` (proprietary). Crash reports stay
+local; no upstream contribution path. Recommended primary
+open-source target: **Orthanc 1.12.10** (C++, Windows installer,
+DIMSE+REST+DICOMweb covers all four attack modes, active CVE
+surface). **DCMTK** as secondary (format-heavy batch via
+`dcmdump`/`storescp`; Linux-only is fine for CI).
+
+Why Orthanc specifically:
+
+- Accepts format/multiframe files via HTTP upload or C-STORE
+- Full DIMSE server (exercises network module)
+- Study-level REST + DICOMweb (exercises series module)
+- Machine Spirits disclosed CVE-2026-5437..5445 against 1.12.10
+  in 2026 (heap BOF, decompression bomb, meta-header OOB read);
+  all fixed in 1.12.11. Proves the parser is fuzzable and
+  maintainers ship fixes.
+- Active maintainer (Sebastien Jodogne, UCLouvain); public
+  issue tracker and responsive security handling.
 
 Concrete work:
 
 - **Pin Orthanc 1.12.10 locally** as regression baseline. Our
-  fuzzer should reproduce CVE-2026-5437..5445.
+  fuzzer should reproduce CVE-2026-5437..5445 -- strong
+  end-to-end validation of the fuzzer.
 - **Add `--target-mode` option** with `hermes`, `orthanc-file`,
   `orthanc-dimse` variants.
 - **Separate artifact roots** (`artifacts/campaigns/orthanc/`)
   so Hermes data stays isolated.
 - **Coordinated disclosure flow** if a new crash is found against
   patched versions.
+
+Alternatives considered and rejected as primary: GDCM (library,
+no server), fo-dicom (.NET, what Hermes already hits implicitly),
+dcm4chee-arc-light (Java, heavy deploy), OHIF/Weasis/Slicer
+(hard to automate crash detection, less active CVE surface).
 
 ---
 
