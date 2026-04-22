@@ -477,8 +477,13 @@ class TestOutputFormatting:
                 assert "Campaign Results" in output
                 assert "Successfully generated" in output or "[+]" in output
 
-    def test_progress_bar_with_tqdm(self, sample_dicom, output_dir):
-        """Test progress bar display when tqdm available."""
+    def test_single_file_calls_generate_batch_once(self, sample_dicom, output_dir):
+        """Single-file mode runs generator.generate_batch once with the full
+        count. Earlier the controller mini-batched the call (count // 20) to
+        drive a CLI-side tqdm, which reset round-robin strategy selection
+        every batch and starved later-registered strategies. The fix is to
+        call generate_batch once; this test guards against regression.
+        """
         args = [
             "dicom-fuzzer",
             str(sample_dicom),
@@ -488,40 +493,29 @@ class TestOutputFormatting:
             str(output_dir),
         ]
 
-        # Import tqdm for mocking (skip test if not available)
-        pytest.importorskip("tqdm")
-
-        # Mock tqdm availability (patch where it's imported in main.py)
         with patch("sys.argv", args):
             with patch(
-                "dicom_fuzzer.cli.controllers.campaign_runner.tqdm"
-            ) as mock_tqdm:
-                with patch(
-                    "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
-                ) as mock_gen_class:
-                    mock_gen = Mock()
-                    mock_gen.generate_batch.return_value = [
-                        output_dir / f"fuzzed_{i:04d}.dcm" for i in range(20)
-                    ]
-                    mock_gen.stats.skipped_due_to_write_errors = 0
-                    mock_gen.stats.strategies_used = {"metadata": 20}
-                    mock_gen.cumulative_strategies = {}
-                    mock_gen.known_strategy_names = []
-                    mock_gen_class.return_value = mock_gen
+                "dicom_fuzzer.cli.controllers.campaign_runner.DICOMGenerator"
+            ) as mock_gen_class:
+                mock_gen = Mock()
+                mock_gen.generate_batch.return_value = [
+                    output_dir / f"fuzzed_{i:04d}.dcm" for i in range(20)
+                ]
+                mock_gen.stats.skipped_due_to_write_errors = 0
+                mock_gen.stats.strategies_used = {"metadata": 20}
+                mock_gen.cumulative_strategies = {}
+                mock_gen.known_strategy_names = []
+                mock_gen_class.return_value = mock_gen
 
-                    # Setup tqdm context manager mock
-                    pbar_mock = Mock()
-                    pbar_mock.__enter__ = Mock(return_value=pbar_mock)
-                    pbar_mock.__exit__ = Mock(return_value=False)
-                    mock_tqdm.return_value = pbar_mock
+                try:
+                    main()
+                except SystemExit:
+                    pass
 
-                    try:
-                        main()
-                    except SystemExit:
-                        pass
-
-                    # Verify tqdm was used
-                    mock_tqdm.assert_called()
+                # Exactly one call with count=20 -- not 4 mini-batches of 5.
+                assert mock_gen.generate_batch.call_count == 1
+                _, kwargs = mock_gen.generate_batch.call_args
+                assert kwargs["count"] == 20
 
 
 class TestVersionFlag:

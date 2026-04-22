@@ -110,6 +110,36 @@ class TestLogStrategyTable:
         assert len(caplog.records) == 0
 
 
+class TestRoundRobinNotStarved:
+    """Regression: `_generate_from_single_file` must not split the request
+    into mini-batches, which previously starved strategies past batch_size
+    in the round-robin pool (-c 100 -> batch_size=5 -> only first 5 strategies ran).
+    """
+
+    def test_generate_batch_called_once_with_full_count(self, tmp_path):
+        """generator.generate_batch is called exactly once with count=num_files_per_input."""
+        from unittest.mock import MagicMock
+
+        runner = _runner(tmp_path)
+        runner.num_files_per_input = 100
+        runner.selected_strategies = None
+        runner.input_files = [Path("dummy.dcm")]
+
+        generator = MagicMock()
+        generator.generate_batch.return_value = [
+            tmp_path / f"f{i}.dcm" for i in range(100)
+        ]
+
+        runner._generate_from_single_file(generator)
+
+        assert generator.generate_batch.call_count == 1
+        call_kwargs = generator.generate_batch.call_args.kwargs
+        call_args = generator.generate_batch.call_args.args
+        # count is passed either as kwarg or positional
+        count = call_kwargs.get("count", call_args[1] if len(call_args) > 1 else None)
+        assert count == 100
+
+
 class TestSaveMutationMap:
     """Tests for _save_mutation_map writing the strategy+variant format."""
 

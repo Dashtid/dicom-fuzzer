@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Round-robin starvation in CLI campaigns.** `CampaignRunner._generate_from_single_file`
+  previously split each run into mini-batches of `count // 20` to drive a
+  CLI-side tqdm progress bar, which reset the generator's Phase 1
+  round-robin on every mini-batch. With `-c 100` the batch size was 5,
+  so only the first 5 strategies in registration order ever ran (typically
+  `calibration`, `compressed_pixel`, `deflate_bomb`, `dicomdir`, `conformance`).
+  Every multiframe strategy was silently starved. Now calls `generate_batch`
+  once with the full count; the generator prints its own progress bar. Test
+  run went from 5 distinct strategies (20 files each) to 23 distinct
+  strategies under the same `-c 100 --seed 123` invocation.
+
 ## [1.11.0] - 2026-04-20 - CVE coverage, crash triage, campaign quality
 
 Major release driven by a ~140-CVE audit and the first real campaigns
