@@ -86,6 +86,60 @@ Key gap: Multiframe and Series have no binary-level attacks.
 
 ---
 
+## Test coverage -- P1
+
+Codecov reports **31%** as of 2026-04-22 (first upload after wiring
+Codecov in PR #279). Target: **80%+**.
+
+### Root cause
+
+CI only runs `pytest --cov` on matrix split group 1 of 10
+(`ci.yml:118`, "Coverage only on group 1 to avoid merging
+complexity"). That measures the coverage contribution of ~10% of
+the test suite. The other 90% of tests run without coverage
+instrumentation, so everything they exercise shows as uncovered
+even though the tests exist and pass.
+
+A single local run on group 1 shows 36% coverage (matches the
+Codecov number after ignore rules). Running all tests locally
+with coverage should push the number substantially higher without
+writing a single new test.
+
+### Planned work
+
+1. **Fix CI to measure coverage across all splits.** Pass
+   `--cov` on every group, upload 10 `.coverage.*` artifacts,
+   merge via `coverage combine` in a dedicated job, upload the
+   merged XML to Codecov. Expected outcome: coverage jumps from
+   31% toward the real number (likely 75-85%).
+
+2. **Identify genuinely under-tested modules from the merged
+   report.** Focus candidates based on the g1 run:
+   - `core/corpus/corpus_minimization.py` (8%)
+   - `core/reporting/triage_report.py`, `formatters.py`,
+     `report_utils.py`, `report_analytics.py` (7-12%)
+   - `core/dicom/series_detector.py` (10%)
+   - `core/mutation/safety.py` (18%)
+   - `utils/sanitizer.py` (12%)
+   - `cli/main.py`, `cli/controllers/*` (11-30%)
+
+3. **Write targeted tests for whichever modules are still under
+   60% after step 1.** Prioritize hot paths (anything invoked
+   from the CLI on every run) over dead code.
+
+### Why this matters
+
+- Coverage is a signal for regression safety; 31% means most of
+  the code has no safety net against refactor-induced breakage.
+- The CVE coverage work is done, but module-level test coverage
+  lags. Low coverage on crash triage and corpus minimization is
+  especially concerning -- those are the paths that run after a
+  crash, when correctness matters most.
+- Fuzzer work continues regardless, but high coverage makes it
+  cheaper to land.
+
+---
+
 ## Open-source target adoption -- P1
 
 Current target is `Hermes.exe` (proprietary). Crash reports stay
