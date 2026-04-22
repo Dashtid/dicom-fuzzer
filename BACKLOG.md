@@ -26,6 +26,136 @@ Going forward:
 
 ---
 
+## Module maturity (2026-04-22)
+
+| Module     | Maturity | Strategies         | Tests | Binary attacks            |
+| ---------- | -------- | ------------------ | ----- | ------------------------- |
+| Format     | mature   | 23                 | ~1260 | 13 (Structure) + 4 others |
+| Multiframe | growing  | 10                 | ~180  | 0                         |
+| Series     | growing  | 18 (12+6)          | ~335  | 0                         |
+| Network    | mature   | DIMSE+TLS+Stateful | ~595  | PDU-level                 |
+
+Key gap: Multiframe and Series have no binary-level attacks.
+
+---
+
+## Format fuzzing -- P3: architectural depth
+
+- **Generic `mutate_bytes` length-field sweep.** Today only
+  StructureFuzzer has a length-field binary attack. Extract it as
+  a base-class helper so every format fuzzer can opt into length
+  corruption.
+- **Nested-SQ recursion bomb in SequenceFuzzer.** Configurable
+  depth (default 10k). Current nesting is ad-hoc and shallow.
+- **Cross-reference attacks.** AT/AE/UI forward references that
+  point at nonexistent tags, at themselves, or form cycles.
+
+## Multiframe fuzzing -- P2: close the binary-attack gap
+
+- **Multiframe-aware BOT corruption.** Add `mutate_bytes` to
+  EncapsulatedPixelStrategy that knows NumberOfFrames and can
+  create N-mismatched offsets (CompressedPixelFuzzer's BOT attack
+  is single-frame unaware).
+- **Extended Offset Table (EOT) fuzzing.** DICOM 2022 tag
+  (7FE0,0001) is untouched. New strategy class.
+- **Shared/per-frame ambiguity.** Replicate a value in both
+  SharedFunctionalGroupsSequence and PerFrameFunctionalGroupsSequence
+  to test viewer precedence logic.
+
+## Series/study fuzzing -- P2: close obvious gaps
+
+- **Circular ReferencedSeriesSequence** (A->B->A) to test
+  depth-first traversal safety.
+- **Singular geometry matrices** (zero-determinant Transform
+  via ImagePositionPatient + ImageOrientationPatient) to crash
+  reconstruction matrix-inversion paths.
+- **Same SOPInstanceUID across series** to test archiver
+  instance-dedup logic.
+- **Fault isolation for ParallelSeriesMutator** (per-worker
+  try/except; pool survives single worker crash).
+
+## Network fuzzing -- P3: complete the state machine
+
+- **Wire `timing_attacks.py` + `resource_attacks.py` into
+  `StatefulFuzzer.generate_fuzz_sequences()`.** Modules exist but
+  no campaign calls into them.
+- **TLS cert chain fuzzing.** Expired certs, self-signed chains,
+  wrong-CN, CRL/OCSP revocation scenarios.
+- **User-identity negotiation fuzzing** (PS3.7 User-Identity
+  Sub-Item: username/password, Kerberos, SAML, JWT).
+
+---
+
+## Open-source target adoption -- P1
+
+Current target is `Hermes.exe` (proprietary). Crash reports stay
+local; no upstream contribution path. Primary open-source target:
+**fo-dicom**. Secondary: **pydicom**.
+
+### Why fo-dicom as primary
+
+- GitHub-native ([fo-dicom/fo-dicom](https://github.com/fo-dicom/fo-dicom)),
+  normal PR review flow, active releases (5.2.6 in March 2026).
+- Full DICOM surface: parser (Format + Multiframe), `DicomServer` +
+  `DicomClient` with DIMSE + TLS (Network), directory loading (Series).
+  A ~50-line C# harness wrapping `DicomServer<DicomCStoreProvider>`
+  turns it into the network module's target.
+- High relevance to Hermes (both .NET). Crashes found in fo-dicom
+  often reproduce in Hermes and vice versa.
+- ~40 known fo-dicom crash issues already map to parser/encoder
+  bugs. No formal CVEs, but real bugs in real medical imaging
+  software.
+
+### Why pydicom as secondary
+
+- Free second target: our pipeline already parses files through
+  pydicom after mutation. Any parse-time crash surfaces naturally.
+  Zero setup.
+- GitHub-native ([pydicom/pydicom](https://github.com/pydicom/pydicom)),
+  pure Python. Trivial fix-and-PR loop.
+
+### Dropped from consideration
+
+- **Orthanc** -- canonical repo is Mercurial, contributions via
+  forum patch-post. Ergonomics too heavy for a solo project.
+- **DCMTK** -- git-based but not GitHub; Redmine tracker. Stronger
+  C/C++ CVE surface, but contribution flow is slower than GitHub PR.
+- **GDCM** -- GitHub mirror accepts PRs, but library-only (no server,
+  no DIMSE). Narrower attack surface than fo-dicom.
+- **dcm4chee-arc-light** -- Java, heavy deploy (WildFly + DB).
+- **OHIF/Weasis/3D Slicer** -- hard to automate crash detection,
+  less active CVE surface.
+
+### What going fo-dicom-only costs us
+
+- Memory-corruption class crashes (OOB, UAF, heap overflow) are
+  rare: .NET GC bounds-checks everything. Crashes are DoS, not
+  RCE candidates.
+- CVE-assignment velocity is lower than C/C++ parsers. fo-dicom
+  findings usually land as GitHub issues + PRs, not CVEs.
+- Downstream blast radius is narrower (mostly .NET ecosystem).
+
+Accepted trade-off: 3-5x higher velocity on the full loop
+(crash -> repro -> issue -> PR -> merged) beats the theoretical
+RCE ceiling we'd never reach with a slower toolchain.
+
+### Concrete work
+
+- **fo-dicom network harness.** Small .NET app
+  (`targets/fodicom-server/`) wrapping
+  `DicomServer<DicomCStoreProvider>` + TLS. Our network fuzzer
+  points at it.
+- **fo-dicom file harness.** Small .NET app that runs
+  `DicomFile.Open(path)` + `Dataset.Get<T>(...)` traversals in a
+  loop over a corpus directory. Crashes surface as process exit
+  codes.
+- **Separate artifact roots** (`artifacts/campaigns/fodicom/`,
+  `artifacts/campaigns/pydicom/`) so Hermes data stays isolated.
+- **Issue-report template** for fo-dicom repro bundles: crashing
+  input + stack trace + minimal reproducer program.
+
+---
+
 ## Campaign & validation -- P1
 
 ### Build local high-quality DICOM seed corpus

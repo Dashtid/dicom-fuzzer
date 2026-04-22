@@ -63,24 +63,6 @@ dicom-fuzzer input.dcm -t /path/to/viewer --timeout 5
 dicom-fuzzer input.dcm -t ./viewer.exe --gui-mode --timeout 10
 ```
 
-## CVE Replication
-
-Generate deterministic files that replicate known DICOM CVEs (not fuzzing).
-
-```bash
-# List available CVEs
-dicom-fuzzer cve --list
-
-# Generate all CVE files
-dicom-fuzzer cve --all -t template.dcm -o ./cve_output
-
-# Generate specific CVE
-dicom-fuzzer cve --cve CVE-2025-5943 -t template.dcm -o ./output
-
-# Generate and test against a target viewer
-dicom-fuzzer cve --all -t template.dcm --target ./viewer.exe
-```
-
 ## List Sample Sources
 
 ```bash
@@ -100,6 +82,6 @@ Combine: `-s metadata,pixel,header` (default: all)
 
 ## Next Steps
 
-- [CLI_REFERENCE.md](CLI_REFERENCE.md) - Full command reference
-- [CVE_REFERENCE.md](CVE_REFERENCE.md) - CVE details
+- `dicom-fuzzer --help` - Full command reference
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System internals
+- [../BACKLOG.md](../BACKLOG.md) - Roadmap and ongoing work

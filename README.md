@@ -127,7 +127,7 @@ dicom-fuzzer triage --help          # Crash triaging
 dicom-fuzzer corpus --help          # Corpus management
 ```
 
-See [docs/CLI_REFERENCE.md](docs/CLI_REFERENCE.md) for full command documentation.
+Run `dicom-fuzzer --help` (and `dicom-fuzzer <subcommand> --help`) for the authoritative command reference.
 
 ## Python API
 
@@ -160,7 +160,6 @@ dicom-fuzzer/
 ## Documentation
 
 - [Quick Start Guide](docs/QUICKSTART.md)
-- [CLI Reference](docs/CLI_REFERENCE.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
