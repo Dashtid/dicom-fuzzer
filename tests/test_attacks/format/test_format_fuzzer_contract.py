@@ -146,12 +146,23 @@ class TestFormatFuzzerContract:
 
         Run 10 attempts -- some strategies are random and may occasionally
         pick a no-op path, but at least one run should differ.
+
+        Compares file_meta and preamble too: pydicom's Dataset.__eq__ only
+        looks at DataElements, so fuzzers like ConformanceFuzzer that attack
+        file_meta (transfer syntax, SOP class UID, version bytes) would
+        otherwise look like no-ops to the test.
         """
-        original = copy.deepcopy(rich_dataset)
+        original_ds = copy.deepcopy(rich_dataset)
+        original_meta = copy.deepcopy(getattr(rich_dataset, "file_meta", None))
+        original_preamble = getattr(rich_dataset, "preamble", None)
         any_changed = False
         for _ in range(10):
             mutated = fuzzer.mutate(copy.deepcopy(rich_dataset))
-            if mutated != original:
+            if (
+                mutated != original_ds
+                or getattr(mutated, "file_meta", None) != original_meta
+                or getattr(mutated, "preamble", None) != original_preamble
+            ):
                 any_changed = True
                 break
         assert any_changed, (
