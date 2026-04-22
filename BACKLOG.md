@@ -89,40 +89,70 @@ Key gap: Multiframe and Series have no binary-level attacks.
 ## Open-source target adoption -- P1
 
 Current target is `Hermes.exe` (proprietary). Crash reports stay
-local; no upstream contribution path. Recommended primary
-open-source target: **Orthanc 1.12.10** (C++, Windows installer,
-DIMSE+REST+DICOMweb covers all four attack modes, active CVE
-surface). **DCMTK** as secondary (format-heavy batch via
-`dcmdump`/`storescp`; Linux-only is fine for CI).
+local; no upstream contribution path. Primary open-source target:
+**fo-dicom**. Secondary: **pydicom**.
 
-Why Orthanc specifically:
+### Why fo-dicom as primary
 
-- Accepts format/multiframe files via HTTP upload or C-STORE
-- Full DIMSE server (exercises network module)
-- Study-level REST + DICOMweb (exercises series module)
-- Machine Spirits disclosed CVE-2026-5437..5445 against 1.12.10
-  in 2026 (heap BOF, decompression bomb, meta-header OOB read);
-  all fixed in 1.12.11. Proves the parser is fuzzable and
-  maintainers ship fixes.
-- Active maintainer (Sebastien Jodogne, UCLouvain); public
-  issue tracker and responsive security handling.
+- GitHub-native ([fo-dicom/fo-dicom](https://github.com/fo-dicom/fo-dicom)),
+  normal PR review flow, active releases (5.2.6 in March 2026).
+- Full DICOM surface: parser (Format + Multiframe), `DicomServer` +
+  `DicomClient` with DIMSE + TLS (Network), directory loading (Series).
+  A ~50-line C# harness wrapping `DicomServer<DicomCStoreProvider>`
+  turns it into the network module's target.
+- High relevance to Hermes (both .NET). Crashes found in fo-dicom
+  often reproduce in Hermes and vice versa.
+- ~40 known fo-dicom crash issues already map to parser/encoder
+  bugs. No formal CVEs, but real bugs in real medical imaging
+  software.
 
-Concrete work:
+### Why pydicom as secondary
 
-- **Pin Orthanc 1.12.10 locally** as regression baseline. Our
-  fuzzer should reproduce CVE-2026-5437..5445 -- strong
-  end-to-end validation of the fuzzer.
-- **Add `--target-mode` option** with `hermes`, `orthanc-file`,
-  `orthanc-dimse` variants.
-- **Separate artifact roots** (`artifacts/campaigns/orthanc/`)
-  so Hermes data stays isolated.
-- **Coordinated disclosure flow** if a new crash is found against
-  patched versions.
+- Free second target: our pipeline already parses files through
+  pydicom after mutation. Any parse-time crash surfaces naturally.
+  Zero setup.
+- GitHub-native ([pydicom/pydicom](https://github.com/pydicom/pydicom)),
+  pure Python. Trivial fix-and-PR loop.
 
-Alternatives considered and rejected as primary: GDCM (library,
-no server), fo-dicom (.NET, what Hermes already hits implicitly),
-dcm4chee-arc-light (Java, heavy deploy), OHIF/Weasis/Slicer
-(hard to automate crash detection, less active CVE surface).
+### Dropped from consideration
+
+- **Orthanc** -- canonical repo is Mercurial, contributions via
+  forum patch-post. Ergonomics too heavy for a solo project.
+- **DCMTK** -- git-based but not GitHub; Redmine tracker. Stronger
+  C/C++ CVE surface, but contribution flow is slower than GitHub PR.
+- **GDCM** -- GitHub mirror accepts PRs, but library-only (no server,
+  no DIMSE). Narrower attack surface than fo-dicom.
+- **dcm4chee-arc-light** -- Java, heavy deploy (WildFly + DB).
+- **OHIF/Weasis/3D Slicer** -- hard to automate crash detection,
+  less active CVE surface.
+
+### What going fo-dicom-only costs us
+
+- Memory-corruption class crashes (OOB, UAF, heap overflow) are
+  rare: .NET GC bounds-checks everything. Crashes are DoS, not
+  RCE candidates.
+- CVE-assignment velocity is lower than C/C++ parsers. fo-dicom
+  findings usually land as GitHub issues + PRs, not CVEs.
+- Downstream blast radius is narrower (mostly .NET ecosystem).
+
+Accepted trade-off: 3-5x higher velocity on the full loop
+(crash -> repro -> issue -> PR -> merged) beats the theoretical
+RCE ceiling we'd never reach with a slower toolchain.
+
+### Concrete work
+
+- **fo-dicom network harness.** Small .NET app
+  (`targets/fodicom-server/`) wrapping
+  `DicomServer<DicomCStoreProvider>` + TLS. Our network fuzzer
+  points at it.
+- **fo-dicom file harness.** Small .NET app that runs
+  `DicomFile.Open(path)` + `Dataset.Get<T>(...)` traversals in a
+  loop over a corpus directory. Crashes surface as process exit
+  codes.
+- **Separate artifact roots** (`artifacts/campaigns/fodicom/`,
+  `artifacts/campaigns/pydicom/`) so Hermes data stays isolated.
+- **Issue-report template** for fo-dicom repro bundles: crashing
+  input + stack trace + minimal reproducer program.
 
 ---
 
