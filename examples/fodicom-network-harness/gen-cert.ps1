@@ -5,7 +5,7 @@
 # ever used locally against this harness. Rotate manually if needed.
 #
 # Usage (from PowerShell):
-#   cd targets/fodicom-network-harness
+#   cd examples/fodicom-network-harness
 #   pwsh ./gen-cert.ps1
 
 $ErrorActionPreference = "Stop"

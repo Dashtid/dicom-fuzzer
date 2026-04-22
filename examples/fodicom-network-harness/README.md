@@ -7,7 +7,7 @@ Supports plain-text DIMSE and TLS.
 ## Build
 
 ```bash
-cd targets/fodicom-network-harness
+cd examples/fodicom-network-harness
 dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
 ```
 
@@ -16,7 +16,7 @@ Binary at `bin/Release/net8.0/win-x64/publish/fodicom-network-harness.exe`.
 ## Generate a TLS cert (one-time)
 
 ```powershell
-cd targets/fodicom-network-harness
+cd examples/fodicom-network-harness
 pwsh ./gen-cert.ps1
 ```
 

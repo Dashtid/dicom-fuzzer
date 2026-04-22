@@ -142,7 +142,7 @@ RCE ceiling we'd never reach with a slower toolchain.
 ### Concrete work
 
 - **fo-dicom network harness.** Small .NET app
-  (`targets/fodicom-server/`) wrapping
+  (`examples/fodicom-network-harness/`) wrapping
   `DicomServer<DicomCStoreProvider>` + TLS. Our network fuzzer
   points at it.
 - **fo-dicom file harness.** Small .NET app that runs

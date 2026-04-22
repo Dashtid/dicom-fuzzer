@@ -451,6 +451,6 @@ mutation-report/
 # Personal study notes
 STUDY_PLAN.md
 
-# .NET harness build artifacts under targets/
-targets/*/bin/
-targets/*/obj/
+# .NET harness build artifacts under examples/
+examples/*/bin/
+examples/*/obj/
