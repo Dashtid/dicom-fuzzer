@@ -898,3 +898,95 @@ class TestUnixResourceModuleImport:
             # It should be True on most Unix systems
             if resource_manager.HAS_RESOURCE_MODULE:
                 assert resource_manager.sys_resource is not None
+
+
+# ============================================================================
+# Coverage-tail closers: resource_limited factory and rlimit success-path logging.
+# ============================================================================
+
+
+class TestResourceLimitedConvenience:
+    """Cover the module-level resource_limited() context manager (383-391).
+
+    The existing TestConvenienceFunction class is marked @pytest.mark.slow and
+    skipped in CI, so resource_limited never executes under coverage
+    instrumentation. These tests avoid the xdist-fragile disk_usage mock by
+    using a tiny min_disk_space_mb threshold that any test runner will meet.
+    """
+
+    def test_yields_resource_manager(self):
+        with resource_limited(
+            max_memory_mb=2048, max_cpu_seconds=300, min_disk_space_mb=1
+        ) as manager:
+            assert isinstance(manager, ResourceManager)
+            assert manager.limits.max_memory_mb == 2048
+            assert manager.limits.max_cpu_seconds == 300
+
+    def test_default_arguments(self):
+        with resource_limited(min_disk_space_mb=1) as manager:
+            # Defaults from the factory: 1024 MB memory, 30s CPU.
+            assert manager.limits.max_memory_mb == 1024
+            assert manager.limits.max_cpu_seconds == 30
+
+
+class TestWindowsInitWarning:
+    """Cover the Windows-specific warning log in ResourceManager.__init__ (108).
+
+    Linux CI can't reach this branch naturally because IS_WINDOWS is False
+    at module import. Monkeypatching the module-level flag before
+    instantiation exercises the same code path.
+    """
+
+    def test_windows_branch_emits_warning(self, monkeypatch, capsys):
+        from dicom_fuzzer.core.session import resource_manager as mod
+
+        monkeypatch.setattr(mod, "IS_WINDOWS", True)
+
+        manager = mod.ResourceManager(mod.ResourceLimits(min_disk_space_mb=1))
+
+        assert manager.is_windows is True
+        # structlog writes to stdout/stderr, not Python logging -- check via capsys.
+        out = capsys.readouterr().out + capsys.readouterr().err
+        assert "Running on Windows" in out
+
+
+class TestLimitedExecutionSuccessPath:
+    """Cover the rlimit-set-successfully logger.debug calls (234, 249).
+
+    On CI the real setrlimit may fail silently, skipping the success branches.
+    Patching setrlimit to always succeed forces both debug logs to run.
+    """
+
+    def test_all_three_rlimits_attempted_and_restored(self, monkeypatch):
+        from dicom_fuzzer.core.session import resource_manager as mod
+
+        if not mod.HAS_RESOURCE_MODULE or mod.sys_resource is None:
+            pytest.skip("resource module unavailable (Windows)")
+
+        getrlimit_calls: list = []
+        setrlimit_calls: list = []
+
+        original_getrlimit = mod.sys_resource.getrlimit
+
+        def _fake_getrlimit(which):
+            getrlimit_calls.append(which)
+            # Return the real current limits so restore() gets sensible values.
+            return original_getrlimit(which)
+
+        def _fake_setrlimit(which, limits):
+            setrlimit_calls.append((which, limits))
+
+        monkeypatch.setattr(mod.sys_resource, "getrlimit", _fake_getrlimit)
+        monkeypatch.setattr(mod.sys_resource, "setrlimit", _fake_setrlimit)
+
+        manager = mod.ResourceManager(mod.ResourceLimits(min_disk_space_mb=1))
+        with manager.limited_execution():
+            pass
+
+        # RLIMIT_AS + RLIMIT_CPU + RLIMIT_NOFILE set, then restored = 6 calls.
+        assert len(setrlimit_calls) == 6
+        # All three rlimit types touched.
+        which_values = {w for w, _ in setrlimit_calls}
+        assert mod.sys_resource.RLIMIT_AS in which_values
+        assert mod.sys_resource.RLIMIT_CPU in which_values
+        assert mod.sys_resource.RLIMIT_NOFILE in which_values
