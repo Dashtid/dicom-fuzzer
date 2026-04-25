@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Multiframe binary attacks in `EncapsulatedPixelStrategy`.** New
+  `mutate_bytes()` override with 6 attacks targeting invariants
+  pydicom normalises away at the dataset level. BOT attacks:
+  count desync (N+5 entries vs actual fragments), offsets
+  misaligned by 3 bytes into mid-fragment data, BOT entry count
+  wildly different from `NumberOfFrames`. EOT attacks (only when
+  tag 7FE0,0001 is present): 64-bit offset overflow
+  (`0xFFFFFFFFFFFFFFFF`), EOT/fragment count mismatch, all EOT
+  entries pointing past EOF. Includes a permissive region finder
+  that tolerates the defined-length PixelData wrapper the generator
+  produces after forcing Explicit VR Little Endian.
+
 ### Fixed
 
 - **Round-robin starvation in CLI campaigns.** `CampaignRunner._generate_from_single_file`
