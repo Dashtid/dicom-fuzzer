@@ -193,31 +193,17 @@ class CampaignRunner:
             return self._generate_verbose(generator, input_path)
 
         # Suppress console logging during generation so structlog messages
-        # don't interleave with the tqdm progress bar. The file handler
-        # still captures everything at DEBUG level.
+        # don't interleave with the generator's own progress bar. The file
+        # handler still captures everything at DEBUG level.
+        #
+        # Call generate_batch once with the full count so the round-robin
+        # Phase 1 inside the generator sees every applicable strategy. An
+        # earlier version split the run into mini-batches of
+        # `count // 20` to drive a CLI-side tqdm more frequently; that
+        # reset the round-robin on every mini-batch and starved any
+        # strategy whose registration index exceeded batch_size
+        # (-c 100 -> batch_size=5 -> only the first 5 strategies ever ran).
         with suppress_console():
-            if HAS_TQDM and self.num_files_per_input >= 20:
-                print("Generating fuzzed files...")
-                with tqdm(
-                    total=self.num_files_per_input, unit="file", ncols=70
-                ) as pbar:
-                    batch_size = max(1, self.num_files_per_input // 20)
-                    remaining = self.num_files_per_input
-                    all_files: list[Path] = []
-
-                    while remaining > 0:
-                        current_batch = min(batch_size, remaining)
-                        batch_files = generator.generate_batch(
-                            str(input_path),
-                            count=current_batch,
-                            strategies=self.selected_strategies,
-                        )
-                        all_files.extend(batch_files)
-                        pbar.update(len(batch_files))
-                        remaining -= current_batch
-
-                    return all_files
-
             return generator.generate_batch(
                 str(input_path),
                 count=self.num_files_per_input,
