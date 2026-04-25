@@ -7,6 +7,11 @@ Strategy 9: Corrupt encapsulated (compressed) pixel data structures:
 - Missing or duplicate sequence delimiters
 - BOT + EOT coexistence (violates standard)
 
+Binary-level attacks (mutate_bytes) operate on the already-serialized
+byte stream, attacking multi-frame-specific invariants that dataset-level
+mutations cannot express (frame count / BOT entry count / fragment count
+desync, EOT 64-bit offset overflow, EOT-vs-fragment mismatch).
+
 Targets: Compressed transfer syntax parsing, frame extraction from
 encapsulated data, offset table validation, fragment reassembly.
 
@@ -27,9 +32,84 @@ from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.tag import Tag
 from pydicom.uid import UID
 
+from dicom_fuzzer.attacks.format.compressed_pixel_fuzzer import (
+    EncapsRegion,
+    _find_encapsulated_region,
+)
 from dicom_fuzzer.attacks.multiframe.format_base import MultiFrameMutationRecord
+from dicom_fuzzer.utils.logger import get_logger
 
 from .format_base import MultiFrameFuzzerBase
+
+logger = get_logger(__name__)
+
+# File-level DICOM constants
+_DICM_MAGIC = b"DICM"
+_DICM_OFFSET = 128
+_DATA_OFFSET = 132  # preamble (128) + "DICM" (4)
+
+# Tag bytes in Explicit-VR little-endian encoding
+_NUMBER_OF_FRAMES_TAG = b"\x28\x00\x08\x00"  # (0028,0008)
+_EOT_TAG = b"\xe0\x7f\x01\x00"  # (7FE0,0001) Extended Offset Table
+_PIXEL_DATA_TAG = b"\xe0\x7f\x10\x00"  # (7FE0,0010)
+
+
+def _find_region_tolerant(file_data: bytes) -> EncapsRegion | None:
+    """Locate encapsulated pixel data, tolerating defined-length wrappers.
+
+    The main generator pipeline forces Explicit VR Little Endian transfer
+    syntax before writing, which wraps encapsulated pixel bytes in a
+    defined-length element. The strict region finder in the format layer
+    rejects that because encapsulation formally requires undefined length.
+    This helper falls back to inspecting the PixelData value directly: if
+    it starts with an Item tag, the BOT-plus-fragments structure is
+    present regardless of the outer length encoding.
+    """
+    region = _find_encapsulated_region(file_data)
+    if region is not None:
+        return region
+
+    idx = file_data.rfind(_PIXEL_DATA_TAG)
+    if idx < 0:
+        return None
+
+    # Skip tag + (optional) VR + reserved + length, matching the strict
+    # helper's offset math for Explicit VR.
+    pos = idx + 4
+    if pos + 2 <= len(file_data) and file_data[pos : pos + 2] in (b"OB", b"OW"):
+        pos += 2 + 2  # VR + reserved
+    if pos + 4 > len(file_data):
+        return None
+    length = struct.unpack_from("<I", file_data, pos)[0]
+    pos += 4  # value_start
+
+    # Encapsulated content always begins with an Item tag (BOT).
+    if pos + 8 > len(file_data) or file_data[pos : pos + 4] != _ITEM_TAG_BYTES:
+        return None
+
+    bot_offset = pos
+    bot_length = struct.unpack_from("<I", file_data, pos + 4)[0]
+    first_fragment_offset = bot_offset + 8 + bot_length
+
+    # For defined-length PixelData, the "sequence delimitation" is the end
+    # of the value, not a delimiter tag. Set seq_delim_offset to value end.
+    value_end = (
+        idx + (12 if file_data[idx + 4 : idx + 6] in (b"OB", b"OW") else 8) + length
+    )
+    seq_delim_offset = file_data.find(
+        b"\xfe\xff\xdd\xe0", first_fragment_offset, value_end
+    )
+    if seq_delim_offset < 0:
+        # Still return a region; attacks that need the delimiter can check.
+        seq_delim_offset = -1
+
+    return EncapsRegion(
+        bot_offset=bot_offset,
+        bot_length=bot_length,
+        first_fragment_offset=first_fragment_offset,
+        seq_delim_offset=seq_delim_offset,
+    )
+
 
 # DICOM sequence delimiter bytes (FFFE,E0DD with zero length)
 _SEQ_DELIM_BYTES = b"\xfe\xff\xdd\xe0\x00\x00\x00\x00"
@@ -370,6 +450,347 @@ class EncapsulatedPixelStrategy(MultiFrameFuzzerBase):
             attack_type = random.choice(self._ATTACK_TYPES)
             records.append(handlers[attack_type](dataset))
         return dataset, records
+
+    # ------------------------------------------------------------------
+    # Binary-level attacks -- operate on raw bytes after pydicom serializes.
+    #
+    # These attacks target invariants that dataset-level mutations cannot
+    # express because pydicom may normalize the byte layout on write. The
+    # attacks here are multi-frame-aware: they read NumberOfFrames from the
+    # serialized bytes and use it to build BOT/EOT desync patterns tied to
+    # the declared frame count.
+    # ------------------------------------------------------------------
+
+    def mutate_bytes(self, file_data: bytes) -> bytes:
+        """Apply binary-level multi-frame encapsulation corruptions.
+
+        Runs after mutate() + dcmwrite(). Selects 1 attack and applies it;
+        returns file_data unchanged if the file is not valid DICOM or has
+        no encapsulated pixel data.
+        """
+        self._applied_binary_mutations = []
+
+        if len(file_data) < _DATA_OFFSET + 4:
+            return file_data
+        if file_data[_DICM_OFFSET:_DATA_OFFSET] != _DICM_MAGIC:
+            return file_data
+
+        region = _find_region_tolerant(file_data)
+        if region is None:
+            return file_data
+
+        eot_offset = self._find_eot_offset(file_data)
+
+        # BOT attacks always apply; EOT attacks only when an EOT is present.
+        candidates = [
+            self._binary_bot_count_desync,
+            self._binary_bot_misaligned_offsets,
+            self._binary_bot_vs_frame_count_mismatch,
+        ]
+        if eot_offset is not None:
+            candidates.extend(
+                [
+                    self._binary_eot_offset_overflow,
+                    self._binary_eot_count_mismatch,
+                    self._binary_eot_offset_past_eof,
+                ]
+            )
+
+        attack = random.choice(candidates)
+        try:
+            result = attack(file_data, region, eot_offset)
+            self._applied_binary_mutations.append(attack.__name__)
+            return result
+        except Exception as e:
+            logger.debug("Multiframe binary attack %s failed: %s", attack.__name__, e)
+            return file_data
+
+    # -- helpers --
+
+    @staticmethod
+    def _find_eot_offset(file_data: bytes) -> int | None:
+        """Return byte offset of the Extended Offset Table tag, or None.
+
+        Searches for tag (7FE0,0001) before the Pixel Data tag (7FE0,0010).
+        Returns the offset of the tag's first byte, suitable for direct
+        patching. None if the EOT tag is not present in the main dataset.
+        """
+        idx = file_data.find(_EOT_TAG, _DATA_OFFSET)
+        if idx < 0:
+            return None
+        return idx
+
+    @staticmethod
+    def _read_number_of_frames(file_data: bytes) -> int | None:
+        """Parse NumberOfFrames (0028,0008) from serialized bytes.
+
+        Returns the integer value or None if the tag isn't found. The tag
+        has VR IS (Integer String), so the value bytes are ASCII digits
+        with optional whitespace/sign padding.
+        """
+        idx = file_data.find(_NUMBER_OF_FRAMES_TAG, _DATA_OFFSET)
+        if idx < 0 or idx + 8 > len(file_data):
+            return None
+        vr = file_data[idx + 4 : idx + 6]
+        if vr != b"IS":
+            return None
+        length = struct.unpack_from("<H", file_data, idx + 6)[0]
+        value_start = idx + 8
+        if value_start + length > len(file_data):
+            return None
+        raw = file_data[value_start : value_start + length].decode("ascii", "ignore")
+        # IS VR is padded with SPACE (0x20) to even length, but tolerate
+        # null padding too since some serializers emit it.
+        try:
+            return int(raw.strip().rstrip("\x00"))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _count_fragments(file_data: bytes, first_fragment_offset: int) -> int:
+        """Count fragment items between first_fragment_offset and the Sequence
+        Delimitation Item. Returns 0 on parse error.
+        """
+        count = 0
+        pos = first_fragment_offset
+        data_len = len(file_data)
+        # _ITEM_TAG_BYTES = b"\xfe\xff\x00\xe0"
+        # _SEQ_DELIM pattern starts with b"\xfe\xff\xdd\xe0"
+        while pos + 8 <= data_len:
+            tag = file_data[pos : pos + 4]
+            if tag == b"\xfe\xff\xdd\xe0":
+                break  # hit sequence delimiter
+            if tag != _ITEM_TAG_BYTES:
+                break  # unexpected tag; stop counting
+            length = struct.unpack_from("<I", file_data, pos + 4)[0]
+            if length == 0xFFFFFFFF:
+                break  # undefined length fragment; can't advance safely
+            pos += 8 + length
+            count += 1
+            if count > 10000:  # safety cap
+                break
+        return count
+
+    # -- binary BOT attacks --
+
+    def _binary_bot_count_desync(
+        self,
+        file_data: bytes,
+        region: EncapsRegion,
+        eot_offset: int | None,
+    ) -> bytes:
+        """Rewrite BOT to declare N+5 offsets while only N fragments exist.
+
+        Parsers that use BOT entries to seek to each frame will read past
+        the final fragment into the Sequence Delimitation Item (or EOF).
+        """
+        fragment_count = self._count_fragments(file_data, region.first_fragment_offset)
+        if fragment_count == 0:
+            return file_data
+
+        new_entry_count = fragment_count + 5
+
+        # Stride roughly matches the average fragment footprint, so early
+        # entries look plausible and late entries overrun the fragment list.
+        avg_stride = max(
+            16,
+            (len(file_data) - region.first_fragment_offset) // max(1, fragment_count),
+        )
+        offsets = [i * avg_stride for i in range(new_entry_count)]
+        new_bot_data = struct.pack(f"<{new_entry_count}I", *offsets)
+        new_bot_item = (
+            _ITEM_TAG_BYTES + struct.pack("<I", len(new_bot_data)) + new_bot_data
+        )
+
+        # Splice: keep everything before the original BOT item header, replace
+        # the BOT (tag+length+data), keep everything after (fragments +
+        # sequence delimiter).
+        before = file_data[: region.bot_offset]
+        after = file_data[region.first_fragment_offset :]
+        return before + new_bot_item + after
+
+    def _binary_bot_misaligned_offsets(
+        self,
+        file_data: bytes,
+        region: EncapsRegion,
+        eot_offset: int | None,
+    ) -> bytes:
+        """Rewrite BOT entries to point 3 bytes past real fragment boundaries.
+
+        Parsers that seek to the declared offset to read the next Item tag
+        will land mid-fragment and misinterpret the next 8 bytes as tag+length.
+        """
+        fragment_count = self._count_fragments(file_data, region.first_fragment_offset)
+        if fragment_count == 0:
+            return file_data
+
+        # Compute real offsets, then shift each by +3 bytes.
+        pos = region.first_fragment_offset
+        real_offsets: list[int] = []
+        for _ in range(fragment_count):
+            if pos + 8 > len(file_data):
+                break
+            real_offsets.append(pos - region.first_fragment_offset)
+            length = struct.unpack_from("<I", file_data, pos + 4)[0]
+            if length == 0xFFFFFFFF:
+                break
+            pos += 8 + length
+
+        if not real_offsets:
+            return file_data
+
+        misaligned = [(o + 3) & 0xFFFFFFFF for o in real_offsets]
+        new_bot_data = struct.pack(f"<{len(misaligned)}I", *misaligned)
+        new_bot_item = (
+            _ITEM_TAG_BYTES + struct.pack("<I", len(new_bot_data)) + new_bot_data
+        )
+
+        before = file_data[: region.bot_offset]
+        after = file_data[region.first_fragment_offset :]
+        return before + new_bot_item + after
+
+    def _binary_bot_vs_frame_count_mismatch(
+        self,
+        file_data: bytes,
+        region: EncapsRegion,
+        eot_offset: int | None,
+    ) -> bytes:
+        """Replace BOT with one whose entry count wildly differs from
+        NumberOfFrames.
+
+        Parsers that allocate a NumberOfFrames-sized frame-offset array and
+        then iterate over BOT entries (or vice versa) get a size mismatch.
+        """
+        declared = self._read_number_of_frames(file_data)
+        if declared is None:
+            declared = self._count_fragments(file_data, region.first_fragment_offset)
+        if declared <= 0:
+            declared = 1
+
+        # Either way-more or way-fewer entries than declared frames.
+        if random.random() < 0.5:
+            new_count = declared * 4 + 1  # way-more
+        else:
+            new_count = max(1, declared // 4)  # way-fewer
+
+        offsets = [i * 256 for i in range(new_count)]
+        new_bot_data = struct.pack(f"<{new_count}I", *offsets)
+        new_bot_item = (
+            _ITEM_TAG_BYTES + struct.pack("<I", len(new_bot_data)) + new_bot_data
+        )
+
+        before = file_data[: region.bot_offset]
+        after = file_data[region.first_fragment_offset :]
+        return before + new_bot_item + after
+
+    # -- binary EOT attacks --
+
+    def _binary_eot_offset_overflow(
+        self,
+        file_data: bytes,
+        region: EncapsRegion,
+        eot_offset: int | None,
+    ) -> bytes:
+        """Overwrite one EOT 64-bit offset entry with UINT64_MAX.
+
+        Parsers that cast the offset to signed int64 see -1; those that do
+        arithmetic on it overflow. Either way, downstream buffer math is
+        wrong.
+        """
+        if eot_offset is None:
+            return file_data
+        entry_info = self._parse_eot_value(file_data, eot_offset)
+        if entry_info is None:
+            return file_data
+        value_start, length = entry_info
+        if length < 8:
+            return file_data
+
+        num_entries = length // 8
+        victim_idx = random.randrange(num_entries)
+        pos = value_start + victim_idx * 8
+
+        result = bytearray(file_data)
+        struct.pack_into("<Q", result, pos, 0xFFFFFFFFFFFFFFFF)
+        return bytes(result)
+
+    def _binary_eot_count_mismatch(
+        self,
+        file_data: bytes,
+        region: EncapsRegion,
+        eot_offset: int | None,
+    ) -> bytes:
+        """Truncate or extend EOT value so its entry count disagrees with
+        the actual number of fragments.
+        """
+        if eot_offset is None:
+            return file_data
+        entry_info = self._parse_eot_value(file_data, eot_offset)
+        if entry_info is None:
+            return file_data
+        value_start, length = entry_info
+
+        fragment_count = self._count_fragments(file_data, region.first_fragment_offset)
+        delta = random.choice([-3, -2, 2, 3])
+        new_count = max(1, fragment_count + delta)
+        new_value = struct.pack(f"<{new_count}Q", *[i * 512 for i in range(new_count)])
+
+        # EOT element layout (long-VR form): tag(4) + VR(2) + reserved(2) +
+        # length(4) + value. Patch the length field in place, then splice
+        # the new value into the byte stream in place of the old one.
+        header = bytearray(file_data[eot_offset : eot_offset + 12])
+        struct.pack_into("<I", header, 8, len(new_value))
+
+        before = file_data[:eot_offset]
+        after = file_data[value_start + length :]
+        return before + bytes(header) + new_value + after
+
+    def _binary_eot_offset_past_eof(
+        self,
+        file_data: bytes,
+        region: EncapsRegion,
+        eot_offset: int | None,
+    ) -> bytes:
+        """Set all EOT entries to an offset past EOF.
+
+        Parsers that seek to the declared offset read from unmapped memory
+        or beyond buffer bounds.
+        """
+        if eot_offset is None:
+            return file_data
+        entry_info = self._parse_eot_value(file_data, eot_offset)
+        if entry_info is None:
+            return file_data
+        value_start, length = entry_info
+        if length < 8:
+            return file_data
+
+        num_entries = length // 8
+        past_eof = len(file_data) + 0x100000  # 1 MB past EOF
+
+        result = bytearray(file_data)
+        for i in range(num_entries):
+            struct.pack_into("<Q", result, value_start + i * 8, past_eof)
+        return bytes(result)
+
+    @staticmethod
+    def _parse_eot_value(file_data: bytes, eot_offset: int) -> tuple[int, int] | None:
+        """Return (value_start, value_length) for the EOT element at eot_offset.
+
+        EOT uses VR "OV" (long-form): tag(4) + VR(2) + reserved(2) + length(4).
+        Some encoders ship EOT as "OB" (also long-form, same layout). Returns
+        None if the header is malformed or would read past EOF.
+        """
+        if eot_offset + 12 > len(file_data):
+            return None
+        vr = file_data[eot_offset + 4 : eot_offset + 6]
+        if vr not in (b"OV", b"OB"):
+            return None
+        length = struct.unpack_from("<I", file_data, eot_offset + 8)[0]
+        value_start = eot_offset + 12
+        if value_start + length > len(file_data):
+            return None
+        return value_start, length
 
 
 __all__ = ["EncapsulatedPixelStrategy"]
