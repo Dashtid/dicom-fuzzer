@@ -26,7 +26,20 @@ Going forward:
 
 ---
 
-## Module maturity (2026-04-22)
+## Open PRs needing triage (2026-04-23)
+
+Three PRs opened 2026-04-22 sit `BEHIND` main. Work is sound but
+needs rebase + re-verify before merging.
+
+| #    | Title                                                  | Action needed                                          |
+| ---- | ------------------------------------------------------ | ------------------------------------------------------ |
+| #272 | Multiframe binary attacks on EncapsulatedPixelStrategy | Rebase; closes the "0 binary attacks" gap below        |
+| #273 | CLI round-robin starvation fix                         | Rebase; bug is still live on main (campaign_runner.py) |
+| #276 | fo-dicom file harness target                           | Rebase; listed as concrete work below                  |
+
+---
+
+## Module maturity (2026-04-23)
 
 | Module     | Maturity | Strategies         | Tests | Binary attacks            |
 | ---------- | -------- | ------------------ | ----- | ------------------------- |
@@ -83,45 +96,6 @@ Key gap: Multiframe and Series have no binary-level attacks.
   wrong-CN, CRL/OCSP revocation scenarios.
 - **User-identity negotiation fuzzing** (PS3.7 User-Identity
   Sub-Item: username/password, Kerberos, SAML, JWT).
-
----
-
-## Test coverage -- P2
-
-Codecov reported **31%** as of 2026-04-22 (first upload after wiring
-Codecov in PR #279). Local full-suite coverage: **90%**. The gap is
-a CI measurement artifact, resolved by PR #281.
-
-### Root cause (historical)
-
-Before PR #281, CI only ran `pytest --cov` on matrix split group 1
-of 10. That measured the coverage contribution of ~10% of the test
-suite; the other 90% of tests ran without instrumentation, so
-everything they exercised showed as uncovered. After PR #281 every
-cell runs with `--cov` and a dedicated `coverage` job merges the 10
-data files before uploading to Codecov.
-
-### Remaining work
-
-Once Codecov reflects the real ~90% baseline, the only files still
-below 80% are CLI/session plumbing:
-
-- `cli/commands/samples.py` -- 46%
-- `cli/commands/study_campaign.py` -- 56%
-- `cli/base.py` -- 57%
-- `attacks/series/parallel_mutator.py` -- 60%
-- `core/session/resource_manager.py` -- 61%
-
-Write targeted tests for these, prioritized by user-facing impact:
-`samples` (user-invoked CLI), `study_campaign` (campaign
-entrypoint), then `parallel_mutator` (concurrency paths that
-benefit most from tests).
-
-### Why P2, not P1
-
-Once PR #281 lands, the repo is at ~90% coverage. The tail is real
-work but narrow. Fuzzer development (target adoption, campaign
-tooling) is higher leverage than squeezing out the last 10 points.
 
 ---
 
@@ -285,3 +259,10 @@ Earlier completed items collapsed; recent work below.
 | Removed 9 out-of-scope modality fuzzers                        | #246                          |
 | CVE audit refocus addendum (all 13 gaps closed, ~95% coverage) | #247                          |
 | 4 niche fo-dicom binary attacks (#1009, #763, #1386, #1982)    | #252                          |
+| Codecov wired up + badge on README                             | #279                          |
+| CI coverage measured across all 10 test splits (not just g1)   | #281                          |
+| Coverage-tail closers (cli/base, samples, study_campaign)      | #283, #284, #285              |
+| Coverage-tail closers (parallel_mutator, resource_manager)     | #286                          |
+| fo-dicom network harness (DIMSE SCP + TLS) under examples/     | #277                          |
+| pydicom smoke harness (corpus analyzer) under examples/        | #275                          |
+| examples/ directory (targets + tooling consolidation)          | #278                          |
