@@ -858,3 +858,1028 @@ class TestMutationsPerTest:
         parser = create_parser()
         args = parser.parse_args(["--target", "./app", "--study", "./test"])
         assert args.mutations_per_test == 5
+
+
+# ============================================================================
+# Targeted tests for internal helpers (PR C: coverage-tail work)
+# ============================================================================
+
+
+class TestTestResultHelpers:
+    """Cover _TestResult.is_failure / to_dict (lines 48, 51)."""
+
+    def test_is_failure_true_for_crash(self):
+        from dicom_fuzzer.cli.commands.study_campaign import _TestResult
+
+        r = _TestResult(
+            status="crash",
+            error_message="boom",
+            memory_peak_mb=1.0,
+            duration_seconds=0.5,
+        )
+        assert r.is_failure() is True
+
+    def test_is_failure_false_for_success(self):
+        from dicom_fuzzer.cli.commands.study_campaign import _TestResult
+
+        r = _TestResult(
+            status="success",
+            error_message=None,
+            memory_peak_mb=1.0,
+            duration_seconds=0.5,
+        )
+        assert r.is_failure() is False
+
+    def test_is_failure_false_for_skipped(self):
+        from dicom_fuzzer.cli.commands.study_campaign import _TestResult
+
+        r = _TestResult(
+            status="skipped",
+            error_message=None,
+            memory_peak_mb=0.0,
+            duration_seconds=0.0,
+        )
+        assert r.is_failure() is False
+
+    def test_to_dict_shape(self):
+        from dicom_fuzzer.cli.commands.study_campaign import _TestResult
+
+        r = _TestResult(
+            status="timeout",
+            error_message="slow",
+            memory_peak_mb=12.5,
+            duration_seconds=3.0,
+        )
+        assert r.to_dict() == {
+            "status": "timeout",
+            "error_message": "slow",
+            "memory_peak_mb": 12.5,
+            "duration_seconds": 3.0,
+        }
+
+
+class TestWrapResult:
+    """Cover _wrap_result (line 71)."""
+
+    def _build_execution_result(self, **overrides):
+        from dicom_fuzzer.core.harness.target_runner import (
+            ExecutionResult,
+            ExecutionStatus,
+        )
+
+        kwargs = {
+            "test_file": Path("dummy.dcm"),
+            "result": ExecutionStatus.SUCCESS,
+            "exit_code": 0,
+            "execution_time": 1.25,
+            "stdout": "",
+            "stderr": "",
+        }
+        kwargs.update(overrides)
+        return ExecutionResult(**kwargs), ExecutionStatus
+
+    def test_wrap_crash_with_stderr_and_peak_mem(self):
+        from dicom_fuzzer.cli.commands.study_campaign import _wrap_result
+
+        er, status = self._build_execution_result(
+            result=__import__(
+                "dicom_fuzzer.core.harness.target_runner", fromlist=["ExecutionStatus"]
+            ).ExecutionStatus.CRASH,
+            stderr="  segfault\n",
+            peak_memory_mb=42.0,
+            execution_time=2.0,
+        )
+        del status  # unused
+
+        wrapped = _wrap_result(er)
+
+        assert wrapped.status == "crash"
+        assert wrapped.error_message == "segfault"  # stripped
+        assert wrapped.memory_peak_mb == 42.0
+        assert wrapped.duration_seconds == 2.0
+
+    def test_wrap_success_no_stderr(self):
+        from dicom_fuzzer.cli.commands.study_campaign import _wrap_result
+
+        er, _ = self._build_execution_result(stderr="", peak_memory_mb=None)
+
+        wrapped = _wrap_result(er)
+
+        assert wrapped.status == "success"
+        assert wrapped.error_message is None
+        assert wrapped.memory_peak_mb == 0.0  # None -> 0.0
+
+    def test_wrap_unknown_status_falls_back_to_error(self):
+        """Status not in _STATUS_MAP defaults to 'error'."""
+        from dicom_fuzzer.cli.commands.study_campaign import _wrap_result
+
+        # RESOURCE_EXHAUSTED is in the map as "error" by design
+        from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
+
+        er, _ = self._build_execution_result(result=ExecutionStatus.RESOURCE_EXHAUSTED)
+
+        assert _wrap_result(er).status == "error"
+
+
+class TestSaveCrash:
+    """Cover _save_crash (lines 87-100)."""
+
+    def test_save_crash_with_directory_study(self, tmp_path):
+        from dicom_fuzzer.cli.commands.study_campaign import _save_crash, _TestResult
+
+        crash_dir = tmp_path / "crashes"
+        crash_dir.mkdir()
+        study_dir = tmp_path / "study"
+        study_dir.mkdir()
+        (study_dir / "s.dcm").write_bytes(b"DICM")
+
+        result = _TestResult(
+            status="crash",
+            error_message="boom",
+            memory_peak_mb=1.0,
+            duration_seconds=0.5,
+        )
+
+        _save_crash(
+            crash_dir, result, study_dir, test_id=7, mutation_records=[{"tag": "x"}]
+        )
+
+        out = crash_dir / "crash_0007"
+        assert out.is_dir()
+        assert (out / "study" / "s.dcm").exists()
+        payload = json.loads((out / "result.json").read_text())
+        assert payload["status"] == "crash"
+        records = json.loads((out / "mutation_records.json").read_text())
+        assert records == [{"tag": "x"}]
+
+    def test_save_crash_with_file_study(self, tmp_path):
+        """Study path is a single file, not a directory."""
+        from dicom_fuzzer.cli.commands.study_campaign import _save_crash, _TestResult
+
+        crash_dir = tmp_path / "crashes"
+        crash_dir.mkdir()
+        study_file = tmp_path / "single.dcm"
+        study_file.write_bytes(b"DICM")
+
+        result = _TestResult(
+            status="crash", error_message=None, memory_peak_mb=0.0, duration_seconds=0.0
+        )
+
+        _save_crash(crash_dir, result, study_file, test_id=3, mutation_records=[])
+
+        out = crash_dir / "crash_0003"
+        assert (out / "study" / "single.dcm").exists()
+        # No mutation_records.json when records list is empty.
+        assert not (out / "mutation_records.json").exists()
+
+    def test_save_crash_missing_study_path(self, tmp_path):
+        """study_dir does not exist -> no study copy created, JSON still saved."""
+        from dicom_fuzzer.cli.commands.study_campaign import _save_crash, _TestResult
+
+        crash_dir = tmp_path / "crashes"
+        crash_dir.mkdir()
+        missing = tmp_path / "ghost"
+
+        result = _TestResult(
+            status="error", error_message=None, memory_peak_mb=0.0, duration_seconds=0.0
+        )
+
+        _save_crash(crash_dir, result, missing, test_id=1, mutation_records=[])
+
+        out = crash_dir / "crash_0001"
+        assert out.is_dir()
+        assert (out / "result.json").exists()
+        assert not (out / "study").exists()
+
+
+class _FakeRecord:
+    """Mutation record stub with the fields study_campaign expects."""
+
+    def __init__(self, strategy="stub", tag="PatientID", mutated_value="X"):
+        self.strategy = strategy
+        self.tag = tag
+        self.mutated_value = mutated_value
+
+
+class _FakeStudy:
+    """Minimal stand-in exposing the attributes run_campaign inspects."""
+
+    def __init__(self, series_count=1, total_slices=1):
+        self.series_list = [object()] * series_count
+        self._total_slices = total_slices
+
+    def get_total_slices(self):
+        return self._total_slices
+
+
+class _FakeMutator:
+    """Stand-in for StudyMutator that returns pre-seeded datasets + records."""
+
+    def __init__(self, datasets, records, *, raise_on_load=False):
+        self._datasets = datasets
+        self._records = records
+        self._raise_on_load = raise_on_load
+
+    def load_study(self, path):
+        if self._raise_on_load:
+            raise RuntimeError("load failed")
+        return _FakeStudy()
+
+    def mutate_study(self, *_args, **_kwargs):
+        return self._datasets, self._records
+
+
+class _FakeRunner:
+    """Stand-in for TargetRunner.execute_with_monitoring."""
+
+    def __init__(self, execution_result):
+        self._er = execution_result
+
+    def execute_with_monitoring(self, _study_path):
+        return self._er
+
+
+def _make_execution_result(status, *, stderr="", peak_mb=0.0, duration=0.1):
+    from dicom_fuzzer.core.harness.target_runner import ExecutionResult
+
+    return ExecutionResult(
+        test_file=Path("dummy.dcm"),
+        result=status,
+        exit_code=0 if stderr == "" else 1,
+        execution_time=duration,
+        stdout="",
+        stderr=stderr,
+        peak_memory_mb=peak_mb,
+    )
+
+
+def _make_fake_dataset():
+    """Minimal dataset save_as can be called on without writing real DICOM."""
+    from pydicom.dataset import Dataset, FileMetaDataset
+    from pydicom.uid import ExplicitVRLittleEndian, generate_uid
+
+    file_meta = FileMetaDataset()
+    file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
+    file_meta.ImplementationClassUID = generate_uid()
+
+    ds = Dataset()
+    ds.file_meta = file_meta
+    ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+    ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+    ds.PatientID = "T001"
+    ds.PatientName = "Test"
+    ds.Modality = "CT"
+    ds.is_little_endian = True
+    ds.is_implicit_VR = False
+    return ds
+
+
+class TestRunSingleTest:
+    """Cover _run_single_test (lines 302-380)."""
+
+    def test_success_path(self, tmp_path, monkeypatch, capsys):
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+        from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
+
+        study_path = tmp_path / "study"
+        study_path.mkdir()
+
+        datasets = [[_make_fake_dataset()]]  # 1 series, 1 slice
+        records = [_FakeRecord()]
+        monkeypatch.setattr(
+            mod, "StudyMutator", lambda **_kw: _FakeMutator(datasets, records)
+        )
+
+        runner = _FakeRunner(
+            _make_execution_result(ExecutionStatus.SUCCESS, peak_mb=10.0)
+        )
+
+        info = mod._run_single_test(
+            test_id=1,
+            total_tests=1,
+            study_path=study_path,
+            strategy=mod.StudyMutationStrategy.STUDY_METADATA,
+            severity="moderate",
+            mutations_per_test=2,
+            runner=runner,
+            log_file=None,
+            verbose=True,
+        )
+
+        assert info["status"] == "success"
+        assert info["is_failure"] is False
+        assert info["records"] == records
+        # Verbose branch prints each mutation record.
+        assert "stub" in capsys.readouterr().out
+
+    def test_failure_path(self, tmp_path, monkeypatch):
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+        from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
+
+        study_path = tmp_path / "study"
+        study_path.mkdir()
+
+        datasets = [[_make_fake_dataset()]]
+        monkeypatch.setattr(
+            mod, "StudyMutator", lambda **_kw: _FakeMutator(datasets, [])
+        )
+
+        runner = _FakeRunner(
+            _make_execution_result(ExecutionStatus.CRASH, stderr="sigsegv")
+        )
+
+        info = mod._run_single_test(
+            test_id=2,
+            total_tests=5,
+            study_path=study_path,
+            strategy=mod.StudyMutationStrategy.STUDY_METADATA,
+            severity="aggressive",
+            mutations_per_test=1,
+            runner=runner,
+            log_file=None,
+            verbose=False,
+        )
+
+        assert info["status"] == "crash"
+        assert info["is_failure"] is True
+        assert info["error_message"] == "sigsegv"
+
+    def test_exception_path_sets_error(self, tmp_path, monkeypatch):
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+
+        study_path = tmp_path / "study"
+        study_path.mkdir()
+
+        monkeypatch.setattr(
+            mod,
+            "StudyMutator",
+            lambda **_kw: _FakeMutator([], [], raise_on_load=True),
+        )
+
+        info = mod._run_single_test(
+            test_id=3,
+            total_tests=3,
+            study_path=study_path,
+            strategy=mod.StudyMutationStrategy.STUDY_METADATA,
+            severity="moderate",
+            mutations_per_test=1,
+            runner=_FakeRunner(None),
+            log_file=None,
+            verbose=True,
+        )
+
+        assert info["status"] == "error"
+        assert info["error_message"] == "load failed"
+
+    def test_exception_path_non_verbose(self, tmp_path, monkeypatch, capsys):
+        """Exception with verbose=False does not print traceback."""
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+
+        study_path = tmp_path / "study"
+        study_path.mkdir()
+
+        monkeypatch.setattr(
+            mod,
+            "StudyMutator",
+            lambda **_kw: _FakeMutator([], [], raise_on_load=True),
+        )
+
+        info = mod._run_single_test(
+            test_id=3,
+            total_tests=3,
+            study_path=study_path,
+            strategy=mod.StudyMutationStrategy.STUDY_METADATA,
+            severity="moderate",
+            mutations_per_test=1,
+            runner=_FakeRunner(None),
+            log_file=None,
+            verbose=False,
+        )
+
+        assert info["status"] == "error"
+        assert "Traceback" not in capsys.readouterr().err
+
+
+class TestProcessTestResult:
+    """Cover _process_test_result (lines 513-544)."""
+
+    def _args(self, **overrides):
+        ns = argparse.Namespace(stop_on_crash=False, verbose=False)
+        for k, v in overrides.items():
+            setattr(ns, k, v)
+        return ns
+
+    def _stats(self):
+        return {
+            "total": 0,
+            "success": 0,
+            "crash": 0,
+            "timeout": 0,
+            "memory_exceeded": 0,
+            "error": 0,
+        }
+
+    def test_success_updates_stats_and_returns_false(self, tmp_path):
+        from dicom_fuzzer.cli.commands.study_campaign import (
+            _process_test_result,
+            _TestResult,
+        )
+
+        stats = self._stats()
+        result = _TestResult(
+            status="success",
+            error_message=None,
+            memory_peak_mb=5.0,
+            duration_seconds=0.2,
+        )
+
+        should_stop = _process_test_result(
+            result=result,
+            stats=stats,
+            test_id=1,
+            output_study=tmp_path / "study",
+            records=[],
+            crashes_dir=tmp_path / "crashes",
+            args=self._args(),
+            log_file=tmp_path / "x.log",
+        )
+
+        assert should_stop is False
+        assert stats["total"] == 1
+        assert stats["success"] == 1
+
+    def test_crash_saves_artifact_and_continues_without_stop_flag(self, tmp_path):
+        from dicom_fuzzer.cli.commands.study_campaign import (
+            _process_test_result,
+            _TestResult,
+        )
+
+        stats = self._stats()
+        crashes_dir = tmp_path / "crashes"
+        crashes_dir.mkdir()
+        study_dir = tmp_path / "study"
+        study_dir.mkdir()
+
+        result = _TestResult(
+            status="crash",
+            error_message="bang",
+            memory_peak_mb=1.0,
+            duration_seconds=0.1,
+        )
+
+        should_stop = _process_test_result(
+            result=result,
+            stats=stats,
+            test_id=4,
+            output_study=study_dir,
+            records=[_FakeRecord()],
+            crashes_dir=crashes_dir,
+            args=self._args(stop_on_crash=False),
+            log_file=tmp_path / "x.log",
+        )
+
+        assert should_stop is False
+        assert stats["crash"] == 1
+        assert (crashes_dir / "crash_0004" / "result.json").exists()
+
+    def test_crash_with_stop_on_crash_returns_true(self, tmp_path):
+        from dicom_fuzzer.cli.commands.study_campaign import (
+            _process_test_result,
+            _TestResult,
+        )
+
+        stats = self._stats()
+        crashes_dir = tmp_path / "crashes"
+        crashes_dir.mkdir()
+        # study dir must NOT contain crashes_dir (would recurse in copytree).
+        study_dir = tmp_path / "study"
+        study_dir.mkdir()
+
+        result = _TestResult(
+            status="crash",
+            error_message="halt",
+            memory_peak_mb=0.0,
+            duration_seconds=0.0,
+        )
+
+        should_stop = _process_test_result(
+            result=result,
+            stats=stats,
+            test_id=9,
+            output_study=study_dir,
+            records=[],
+            crashes_dir=crashes_dir,
+            args=self._args(stop_on_crash=True),
+            log_file=tmp_path / "x.log",
+        )
+
+        assert should_stop is True
+
+    def test_verbose_prints_records(self, tmp_path, capsys):
+        from dicom_fuzzer.cli.commands.study_campaign import (
+            _process_test_result,
+            _TestResult,
+        )
+
+        stats = self._stats()
+        result = _TestResult(
+            status="success",
+            error_message=None,
+            memory_peak_mb=0.0,
+            duration_seconds=0.0,
+        )
+
+        _process_test_result(
+            result=result,
+            stats=stats,
+            test_id=1,
+            output_study=tmp_path,
+            records=[_FakeRecord(strategy="verbose-only")],
+            crashes_dir=tmp_path,
+            args=self._args(verbose=True),
+            log_file=tmp_path / "x.log",
+        )
+
+        assert "verbose-only" in capsys.readouterr().out
+
+    def test_unknown_status_does_not_crash_stats(self, tmp_path):
+        """Status not in the stats dict is silently ignored."""
+        from dicom_fuzzer.cli.commands.study_campaign import (
+            _process_test_result,
+            _TestResult,
+        )
+
+        stats = self._stats()
+        # 'weird' is not a key in stats -> branch at status-in-stats is False.
+        result = _TestResult(
+            status="weird", error_message=None, memory_peak_mb=0.0, duration_seconds=0.0
+        )
+
+        should_stop = _process_test_result(
+            result=result,
+            stats=stats,
+            test_id=1,
+            output_study=tmp_path / "study",
+            records=[],
+            crashes_dir=tmp_path / "crashes",
+            args=self._args(),
+            log_file=tmp_path / "x.log",
+        )
+
+        # is_failure is True (not in {"success", "skipped"}) -> _save_crash runs
+        # but with no study_dir it still works. We only assert total increments.
+        assert should_stop is False
+        assert stats["total"] == 1
+
+
+class TestRunCampaignLoop:
+    """Cover _run_campaign_loop and _run_single_campaign_test via run_campaign.
+
+    Uses monkeypatching to substitute StudyMutator and TargetRunner so the
+    loop runs deterministically without spawning a real target process.
+    """
+
+    def _prepare_monkeypatches(self, monkeypatch, execution_status):
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+
+        datasets = [[_make_fake_dataset()]]
+        records = [_FakeRecord()]
+
+        class _MutatorFactory(_FakeMutator):
+            def __init__(self, **_kwargs):
+                super().__init__(datasets, records)
+
+        class _RunnerFactory:
+            def __init__(self, **_kwargs):
+                self._er = _make_execution_result(execution_status, peak_mb=1.0)
+
+            def execute_with_monitoring(self, _p):
+                return self._er
+
+        monkeypatch.setattr(mod, "StudyMutator", _MutatorFactory)
+        monkeypatch.setattr(mod, "TargetRunner", _RunnerFactory)
+
+    def test_loop_runs_to_count_on_success(self, tmp_path, monkeypatch):
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+        from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
+
+        self._prepare_monkeypatches(monkeypatch, ExecutionStatus.SUCCESS)
+
+        target = tmp_path / "t.exe"
+        target.write_text("")
+        study = tmp_path / "study"
+        study.mkdir()
+        (study / "slice.dcm").write_bytes(b"DICM")
+        out = tmp_path / "out"
+
+        parser = mod.create_parser()
+        args = parser.parse_args(
+            [
+                "--target",
+                str(target),
+                "--study",
+                str(study),
+                "-o",
+                str(out),
+                "-c",
+                "3",
+                "--strategy",
+                "study-metadata",
+                "--severity",
+                "moderate",
+            ]
+        )
+
+        assert mod.run_campaign(args) == 0
+        results = json.loads((out / "campaign_results.json").read_text())
+        assert results["stats"]["total"] >= 1
+        assert results["stats"]["crash"] == 0
+
+    def test_loop_stop_on_crash(self, tmp_path, monkeypatch):
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+        from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
+
+        self._prepare_monkeypatches(monkeypatch, ExecutionStatus.CRASH)
+
+        target = tmp_path / "t.exe"
+        target.write_text("")
+        study = tmp_path / "study"
+        study.mkdir()
+        (study / "slice.dcm").write_bytes(b"DICM")
+        out = tmp_path / "out"
+
+        parser = mod.create_parser()
+        args = parser.parse_args(
+            [
+                "--target",
+                str(target),
+                "--study",
+                str(study),
+                "-o",
+                str(out),
+                "-c",
+                "5",
+                "--strategy",
+                "study-metadata",
+                "--stop-on-crash",
+            ]
+        )
+
+        rc = mod.run_campaign(args)
+
+        # Non-zero because crashes found.
+        assert rc == 1
+        results = json.loads((out / "campaign_results.json").read_text())
+        # stop_on_crash fires after first crash => exactly 1 recorded.
+        assert results["stats"]["crash"] == 1
+        assert results["stats"]["total"] == 1
+
+    def test_loop_falls_through_when_count_exceeds_iterations(
+        self, tmp_path, monkeypatch
+    ):
+        """tests_per_combo is `count // (severities * strategies)`, so a large
+        count with strategy=all (5) and cycling severities (3) caps total at
+        1 * 3 * 5 = 15 tests. Requesting 100 means the try-body finishes
+        naturally without any early return -- exercises the try -> final
+        `return False` fall-through branch (601->637).
+        """
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+        from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
+
+        self._prepare_monkeypatches(monkeypatch, ExecutionStatus.SUCCESS)
+
+        target = tmp_path / "t.exe"
+        target.write_text("")
+        study = tmp_path / "study"
+        study.mkdir()
+        (study / "s.dcm").write_bytes(b"DICM")
+        out = tmp_path / "out"
+
+        parser = mod.create_parser()
+        args = parser.parse_args(
+            [
+                "--target",
+                str(target),
+                "--study",
+                str(study),
+                "-o",
+                str(out),
+                "-c",
+                "100",
+                "--strategy",
+                "all",
+            ]
+        )
+
+        assert mod.run_campaign(args) == 0
+        results = json.loads((out / "campaign_results.json").read_text())
+        # 3 severities * 5 strategies * max(1, 100//15)=6 = 90 tests
+        assert results["stats"]["total"] == 90
+
+    def test_loop_completes_via_outer_severity_check(self, tmp_path, monkeypatch):
+        """count=1 with --severity extreme hits the outer 'test_id >= count' return."""
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+        from dicom_fuzzer.core.harness.target_runner import ExecutionStatus
+
+        self._prepare_monkeypatches(monkeypatch, ExecutionStatus.SUCCESS)
+
+        target = tmp_path / "t.exe"
+        target.write_text("")
+        study = tmp_path / "study"
+        study.mkdir()
+        (study / "s.dcm").write_bytes(b"DICM")
+        out = tmp_path / "out"
+
+        parser = mod.create_parser()
+        args = parser.parse_args(
+            [
+                "--target",
+                str(target),
+                "--study",
+                str(study),
+                "-o",
+                str(out),
+                "-c",
+                "1",
+                "--strategy",
+                "study-metadata",
+                "--severity",
+                "extreme",  # single severity -> exits via the outer check
+            ]
+        )
+
+        assert mod.run_campaign(args) == 0
+
+    def test_loop_keyboard_interrupt(self, tmp_path, monkeypatch, capsys):
+        """Covers the KeyboardInterrupt handler in _run_campaign_loop (632-637)."""
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+
+        # Force _run_single_campaign_test to raise KeyboardInterrupt on first call.
+        def _boom(**_kwargs):
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr(mod, "_run_single_campaign_test", _boom)
+
+        # Stand-in mutator avoids touching real DICOM.
+        class _MutatorFactory(_FakeMutator):
+            def __init__(self, **_kwargs):
+                super().__init__([[_make_fake_dataset()]], [])
+
+        monkeypatch.setattr(mod, "StudyMutator", _MutatorFactory)
+
+        class _RunnerFactory:
+            def __init__(self, **_kwargs):
+                pass
+
+        monkeypatch.setattr(mod, "TargetRunner", _RunnerFactory)
+
+        target = tmp_path / "t.exe"
+        target.write_text("")
+        study = tmp_path / "study"
+        study.mkdir()
+        (study / "s.dcm").write_bytes(b"DICM")
+
+        parser = mod.create_parser()
+        args = parser.parse_args(
+            [
+                "--target",
+                str(target),
+                "--study",
+                str(study),
+                "-o",
+                str(tmp_path / "out"),
+                "-c",
+                "5",
+                "--strategy",
+                "study-metadata",
+            ]
+        )
+
+        # Should not re-raise; should exit cleanly and write a summary.
+        rc = mod.run_campaign(args)
+        assert rc == 0
+        assert "Campaign interrupted by user" in capsys.readouterr().out
+
+    def test_single_campaign_test_exception_non_verbose(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """Same as the verbose case but without --verbose: no traceback."""
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+
+        class _FlakyMutator(_FakeMutator):
+            def __init__(self, **_kwargs):
+                super().__init__([[_make_fake_dataset()]], [])
+
+            def mutate_study(self, *_a, **_kw):
+                raise RuntimeError("quiet boom")
+
+        monkeypatch.setattr(mod, "StudyMutator", _FlakyMutator)
+        monkeypatch.setattr(mod, "TargetRunner", lambda **_kw: _FakeRunner(None))
+
+        target = tmp_path / "t.exe"
+        target.write_text("")
+        study = tmp_path / "study"
+        study.mkdir()
+        (study / "s.dcm").write_bytes(b"DICM")
+
+        parser = mod.create_parser()
+        args = parser.parse_args(
+            [
+                "--target",
+                str(target),
+                "--study",
+                str(study),
+                "-o",
+                str(tmp_path / "out"),
+                "-c",
+                "1",
+                "--strategy",
+                "study-metadata",
+            ]
+        )
+
+        assert mod.run_campaign(args) == 0
+        assert "Traceback" not in capsys.readouterr().err
+
+    def test_single_campaign_test_exception_is_caught(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """mutate_study raising -> error counted, loop keeps going (700-705)."""
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+
+        call_count = {"n": 0}
+
+        class _FlakyMutator(_FakeMutator):
+            def __init__(self, **_kwargs):
+                super().__init__([[_make_fake_dataset()]], [])
+
+            def mutate_study(self, *_a, **_kw):
+                call_count["n"] += 1
+                raise RuntimeError(f"boom #{call_count['n']}")
+
+        monkeypatch.setattr(mod, "StudyMutator", _FlakyMutator)
+
+        class _RunnerFactory:
+            def __init__(self, **_kwargs):
+                pass
+
+            def execute_with_monitoring(self, _p):
+                pytest.fail("runner must not be called when mutate raises")
+
+        monkeypatch.setattr(mod, "TargetRunner", _RunnerFactory)
+
+        target = tmp_path / "t.exe"
+        target.write_text("")
+        study = tmp_path / "study"
+        study.mkdir()
+        (study / "s.dcm").write_bytes(b"DICM")
+        out = tmp_path / "out"
+
+        parser = mod.create_parser()
+        args = parser.parse_args(
+            [
+                "--target",
+                str(target),
+                "--study",
+                str(study),
+                "-o",
+                str(out),
+                "-c",
+                "2",
+                "--verbose",  # also covers traceback branch
+                "--strategy",
+                "study-metadata",
+            ]
+        )
+
+        rc = mod.run_campaign(args)
+        assert rc == 0  # no crashes, just errors
+        results = json.loads((out / "campaign_results.json").read_text())
+        assert results["stats"]["error"] >= 1
+
+
+class TestRunCampaignErrorPaths:
+    """Cover run_campaign's ImportError + generic Exception handlers (798-806)."""
+
+    def test_import_error_returns_1(self, tmp_path, monkeypatch, capsys):
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+
+        def _raise_import(**_kwargs):
+            raise ImportError("fake missing dep")
+
+        monkeypatch.setattr(mod, "TargetRunner", _raise_import)
+
+        target = tmp_path / "t.exe"
+        target.write_text("")
+        study = tmp_path / "study"
+        study.mkdir()
+        (study / "s.dcm").write_bytes(b"DICM")
+
+        parser = mod.create_parser()
+        args = parser.parse_args(
+            [
+                "--target",
+                str(target),
+                "--study",
+                str(study),
+                "-o",
+                str(tmp_path / "out"),
+                "-c",
+                "1",
+                "--strategy",
+                "study-metadata",
+            ]
+        )
+
+        assert mod.run_campaign(args) == 1
+        assert "Module not available" in capsys.readouterr().out
+
+    def test_generic_exception_without_verbose_no_traceback(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """Same as above but without --verbose: no Traceback printed."""
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+
+        def _raise_generic(**_kwargs):
+            raise RuntimeError("silent kaboom")
+
+        monkeypatch.setattr(mod, "TargetRunner", _raise_generic)
+
+        target = tmp_path / "t.exe"
+        target.write_text("")
+        study = tmp_path / "study"
+        study.mkdir()
+        (study / "s.dcm").write_bytes(b"DICM")
+
+        parser = mod.create_parser()
+        args = parser.parse_args(
+            [
+                "--target",
+                str(target),
+                "--study",
+                str(study),
+                "-o",
+                str(tmp_path / "out"),
+                "-c",
+                "1",
+                "--strategy",
+                "study-metadata",
+            ]
+        )
+
+        assert mod.run_campaign(args) == 1
+        captured = capsys.readouterr()
+        assert "silent kaboom" in captured.out
+        assert "Traceback" not in captured.err
+
+    def test_generic_exception_with_verbose_prints_traceback(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        from dicom_fuzzer.cli.commands import study_campaign as mod
+
+        def _raise_generic(**_kwargs):
+            raise RuntimeError("kaboom")
+
+        monkeypatch.setattr(mod, "TargetRunner", _raise_generic)
+
+        target = tmp_path / "t.exe"
+        target.write_text("")
+        study = tmp_path / "study"
+        study.mkdir()
+        (study / "s.dcm").write_bytes(b"DICM")
+
+        parser = mod.create_parser()
+        args = parser.parse_args(
+            [
+                "--target",
+                str(target),
+                "--study",
+                str(study),
+                "-o",
+                str(tmp_path / "out"),
+                "-c",
+                "1",
+                "--verbose",
+                "--strategy",
+                "study-metadata",
+            ]
+        )
+
+        assert mod.run_campaign(args) == 1
+        captured = capsys.readouterr()
+        assert "Campaign failed: kaboom" in captured.out
+        assert "Traceback" in captured.err
+
+
+class TestStudyCampaignCommandExecuteFallback:
+    """Cover StudyCampaignCommand.execute help-fallback branch (825-826)."""
+
+    def test_execute_falls_back_to_help_when_neither_flag_set(self, capsys):
+        from dicom_fuzzer.cli.commands.study_campaign import StudyCampaignCommand
+
+        args = argparse.Namespace(list_strategies=False, target=None)
+
+        assert StudyCampaignCommand.execute(args) == 1
+        assert "usage" in capsys.readouterr().out.lower()

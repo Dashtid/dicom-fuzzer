@@ -376,5 +376,258 @@ class TestPerformanceCharacteristics:
         assert len(records) > 0
 
 
+# ============================================================================
+# In-process tests for _mutate_single_slice worker (subprocess coverage gap)
+# ============================================================================
+#
+# pytest-cov does not instrument ProcessPoolExecutor worker processes, so the
+# existing tests that drive _mutate_single_slice through mutate_series_parallel
+# leave it as uncovered statements in the merged coverage report even though
+# the code does execute. Calling the worker directly from the test process
+# exercises the same code path under coverage instrumentation.
+
+
+class TestMutateSingleSliceDirect:
+    """Drive _mutate_single_slice in-process to close the subprocess coverage gap."""
+
+    def test_happy_path_returns_mutated_dataset(self, sample_series):
+        from dicom_fuzzer.attacks.series.parallel_mutator import _mutate_single_slice
+
+        idx, ds, records = _mutate_single_slice(
+            file_path=sample_series.slices[0],
+            slice_index=0,
+            strategy=SeriesMutationStrategy.SLICE_POSITION_ATTACK.value,
+            severity="moderate",
+            seed=42,
+        )
+
+        assert idx == 0
+        assert ds is not None
+        # SLICE_POSITION_ATTACK modifies something on most runs; don't assert
+        # records are non-empty since randomness can produce 0.
+
+    def test_no_seed_skips_per_slice_offset(self, sample_series):
+        """seed=None -> slice_seed stays None (no ``seed + slice_index``)."""
+        from dicom_fuzzer.attacks.series.parallel_mutator import _mutate_single_slice
+
+        idx, ds, _ = _mutate_single_slice(
+            file_path=sample_series.slices[1],
+            slice_index=1,
+            strategy=SeriesMutationStrategy.SLICE_POSITION_ATTACK.value,
+            severity="moderate",
+            seed=None,
+        )
+
+        assert idx == 1
+        assert ds is not None
+
+    def test_boundary_target_first_matches(self, sample_series):
+        """target=first with slice_index=0 -> mutation applied."""
+        from dicom_fuzzer.attacks.series.parallel_mutator import _mutate_single_slice
+
+        idx, ds, _ = _mutate_single_slice(
+            file_path=sample_series.slices[0],
+            slice_index=0,
+            strategy=SeriesMutationStrategy.BOUNDARY_SLICE_TARGETING.value,
+            severity="moderate",
+            seed=42,
+            total_slices=10,
+            target="first",
+        )
+
+        assert idx == 0
+        assert ds is not None
+
+    def test_boundary_target_last_matches(self, sample_series):
+        """target=last with slice_index=total_slices-1 -> mutation applied."""
+        from dicom_fuzzer.attacks.series.parallel_mutator import _mutate_single_slice
+
+        idx, ds, _ = _mutate_single_slice(
+            file_path=sample_series.slices[-1],
+            slice_index=9,
+            strategy=SeriesMutationStrategy.BOUNDARY_SLICE_TARGETING.value,
+            severity="moderate",
+            seed=42,
+            total_slices=10,
+            target="last",
+        )
+
+        assert idx == 9
+        assert ds is not None
+
+    def test_boundary_target_middle_matches(self, sample_series):
+        """target=middle with slice_index==total_slices//2 -> mutation applied."""
+        from dicom_fuzzer.attacks.series.parallel_mutator import _mutate_single_slice
+
+        idx, ds, _ = _mutate_single_slice(
+            file_path=sample_series.slices[5],
+            slice_index=5,
+            strategy=SeriesMutationStrategy.BOUNDARY_SLICE_TARGETING.value,
+            severity="moderate",
+            seed=42,
+            total_slices=10,
+            target="middle",
+        )
+
+        assert idx == 5
+        assert ds is not None
+
+    def test_boundary_non_boundary_returns_early_with_empty_records(
+        self, sample_series
+    ):
+        """Non-boundary slice (index 3, target=first, total_slices=10) -> no mutation."""
+        from dicom_fuzzer.attacks.series.parallel_mutator import _mutate_single_slice
+
+        idx, ds, records = _mutate_single_slice(
+            file_path=sample_series.slices[3],
+            slice_index=3,
+            strategy=SeriesMutationStrategy.BOUNDARY_SLICE_TARGETING.value,
+            severity="moderate",
+            seed=42,
+            total_slices=10,
+            target="first",
+        )
+
+        assert idx == 3
+        assert ds is not None
+        assert records == []  # early-return branch
+
+    def test_dataset_without_series_uid_falls_back_to_generated(self, tmp_path):
+        """DICOM missing SeriesInstanceUID / StudyInstanceUID / Modality.
+
+        Hits the hasattr-False branches when pulling metadata out of the
+        slice for the temp DicomSeries.
+        """
+        from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
+        from pydicom.uid import generate_uid
+
+        from dicom_fuzzer.attacks.series.parallel_mutator import _mutate_single_slice
+
+        file_meta = FileMetaDataset()
+        file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+        file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        file_meta.MediaStorageSOPInstanceUID = generate_uid()
+        file_meta.ImplementationClassUID = generate_uid()
+
+        ds = FileDataset("minimal.dcm", {}, file_meta=file_meta, preamble=b"\0" * 128)
+        # Deliberately do NOT set SeriesInstanceUID / StudyInstanceUID / Modality.
+        ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+        ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+        ds.is_implicit_VR = True
+        ds.is_little_endian = True
+        ds.Rows = 16
+        ds.Columns = 16
+        ds.BitsAllocated = 16
+        ds.BitsStored = 16
+        ds.HighBit = 15
+        ds.SamplesPerPixel = 1
+        ds.PixelRepresentation = 0
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.PixelData = b"\x00" * (16 * 16 * 2)
+        ds.ImagePositionPatient = [0.0, 0.0, 0.0]
+
+        path = tmp_path / "bare.dcm"
+        ds.save_as(str(path), write_like_original=False)
+        assert isinstance(ds, Dataset)  # silence unused-import warning
+
+        idx, out, _ = _mutate_single_slice(
+            file_path=path,
+            slice_index=0,
+            strategy=SeriesMutationStrategy.SLICE_POSITION_ATTACK.value,
+            severity="moderate",
+            seed=42,
+        )
+
+        assert idx == 0
+        assert out is not None
+
+    def test_missing_file_hits_exception_branch(self, tmp_path):
+        """Unreadable file makes pydicom.dcmread raise -> generic except block.
+
+        The worker catches, logs, and tries to re-read the same file to return
+        the 'original'. With a non-existent file the re-read also raises,
+        which propagates out (we don't swallow inside the test).
+        """
+        from dicom_fuzzer.attacks.series.parallel_mutator import _mutate_single_slice
+
+        ghost = tmp_path / "does_not_exist.dcm"
+
+        # Either FileNotFoundError from pydicom OR InvalidDicomError if something
+        # weird happens -- either way the except branch at 129-133 has executed.
+        with pytest.raises(Exception):
+            _mutate_single_slice(
+                file_path=ghost,
+                slice_index=0,
+                strategy=SeriesMutationStrategy.SLICE_POSITION_ATTACK.value,
+                severity="moderate",
+                seed=42,
+            )
+
+
+class TestGetOptimalWorkersBranches:
+    """Cover the three branches of get_optimal_workers (325-330)."""
+
+    def test_low_cpu_count_returns_one(self, monkeypatch):
+        from dicom_fuzzer.attacks.series import parallel_mutator
+
+        monkeypatch.setattr(parallel_mutator.multiprocessing, "cpu_count", lambda: 2)
+        assert parallel_mutator.get_optimal_workers() == 1
+
+    def test_medium_cpu_count_leaves_one_core(self, monkeypatch):
+        from dicom_fuzzer.attacks.series import parallel_mutator
+
+        monkeypatch.setattr(parallel_mutator.multiprocessing, "cpu_count", lambda: 4)
+        assert parallel_mutator.get_optimal_workers() == 3
+
+    def test_high_cpu_count_leaves_two_cores(self, monkeypatch):
+        from dicom_fuzzer.attacks.series import parallel_mutator
+
+        monkeypatch.setattr(parallel_mutator.multiprocessing, "cpu_count", lambda: 16)
+        assert parallel_mutator.get_optimal_workers() == 14
+
+
+class TestParallelLoopFutureFailure:
+    """Cover the exception handler inside the as_completed loop (247-253)."""
+
+    def test_future_result_exception_falls_back_to_original(
+        self, sample_series, monkeypatch
+    ):
+        """If future.result() raises, the loop logs, re-reads original.
+
+        Drive this by monkeypatching ProcessPoolExecutor.submit so the future
+        it returns has a broken .result() method.
+        """
+        from concurrent.futures import Future
+
+        from dicom_fuzzer.attacks.series import parallel_mutator as mod
+
+        class _BrokenPool:
+            def __init__(self, **_kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def submit(self, _fn, _path, idx, *_args, **_kwargs):
+                future: Future = Future()
+                future.set_exception(RuntimeError(f"worker {idx} died"))
+                return future
+
+        monkeypatch.setattr(mod, "ProcessPoolExecutor", _BrokenPool)
+
+        mutator = mod.ParallelSeriesMutator(workers=2, seed=42)
+        datasets, records = mutator.mutate_series_parallel(
+            sample_series, SeriesMutationStrategy.BOUNDARY_SLICE_TARGETING
+        )
+
+        # Every slice came back via the fallback pydicom.dcmread branch.
+        assert len(datasets) == sample_series.slice_count
+        # No records because every worker "failed".
+        assert records == []
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

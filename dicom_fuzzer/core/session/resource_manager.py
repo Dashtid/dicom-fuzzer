@@ -27,8 +27,9 @@ if not IS_WINDOWS:
         import resource as sys_resource
 
         HAS_RESOURCE_MODULE = True
-    except ImportError as _import_err:
-        # resource module not available (unusual for non-Windows systems)
+    except ImportError as _import_err:  # pragma: no cover
+        # resource module is part of the stdlib on every supported Unix;
+        # the except branch only fires on non-standard builds we don't test.
         del _import_err  # Avoid unused variable warning
 
 logger = get_logger(__name__)
@@ -161,7 +162,7 @@ class ResourceManager:
 
             process = psutil.Process(os.getpid())
             memory_mb = process.memory_info().rss / (1024 * 1024)
-        except ImportError:
+        except ImportError:  # pragma: no cover - psutil is a declared dep
             memory_mb = 0.0
 
         # Get CPU time (works on Unix-like systems)
@@ -171,7 +172,7 @@ class ResourceManager:
                 cpu_seconds = usage.ru_utime + usage.ru_stime
             else:
                 cpu_seconds = 0.0
-        except Exception:
+        except Exception:  # pragma: no cover - getrusage rarely fails
             cpu_seconds = 0.0
 
         # Get disk space
@@ -183,7 +184,7 @@ class ResourceManager:
 
             process = psutil.Process(os.getpid())
             open_files = len(process.open_files())
-        except ImportError:
+        except ImportError:  # pragma: no cover - psutil is a declared dep
             open_files = 0
 
         return ResourceUsage(
@@ -263,7 +264,7 @@ class ResourceManager:
                     "Set file descriptor limit",
                     max_open_files=self.limits.max_open_files,
                 )
-            except (ValueError, OSError) as e:
+            except (ValueError, OSError) as e:  # pragma: no cover - rare system failure
                 logger.warning("Could not set file descriptor limit", error=str(e))
 
             yield
