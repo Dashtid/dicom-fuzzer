@@ -32,7 +32,12 @@ jobs:
         uses: anchore/sbom-action/download-syft@v0
 
       - name: Install Grype
-        uses: anchore/scan-action/download-grype@v7
+        # download-grype@v7 only outputs an absolute cmd path, it doesn't add
+        # grype to PATH. sbom-sentinel calls `grype` by name, so use Anchore's
+        # official install script which drops the binary into /usr/local/bin.
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+            | sh -s -- -b /usr/local/bin
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v5
