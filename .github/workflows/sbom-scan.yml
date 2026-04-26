@@ -2,7 +2,7 @@ name: SBOM Vulnerability Scan
 
 # Generates a fresh SPDX-JSON SBOM with Syft, scans it with Grype, enriches the
 # findings with the CISA Known Exploited Vulnerabilities (KEV) catalog, and
-# uploads results to GitHub Code Scanning plus a downloadable HTML report.
+# uploads results to GitHub Code Scanning plus a downloadable Markdown report.
 #
 # Complements the existing Trivy filesystem scan in security.yml by scanning at
 # the package-manifest level (pyproject.toml / uv.lock) with KEV enrichment.
