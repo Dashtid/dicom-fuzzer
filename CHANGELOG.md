@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Crash minimizer (`dicom-fuzzer minimize`).** Reduces a crashing DICOM
+  file to the smallest subset of elements that still triggers the same
+  target exit code, using delta debugging (Zeller-Hildebrandt ddmin).
+  Output is always a parseable .dcm file with a real DICOM structure,
+  suitable for upstream issue reports. Phase A only (top-level element
+  removal); per-element value reduction deferred to Phase B.
 - **Multiframe binary attacks in `EncapsulatedPixelStrategy`.** New
   `mutate_bytes()` override with 6 attacks targeting invariants
   pydicom normalises away at the dataset level. BOT attacks:
