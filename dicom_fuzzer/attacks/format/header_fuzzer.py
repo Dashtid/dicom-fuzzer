@@ -194,7 +194,10 @@ VR_MUTATIONS = {
     ],
     # UN - Unknown (any bytes)
     "UN": [
-        b"\x00" * 1000000,  # 1MB of nulls
+        b"\x00" * 16384,  # 16 KB of nulls. Parsers crash on the shape of an
+        # element, not its raw size; large-allocation tests are covered by
+        # StructureFuzzer's length-field attacks, which mutate only the
+        # length without writing megabytes of payload.
         b"\xff" * 10000,  # All 0xFF
         b"",  # Empty
     ],
@@ -215,7 +218,7 @@ VR_MUTATIONS = {
     ],
     # UT - Unlimited Text (no max length)
     "UT": [
-        "A" * 10000000,  # 10MB string
+        "A" * 65536,  # 64 KB string. See UN comment above on size cap rationale.
         "\x00" * 100000,  # Null bytes
     ],
     # OD - Other Double (64-bit floats, must be even multiple of 8)

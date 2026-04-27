@@ -665,13 +665,20 @@ class TargetRunner:
             )
 
     def run_campaign(
-        self, test_files: list[Path], stop_on_crash: bool = False
+        self,
+        test_files: list[Path],
+        stop_on_crash: bool = False,
+        cleanup_after_test: bool = False,
     ) -> dict[ExecutionStatus, list[ExecutionResult]]:
         """Run fuzzing campaign against target with multiple test files.
 
         Args:
             test_files: List of fuzzed DICOM files to test
             stop_on_crash: If True, stop testing on first crash
+            cleanup_after_test: If True, delete each fuzzed file inline once
+                tested, unless it produced CRASH/HANG/OOM/RESOURCE_EXHAUSTED
+                (those are preserved for triage). Lets large campaigns avoid
+                exhausting disk.
 
         Returns:
             Dictionary mapping ExecutionStatus to list of ExecutionResults
@@ -679,6 +686,12 @@ class TargetRunner:
         """
         results: dict[ExecutionStatus, list[ExecutionResult]] = {
             result_type: [] for result_type in ExecutionStatus
+        }
+        preserve_statuses = {
+            ExecutionStatus.CRASH,
+            ExecutionStatus.HANG,
+            ExecutionStatus.OOM,
+            ExecutionStatus.RESOURCE_EXHAUSTED,
         }
 
         total = len(test_files)
@@ -700,6 +713,16 @@ class TargetRunner:
             else:
                 exec_result = self.execute_test(test_file)
             results[exec_result.result].append(exec_result)
+
+            if cleanup_after_test and exec_result.result not in preserve_statuses:
+                try:
+                    Path(test_file).unlink(missing_ok=True)
+                except OSError as cleanup_err:
+                    logger.debug(
+                        "cleanup failed",
+                        file=test_file.name,
+                        error=str(cleanup_err),
+                    )
 
             # Log notable results
             if exec_result.result in (
