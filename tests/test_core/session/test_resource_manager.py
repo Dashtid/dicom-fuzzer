@@ -951,7 +951,7 @@ class TestWindowsInitWarning:
     instantiation exercises the same code path.
     """
 
-    def test_windows_branch_emits_warning(self, monkeypatch, capsys):
+    def test_windows_branch_emits_warning(self, monkeypatch, capfd):
         from dicom_fuzzer.core.session import resource_manager as mod
 
         monkeypatch.setattr(mod, "IS_WINDOWS", True)
@@ -959,10 +959,13 @@ class TestWindowsInitWarning:
         manager = mod.ResourceManager(mod.ResourceLimits(min_disk_space_mb=1))
 
         assert manager.is_windows is True
-        # structlog writes to stdout/stderr, not Python logging -- check via capsys.
-        # `capsys.readouterr()` drains both streams in a single call; calling it
-        # twice loses whichever stream the second call read (it's already empty).
-        captured = capsys.readouterr()
+        # structlog with cache_logger_on_first_use=True binds the underlying
+        # stdlib logger on first call, capturing whatever sys.stderr was
+        # *then* -- which can be the original fd, not pytest's interceptor.
+        # capsys only sees Python-level writes to the patched sys.stderr;
+        # capfd captures at the file-descriptor level, so it works regardless
+        # of whether the cached logger writes to the original or patched stream.
+        captured = capfd.readouterr()
         assert "Running on Windows" in captured.out + captured.err
 
 
