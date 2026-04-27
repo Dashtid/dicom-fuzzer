@@ -26,29 +26,16 @@ Going forward:
 
 ---
 
-## Open PRs needing triage (2026-04-23)
-
-Three PRs opened 2026-04-22 sit `BEHIND` main. Work is sound but
-needs rebase + re-verify before merging.
-
-| #    | Title                                                  | Action needed                                          |
-| ---- | ------------------------------------------------------ | ------------------------------------------------------ |
-| #272 | Multiframe binary attacks on EncapsulatedPixelStrategy | Rebase; closes the "0 binary attacks" gap below        |
-| #273 | CLI round-robin starvation fix                         | Rebase; bug is still live on main (campaign_runner.py) |
-| #276 | fo-dicom file harness target                           | Rebase; listed as concrete work below                  |
-
----
-
-## Module maturity (2026-04-23)
+## Module maturity (2026-04-25)
 
 | Module     | Maturity | Strategies         | Tests | Binary attacks            |
 | ---------- | -------- | ------------------ | ----- | ------------------------- |
 | Format     | mature   | 23                 | ~1260 | 13 (Structure) + 4 others |
-| Multiframe | growing  | 10                 | ~180  | 0                         |
+| Multiframe | growing  | 10                 | ~180  | 6 (EncapsulatedPixel)     |
 | Series     | growing  | 18 (12+6)          | ~335  | 0                         |
 | Network    | mature   | DIMSE+TLS+Stateful | ~595  | PDU-level                 |
 
-Key gap: Multiframe and Series have no binary-level attacks.
+Key gap: Series has no binary-level attacks.
 
 ---
 
@@ -65,12 +52,6 @@ Key gap: Multiframe and Series have no binary-level attacks.
 
 ## Multiframe fuzzing -- P2: close the binary-attack gap
 
-- **Multiframe-aware BOT corruption.** Add `mutate_bytes` to
-  EncapsulatedPixelStrategy that knows NumberOfFrames and can
-  create N-mismatched offsets (CompressedPixelFuzzer's BOT attack
-  is single-frame unaware).
-- **Extended Offset Table (EOT) fuzzing.** DICOM 2022 tag
-  (7FE0,0001) is untouched. New strategy class.
 - **Shared/per-frame ambiguity.** Replicate a value in both
   SharedFunctionalGroupsSequence and PerFrameFunctionalGroupsSequence
   to test viewer precedence logic.
@@ -216,6 +197,18 @@ strategies. Requires statistically meaningful campaign first.
 - Structural/content code comments
 - CrashAnalyzer rename
 - Test flakiness investigation (`test_complete_generation_workflow`)
+- **CI runner OOM in `test_default_arguments`** (resource_manager).
+  `tests/test_core/session/test_resource_manager.py::TestResourceLimitedConvenience::test_default_arguments`
+  calls `resource_limited(min_disk_space_mb=1)` which uses default
+  `max_memory_mb=1024` and applies `setrlimit(RLIMIT_AS, 1GB)` to the
+  test process itself. Pytest with coverage instrumentation already
+  exceeds 1GB virtual address space, so the next allocation triggers
+  exit 137/152 (OOM kill). Bounced through nearly every matrix split
+  during the 2026-04-25 PR landing batch (#272, #284, #287). Fix:
+  pass an explicit `max_memory_mb` value high enough that the test
+  process won't trip it (e.g. 8192), or run the limit-setting in a
+  subprocess so the parent isn't affected. Same root cause may also
+  affect `test_yields_resource_manager` which uses 2048 MB.
 - Strategy effectiveness charts
 - End-of-campaign auto-triage
 - Authentication negotiation fuzzing (network module extension)
@@ -291,3 +284,7 @@ Earlier completed items collapsed; recent work below.
 | fo-dicom network harness (DIMSE SCP + TLS) under examples/     | #277                          |
 | pydicom smoke harness (corpus analyzer) under examples/        | #275                          |
 | examples/ directory (targets + tooling consolidation)          | #278                          |
+| fo-dicom file harness (-t EXE target under examples/)          | #276                          |
+| Multiframe binary attacks via `mutate_bytes` (BOT/EOT, 6)      | #272                          |
+| Round-robin starvation fix (CLI mini-batching)                 | #273                          |
+| Backlog hygiene + stale-PR triage section                      | #287                          |
