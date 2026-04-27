@@ -406,13 +406,18 @@ class GUITargetRunner:
             time.sleep(1.0)
 
     def run_campaign(
-        self, test_files: list[Path], stop_on_crash: bool = False
+        self,
+        test_files: list[Path],
+        stop_on_crash: bool = False,
+        cleanup_after_test: bool = False,
     ) -> dict[ExecutionStatus, list[GUIExecutionResult]]:
         """Run fuzzing campaign against GUI target.
 
         Args:
             test_files: List of DICOM files to test
             stop_on_crash: Stop on first crash
+            cleanup_after_test: Delete fuzzed file after each test unless it
+                produced CRASH/HANG/OOM/RESOURCE_EXHAUSTED.
 
         Returns:
             Dictionary mapping status to results
@@ -420,6 +425,12 @@ class GUITargetRunner:
         """
         results: dict[ExecutionStatus, list[GUIExecutionResult]] = {
             status: [] for status in ExecutionStatus
+        }
+        preserve_statuses = {
+            ExecutionStatus.CRASH,
+            ExecutionStatus.HANG,
+            ExecutionStatus.OOM,
+            ExecutionStatus.RESOURCE_EXHAUSTED,
         }
 
         # Warmup: launch once to cache DLLs in memory
@@ -433,6 +444,14 @@ class GUITargetRunner:
 
             result = self.execute_test(test_file)
             results[result.status].append(result)
+
+            if cleanup_after_test and result.status not in preserve_statuses:
+                try:
+                    Path(test_file).unlink(missing_ok=True)
+                except OSError as cleanup_err:
+                    logger.debug(
+                        "Cleanup failed for %s: %s", test_file.name, cleanup_err
+                    )
 
             # Brief pause between tests to let the OS clean up process handles
             if i < len(test_files):

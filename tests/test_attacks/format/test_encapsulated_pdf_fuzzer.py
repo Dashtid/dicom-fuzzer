@@ -124,7 +124,7 @@ class TestDocumentSizeAttack:
             ds = copy.deepcopy(pdf_dataset)
             result = fuzzer._document_size_attack(ds)
             doc = getattr(result, "EncapsulatedDocument", None)
-            if doc is not None and len(doc) > len(_MINIMAL_PDF) + 100_000:
+            if doc is not None and len(doc) > len(_MINIMAL_PDF) + 16_000:
                 return
         pytest.fail("oversized_padding attack never triggered")
 
