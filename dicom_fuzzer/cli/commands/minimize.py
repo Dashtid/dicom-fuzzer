@@ -20,11 +20,8 @@ from dicom_fuzzer.core.crash.minimizer import (
     MinimizeResult,
     minimize_dicom,
 )
-from dicom_fuzzer.utils.logger import get_logger
 
 __all__ = ["MinimizeCommand", "main"]
-
-logger = get_logger(__name__)
 
 
 def create_parser() -> argparse.ArgumentParser:
