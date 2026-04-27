@@ -1,24 +1,37 @@
 name: SBOM Vulnerability Scan
 
-# Generates a fresh SPDX-JSON SBOM with Syft, scans it with Grype, enriches the
-# findings with the CISA Known Exploited Vulnerabilities (KEV) catalog, and
-# uploads results to GitHub Code Scanning plus a downloadable Markdown report.
+# Generates a fresh SPDX-JSON SBOM with Syft, scans it with Grype, enriches
+# the findings with the CISA Known Exploited Vulnerabilities (KEV) catalog,
+# and uploads results to GitHub Code Scanning plus a downloadable Markdown
+# report.
 #
-# Complements the existing Trivy filesystem scan in security.yml by scanning at
-# the package-manifest level (pyproject.toml / uv.lock) with KEV enrichment.
+# Behaviour:
+#   - push to main / scheduled / manual: scan, upload SARIF + artifacts.
+#   - pull_request: also diff against the most recent main scan and post the
+#     summary as a PR comment.
+#
+# Code Scanning is the alerting mechanism — this workflow never fails CI on
+# findings. Acceptable / wont-fix triage happens in the Security tab.
+#
+# Complements the existing Trivy filesystem scan in security.yml by scanning
+# at the package-manifest level (pyproject.toml / uv.lock) with KEV
+# enrichment.
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   schedule:
-    # Weekly on Monday at 06:00 UTC — new CVEs are typically published mid-week,
-    # so Monday catches the previous week's disclosures.
+    # Weekly on Monday at 06:00 UTC — new CVEs are typically published
+    # mid-week, so Monday catches the previous week's disclosures.
     - cron: '0 6 * * 1'
   workflow_dispatch:
 
 permissions:
   contents: read
   security-events: write
+  pull-requests: write
 
 jobs:
   scan:
@@ -47,13 +60,32 @@ jobs:
       - name: Install sbom-sentinel
         run: pip install sbom-sentinel
 
-      - name: Run scan (SARIF + Markdown report)
+      # The 3 stages are run discretely because `sbom-sentinel run --format
+      # sarif` is currently broken upstream (the report stage rejects SARIF
+      # input — tracked separately for fixing in sbom-sentinel). Splitting
+      # gives us both the SARIF for Code Scanning *and* the JSON the report
+      # + diff stages need.
+      #
+      # No --fail-on anywhere: findings are an alert (via Code Scanning), not
+      # a CI blocker. Acceptable / wont-fix triage happens in the Security tab.
+      - name: Generate SBOM (Syft)
+        run: sbom-sentinel -v sbom --target . --name dicom-fuzzer
+
+      - name: Scan SBOM, write JSON
         run: |
-          sbom-sentinel -v run \
-            --target . \
-            --name dicom-fuzzer \
-            --format sarif \
-            --fail-on critical
+          SBOM=$(ls -1t sbom_output/*.spdx.json | head -1)
+          sbom-sentinel -v scan --sbom "$SBOM" --name dicom-fuzzer --format json
+
+      - name: Scan SBOM, write SARIF for Code Scanning
+        run: |
+          SBOM=$(ls -1t sbom_output/*.spdx.json | head -1)
+          sbom-sentinel -v scan --sbom "$SBOM" --name dicom-fuzzer --format sarif
+
+      - name: Render Markdown report (KEV-enriched)
+        run: |
+          SBOM=$(ls -1t sbom_output/*.spdx.json | head -1)
+          SCAN=$(ls -1t artifacts/json/*.json | head -1)
+          sbom-sentinel -v report --scan "$SCAN" --name dicom-fuzzer --sbom "$SBOM"
 
       - name: Upload SARIF to Code Scanning
         if: always()
@@ -72,3 +104,63 @@ jobs:
             artifacts/
             logs/
           retention-days: 90
+
+      # ----------------------------------------------------------------------
+      # PR-only: fetch the previous main scan and post a diff comment.
+      # ----------------------------------------------------------------------
+      - name: Fetch baseline scan from latest main run
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p baseline
+          BASELINE_RUN_ID=$(gh run list \
+            --workflow=sbom-scan.yml \
+            --branch=main \
+            --status=success \
+            --limit=1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')
+          if [ -z "$BASELINE_RUN_ID" ]; then
+            echo "no successful main run yet" > baseline/STATUS
+            exit 0
+          fi
+          echo "Fetching baseline from main run $BASELINE_RUN_ID"
+          gh run download "$BASELINE_RUN_ID" \
+            --name "sbom-sentinel-$BASELINE_RUN_ID" \
+            --dir baseline/ || echo "no artifact" > baseline/STATUS
+
+      - name: Diff against baseline and post PR comment
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ -f baseline/STATUS ]; then
+            gh pr comment "$PR_NUMBER" --body \
+              "**SBOM scan**: no baseline scan available yet — diff will appear once a main scan has succeeded."
+            exit 0
+          fi
+          OLD=$(ls baseline/artifacts/json/*.json 2>/dev/null | head -1 || true)
+          NEW=$(ls artifacts/json/*.json 2>/dev/null | head -1 || true)
+          if [ -z "$OLD" ] || [ -z "$NEW" ]; then
+            echo "missing scan files (old=$OLD new=$NEW), skipping diff"
+            exit 0
+          fi
+          mkdir -p diff_out
+          sbom-sentinel diff \
+            --old "$OLD" \
+            --new "$NEW" \
+            --name dicom-fuzzer \
+            --output-dir diff_out/
+          DIFF_FILE=$(ls diff_out/dicom-fuzzer_diff_*.md | head -1)
+          {
+            echo "<details><summary><b>SBOM scan diff vs main</b></summary>"
+            echo
+            cat "$DIFF_FILE"
+            echo
+            echo "</details>"
+          } > /tmp/comment.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/comment.md
