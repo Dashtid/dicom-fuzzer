@@ -5,6 +5,7 @@ Handles file generation and campaign orchestration.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import logging
 import time
@@ -25,14 +26,7 @@ try:
 except PackageNotFoundError:
     _PKG_VERSION = "unknown"
 
-# Check for tqdm availability
-try:
-    from tqdm import tqdm
-
-    HAS_TQDM = True
-except ImportError:
-    HAS_TQDM = False
-    tqdm = None  # type: ignore[misc,assignment,unused-ignore]
+HAS_TQDM = importlib.util.find_spec("tqdm") is not None
 
 
 class CampaignRunner:
