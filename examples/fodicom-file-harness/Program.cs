@@ -6,10 +6,16 @@
 // so our Python target runner can classify findings without guessing.
 //
 // Exit codes:
-//   0  parsed and traversed cleanly
-//   1  uncaught exception (the interesting case -- fo-dicom bug candidate)
+//   0  parsed, traversed, and decoded cleanly
+//   1  uncaught exception during parse/traversal (fo-dicom bug candidate)
 //   2  invalid CLI args
-//   10 DicomFileException (fo-dicom's designed malformation report)
+//   10 DicomFileException during parse (fo-dicom's designed malformation report)
+//   11 any exception during pixel-data decode (transfer-syntax codec path)
+//
+// 11 is split from 10 so campaign telemetry can distinguish parser-side
+// findings from decoder-side ones. Most fo-dicom crashes worth chasing
+// live in the JPEG-LS / JPEG2000 / RLE decoder paths that GetFrame triggers,
+// not in the dataset walker.
 //
 // StackOverflowException is not catchable in .NET; the runtime will
 // terminate the process with its own non-zero exit. That's fine --
@@ -17,6 +23,7 @@
 // deeply-nested SQ is precisely the crash class we want surfaced.
 
 using FellowOakDicom;
+using FellowOakDicom.Imaging;
 
 namespace DicomFuzzer.Targets.FoDicomFileHarness;
 
@@ -30,15 +37,15 @@ internal static class Program
             return 2;
         }
 
+        DicomFile file;
         try
         {
-            var file = DicomFile.Open(args[0]);
+            file = DicomFile.Open(args[0]);
             TraverseDataset(file.Dataset);
             if (file.FileMetaInfo is not null)
             {
                 TraverseDataset(file.FileMetaInfo);
             }
-            return 0;
         }
         catch (DicomFileException ex)
         {
@@ -50,6 +57,29 @@ internal static class Program
             Console.Error.WriteLine(ex.ToString());
             return 1;
         }
+
+        // Decode frame 0 to exercise the transfer-syntax codec paths
+        // (JPEG-LS, JPEG2000, RLE, encapsulated streams). This is where
+        // most of the interesting fo-dicom bugs live -- the dataset walker
+        // above is too lenient on its own.
+        if (file.Dataset.Contains(DicomTag.PixelData))
+        {
+            try
+            {
+                var pixelData = DicomPixelData.Create(file.Dataset);
+                if (pixelData.NumberOfFrames > 0)
+                {
+                    _ = pixelData.GetFrame(0);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"PixelData decode failed: {ex}");
+                return 11;
+            }
+        }
+
+        return 0;
     }
 
     // Iterative walk so we don't contribute stack frames proportional to
