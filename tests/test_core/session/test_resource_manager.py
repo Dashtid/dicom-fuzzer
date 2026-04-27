@@ -908,11 +908,25 @@ class TestUnixResourceModuleImport:
 class TestResourceLimitedConvenience:
     """Cover the module-level resource_limited() context manager (383-391).
 
-    The existing TestConvenienceFunction class is marked @pytest.mark.slow and
-    skipped in CI, so resource_limited never executes under coverage
-    instrumentation. These tests avoid the xdist-fragile disk_usage mock by
-    using a tiny min_disk_space_mb threshold that any test runner will meet.
+    `setrlimit`/`getrlimit` are patched so the RLIMIT_AS=1024MB default does
+    not get applied to the pytest worker itself -- xdist+coverage already
+    exceeds 1 GB virtual address space, which previously SIGKILL'd random
+    test groups (exit 137). The mocked rlimit calls still exercise the
+    success path of `limited_execution()` under coverage.
     """
+
+    @pytest.fixture(autouse=True)
+    def _mock_rlimit(self, monkeypatch):
+        from dicom_fuzzer.core.session import resource_manager as mod
+
+        if not mod.HAS_RESOURCE_MODULE or mod.sys_resource is None:
+            return
+
+        original_getrlimit = mod.sys_resource.getrlimit
+        monkeypatch.setattr(
+            mod.sys_resource, "getrlimit", lambda which: original_getrlimit(which)
+        )
+        monkeypatch.setattr(mod.sys_resource, "setrlimit", lambda which, limits: None)
 
     def test_yields_resource_manager(self):
         with resource_limited(
