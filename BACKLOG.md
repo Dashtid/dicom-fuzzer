@@ -184,6 +184,17 @@ Overnight run with current 9 seeds + 30s timeout against
 Hermes.exe. Analyze `crash_by_strategy` telemetry to identify
 zero-crash strategies for second-pass audit.
 
+### fo-dicom harness extension: pixel-data decoder
+
+Current `examples/fodicom-file-harness/Program.cs` only exercises
+`DicomFile.Open` + element traversal. Decoder bugs (JPEG, JPEG-LS,
+JPEG2000, RLE) are silent. Extend with `DicomPixelData.Create(ds).GetFrame(0)`
+in a try/catch block so transfer-syntax-specific decoder paths get
+hit. Two-line change, separate exit-code bucket (e.g. 11) for "decode
+threw" vs the existing 10 for "parse threw". Discovered after
+2026-04-26 fo-dicom campaign produced 0 crashes in 1765 files --
+parser is more lenient than expected; decoder is unexplored.
+
 ### Crash triage automation
 
 Currently 1 confirmed crash (stack overflow CWE-674 via

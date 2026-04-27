@@ -123,11 +123,14 @@ class EncapsulatedPdfFuzzer(FormatFuzzerBase):
                 if "EncapsulatedDocument" in dataset:
                     del dataset.EncapsulatedDocument
             elif attack == "oversized_padding":
+                # 32 KB is enough to trip PDF readers that miscompute lengths
+                # without bloating campaign output. Larger size-overflow tests
+                # belong in StructureFuzzer length-field attacks.
                 doc = getattr(dataset, "EncapsulatedDocument", b"%PDF-1.4 test")
                 if isinstance(doc, bytes):
-                    dataset.EncapsulatedDocument = doc + b"\x00" * 1_000_000
+                    dataset.EncapsulatedDocument = doc + b"\x00" * 32_768
                 else:
-                    dataset.EncapsulatedDocument = b"\x00" * 1_000_000
+                    dataset.EncapsulatedDocument = b"\x00" * 32_768
         except Exception as e:
             logger.debug("Document size attack failed: %s", e)
 
