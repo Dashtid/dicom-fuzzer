@@ -1011,21 +1011,17 @@ class TestProgressBar:
                 mock_generator.stats.strategies_used = {}
                 mock_generator_class.return_value = mock_generator
 
+                # Note: campaign_runner only imports tqdm locally inside
+                # `_generate_verbose` (verbose=True path) and inside
+                # `_generate_from_directory` (multi-input path). Single-input
+                # non-verbose runs -- like this one -- never touch tqdm at the
+                # CLI layer, so we just toggle HAS_TQDM and assert main() exits
+                # cleanly.
                 with patch(
                     "dicom_fuzzer.cli.controllers.campaign_runner.HAS_TQDM", True
                 ):
-                    with patch(
-                        "dicom_fuzzer.cli.controllers.campaign_runner.tqdm"
-                    ) as mock_tqdm:
-                        mock_pbar = MagicMock()
-                        mock_tqdm.return_value.__enter__ = MagicMock(
-                            return_value=mock_pbar
-                        )
-                        mock_tqdm.return_value.__exit__ = MagicMock(return_value=False)
-
-                        result = main()
-
-                        assert result == 0
+                    result = main()
+                    assert result == 0
 
     def test_main_without_tqdm(self, tmp_path):
         """Test main works without tqdm installed."""
