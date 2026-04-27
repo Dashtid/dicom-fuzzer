@@ -60,14 +60,32 @@ jobs:
       - name: Install sbom-sentinel
         run: pip install sbom-sentinel
 
-      - name: Run scan (SARIF + Markdown report)
-        # No --fail-on: findings are an alert, not a CI blocker. Code Scanning
-        # tracks state and surfaces new findings via the Security tab.
+      # The 3 stages are run discretely because `sbom-sentinel run --format
+      # sarif` is currently broken upstream (the report stage rejects SARIF
+      # input — tracked separately for fixing in sbom-sentinel). Splitting
+      # gives us both the SARIF for Code Scanning *and* the JSON the report
+      # + diff stages need.
+      #
+      # No --fail-on anywhere: findings are an alert (via Code Scanning), not
+      # a CI blocker. Acceptable / wont-fix triage happens in the Security tab.
+      - name: Generate SBOM (Syft)
+        run: sbom-sentinel -v sbom --target . --name dicom-fuzzer
+
+      - name: Scan SBOM, write JSON
         run: |
-          sbom-sentinel -v run \
-            --target . \
-            --name dicom-fuzzer \
-            --format sarif
+          SBOM=$(ls -1t sbom_output/*.spdx.json | head -1)
+          sbom-sentinel -v scan --sbom "$SBOM" --name dicom-fuzzer --format json
+
+      - name: Scan SBOM, write SARIF for Code Scanning
+        run: |
+          SBOM=$(ls -1t sbom_output/*.spdx.json | head -1)
+          sbom-sentinel -v scan --sbom "$SBOM" --name dicom-fuzzer --format sarif
+
+      - name: Render Markdown report (KEV-enriched)
+        run: |
+          SBOM=$(ls -1t sbom_output/*.spdx.json | head -1)
+          SCAN=$(ls -1t artifacts/json/*.json | head -1)
+          sbom-sentinel -v report --scan "$SCAN" --name dicom-fuzzer --sbom "$SBOM"
 
       - name: Upload SARIF to Code Scanning
         if: always()
