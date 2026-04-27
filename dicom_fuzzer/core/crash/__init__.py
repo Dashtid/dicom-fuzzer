@@ -2,6 +2,13 @@
 
 from .crash_analyzer import CrashAnalyzer
 from .crash_triage import CrashTriage, CrashTriageEngine, ExploitabilityRating
+from .minimizer import (
+    MinimizationError,
+    MinimizeContext,
+    MinimizeResult,
+    ddmin,
+    minimize_dicom,
+)
 from .models import CrashRecord
 from .windows_crash_handler import (
     WindowsCrashHandler,
@@ -14,6 +21,11 @@ __all__ = [
     "CrashTriage",
     "CrashTriageEngine",
     "ExploitabilityRating",
+    "MinimizationError",
+    "MinimizeContext",
+    "MinimizeResult",
     "WindowsCrashHandler",
     "WindowsCrashInfo",
+    "ddmin",
+    "minimize_dicom",
 ]
