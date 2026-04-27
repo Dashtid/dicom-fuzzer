@@ -960,8 +960,10 @@ class TestWindowsInitWarning:
 
         assert manager.is_windows is True
         # structlog writes to stdout/stderr, not Python logging -- check via capsys.
-        out = capsys.readouterr().out + capsys.readouterr().err
-        assert "Running on Windows" in out
+        # `capsys.readouterr()` drains both streams in a single call; calling it
+        # twice loses whichever stream the second call read (it's already empty).
+        captured = capsys.readouterr()
+        assert "Running on Windows" in captured.out + captured.err
 
 
 class TestLimitedExecutionSuccessPath:
