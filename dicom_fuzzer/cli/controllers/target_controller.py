@@ -114,8 +114,11 @@ class TargetTestingController:
 
             # Run campaign
             test_start = time.time()
+            cleanup_tested = getattr(args, "cleanup_tested", False)
             results = runner.run_campaign(
-                test_files=files, stop_on_crash=args.stop_on_crash
+                test_files=files,
+                stop_on_crash=args.stop_on_crash,
+                cleanup_after_test=cleanup_tested,
             )
             test_elapsed = time.time() - test_start
 

@@ -207,6 +207,16 @@ def _add_target_args(parser: argparse.ArgumentParser) -> None:
             "<run_dir>/reports/triage/ when crashes are detected."
         ),
     )
+    parser.add_argument(
+        "--cleanup-tested",
+        action="store_true",
+        help=(
+            "Delete each fuzzed file inline after target testing completes "
+            "for it, unless it produced a CRASH/HANG/OOM/RESOURCE_EXHAUSTED. "
+            "Crashed files are preserved for triage. Use for large campaigns "
+            "where keeping every fuzzed file would exhaust disk."
+        ),
+    )
 
 
 def _add_resource_args(parser: argparse.ArgumentParser) -> None:
