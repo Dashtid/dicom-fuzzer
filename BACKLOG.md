@@ -238,6 +238,20 @@ expected payoff but largest scope (~1-2 weeks).
 
 ---
 
+## Known unpatched advisories
+
+### pip CVE-2026-3219 (medium, no patch)
+
+Dependabot alert for pip <= 26.0.1 (interpretation conflict --
+concatenated tar+ZIP files handled as ZIP). Pulled in transitively
+by `pip-api` -> `pip-audit` (the `[security]` extra). Not consumed
+by any production code path. No fix version published yet (as of
+2026-04-27). Re-evaluate when pip > 26.0.1 ships; until then,
+acceptable risk because the vulnerable code is only reached during
+`pip-audit` runs.
+
+---
+
 ## Completed (reference only)
 
 Earlier completed items collapsed; recent work below.
