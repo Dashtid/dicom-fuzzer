@@ -85,7 +85,7 @@ jobs:
         run: uv run mypy --config-file=pyproject.toml --ignore-missing-imports dicom_fuzzer/
 
   test:
-    name: Test (Py${{ matrix.python-version }}-g${{ matrix.group }})
+    name: Test (Py${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -93,8 +93,6 @@ jobs:
         os: [ubuntu-latest]
         # Test on 3.12 and 3.13 only (3.11 covered by local dev)
         python-version: ['3.12', '3.13']
-        # Split tests into 10 groups - fewer tests per group = less memory usage
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
@@ -111,39 +109,45 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras
 
-      - name: Run tests (group ${{ matrix.group }}/10)
-        # Split tests across 10 jobs to reduce memory usage and prevent OOM kills.
-        # Every group runs with --cov so the merged report covers the full suite.
-        # COVERAGE_FILE makes each cell write to a unique data file so the coverage
-        # job can combine them without clobbering.
-        env:
-          COVERAGE_FILE: .coverage.py${{ matrix.python-version }}-g${{ matrix.group }}
+      - name: Run tests (xdist, 4 workers)
+        # xdist replaces the previous pytest-split 10-group matrix. The split
+        # plugin's `duration_based_chunks` algorithm dropped ~9 CLI test files
+        # entirely (tests collected but assigned to no group), so coverage
+        # for cli/commands/* was reported far below reality. xdist distributes
+        # tests deterministically and produces a single coverage file per
+        # Python version -- no merge step needed.
+        #
+        # 4 workers fits comfortably within the 7 GB / 4-core ubuntu-latest
+        # runner. The OOM that motivated the original 10-job split (#288) was
+        # the RLIMIT_AS test self-kill, fixed in #293.
         run: |
-          uv run pytest tests/ -m "not slow" -o "addopts=" --splits 10 --group ${{ matrix.group }} --cov=dicom_fuzzer --cov-branch --cov-report= --junitxml=junit.xml -v --timeout=60 --reruns=2 --reruns-delay=1
-        timeout-minutes: 20
+          uv run pytest tests/ -m "not slow" -o "addopts=" -n 4 \
+            --cov=dicom_fuzzer --cov-branch \
+            --cov-report=xml:coverage.xml \
+            --junitxml=junit.xml \
+            -v --timeout=60 --reruns=2 --reruns-delay=1
+        timeout-minutes: 30
 
-      - name: Upload coverage data
+      - name: Upload coverage XML
         if: matrix.python-version == '3.13'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v5
         with:
-          name: coverage-data-py${{ matrix.python-version }}-g${{ matrix.group }}
-          path: .coverage.py${{ matrix.python-version }}-g${{ matrix.group }}
-          include-hidden-files: true
-          retention-days: 7
-          if-no-files-found: warn
+          name: coverage-xml-report
+          path: coverage.xml
+          retention-days: 30
 
       - name: Archive test results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v5
         with:
-          name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}-group${{ matrix.group }}
+          name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}
           path: |
             junit.xml
             .pytest_cache/
           retention-days: 7
 
   coverage:
-    name: Merge Coverage & Upload to Codecov
+    name: Upload Coverage to Codecov
     runs-on: ubuntu-latest
     needs: test
     # Don't block the whole pipeline if Codecov has an outage.
@@ -151,36 +155,11 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
-        with:
-          version: "latest"
-
-      - name: Set up Python
-        run: uv python install 3.13
-
-      - name: Install dependencies
-        run: uv sync --all-extras
-
-      - name: Download all coverage data
+      - name: Download coverage XML
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v4
         with:
-          pattern: coverage-data-py3.13-g*
-          merge-multiple: true
-          path: .
-
-      - name: Combine coverage and emit XML
-        run: |
-          uv run coverage combine
-          uv run coverage xml -o coverage.xml
-          uv run coverage report --skip-covered || true
-
-      - name: Archive merged coverage
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v5
-        with:
           name: coverage-xml-report
-          path: coverage.xml
-          retention-days: 30
+          path: .
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
