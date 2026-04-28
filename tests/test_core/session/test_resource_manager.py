@@ -7,7 +7,7 @@ including resource limits, usage tracking, disk space checks, and execution cont
 import sys
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -951,22 +951,31 @@ class TestWindowsInitWarning:
     instantiation exercises the same code path.
     """
 
-    def test_windows_branch_emits_warning(self, monkeypatch, capfd):
+    def test_windows_branch_emits_warning(self, monkeypatch):
         from dicom_fuzzer.core.session import resource_manager as mod
 
+        # Replace `mod.logger` with a Mock and assert the warning call directly.
+        # Earlier attempts with capsys / capfd failed in CI because structlog
+        # with `cache_logger_on_first_use=True` may bind a filtering wrapper
+        # before our test runs (depending on xdist worker history), causing
+        # the WARNING to be dropped before any writer fires. Mocking sidesteps
+        # the entire structlog routing and verifies the production-side
+        # contract: when IS_WINDOWS is True, ResourceManager.__init__ calls
+        # logger.warning with a message starting with "Running on Windows".
+        mock_logger = MagicMock()
         monkeypatch.setattr(mod, "IS_WINDOWS", True)
+        monkeypatch.setattr(mod, "logger", mock_logger)
 
         manager = mod.ResourceManager(mod.ResourceLimits(min_disk_space_mb=1))
 
         assert manager.is_windows is True
-        # structlog with cache_logger_on_first_use=True binds the underlying
-        # stdlib logger on first call, capturing whatever sys.stderr was
-        # *then* -- which can be the original fd, not pytest's interceptor.
-        # capsys only sees Python-level writes to the patched sys.stderr;
-        # capfd captures at the file-descriptor level, so it works regardless
-        # of whether the cached logger writes to the original or patched stream.
-        captured = capfd.readouterr()
-        assert "Running on Windows" in captured.out + captured.err
+        warning_messages = [
+            str(call.args[0]) if call.args else ""
+            for call in mock_logger.warning.call_args_list
+        ]
+        assert any("Running on Windows" in msg for msg in warning_messages), (
+            f"warning() not called with expected message; got: {warning_messages}"
+        )
 
 
 class TestLimitedExecutionSuccessPath:
