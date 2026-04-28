@@ -21,13 +21,22 @@ For other platforms swap the runtime ID (`-r linux-x64`, `-r osx-arm64`, etc.).
 
 ## Exit codes
 
-| Code                  | Meaning                                                                                                   |
-| --------------------- | --------------------------------------------------------------------------------------------------------- |
-| 0                     | Parsed and traversed cleanly                                                                              |
-| 1                     | Uncaught exception -- **candidate fo-dicom bug**                                                          |
-| 2                     | Invalid CLI args                                                                                          |
-| 10                    | `DicomFileException` (fo-dicom's designed malformation report, expected)                                  |
-| non-zero from runtime | Process killed by the runtime (e.g. `StackOverflowException`, which .NET cannot catch). Also interesting. |
+The split between **typed** (10, 12) and **untyped** (1, 11) catches lets triage
+separate "library refused malformed input as designed" from "library code
+raised an exception type it shouldn't have."
+
+| Code                  | Meaning                                                                                                                           |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| 0                     | Parsed, traversed, and (if PixelData present) frame 0 decoded cleanly                                                             |
+| 1                     | Untyped exception during parse/traversal -- escaped fo-dicom's typed hierarchy, **candidate library bug**                         |
+| 2                     | Invalid CLI args                                                                                                                  |
+| 10                    | `DicomFileException` during parse (fo-dicom's designed malformation report, **expected, not a finding**)                          |
+| 11                    | Untyped exception during pixel-data decode -- escaped fo-dicom's typed hierarchy, **candidate codec bug**                         |
+| 12                    | Typed `DicomException` (e.g. `DicomDataException`, `DicomImagingException`) during parse or decode -- **expected, not a finding** |
+| non-zero from runtime | Process killed by the runtime (e.g. `StackOverflowException`, which .NET cannot catch). **Also interesting.**                     |
+
+Findings worth chasing: 1, 11, and runtime-terminated exits. Codes 10 and 12
+mean fo-dicom did its job and rejected malformed input cleanly.
 
 ## Integration with dicom-fuzzer
 
@@ -43,4 +52,4 @@ The target runner will record non-zero exits as crashes and cluster them by sign
 
 - Doesn't try to catch `StackOverflowException` (impossible in .NET; runtime handles it).
 - Doesn't write output files. Malformed data that parses fine is indistinguishable from valid data as far as this harness is concerned -- that's correct: we want the existing dataset-level oracle (no crash) to be "pass."
-- Doesn't attempt to render pixel data. Decoder-level crashes need a separate harness that calls `DicomPixelData.Create(ds).GetFrame(0)`.
+- Doesn't render pixel data to a bitmap. `GetFrame(0)` exercises codec/decoder paths but stops short of the colour-space / windowing pipeline.

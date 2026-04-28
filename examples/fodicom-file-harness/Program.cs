@@ -7,15 +7,21 @@
 //
 // Exit codes:
 //   0  parsed, traversed, and decoded cleanly
-//   1  uncaught exception during parse/traversal (fo-dicom bug candidate)
+//   1  untyped exception during parse/traversal -- escaped fo-dicom's typed
+//      exception hierarchy, candidate library bug
 //   2  invalid CLI args
 //   10 DicomFileException during parse (fo-dicom's designed malformation report)
-//   11 any exception during pixel-data decode (transfer-syntax codec path)
+//   11 untyped exception during pixel-data decode -- escaped fo-dicom's typed
+//      exception hierarchy, candidate codec bug
+//   12 typed DicomException (other than DicomFileException) during parse or
+//      decode -- library cleanly rejected malformed input, NOT a finding
 //
-// 11 is split from 10 so campaign telemetry can distinguish parser-side
-// findings from decoder-side ones. Most fo-dicom crashes worth chasing
+// The typed/untyped split (10/12 typed, 1/11 untyped) lets triage separate
+// "library refused malformed input as designed" from "library code raised
+// an exception type it shouldn't have." Most fo-dicom crashes worth chasing
 // live in the JPEG-LS / JPEG2000 / RLE decoder paths that GetFrame triggers,
-// not in the dataset walker.
+// not in the dataset walker, and surface as untyped exceptions or runtime
+// terminations.
 //
 // StackOverflowException is not catchable in .NET; the runtime will
 // terminate the process with its own non-zero exit. That's fine --
@@ -52,6 +58,14 @@ internal static class Program
             Console.Error.WriteLine($"DicomFileException: {ex.Message}");
             return 10;
         }
+        catch (DicomException ex)
+        {
+            // Other typed library exceptions (DicomDataException,
+            // DicomImagingException, etc.) -- the library's documented way of
+            // saying "your input is malformed, here's which constraint failed."
+            Console.Error.WriteLine($"{ex.GetType().Name}: {ex.Message}");
+            return 12;
+        }
         catch (Exception ex)
         {
             Console.Error.WriteLine(ex.ToString());
@@ -71,6 +85,14 @@ internal static class Program
                 {
                     _ = pixelData.GetFrame(0);
                 }
+            }
+            catch (DicomException ex)
+            {
+                // Typed library rejection during decode (e.g. missing required
+                // tag, unsupported transfer syntax). Library is doing its job;
+                // not a finding.
+                Console.Error.WriteLine($"PixelData decode rejected ({ex.GetType().Name}): {ex.Message}");
+                return 12;
             }
             catch (Exception ex)
             {
