@@ -191,6 +191,25 @@ target) which uses its own exit-code conventions. Plumbing: add
 via `TargetController` / CLI flag, default unset. When the harness path
 is selected, pass `{1, 11}`. Unblocks "Full campaign run" above.
 
+### Hash-pin remaining tool installs (Pinned-Deps 9 -> 10)
+
+OpenSSF Scorecard's Pinned-Deps check is at 9/10 because two
+unpinned tool installs remain in workflows:
+
+- `mutation-testing.yml`: `uv pip install mutmut toml` (twice).
+  Adding `mutmut`, `toml` to a `[project.optional-dependencies]`
+  group and switching to `uv sync --extra mutation` would route
+  them through `uv.lock` (hash-pinned). Slight CI overhead per run.
+- `sbom-scan.yml`: `pip install sbom-sentinel`. Either move to
+  `uv.lock` via an extra (couples the project to its own SBOM tool
+  as a dev dep -- circular feel), or generate a hash-pinned
+  requirements file in `.github/requirements/sbom-sentinel.txt`
+  and use `pip install --require-hashes -r ...`.
+
+Score impact is +0.05 to the Scorecard aggregate -- not visible on
+the badge. Worth doing when convenient, not worth contorting the
+build for.
+
 ### fo-dicom harness regression tests in CI
 
 Harness binary today has zero CI coverage: no test runs the compiled

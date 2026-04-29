@@ -188,10 +188,10 @@ jobs:
         run: uv build
 
       - name: Check package
-        run: |
-          uv venv
-          uv pip install twine
-          uv run twine check dist/*
+        # Use uvx for isolated, single-shot tool run; matches the pattern
+        # release.yml uses for the same check. Removes one unpinned
+        # `uv pip install twine` call from the workflow.
+        run: uvx twine check dist/*
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v5
