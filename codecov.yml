@@ -1,4 +1,9 @@
 coverage:
+  # Badge color gradient. Default is 70..100 which leaves 90% in the
+  # olive band; we want green to kick in at 90% and red to fade in
+  # below 80%. If we ever drop sustainably below 80% the badge will
+  # signal it loudly.
+  range: 80..90
   status:
     project:
       default:

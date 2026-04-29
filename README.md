@@ -5,8 +5,8 @@ Mutation-based fuzzer for robustness testing of DICOM medical imaging viewers an
 [![CI](https://github.com/Dashtid/dicom-fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/dicom-fuzzer/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/Dashtid/dicom-fuzzer/branch/main/graph/badge.svg)](https://codecov.io/gh/Dashtid/dicom-fuzzer)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Dashtid/dicom-fuzzer/badge)](https://scorecard.dev/viewer/?uri=github.com/Dashtid/dicom-fuzzer)
-[![PyPI](https://img.shields.io/pypi/v/dicom-fuzzer.svg)](https://pypi.org/project/dicom-fuzzer/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/dicom-fuzzer.svg)](https://pypi.org/project/dicom-fuzzer/)
+[![PyPI](https://img.shields.io/pypi/v/dicom-fuzzer.svg)](https://pypi.org/project/dicom-fuzzer/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
 
 ## Installation
