@@ -2,10 +2,14 @@
 
 Mutation-based fuzzer for robustness testing of DICOM medical imaging viewers and parsers. Generates malformed DICOM files and feeds them into target applications to find crashes and vulnerabilities.
 
-[![CI](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/DICOM-Fuzzer/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/Dashtid/DICOM-Fuzzer/branch/main/graph/badge.svg)](https://codecov.io/gh/Dashtid/DICOM-Fuzzer)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/dicom-fuzzer.svg)](https://pypi.org/project/dicom-fuzzer/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/dicom-fuzzer.svg)](https://pypi.org/project/dicom-fuzzer/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/Dashtid/dicom-fuzzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtid/dicom-fuzzer/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Dashtid/dicom-fuzzer/branch/main/graph/badge.svg)](https://codecov.io/gh/Dashtid/dicom-fuzzer)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Dashtid/dicom-fuzzer/badge)](https://scorecard.dev/viewer/?uri=github.com/Dashtid/dicom-fuzzer)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
 
 ## Installation
 
