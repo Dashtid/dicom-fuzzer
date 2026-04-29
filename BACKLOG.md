@@ -191,6 +191,21 @@ target) which uses its own exit-code conventions. Plumbing: add
 via `TargetController` / CLI flag, default unset. When the harness path
 is selected, pass `{1, 11}`. Unblocks "Full campaign run" above.
 
+### Expand atheris fuzz coverage (Fuzzing 0 -> 10 already; deepen later)
+
+Initial scaffolding lands one target: `tests/fuzz/fuzz_parser.py` against
+`DicomParser`. Worth adding when convenient:
+
+- `fuzz_mutator.py`: feed a fixture dataset + random mutation seed into
+  `DicomMutator.apply_mutations` to surface mutator-side panics.
+- `fuzz_corpus.py`: feed random bytes through the corpus loader.
+- A persistent corpus directory under `tests/fuzz/corpus/` seeded with
+  trimmed real DICOMs, committed so libfuzzer starts from a meaningful
+  state instead of random bytes.
+
+Score impact is already maxed (any atheris target counts); this is
+about catching real bugs, not chasing the badge.
+
 ### Hash-pin remaining tool installs (Pinned-Deps 9 -> 10)
 
 OpenSSF Scorecard's Pinned-Deps check is at 9/10 because two

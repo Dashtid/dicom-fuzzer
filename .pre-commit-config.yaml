@@ -61,6 +61,9 @@ repos:
       - id: debug-statements
       - id: name-tests-test
         args: [--pytest-test-first]
+        # Atheris fuzz targets in tests/fuzz/ are deliberately not
+        # collected by pytest (file names start with fuzz_ on purpose).
+        exclude: ^tests/fuzz/
       # Security
       - id: detect-private-key
 
