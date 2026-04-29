@@ -163,18 +163,41 @@ reinstating the modality fuzzers removed in PR #246.
 
 Overnight run with current 9 seeds + 30s timeout against
 Hermes.exe. Analyze `crash_by_strategy` telemetry to identify
-zero-crash strategies for second-pass audit.
+zero-crash strategies for second-pass audit. **Blocked on**: configurable
+per-target crash exit codes (below) -- without it, untyped fo-dicom-harness
+escapes (rc=1, rc=11) keep falling to `ExecutionStatus.ERROR` instead of
+being recorded as findings.
 
-### fo-dicom harness extension: pixel-data decoder
+### Codec-bearing seeds for decoder coverage
 
-Current `examples/fodicom-file-harness/Program.cs` only exercises
-`DicomFile.Open` + element traversal. Decoder bugs (JPEG, JPEG-LS,
-JPEG2000, RLE) are silent. Extend with `DicomPixelData.Create(ds).GetFrame(0)`
-in a try/catch block so transfer-syntax-specific decoder paths get
-hit. Two-line change, separate exit-code bucket (e.g. 11) for "decode
-threw" vs the existing 10 for "parse threw". Discovered after
-2026-04-26 fo-dicom campaign produced 0 crashes in 1765 files --
-parser is more lenient than expected; decoder is unexplored.
+Add at least one of: JPEG-LS, JPEG2000, JPEG-Baseline, RLE-Lossless seed
+to `dicom-seeds/`. Today the corpus is 9 modalities of mostly Implicit-VR
+Little Endian / Explicit-VR Little Endian; `DicomPixelData.GetFrame(0)`
+in the harness exercises codec paths, but with no encapsulated/compressed
+seeds in the corpus, all our decoder coverage is the trivial uncompressed
+path. JPEG-LS is the highest-yield single seed (most fo-dicom decoder
+reports cluster there per the CVE audit).
+
+### Configurable per-target crash exit codes in TargetRunner
+
+`target_runner._classify_error` today maps only Windows native crash
+codes (negative or `> 0x80000000`) to `ExecutionStatus.CRASH`. The
+fo-dicom harness convention (rc=1, rc=11 = untyped escape, rc=10, rc=12
+= typed rejection) means real candidate library bugs are silently
+classified as `ERROR` and dropped from crash reporting. Hardcoding
+`{1, 11}` as crash globally would misclassify Hermes.exe (the primary
+target) which uses its own exit-code conventions. Plumbing: add
+`crash_exit_codes: set[int] | None` to `TargetRunner.__init__`, expose
+via `TargetController` / CLI flag, default unset. When the harness path
+is selected, pass `{1, 11}`. Unblocks "Full campaign run" above.
+
+### fo-dicom harness regression tests in CI
+
+Harness binary today has zero CI coverage: no test runs the compiled
+`.exe` against known-rc fixtures. Add a test (Linux-runnable via
+`dotnet run`) that asserts: a known-clean DICOM returns 0; a malformed
+file missing required tags returns 12; a deliberately-malformed parse
+target returns 10. Catches future regressions to the typed/untyped split.
 
 ### Crash triage automation
 
@@ -249,42 +272,43 @@ acceptable risk because the vulnerable code is only reached during
 
 Earlier completed items collapsed; recent work below.
 
-| Item                                                           | PR(s)                         |
-| -------------------------------------------------------------- | ----------------------------- |
-| EmptyValueFuzzer (9 .NET crash attacks)                        | #229                          |
-| StructureFuzzer binary VR corruption                           | #230                          |
-| CompressedPixelFuzzer binary encapsulation                     | #231                          |
-| Overlay attacks + private SQ at EOF + odd-length pixel data    | #232                          |
-| Bump cryptography >= 46.0.7                                    | #233                          |
-| CVE-to-strategy coverage audit (~140 CVEs, 13 gaps, 2 rounds)  | #234, #235                    |
-| Fully untrack dicom-seeds directory                            | #236                          |
-| P1 CVE quick wins: G1, G4, G6, G8, G9, G12, G13                | (across 3 fuzzers)            |
-| P1 CVE medium: G2 JPEG-LS, G7 VOI LUT, G10 duplicate meta      | (across 3 fuzzers)            |
-| G11: Preamble polyglot (PreambleFuzzer)                        | (preamble strategy)           |
-| G5: DICOMDIR path traversal + nesting (DicomdirFuzzer)         | (dicomdir strategy)           |
-| G3: Deflate bomb (DeflateBombFuzzer)                           | (deflate_bomb strategy)       |
-| MR modality expansion in CalibrationFuzzer                     | (fuzz_mr_parameters)          |
-| DX/CR modality expansion in CalibrationFuzzer                  | (fuzz_dx_parameters)          |
-| Multiframe functional group crash attacks                      | (empty frame + NaN)           |
-| Concurrent field mismatches in PixelFuzzer                     | (\_concurrent_field_mismatch) |
-| Temporal (4D) series attacks                                   | (series strategy 12)          |
-| Registration geometry attacks (StudyMutator)                   | (REGISTRATION_GEOMETRY)       |
-| P0 PDU binary format (PS3.8 Section 7)                         | (7 PDU type builders)         |
-| P0 State machine wiring (StatefulFuzzer.fuzz + execute_event)  | (build_pdu_for_event)         |
-| P0 DIMSE PDU packing (to_p_data_tf_pdu, C-STORE from pydicom)  | (26 new tests)                |
-| P1 Real TLS testing                                            | (TLSSecurityTester)           |
-| P1 Query/Retrieve fuzzing                                      | (DIMSEFuzzer C-FIND/MOVE)     |
-| Removed 9 out-of-scope modality fuzzers                        | #246                          |
-| CVE audit refocus addendum (all 13 gaps closed, ~95% coverage) | #247                          |
-| 4 niche fo-dicom binary attacks (#1009, #763, #1386, #1982)    | #252                          |
-| Codecov wired up + badge on README                             | #279                          |
-| CI coverage measured across all 10 test splits (not just g1)   | #281                          |
-| Coverage-tail closers (cli/base, samples, study_campaign)      | #283, #284, #285              |
-| Coverage-tail closers (parallel_mutator, resource_manager)     | #286                          |
-| fo-dicom network harness (DIMSE SCP + TLS) under examples/     | #277                          |
-| pydicom smoke harness (corpus analyzer) under examples/        | #275                          |
-| examples/ directory (targets + tooling consolidation)          | #278                          |
-| fo-dicom file harness (-t EXE target under examples/)          | #276                          |
-| Multiframe binary attacks via `mutate_bytes` (BOT/EOT, 6)      | #272                          |
-| Round-robin starvation fix (CLI mini-batching)                 | #273                          |
-| Backlog hygiene + stale-PR triage section                      | #287                          |
+| Item                                                              | PR(s)                         |
+| ----------------------------------------------------------------- | ----------------------------- |
+| EmptyValueFuzzer (9 .NET crash attacks)                           | #229                          |
+| StructureFuzzer binary VR corruption                              | #230                          |
+| CompressedPixelFuzzer binary encapsulation                        | #231                          |
+| Overlay attacks + private SQ at EOF + odd-length pixel data       | #232                          |
+| Bump cryptography >= 46.0.7                                       | #233                          |
+| CVE-to-strategy coverage audit (~140 CVEs, 13 gaps, 2 rounds)     | #234, #235                    |
+| Fully untrack dicom-seeds directory                               | #236                          |
+| P1 CVE quick wins: G1, G4, G6, G8, G9, G12, G13                   | (across 3 fuzzers)            |
+| P1 CVE medium: G2 JPEG-LS, G7 VOI LUT, G10 duplicate meta         | (across 3 fuzzers)            |
+| G11: Preamble polyglot (PreambleFuzzer)                           | (preamble strategy)           |
+| G5: DICOMDIR path traversal + nesting (DicomdirFuzzer)            | (dicomdir strategy)           |
+| G3: Deflate bomb (DeflateBombFuzzer)                              | (deflate_bomb strategy)       |
+| MR modality expansion in CalibrationFuzzer                        | (fuzz_mr_parameters)          |
+| DX/CR modality expansion in CalibrationFuzzer                     | (fuzz_dx_parameters)          |
+| Multiframe functional group crash attacks                         | (empty frame + NaN)           |
+| Concurrent field mismatches in PixelFuzzer                        | (\_concurrent_field_mismatch) |
+| Temporal (4D) series attacks                                      | (series strategy 12)          |
+| Registration geometry attacks (StudyMutator)                      | (REGISTRATION_GEOMETRY)       |
+| P0 PDU binary format (PS3.8 Section 7)                            | (7 PDU type builders)         |
+| P0 State machine wiring (StatefulFuzzer.fuzz + execute_event)     | (build_pdu_for_event)         |
+| P0 DIMSE PDU packing (to_p_data_tf_pdu, C-STORE from pydicom)     | (26 new tests)                |
+| P1 Real TLS testing                                               | (TLSSecurityTester)           |
+| P1 Query/Retrieve fuzzing                                         | (DIMSEFuzzer C-FIND/MOVE)     |
+| Removed 9 out-of-scope modality fuzzers                           | #246                          |
+| CVE audit refocus addendum (all 13 gaps closed, ~95% coverage)    | #247                          |
+| 4 niche fo-dicom binary attacks (#1009, #763, #1386, #1982)       | #252                          |
+| Codecov wired up + badge on README                                | #279                          |
+| CI coverage measured across all 10 test splits (not just g1)      | #281                          |
+| Coverage-tail closers (cli/base, samples, study_campaign)         | #283, #284, #285              |
+| Coverage-tail closers (parallel_mutator, resource_manager)        | #286                          |
+| fo-dicom network harness (DIMSE SCP + TLS) under examples/        | #277                          |
+| pydicom smoke harness (corpus analyzer) under examples/           | #275                          |
+| examples/ directory (targets + tooling consolidation)             | #278                          |
+| fo-dicom file harness (-t EXE target under examples/)             | #276                          |
+| Multiframe binary attacks via `mutate_bytes` (BOT/EOT, 6)         | #272                          |
+| Round-robin starvation fix (CLI mini-batching)                    | #273                          |
+| Backlog hygiene + stale-PR triage section                         | #287                          |
+| fo-dicom harness pixel-data decoder + rc=12 typed-rejection split | #298, (current)               |

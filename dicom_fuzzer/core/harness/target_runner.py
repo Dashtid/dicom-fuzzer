@@ -251,6 +251,16 @@ class TargetRunner:
     def _classify_error(self, stderr: str, returncode: int | None) -> ExecutionStatus:
         """Classify error type based on stderr and return code.
 
+        Note on harness exit-code conventions: the fo-dicom harness in
+        ``examples/fodicom-file-harness/`` uses a typed/untyped split:
+        ``{1, 11}`` = untyped exception escaped library code (candidate bug),
+        ``{10, 12}`` = typed ``DicomException`` rejection (library doing its
+        job, NOT a finding). Today both halves fall to ``ExecutionStatus.ERROR``
+        and so are filtered out of crash reporting, which means real candidate
+        bugs (untyped escapes) are silently dropped. Promoting ``{1, 11}`` to
+        ``CRASH`` per-target is tracked in BACKLOG; doing it unconditionally
+        would misclassify exit codes from non-DicomFuzzer targets like Hermes.
+
         Args:
             stderr: Standard error output
             returncode: Process return code
