@@ -1,0 +1,76 @@
+name: Fuzz
+
+# Coverage-guided fuzzing of the project's own DICOM parsing entry point
+# via atheris. Time-boxed -- this is a smoke fuzzer for regression catching,
+# not a long-running campaign. For deep fuzzing, run targets locally for
+# hours/days against the persistent corpus dir.
+
+on:
+  schedule:
+    # Sunday 04:00 UTC -- off-peak, gives us a fresh weekly signal
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: "Seconds per fuzz target (libfuzzer -max_total_time)"
+        required: false
+        default: "60"
+  pull_request:
+    paths:
+      # Only run on PRs that could affect a fuzz target's behaviour
+      - "tests/fuzz/**"
+      - "dicom_fuzzer/core/dicom/parser.py"
+      - "dicom_fuzzer/core/exceptions.py"
+      - ".github/workflows/fuzz.yml"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Atheris (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [fuzz_parser]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5 # v7
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python 3.13
+        # Atheris supports 3.11-3.13; pinning to 3.13 keeps the fuzz job
+        # decoupled from the test matrix.
+        run: uv python install 3.13
+
+      - name: Install dependencies (with fuzz extra)
+        run: uv sync --extra fuzz
+
+      - name: Run ${{ matrix.target }}
+        env:
+          DURATION: ${{ inputs.duration || '60' }}
+        run: |
+          uv run python tests/fuzz/${{ matrix.target }}.py \
+            -max_total_time=${DURATION} \
+            -print_final_stats=1 \
+            -detect_leaks=0
+        timeout-minutes: 5
+
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5
+        with:
+          name: fuzz-crashes-${{ matrix.target }}
+          path: |
+            crash-*
+            leak-*
+            timeout-*
+          if-no-files-found: ignore
+          retention-days: 14
