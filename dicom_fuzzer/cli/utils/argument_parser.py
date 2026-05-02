@@ -16,6 +16,20 @@ except PackageNotFoundError:
 VERSION = f"DICOM Fuzzer v{_PKG_VERSION}"
 
 
+def _parse_crash_exit_codes(value: str) -> set[int]:
+    """Parse a comma-separated list of integers for ``--crash-exit-codes``.
+
+    Empty or whitespace-only entries are ignored so ``"1,,11 "`` -> ``{1, 11}``.
+    Raises ``argparse.ArgumentTypeError`` on any non-integer token.
+    """
+    try:
+        return {int(token.strip()) for token in value.split(",") if token.strip()}
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"crash-exit-codes must be comma-separated integers, got {value!r}: {exc}"
+        ) from exc
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser for the main command.
 
@@ -215,6 +229,21 @@ def _add_target_args(parser: argparse.ArgumentParser) -> None:
             "for it, unless it produced a CRASH/HANG/OOM/RESOURCE_EXHAUSTED. "
             "Crashed files are preserved for triage. Use for large campaigns "
             "where keeping every fuzzed file would exhaust disk."
+        ),
+    )
+    parser.add_argument(
+        "--crash-exit-codes",
+        type=_parse_crash_exit_codes,
+        default=None,
+        metavar="N1,N2,...",
+        help=(
+            "Comma-separated exit codes that indicate a target crash worth "
+            "recording as a finding. By default only Windows native crash codes "
+            "and Unix negative signals count. Use this when running a harness "
+            "with its own exit-code convention -- e.g. for the fo-dicom file "
+            "harness pass '1,11' so untyped library exceptions (rc=1 parse, "
+            "rc=11 decode) are recorded; typed library rejections at rc=10/12 "
+            "are intentionally NOT in the recommended set."
         ),
     )
 

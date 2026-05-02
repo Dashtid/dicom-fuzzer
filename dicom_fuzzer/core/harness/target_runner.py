@@ -107,6 +107,7 @@ class TargetRunner:
         enable_monitoring: bool = False,
         idle_threshold: float = 5.0,
         memory_limit_mb: float | None = None,
+        crash_exit_codes: set[int] | None = None,
     ):
         """Initialize target runner.
 
@@ -122,6 +123,16 @@ class TargetRunner:
             enable_monitoring: Enable enhanced CPU/memory monitoring (requires psutil)
             idle_threshold: Seconds of 0% CPU before considering hung (if monitoring enabled)
             memory_limit_mb: Memory limit in MB (if monitoring enabled)
+            crash_exit_codes: Exit codes from the target that should be
+                classified as ``ExecutionStatus.CRASH`` (and therefore recorded
+                as findings) instead of ``ExecutionStatus.ERROR``. Use for
+                target harnesses with their own exit-code conventions -- e.g.
+                pass ``{1, 11}`` for ``examples/fodicom-file-harness``, where
+                rc=1/11 mean an untyped exception escaped library code (a
+                candidate library bug). Default ``None`` preserves the
+                conservative classifier (only Windows native crash codes and
+                Unix negative signals count as crashes), which is correct for
+                arbitrary CLI targets that may legitimately return 1.
 
         Raises:
             FileNotFoundError: If target executable doesn't exist
@@ -141,6 +152,7 @@ class TargetRunner:
         self.enable_monitoring = enable_monitoring
         self.idle_threshold = idle_threshold
         self.memory_limit_mb = memory_limit_mb
+        self.crash_exit_codes: frozenset[int] = frozenset(crash_exit_codes or ())
 
         # Initialize crash analyzer for crash reporting
         self.crash_analyzer = CrashAnalyzer(crash_dir=str(self.crash_dir))
@@ -251,16 +263,6 @@ class TargetRunner:
     def _classify_error(self, stderr: str, returncode: int | None) -> ExecutionStatus:
         """Classify error type based on stderr and return code.
 
-        Note on harness exit-code conventions: the fo-dicom harness in
-        ``examples/fodicom-file-harness/`` uses a typed/untyped split:
-        ``{1, 11}`` = untyped exception escaped library code (candidate bug),
-        ``{10, 12}`` = typed ``DicomException`` rejection (library doing its
-        job, NOT a finding). Today both halves fall to ``ExecutionStatus.ERROR``
-        and so are filtered out of crash reporting, which means real candidate
-        bugs (untyped escapes) are silently dropped. Promoting ``{1, 11}`` to
-        ``CRASH`` per-target is tracked in BACKLOG; doing it unconditionally
-        would misclassify exit codes from non-DicomFuzzer targets like Hermes.
-
         Args:
             stderr: Standard error output
             returncode: Process return code
@@ -286,6 +288,12 @@ class TargetRunner:
         ]
         if any(indicator in stderr_lower for indicator in resource_indicators):
             return ExecutionStatus.RESOURCE_EXHAUSTED
+
+        # User-configured crash exit codes (e.g. fo-dicom harness {1, 11} for
+        # untyped exception escapes -- typed DicomException rejections at
+        # rc=10/12 are deliberately omitted by the user).
+        if returncode is not None and returncode in self.crash_exit_codes:
+            return ExecutionStatus.CRASH
 
         # Check for Windows-specific crash codes
         if returncode is not None and self.windows_crash_handler:
