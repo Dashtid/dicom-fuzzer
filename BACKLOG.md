@@ -167,15 +167,18 @@ zero-crash strategies for second-pass audit. For fo-dicom-harness
 campaigns also pass `--crash-exit-codes 1,11` so untyped library
 escapes are recorded as findings instead of dropping to ERROR.
 
-### Codec-bearing seeds for decoder coverage
+### Codec-bearing seeds for decoder coverage (partial)
 
-Add at least one of: JPEG-LS, JPEG2000, JPEG-Baseline, RLE-Lossless seed
-to `dicom-seeds/`. Today the corpus is 9 modalities of mostly Implicit-VR
-Little Endian / Explicit-VR Little Endian; `DicomPixelData.GetFrame(0)`
-in the harness exercises codec paths, but with no encapsulated/compressed
-seeds in the corpus, all our decoder coverage is the trivial uncompressed
-path. JPEG-LS is the highest-yield single seed (most fo-dicom decoder
-reports cluster there per the CVE audit).
+JPEG-LS Lossless seed added at `dicom-seeds/mr/mr_jpegls_lossless.dcm`
+(sourced from pydicom test data: MR modality, 64x64, 16-bit, encapsulated
+PixelData 4,446 bytes). `CompressedPixelFuzzer.can_mutate()` returns True
+and `mutate_bytes()` produces varied attacks against it.
+
+Still uncovered: JPEG2000 (`1.2.840.10008.1.2.4.90/.91`), RLE Lossless
+(`1.2.840.10008.1.2.5`), JPEG Baseline 8-bit (`1.2.840.10008.1.2.4.50`).
+Each unlocks a different fo-dicom decoder path. Source candidates:
+pydicom test data has `RLE/*` and `JPEG/*` samples; pylibjpeg sample
+sets have JPEG2000.
 
 ### Hash-pin remaining tool installs (Pinned-Deps 9 -> 10)
 
