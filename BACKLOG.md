@@ -45,8 +45,6 @@ Key gap: Series has no binary-level attacks.
   StructureFuzzer has a length-field binary attack. Extract it as
   a base-class helper so every format fuzzer can opt into length
   corruption.
-- **Nested-SQ recursion bomb in SequenceFuzzer.** Configurable
-  depth (default 10k). Current nesting is ad-hoc and shallow.
 - **Cross-reference attacks.** AT/AE/UI forward references that
   point at nonexistent tags, at themselves, or form cycles.
 
@@ -309,3 +307,4 @@ Earlier completed items collapsed; recent work below.
 | fo-dicom harness pixel-data decoder + rc=12 typed-rejection split | #298, #303                    |
 | Configurable per-target crash exit codes in TargetRunner          | (current)                     |
 | Codec-bearing seeds (JPEG-LS, JPEG2000, JPEG Baseline, RLE)       | (current)                     |
+| Nested-SQ recursion bomb in SequenceFuzzer.mutate_bytes           | (current)                     |
