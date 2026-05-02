@@ -167,19 +167,6 @@ zero-crash strategies for second-pass audit. For fo-dicom-harness
 campaigns also pass `--crash-exit-codes 1,11` so untyped library
 escapes are recorded as findings instead of dropping to ERROR.
 
-### Codec-bearing seeds for decoder coverage (partial)
-
-JPEG-LS Lossless seed added at `dicom-seeds/mr/mr_jpegls_lossless.dcm`
-(sourced from pydicom test data: MR modality, 64x64, 16-bit, encapsulated
-PixelData 4,446 bytes). `CompressedPixelFuzzer.can_mutate()` returns True
-and `mutate_bytes()` produces varied attacks against it.
-
-Still uncovered: JPEG2000 (`1.2.840.10008.1.2.4.90/.91`), RLE Lossless
-(`1.2.840.10008.1.2.5`), JPEG Baseline 8-bit (`1.2.840.10008.1.2.4.50`).
-Each unlocks a different fo-dicom decoder path. Source candidates:
-pydicom test data has `RLE/*` and `JPEG/*` samples; pylibjpeg sample
-sets have JPEG2000.
-
 ### Hash-pin remaining tool installs (Pinned-Deps 9 -> 10)
 
 OpenSSF Scorecard's Pinned-Deps check is at 9/10 because two
@@ -321,3 +308,4 @@ Earlier completed items collapsed; recent work below.
 | Backlog hygiene + stale-PR triage section                         | #287                          |
 | fo-dicom harness pixel-data decoder + rc=12 typed-rejection split | #298, #303                    |
 | Configurable per-target crash exit codes in TargetRunner          | (current)                     |
+| Codec-bearing seeds (JPEG-LS, JPEG2000, JPEG Baseline, RLE)       | (current)                     |
