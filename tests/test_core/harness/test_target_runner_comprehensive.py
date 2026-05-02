@@ -356,6 +356,52 @@ class TestErrorClassification:
 
         assert status == ExecutionStatus.ERROR
 
+    def test_classify_configured_crash_exit_code(self, tmp_path):
+        """User-configured crash exit codes are recorded as CRASH, not ERROR."""
+        exe = tmp_path / "target.exe"
+        exe.touch()
+        runner = TargetRunner(
+            target_executable=str(exe),
+            crash_dir=str(tmp_path),
+            crash_exit_codes={1, 11},
+        )
+
+        # Both configured codes -> CRASH
+        assert runner._classify_error("traceback ...", 1) == ExecutionStatus.CRASH
+        assert runner._classify_error("traceback ...", 11) == ExecutionStatus.CRASH
+
+        # Unconfigured code with no crash signal -> ERROR (default)
+        assert runner._classify_error("...", 7) == ExecutionStatus.ERROR
+
+    def test_default_crash_exit_codes_preserve_error_classification(self, tmp_path):
+        """No crash_exit_codes (default) preserves the conservative classifier.
+
+        Critical for non-DicomFuzzer targets like Hermes.exe that may legitimately
+        return rc=1 without it being a crash.
+        """
+        exe = tmp_path / "target.exe"
+        exe.touch()
+        runner = TargetRunner(target_executable=str(exe), crash_dir=str(tmp_path))
+
+        # rc=1 must NOT be classified as a crash without explicit opt-in.
+        assert runner._classify_error("nothing interesting", 1) == ExecutionStatus.ERROR
+        assert (
+            runner._classify_error("nothing interesting", 11) == ExecutionStatus.ERROR
+        )
+
+    def test_oom_takes_precedence_over_configured_crash_exit_code(self, tmp_path):
+        """OOM stderr heuristic should still fire even if returncode is in crash set."""
+        exe = tmp_path / "target.exe"
+        exe.touch()
+        runner = TargetRunner(
+            target_executable=str(exe),
+            crash_dir=str(tmp_path),
+            crash_exit_codes={1},
+        )
+
+        # OOM is a more specific signal -- preserve it over the generic CRASH.
+        assert runner._classify_error("Out of memory", 1) == ExecutionStatus.OOM
+
 
 class TestExecuteTest:
     """Test suite for execute_test method."""
