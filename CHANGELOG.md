@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-04-29 - Crash minimizer, multiframe BOT/EOT, signed releases
+
+Ships the crash minimizer (delta-debugging crash repro reduction), multiframe
+binary attacks targeting BOT/EOT invariants, and a substantial supply-chain
+hardening pass: PyPI release attestations, OpenSSF Scorecard analysis, fo-dicom
+harness telemetry split, and Tier 1 README badges. First version published
+to PyPI with PEP 740 sigstore attestations.
+
 ### Added
 
 - **Crash minimizer (`dicom-fuzzer minimize`).** Reduces a crashing DICOM
@@ -26,6 +34,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   entries pointing past EOF. Includes a permissive region finder
   that tolerates the defined-length PixelData wrapper the generator
   produces after forcing Explicit VR Little Endian.
+- **PyPI release attestations.** `release.yml` now publishes with
+  `attestations: true` on `pypa/gh-action-pypi-publish`. Each released
+  artifact is signed via sigstore (PEP 740) and surfaced on the project's
+  PyPI page. Closes OpenSSF Scorecard's `Signed-Releases` check.
+- **OpenSSF Scorecard workflow.** New `.github/workflows/scorecard.yml`
+  runs the official `ossf/scorecard-action` weekly + on push to main +
+  on `branch_protection_rule` changes. Results published to
+  `api.securityscorecards.dev`; badge renders on README and tracks repo
+  hygiene over time.
+- **fo-dicom harness rc=12 typed-rejection split.** The harness in
+  `examples/fodicom-file-harness/` now distinguishes typed library
+  rejections (`DicomException` family → rc=12) from untyped escapes
+  (rc=1 parse, rc=11 decode). Catch order: `DicomFileException` (rc=10)
+  → `DicomException` (rc=12) → `Exception`. Lets triage separate
+  "library refused malformed input as designed" from "library code
+  raised an exception type it shouldn't have." Same convention applied
+  on both parse and decode paths.
+- **Tier 1 README badge row.** Replaces the previous 4-badge row
+  with status-first ordering: `CI` · `codecov` · `OpenSSF Scorecard`
+  · `Python versions` · `PyPI` · `License`. Manual `Python 3.11+` and
+  `License: MIT` chips replaced with auto-deriving shields.io badges
+  that mirror the PyPI classifiers.
+- **CII Best Practices answer draft.** New
+  `docs/cii-best-practices-answers.md` covers the
+  `bestpractices.dev` passing-tier self-attestation. Working draft
+  for the maintainer to paste from when filing the badge.
 
 ### Fixed
 
@@ -39,6 +73,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   once with the full count; the generator prints its own progress bar. Test
   run went from 5 distinct strategies (20 files each) to 23 distinct
   strategies under the same `-c 100 --seed 123` invocation.
+- **`dicom-fuzzer --version` reports the wrong version.**
+  `dicom_fuzzer/__init__.py` had `__version__ = "1.7.2"` — stale by five
+  releases. Now tracks `pyproject.toml`.
+
+### Changed
+
+- **Codecov badge range tightened to `80..90`.** Default 70..100 left
+  a 90% project rendering olive; the new range maps 90% to solid
+  green and fades any drop below 80% toward red.
+- **`twine check` invocation simplified to `uvx twine check`** in
+  `ci.yml`, matching the pattern already used in `release.yml`.
+  Removes one unpinned `uv pip install` from CI workflows.
 
 ## [1.11.0] - 2026-04-20 - CVE coverage, crash triage, campaign quality
 

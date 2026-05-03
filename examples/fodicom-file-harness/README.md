@@ -43,10 +43,18 @@ mean fo-dicom did its job and rejected malformed input cleanly.
 ```bash
 dicom-fuzzer ./dicom-seeds -r -c 200 \
   -t ./examples/fodicom-file-harness/bin/Release/net8.0/win-x64/publish/fodicom-file-harness.exe \
-  --timeout 10
+  --timeout 10 \
+  --crash-exit-codes 1,11
 ```
 
-The target runner will record non-zero exits as crashes and cluster them by signature.
+`--crash-exit-codes 1,11` tells the dicom-fuzzer target runner to record the
+**untyped-escape** exit codes as crashes. Without it, rc=1 and rc=11 fall to
+`ExecutionStatus.ERROR` and are silently dropped from findings -- which means
+real candidate library bugs would never be reported. Codes 10 and 12 are
+deliberately omitted: those are typed `DicomException` rejections (library
+doing its job, not a finding). Native runtime crashes (`StackOverflowException`
+etc.) are recorded automatically by the existing Windows / negative-signal
+classifier and don't need to be listed.
 
 ## What the harness does NOT do
 

@@ -87,6 +87,13 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # v1.14.0
+        with:
+          # PEP 740 attestations -- cryptographically sign each artifact
+          # with a SLSA provenance via sigstore. PyPI exposes them on the
+          # project page; OpenSSF Scorecard's Signed-Releases check picks
+          # them up automatically. Requires Trusted Publishing (already
+          # configured) and id-token: write (already granted above).
+          attestations: true
         # Uses OIDC trusted publishing - no password needed
         # Configure at: https://pypi.org/manage/project/dicom-fuzzer/settings/publishing/
 
