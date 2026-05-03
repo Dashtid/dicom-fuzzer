@@ -312,6 +312,7 @@ class TargetTestingController:
                 timeout=args.timeout,
                 crash_dir=str(output_dir / "crashes"),
                 resource_limits=resource_limits,
+                crash_exit_codes=getattr(args, "crash_exit_codes", None),
             )
             logger.info("Starting target testing campaign...")
 

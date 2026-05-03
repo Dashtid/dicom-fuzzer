@@ -2,8 +2,9 @@
 
 Category: generic
 
-Attacks:
-- Deep nesting (stack overflow via recursive sequences)
+Attacks (Dataset-level):
+- Deep nesting (stack overflow via recursive sequences -- bounded by Python's
+  recursion limit at construction time)
 - Item length field mismatch with actual data
 - Empty required sequences
 - Orphan items outside sequence containers
@@ -11,11 +12,18 @@ Attacks:
 - Sequence delimiter corruption
 - Mixed encoding within sequence items
 - Massive item count (memory exhaustion)
+
+Attacks (binary, via mutate_bytes):
+- Recursion bomb: an iteratively-built nested-SQ chain (default depth 10k)
+  appended to the file. Bypasses Python's recursion limit and tests recursive
+  descent parsers in the target (fo-dicom, Hermes, etc.) where 10k-deep
+  ContentSequence reliably exhausts the call stack.
 """
 
 from __future__ import annotations
 
 import random
+import struct
 from typing import Any
 
 from pydicom.dataset import Dataset
@@ -27,6 +35,27 @@ from dicom_fuzzer.utils.logger import get_logger
 from .base import FormatFuzzerBase
 
 logger = get_logger(__name__)
+
+# DICOM file format offsets
+_DICM_MAGIC = b"DICM"
+_DICM_OFFSET = 128
+_DATA_OFFSET = 132  # preamble (128) + "DICM" (4)
+
+# Transfer syntax UIDs (only the encoding we care about)
+_IMPLICIT_VR_LE = "1.2.840.10008.1.2"
+
+# Standard SQ tag we use for the bomb. ContentSequence (0040,A730) is recursively
+# defined in DICOM PS3.3 (Structured Report templates), so legitimate parsers
+# won't reject nested SQ at this tag on type grounds.
+_BOMB_SQ_TAG_GROUP = 0x0040
+_BOMB_SQ_TAG_ELEMENT = 0xA730
+
+# Item-related tags (always Implicit VR LE encoding regardless of dataset TS)
+_ITEM_TAG_GROUP = 0xFFFE
+_ITEM_START = 0xE000
+_ITEM_DELIM = 0xE00D
+_SEQ_DELIM = 0xE0DD
+_UNDEFINED_LENGTH = 0xFFFFFFFF
 
 
 class SequenceFuzzer(FormatFuzzerBase):
@@ -372,3 +401,129 @@ class SequenceFuzzer(FormatFuzzerBase):
             logger.debug("Massive item count attack failed: %s", e)
 
         return dataset
+
+    # ------------------------------------------------------------------
+    # Binary attacks (post-serialization mutate_bytes)
+    # ------------------------------------------------------------------
+
+    def mutate_bytes(self, file_data: bytes) -> bytes:
+        """Apply binary-level sequence corruptions after pydicom serialization.
+
+        Currently one attack: ``_binary_recursion_bomb``. Falls back to
+        returning ``file_data`` unchanged on validation failure or any
+        attack exception.
+
+        Args:
+            file_data: Complete DICOM file bytes (preamble + DICM + elements)
+
+        Returns:
+            Possibly-modified byte string
+
+        """
+        self._applied_binary_mutations: list[str] = []
+        if len(file_data) < _DATA_OFFSET + 4:
+            return file_data
+        if file_data[_DICM_OFFSET:_DATA_OFFSET] != _DICM_MAGIC:
+            return file_data
+
+        binary_attacks = [self._binary_recursion_bomb]
+        attack = random.choice(binary_attacks)
+        try:
+            result = attack(file_data)
+            self._applied_binary_mutations.append(attack.__name__)
+            return result
+        except Exception as e:
+            logger.debug("Binary attack %s failed: %s", attack.__name__, e)
+            return file_data
+
+    def _binary_recursion_bomb(
+        self, file_data: bytes, *, depth: int | None = None
+    ) -> bytes:
+        """Append a deeply-nested SQ chain to trigger stack overflow.
+
+        Builds a chain of nested undefined-length SQ items. Each level
+        contributes a fixed number of bytes (12 SQ open + 8 item open + 8
+        item delim + 8 seq delim in Explicit VR LE; minus the VR/reserved
+        bytes for Implicit). At depth 10000 the appended bomb is ~360 KB.
+
+        Bypasses Python's recursion limit by emitting bytes in a flat loop.
+        Recursive-descent parsers (fo-dicom, dcmtk, GDCM) will stack-overflow
+        long before reaching the inner items. Uses ContentSequence
+        (0040,A730), recursively-defined in DICOM PS3.3 SR templates so the
+        nested SQ at this tag is type-legal.
+
+        Args:
+            file_data: complete DICOM file bytes
+            depth: nesting depth. Defaults to a random choice from a
+                conservative-to-aggressive ladder when omitted; callers
+                (notably tests) may pass an explicit value.
+
+        """
+        if depth is None:
+            depth = random.choice([500, 1000, 5000, 10000, 50000])
+        implicit = self._is_implicit_vr_le(file_data)
+
+        if implicit:
+            # Implicit VR LE SQ open: tag (4) + length (4) = 8 bytes
+            sq_open = struct.pack(
+                "<HHI",
+                _BOMB_SQ_TAG_GROUP,
+                _BOMB_SQ_TAG_ELEMENT,
+                _UNDEFINED_LENGTH,
+            )
+        else:
+            # Explicit VR LE SQ open: tag (4) + VR "SQ" (2) + reserved (2)
+            #                       + length (4) = 12 bytes
+            sq_open = struct.pack(
+                "<HH2sHI",
+                _BOMB_SQ_TAG_GROUP,
+                _BOMB_SQ_TAG_ELEMENT,
+                b"SQ",
+                0,
+                _UNDEFINED_LENGTH,
+            )
+
+        # Item-related tags (FFFE,*) are always Implicit-style: tag + length.
+        item_open = struct.pack("<HHI", _ITEM_TAG_GROUP, _ITEM_START, _UNDEFINED_LENGTH)
+        item_close = struct.pack("<HHI", _ITEM_TAG_GROUP, _ITEM_DELIM, 0)
+        seq_close = struct.pack("<HHI", _ITEM_TAG_GROUP, _SEQ_DELIM, 0)
+
+        opens = (sq_open + item_open) * depth
+        closes = (item_close + seq_close) * depth
+
+        return file_data + opens + closes
+
+    @staticmethod
+    def _is_implicit_vr_le(file_data: bytes) -> bool:
+        """Return True if the dataset section uses Implicit VR Little Endian.
+
+        Walks the file meta info group (0002,*) -- which is always Explicit
+        VR LE -- to find TransferSyntaxUID (0002,0010). Returns True iff the
+        UID equals ``1.2.840.10008.1.2``. Defaults to False (Explicit VR LE)
+        if detection fails so callers get parseable output for the most
+        common modern transfer syntax.
+        """
+        pos = _DATA_OFFSET
+        end = len(file_data)
+        # Short VRs use a 2-byte length; long VRs use a 4-byte length with 2
+        # reserved bytes between VR and length.
+        long_vrs = {b"OB", b"OW", b"OF", b"SQ", b"UT", b"UN"}
+        while pos + 8 <= end:
+            group = struct.unpack_from("<H", file_data, pos)[0]
+            if group != 0x0002:
+                # Past file meta info; we never found TransferSyntaxUID.
+                return False
+            element = struct.unpack_from("<H", file_data, pos + 2)[0]
+            vr = bytes(file_data[pos + 4 : pos + 6])
+            if vr in long_vrs:
+                length = struct.unpack_from("<I", file_data, pos + 8)[0]
+                value_start = pos + 12
+            else:
+                length = struct.unpack_from("<H", file_data, pos + 6)[0]
+                value_start = pos + 8
+            if element == 0x0010:  # TransferSyntaxUID
+                value = file_data[value_start : value_start + length]
+                uid = value.rstrip(b"\x00 ").decode("ascii", errors="replace")
+                return uid == _IMPLICIT_VR_LE
+            pos = value_start + length
+        return False
