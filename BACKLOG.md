@@ -167,16 +167,6 @@ zero-crash strategies for second-pass audit. For fo-dicom-harness
 campaigns also pass `--crash-exit-codes 1,11` so untyped library
 escapes are recorded as findings instead of dropping to ERROR.
 
-### Codec-bearing seeds for decoder coverage
-
-Add at least one of: JPEG-LS, JPEG2000, JPEG-Baseline, RLE-Lossless seed
-to `dicom-seeds/`. Today the corpus is 9 modalities of mostly Implicit-VR
-Little Endian / Explicit-VR Little Endian; `DicomPixelData.GetFrame(0)`
-in the harness exercises codec paths, but with no encapsulated/compressed
-seeds in the corpus, all our decoder coverage is the trivial uncompressed
-path. JPEG-LS is the highest-yield single seed (most fo-dicom decoder
-reports cluster there per the CVE audit).
-
 ### Hash-pin remaining tool installs (Pinned-Deps 9 -> 10)
 
 OpenSSF Scorecard's Pinned-Deps check is at 9/10 because two
@@ -318,3 +308,4 @@ Earlier completed items collapsed; recent work below.
 | Backlog hygiene + stale-PR triage section                         | #287                          |
 | fo-dicom harness pixel-data decoder + rc=12 typed-rejection split | #298, #303                    |
 | Configurable per-target crash exit codes in TargetRunner          | (current)                     |
+| Codec-bearing seeds (JPEG-LS, JPEG2000, JPEG Baseline, RLE)       | (current)                     |
