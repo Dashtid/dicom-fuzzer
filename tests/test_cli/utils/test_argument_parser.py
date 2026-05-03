@@ -8,7 +8,11 @@ import argparse
 
 import pytest
 
-from dicom_fuzzer.cli.utils.argument_parser import VERSION, create_parser
+from dicom_fuzzer.cli.utils.argument_parser import (
+    VERSION,
+    _parse_crash_exit_codes,
+    create_parser,
+)
 
 
 class TestCreateParser:
@@ -213,6 +217,43 @@ class TestVersionFlag:
         assert VERSION is not None
         assert isinstance(VERSION, str)
         assert "DICOM Fuzzer" in VERSION
+
+
+class TestCrashExitCodesParser:
+    """Tests for _parse_crash_exit_codes argparse type callable."""
+
+    def test_simple(self) -> None:
+        assert _parse_crash_exit_codes("1,11") == {1, 11}
+
+    def test_handles_whitespace_and_empty_tokens(self) -> None:
+        # Both spaces and empty tokens should be tolerated.
+        assert _parse_crash_exit_codes(" 1 , , 11 ") == {1, 11}
+
+    def test_negative_codes(self) -> None:
+        # Negative codes are allowed (Unix signals like -11 = SIGSEGV).
+        assert _parse_crash_exit_codes("-11,-9") == {-11, -9}
+
+    def test_single_code(self) -> None:
+        assert _parse_crash_exit_codes("42") == {42}
+
+    def test_empty_string(self) -> None:
+        assert _parse_crash_exit_codes("") == set()
+
+    def test_invalid_token_raises(self) -> None:
+        with pytest.raises(argparse.ArgumentTypeError):
+            _parse_crash_exit_codes("1,not-an-int,11")
+
+    def test_flag_via_parser(self) -> None:
+        """End-to-end: flag is exposed and parses to a set."""
+        parser = create_parser()
+        args = parser.parse_args(["input.dcm", "--crash-exit-codes", "1,11"])
+        assert args.crash_exit_codes == {1, 11}
+
+    def test_flag_default_is_none(self) -> None:
+        """Default preserves the conservative classifier (None, not empty set)."""
+        parser = create_parser()
+        args = parser.parse_args(["input.dcm"])
+        assert args.crash_exit_codes is None
 
 
 class TestCombinedArgs:

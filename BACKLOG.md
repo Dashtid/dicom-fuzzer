@@ -163,10 +163,9 @@ reinstating the modality fuzzers removed in PR #246.
 
 Overnight run with current 9 seeds + 30s timeout against
 Hermes.exe. Analyze `crash_by_strategy` telemetry to identify
-zero-crash strategies for second-pass audit. **Blocked on**: configurable
-per-target crash exit codes (below) -- without it, untyped fo-dicom-harness
-escapes (rc=1, rc=11) keep falling to `ExecutionStatus.ERROR` instead of
-being recorded as findings.
+zero-crash strategies for second-pass audit. For fo-dicom-harness
+campaigns also pass `--crash-exit-codes 1,11` so untyped library
+escapes are recorded as findings instead of dropping to ERROR.
 
 ### Codec-bearing seeds for decoder coverage
 
@@ -177,19 +176,6 @@ in the harness exercises codec paths, but with no encapsulated/compressed
 seeds in the corpus, all our decoder coverage is the trivial uncompressed
 path. JPEG-LS is the highest-yield single seed (most fo-dicom decoder
 reports cluster there per the CVE audit).
-
-### Configurable per-target crash exit codes in TargetRunner
-
-`target_runner._classify_error` today maps only Windows native crash
-codes (negative or `> 0x80000000`) to `ExecutionStatus.CRASH`. The
-fo-dicom harness convention (rc=1, rc=11 = untyped escape, rc=10, rc=12
-= typed rejection) means real candidate library bugs are silently
-classified as `ERROR` and dropped from crash reporting. Hardcoding
-`{1, 11}` as crash globally would misclassify Hermes.exe (the primary
-target) which uses its own exit-code conventions. Plumbing: add
-`crash_exit_codes: set[int] | None` to `TargetRunner.__init__`, expose
-via `TargetController` / CLI flag, default unset. When the harness path
-is selected, pass `{1, 11}`. Unblocks "Full campaign run" above.
 
 ### Hash-pin remaining tool installs (Pinned-Deps 9 -> 10)
 
@@ -330,4 +316,5 @@ Earlier completed items collapsed; recent work below.
 | Multiframe binary attacks via `mutate_bytes` (BOT/EOT, 6)         | #272                          |
 | Round-robin starvation fix (CLI mini-batching)                    | #273                          |
 | Backlog hygiene + stale-PR triage section                         | #287                          |
-| fo-dicom harness pixel-data decoder + rc=12 typed-rejection split | #298, (current)               |
+| fo-dicom harness pixel-data decoder + rc=12 typed-rejection split | #298, #303                    |
+| Configurable per-target crash exit codes in TargetRunner          | (current)                     |
