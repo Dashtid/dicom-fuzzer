@@ -316,6 +316,101 @@ class TestMassiveItemCount:
 # =============================================================================
 # Integration Tests
 # =============================================================================
+class TestRecursionBomb:
+    """Tests for the binary recursion-bomb attack via mutate_bytes."""
+
+    @staticmethod
+    def _minimal_explicit_vr_le_file() -> bytes:
+        """Build a minimal valid DICOM file: preamble + DICM + one TS UID element."""
+        import struct
+
+        preamble = b"\x00" * 128
+        dicm = b"DICM"
+        # File meta: (0002,0000) FileMetaInformationGroupLength UL 4 bytes
+        # then (0002,0010) TransferSyntaxUID UI = "1.2.840.10008.1.2.1" (Explicit LE)
+        ts_uid = b"1.2.840.10008.1.2.1\x00"  # padded even length
+        ts_elem = struct.pack("<HH2sH", 0x0002, 0x0010, b"UI", len(ts_uid)) + ts_uid
+        # group-length element
+        gl_value = struct.pack("<I", len(ts_elem))
+        gl_elem = struct.pack("<HH2sH", 0x0002, 0x0000, b"UL", 4) + gl_value
+        return preamble + dicm + gl_elem + ts_elem
+
+    @staticmethod
+    def _minimal_implicit_vr_le_file() -> bytes:
+        """Same shape but with TransferSyntaxUID = '1.2.840.10008.1.2'."""
+        import struct
+
+        preamble = b"\x00" * 128
+        dicm = b"DICM"
+        ts_uid = b"1.2.840.10008.1.2\x00"
+        ts_elem = struct.pack("<HH2sH", 0x0002, 0x0010, b"UI", len(ts_uid)) + ts_uid
+        gl_value = struct.pack("<I", len(ts_elem))
+        gl_elem = struct.pack("<HH2sH", 0x0002, 0x0000, b"UL", 4) + gl_value
+        return preamble + dicm + gl_elem + ts_elem
+
+    def test_rejects_invalid_dicom_silently(self, fuzzer: SequenceFuzzer) -> None:
+        # Less than 132 bytes -> returns unchanged
+        assert fuzzer.mutate_bytes(b"too short") == b"too short"
+        # Right length but missing DICM magic -> returns unchanged
+        bogus = b"\x00" * 132 + b"hello"
+        assert fuzzer.mutate_bytes(bogus) == bogus
+
+    def test_appends_bytes_to_valid_input(self, fuzzer: SequenceFuzzer) -> None:
+        random.seed(42)
+        before = self._minimal_explicit_vr_le_file()
+        after = fuzzer.mutate_bytes(before)
+        assert after.startswith(before), "bomb should be appended, not replace"
+        assert len(after) > len(before)
+        assert "_binary_recursion_bomb" in fuzzer._applied_binary_mutations
+
+    def test_explicit_vr_le_uses_12_byte_sq_open(self, fuzzer: SequenceFuzzer) -> None:
+        """Explicit VR LE: SQ open is tag(4) + 'SQ'(2) + reserved(2) + length(4)."""
+        before = self._minimal_explicit_vr_le_file()
+        after = fuzzer._binary_recursion_bomb(before, depth=1)
+        bomb = after[len(before) :]
+        # First SQ open at offset 0 of bomb: bytes 4:6 should be "SQ"
+        assert bomb[4:6] == b"SQ"
+        # Single level: 12 (SQ open) + 8 (item) + 8 (item delim) + 8 (seq delim) = 36
+        assert len(bomb) == 36
+
+    def test_implicit_vr_le_uses_8_byte_sq_open(self, fuzzer: SequenceFuzzer) -> None:
+        """Implicit VR LE: SQ open is just tag(4) + length(4), no VR field."""
+        before = self._minimal_implicit_vr_le_file()
+        after = fuzzer._binary_recursion_bomb(before, depth=1)
+        bomb = after[len(before) :]
+        # Single level: 8 (SQ open) + 8 (item) + 8 (item delim) + 8 (seq delim) = 32
+        assert len(bomb) == 32
+
+    def test_depth_scales_byte_output(self, fuzzer: SequenceFuzzer) -> None:
+        """Bomb size grows linearly with depth."""
+        before = self._minimal_explicit_vr_le_file()
+        after = fuzzer._binary_recursion_bomb(before, depth=100)
+        # Each layer = 36 bytes in Explicit VR LE
+        assert len(after) - len(before) == 100 * 36
+
+    def test_bomb_well_formed_open_close_balance(self, fuzzer: SequenceFuzzer) -> None:
+        """Equal numbers of SQ-open and seq-delim, item-open and item-delim."""
+        before = self._minimal_explicit_vr_le_file()
+        after = fuzzer._binary_recursion_bomb(before, depth=10)
+        bomb = after[len(before) :]
+        # SQ-open uses tag (0040,A730); seq-delim uses (FFFE,E0DD)
+        sq_open_count = bomb.count(b"\x40\x00\x30\xa7")
+        seq_delim_count = bomb.count(b"\xfe\xff\xdd\xe0")
+        item_open_count = bomb.count(b"\xfe\xff\x00\xe0")
+        item_delim_count = bomb.count(b"\xfe\xff\x0d\xe0")
+        assert sq_open_count == 10
+        assert seq_delim_count == 10
+        assert item_open_count == 10
+        assert item_delim_count == 10
+
+    def test_bypasses_python_recursion_limit(self, fuzzer: SequenceFuzzer) -> None:
+        """A 50000-deep bomb must not raise RecursionError; we build iteratively."""
+        before = self._minimal_explicit_vr_le_file()
+        after = fuzzer._binary_recursion_bomb(before, depth=50000)
+        bomb = after[len(before) :]
+        assert len(bomb) == 50000 * 36  # ~1.8 MB
+
+
 class TestSequenceFuzzerIntegration:
     """Integration tests for SequenceFuzzer."""
 
