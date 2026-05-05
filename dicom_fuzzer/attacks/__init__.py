@@ -9,6 +9,7 @@ Organized into subpackages:
 
 # Format fuzzers (DICOM file format edge cases)
 from .format import (
+    AttributeTagFuzzer,
     CalibrationFuzzer,
     CompressedPixelFuzzer,
     ConformanceFuzzer,
@@ -36,6 +37,7 @@ from .series import (
 
 __all__ = [
     # Format fuzzers
+    "AttributeTagFuzzer",
     "CalibrationFuzzer",
     "CompressedPixelFuzzer",
     "ConformanceFuzzer",

@@ -106,6 +106,9 @@ class DicomMutator:
 
         Uses lazy imports to avoid circular dependencies.
         """
+        from dicom_fuzzer.attacks.format.attribute_tag_fuzzer import (
+            AttributeTagFuzzer,
+        )
         from dicom_fuzzer.attacks.format.calibration_fuzzer import CalibrationFuzzer
         from dicom_fuzzer.attacks.format.compressed_pixel_fuzzer import (
             CompressedPixelFuzzer,
@@ -168,6 +171,7 @@ class DicomMutator:
         from dicom_fuzzer.attacks.multiframe.shared_group import SharedGroupStrategy
 
         for fuzzer_cls in [
+            AttributeTagFuzzer,
             CalibrationFuzzer,
             CompressedPixelFuzzer,
             DeflateBombFuzzer,
