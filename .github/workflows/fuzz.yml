@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [fuzz_parser]
+        target: [fuzz_parser, fuzz_mutator]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -72,13 +72,16 @@ jobs:
         # Step ceiling is libfuzzer duration plus headroom for atheris
         # bootstrap and python interpreter startup. Without headroom the
         # GH timeout fires before libfuzzer's clean DONE summary.
+        # 35 minutes accommodates duration up to 1800s (30 min) with
+        # 5 min headroom; libfuzzer's per-input timeout (1200s default)
+        # bounds hang-input wastage so the ceiling never burns idle.
         run: |
           uv run python tests/fuzz/${{ matrix.target }}.py \
             tests/fuzz/corpus/${{ matrix.target }} \
             -max_total_time=${DURATION} \
             -print_final_stats=1 \
             -detect_leaks=0
-        timeout-minutes: 10
+        timeout-minutes: 35
 
       - name: Save fuzz corpus
         # Always save -- a partial corpus from a timeout/crash is still

@@ -5,16 +5,25 @@ points. Run on Linux only -- atheris does not build on Windows.
 
 ## Targets
 
-| File                             | Targets                                      |
-| -------------------------------- | -------------------------------------------- |
-| [fuzz_parser.py](fuzz_parser.py) | `dicom_fuzzer.core.dicom.parser.DicomParser` |
+| File                               | Targets                                                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [fuzz_parser.py](fuzz_parser.py)   | `dicom_fuzzer.core.dicom.parser.DicomParser` end-to-end on raw bytes                                                      |
+| [fuzz_mutator.py](fuzz_mutator.py) | `dicom_fuzzer.core.mutation.mutator.DicomMutator.apply_mutations` on `pydicom.dcmread(..., force=True)`-produced datasets |
 
 ## Run locally
 
 ```bash
 uv sync --extra fuzz
+
+# Parser harness
 uv run python tests/fuzz/fuzz_parser.py \
     tests/fuzz/corpus/fuzz_parser \
+    -max_total_time=60 \
+    -print_final_stats=1
+
+# Mutator harness
+uv run python tests/fuzz/fuzz_mutator.py \
+    tests/fuzz/corpus/fuzz_mutator \
     -max_total_time=60 \
     -print_final_stats=1
 ```
