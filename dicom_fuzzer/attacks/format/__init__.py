@@ -5,6 +5,7 @@ encoding, pixel data, sequences, structure, compression, and conformance.
 These generate edge cases and malformed data for discovering parser bugs.
 
 Generic fuzzers (work on any SOP class):
+- AttributeTagFuzzer: AT VR pointer-semantics attacks (target tag rewrite)
 - CalibrationFuzzer: Deterministic calibration mutations for testing
 - DeflateBombFuzzer: Decompression bomb via Deflated LE transfer syntax
 - DicomdirFuzzer: DICOMDIR path traversal and deep-nesting attacks
@@ -33,6 +34,7 @@ Modality-specific fuzzers (require matching seed files):
 - SegmentationFuzzer: Segmentation segment/frame mapping attacks
 """
 
+from .attribute_tag_fuzzer import AttributeTagFuzzer
 from .base import FormatFuzzerBase
 from .calibration_fuzzer import CalibrationFuzzer
 from .compressed_pixel_fuzzer import CompressedPixelFuzzer
@@ -60,6 +62,7 @@ from .sequence_fuzzer import SequenceFuzzer
 from .structure_fuzzer import StructureFuzzer
 
 __all__ = [
+    "AttributeTagFuzzer",
     "CalibrationFuzzer",
     "CompressedPixelFuzzer",
     "ConformanceFuzzer",
