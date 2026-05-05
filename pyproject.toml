@@ -81,6 +81,13 @@ security = [
     "cyclonedx-bom>=4.0.0",
     "minidump>=0.0.21",  # Windows crash dump parsing
 ]
+fuzz = [
+    # Atheris is the coverage-guided fuzzer for tests/fuzz/. Marker excludes
+    # 3.14 because atheris currently supports 3.11-3.13 only; the fuzz workflow
+    # explicitly pins to 3.13 and `--extra fuzz` is never installed in regular
+    # CI, so 3.14 jobs aren't affected.
+    "atheris>=2.3.0; python_version < '3.14'",
+]
 all = [
     "dicom-fuzzer[viz,distributed,metrics,network,security]",
 ]
