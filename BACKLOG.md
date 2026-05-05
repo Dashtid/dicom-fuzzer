@@ -163,20 +163,18 @@ zero-crash strategies for second-pass audit. For fo-dicom-harness
 campaigns also pass `--crash-exit-codes 1,11` so untyped library
 escapes are recorded as findings instead of dropping to ERROR.
 
-### Expand atheris fuzz coverage (Fuzzing 0 -> 10 already; deepen later)
+### Atheris fuzz coverage -- DONE (closed 2026-05-05)
 
-Initial scaffolding lands one target: `tests/fuzz/fuzz_parser.py` against
-`DicomParser`. Worth adding when convenient:
-
-- `fuzz_mutator.py`: feed a fixture dataset + random mutation seed into
-  `DicomMutator.apply_mutations` to surface mutator-side panics.
-- `fuzz_corpus.py`: feed random bytes through the corpus loader.
-- A persistent corpus directory under `tests/fuzz/corpus/` seeded with
-  trimmed real DICOMs, committed so libfuzzer starts from a meaningful
-  state instead of random bytes.
-
-Score impact is already maxed (any atheris target counts); this is
-about catching real bugs, not chasing the badge.
+Two harnesses run weekly + on PRs touching parsing paths:
+`fuzz_parser.py` (DicomParser) and `fuzz_mutator.py` (DicomMutator).
+Corpus persists across runs via actions/cache. ~1M executions on
+fuzz_parser produced zero crashes; coverage plateaued at ~1010 edges,
+which is the surface limit of a one-module harness rather than a
+runtime limit. `fuzz_corpus.py` was considered and rejected as
+marginal -- the corpus loader's surface is already covered by
+`fuzz_parser`'s upstream side. Only revisit if a regression appears
+in the weekly cron summary or someone invests in a wider Python
+parser surface.
 
 ### Hash-pin remaining tool installs (Pinned-Deps 9 -> 10)
 
