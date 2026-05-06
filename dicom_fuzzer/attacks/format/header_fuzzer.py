@@ -17,6 +17,7 @@ import struct
 
 from pydicom.dataset import Dataset
 
+from dicom_fuzzer.utils.binary_mutators import corrupt_random_length_field
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
@@ -488,3 +489,27 @@ class HeaderFuzzer(FormatFuzzerBase):
                     logger.debug("UID mutation rejected for %s: %s", tag, e)
 
         return dataset
+
+    # ------------------------------------------------------------------
+    # Binary attacks (post-serialization mutate_bytes)
+    # ------------------------------------------------------------------
+
+    def mutate_bytes(self, file_data: bytes) -> bytes:
+        """Apply length-field corruption to a random Explicit-VR-LE element.
+
+        pydicom recalculates length fields on serialisation, so length
+        wraparound / sentinel attacks are only reachable via post-write
+        byte mutation. ~50% of HeaderFuzzer outputs receive a corrupt
+        length; the rest pass through unchanged.
+        """
+        self._applied_binary_mutations = []
+        if random.random() >= 0.5:
+            return file_data
+        try:
+            result = corrupt_random_length_field(file_data)
+            if result is not file_data:
+                self._applied_binary_mutations.append("corrupt_random_length_field")
+            return result
+        except Exception as e:
+            logger.debug("HeaderFuzzer length-field corruption failed: %s", e)
+            return file_data

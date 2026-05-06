@@ -443,3 +443,75 @@ class TestMetadataStructuralMutations:
             assert fired & structural_names, (
                 f"No structural method fired; last_variant={fuzzer.last_variant!r}"
             )
+
+
+# =============================================================================
+# Binary attacks (mutate_bytes)
+# =============================================================================
+
+
+def _minimal_dicom_bytes() -> bytes:
+    import io as _io
+
+    import pydicom as _pydicom
+    from pydicom.dataset import Dataset as _Dataset
+    from pydicom.dataset import FileMetaDataset as _FileMeta
+    from pydicom.uid import (
+        ExplicitVRLittleEndian as _ExplicitVRLE,
+    )
+    from pydicom.uid import (
+        generate_uid as _gen_uid,
+    )
+
+    file_meta = _FileMeta()
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    file_meta.MediaStorageSOPInstanceUID = _gen_uid()
+    file_meta.TransferSyntaxUID = _ExplicitVRLE
+    ds = _Dataset()
+    ds.file_meta = file_meta
+    ds.PatientName = "Test^Patient"
+    ds.PatientID = "TEST"
+    ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    ds.SOPInstanceUID = _gen_uid()
+    ds.is_little_endian = True
+    ds.is_implicit_VR = False
+    buffer = _io.BytesIO()
+    _pydicom.dcmwrite(buffer, ds, enforce_file_format=True)
+    return buffer.getvalue()
+
+
+class TestMutateBytes:
+    """MetadataFuzzer.mutate_bytes wraps corrupt_random_length_field."""
+
+    def test_returns_bytes(self) -> None:
+        fuzzer = MetadataFuzzer()
+        result = fuzzer.mutate_bytes(_minimal_dicom_bytes())
+        assert isinstance(result, bytes)
+
+    def test_invalid_input_unchanged(self) -> None:
+        fuzzer = MetadataFuzzer()
+        for _ in range(10):
+            assert fuzzer.mutate_bytes(b"") == b""
+            assert fuzzer.mutate_bytes(b"\x00" * 50) == b"\x00" * 50
+
+    def test_no_op_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        fuzzer = MetadataFuzzer()
+        data = _minimal_dicom_bytes()
+        monkeypatch.setattr(
+            "dicom_fuzzer.attacks.format.metadata_fuzzer.random.random",
+            lambda: 0.99,
+        )
+        assert fuzzer.mutate_bytes(data) == data
+
+    def test_mutation_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        fuzzer = MetadataFuzzer()
+        data = _minimal_dicom_bytes()
+        monkeypatch.setattr(
+            "dicom_fuzzer.attacks.format.metadata_fuzzer.random.random",
+            lambda: 0.0,
+        )
+        result = fuzzer.mutate_bytes(data)
+        assert isinstance(result, bytes)
+        assert len(result) == len(data)
+        assert result[:132] == data[:132]
+        assert "corrupt_random_length_field" in fuzzer._applied_binary_mutations

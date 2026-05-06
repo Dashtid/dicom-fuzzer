@@ -22,6 +22,7 @@ from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
 from pydicom.tag import Tag
 
+from dicom_fuzzer.utils.binary_mutators import corrupt_random_length_field
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
@@ -466,3 +467,27 @@ class PrivateTagFuzzer(FormatFuzzerBase):
         except Exception as e:
             logger.debug("Private SQ at EOF attack failed: %s", e)
         return dataset
+
+    # ------------------------------------------------------------------
+    # Binary attacks (post-serialization mutate_bytes)
+    # ------------------------------------------------------------------
+
+    def mutate_bytes(self, file_data: bytes) -> bytes:
+        """Apply length-field corruption to a random Explicit-VR-LE element.
+
+        Private-tag parser paths often validate length less strictly
+        than the standard-dictionary path; coupling a private-tag
+        Dataset mutation with a length-field byte mutation maximises
+        the chance of hitting a parser-state desync.
+        """
+        self._applied_binary_mutations = []
+        if random.random() >= 0.5:
+            return file_data
+        try:
+            result = corrupt_random_length_field(file_data)
+            if result is not file_data:
+                self._applied_binary_mutations.append("corrupt_random_length_field")
+            return result
+        except Exception as e:
+            logger.debug("PrivateTagFuzzer length-field corruption failed: %s", e)
+            return file_data
