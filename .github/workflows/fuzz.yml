@@ -56,7 +56,7 @@ jobs:
       - name: Restore fuzz corpus
         # Lookup the latest cache by prefix; first run starts from empty.
         # The exact key is unique per run so save-step never collides.
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: tests/fuzz/corpus/${{ matrix.target }}
           key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
@@ -87,7 +87,7 @@ jobs:
         # Always save -- a partial corpus from a timeout/crash is still
         # valuable for the next run's seed.
         if: always()
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: tests/fuzz/corpus/${{ matrix.target }}
           key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
