@@ -22,6 +22,7 @@ from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
 from dicom_fuzzer.utils.anonymizer import anonymize_patient_info
+from dicom_fuzzer.utils.binary_mutators import corrupt_random_length_field
 from dicom_fuzzer.utils.logger import get_logger
 
 from .base import FormatFuzzerBase
@@ -476,3 +477,26 @@ class MetadataFuzzer(FormatFuzzerBase):
                     "A^B^C^D^E" * 10,  # Repeated structure
                 ]
             )
+
+    # ------------------------------------------------------------------
+    # Binary attacks (post-serialization mutate_bytes)
+    # ------------------------------------------------------------------
+
+    def mutate_bytes(self, file_data: bytes) -> bytes:
+        """Apply length-field corruption to a random Explicit-VR-LE element.
+
+        Metadata fields are typically long string VRs (LO/LT/PN) -- their
+        length-field corruption is high-yield against parsers that
+        allocate based on declared length.
+        """
+        self._applied_binary_mutations = []
+        if random.random() >= 0.5:
+            return file_data
+        try:
+            result = corrupt_random_length_field(file_data)
+            if result is not file_data:
+                self._applied_binary_mutations.append("corrupt_random_length_field")
+            return result
+        except Exception as e:
+            logger.debug("MetadataFuzzer length-field corruption failed: %s", e)
+            return file_data
