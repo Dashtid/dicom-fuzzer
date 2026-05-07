@@ -20,6 +20,9 @@ class StateMachineConfig:
     min_delay_ms: int = 0
     max_delay_ms: int = 5000
 
+    # Resource exhaustion attacks
+    enable_resource_attacks: bool = True
+
     # State confusion
     enable_state_confusion: bool = True
     confusion_depth: int = 3
