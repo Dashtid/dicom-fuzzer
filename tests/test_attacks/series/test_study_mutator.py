@@ -193,6 +193,214 @@ class TestStudyMutationStrategies:
                 mutator.mutate_study(mock_study, strategy="invalid_strategy")
 
 
+class TestCrossSeriesCycles:
+    """Multi-hop cyclic ReferencedSeriesSequence attacks.
+
+    Single-hop self-reference (A->A) is already covered by the
+    existing 'circular_reference' branch. These tests cover the harder
+    case where parsers must maintain a visited set across multiple
+    hops to avoid infinite loops.
+    """
+
+    @pytest.fixture
+    def two_series_study(self):
+        """Mock study with exactly 2 series."""
+        s1 = MagicMock(spec=DicomSeries)
+        s1.series_uid = "1.2.3.4.5.6.7.8.1"
+        s1.slices = [Path("/fake/s1/sl1.dcm")]
+        s1.slice_count = 1
+
+        s2 = MagicMock(spec=DicomSeries)
+        s2.series_uid = "1.2.3.4.5.6.7.8.2"
+        s2.slices = [Path("/fake/s2/sl1.dcm")]
+        s2.slice_count = 1
+
+        return DicomStudy(
+            study_uid="1.2.3.4.5.6.7.8.0",
+            patient_id="P",
+            series_list=[s1, s2],
+        )
+
+    @pytest.fixture
+    def two_series_datasets(self):
+        ds1 = pydicom.Dataset()
+        ds1.SeriesInstanceUID = "1.2.3.4.5.6.7.8.1"
+        ds2 = pydicom.Dataset()
+        ds2.SeriesInstanceUID = "1.2.3.4.5.6.7.8.2"
+        return [[ds1], [ds2]]
+
+    @pytest.fixture
+    def three_series_study(self):
+        series_list = []
+        for i in range(1, 4):
+            s = MagicMock(spec=DicomSeries)
+            s.series_uid = f"1.2.3.4.5.6.7.8.{i}"
+            s.slices = [Path(f"/fake/s{i}/sl1.dcm")]
+            s.slice_count = 1
+            series_list.append(s)
+        return DicomStudy(
+            study_uid="1.2.3.4.5.6.7.8.0",
+            patient_id="P",
+            series_list=series_list,
+        )
+
+    @pytest.fixture
+    def three_series_datasets(self):
+        out = []
+        for i in range(1, 4):
+            ds = pydicom.Dataset()
+            ds.SeriesInstanceUID = f"1.2.3.4.5.6.7.8.{i}"
+            out.append([ds])
+        return out
+
+    @pytest.fixture
+    def single_series_study(self):
+        s = MagicMock(spec=DicomSeries)
+        s.series_uid = "1.2.3.4.5.6.7.8.1"
+        s.slices = [Path("/fake/s1/sl1.dcm")]
+        s.slice_count = 1
+        return DicomStudy(
+            study_uid="1.2.3.4.5.6.7.8.0",
+            patient_id="P",
+            series_list=[s],
+        )
+
+    @pytest.fixture
+    def single_series_datasets(self):
+        ds = pydicom.Dataset()
+        ds.SeriesInstanceUID = "1.2.3.4.5.6.7.8.1"
+        return [[ds]]
+
+    def test_mutual_cycle_creates_a_to_b_and_b_to_a(
+        self, two_series_study, two_series_datasets
+    ):
+        mutator = StudyMutator(seed=42)
+        records = mutator._apply_mutual_cycle(two_series_datasets, two_series_study)
+
+        a_uid = two_series_study.series_list[0].series_uid
+        b_uid = two_series_study.series_list[1].series_uid
+
+        # series[0] now references series[1]
+        ds_a = two_series_datasets[0][0]
+        assert ds_a.ReferencedSeriesSequence[0].SeriesInstanceUID == b_uid
+        # series[1] now references series[0] -- closing the loop
+        ds_b = two_series_datasets[1][0]
+        assert ds_b.ReferencedSeriesSequence[0].SeriesInstanceUID == a_uid
+        assert len(records) == 2
+
+    def test_mutual_cycle_records_both_hops(
+        self, two_series_study, two_series_datasets
+    ):
+        mutator = StudyMutator(seed=42)
+        records = mutator._apply_mutual_cycle(two_series_datasets, two_series_study)
+        assert {r.series_index for r in records} == {0, 1}
+        assert all(r.strategy == "cross_series_reference" for r in records)
+        assert all(r.details["attack_type"] == "mutual_cycle" for r in records)
+        assert all(r.details["cycle_length"] == 2 for r in records)
+
+    def test_mutual_cycle_skipped_with_single_series(
+        self, single_series_study, single_series_datasets
+    ):
+        # No partner to point at; helper must short-circuit cleanly.
+        mutator = StudyMutator(seed=42)
+        records = mutator._apply_mutual_cycle(
+            single_series_datasets, single_series_study
+        )
+        assert records == []
+        # Original dataset must not have been mutated.
+        ds = single_series_datasets[0][0]
+        assert "ReferencedSeriesSequence" not in ds
+
+    def test_deep_cycle_with_three_series(
+        self, three_series_study, three_series_datasets
+    ):
+        mutator = StudyMutator(seed=42)
+        records = mutator._apply_deep_cycle(three_series_datasets, three_series_study)
+
+        uids = [s.series_uid for s in three_series_study.series_list]
+        # Each series should reference the next; last loops back to first.
+        for i in range(3):
+            ds = three_series_datasets[i][0]
+            expected_target = uids[(i + 1) % 3]
+            assert ds.ReferencedSeriesSequence[0].SeriesInstanceUID == expected_target
+        assert len(records) == 3
+        assert all(r.details["attack_type"] == "deep_cycle" for r in records)
+        assert all(r.details["cycle_length"] == 3 for r in records)
+
+    def test_deep_cycle_falls_back_to_mutual_with_two_series(
+        self, two_series_study, two_series_datasets
+    ):
+        # With <3 series the deep_cycle helper degrades into mutual_cycle.
+        mutator = StudyMutator(seed=42)
+        records = mutator._apply_deep_cycle(two_series_datasets, two_series_study)
+        # Should be 2 records, attack_type="mutual_cycle" (not deep_cycle)
+        assert len(records) == 2
+        assert all(r.details["attack_type"] == "mutual_cycle" for r in records)
+
+    def test_cycle_uids_round_trip_through_dcmwrite(
+        self, two_series_study, two_series_datasets
+    ):
+        # Confirm a cycled dataset still serializes -- the cycle is a
+        # logical graph problem, not a structural DICOM problem.
+        import io
+
+        mutator = StudyMutator(seed=42)
+        mutator._apply_mutual_cycle(two_series_datasets, two_series_study)
+
+        ds = two_series_datasets[0][0]
+        # Add minimal fields so dcmwrite is happy.
+        ds.PatientID = "P"
+        ds.SOPInstanceUID = "1.2.3.4.5.6.7.8.99"
+        ds.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+        ds.is_little_endian = True
+        ds.is_implicit_VR = True
+
+        buf = io.BytesIO()
+        pydicom.dcmwrite(buf, ds, enforce_file_format=False)
+        buf.seek(0)
+        roundtripped = pydicom.dcmread(buf, force=True)
+        assert (
+            roundtripped.ReferencedSeriesSequence[0].SeriesInstanceUID
+            == two_series_study.series_list[1].series_uid
+        )
+
+    def test_dispatcher_invokes_mutual_cycle_when_chosen(
+        self, two_series_study, two_series_datasets, monkeypatch
+    ):
+        # Force random.choice to always return mutual_cycle so we can
+        # observe the dispatcher actually wires through to the helper.
+        import dicom_fuzzer.attacks.series.study_mutator as study_mod
+
+        monkeypatch.setattr(study_mod.random, "choice", lambda choices: "mutual_cycle")
+        mutator = StudyMutator(seed=42)
+        _, records = mutator._mutate_cross_series_reference(
+            two_series_datasets, two_series_study, mutation_count=5
+        )
+        # Cycle helper runs at most once even with mutation_count=5.
+        assert any(r.details["attack_type"] == "mutual_cycle" for r in records)
+        # Total records should be 2 (one per cycle participant), not 10.
+        cycle_records = [
+            r for r in records if r.details["attack_type"] == "mutual_cycle"
+        ]
+        assert len(cycle_records) == 2
+
+    def test_dispatcher_invokes_deep_cycle_when_chosen(
+        self, three_series_study, three_series_datasets, monkeypatch
+    ):
+        import dicom_fuzzer.attacks.series.study_mutator as study_mod
+
+        monkeypatch.setattr(study_mod.random, "choice", lambda choices: "deep_cycle")
+        # randint also gets called for series_idx -- keep it deterministic.
+        monkeypatch.setattr(study_mod.random, "randint", lambda a, b: 0)
+        mutator = StudyMutator(seed=42)
+        _, records = mutator._mutate_cross_series_reference(
+            three_series_datasets, three_series_study, mutation_count=5
+        )
+        cycle_records = [r for r in records if r.details["attack_type"] == "deep_cycle"]
+        # 3 cycle records (one per series), no duplication despite count=5.
+        assert len(cycle_records) == 3
+
+
 class TestStudyMutationRecord:
     """Test StudyMutationRecord serialization."""
 
