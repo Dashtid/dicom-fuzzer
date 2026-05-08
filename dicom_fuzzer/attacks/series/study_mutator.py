@@ -56,6 +56,7 @@ class StudyMutationStrategy(Enum):
     STUDY_METADATA = "study_metadata"
     MIXED_MODALITY_STUDY = "mixed_modality_study"
     REGISTRATION_GEOMETRY = "registration_geometry"
+    SOP_INSTANCE_COLLISION = "sop_instance_collision"
 
 
 @dataclass
@@ -234,6 +235,7 @@ class StudyMutator:
             StudyMutationStrategy.STUDY_METADATA.value: self._mutate_study_metadata,
             StudyMutationStrategy.MIXED_MODALITY_STUDY.value: self._mutate_mixed_modality,
             StudyMutationStrategy.REGISTRATION_GEOMETRY.value: self._mutate_registration_geometry,
+            StudyMutationStrategy.SOP_INSTANCE_COLLISION.value: self._mutate_sop_instance_collision,
         }[strategy]
 
         mutated_datasets, records = strategy_method(all_datasets, study, mutation_count)
@@ -400,6 +402,147 @@ class StudyMutator:
                         mutated_value="<10_duplicates>",
                         severity=self.severity,
                         details={"attack_type": attack_type, "count": 10},
+                    )
+                )
+
+        return all_datasets, records
+
+    def _mutate_sop_instance_collision(
+        self,
+        all_datasets: list[list[Dataset]],
+        study: DicomStudy,
+        mutation_count: int,
+    ) -> tuple[list[list[Dataset]], list[StudyMutationRecord]]:
+        """Strategy 7: SOPInstanceUID collision attacks.
+
+        SOPInstanceUID is required to be globally unique (PS3.4). PACS
+        archivers, caches, and database keys assume that uniqueness.
+        Forcing collisions across series probes:
+            - dedup logic that silently drops "duplicates"
+            - DB unique-key constraint violations on bulk import
+            - cache key reuse serving the wrong pixel data
+
+        Three attack types covering different collision patterns:
+
+          cross_series_collision  copy one slice's SOPInstanceUID from
+                                  series A onto a slice in series B.
+          study_wide_uniform      set the SAME SOPInstanceUID on every
+                                  slice of every series.
+          pairwise_swap           for each pair of series, swap one
+                                  SOPInstanceUID between them.
+
+        Like the cyclic-reference helpers, multi-series operations run
+        once per call regardless of mutation_count -- subsequent
+        iterations would idempotently overwrite the same UIDs.
+
+        Skips cleanly with <2 series or empty datasets. Emits one
+        StudyMutationRecord per slice modified.
+        """
+        records: list[StudyMutationRecord] = []
+        if len(all_datasets) < 2:
+            return all_datasets, records
+        # Need at least one slice in each of two series to collide them.
+        non_empty = [i for i, ds_list in enumerate(all_datasets) if ds_list]
+        if len(non_empty) < 2:
+            return all_datasets, records
+
+        del mutation_count  # cycle attacks run once per call
+
+        attack_type = random.choice(
+            [
+                "cross_series_collision",
+                "study_wide_uniform",
+                "pairwise_swap",
+            ]
+        )
+
+        if attack_type == "cross_series_collision":
+            i, j = non_empty[0], non_empty[1]
+            source_uid = getattr(all_datasets[i][0], "SOPInstanceUID", "<missing>")
+            target_ds = all_datasets[j][0]
+            original_uid = getattr(target_ds, "SOPInstanceUID", "<none>")
+            target_ds.SOPInstanceUID = source_uid
+
+            records.append(
+                StudyMutationRecord(
+                    strategy="sop_instance_collision",
+                    series_index=j,
+                    series_uid=study.series_list[j].series_uid,
+                    tag="SOPInstanceUID",
+                    original_value=str(original_uid),
+                    mutated_value=str(source_uid),
+                    severity=self.severity,
+                    details={
+                        "attack_type": attack_type,
+                        "source_series_index": i,
+                    },
+                )
+            )
+
+        elif attack_type == "study_wide_uniform":
+            # One UID, applied everywhere.
+            shared_uid = generate_uid()
+            for series_idx, ds_list in enumerate(all_datasets):
+                for slice_idx, ds in enumerate(ds_list):
+                    original_uid = getattr(ds, "SOPInstanceUID", "<none>")
+                    ds.SOPInstanceUID = shared_uid
+                    records.append(
+                        StudyMutationRecord(
+                            strategy="sop_instance_collision",
+                            series_index=series_idx,
+                            series_uid=study.series_list[series_idx].series_uid,
+                            tag="SOPInstanceUID",
+                            original_value=str(original_uid),
+                            mutated_value=str(shared_uid),
+                            severity=self.severity,
+                            details={
+                                "attack_type": attack_type,
+                                "slice_index": slice_idx,
+                            },
+                        )
+                    )
+
+        elif attack_type == "pairwise_swap":
+            # Swap one UID between consecutive series; preserves total
+            # count of distinct UIDs but changes ownership.
+            for k in range(len(non_empty) - 1):
+                i, j = non_empty[k], non_empty[k + 1]
+                ds_a = all_datasets[i][0]
+                ds_b = all_datasets[j][0]
+                uid_a = getattr(ds_a, "SOPInstanceUID", None)
+                uid_b = getattr(ds_b, "SOPInstanceUID", None)
+                if uid_a is None or uid_b is None:
+                    continue
+                ds_a.SOPInstanceUID = uid_b
+                ds_b.SOPInstanceUID = uid_a
+                records.append(
+                    StudyMutationRecord(
+                        strategy="sop_instance_collision",
+                        series_index=i,
+                        series_uid=study.series_list[i].series_uid,
+                        tag="SOPInstanceUID",
+                        original_value=str(uid_a),
+                        mutated_value=str(uid_b),
+                        severity=self.severity,
+                        details={
+                            "attack_type": attack_type,
+                            "swap_partner_index": j,
+                        },
+                    )
+                )
+                records.append(
+                    StudyMutationRecord(
+                        strategy="sop_instance_collision",
+                        series_index=j,
+                        series_uid=study.series_list[j].series_uid,
+                        tag="SOPInstanceUID",
+                        original_value=str(uid_b),
+                        mutated_value=str(uid_a),
+                        severity=self.severity,
+                        details={
+                            "attack_type": attack_type,
+                            "swap_partner_index": i,
+                        },
                     )
                 )
 
