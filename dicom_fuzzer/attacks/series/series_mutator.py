@@ -144,6 +144,8 @@ class Series3DMutator(
             # v1.8.0 - Cross-Slice Reference and Temporal Attacks
             SeriesMutationStrategy.CROSS_SLICE_REFERENCE.value: self._mutate_cross_slice_reference,
             SeriesMutationStrategy.TEMPORAL_INCONSISTENCY.value: self._mutate_temporal_inconsistency,
+            # Singular geometry transforms (zero-determinant 4x4)
+            SeriesMutationStrategy.SINGULAR_GEOMETRY.value: self._mutate_singular_geometry,
         }[strategy]
 
         mutated_datasets, records = strategy_method(datasets, series, mutation_count)

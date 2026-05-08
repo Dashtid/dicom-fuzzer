@@ -858,3 +858,207 @@ class TestRandomness:
 
         # Should have some variety (not guaranteed but very likely)
         assert len(results) > 0
+
+
+class TestSingularGeometry:
+    """Tests for _mutate_singular_geometry.
+
+    Each attack type coordinates orientation+position+spacing+thickness
+    across the entire series so the resulting voxel->patient transform
+    has det == 0 (or NaN). Distinct from non_orthogonal_orientation,
+    which only mutates ImageOrientationPatient on a single slice.
+    """
+
+    @staticmethod
+    def _basis_3x3(ds):
+        """Build the 3x3 column-stacked basis used to test for singularity.
+
+        Columns: row direction * dy, column direction * dx, slice normal * dz.
+        Mirrors what a viewer constructs from
+        ImageOrientationPatient + PixelSpacing + SliceThickness.
+        """
+        import numpy as np
+
+        iop = list(ds.ImageOrientationPatient)
+        r = np.array(iop[:3], dtype=float)
+        c = np.array(iop[3:], dtype=float)
+        s = np.cross(r, c)
+        dx, dy = (
+            float(ds.PixelSpacing[0]),
+            float(ds.PixelSpacing[1]),
+        )
+        dz = float(getattr(ds, "SliceThickness", 1.0))
+        return np.column_stack([r * dy, c * dx, s * dz])
+
+    @staticmethod
+    def _force_attack(monkeypatch, attack_type: str) -> None:
+        """Make random.choice deterministic so tests target one attack."""
+        import dicom_fuzzer.attacks.series.series_3d_attacks as mod
+
+        monkeypatch.setattr(mod.random, "choice", lambda choices: attack_type)
+
+    def test_collapsed_slice_axis_zeroes_thickness(
+        self, mutator, mock_series, sample_datasets, monkeypatch
+    ):
+        self._force_attack(monkeypatch, "collapsed_slice_axis")
+        out, _ = mutator._mutate_singular_geometry(
+            sample_datasets, mock_series, mutation_count=1
+        )
+        assert all(float(ds.SliceThickness) == 0.0 for ds in out)
+        # All slices share one position -> dz axis collapsed.
+        positions = {tuple(ds.ImagePositionPatient) for ds in out}
+        assert len(positions) == 1
+
+    def test_collapsed_slice_axis_zero_det(
+        self, mutator, mock_series, sample_datasets, monkeypatch
+    ):
+        import numpy as np
+
+        self._force_attack(monkeypatch, "collapsed_slice_axis")
+        out, _ = mutator._mutate_singular_geometry(
+            sample_datasets, mock_series, mutation_count=1
+        )
+        det = np.linalg.det(self._basis_3x3(out[0]))
+        assert det == 0.0
+
+    def test_coplanar_basis_makes_columns_dependent(
+        self, mutator, mock_series, sample_datasets, monkeypatch
+    ):
+        self._force_attack(monkeypatch, "coplanar_basis")
+        out, _ = mutator._mutate_singular_geometry(
+            sample_datasets, mock_series, mutation_count=1
+        )
+        for ds in out:
+            iop = list(ds.ImageOrientationPatient)
+            assert iop[:3] == iop[3:]
+
+    def test_coplanar_basis_zero_det(
+        self, mutator, mock_series, sample_datasets, monkeypatch
+    ):
+        import numpy as np
+
+        self._force_attack(monkeypatch, "coplanar_basis")
+        out, _ = mutator._mutate_singular_geometry(
+            sample_datasets, mock_series, mutation_count=1
+        )
+        det = np.linalg.det(self._basis_3x3(out[0]))
+        assert det == 0.0
+
+    def test_zero_pixel_spacing_on_every_slice(
+        self, mutator, mock_series, sample_datasets, monkeypatch
+    ):
+        self._force_attack(monkeypatch, "zero_pixel_spacing")
+        out, _ = mutator._mutate_singular_geometry(
+            sample_datasets, mock_series, mutation_count=1
+        )
+        for ds in out:
+            assert list(ds.PixelSpacing) == [0.0, 0.0]
+
+    def test_zero_pixel_spacing_zero_det(
+        self, mutator, mock_series, sample_datasets, monkeypatch
+    ):
+        import numpy as np
+
+        self._force_attack(monkeypatch, "zero_pixel_spacing")
+        out, _ = mutator._mutate_singular_geometry(
+            sample_datasets, mock_series, mutation_count=1
+        )
+        det = np.linalg.det(self._basis_3x3(out[0]))
+        assert det == 0.0
+
+    def test_nan_geometry_propagates_to_nan_det(
+        self, mutator, mock_series, sample_datasets, monkeypatch
+    ):
+        import math
+
+        import numpy as np
+
+        self._force_attack(monkeypatch, "nan_geometry")
+        out, _ = mutator._mutate_singular_geometry(
+            sample_datasets, mock_series, mutation_count=1
+        )
+        det = np.linalg.det(self._basis_3x3(out[0]))
+        assert math.isnan(det)
+
+    def test_linearly_dependent_columns_zero_det(
+        self, mutator, mock_series, sample_datasets, monkeypatch
+    ):
+        import numpy as np
+
+        self._force_attack(monkeypatch, "linearly_dependent_columns")
+        out, _ = mutator._mutate_singular_geometry(
+            sample_datasets, mock_series, mutation_count=1
+        )
+        det = np.linalg.det(self._basis_3x3(out[0]))
+        assert det == 0.0
+        # Sanity: positions should step along the same x-axis
+        for i, ds in enumerate(out):
+            assert list(ds.ImagePositionPatient) == [float(i), 0.0, 0.0]
+
+    def test_records_one_per_slice(
+        self, mutator, mock_series, sample_datasets, monkeypatch
+    ):
+        self._force_attack(monkeypatch, "collapsed_slice_axis")
+        _, records = mutator._mutate_singular_geometry(
+            sample_datasets, mock_series, mutation_count=1
+        )
+        assert len(records) == len(sample_datasets)
+        assert all(r.strategy == "singular_geometry" for r in records)
+        assert all(r.details["attack_type"] == "collapsed_slice_axis" for r in records)
+
+    def test_runs_once_regardless_of_mutation_count(
+        self, mutator, mock_series, sample_datasets, monkeypatch
+    ):
+        # Coordinated geometry is idempotent under repeated application,
+        # so the helper does the work once even if mutation_count is large.
+        self._force_attack(monkeypatch, "zero_pixel_spacing")
+        _, records = mutator._mutate_singular_geometry(
+            sample_datasets, mock_series, mutation_count=10
+        )
+        assert len(records) == len(sample_datasets)
+
+    def test_empty_datasets_short_circuits(self, mutator, mock_series, monkeypatch):
+        self._force_attack(monkeypatch, "collapsed_slice_axis")
+        out, records = mutator._mutate_singular_geometry(
+            [], mock_series, mutation_count=1
+        )
+        assert out == []
+        assert records == []
+
+
+class TestSingularGeometryStrategyRegistration:
+    """Strategy must be reachable via the SeriesMutationStrategy enum
+    and the Series3DMutator dispatch dict."""
+
+    def test_strategy_in_enum(self):
+        from dicom_fuzzer.attacks.series.series_types import (
+            SeriesMutationStrategy,
+        )
+
+        assert SeriesMutationStrategy.SINGULAR_GEOMETRY.value == "singular_geometry"
+
+    def test_strategy_dispatched_through_mutate_series(
+        self, sample_datasets, monkeypatch
+    ):
+        # End-to-end: invoke via Series3DMutator.mutate_series so the
+        # dispatch wiring is exercised.
+        from unittest.mock import patch
+
+        import dicom_fuzzer.attacks.series.series_3d_attacks as mod
+        from dicom_fuzzer.attacks.series.series_mutator import Series3DMutator
+        from dicom_fuzzer.attacks.series.series_types import (
+            SeriesMutationStrategy,
+        )
+
+        monkeypatch.setattr(mod.random, "choice", lambda choices: "zero_pixel_spacing")
+        m = Series3DMutator(severity="moderate", seed=42)
+        series = MagicMock()
+        series.slices = ["fake.dcm"] * len(sample_datasets)
+        with patch.object(m, "_load_datasets", return_value=sample_datasets):
+            _, records = m.mutate_series(
+                series,
+                strategy=SeriesMutationStrategy.SINGULAR_GEOMETRY,
+                mutation_count=1,
+            )
+        assert len(records) == len(sample_datasets)
+        assert all(r.strategy == "singular_geometry" for r in records)
