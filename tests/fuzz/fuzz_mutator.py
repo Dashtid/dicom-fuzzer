@@ -44,7 +44,7 @@ with atheris.instrument_imports():
 # trigger pydicom's own resource defenses anyway.
 MAX_INPUT_BYTES = 1 * 1024 * 1024
 
-# Strategy registration is heavy (35 strategies, dictionary load,
+# Strategy registration is heavy (36 strategies, dictionary load,
 # DimensionOverflow init, etc.). Build once at module load and reuse
 # the same instance per fuzzed input. Strategies are written to be
 # stateless across mutate() calls; the only persistent state in the

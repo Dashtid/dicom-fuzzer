@@ -195,7 +195,7 @@ class TestFuzzerIntegration:
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        assert len(generator.mutator.strategies) == 35
+        assert len(generator.mutator.strategies) == 36
         strategy_names = [s.strategy_name for s in generator.mutator.strategies]
         expected_format = [
             "attribute_tag",
@@ -235,6 +235,7 @@ class TestFuzzerIntegration:
             "per_frame_dimension_mismatch",
             "pixel_data_truncation",
             "shared_group_corruption",
+            "shared_per_frame_ambiguity",
         ]
         assert sorted(strategy_names) == sorted(expected_format + expected_multiframe)
 

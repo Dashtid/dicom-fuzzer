@@ -11,6 +11,7 @@ This package contains modular mutation strategies for multi-frame DICOM:
 - PixelDataTruncationStrategy: Pixel data size mismatch
 - EncapsulatedPixelStrategy: Encapsulated pixel data / offset table attacks
 - DimensionIndexStrategy: Dimension index module attacks
+- SharedPerFrameAmbiguityStrategy: Macro duplicated across shared + per-frame
 
 """
 
@@ -43,6 +44,7 @@ from .pixel_truncation import (
     PixelDataTruncationStrategy,
 )
 from .shared_group import SharedGroupStrategy
+from .shared_per_frame_ambiguity import SharedPerFrameAmbiguityStrategy
 
 __all__ = [
     # Base class
@@ -58,4 +60,5 @@ __all__ = [
     "PixelDataTruncationStrategy",
     "EncapsulatedPixelStrategy",
     "DimensionIndexStrategy",
+    "SharedPerFrameAmbiguityStrategy",
 ]
