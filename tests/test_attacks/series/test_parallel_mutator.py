@@ -541,27 +541,24 @@ class TestMutateSingleSliceDirect:
         assert idx == 0
         assert out is not None
 
-    def test_missing_file_hits_exception_branch(self, tmp_path):
-        """Unreadable file makes pydicom.dcmread raise -> generic except block.
-
-        The worker catches, logs, and tries to re-read the same file to return
-        the 'original'. With a non-existent file the re-read also raises,
-        which propagates out (we don't swallow inside the test).
-        """
+    def test_missing_file_returns_none_with_failure_record(self, tmp_path):
+        """An unreadable file makes the initial dcmread raise; the worker
+        catches it and returns (idx, None, [<failure record>]) instead of
+        re-reading and propagating."""
         from dicom_fuzzer.attacks.series.parallel_mutator import _mutate_single_slice
 
         ghost = tmp_path / "does_not_exist.dcm"
-
-        # Either FileNotFoundError from pydicom OR InvalidDicomError if something
-        # weird happens -- either way the except branch at 129-133 has executed.
-        with pytest.raises(Exception):
-            _mutate_single_slice(
-                file_path=ghost,
-                slice_index=0,
-                strategy=SeriesMutationStrategy.SLICE_POSITION_ATTACK.value,
-                severity="moderate",
-                seed=42,
-            )
+        idx, out, records = _mutate_single_slice(
+            file_path=ghost,
+            slice_index=0,
+            strategy=SeriesMutationStrategy.SLICE_POSITION_ATTACK.value,
+            severity="moderate",
+            seed=42,
+        )
+        assert idx == 0
+        assert out is None
+        assert len(records) == 1
+        assert records[0].details["phase"] == "initial_read"
 
 
 class TestGetOptimalWorkersBranches:
@@ -627,6 +624,184 @@ class TestParallelLoopFutureFailure:
         assert len(datasets) == sample_series.slice_count
         # No records because every worker "failed".
         assert records == []
+
+
+class TestFaultIsolation:
+    """A single worker casualty must not crash the parallel run.
+
+    Covers the hardened worker (no re-read on initial-read failure),
+    BrokenProcessPool handling with serial fallback, and the
+    _recover_slice three-step recovery.
+    """
+
+    # -- worker function -------------------------------------------------
+
+    def test_worker_initial_read_failure_returns_none(self, monkeypatch):
+        """If the worker can't even read the file, it returns None + a record,
+        rather than re-reading and raising again."""
+        from dicom_fuzzer.attacks.series import parallel_mutator as mod
+
+        monkeypatch.setattr(
+            mod.pydicom,
+            "dcmread",
+            lambda *a, **k: (_ for _ in ()).throw(OSError("nope")),
+        )
+        idx, ds, records = mod._mutate_single_slice(
+            __import__("pathlib").Path("/does/not/exist.dcm"),
+            7,
+            "metadata_corruption",
+            "moderate",
+            None,
+        )
+        assert idx == 7
+        assert ds is None
+        assert len(records) == 1
+        assert records[0].details["phase"] == "initial_read"
+
+    def test_worker_mutation_failure_returns_original(self, sample_series, monkeypatch):
+        """A mutation failure returns the already-loaded original, empty records,
+        and does NOT re-read the file."""
+        from dicom_fuzzer.attacks.series import parallel_mutator as mod
+
+        # Make the mutator blow up inside mutate_series.
+        def _boom(self, *a, **k):
+            raise RuntimeError("mutation exploded")
+
+        monkeypatch.setattr(mod.Series3DMutator, "mutate_series", _boom, raising=True)
+        idx, ds, records = mod._mutate_single_slice(
+            sample_series.slices[0], 0, "metadata_corruption", "moderate", None
+        )
+        assert idx == 0
+        assert ds is not None  # original, not None
+        assert records == []
+
+    # -- BrokenProcessPool fallback -------------------------------------
+
+    def test_broken_pool_falls_back_to_serial(self, sample_series, monkeypatch):
+        """When future.result() raises BrokenProcessPool, the run finishes via
+        serial recovery and still returns a dataset for every slice."""
+        from concurrent.futures import Future
+        from concurrent.futures.process import BrokenProcessPool
+
+        from dicom_fuzzer.attacks.series import parallel_mutator as mod
+
+        class _DyingPool:
+            def __init__(self, **_kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def submit(self, _fn, _path, idx, *_args, **_kwargs):
+                future: Future = Future()
+                future.set_exception(BrokenProcessPool("worker segfaulted"))
+                return future
+
+        monkeypatch.setattr(mod, "ProcessPoolExecutor", _DyingPool)
+
+        mutator = mod.ParallelSeriesMutator(workers=2, seed=42)
+        datasets, _ = mutator.mutate_series_parallel(
+            sample_series, SeriesMutationStrategy.BOUNDARY_SLICE_TARGETING
+        )
+        # Serial recovery filled in every slice.
+        assert len(datasets) == sample_series.slice_count
+        assert all(d is not None for d in datasets)
+
+    def test_recovery_dcmread_failure_is_swallowed(self, sample_series, monkeypatch):
+        """If both the worker AND the recovery dcmread fail for one slice, the
+        run completes; the bad slice is dropped, the rest are present."""
+        from concurrent.futures import Future
+
+        from dicom_fuzzer.attacks.series import parallel_mutator as mod
+
+        bad_path = sample_series.slices[0]
+        real_dcmread = mod.pydicom.dcmread
+
+        def _selective_dcmread(path, *a, **k):
+            if path == bad_path:
+                raise OSError("disk gremlin")
+            return real_dcmread(path, *a, **k)
+
+        class _OneFailingPool:
+            def __init__(self, **_kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def submit(self, _fn, _path, idx, *_args, **_kwargs):
+                future: Future = Future()
+                if idx == 0:
+                    future.set_exception(RuntimeError("worker 0 died"))
+                else:
+                    future.set_result((idx, real_dcmread(_path), []))
+                return future
+
+        monkeypatch.setattr(mod, "ProcessPoolExecutor", _OneFailingPool)
+        monkeypatch.setattr(mod.pydicom, "dcmread", _selective_dcmread)
+
+        mutator = mod.ParallelSeriesMutator(workers=2, seed=42)
+        datasets, _ = mutator.mutate_series_parallel(
+            sample_series, SeriesMutationStrategy.BOUNDARY_SLICE_TARGETING
+        )
+        # 10 slices, slice 0 unrecoverable -> 9 returned, no Nones.
+        assert len(datasets) == sample_series.slice_count - 1
+        assert all(d is not None for d in datasets)
+
+    # -- _recover_slice helper ------------------------------------------
+
+    def test_recover_slice_serial_path(self, sample_series):
+        """With a strategy supplied, _recover_slice mutates the slice serially."""
+        mutator = ParallelSeriesMutator(workers=2, seed=42)
+        ds = mutator._recover_slice(
+            sample_series,
+            0,
+            strategy=SeriesMutationStrategy.METADATA_CORRUPTION,
+            total_slices=10,
+        )
+        assert isinstance(ds, Dataset)
+
+    def test_recover_slice_dcmread_path(self, sample_series):
+        """Without a strategy, _recover_slice falls back to plain dcmread."""
+        mutator = ParallelSeriesMutator(workers=2, seed=42)
+        ds = mutator._recover_slice(sample_series, 3)
+        assert isinstance(ds, Dataset)
+
+    def test_recover_slice_gives_up(self, monkeypatch):
+        """If the file is unreadable and no strategy can help, returns None."""
+        import pathlib
+
+        mutator = ParallelSeriesMutator(workers=2, seed=42)
+        fake = DicomSeries(
+            series_uid=generate_uid(),
+            study_uid=generate_uid(),
+            modality="CT",
+            slices=[pathlib.Path("/no/such/file.dcm")],
+        )
+        assert mutator._recover_slice(fake, 0) is None
+
+    def test_recover_slice_serial_failure_falls_to_dcmread(
+        self, sample_series, monkeypatch
+    ):
+        """If serial recovery raises, _recover_slice still returns the original
+        via dcmread."""
+        from dicom_fuzzer.attacks.series import parallel_mutator as mod
+
+        def _boom(self, *a, **k):
+            raise RuntimeError("serial recovery exploded")
+
+        monkeypatch.setattr(mod.Series3DMutator, "mutate_series", _boom)
+        mutator = ParallelSeriesMutator(workers=2, seed=42)
+        ds = mutator._recover_slice(
+            sample_series, 0, strategy=SeriesMutationStrategy.METADATA_CORRUPTION
+        )
+        assert isinstance(ds, Dataset)  # fell through to dcmread
 
 
 if __name__ == "__main__":
