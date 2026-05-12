@@ -31,12 +31,60 @@ class DICOMProtocolBuilder:
     PATIENT_ROOT_QR_MOVE = b"1.2.840.10008.5.1.4.1.2.1.2\x00"
 
     @staticmethod
+    def build_user_identity_subitem(
+        user_id_type: int,
+        primary: bytes,
+        secondary: bytes = b"",
+        positive_response: bool = False,
+    ) -> bytes:
+        """Build a User Identity Sub-Item (PS3.7 D.3.3.7).
+
+        The sub-item lives inside the User Information Item (0x50) of an
+        A-ASSOCIATE-RQ and carries one of five auth credential payloads:
+
+            1 = Username
+            2 = Username + Passcode
+            3 = Kerberos Service Ticket
+            4 = SAML Assertion
+            5 = JSON Web Token (JWT)
+
+        Layout:
+            0x58 | reserved 0x00 | item-len (>H) | type (B) | resp (B) |
+            primary-len (>H) | primary | secondary-len (>H) | secondary
+
+        Secondary-field is only meaningful for type=2 (passcode); for
+        other types callers usually pass ``b""``.
+
+        Args:
+            user_id_type: One of 1..5. Values outside this range are
+                accepted to allow fuzzing reserved/undefined types.
+            primary: Primary field bytes (username, ticket, assertion,
+                or token).
+            secondary: Secondary field bytes (passcode for type=2).
+            positive_response: If True, request a server response item.
+
+        Returns:
+            Bytes of the user identity sub-item.
+
+        """
+        body = (
+            struct.pack(">B", user_id_type & 0xFF)
+            + struct.pack(">B", 0x01 if positive_response else 0x00)
+            + struct.pack(">H", len(primary))
+            + primary
+            + struct.pack(">H", len(secondary))
+            + secondary
+        )
+        return struct.pack(">BBH", 0x58, 0x00, len(body)) + body
+
+    @staticmethod
     def build_a_associate_rq(
         calling_ae: str = "FUZZER_SCU",
         called_ae: str = "ANY_SCP",
         application_context: bytes | None = None,
         presentation_contexts: list[bytes] | None = None,
         max_pdu_size: int = 16384,
+        user_identity_subitem: bytes | None = None,
     ) -> bytes:
         """Build an A-ASSOCIATE-RQ PDU.
 
@@ -46,6 +94,10 @@ class DICOMProtocolBuilder:
             application_context: Application context UID
             presentation_contexts: List of presentation context items
             max_pdu_size: Maximum PDU size
+            user_identity_subitem: Optional User Identity Sub-Item bytes
+                (built via :func:`build_user_identity_subitem`). When
+                supplied, appended inside the User Information Item
+                alongside Max Length and Implementation UID.
 
         Returns:
             Bytes of the A-ASSOCIATE-RQ PDU
@@ -84,6 +136,8 @@ class DICOMProtocolBuilder:
         )
 
         user_info_data = max_length_item + impl_uid_item
+        if user_identity_subitem is not None:
+            user_info_data += user_identity_subitem
         user_info_item = (
             struct.pack(">BBH", 0x50, 0x00, len(user_info_data)) + user_info_data
         )
