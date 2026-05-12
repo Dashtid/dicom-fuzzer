@@ -8,10 +8,14 @@ and renegotiation vulnerabilities.
 from __future__ import annotations
 
 import logging
+import os
 import socket
 import ssl
+import tempfile
 import time
 from typing import TYPE_CHECKING
+
+from dicom_fuzzer.utils.rogue_certs import RogueCert, make_all_rogue_certs
 
 from .base import (
     FuzzingStrategy,
@@ -415,6 +419,138 @@ class TLSFuzzingMixin:
 
         return results
 
+    def _attempt_rogue_cert_handshake(self, rogue: RogueCert) -> NetworkFuzzResult:
+        """Attempt mTLS handshake presenting one rogue cert as the client.
+
+        Writes the cert and key to temp files (ssl.SSLContext.load_cert_chain
+        requires file paths), builds a context, connects, and records what
+        the target did. Temp files are deleted in a finally block.
+
+        anomaly_detected=True means the target accepted the rogue cert and
+        completed the handshake -- a validation bug. SSL errors during
+        handshake are normal/expected (target rejected the cert).
+        """
+        start_time = time.time()
+        test_name = f"tls_rogue_cert_{rogue.name}"
+
+        # Write cert (with chain appended for ssl.load_cert_chain) and key.
+        # delete=False because we hand the path off to load_cert_chain;
+        # we clean up in finally.
+        cert_file = tempfile.NamedTemporaryFile(mode="wb", suffix=".pem", delete=False)
+        key_file = tempfile.NamedTemporaryFile(mode="wb", suffix=".pem", delete=False)
+        try:
+            cert_file.write(rogue.cert_pem)
+            for chain_cert in rogue.chain_pem:
+                cert_file.write(chain_cert)
+            cert_file.close()
+            key_file.write(rogue.key_pem)
+            key_file.close()
+
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            try:
+                context.load_cert_chain(certfile=cert_file.name, keyfile=key_file.name)
+            except ssl.SSLError as e:
+                # Local cert load failed (e.g. weak key rejected by OpenSSL
+                # security level). Record as an anomaly-free skip; the
+                # target was never contacted.
+                return NetworkFuzzResult(
+                    strategy=FuzzingStrategy.INVALID_CERT,
+                    target_host=self.config.target_host,
+                    target_port=self.config.target_port,
+                    test_name=test_name,
+                    success=True,
+                    duration=time.time() - start_time,
+                    error=f"Local cert load rejected: {e}",
+                )
+
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(self.config.timeout)
+            try:
+                tls_sock = context.wrap_socket(
+                    sock, server_hostname=self.config.target_host
+                )
+                try:
+                    tls_sock.connect((self.config.target_host, self.config.target_port))
+                    pdu = DICOMProtocolBuilder.build_a_associate_rq(
+                        calling_ae=self.config.calling_ae,
+                        called_ae=self.config.called_ae,
+                    )
+                    tls_sock.sendall(pdu)
+                    response = tls_sock.recv(65536)
+
+                    # Connection completed -- target accepted the rogue cert.
+                    # That's a validation bug.
+                    return NetworkFuzzResult(
+                        strategy=FuzzingStrategy.INVALID_CERT,
+                        target_host=self.config.target_host,
+                        target_port=self.config.target_port,
+                        test_name=test_name,
+                        success=True,
+                        response=response,
+                        duration=time.time() - start_time,
+                        anomaly_detected=True,
+                        error=f"[SECURITY] Target accepted rogue cert: {rogue.name}",
+                    )
+                except ssl.SSLError as e:
+                    # Expected: target rejected the rogue cert.
+                    return NetworkFuzzResult(
+                        strategy=FuzzingStrategy.INVALID_CERT,
+                        target_host=self.config.target_host,
+                        target_port=self.config.target_port,
+                        test_name=test_name,
+                        success=True,
+                        duration=time.time() - start_time,
+                        error=f"Correctly rejected: {e}",
+                    )
+                finally:
+                    try:
+                        tls_sock.close()
+                    except Exception:
+                        pass
+            finally:
+                sock.close()
+
+        except Exception as e:
+            return NetworkFuzzResult(
+                strategy=FuzzingStrategy.INVALID_CERT,
+                target_host=self.config.target_host,
+                target_port=self.config.target_port,
+                test_name=test_name,
+                success=False,
+                error=str(e),
+                duration=time.time() - start_time,
+            )
+        finally:
+            for path in (cert_file.name, key_file.name):
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
+
+    def fuzz_tls_rogue_certs(self) -> list[NetworkFuzzResult]:
+        """Present each rogue cert variant as a client cert during mTLS.
+
+        Generates 7 X.509 certs that exercise distinct validation layers
+        (self-signed, expired, not-yet-valid, wrong CN, wrong issuer,
+        weak key, long chain) and attempts a TLS handshake with each.
+        Targets that complete the handshake have a validation bug.
+
+        Only meaningful against targets that request a client cert
+        (mTLS). Server-auth-only targets will reject all attempts at the
+        same point (no challenge), which the per-result error string
+        will surface.
+
+        Returns:
+            List of NetworkFuzzResult, one per rogue cert variant.
+
+        """
+        results: list[NetworkFuzzResult] = []
+        for rogue in make_all_rogue_certs(target_hostname=self.config.target_host):
+            results.append(self._attempt_rogue_cert_handshake(rogue))
+        return results
+
     def fuzz_tls_renegotiation(self) -> list[NetworkFuzzResult]:
         """Test TLS renegotiation vulnerabilities.
 
@@ -525,6 +661,9 @@ class TLSFuzzingMixin:
 
         logger.info("Testing TLS certificate validation...")
         results.extend(self.fuzz_tls_certificate())
+
+        logger.info("Testing rogue client cert chains...")
+        results.extend(self.fuzz_tls_rogue_certs())
 
         logger.info("Testing weak cipher suites...")
         results.extend(self.fuzz_tls_ciphers())

@@ -33,6 +33,7 @@ class FuzzingStrategy(Enum):
     UNICODE_INJECTION = "unicode_injection"
     PROTOCOL_STATE = "protocol_state"
     TIMING_ATTACK = "timing_attack"
+    INVALID_CERT = "invalid_cert"
 
 
 @dataclass

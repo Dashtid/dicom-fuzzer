@@ -7,6 +7,7 @@ and renegotiation testing for DICOM TLS endpoints.
 
 from __future__ import annotations
 
+import os
 import ssl
 from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
@@ -442,62 +443,71 @@ class TestTLSFuzzingMixinCampaign:
         """Test run_tls_campaign calls all TLS fuzzing methods."""
         with patch.object(fuzzer, "fuzz_tls_versions") as mock_versions:
             with patch.object(fuzzer, "fuzz_tls_certificate") as mock_cert:
-                with patch.object(fuzzer, "fuzz_tls_ciphers") as mock_ciphers:
-                    with patch.object(fuzzer, "fuzz_tls_renegotiation") as mock_reneg:
-                        mock_versions.return_value = [
-                            NetworkFuzzResult(
-                                strategy=FuzzingStrategy.PROTOCOL_STATE,
-                                target_host="localhost",
-                                target_port=2762,
-                                test_name="version_test",
-                                success=True,
-                            )
-                        ]
-                        mock_cert.return_value = []
-                        mock_ciphers.return_value = []
-                        mock_reneg.return_value = []
+                with patch.object(fuzzer, "fuzz_tls_rogue_certs") as mock_rogue:
+                    with patch.object(fuzzer, "fuzz_tls_ciphers") as mock_ciphers:
+                        with patch.object(
+                            fuzzer, "fuzz_tls_renegotiation"
+                        ) as mock_reneg:
+                            mock_versions.return_value = [
+                                NetworkFuzzResult(
+                                    strategy=FuzzingStrategy.PROTOCOL_STATE,
+                                    target_host="localhost",
+                                    target_port=2762,
+                                    test_name="version_test",
+                                    success=True,
+                                )
+                            ]
+                            mock_cert.return_value = []
+                            mock_rogue.return_value = []
+                            mock_ciphers.return_value = []
+                            mock_reneg.return_value = []
 
-                        results = fuzzer.run_tls_campaign()
+                            results = fuzzer.run_tls_campaign()
 
-                        mock_versions.assert_called_once()
-                        mock_cert.assert_called_once()
-                        mock_ciphers.assert_called_once()
-                        mock_reneg.assert_called_once()
-                        assert len(results) == 1
+                            mock_versions.assert_called_once()
+                            mock_cert.assert_called_once()
+                            mock_rogue.assert_called_once()
+                            mock_ciphers.assert_called_once()
+                            mock_reneg.assert_called_once()
+                            assert len(results) == 1
 
     def test_run_tls_campaign_counts_anomalies(self, fuzzer: TLSFuzzerForTest) -> None:
         """Test run_tls_campaign counts security anomalies."""
         with patch.object(fuzzer, "fuzz_tls_versions") as mock_versions:
             with patch.object(fuzzer, "fuzz_tls_certificate") as mock_cert:
-                with patch.object(fuzzer, "fuzz_tls_ciphers") as mock_ciphers:
-                    with patch.object(fuzzer, "fuzz_tls_renegotiation") as mock_reneg:
-                        mock_versions.return_value = [
-                            NetworkFuzzResult(
-                                strategy=FuzzingStrategy.PROTOCOL_STATE,
-                                target_host="localhost",
-                                target_port=2762,
-                                test_name="tls10",
-                                success=True,
-                                anomaly_detected=True,
-                            )
-                        ]
-                        mock_cert.return_value = [
-                            NetworkFuzzResult(
-                                strategy=FuzzingStrategy.PROTOCOL_STATE,
-                                target_host="localhost",
-                                target_port=2762,
-                                test_name="cert_none",
-                                success=True,
-                                anomaly_detected=True,
-                            )
-                        ]
-                        mock_ciphers.return_value = []
-                        mock_reneg.return_value = []
+                with patch.object(fuzzer, "fuzz_tls_rogue_certs") as mock_rogue:
+                    with patch.object(fuzzer, "fuzz_tls_ciphers") as mock_ciphers:
+                        with patch.object(
+                            fuzzer, "fuzz_tls_renegotiation"
+                        ) as mock_reneg:
+                            mock_versions.return_value = [
+                                NetworkFuzzResult(
+                                    strategy=FuzzingStrategy.PROTOCOL_STATE,
+                                    target_host="localhost",
+                                    target_port=2762,
+                                    test_name="tls10",
+                                    success=True,
+                                    anomaly_detected=True,
+                                )
+                            ]
+                            mock_cert.return_value = [
+                                NetworkFuzzResult(
+                                    strategy=FuzzingStrategy.PROTOCOL_STATE,
+                                    target_host="localhost",
+                                    target_port=2762,
+                                    test_name="cert_none",
+                                    success=True,
+                                    anomaly_detected=True,
+                                )
+                            ]
+                            mock_rogue.return_value = []
+                            mock_ciphers.return_value = []
+                            mock_reneg.return_value = []
 
-                        results = fuzzer.run_tls_campaign()
+                            results = fuzzer.run_tls_campaign()
 
-                        anomalies = sum(1 for r in results if r.anomaly_detected)
-                        assert anomalies == 2
+                            anomalies = sum(1 for r in results if r.anomaly_detected)
+                            assert anomalies == 2
 
     def test_run_tls_campaign_aggregates_results(
         self, fuzzer: TLSFuzzerForTest
@@ -505,48 +515,237 @@ class TestTLSFuzzingMixinCampaign:
         """Test run_tls_campaign aggregates all results."""
         with patch.object(fuzzer, "fuzz_tls_versions") as mock_versions:
             with patch.object(fuzzer, "fuzz_tls_certificate") as mock_cert:
-                with patch.object(fuzzer, "fuzz_tls_ciphers") as mock_ciphers:
-                    with patch.object(fuzzer, "fuzz_tls_renegotiation") as mock_reneg:
-                        mock_versions.return_value = [
-                            NetworkFuzzResult(
-                                strategy=FuzzingStrategy.PROTOCOL_STATE,
-                                target_host="localhost",
-                                target_port=2762,
-                                test_name=f"version_{i}",
-                                success=True,
-                            )
-                            for i in range(5)
-                        ]
-                        mock_cert.return_value = [
-                            NetworkFuzzResult(
-                                strategy=FuzzingStrategy.PROTOCOL_STATE,
-                                target_host="localhost",
-                                target_port=2762,
-                                test_name=f"cert_{i}",
-                                success=True,
-                            )
-                            for i in range(4)
-                        ]
-                        mock_ciphers.return_value = [
-                            NetworkFuzzResult(
-                                strategy=FuzzingStrategy.PROTOCOL_STATE,
-                                target_host="localhost",
-                                target_port=2762,
-                                test_name=f"cipher_{i}",
-                                success=True,
-                            )
-                            for i in range(7)
-                        ]
-                        mock_reneg.return_value = [
-                            NetworkFuzzResult(
-                                strategy=FuzzingStrategy.PROTOCOL_STATE,
-                                target_host="localhost",
-                                target_port=2762,
-                                test_name="renegotiation",
-                                success=True,
-                            )
-                        ]
+                with patch.object(fuzzer, "fuzz_tls_rogue_certs") as mock_rogue:
+                    with patch.object(fuzzer, "fuzz_tls_ciphers") as mock_ciphers:
+                        with patch.object(
+                            fuzzer, "fuzz_tls_renegotiation"
+                        ) as mock_reneg:
+                            mock_versions.return_value = [
+                                NetworkFuzzResult(
+                                    strategy=FuzzingStrategy.PROTOCOL_STATE,
+                                    target_host="localhost",
+                                    target_port=2762,
+                                    test_name=f"version_{i}",
+                                    success=True,
+                                )
+                                for i in range(5)
+                            ]
+                            mock_cert.return_value = [
+                                NetworkFuzzResult(
+                                    strategy=FuzzingStrategy.PROTOCOL_STATE,
+                                    target_host="localhost",
+                                    target_port=2762,
+                                    test_name=f"cert_{i}",
+                                    success=True,
+                                )
+                                for i in range(4)
+                            ]
+                            mock_rogue.return_value = [
+                                NetworkFuzzResult(
+                                    strategy=FuzzingStrategy.INVALID_CERT,
+                                    target_host="localhost",
+                                    target_port=2762,
+                                    test_name=f"rogue_{i}",
+                                    success=True,
+                                )
+                                for i in range(7)
+                            ]
+                            mock_ciphers.return_value = [
+                                NetworkFuzzResult(
+                                    strategy=FuzzingStrategy.PROTOCOL_STATE,
+                                    target_host="localhost",
+                                    target_port=2762,
+                                    test_name=f"cipher_{i}",
+                                    success=True,
+                                )
+                                for i in range(7)
+                            ]
+                            mock_reneg.return_value = [
+                                NetworkFuzzResult(
+                                    strategy=FuzzingStrategy.PROTOCOL_STATE,
+                                    target_host="localhost",
+                                    target_port=2762,
+                                    test_name="renegotiation",
+                                    success=True,
+                                )
+                            ]
 
-                        results = fuzzer.run_tls_campaign()
+                            results = fuzzer.run_tls_campaign()
 
-                        assert len(results) == 5 + 4 + 7 + 1  # 17 total
+                            assert len(results) == 5 + 4 + 7 + 7 + 1  # 24 total
+
+
+class TestTLSFuzzingMixinRogueCerts:
+    """Tests for fuzz_tls_rogue_certs method.
+
+    Verifies the loop returns one result per rogue cert variant and
+    that the success/anomaly/error fields are populated correctly
+    based on the simulated handshake outcome.
+    """
+
+    @pytest.fixture
+    def fuzzer(self) -> TLSFuzzerForTest:
+        return TLSFuzzerForTest(MockConfig())
+
+    @staticmethod
+    def _setup_handshake_mocks(connect_side_effect=None):
+        """Build a context manager stack that mocks socket+SSLContext so
+        the handshake never touches the network. Returns the
+        (mock_ssl_ctx, mock_tls_sock) tuple for further configuration.
+        """
+        sock_patch = patch("socket.socket")
+        ssl_patch = patch("ssl.SSLContext")
+        mock_sock_cls = sock_patch.start()
+        mock_ssl_ctx_cls = ssl_patch.start()
+
+        mock_sock_cls.return_value = MagicMock()
+        mock_ctx = MagicMock()
+        mock_ssl_ctx_cls.return_value = mock_ctx
+        mock_ctx.load_cert_chain.return_value = None
+        mock_tls_sock = MagicMock()
+        mock_ctx.wrap_socket.return_value = mock_tls_sock
+        if connect_side_effect is not None:
+            mock_tls_sock.connect.side_effect = connect_side_effect
+
+        return sock_patch, ssl_patch, mock_tls_sock
+
+    def _run_with_handshake_mocks(
+        self, fuzzer: TLSFuzzerForTest, connect_side_effect=None, recv_value=b""
+    ) -> list[NetworkFuzzResult]:
+        sock_patch, ssl_patch, mock_tls_sock = self._setup_handshake_mocks(
+            connect_side_effect
+        )
+        if recv_value:
+            mock_tls_sock.recv.return_value = recv_value
+        try:
+            return fuzzer.fuzz_tls_rogue_certs()
+        finally:
+            sock_patch.stop()
+            ssl_patch.stop()
+
+    def test_returns_one_result_per_rogue_cert(self, fuzzer: TLSFuzzerForTest) -> None:
+        results = self._run_with_handshake_mocks(
+            fuzzer, connect_side_effect=ConnectionRefusedError("refused")
+        )
+        assert len(results) == 7
+
+    def test_strategy_is_invalid_cert(self, fuzzer: TLSFuzzerForTest) -> None:
+        results = self._run_with_handshake_mocks(
+            fuzzer, connect_side_effect=ConnectionRefusedError("refused")
+        )
+        assert all(r.strategy == FuzzingStrategy.INVALID_CERT for r in results)
+
+    def test_test_name_carries_variant(self, fuzzer: TLSFuzzerForTest) -> None:
+        results = self._run_with_handshake_mocks(
+            fuzzer, connect_side_effect=ConnectionRefusedError("refused")
+        )
+        names = {r.test_name for r in results}
+        for variant in (
+            "self_signed",
+            "expired",
+            "not_yet_valid",
+            "wrong_cn",
+            "wrong_issuer",
+            "weak_key",
+            "long_chain",
+        ):
+            assert f"tls_rogue_cert_{variant}" in names
+
+    def test_connection_refused_records_failure(self, fuzzer: TLSFuzzerForTest) -> None:
+        # ConnectionRefusedError on connect bubbles to the outer except;
+        # success=False because the target is unreachable, not because
+        # of a cert-validation outcome.
+        results = self._run_with_handshake_mocks(
+            fuzzer, connect_side_effect=ConnectionRefusedError("refused")
+        )
+        assert all(r.success is False for r in results)
+
+    def test_ssl_error_during_handshake_recorded_as_rejection(
+        self, fuzzer: TLSFuzzerForTest
+    ) -> None:
+        # Target rejected the rogue cert at handshake time -- expected
+        # behavior, no anomaly.
+        with patch("socket.socket") as mock_sock_class:
+            mock_sock = MagicMock()
+            mock_sock_class.return_value = mock_sock
+            with patch("ssl.SSLContext") as mock_ssl_ctx:
+                mock_ctx = MagicMock()
+                mock_ssl_ctx.return_value = mock_ctx
+                mock_ctx.load_cert_chain.return_value = None
+                mock_tls_sock = MagicMock()
+                mock_ctx.wrap_socket.return_value = mock_tls_sock
+                mock_tls_sock.connect.side_effect = ssl.SSLError(
+                    "certificate verify failed"
+                )
+
+                results = fuzzer.fuzz_tls_rogue_certs()
+
+        for r in results:
+            assert r.success is True
+            assert r.anomaly_detected is False
+            assert "Correctly rejected" in r.error
+
+    def test_target_accepts_rogue_cert_flagged_as_anomaly(
+        self, fuzzer: TLSFuzzerForTest
+    ) -> None:
+        # Target completed the handshake with a rogue cert -- security bug.
+        with patch("socket.socket") as mock_sock_class:
+            mock_sock = MagicMock()
+            mock_sock_class.return_value = mock_sock
+            with patch("ssl.SSLContext") as mock_ssl_ctx:
+                mock_ctx = MagicMock()
+                mock_ssl_ctx.return_value = mock_ctx
+                mock_ctx.load_cert_chain.return_value = None
+                mock_tls_sock = MagicMock()
+                mock_ctx.wrap_socket.return_value = mock_tls_sock
+                mock_tls_sock.recv.return_value = b"\x02\x00\x00\x00"  # fake A-AC
+
+                results = fuzzer.fuzz_tls_rogue_certs()
+
+        for r in results:
+            assert r.success is True
+            assert r.anomaly_detected is True
+            assert "[SECURITY]" in r.error
+
+    def test_local_cert_load_failure_records_skip(
+        self, fuzzer: TLSFuzzerForTest
+    ) -> None:
+        # If load_cert_chain rejects the cert (e.g. weak key under
+        # security level >=2), the target was never contacted; we
+        # record success=True with a "Local cert load rejected" error
+        # rather than fabricating a network result.
+        with patch("ssl.SSLContext") as mock_ssl_ctx:
+            mock_ctx = MagicMock()
+            mock_ssl_ctx.return_value = mock_ctx
+            mock_ctx.load_cert_chain.side_effect = ssl.SSLError("key too small")
+
+            results = fuzzer.fuzz_tls_rogue_certs()
+
+        for r in results:
+            assert r.success is True
+            assert r.anomaly_detected is False
+            assert "Local cert load rejected" in r.error
+
+    def test_temp_files_cleaned_up(self, fuzzer: TLSFuzzerForTest) -> None:
+        # Capture all temp file paths created during the run; verify
+        # they don't exist after the loop completes.
+        import tempfile
+
+        created_paths: list[str] = []
+        original = tempfile.NamedTemporaryFile
+
+        def tracking_named_tempfile(*args, **kwargs):
+            f = original(*args, **kwargs)
+            created_paths.append(f.name)
+            return f
+
+        with patch("tempfile.NamedTemporaryFile", side_effect=tracking_named_tempfile):
+            with patch("socket.socket") as mock_sock_class:
+                mock_sock = MagicMock()
+                mock_sock_class.return_value = mock_sock
+                mock_sock.connect.side_effect = ConnectionRefusedError("refused")
+                fuzzer.fuzz_tls_rogue_certs()
+
+        assert created_paths, "Expected temp files to be created"
+        for path in created_paths:
+            assert not os.path.exists(path), f"Leaked temp file: {path}"
