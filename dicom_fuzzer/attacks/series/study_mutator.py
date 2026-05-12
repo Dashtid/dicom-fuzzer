@@ -275,12 +275,20 @@ class StudyMutator:
 
         Corrupts ReferencedSeriesSequence to create invalid references:
         - Point to non-existent series UIDs
-        - Create circular references
+        - Create circular references (single-hop self-reference)
+        - Multi-hop cycles (mutual_cycle A<->B, deep_cycle A->B->C->A)
+          to defeat naive visited-set checks
         - Empty or malformed sequence items
 
-        Targets: Registration algorithms, fusion viewers, series linking
+        Targets: Registration algorithms, fusion viewers, series linking,
+        graph-traversal code that lacks cycle detection.
         """
         records: list[StudyMutationRecord] = []
+
+        # Multi-hop cycle attacks rewrite multiple series in one shot.
+        # Run them at most once per call regardless of mutation_count to
+        # avoid harmless but wasteful idempotent overwrites.
+        cycle_done = False
 
         for _ in range(mutation_count):
             if len(all_datasets) < 1:
@@ -297,11 +305,32 @@ class StudyMutator:
                 [
                     "nonexistent_reference",
                     "circular_reference",
+                    "mutual_cycle",
+                    "deep_cycle",
                     "empty_sequence",
                     "invalid_uid_format",
                     "duplicate_references",
                 ]
             )
+
+            # Cycle attacks operate across multiple series in one shot.
+            # They need 2+ non-empty series; with fewer, degrade to the
+            # single-hop self-reference so the iteration still produces a
+            # malformation. Also run each cycle build at most once per call.
+            if attack_type in ("mutual_cycle", "deep_cycle"):
+                non_empty = sum(1 for d in all_datasets if d)
+                if non_empty < 2:
+                    attack_type = "circular_reference"
+                elif cycle_done:
+                    continue
+                elif attack_type == "mutual_cycle":
+                    records.extend(self._apply_mutual_cycle(all_datasets, study))
+                    cycle_done = True
+                    continue
+                else:
+                    records.extend(self._apply_deep_cycle(all_datasets, study))
+                    cycle_done = True
+                    continue
 
             if attack_type == "nonexistent_reference":
                 # Create reference to non-existent series
@@ -406,6 +435,111 @@ class StudyMutator:
                 )
 
         return all_datasets, records
+
+    def _set_referenced_series(
+        self,
+        all_datasets: list[list[Dataset]],
+        series_idx: int,
+        target_uid: str,
+    ) -> None:
+        """Overwrite ReferencedSeriesSequence on every dataset in series.
+
+        Each slice of the series gets a single-item ReferencedSeriesSequence
+        pointing at ``target_uid``. Used by cycle helpers to make every
+        slice of a series participate in the cycle.
+        """
+        for ds in all_datasets[series_idx]:
+            ref_seq = Sequence()
+            ref_item = Dataset()
+            ref_item.SeriesInstanceUID = target_uid
+            ref_seq.append(ref_item)
+            ds.ReferencedSeriesSequence = ref_seq
+
+    def _apply_mutual_cycle(
+        self,
+        all_datasets: list[list[Dataset]],
+        study: DicomStudy,
+    ) -> list[StudyMutationRecord]:
+        """Mutual cycle attack: A.ReferencedSeriesSequence -> B,
+        B.ReferencedSeriesSequence -> A.
+
+        Defeats naive cycle detection that only checks for self-reference
+        (``next_uid == current_uid``). A traversal that doesn't track a
+        visited set across hops will infinite-loop walking A->B->A->B->...
+
+        Returns one StudyMutationRecord per series modified (two records
+        for a 2-hop cycle), or [] if fewer than 2 series are available.
+        """
+        if len(all_datasets) < 2:
+            return []
+
+        i, j = 0, 1
+        a_uid = study.series_list[i].series_uid
+        b_uid = study.series_list[j].series_uid
+
+        self._set_referenced_series(all_datasets, i, b_uid)
+        self._set_referenced_series(all_datasets, j, a_uid)
+
+        return [
+            StudyMutationRecord(
+                strategy="cross_series_reference",
+                series_index=i,
+                series_uid=a_uid,
+                tag="ReferencedSeriesSequence",
+                original_value="<none>",
+                mutated_value=b_uid,
+                severity=self.severity,
+                details={"attack_type": "mutual_cycle", "cycle_length": 2},
+            ),
+            StudyMutationRecord(
+                strategy="cross_series_reference",
+                series_index=j,
+                series_uid=b_uid,
+                tag="ReferencedSeriesSequence",
+                original_value="<none>",
+                mutated_value=a_uid,
+                severity=self.severity,
+                details={"attack_type": "mutual_cycle", "cycle_length": 2},
+            ),
+        ]
+
+    def _apply_deep_cycle(
+        self,
+        all_datasets: list[list[Dataset]],
+        study: DicomStudy,
+    ) -> list[StudyMutationRecord]:
+        """Deep cycle attack: A->B->C->...->A across all available series.
+
+        Defeats naive chain-depth limits. A parser that caps recursion
+        at depth N but doesn't track visited UIDs will still loop if
+        the cycle length divides cleanly into N.
+
+        Falls back to mutual_cycle when fewer than 3 series are
+        available, since A->B->A is what _apply_mutual_cycle already
+        produces.
+        """
+        n = len(all_datasets)
+        if n < 3:
+            return self._apply_mutual_cycle(all_datasets, study)
+
+        records: list[StudyMutationRecord] = []
+        for i in range(n):
+            next_idx = (i + 1) % n
+            target_uid = study.series_list[next_idx].series_uid
+            self._set_referenced_series(all_datasets, i, target_uid)
+            records.append(
+                StudyMutationRecord(
+                    strategy="cross_series_reference",
+                    series_index=i,
+                    series_uid=study.series_list[i].series_uid,
+                    tag="ReferencedSeriesSequence",
+                    original_value="<none>",
+                    mutated_value=target_uid,
+                    severity=self.severity,
+                    details={"attack_type": "deep_cycle", "cycle_length": n},
+                )
+            )
+        return records
 
     def _mutate_sop_instance_collision(
         self,
