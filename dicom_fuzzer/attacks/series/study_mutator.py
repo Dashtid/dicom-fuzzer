@@ -311,18 +311,24 @@ class StudyMutator:
                 ]
             )
 
-            # Cycle attacks operate across multiple series in one shot;
-            # skip if we've already built the cycle this call.
-            if attack_type in ("mutual_cycle", "deep_cycle") and cycle_done:
-                continue
-            if attack_type == "mutual_cycle":
-                records.extend(self._apply_mutual_cycle(all_datasets, study))
-                cycle_done = True
-                continue
-            if attack_type == "deep_cycle":
-                records.extend(self._apply_deep_cycle(all_datasets, study))
-                cycle_done = True
-                continue
+            # Cycle attacks operate across multiple series in one shot.
+            # They need 2+ non-empty series; with fewer, degrade to the
+            # single-hop self-reference so the iteration still produces a
+            # malformation. Also run each cycle build at most once per call.
+            if attack_type in ("mutual_cycle", "deep_cycle"):
+                non_empty = sum(1 for d in all_datasets if d)
+                if non_empty < 2:
+                    attack_type = "circular_reference"
+                elif cycle_done:
+                    continue
+                elif attack_type == "mutual_cycle":
+                    records.extend(self._apply_mutual_cycle(all_datasets, study))
+                    cycle_done = True
+                    continue
+                else:
+                    records.extend(self._apply_deep_cycle(all_datasets, study))
+                    cycle_done = True
+                    continue
 
             if attack_type == "nonexistent_reference":
                 # Create reference to non-existent series
