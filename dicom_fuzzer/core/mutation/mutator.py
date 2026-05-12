@@ -169,6 +169,9 @@ class DicomMutator:
             PixelDataTruncationStrategy,
         )
         from dicom_fuzzer.attacks.multiframe.shared_group import SharedGroupStrategy
+        from dicom_fuzzer.attacks.multiframe.shared_per_frame_ambiguity import (
+            SharedPerFrameAmbiguityStrategy,
+        )
 
         for fuzzer_cls in [
             AttributeTagFuzzer,
@@ -207,6 +210,7 @@ class DicomMutator:
             PerFrameDimensionStrategy,
             PixelDataTruncationStrategy,
             SharedGroupStrategy,
+            SharedPerFrameAmbiguityStrategy,
         ]:
             try:
                 self.register_strategy(fuzzer_cls())  # type: ignore[abstract]

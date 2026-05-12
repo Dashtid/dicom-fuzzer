@@ -438,9 +438,9 @@ class TestSeriesMutationStrategy:
     """Test SeriesMutationStrategy enum."""
 
     def test_all_strategies_exist(self):
-        """Test that all 12 strategies are defined (5 original + 5 v1.7.0 + 2 v1.8.0)."""
+        """Test that all 13 strategies are defined (5 original + 5 v1.7.0 + 2 v1.8.0 + 1 singular)."""
         strategies = list(SeriesMutationStrategy)
-        assert len(strategies) == 12
+        assert len(strategies) == 13
 
         strategy_names = [s.value for s in strategies]
         # Original 5 strategies
@@ -458,6 +458,8 @@ class TestSeriesMutationStrategy:
         # v1.8.0 strategies
         assert "cross_slice_reference" in strategy_names
         assert "temporal_inconsistency" in strategy_names
+        # Singular geometry (zero-determinant 4x4 transforms)
+        assert "singular_geometry" in strategy_names
 
 
 class TestSeverityLevels:

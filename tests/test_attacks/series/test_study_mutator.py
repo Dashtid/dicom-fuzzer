@@ -401,6 +401,221 @@ class TestCrossSeriesCycles:
         assert len(cycle_records) == 3
 
 
+class TestSopInstanceCollision:
+    """SOPInstanceUID collision attacks across series.
+
+    These attacks force two slices in different series to share a
+    SOPInstanceUID. PACS dedup logic, DB unique-key constraints, and
+    SOPInstanceUID-keyed caches all assume global uniqueness; collisions
+    probe what happens when that assumption breaks.
+    """
+
+    @staticmethod
+    def _force_attack(monkeypatch, attack_type: str) -> None:
+        import dicom_fuzzer.attacks.series.study_mutator as mod
+
+        monkeypatch.setattr(mod.random, "choice", lambda choices: attack_type)
+
+    @pytest.fixture
+    def two_series_study(self):
+        s1 = MagicMock(spec=DicomSeries)
+        s1.series_uid = "1.2.3.4.5.6.7.8.1"
+        s1.slices = [Path("/fake/s1/sl1.dcm")]
+        s1.slice_count = 1
+
+        s2 = MagicMock(spec=DicomSeries)
+        s2.series_uid = "1.2.3.4.5.6.7.8.2"
+        s2.slices = [Path("/fake/s2/sl1.dcm")]
+        s2.slice_count = 1
+
+        return DicomStudy(
+            study_uid="1.2.3.4.5.6.7.8.0",
+            patient_id="P",
+            series_list=[s1, s2],
+        )
+
+    @pytest.fixture
+    def two_series_datasets(self):
+        ds1 = pydicom.Dataset()
+        ds1.SOPInstanceUID = "1.2.3.4.5.6.7.8.1.A"
+        ds2 = pydicom.Dataset()
+        ds2.SOPInstanceUID = "1.2.3.4.5.6.7.8.2.A"
+        return [[ds1], [ds2]]
+
+    @pytest.fixture
+    def three_series_study(self):
+        series_list = []
+        for i in range(1, 4):
+            s = MagicMock(spec=DicomSeries)
+            s.series_uid = f"1.2.3.4.5.6.7.8.{i}"
+            s.slices = [Path(f"/fake/s{i}/sl1.dcm")]
+            s.slice_count = 2
+            series_list.append(s)
+        return DicomStudy(
+            study_uid="1.2.3.4.5.6.7.8.0",
+            patient_id="P",
+            series_list=series_list,
+        )
+
+    @pytest.fixture
+    def three_series_datasets(self):
+        out = []
+        for i in range(1, 4):
+            slice_list = []
+            for j in range(2):
+                ds = pydicom.Dataset()
+                ds.SOPInstanceUID = f"1.2.3.4.5.6.7.8.{i}.{j}"
+                slice_list.append(ds)
+            out.append(slice_list)
+        return out
+
+    @pytest.fixture
+    def single_series_study(self):
+        s = MagicMock(spec=DicomSeries)
+        s.series_uid = "1.2.3.4.5.6.7.8.1"
+        s.slices = [Path("/fake/s1/sl1.dcm")]
+        s.slice_count = 1
+        return DicomStudy(
+            study_uid="1.2.3.4.5.6.7.8.0",
+            patient_id="P",
+            series_list=[s],
+        )
+
+    @pytest.fixture
+    def single_series_datasets(self):
+        ds = pydicom.Dataset()
+        ds.SOPInstanceUID = "1.2.3.4.5.6.7.8.1.A"
+        return [[ds]]
+
+    def test_cross_series_collision_copies_uid(
+        self, two_series_study, two_series_datasets, monkeypatch
+    ):
+        self._force_attack(monkeypatch, "cross_series_collision")
+        mutator = StudyMutator(seed=42)
+        _, _ = mutator._mutate_sop_instance_collision(
+            two_series_datasets, two_series_study, mutation_count=1
+        )
+        # Series[1]'s slice should now match series[0]'s slice UID.
+        assert (
+            two_series_datasets[1][0].SOPInstanceUID
+            == two_series_datasets[0][0].SOPInstanceUID
+        )
+
+    def test_cross_series_collision_records_one_pair(
+        self, two_series_study, two_series_datasets, monkeypatch
+    ):
+        self._force_attack(monkeypatch, "cross_series_collision")
+        mutator = StudyMutator(seed=42)
+        _, records = mutator._mutate_sop_instance_collision(
+            two_series_datasets, two_series_study, mutation_count=1
+        )
+        assert len(records) == 1
+        assert records[0].tag == "SOPInstanceUID"
+        assert records[0].details["attack_type"] == "cross_series_collision"
+
+    def test_study_wide_uniform_sets_one_uid_everywhere(
+        self, three_series_study, three_series_datasets, monkeypatch
+    ):
+        self._force_attack(monkeypatch, "study_wide_uniform")
+        mutator = StudyMutator(seed=42)
+        _, _ = mutator._mutate_sop_instance_collision(
+            three_series_datasets, three_series_study, mutation_count=1
+        )
+        all_uids = {
+            ds.SOPInstanceUID for series in three_series_datasets for ds in series
+        }
+        assert len(all_uids) == 1
+
+    def test_study_wide_uniform_records_one_per_slice(
+        self, three_series_study, three_series_datasets, monkeypatch
+    ):
+        self._force_attack(monkeypatch, "study_wide_uniform")
+        mutator = StudyMutator(seed=42)
+        _, records = mutator._mutate_sop_instance_collision(
+            three_series_datasets, three_series_study, mutation_count=1
+        )
+        total_slices = sum(len(s) for s in three_series_datasets)
+        assert len(records) == total_slices
+
+    def test_pairwise_swap_changes_ownership(
+        self, three_series_study, three_series_datasets, monkeypatch
+    ):
+        self._force_attack(monkeypatch, "pairwise_swap")
+        before = [three_series_datasets[i][0].SOPInstanceUID for i in range(3)]
+        mutator = StudyMutator(seed=42)
+        _, records = mutator._mutate_sop_instance_collision(
+            three_series_datasets, three_series_study, mutation_count=1
+        )
+        after = [three_series_datasets[i][0].SOPInstanceUID for i in range(3)]
+        # At least one slice's first-slice UID should differ from before.
+        assert before != after
+        # 2 pairs (series 0<->1 and 1<->2) -> 4 records
+        assert len(records) == 4
+
+    def test_pairwise_swap_preserves_uid_population(
+        self, three_series_study, three_series_datasets, monkeypatch
+    ):
+        # Swap only moves UIDs around; the *set* of UIDs across the
+        # touched slices stays the same.
+        self._force_attack(monkeypatch, "pairwise_swap")
+        before_uids = {three_series_datasets[i][0].SOPInstanceUID for i in range(3)}
+        mutator = StudyMutator(seed=42)
+        _, _ = mutator._mutate_sop_instance_collision(
+            three_series_datasets, three_series_study, mutation_count=1
+        )
+        after_uids = {three_series_datasets[i][0].SOPInstanceUID for i in range(3)}
+        assert before_uids == after_uids
+
+    def test_skipped_with_single_series(
+        self, single_series_study, single_series_datasets, monkeypatch
+    ):
+        # No partner series -> helper short-circuits, no records.
+        self._force_attack(monkeypatch, "cross_series_collision")
+        mutator = StudyMutator(seed=42)
+        _, records = mutator._mutate_sop_instance_collision(
+            single_series_datasets, single_series_study, mutation_count=5
+        )
+        assert records == []
+        # Original UID must not have been mutated.
+        assert single_series_datasets[0][0].SOPInstanceUID == "1.2.3.4.5.6.7.8.1.A"
+
+    def test_runs_once_regardless_of_mutation_count(
+        self, three_series_study, three_series_datasets, monkeypatch
+    ):
+        # Coordinated cross-series rewrite is idempotent under
+        # repeated application; large mutation_count must not multiply
+        # records.
+        self._force_attack(monkeypatch, "study_wide_uniform")
+        mutator = StudyMutator(seed=42)
+        _, records = mutator._mutate_sop_instance_collision(
+            three_series_datasets, three_series_study, mutation_count=10
+        )
+        total_slices = sum(len(s) for s in three_series_datasets)
+        assert len(records) == total_slices
+
+    def test_strategy_in_enum(self):
+        assert (
+            StudyMutationStrategy.SOP_INSTANCE_COLLISION.value
+            == "sop_instance_collision"
+        )
+
+    def test_strategy_dispatched_through_mutate_study(
+        self, two_series_study, two_series_datasets, monkeypatch
+    ):
+        self._force_attack(monkeypatch, "cross_series_collision")
+        mutator = StudyMutator(severity="moderate", seed=42)
+        with patch.object(
+            mutator, "_load_study_datasets", return_value=two_series_datasets
+        ):
+            _, records = mutator.mutate_study(
+                two_series_study,
+                strategy=StudyMutationStrategy.SOP_INSTANCE_COLLISION,
+                mutation_count=1,
+            )
+        assert len(records) == 1
+        assert records[0].strategy == "sop_instance_collision"
+
+
 class TestStudyMutationRecord:
     """Test StudyMutationRecord serialization."""
 

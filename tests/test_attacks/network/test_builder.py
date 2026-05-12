@@ -510,3 +510,120 @@ class TestBuildPDataTF:
         pdu = DICOMProtocolBuilder.build_p_data_tf(b"")
         assert isinstance(pdu, bytes)
         assert len(pdu) == 12  # 6 header + 4 PDV-item-length + 1 ctx-id + 1 control
+
+
+class TestBuildUserIdentitySubitem:
+    """Tests for build_user_identity_subitem (PS3.7 D.3.3.7)."""
+
+    def test_returns_bytes(self) -> None:
+        result = DICOMProtocolBuilder.build_user_identity_subitem(
+            user_id_type=1, primary=b"user"
+        )
+        assert isinstance(result, bytes)
+
+    def test_starts_with_0x58_item_type(self) -> None:
+        result = DICOMProtocolBuilder.build_user_identity_subitem(
+            user_id_type=1, primary=b"user"
+        )
+        assert result[0] == 0x58
+
+    def test_reserved_byte_is_zero(self) -> None:
+        result = DICOMProtocolBuilder.build_user_identity_subitem(
+            user_id_type=1, primary=b"user"
+        )
+        assert result[1] == 0x00
+
+    def test_item_length_matches_body(self) -> None:
+        result = DICOMProtocolBuilder.build_user_identity_subitem(
+            user_id_type=1, primary=b"abcd"
+        )
+        # item-length covers everything after the 4-byte header
+        item_length = struct.unpack(">H", result[2:4])[0]
+        assert item_length == len(result) - 4
+
+    def test_user_identity_type_byte(self) -> None:
+        result = DICOMProtocolBuilder.build_user_identity_subitem(
+            user_id_type=3, primary=b"ticket"
+        )
+        # First byte after the header is the type byte.
+        assert result[4] == 3
+
+    def test_positive_response_default_is_zero(self) -> None:
+        result = DICOMProtocolBuilder.build_user_identity_subitem(
+            user_id_type=1, primary=b"user"
+        )
+        assert result[5] == 0x00
+
+    def test_positive_response_set_yields_one(self) -> None:
+        result = DICOMProtocolBuilder.build_user_identity_subitem(
+            user_id_type=1, primary=b"user", positive_response=True
+        )
+        assert result[5] == 0x01
+
+    def test_primary_field_carried_correctly(self) -> None:
+        primary = b"some-username"
+        result = DICOMProtocolBuilder.build_user_identity_subitem(
+            user_id_type=1, primary=primary
+        )
+        # primary-len is 2 bytes at offset 6, then primary bytes follow.
+        primary_len = struct.unpack(">H", result[6:8])[0]
+        assert primary_len == len(primary)
+        assert result[8 : 8 + primary_len] == primary
+
+    def test_secondary_field_for_password(self) -> None:
+        primary = b"alice"
+        secondary = b"hunter2"
+        result = DICOMProtocolBuilder.build_user_identity_subitem(
+            user_id_type=2, primary=primary, secondary=secondary
+        )
+        offset = 8 + len(primary)
+        sec_len = struct.unpack(">H", result[offset : offset + 2])[0]
+        assert sec_len == len(secondary)
+        assert result[offset + 2 : offset + 2 + sec_len] == secondary
+
+    def test_empty_secondary_for_non_password_types(self) -> None:
+        primary = b"ticket"
+        result = DICOMProtocolBuilder.build_user_identity_subitem(
+            user_id_type=3, primary=primary
+        )
+        offset = 8 + len(primary)
+        sec_len = struct.unpack(">H", result[offset : offset + 2])[0]
+        assert sec_len == 0
+
+    def test_reserved_type_passes_through_for_fuzzing(self) -> None:
+        # Allowing values outside 1..5 is intentional so the fuzzer
+        # can probe how SCPs handle undefined types.
+        result = DICOMProtocolBuilder.build_user_identity_subitem(
+            user_id_type=99, primary=b"x"
+        )
+        assert result[4] == 99
+
+
+class TestBuildAAssociateRQUserIdentity:
+    """Tests for the user_identity_subitem kwarg on build_a_associate_rq."""
+
+    def test_default_no_user_identity(self) -> None:
+        # Existing callers must see no behavior change when the kwarg
+        # is omitted.
+        pdu = DICOMProtocolBuilder.build_a_associate_rq()
+        assert b"\x58" not in pdu  # 0x58 sub-item not present
+
+    def test_subitem_appears_in_user_info_section(self) -> None:
+        subitem = DICOMProtocolBuilder.build_user_identity_subitem(
+            user_id_type=1, primary=b"alice"
+        )
+        pdu = DICOMProtocolBuilder.build_a_associate_rq(user_identity_subitem=subitem)
+        # Sub-item should be embedded somewhere in the PDU.
+        assert subitem in pdu
+
+    def test_user_info_item_length_includes_subitem(self) -> None:
+        # User Information Item (0x50) length must cover the sub-item bytes.
+        subitem = DICOMProtocolBuilder.build_user_identity_subitem(
+            user_id_type=1, primary=b"alice"
+        )
+        pdu_with = DICOMProtocolBuilder.build_a_associate_rq(
+            user_identity_subitem=subitem
+        )
+        pdu_without = DICOMProtocolBuilder.build_a_associate_rq()
+        # Difference must be at least the sub-item length.
+        assert len(pdu_with) - len(pdu_without) >= len(subitem)

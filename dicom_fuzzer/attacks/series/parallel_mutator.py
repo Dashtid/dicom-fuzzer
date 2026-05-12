@@ -24,6 +24,7 @@ SAFETY:
 
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures.process import BrokenProcessPool
 from pathlib import Path
 from typing import Any
 
@@ -49,8 +50,13 @@ def _mutate_single_slice(
     severity: str,
     seed: int | None,
     **kwargs: Any,
-) -> tuple[int, Dataset, list[SeriesMutationRecord]]:
+) -> tuple[int, Dataset | None, list[SeriesMutationRecord]]:
     """Worker function to mutate a single slice (executed in separate process).
+
+    Fault isolation: a mutation failure returns the (already-loaded)
+    original dataset with no records; an *initial-read* failure returns
+    ``(slice_index, None, [<failure record>])`` so the caller can
+    recover the slice without the worker re-reading the unreadable file.
 
     Args:
         file_path: Path to DICOM file
@@ -61,13 +67,31 @@ def _mutate_single_slice(
         **kwargs: Strategy-specific parameters
 
     Returns:
-        Tuple of (slice_index, mutated_dataset, mutation_records)
+        Tuple of (slice_index, mutated_dataset_or_None, mutation_records)
 
     """
+    # Initial read -- if this fails the file is unreadable; don't retry.
     try:
-        # Load slice
         ds = pydicom.dcmread(file_path, stop_before_pixels=False)
+    except Exception as e:
+        logger.error(f"Worker could not read slice {slice_index} ({file_path}): {e}")
+        return (
+            slice_index,
+            None,
+            [
+                SeriesMutationRecord(
+                    strategy=strategy,
+                    slice_index=slice_index,
+                    tag=None,
+                    original_value="<unreadable>",
+                    mutated_value="<read_failed>",
+                    severity=severity,
+                    details={"error": str(e), "phase": "initial_read"},
+                )
+            ],
+        )
 
+    try:
         # Create temporary single-slice DicomSeries for public API
         # Extract metadata from the dataset
         series_uid = (
@@ -127,9 +151,8 @@ def _mutate_single_slice(
         return (slice_index, mutated, records)
 
     except Exception as e:
-        logger.error(f"Worker error for slice {slice_index}: {e}")
-        # Return original dataset on error
-        ds = pydicom.dcmread(file_path, stop_before_pixels=False)
+        logger.error(f"Worker mutation error for slice {slice_index}: {e}")
+        # Mutation failed -- return the already-loaded original, no records.
         return (slice_index, ds, [])
 
 
@@ -214,43 +237,74 @@ class ParallelSeriesMutator:
         # Submit tasks to worker pool
         mutated_datasets: list[Dataset | None] = [None] * series.slice_count
         all_records: list[SeriesMutationRecord] = []
+        pool_broke = False
 
-        with ProcessPoolExecutor(max_workers=self.workers) as executor:
-            # Submit all slice mutations
-            future_to_index = {}
-            for i, slice_path in enumerate(series.slices):
-                future = executor.submit(
-                    _mutate_single_slice,
-                    slice_path,
-                    i,
-                    strategy.value,
-                    self.severity,
-                    self.seed,
-                    **kwargs,
-                )
-                future_to_index[future] = i
-
-            # Collect results as they complete
-            completed = 0
-            for future in as_completed(future_to_index):
-                try:
-                    slice_index, mutated_ds, records = future.result()
-                    mutated_datasets[slice_index] = mutated_ds
-                    all_records.extend(records)
-
-                    completed += 1
-                    if completed % 50 == 0:
-                        logger.info(
-                            f"Progress: {completed}/{series.slice_count} slices"
-                        )
-
-                except Exception as e:
-                    slice_index = future_to_index[future]
-                    logger.error(f"Failed to process slice {slice_index}: {e}")
-                    # Load original on error
-                    mutated_datasets[slice_index] = pydicom.dcmread(
-                        series.slices[slice_index]
+        try:
+            with ProcessPoolExecutor(max_workers=self.workers) as executor:
+                # Submit all slice mutations
+                future_to_index = {}
+                for i, slice_path in enumerate(series.slices):
+                    future = executor.submit(
+                        _mutate_single_slice,
+                        slice_path,
+                        i,
+                        strategy.value,
+                        self.severity,
+                        self.seed,
+                        **kwargs,
                     )
+                    future_to_index[future] = i
+
+                # Collect results as they complete
+                completed = 0
+                for future in as_completed(future_to_index):
+                    try:
+                        slice_index, mutated_ds, records = future.result()
+                        mutated_datasets[slice_index] = mutated_ds
+                        all_records.extend(records)
+
+                        completed += 1
+                        if completed % 50 == 0:
+                            logger.info(
+                                f"Progress: {completed}/{series.slice_count} slices"
+                            )
+
+                    except BrokenProcessPool:
+                        # A worker died hard (segfault / OOM-kill / C-extension
+                        # crash). The pool is unusable; every remaining future
+                        # would raise too. Stop collecting and degrade the rest
+                        # to serial recovery below.
+                        pool_broke = True
+                        break
+                    except Exception as e:
+                        slice_index = future_to_index[future]
+                        logger.error(f"Failed to process slice {slice_index}: {e}")
+                        mutated_datasets[slice_index] = self._recover_slice(
+                            series, slice_index
+                        )
+        except BrokenProcessPool:
+            # Raised on context-manager exit when the pool is broken; swallow.
+            pool_broke = True
+
+        if pool_broke:
+            unprocessed = [i for i, ds in enumerate(mutated_datasets) if ds is None]
+            logger.warning(
+                "Worker pool died -- recovering %d unprocessed slices serially "
+                "(determinism for these slices differs from the all-workers run)",
+                len(unprocessed),
+            )
+            for idx in unprocessed:
+                mutated_datasets[idx] = self._recover_slice(
+                    series, idx, strategy=strategy, **kwargs
+                )
+
+        dropped = sum(1 for ds in mutated_datasets if ds is None)
+        if dropped:
+            logger.warning(
+                "%d/%d slices could not be recovered and were dropped",
+                dropped,
+                series.slice_count,
+            )
 
         logger.info(f"Parallel mutation complete: {len(all_records)} mutations applied")
 
@@ -259,6 +313,59 @@ class ParallelSeriesMutator:
             ds for ds in mutated_datasets if ds is not None
         ]
         return final_datasets, all_records
+
+    def _recover_slice(
+        self,
+        series: DicomSeries,
+        idx: int,
+        strategy: SeriesMutationStrategy | None = None,
+        **kwargs: Any,
+    ) -> Dataset | None:
+        """Best-effort recovery of one slice after a worker casualty.
+
+        Tries, in order:
+          1. one-slice serial mutation (only if *strategy* is given) so the
+             slice still gets fuzzed -- with the base seed rather than the
+             worker's per-slice seed, so determinism differs
+          2. a plain ``dcmread`` of the original file
+          3. give up -- log a warning and return None (the caller drops it)
+
+        Args:
+            series: The series whose slice failed
+            idx: Index of the failed slice
+            strategy: If provided, attempt a serial mutation first
+            **kwargs: Strategy kwargs (``total_slices`` is stripped)
+
+        Returns:
+            A Dataset (mutated or original) or None if unrecoverable.
+
+        """
+        slice_path = series.slices[idx]
+        if strategy is not None:
+            try:
+                ds = pydicom.dcmread(slice_path, stop_before_pixels=False)
+                temp_series = DicomSeries(
+                    series_uid=getattr(ds, "SeriesInstanceUID", generate_uid()),
+                    study_uid=getattr(ds, "StudyInstanceUID", generate_uid()),
+                    modality=getattr(ds, "Modality", "CT"),
+                    slices=[slice_path],
+                )
+                mutator_kwargs = {
+                    k: v for k, v in kwargs.items() if k != "total_slices"
+                }
+                mutated, _ = self._serial_mutator.mutate_series(
+                    temp_series, strategy.value, **mutator_kwargs
+                )
+                if mutated:
+                    return mutated[0]
+            except Exception as e:
+                logger.error(f"Serial recovery of slice {idx} failed: {e}")
+
+        try:
+            return pydicom.dcmread(slice_path, stop_before_pixels=False)
+        except Exception as e:
+            logger.error(f"Could not even re-read slice {idx} ({slice_path}): {e}")
+            return None
 
     def mutate_series(
         self,

@@ -155,11 +155,36 @@ reinstating the modality fuzzers removed in PR #246.
 
 ### Full campaign run
 
-Overnight run with current 9 seeds + 30s timeout against
-Hermes.exe. Analyze `crash_by_strategy` telemetry to identify
-zero-crash strategies for second-pass audit. For fo-dicom-harness
-campaigns also pass `--crash-exit-codes 1,11` so untyped library
-escapes are recorded as findings instead of dropping to ERROR.
+Overnight run with current 9-modality / 16-file seed corpus + 30s
+timeout against Hermes.exe. Analyze `crash_by_strategy` telemetry to
+identify zero-crash strategies for second-pass audit. For
+fo-dicom-harness campaigns also pass `--crash-exit-codes 1,11` so
+untyped library escapes are recorded as findings instead of dropping
+to ERROR.
+
+**Status (2026-05-09):** smoke test (`-c 5`, 80 tests, ~44 min) ran
+clean -- pipeline end-to-end works, 3 crashes all from `dicomdir`
+strategy (the existing CWE-674 finding, reliably reproduced), no new
+signatures. Auto-triage produced 1 cluster. **Blocker for the 8h
+run:** Affinity is single-seat; rapid relaunches occasionally hit the
+"No license available: All (1) are being used" dialog (error 2005) --
+seen ~2 of 80 tests in the smoke. The dialog-stuck test runs to the
+30s timeout doing no parsing, so a low percentage is tolerable but it
+caps useful throughput. Mitigations to apply before the 8h run:
+bump `--startup-delay` from 3s to 10s (gives the license server time
+to release between tests) and recompute `-c` (`-c 45` for ~8h at
+40s/test); optionally add `--detect-dialogs` (needs pywinauto) so
+dialog-stuck tests are flagged in the report instead of counted as
+ran-OK. Proposed command:
+
+```powershell
+dicom-fuzzer "C:\code-two\dicom-fuzzer\dicom-seeds" -r -c 45 `
+  -o ./artifacts/campaigns/main-8h `
+  -t "C:\Hermes\Affinity\Hermes.exe" `
+  --gui-mode --timeout 30 --startup-delay 10 `
+  --memory-limit 4096 --cleanup-tested --seed 12345 `
+  2>&1 | Tee-Object -FilePath ./artifacts/campaigns/main-8h/run.log
+```
 
 ### Atheris fuzz coverage -- DONE (closed 2026-05-05)
 

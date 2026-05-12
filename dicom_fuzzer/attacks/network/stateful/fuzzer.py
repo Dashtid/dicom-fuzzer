@@ -17,11 +17,13 @@ from .enums import (
     ProtocolEvent,
     TransitionType,
 )
+from .resource_attacks import ResourceExhaustionGenerator
 from .sequence_generator import (
     CoverageStats,
     SequenceGenerator,
 )
 from .state_machine import DICOMStateMachine
+from .timing_attacks import TimingAttackGenerator
 from .types import FuzzSequence, TransitionResult
 
 logger = get_logger(__name__)
@@ -80,6 +82,8 @@ class StatefulFuzzer:
         self.config = config or StateMachineConfig()
         self.state_machine = DICOMStateMachine()
         self.sequence_gen = SequenceGenerator(self.state_machine, self.config)
+        self.timing_gen = TimingAttackGenerator(self.config)
+        self.resource_gen = ResourceExhaustionGenerator()
         self.coverage = CoverageStats()
 
         # Current state tracking
@@ -88,6 +92,16 @@ class StatefulFuzzer:
     def reset(self) -> None:
         """Reset the fuzzer to initial state."""
         self.current_state = AssociationState.STA1
+
+    def _gen_connection_exhaustion_one(self) -> FuzzSequence:
+        """Yield one connection-exhaustion sequence per call.
+
+        ResourceExhaustionGenerator.generate_connection_exhaustion returns a
+        list of N sequences, intended to be sent across N connections.
+        Aggregate exhaustion comes from running fuzz() with a larger count;
+        each iteration here contributes one sequence.
+        """
+        return self.resource_gen.generate_connection_exhaustion(num_connections=1)[0]
 
     def generate_fuzz_sequences(
         self,
@@ -102,7 +116,7 @@ class StatefulFuzzer:
             Fuzz sequences.
 
         """
-        generators = [
+        generators: list[Callable[[], FuzzSequence]] = [
             self.sequence_gen.generate_valid_sequence,
             self.sequence_gen.generate_invalid_transition_sequence,
             self.sequence_gen.generate_out_of_order_sequence,
@@ -111,10 +125,25 @@ class StatefulFuzzer:
             self.sequence_gen.generate_release_collision_sequence,
             self.sequence_gen.generate_abort_recovery_sequence,
         ]
+        if self.config.enable_timing_attacks:
+            generators.extend(
+                [
+                    self.timing_gen.generate_timeout_attack,
+                    self.timing_gen.generate_slow_data_attack,
+                    self.timing_gen.generate_rapid_reconnect_attack,
+                ]
+            )
+        if self.config.enable_resource_attacks:
+            generators.extend(
+                [
+                    self._gen_connection_exhaustion_one,
+                    self.resource_gen.generate_pending_release_exhaustion,
+                ]
+            )
 
         for _ in range(count):
             gen = random.choice(generators)
-            yield gen()  # type: ignore[operator]
+            yield gen()
 
     def execute_event(
         self,
@@ -229,6 +258,11 @@ class StatefulFuzzer:
                 "duplicate",
                 "release_collision",
                 "abort_recovery",
+                "timeout",
+                "slow_data",
+                "rapid_reconnect",
+                "connection_exhaustion",
+                "pending_release",
             }
         )
 
