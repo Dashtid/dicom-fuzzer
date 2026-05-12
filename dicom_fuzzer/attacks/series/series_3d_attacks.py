@@ -630,3 +630,100 @@ class Reconstruction3DAttacksMixin:
                 )
 
         return datasets, records
+
+    def _mutate_singular_geometry(
+        self, datasets: list[Dataset], series: DicomSeries, mutation_count: int
+    ) -> tuple[list[Dataset], list[SeriesMutationRecord]]:
+        """Singular Geometry: zero-determinant 4x4 voxel->patient transform.
+
+        DICOM viewers build a 4x4 transform from ImageOrientationPatient,
+        ImagePositionPatient, PixelSpacing, and SliceThickness, then
+        invert it to map screen coords back to voxels (PS3.3 C.7.6.2.1.1).
+        When the matrix is singular (det == 0), inversion fails:
+        LinAlgError, NaN/Inf in homogeneous coordinates, division-by-zero
+        in MPR/oblique reformat code.
+
+        Five attack types coordinate multiple geometry tags across all
+        slices to force det == 0:
+
+          collapsed_slice_axis        all slices share one ImagePositionPatient
+                                      and SliceThickness=0 (dz column = 0)
+          coplanar_basis              row direction = column direction
+                                      (r and c columns linearly dependent)
+          zero_pixel_spacing          PixelSpacing = [0.0, 0.0]
+                                      (dx = dy = 0)
+          nan_geometry                NaN injected into row direction and
+                                      ImagePositionPatient.x (det -> NaN)
+          linearly_dependent_columns  row=(1,0,0), column=(2,0,0); positions
+                                      stepped along the same axis
+                                      (all 3 rotation columns collinear)
+
+        Distinct from _mutate_non_orthogonal_orientation, which only
+        mutates ImageOrientationPatient on a single slice. This strategy
+        coordinates orientation+position+spacing+thickness across the
+        entire series to construct a provably zero-determinant transform.
+
+        Runs the chosen attack once per call regardless of mutation_count;
+        subsequent iterations would idempotently overwrite the same
+        coordinated geometry.
+        """
+        records: list[SeriesMutationRecord] = []
+        if not datasets:
+            return datasets, records
+
+        attack_type = random.choice(
+            [
+                "collapsed_slice_axis",
+                "coplanar_basis",
+                "zero_pixel_spacing",
+                "nan_geometry",
+                "linearly_dependent_columns",
+            ]
+        )
+
+        if attack_type == "collapsed_slice_axis":
+            shared_position = [0.0, 0.0, 0.0]
+            for ds in datasets:
+                ds.ImagePositionPatient = list(shared_position)
+                ds.SliceThickness = 0.0
+
+        elif attack_type == "coplanar_basis":
+            for ds in datasets:
+                ds.ImageOrientationPatient = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]
+                ds.ImagePositionPatient = [0.0, 0.0, 0.0]
+
+        elif attack_type == "zero_pixel_spacing":
+            for ds in datasets:
+                ds.PixelSpacing = [0.0, 0.0]
+
+        elif attack_type == "nan_geometry":
+            nan = float("nan")
+            for ds in datasets:
+                ds.ImageOrientationPatient = [nan, 0.0, 0.0, 0.0, 1.0, 0.0]
+                pos = list(getattr(ds, "ImagePositionPatient", [0.0, 0.0, 0.0]))
+                pos[0] = nan
+                ds.ImagePositionPatient = pos
+
+        elif attack_type == "linearly_dependent_columns":
+            for i, ds in enumerate(datasets):
+                ds.ImageOrientationPatient = [1.0, 0.0, 0.0, 2.0, 0.0, 0.0]
+                # Step positions along the same x-axis: every column collinear.
+                ds.ImagePositionPatient = [float(i), 0.0, 0.0]
+
+        for slice_idx in range(len(datasets)):
+            records.append(
+                SeriesMutationRecord(
+                    strategy="singular_geometry",
+                    slice_index=slice_idx,
+                    tag="ImageOrientationPatient+ImagePositionPatient",
+                    original_value="<series-coordinated>",
+                    mutated_value=f"<{attack_type}>",
+                    severity=self.severity,
+                    details={
+                        "attack_type": attack_type,
+                        "slice_count": len(datasets),
+                    },
+                )
+            )
+
+        return datasets, records

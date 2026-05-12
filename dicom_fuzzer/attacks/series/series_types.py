@@ -30,6 +30,8 @@ class SeriesMutationStrategy(Enum):
     # v1.8.0 - Cross-Slice Reference and Temporal Attacks
     CROSS_SLICE_REFERENCE = "cross_slice_reference"
     TEMPORAL_INCONSISTENCY = "temporal_inconsistency"
+    # Zero-determinant 4x4 transforms via coordinated geometry tags
+    SINGULAR_GEOMETRY = "singular_geometry"
 
 
 @dataclass
