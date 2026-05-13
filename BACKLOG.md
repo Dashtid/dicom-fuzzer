@@ -218,6 +218,42 @@ Score impact is +0.05 to the Scorecard aggregate -- not visible on
 the badge. Worth doing when convenient, not worth contorting the
 build for.
 
+### Workflow token-permission scoping (Scorecard Token-Permissions)
+
+Scorecard's Token-Permissions check flags four workflows that run with
+the default (write-all) `GITHUB_TOKEN` scope instead of an explicit,
+least-privilege `permissions:` block:
+
+- `auto-tag.yml` (job- and workflow-level) -- needs `contents: write`
+  for tag creation, nothing else.
+- `release.yml` (`:106`) -- needs `contents: write` for the release
+  upload; scope the rest to `contents: read`.
+- `dependabot-auto-merge.yml` (`:13`) -- needs `pull-requests: write`
+  - `contents: write` for the merge; nothing else.
+- `sbom-scan.yml` (`:33`) -- needs `contents: read` (and
+  `security-events: write` only if it uploads SARIF).
+
+Add a top-level `permissions: { contents: read }` to each, then
+re-grant the minimum at the job that needs it. Surfaced as 5 "high"
+CodeQL/Scorecard alerts during the 2026-05-12 dependency-drift sweep.
+Same caveat as Pinned-Deps: aggregate-score only, not on the badge.
+
+### Bare `except: pass` in binary_mutators.py:183 (CodeQL py/empty-except)
+
+One `except Exception: pass` with no comment in
+`dicom_fuzzer/utils/binary_mutators.py:183` -- CodeQL `py/empty-except`
+(note severity). Either narrow the caught type, add a `# intentional:`
+rationale comment, or log at debug. Trivial; bundle with the next
+touch of that file.
+
+### pip GHSA-58qw-9mgm-455v -- no upstream fix yet
+
+`GHSA-58qw-9mgm-455v` (medium, pip `<= 26.0.1`) has no patched
+release as of 2026-05-12 -- it lingers as an open Dependabot alert on
+`uv.lock` until upstream ships one. Nothing actionable; revisit when a
+pip release advertises the fix. (The companion pip CVE
+`GHSA-jp4c-xjxw-mgf9` was cleared by the 26.0 -> 26.1 bump in #321.)
+
 ### fo-dicom harness regression tests in CI
 
 Harness binary today has zero CI coverage: no test runs the compiled
