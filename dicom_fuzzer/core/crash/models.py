@@ -34,6 +34,11 @@ class CrashRecord(SerializableMixin):
     # Artifacts
     crash_log_path: str | None = None
     preserved_sample_path: str | None = None
+    # Path to per-crash minidump (.dmp). Populated when the campaign was
+    # launched with --dump-tool wrapping the target in ProcDump. Consumed
+    # by the ClrMD dump-analyzer for symbolic stack-trace extraction
+    # (Phase 2 of the stack-capture work).
+    dump_path: str | None = None
 
     # Reproducibility
     reproduction_command: str | None = None

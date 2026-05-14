@@ -6,6 +6,7 @@ after processing files, such as DICOM viewers (Hermes Affinity, MicroDicom, etc.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import time
@@ -48,6 +49,10 @@ class GUIExecutionResult:
     stdout: str = ""
     stderr: str = ""
     windows_crash_info: Any = field(default=None, repr=False)
+    # Path to per-test crash minidump if --dump-tool was set and the target
+    # crashed. ProcDump writes one .dmp per captured exception; the runner
+    # diffs the dump directory across the test boundary to attribute it.
+    dump_path: Path | None = None
 
     def __bool__(self) -> bool:
         """Test succeeded if app didn't crash (timeout is OK for GUI apps)."""
@@ -77,6 +82,7 @@ class GUITargetRunner:
         memory_limit_mb: int | None = None,
         startup_delay: float = 3.0,
         warmup_seconds: float = 60.0,
+        dump_tool: str | None = None,
     ):
         """Initialize GUI target runner.
 
@@ -89,6 +95,12 @@ class GUITargetRunner:
             warmup_seconds: Seconds for one-time warmup launch before campaign.
                 Caches DLLs and runtime libraries in memory for faster subsequent
                 launches. Set to 0 to disable.
+            dump_tool: Optional path to Sysinternals ProcDump (procdump.exe).
+                When provided, the target is launched under ProcDump in -x
+                (wrap) mode so an unhandled exception produces a minidump in
+                <crash_dir>/dumps/. Falls back to env DICOM_FUZZER_PROCDUMP.
+                The warmup launch is intentionally NOT wrapped (warmup is
+                expected to succeed; no need for dump capture).
 
         Raises:
             FileNotFoundError: If target executable doesn't exist
@@ -110,6 +122,25 @@ class GUITargetRunner:
         self.memory_limit_mb = memory_limit_mb
         self.startup_delay = startup_delay
         self.warmup_seconds = warmup_seconds
+
+        resolved_dump_tool = dump_tool or os.environ.get("DICOM_FUZZER_PROCDUMP")
+        self.dump_tool: Path | None = None
+        self.dump_dir: Path | None = None
+        if resolved_dump_tool:
+            dt_path = Path(resolved_dump_tool)
+            if not dt_path.exists():
+                raise FileNotFoundError(
+                    f"ProcDump executable not found: {dt_path}. "
+                    "Download from https://learn.microsoft.com/en-us/sysinternals/downloads/procdump"
+                )
+            self.dump_tool = dt_path
+            self.dump_dir = self.crash_dir / "dumps"
+            self.dump_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(
+                "ProcDump wrap mode enabled: %s -> %s",
+                self.dump_tool,
+                self.dump_dir,
+            )
 
         # Windows crash handler for NTSTATUS classification
         self.windows_crash_handler: WindowsCrashHandler | None = None
@@ -195,14 +226,25 @@ class GUITargetRunner:
     ) -> tuple[float, bool] | None:
         """Check process memory usage.
 
+        When wrapped in ProcDump, ``process.pid`` is ProcDump itself
+        (small, idle) and the target is a child. Sum RSS across the
+        process tree so a runaway managed-heap allocation in Hermes is
+        still seen even if procdump.exe stays at ~10MB.
+
         Returns:
             Tuple of (memory_mb, exceeded_limit) or None if process not found.
 
         """
         try:
             ps_process = psutil.Process(process.pid)
-            mem_info = ps_process.memory_info()
-            mem_mb = mem_info.rss / (1024 * 1024)
+            mem_bytes = ps_process.memory_info().rss
+            if self.dump_tool:
+                for child in ps_process.children(recursive=True):
+                    try:
+                        mem_bytes += child.memory_info().rss
+                    except psutil.NoSuchProcess:
+                        continue
+            mem_mb = mem_bytes / (1024 * 1024)
 
             if self.memory_limit_mb and mem_mb > self.memory_limit_mb:
                 logger.warning(
@@ -216,6 +258,82 @@ class GUITargetRunner:
             return mem_mb, False
         except psutil.NoSuchProcess:
             return None
+
+    def _build_launch_argv(self, test_file_path: Path) -> list[str]:
+        """Build the argv used to launch the target for one test.
+
+        When ``dump_tool`` is configured this wraps the target in ProcDump
+        using the -x (launch wrapper) pattern:
+
+            procdump -accepteula -nobanner -mm -e -n 1 -x <dumpdir>
+                     <target> <test_file>
+
+        Flag notes (verified against learn.microsoft.com/sysinternals/procdump
+        and Microsoft's collect-dumps-crash guide):
+
+        -accepteula -nobanner    Unattended-friendly; required first run.
+        -mm                      Mini-with-stacks dump. Smaller (~30MB vs
+                                 300-700MB for -ma) and ClrMD can still walk
+                                 managed stacks from it because -mm includes
+                                 MiniDumpWithModuleHeaders. Full memory is
+                                 only needed for object-heap inspection,
+                                 which we don't need for clustering.
+        -e                       Capture unhandled (2nd-chance) exceptions.
+                                 STACK_OVERFLOW (0xC00000FD) escalates to
+                                 2nd-chance before OS termination, so this
+                                 catches the dicomdir-class crashes we
+                                 already know about.
+        -n 1                     One dump per launch, then exit. The
+                                 gui_runner already launches one process
+                                 per test, so multi-dump-per-run would be
+                                 noise.
+        -x <dumpdir>             Launch the target as a child; dumps land
+                                 here named Target_YYMMDD_HHMMSS.dmp.
+
+        ProcDump's exit code is the target's exit code under -x, so the
+        existing 0xC00000FD detection in _monitor_process keeps working.
+        """
+        if self.dump_tool and self.dump_dir:
+            return [
+                str(self.dump_tool),
+                "-accepteula",
+                "-nobanner",
+                "-mm",
+                "-e",
+                "-n",
+                "1",
+                "-x",
+                str(self.dump_dir),
+                str(self.target_executable),
+                str(test_file_path),
+            ]
+        return [str(self.target_executable), str(test_file_path)]
+
+    def _snapshot_dumps(self) -> set[Path]:
+        """Snapshot the set of .dmp files in the dump dir before a test.
+
+        Used to detect which dump (if any) was produced by the current
+        test. ProcDump's default naming includes a timestamp, so multiple
+        tests' dumps never share a filename even within the same second.
+        """
+        if not self.dump_dir:
+            return set()
+        return set(self.dump_dir.glob("*.dmp"))
+
+    def _attribute_dump(self, before: set[Path]) -> Path | None:
+        """Return the .dmp file produced since the snapshot, if any.
+
+        ProcDump's -n 1 caps it to one dump per launch. If two dumps
+        somehow appear (e.g. a previous test's late-arriving capture),
+        we take the newest by mtime -- the alternative is to drop both
+        and lose evidence.
+        """
+        if not self.dump_dir:
+            return None
+        new = set(self.dump_dir.glob("*.dmp")) - before
+        if not new:
+            return None
+        return max(new, key=lambda p: p.stat().st_mtime)
 
     def _capture_output(self, process: subprocess.Popen[bytes]) -> tuple[str, str]:
         """Capture process stdout and stderr."""
@@ -260,13 +378,14 @@ class GUITargetRunner:
         stdout_data = ""
         stderr_data = ""
 
+        dumps_before = self._snapshot_dumps()
         process = None
         try:
             # DEVNULL (not PIPE) to avoid Windows pipe-buffer deadlock:
             # if Hermes fills the ~4-64KB pipe before we drain it, the
             # process blocks and the monitor loop sees it as still alive.
             process = subprocess.Popen(
-                [str(self.target_executable), str(test_file_path)],
+                self._build_launch_argv(test_file_path),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 creationflags=(
@@ -315,6 +434,14 @@ class GUITargetRunner:
                     crash_info.severity,
                 )
 
+        dump_path = self._attribute_dump(dumps_before) if crashed else None
+        if dump_path:
+            logger.info(
+                "Crash dump captured: %s (%.1f MB)",
+                dump_path.name,
+                dump_path.stat().st_size / (1024 * 1024),
+            )
+
         return GUIExecutionResult(
             test_file=test_file_path,
             status=status,
@@ -327,6 +454,7 @@ class GUITargetRunner:
             stdout=stdout_data,
             stderr=stderr_data,
             windows_crash_info=crash_info,
+            dump_path=dump_path,
         )
 
     def _kill_process_tree(self, process: subprocess.Popen[bytes]) -> None:

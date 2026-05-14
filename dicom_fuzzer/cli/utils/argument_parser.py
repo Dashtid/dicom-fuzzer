@@ -213,6 +213,21 @@ def _add_target_args(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--dump-tool",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help=(
+            "Path to Sysinternals ProcDump (procdump.exe). When set, the GUI "
+            "target is wrapped in 'procdump -accepteula -nobanner -mm -e -n 1 "
+            "-x <dump_dir>' so crashes write per-test minidumps to "
+            "<output>/crashes/dumps/. Falls back to env DICOM_FUZZER_PROCDUMP. "
+            "Required for Phase 2 (ClrMD stack-trace extraction); without it "
+            "crash classification stays at exit-code granularity. Only used "
+            "with --gui-mode."
+        ),
+    )
+    parser.add_argument(
         "--no-auto-triage",
         action="store_true",
         help=(
