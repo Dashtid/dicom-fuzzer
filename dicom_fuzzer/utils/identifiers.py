@@ -108,14 +108,18 @@ def generate_crash_id(crash_hash: str | None = None) -> str:
         crash_hash: Optional hash string to append (first 8 characters used)
 
     Returns:
-        Crash ID like "crash_20250119_143022_a1b2c3d4"
+        Crash ID like "crash_20250119_143022_456789_a1b2c3d4"
 
     Examples:
-        >>> generate_crash_id("a1b2c3d4e5f6")
-        'crash_20250119_143022_a1b2c3d4'
+        >>> generate_crash_id("a1b2c3d4e5f6")  # doctest: +SKIP
+        'crash_20250119_143022_456789_a1b2c3d4'
 
     """
-    crash_id = generate_timestamp_id("crash")
+    # Microseconds in the ID prevent collisions when many crashes are
+    # batch-recorded at session-finalization time (the 8h Hermes campaign
+    # on 2026-05-14 had 70 crashes resolve to the same second-resolution
+    # ID, causing the preserved .dcm to be overwritten 69 times).
+    crash_id = generate_timestamp_id("crash", include_microseconds=True)
 
     if crash_hash:
         # Use first 8 characters of hash for brevity

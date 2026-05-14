@@ -153,38 +153,49 @@ PET, RT-Dose, RT-Struct, SEG, encapsulated-PDF) in
 `dicom-seeds/`. Expansion to US/MG/XA/SR/Waveform unlocks
 reinstating the modality fuzzers removed in PR #246.
 
-### Full campaign run
+### Full campaign run -- DONE (2026-05-14)
 
-Overnight run with current 9-modality / 16-file seed corpus + 30s
-timeout against Hermes.exe. Analyze `crash_by_strategy` telemetry to
-identify zero-crash strategies for second-pass audit. For
-fo-dicom-harness campaigns also pass `--crash-exit-codes 1,11` so
-untyped library escapes are recorded as findings instead of dropping
-to ERROR.
+8h overnight run (`-c 45`, 720 tests, 7h 33m wall) completed. Headline
+numbers: 649 successful, 71 crashes (auto-triaged to **2 clusters**),
+1 memory limit hit.
 
-**Status (2026-05-09):** smoke test (`-c 5`, 80 tests, ~44 min) ran
-clean -- pipeline end-to-end works, 3 crashes all from `dicomdir`
-strategy (the existing CWE-674 finding, reliably reproduced), no new
-signatures. Auto-triage produced 1 cluster. **Blocker for the 8h
-run:** Affinity is single-seat; rapid relaunches occasionally hit the
-"No license available: All (1) are being used" dialog (error 2005) --
-seen ~2 of 80 tests in the smoke. The dialog-stuck test runs to the
-30s timeout doing no parsing, so a low percentage is tolerable but it
-caps useful throughput. Mitigations to apply before the 8h run:
-bump `--startup-delay` from 3s to 10s (gives the license server time
-to release between tests) and recompute `-c` (`-c 45` for ~8h at
-40s/test); optionally add `--detect-dialogs` (needs pywinauto) so
-dialog-stuck tests are flagged in the report instead of counted as
-ran-OK. Proposed command:
+**Cluster 1 (70 crashes, sig `844c8d389ce1`):** STACK_OVERFLOW
+(0xC00000FD). Same underlying CWE-674 we already had, but the
+single-seed-strategy memory note was wrong -- the bug is reachable
+via **22 different mutation strategies**, not just `dicomdir`. Top
+contributors: `sequence` (16), `compressed_pixel` (6),
+`pixel_data_truncation` (5), `dicomdir` (4), `preamble` (4),
+`pixel_reencoding` (4), `attribute_tag` (4), `dictionary` (3), ...
+The dispatcher in Hermes recurses on a wide class of structurally
+malformed inputs, not specifically on directory records.
 
-```powershell
-dicom-fuzzer "C:\code-two\dicom-fuzzer\dicom-seeds" -r -c 45 `
-  -o ./artifacts/campaigns/main-8h `
-  -t "C:\Hermes\Affinity\Hermes.exe" `
-  --gui-mode --timeout 30 --startup-delay 10 `
-  --memory-limit 4096 --cleanup-tested --seed 12345 `
-  2>&1 | Tee-Object -FilePath ./artifacts/campaigns/main-8h/run.log
-```
+**Cluster 2 (1 crash, sig `f3475e3cfa6d`):** MemoryLimitExceeded,
+peak 4851 MB, strategy `dictionary`. Single occurrence in 720 tests.
+**Candidate new finding** -- if reproducible with a small seed input,
+this is CWE-770 unbounded allocation. See follow-up item below.
+
+`--detect-dialogs` was used and worked; no license-dialog stalls
+observed across 720 launches.
+
+### Investigate the 8h-campaign memory-amplification candidate -- P1
+
+The 2026-05-14 campaign produced one `MemoryLimitExceeded` (4851 MB
+peak) from a `dictionary`-strategy mutation. Whether this is a real
+CWE-770 finding or a freak amplification from a large input is
+unknown -- we can't extract the exact input because the campaign
+hit the `preserved_sample_path` collision bug (now fixed) and the
+preserved .dcm was overwritten 70 times by the stack-overflow
+crashes that finalized later.
+
+Repro plan:
+
+- Re-run with `--seed 12345 --strategy dictionary` (need to wire
+  this through if not already exposed) against the same 16-seed
+  corpus, OR re-run the full campaign now that preserved-sample
+  paths are unique per crash.
+- If reproduced, minimize the input and check whether the seed
+  size is small enough that the 4.85GB peak is a true amplification
+  (>100x) rather than legitimate large-data processing.
 
 ### Atheris fuzz coverage -- DONE (closed 2026-05-05)
 
