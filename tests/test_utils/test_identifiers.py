@@ -174,15 +174,15 @@ class TestGenerateCrashId:
         assert isinstance(result, str)
 
     def test_format_without_hash(self):
-        """Verify format without hash."""
+        """Verify format without hash (timestamp includes microseconds)."""
         result = generate_crash_id()
-        assert re.match(r"^crash_\d{8}_\d{6}$", result)
-        assert len(result) == 21  # crash_ + YYYYMMDD_HHMMSS
+        assert re.match(r"^crash_\d{8}_\d{6}_\d{6}$", result)
+        assert len(result) == 28  # crash_ + YYYYMMDD_HHMMSS_FFFFFF
 
     def test_format_with_hash(self):
         """Verify format with hash appended."""
         result = generate_crash_id(crash_hash="abcdef1234567890")
-        assert re.match(r"^crash_\d{8}_\d{6}_[0-9a-f]{8}$", result)
+        assert re.match(r"^crash_\d{8}_\d{6}_\d{6}_[0-9a-f]{8}$", result)
         assert result.endswith("_abcdef12")
 
     def test_hash_truncated_to_8(self):
@@ -190,14 +190,24 @@ class TestGenerateCrashId:
         long_hash = "a" * 64
         result = generate_crash_id(crash_hash=long_hash)
         assert result.endswith("_aaaaaaaa")
-        assert len(result) == 30  # crash_ + timestamp + _ + 8
+        assert len(result) == 37  # crash_ + timestamp_us + _ + 8
 
     def test_short_hash_used_as_is(self):
         """Verify short hash used without padding."""
         short_hash = "abc"
         result = generate_crash_id(crash_hash=short_hash)
         assert result.endswith("_abc")
-        assert len(result) == 25  # crash_ + timestamp + _abc
+        assert len(result) == 32  # crash_ + timestamp_us + _abc
+
+    def test_back_to_back_ids_unique(self):
+        """Verify rapid calls produce distinct IDs (microsecond resolution).
+
+        Reproduces the 2026-05-14 8h campaign bug where 70 crashes recorded
+        in the same second collided on crash_id, overwriting preserved
+        samples.
+        """
+        ids = {generate_crash_id() for _ in range(100)}
+        assert len(ids) == 100
 
 
 class TestGenerateFileId:
@@ -417,7 +427,7 @@ class TestGenerateCrashIdMutationKilling:
 
             result = generate_crash_id(crash_hash="abcdef1234567890")
 
-        assert result == "crash_20240615_103045_abcdef12", f"Got: {result}"
+        assert result == "crash_20240615_103045_123456_abcdef12", f"Got: {result}"
 
     def test_hash_truncation_exact(self):
         """Test hash is truncated to exactly 8 characters."""
@@ -452,7 +462,7 @@ class TestGenerateCrashIdMutationKilling:
 
             # Empty string should not add hash suffix
             result = generate_crash_id(crash_hash="")
-            assert result == "crash_20240615_103045", (
+            assert result == "crash_20240615_103045_123456", (
                 f"Empty hash should not add suffix: {result}"
             )
             assert not result.endswith("_"), "Should not end with underscore"
@@ -468,7 +478,7 @@ class TestGenerateCrashIdMutationKilling:
             mock_dt.now.return_value = fixed_time
 
             result = generate_crash_id(crash_hash=None)
-            assert result == "crash_20240615_103045", (
+            assert result == "crash_20240615_103045_123456", (
                 f"None hash should not add suffix: {result}"
             )
 
