@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>DicomFuzzer.DumpAnalyzer</RootNamespace>
+    <AssemblyName>dump-analyzer</AssemblyName>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Self-contained single-file build is what the Python wrapper
+         invokes; the build script publishes with these settings. -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Microsoft.Diagnostics.Runtime (ClrMD) walks managed stacks from
+         a minidump using the assembly's own MethodDef metadata table,
+         so PDBs are NOT required for symbolic stack traces of closed-
+         source .NET targets like Hermes. -->
+    <PackageReference Include="Microsoft.Diagnostics.Runtime" Version="4.0.726401" />
+  </ItemGroup>
+</Project>
