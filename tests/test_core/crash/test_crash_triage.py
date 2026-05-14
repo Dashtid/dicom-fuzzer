@@ -484,3 +484,161 @@ class TestClusterCrashes:
         clusters = engine.cluster_crashes([a, b, c])
         cluster = list(clusters.values())[0]
         assert [x.crash_id for x in cluster] == ["first", "second", "third"]
+
+
+class TestStackHashSignatureWireUp:
+    """Phase 3 integration: when a CrashRecord has a usable dump_path,
+    ``_generate_crash_id`` returns the stack-hash signature instead of
+    the legacy string hash. These tests pin that wire-up without
+    invoking the real C# analyzer or any subprocess.
+    """
+
+    @pytest.fixture
+    def crash_with_dump(self, tmp_path):
+        """CrashRecord with a fake .dmp on disk (analyzer is mocked)."""
+        from datetime import datetime
+
+        dump = tmp_path / "x.dmp"
+        dump.write_bytes(b"not-really-a-dump")
+        return CrashRecord(
+            crash_id="c_dump",
+            timestamp=datetime.now(),
+            crash_type="crash",
+            severity="high",
+            fuzzed_file_id="f_dump",
+            fuzzed_file_path="x.dcm",
+            exception_type="STACK_OVERFLOW",
+            exception_message="x",
+            stack_trace=None,
+            dump_path=str(dump),
+        )
+
+    def test_uses_stack_signature_when_analyzer_succeeds(
+        self, engine, crash_with_dump, monkeypatch
+    ):
+        from dicom_fuzzer.core.crash.dump_analyzer import StackFrame, StackResult
+        from dicom_fuzzer.core.crash.stack_hash import StackSignature
+
+        fake_stack = StackResult(
+            backend="clrmd",
+            dump_path=str(crash_with_dump.dump_path),
+            faulting_thread_id=1,
+            frames=[
+                StackFrame(
+                    is_managed=True,
+                    module="Hermes.exe",
+                    type="Hermes.Parser.DicomReader",
+                    method="ReadSequence",
+                    signature="ReadSequence()",
+                    md_token="0x06000123",  # noqa: S106 -- .NET MethodDef token
+                    il_offset_hex="0x4a",
+                    ip_hex="0x1",
+                )
+            ],
+        )
+        sentinel_sig = StackSignature(
+            primary="stackhash_primary",
+            minor="stackhash_minor",
+            top_frames=["hermes.exe!.."],
+        )
+
+        monkeypatch.setattr(
+            "dicom_fuzzer.core.crash.dump_analyzer.analyze_dump",
+            lambda *a, **kw: fake_stack,
+        )
+        monkeypatch.setattr(
+            "dicom_fuzzer.core.crash.stack_hash.compute_signature",
+            lambda *a, **kw: sentinel_sig,
+        )
+
+        crash_id = engine._generate_crash_id(crash_with_dump)
+        assert crash_id == "stackhash_primary"
+
+    def test_falls_back_when_analyzer_errors(
+        self, engine, crash_with_dump, monkeypatch
+    ):
+        from dicom_fuzzer.core.crash.dump_analyzer import StackResult
+
+        # Analyzer returns an error -> wire-up must fall back silently.
+        monkeypatch.setattr(
+            "dicom_fuzzer.core.crash.dump_analyzer.analyze_dump",
+            lambda *a, **kw: StackResult(
+                backend="none",
+                dump_path=str(crash_with_dump.dump_path),
+                error="no backend",
+            ),
+        )
+
+        crash_id = engine._generate_crash_id(crash_with_dump)
+        # Falls back to legacy md5 -- a 32-char hex string, not our sentinel
+        assert crash_id != "stackhash_primary"
+        assert len(crash_id) == 32
+
+    def test_falls_back_when_dump_path_unset(self, engine, critical_crash):
+        """Crashes recorded without --dump-tool keep the legacy hash."""
+        assert critical_crash.dump_path is None
+        # Just verify _generate_crash_id still works and is deterministic
+        a = engine._generate_crash_id(critical_crash)
+        b = engine._generate_crash_id(critical_crash)
+        assert a == b
+        assert len(a) == 32
+
+    def test_falls_back_when_dump_path_missing_on_disk(self, engine, crash_with_dump):
+        """Recorded dump_path that no longer exists -> graceful fallback."""
+        import os
+
+        os.remove(crash_with_dump.dump_path)
+        crash_id = engine._generate_crash_id(crash_with_dump)
+        assert len(crash_id) == 32  # legacy md5
+
+    def test_uses_managed_exception_name_for_overflow_detection(
+        self, engine, crash_with_dump, monkeypatch
+    ):
+        """When ClrMD recovers the managed exception class, that takes
+        precedence over the Windows exception name. This lets us
+        distinguish ``StackOverflowException`` (managed) from
+        ``STACK_OVERFLOW`` (Win32) consistently."""
+        from dicom_fuzzer.core.crash.dump_analyzer import (
+            ExceptionInfo,
+            StackFrame,
+            StackResult,
+        )
+
+        captured = {}
+
+        def fake_compute(frames, exception_name):
+            captured["exception_name"] = exception_name
+            from dicom_fuzzer.core.crash.stack_hash import StackSignature
+
+            return StackSignature(primary="p", minor="m", top_frames=[])
+
+        monkeypatch.setattr(
+            "dicom_fuzzer.core.crash.dump_analyzer.analyze_dump",
+            lambda *a, **kw: StackResult(
+                backend="clrmd",
+                dump_path=str(crash_with_dump.dump_path),
+                exception=ExceptionInfo(
+                    code_hex="0x80131523",
+                    name="System.StackOverflowException",
+                    address_hex="0x0",
+                ),
+                frames=[
+                    StackFrame(
+                        is_managed=True,
+                        module="Hermes.exe",
+                        type="X",
+                        method="Y",
+                        signature="Y()",
+                        md_token="0x06000001",  # noqa: S106 -- .NET MethodDef token
+                        il_offset_hex="0x0",
+                        ip_hex="0x1",
+                    )
+                ],
+            ),
+        )
+        monkeypatch.setattr(
+            "dicom_fuzzer.core.crash.stack_hash.compute_signature", fake_compute
+        )
+        engine._generate_crash_id(crash_with_dump)
+        # Managed exception name won over the CrashRecord.exception_type
+        assert captured["exception_name"] == "System.StackOverflowException"
