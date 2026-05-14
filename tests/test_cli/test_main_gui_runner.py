@@ -127,6 +127,207 @@ class TestGUITargetRunnerInit:
             assert "psutil" in str(exc_info.value)
 
 
+class TestGUITargetRunnerDumpTool:
+    """Test the --dump-tool wiring (Phase 1 of stack-capture work).
+
+    ProcDump is launched per-test via the -x wrap pattern; these tests
+    cover constructor validation, argv construction, and the dump-file
+    diff used to attribute a captured .dmp to the test that produced it.
+    No actual procdump.exe is invoked.
+    """
+
+    @pytest.fixture
+    def exe_path(self, tmp_path):
+        p = tmp_path / "viewer.exe"
+        p.write_bytes(b"mock executable")
+        return p
+
+    @pytest.fixture
+    def procdump_path(self, tmp_path):
+        p = tmp_path / "procdump.exe"
+        p.write_bytes(b"mock procdump")
+        return p
+
+    def test_init_explicit_dump_tool(self, exe_path, procdump_path, tmp_path):
+        """Explicit dump_tool kwarg enables wrap mode."""
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
+
+            runner = GUITargetRunner(
+                target_executable=str(exe_path),
+                crash_dir=str(tmp_path / "crashes"),
+                dump_tool=str(procdump_path),
+            )
+            assert runner.dump_tool == procdump_path
+            assert runner.dump_dir == tmp_path / "crashes" / "dumps"
+            assert runner.dump_dir.is_dir()
+
+    def test_init_dump_tool_via_env(
+        self, exe_path, procdump_path, tmp_path, monkeypatch
+    ):
+        """DICOM_FUZZER_PROCDUMP env var works as fallback."""
+        monkeypatch.setenv("DICOM_FUZZER_PROCDUMP", str(procdump_path))
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
+
+            runner = GUITargetRunner(
+                target_executable=str(exe_path),
+                crash_dir=str(tmp_path / "crashes"),
+            )
+            assert runner.dump_tool == procdump_path
+
+    def test_init_explicit_overrides_env(
+        self, exe_path, procdump_path, tmp_path, monkeypatch
+    ):
+        """Explicit kwarg wins over env var."""
+        other = tmp_path / "other_procdump.exe"
+        other.write_bytes(b"other")
+        monkeypatch.setenv("DICOM_FUZZER_PROCDUMP", str(other))
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
+
+            runner = GUITargetRunner(
+                target_executable=str(exe_path),
+                crash_dir=str(tmp_path / "crashes"),
+                dump_tool=str(procdump_path),
+            )
+            assert runner.dump_tool == procdump_path
+
+    def test_init_missing_dump_tool_raises(self, exe_path, tmp_path):
+        """Configured but non-existent ProcDump path is a fail-fast."""
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
+
+            with pytest.raises(FileNotFoundError, match="ProcDump"):
+                GUITargetRunner(
+                    target_executable=str(exe_path),
+                    crash_dir=str(tmp_path / "crashes"),
+                    dump_tool=str(tmp_path / "no-such-procdump.exe"),
+                )
+
+    def test_init_no_dump_tool_no_dump_dir(self, exe_path, tmp_path, monkeypatch):
+        """Default path: dump_tool and dump_dir stay None."""
+        monkeypatch.delenv("DICOM_FUZZER_PROCDUMP", raising=False)
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
+
+            runner = GUITargetRunner(
+                target_executable=str(exe_path),
+                crash_dir=str(tmp_path / "crashes"),
+            )
+            assert runner.dump_tool is None
+            assert runner.dump_dir is None
+
+    def test_build_launch_argv_without_dump_tool(self, exe_path, tmp_path):
+        """Without dump_tool, argv is exactly [target, file]."""
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
+
+            runner = GUITargetRunner(
+                target_executable=str(exe_path),
+                crash_dir=str(tmp_path / "crashes"),
+            )
+            test = tmp_path / "in.dcm"
+            test.write_bytes(b"d")
+            argv = runner._build_launch_argv(test)
+            assert argv == [str(exe_path), str(test)]
+
+    def test_build_launch_argv_with_dump_tool(self, exe_path, procdump_path, tmp_path):
+        """With dump_tool, argv wraps in 'procdump -accepteula -nobanner -mm -e -n 1 -x dir target file'."""
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
+
+            runner = GUITargetRunner(
+                target_executable=str(exe_path),
+                crash_dir=str(tmp_path / "crashes"),
+                dump_tool=str(procdump_path),
+            )
+            test = tmp_path / "in.dcm"
+            test.write_bytes(b"d")
+            argv = runner._build_launch_argv(test)
+            # Exact prefix matters -- flags drive ProcDump behavior.
+            assert argv[0] == str(procdump_path)
+            assert "-accepteula" in argv
+            assert "-nobanner" in argv
+            assert "-mm" in argv  # mini-with-stacks; ClrMD-compatible
+            assert "-e" in argv  # 2nd-chance / unhandled
+            # -n 1: one dump per launch
+            assert argv[argv.index("-n") + 1] == "1"
+            # -x <dumpdir>: launch-wrap mode
+            assert argv[argv.index("-x") + 1] == str(runner.dump_dir)
+            # Target + arg appear at the tail
+            assert argv[-2] == str(exe_path)
+            assert argv[-1] == str(test)
+
+    def test_snapshot_dumps_empty_when_no_dump_tool(self, exe_path, tmp_path):
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
+
+            runner = GUITargetRunner(
+                target_executable=str(exe_path),
+                crash_dir=str(tmp_path / "crashes"),
+            )
+            assert runner._snapshot_dumps() == set()
+
+    def test_attribute_dump_returns_new_file(self, exe_path, procdump_path, tmp_path):
+        """Diff returns the .dmp that appeared during the test window."""
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
+
+            runner = GUITargetRunner(
+                target_executable=str(exe_path),
+                crash_dir=str(tmp_path / "crashes"),
+                dump_tool=str(procdump_path),
+            )
+            (runner.dump_dir / "pre-existing.dmp").write_bytes(b"old")
+            before = runner._snapshot_dumps()
+            (runner.dump_dir / "fresh.dmp").write_bytes(b"new")
+
+            new = runner._attribute_dump(before)
+            assert new is not None
+            assert new.name == "fresh.dmp"
+
+    def test_attribute_dump_none_when_no_crash(self, exe_path, procdump_path, tmp_path):
+        """No new dump => result.dump_path stays None."""
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
+
+            runner = GUITargetRunner(
+                target_executable=str(exe_path),
+                crash_dir=str(tmp_path / "crashes"),
+                dump_tool=str(procdump_path),
+            )
+            before = runner._snapshot_dumps()
+            assert runner._attribute_dump(before) is None
+
+    def test_attribute_dump_picks_newest_on_tie(
+        self, exe_path, procdump_path, tmp_path
+    ):
+        """If two new dumps appear (rare; e.g. late-arriving prior capture),
+        the newest by mtime wins. Picking the older would attribute the
+        wrong input to the current test."""
+        import os as _os
+
+        with patch("dicom_fuzzer.cli.utils.gui_runner.HAS_PSUTIL", True):
+            from dicom_fuzzer.cli.utils.gui_runner import GUITargetRunner
+
+            runner = GUITargetRunner(
+                target_executable=str(exe_path),
+                crash_dir=str(tmp_path / "crashes"),
+                dump_tool=str(procdump_path),
+            )
+            before = runner._snapshot_dumps()
+            old = runner.dump_dir / "old.dmp"
+            new = runner.dump_dir / "new.dmp"
+            old.write_bytes(b"a")
+            new.write_bytes(b"b")
+            _os.utime(old, (1, 1))
+            _os.utime(new, (2, 2))
+
+            result = runner._attribute_dump(before)
+            assert result == new
+
+
 class TestGUITargetRunnerExecute:
     """Test GUITargetRunner execute_test method."""
 

@@ -297,12 +297,14 @@ class TargetTestingController:
                 sys.exit(1)
 
             startup_delay = getattr(args, "startup_delay", 0.0)
+            dump_tool = getattr(args, "dump_tool", None)
             runner = GUITargetRunner(
                 target_executable=args.target,
                 timeout=args.timeout,
                 crash_dir=str(output_dir / "crashes"),
                 memory_limit_mb=memory_limit,
                 startup_delay=startup_delay,
+                dump_tool=dump_tool,
             )
             logger.info("Starting GUI fuzzing campaign...")
         else:
@@ -373,6 +375,7 @@ class TargetTestingController:
                 if not exception_message and exit_code is not None:
                     exception_message = f"Process exited with code {exit_code}"
 
+            dump_path = getattr(result, "dump_path", None)
             session.record_crash(
                 file_id=file_id,
                 crash_type=crash_type,
@@ -381,6 +384,7 @@ class TargetTestingController:
                 exception_type=exception_type,
                 exception_message=exception_message,
                 viewer_path=target_path,
+                dump_path=str(dump_path) if dump_path else None,
             )
 
             alert_num += 1
