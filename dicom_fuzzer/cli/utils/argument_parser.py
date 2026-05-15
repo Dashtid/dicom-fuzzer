@@ -58,6 +58,7 @@ Subcommands (use --help for details):
   study        Study-level fuzzing (cross-series attacks)
   calibrate    Calibration/measurement fuzzing
   stress       Memory stress testing
+  check-dump-tool  Validate ProcDump + ClrMD analyzer before a campaign
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

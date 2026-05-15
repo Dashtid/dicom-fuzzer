@@ -197,6 +197,60 @@ Repro plan:
   size is small enough that the 4.85GB peak is a true amplification
   (>100x) rather than legitimate large-data processing.
 
+### Stack-trace capture for crash clustering -- IN PROGRESS
+
+Four-phase upgrade replaces the exception-code-only crash bucket key
+with symbolic stack-hash signatures (Socorro-style, top-10 with
+recursion folding and a `stackoverflow:` tag). Once campaigns run
+with `--dump-tool` set, the 70-crash dicomdir cluster from
+2026-05-14 will either confirm "1 bug reachable through 22
+strategies" or split into N call-site clusters -- mechanically
+answerable instead of inferred.
+
+- **Phase 1 (PR #336):** `--dump-tool PATH` (env
+  `DICOM_FUZZER_PROCDUMP`) wraps Hermes launches in ProcDump's `-x`
+  mode; per-test minidumps land in `<output>/crashes/dumps/`.
+  Mini-with-stacks (`-mm`) so each dump is ~30 MB instead of
+  ~300-700 MB while staying ClrMD-readable.
+- **Phase 2 (PR #337):** `tools/dump-analyzer/` -- C# helper using
+  Microsoft.Diagnostics.Runtime (ClrMD) extracts symbolic frames
+  from each dump via PE MethodDef metadata. Works on closed-source
+  .NET (no PDBs required). `dotnet-dump` fallback for unbuilt envs.
+- **Phase 3 (PR #338):** `dicom_fuzzer/core/crash/stack_hash.py`
+  Socorro-style algorithm; wired into `crash_triage._generate_crash_id`
+  opt-in via `crash.dump_path`. Crashes without dumps keep the
+  byte-identical legacy hash.
+- **Phase 4 (this PR):** cluster reports render the top frames +
+  primary/minor signature inline; `check-dump-tool` subcommand
+  validates the toolchain in 2 seconds before kicking off an 8-hour
+  campaign.
+
+### Operational notes for campaigns using `--dump-tool`
+
+- **Windows Defender real-time scan.** A campaign run produces
+  hundreds of fresh `.dmp` files; on a default Defender config this
+  noticeably slows test throughput and can occasionally quarantine
+  a dump as "suspicious memory image". Add an exclusion before
+  long runs:
+  ```powershell
+  Add-MpPreference -ExclusionPath "C:\code-two\dicom-fuzzer\artifacts\campaigns"
+  ```
+  Admin required. Documented here rather than auto-applied because
+  it's a security trade-off the user should make explicitly.
+- **Disk retention policy.** Default is to keep every `-mm` dump
+  (~30 MB each). For a 720-test campaign that's ~2 GB worst case.
+  Past two campaigns we should manually delete dumps from older
+  runs, or promote one dump per cluster to `-ma` (full memory) for
+  archival and discard the rest. No code action; just discipline.
+- **Hermes Affinity single-seat + ProcDump debug-attach.**
+  Untested combination. Research flagged it as a possible
+  interaction risk (the license server may see the debugger
+  attach as a separate session). Run a 5-test smoke before any
+  8-hour campaign with `--dump-tool` set the first time on a new
+  Hermes install; if license dialogs fire mid-test the campaign is
+  doing no parsing and the metric `crashes_per_minute` will be
+  near-zero.
+
 ### Atheris fuzz coverage -- DONE (closed 2026-05-05)
 
 Two harnesses run weekly + on PRs touching parsing paths:

@@ -12,6 +12,7 @@ debugger session, but enough to:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from dicom_fuzzer.core.crash.crash_triage import CrashTriage, CrashTriageEngine
@@ -21,6 +22,61 @@ from dicom_fuzzer.utils.logger import get_logger
 logger = get_logger(__name__)
 
 __all__ = ["write_cluster_reports"]
+
+
+@dataclass
+class _StackInfo:
+    """Bundle of stack-trace facts the cluster report renders.
+
+    Populated by ``_collect_stack_info`` when the representative crash
+    has an analyzable dump; left None when the producer side
+    (``--dump-tool``) was not used or the analyzer failed.
+    """
+
+    primary: str
+    minor: str
+    backend: str  # "clrmd", "dotnet-dump", "none"
+    exception_name: str | None
+    top_frames: list[str]
+
+
+def _collect_stack_info(crash: CrashRecord) -> _StackInfo | None:
+    """Run the Phase 2 analyzer + Phase 3 hasher for one crash.
+
+    Lazy-imports so the heavyweight ClrMD subprocess machinery is only
+    loaded when a campaign actually has dumps to render. Returns None on
+    any failure path so callers can just skip the stack section.
+    """
+    dump_path = getattr(crash, "dump_path", None)
+    if not dump_path:
+        return None
+    try:
+        from dicom_fuzzer.core.crash.dump_analyzer import analyze_dump
+        from dicom_fuzzer.core.crash.stack_hash import compute_signature
+
+        result = analyze_dump(dump_path)
+        if result.error or not result.frames:
+            return None
+        exc_name = (
+            result.exception.name if result.exception else None
+        ) or crash.exception_type
+        sig = compute_signature(result.frames, exception_name=exc_name)
+        if sig is None:
+            return None
+        return _StackInfo(
+            primary=sig.primary,
+            minor=sig.minor,
+            backend=result.backend,
+            exception_name=exc_name,
+            top_frames=sig.top_frames,
+        )
+    except Exception as exc:
+        logger.debug(
+            "Stack-info collection failed for %s, skipping section: %s",
+            crash.crash_id,
+            exc,
+        )
+        return None
 
 
 def write_cluster_reports(
@@ -140,9 +196,32 @@ def _write_one_cluster(
         lines.append(representative.exception_message.strip())
         lines.append("```")
 
+    stack_info = _collect_stack_info(representative)
+    if stack_info is not None:
+        lines.append("")
+        lines.append(
+            "### Symbolic stack (top frames after normalization + recursion fold)"
+        )
+        lines.append("")
+        lines.append(
+            f"- **backend**: `{stack_info.backend}` "
+            "(clrmd = high fidelity; dotnet-dump = lower)"
+        )
+        if stack_info.exception_name:
+            lines.append(f"- **exception**: `{stack_info.exception_name}`")
+        lines.append(f"- **primary signature**: `{stack_info.primary}`")
+        lines.append(f"- **minor signature**: `{stack_info.minor}`")
+        lines.append("")
+        lines.append("Top frames (bug site first):")
+        lines.append("")
+        lines.append("```")
+        for f in stack_info.top_frames:
+            lines.append(f)
+        lines.append("```")
+
     if representative.stack_trace:
         lines.append("")
-        lines.append("### Stack trace")
+        lines.append("### Stack trace (raw)")
         lines.append("")
         lines.append("```")
         lines.append(representative.stack_trace.strip())

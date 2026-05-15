@@ -58,6 +58,7 @@ SUBCOMMANDS: dict[str, str] = {
     "replay": "dicom_fuzzer.cli.commands.replay",  # Decompose fuzzed files
     "minimize": "dicom_fuzzer.cli.commands.minimize",  # Minimize crashing files
     "sanitize": "dicom_fuzzer.cli.commands.sanitize",  # Strip PHI from seeds
+    "check-dump-tool": "dicom_fuzzer.cli.commands.check_dump_tool",  # Pre-flight
 }
 
 

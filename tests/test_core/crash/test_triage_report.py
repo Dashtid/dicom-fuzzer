@@ -162,3 +162,112 @@ class TestPriorityOrdering:
         crit_pos = index.find("write access")
         low_pos = index.find("timeout")
         assert 0 < crit_pos < low_pos
+
+
+class TestSymbolicStackSection:
+    """Phase 4: cluster reports render the Phase 3 stack-hash output
+    inline so triage reads the bug site without opening the dump.
+    """
+
+    def test_section_omitted_when_no_dump_path(self, tmp_path):
+        crash = _make_crash()
+        assert crash.dump_path is None
+        write_cluster_reports([crash], tmp_path)
+        cluster_files = list(tmp_path.glob("cluster_*.md"))
+        content = cluster_files[0].read_text(encoding="utf-8")
+        assert "Symbolic stack" not in content
+
+    def test_section_omitted_when_analyzer_returns_no_frames(
+        self, tmp_path, monkeypatch
+    ):
+        from dicom_fuzzer.core.crash.dump_analyzer import StackResult
+
+        crash = _make_crash()
+        crash.dump_path = str(tmp_path / "x.dmp")
+        (tmp_path / "x.dmp").write_bytes(b"fake")
+        monkeypatch.setattr(
+            "dicom_fuzzer.core.crash.dump_analyzer.analyze_dump",
+            lambda *a, **kw: StackResult(
+                backend="none", dump_path=crash.dump_path, error="no backend"
+            ),
+        )
+        write_cluster_reports([crash], tmp_path)
+        cluster_files = list(tmp_path.glob("cluster_*.md"))
+        content = cluster_files[0].read_text(encoding="utf-8")
+        assert "Symbolic stack" not in content
+
+    def test_section_rendered_when_analyzer_succeeds(self, tmp_path, monkeypatch):
+        """Happy path: analyzer + hasher succeed -> markdown has the
+        backend, primary/minor hashes, exception name, and top frames."""
+        from dicom_fuzzer.core.crash.dump_analyzer import (
+            ExceptionInfo,
+            StackFrame,
+            StackResult,
+        )
+        from dicom_fuzzer.core.crash.stack_hash import StackSignature
+
+        crash = _make_crash()
+        crash.dump_path = str(tmp_path / "x.dmp")
+        (tmp_path / "x.dmp").write_bytes(b"fake")
+
+        fake_frame = StackFrame(
+            is_managed=True,
+            module="Hermes.exe",
+            type="Hermes.Parser.DicomReader",
+            method="ReadSequence",
+            signature="ReadSequence()",
+            md_token="0x06000123",  # noqa: S106 -- .NET MethodDef token
+            il_offset_hex="0x4a",
+            ip_hex="0x1",
+        )
+        monkeypatch.setattr(
+            "dicom_fuzzer.core.crash.dump_analyzer.analyze_dump",
+            lambda *a, **kw: StackResult(
+                backend="clrmd",
+                dump_path=crash.dump_path,
+                exception=ExceptionInfo(
+                    code_hex="0xC00000FD",
+                    name="STACK_OVERFLOW",
+                    address_hex="0x0",
+                ),
+                frames=[fake_frame],
+            ),
+        )
+        monkeypatch.setattr(
+            "dicom_fuzzer.core.crash.stack_hash.compute_signature",
+            lambda *a, **kw: StackSignature(
+                primary="abc123primary",
+                minor="def456minor",
+                top_frames=[
+                    "hermes.exe!hermes.parser.dicomreader.readsequence+il_0x4a",
+                ],
+            ),
+        )
+
+        write_cluster_reports([crash], tmp_path)
+        cluster_files = list(tmp_path.glob("cluster_*.md"))
+        content = cluster_files[0].read_text(encoding="utf-8")
+
+        assert "Symbolic stack" in content
+        assert "clrmd" in content  # backend tag
+        assert "abc123primary" in content
+        assert "def456minor" in content
+        assert "STACK_OVERFLOW" in content
+        assert "hermes.exe!hermes.parser.dicomreader.readsequence+il_0x4a" in content
+
+    def test_section_skipped_on_analyzer_exception(self, tmp_path, monkeypatch):
+        """Even if analyze_dump itself raises, the report renders the
+        rest of the cluster info; the stack section is just omitted."""
+        crash = _make_crash()
+        crash.dump_path = str(tmp_path / "x.dmp")
+        (tmp_path / "x.dmp").write_bytes(b"fake")
+
+        def boom(*a, **kw):
+            raise RuntimeError("analyzer self-destructed")
+
+        monkeypatch.setattr("dicom_fuzzer.core.crash.dump_analyzer.analyze_dump", boom)
+        write_cluster_reports([crash], tmp_path)
+        cluster_files = list(tmp_path.glob("cluster_*.md"))
+        content = cluster_files[0].read_text(encoding="utf-8")
+        assert "# Cluster" in content
+        assert "Symbolic stack" not in content
