@@ -10,12 +10,7 @@ from dicom_fuzzer.core.crash import createdump as cd
 
 
 class TestFindCreatedump:
-    def test_returns_none_on_non_windows(self, monkeypatch):
-        monkeypatch.setattr(cd.os, "name", "posix")
-        assert cd.find_createdump() is None
-
     def test_returns_none_when_no_runtime_present(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(cd.os, "name", "nt")
         # Point both candidates at empty/nonexistent dirs
         monkeypatch.setattr(
             cd,
@@ -25,7 +20,6 @@ class TestFindCreatedump:
         assert cd.find_createdump() is None
 
     def test_picks_newest_version_when_multiple_present(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(cd.os, "name", "nt")
         base = tmp_path / "dotnet"
         (base / "8.0.0").mkdir(parents=True)
         (base / "8.0.5").mkdir(parents=True)
@@ -39,7 +33,6 @@ class TestFindCreatedump:
 
     def test_skips_files_in_version_dir_root(self, monkeypatch, tmp_path):
         """Loose files (non-dirs) under Microsoft.NETCore.App should be ignored."""
-        monkeypatch.setattr(cd.os, "name", "nt")
         base = tmp_path / "dotnet"
         base.mkdir()
         (base / "noise.txt").write_text("not a version dir")
@@ -51,7 +44,6 @@ class TestFindCreatedump:
         assert result.parent.name == "8.0.5"
 
     def test_handles_non_numeric_version_dirs(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(cd.os, "name", "nt")
         base = tmp_path / "dotnet"
         (base / "8.0.5").mkdir(parents=True)
         (base / "preview-something").mkdir(parents=True)

@@ -36,13 +36,12 @@ _PROGRAM_FILES_CANDIDATES = (
 def find_createdump() -> Path | None:
     """Locate the highest-version createdump.exe under standard paths.
 
-    Returns None on non-Windows hosts or when no .NET runtime is
-    installed. Callers should treat None as "hang dumps unavailable"
-    and continue without a dump.
+    Returns None when no .NET runtime is installed. The standard
+    install path is Windows-only; on other OSes the directories below
+    simply don't exist and we fall through to the empty-candidates
+    return. Callers should treat None as "hang dumps unavailable" and
+    continue without a dump.
     """
-    if os.name != "nt":
-        return None
-
     candidates: list[Path] = []
     for raw in _PROGRAM_FILES_CANDIDATES:
         expanded = os.path.expandvars(raw)
