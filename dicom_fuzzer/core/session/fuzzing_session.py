@@ -314,6 +314,7 @@ class FuzzingSession:
         exception_message: str | None = None,
         stack_trace: str | None = None,
         viewer_path: str | None = None,
+        dump_path: str | None = None,
     ) -> CrashRecord:
         """Record a crash with full forensic details.
 
@@ -326,6 +327,9 @@ class FuzzingSession:
             exception_message: Exception message
             stack_trace: Full stack trace
             viewer_path: Path to viewer that was tested
+            dump_path: Path to per-crash minidump (.dmp) if the target
+                was launched with DOTNET_DbgEnableMiniDump or captured
+                via createdump.exe on hang.
 
         Returns:
             CrashRecord object
@@ -378,6 +382,7 @@ class FuzzingSession:
             stack_trace=stack_trace,
             crash_log_path=str(crash_log_path),
             preserved_sample_path=str(preserved_path),
+            dump_path=dump_path,
             reproduction_command=repro_cmd,
             mutation_sequence=mutation_sequence,
         )

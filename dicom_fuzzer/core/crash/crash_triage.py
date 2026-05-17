@@ -6,12 +6,15 @@ exploitability indicators, and crash characteristics.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from dicom_fuzzer.core.constants import Severity
 from dicom_fuzzer.core.crash.models import CrashRecord
 from dicom_fuzzer.utils.hashing import md5_hash
 from dicom_fuzzer.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from dicom_fuzzer.core.crash.stack_hash import StackSignature
 
 logger = get_logger(__name__)
 
@@ -484,7 +487,20 @@ class CrashTriageEngine:
         return " ".join(parts)
 
     def _generate_crash_id(self, crash: CrashRecord) -> str:
-        """Generate unique ID for crash (for caching).
+        """Generate cluster signature for a crash (also used as cache key).
+
+        When ``crash.dump_path`` points to an analyzable minidump, this
+        uses Phase 3's Socorro-style stack-hash on the symbolic frames
+        extracted by Phase 2's ``dump_analyzer``. Crashes that reach the
+        same code path through different inputs cluster together; this
+        is the algorithmic upgrade that proves whether "70 STACK_OVERFLOW
+        crashes from 22 strategies" is 1 bug or several.
+
+        Falls back to the legacy exception-code + string-stack-trace
+        hash when no dump_path is set or analysis fails. The fallback
+        keeps all existing single-bucket tests passing and means
+        upgrading the producer side (DOTNET_DbgEnableMiniDump rollout)
+        can happen independently of the consumer side.
 
         Args:
             crash: Crash record
@@ -493,7 +509,11 @@ class CrashTriageEngine:
             Crash ID string
 
         """
-        # Use crash characteristics to generate ID
+        stack_sig = self._stack_signature(crash)
+        if stack_sig is not None:
+            return stack_sig.primary
+
+        # Legacy fallback: same as before Phase 3, byte-for-byte.
         id_parts = [
             crash.crash_type,
             crash.exception_type or "",
@@ -502,3 +522,58 @@ class CrashTriageEngine:
         ]
         id_str = "|".join(id_parts)
         return md5_hash(id_str)
+
+    def _stack_signature(self, crash: CrashRecord) -> "StackSignature | None":
+        """Try to compute a Socorro-style signature from a minidump.
+
+        Lazy-imports the analyzer modules so the heavyweight ClrMD
+        helper / subprocess machinery isn't loaded unless we actually
+        need it. Returns None on any failure -- the caller falls back
+        to the legacy string-hash path.
+        """
+        dump_path = getattr(crash, "dump_path", None)
+        if not dump_path:
+            return None
+
+        try:
+            from pathlib import Path
+
+            from dicom_fuzzer.core.crash.dump_analyzer import analyze_dump
+            from dicom_fuzzer.core.crash.stack_hash import compute_signature
+
+            dump = Path(dump_path)
+            if not dump.exists():
+                logger.debug("Recorded dump_path missing: %s", dump_path)
+                return None
+
+            result = analyze_dump(dump)
+            if result.error or not result.frames:
+                logger.debug(
+                    "dump_analyzer produced no usable frames for %s: %s",
+                    dump_path,
+                    result.error or "(no error message)",
+                )
+                return None
+
+            exc_name = (
+                result.exception.name if result.exception else None
+            ) or crash.exception_type
+            sig = compute_signature(result.frames, exception_name=exc_name)
+            if sig is None:
+                return None
+
+            logger.debug(
+                "Stack-hash signature for %s: primary=%s minor=%s (backend=%s)",
+                crash.crash_id,
+                sig.primary,
+                sig.minor,
+                result.backend,
+            )
+            return sig
+        except Exception as exc:
+            logger.warning(
+                "Stack-hash signature failed for %s, falling back: %s",
+                crash.crash_id,
+                exc,
+            )
+            return None
