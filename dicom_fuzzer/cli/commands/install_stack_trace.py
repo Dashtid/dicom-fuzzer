@@ -83,7 +83,13 @@ def main(argv: list[str]) -> int:
     url = _NUPKG_URL.format(version=args.version)
     cli.info(f"Downloading {url} ...")
     try:
-        with urllib.request.urlopen(url, timeout=60) as resp:  # noqa: S310  # nosec B310 -- pinned NuGet URL
+        # URL is constructed from a constant template + a pinned version
+        # string in our own __init__.py, not user input. The bytes are
+        # SHA256-verified against CLRMD_SHA256 before being written to
+        # disk, so a hijacked NuGet response cannot install bad code.
+        with urllib.request.urlopen(  # noqa: S310  # nosec B310  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+            url, timeout=60
+        ) as resp:
             nupkg_bytes = resp.read()
     except Exception as exc:
         cli.error(f"NuGet download failed: {exc}")
