@@ -1,15 +1,14 @@
-"""dicom-fuzzer install-stack-trace -- one-time DLL fetcher.
+"""dicom-fuzzer install-stack-trace -- maintainer DLL refresher.
 
-Downloads ``Microsoft.Diagnostics.Runtime`` from NuGet, extracts the
-DLL into ``dicom_fuzzer/_vendor/clrmd/``, and verifies SHA256 against
-the pinned value. Idempotent: re-running with the same version is a
-no-op when the DLL is already present and its checksum matches.
+End users never need this: the ClrMD DLL is committed to the repo
+under ``dicom_fuzzer/_vendor/clrmd/`` and ships with every wheel and
+every clone. This subcommand exists for *maintainers* who want to
+bump to a newer ClrMD release:
 
-We do this dynamically rather than committing the binary to git
-because (a) the 2 MB binary doesn't fit Git's diff workflow, (b)
-shipping the wheel itself bundles the DLL, so end users installing
-via ``uv tool install dicom-fuzzer`` never hit this code path — only
-fresh developer clones do.
+1. Edit ``CLRMD_VERSION`` in ``dicom_fuzzer/_vendor/clrmd/__init__.py``
+2. ``dicom-fuzzer install-stack-trace --force``
+3. Update ``CLRMD_SHA256`` to the new printed hash
+4. Commit the updated DLL + pin
 """
 
 from __future__ import annotations
@@ -28,7 +27,7 @@ from dicom_fuzzer.cli.utils import output as cli
 _NUPKG_URL = (
     "https://www.nuget.org/api/v2/package/Microsoft.Diagnostics.Runtime/{version}"
 )
-_DLL_PATH_IN_NUPKG = "lib/net6.0/Microsoft.Diagnostics.Runtime.dll"
+_DLL_PATH_IN_NUPKG = "lib/netstandard2.0/Microsoft.Diagnostics.Runtime.dll"
 _TARGET_DLL = (
     Path(__file__).parent.parent.parent
     / "_vendor"

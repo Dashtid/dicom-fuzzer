@@ -56,6 +56,12 @@ dependencies = [
     "tqdm>=4.66.0",           # Progress bars for CLI
     "cryptography>=46.0.7",
     "psutil>=5.9.0",
+    # Hosts Microsoft.Diagnostics.Runtime.dll (vendored under
+    # dicom_fuzzer/_vendor/clrmd/) in-process so --dump-dir produces
+    # symbolic .NET stack traces without any extra install step.
+    # Windows-only because ClrMD and the dumps we analyze are
+    # Windows-only.
+    "pythonnet>=3.0; sys_platform == 'win32'",
 ]
 
 
@@ -97,15 +103,8 @@ fuzz = [
     # CI, so 3.14 jobs aren't affected.
     "atheris>=2.3.0; python_version < '3.14'",
 ]
-stack-trace = [
-    # Hosts Microsoft.Diagnostics.Runtime.dll (ClrMD) in-process for
-    # symbolic .NET stack-trace extraction from minidumps. Windows-only
-    # because ClrMD itself is Windows-only and the .NET dumps we
-    # analyze are written by Windows .NET 8 apps (Hermes).
-    "pythonnet>=3.0; sys_platform == 'win32'",
-]
 all = [
-    "dicom-fuzzer[viz,distributed,metrics,network,security,stack-trace]",
+    "dicom-fuzzer[viz,distributed,metrics,network,security]",
 ]
 
 # Hatchling automatically discovers packages - no explicit configuration needed

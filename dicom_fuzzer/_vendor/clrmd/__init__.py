@@ -5,17 +5,16 @@ We ship Microsoft.Diagnostics.Runtime.dll directly in the wheel
 anything. Pinned version is recorded in ``CLRMD_VERSION`` for
 reproducibility / refresh tooling.
 
-On a fresh dev clone the DLL is not present (Git LFS would be
-overkill for one file). Either:
-
-1. Run ``python -m dicom_fuzzer.cli.commands.install_stack_trace``
-   which fetches it from NuGet, verifies SHA256, and drops it here.
-2. Or ``uv tool install dicom-fuzzer`` from a published wheel,
-   which already bundles the DLL.
+The DLL is committed to the repo (~770 KB), so it ships with every
+clone and every wheel. Run ``dicom-fuzzer install-stack-trace
+--force`` to bump to a newer ClrMD release; commit the resulting
+DLL + updated SHA256 pin in this file.
 """
 
 CLRMD_VERSION: str = "4.0.726401"
-# SHA256 of Microsoft.Diagnostics.Runtime.dll inside the NuGet package at
-# CLRMD_VERSION. Populated by install_stack_trace on first fetch; pin
-# here once verified so subsequent fetches detect tamper.
-CLRMD_SHA256: str | None = None
+# SHA256 of Microsoft.Diagnostics.Runtime.dll inside the NuGet package
+# at CLRMD_VERSION (netstandard2.0 flavour). Pinned so any re-fetch
+# (via `dicom-fuzzer install-stack-trace --force`) detects tamper.
+CLRMD_SHA256: str | None = (
+    "42fbe6fd099163063294b28a0a50f9393cc5d5f6e0f0e09c28dfbd96f7a9852a"
+)

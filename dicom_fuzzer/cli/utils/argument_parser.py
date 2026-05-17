@@ -223,8 +223,7 @@ def _add_target_args(parser: argparse.ArgumentParser) -> None:
             "writes a .dmp on stack overflow / access violation. The "
             "fuzzer then attributes each dump to its triggering test for "
             "symbolic-stack cluster signatures. Only used with --gui-mode "
-            "and a .NET 5+ target. Run `dicom-fuzzer check-stack-trace` "
-            "first to validate the toolchain."
+            "and a .NET 5+ target."
         ),
     )
     parser.add_argument(

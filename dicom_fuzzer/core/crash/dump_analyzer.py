@@ -159,16 +159,17 @@ def _ensure_clrmd_ready() -> bool:
             _init_state = False
             _init_error = (
                 "pythonnet is not installed; managed-stack symbolication "
-                "is unavailable. Install with `pip install dicom-fuzzer"
-                "[stack-trace]` or run `dicom-fuzzer install-stack-trace`."
+                "is unavailable. pythonnet is a base dependency on Windows; "
+                "re-run `uv tool install dicom-fuzzer`."
             )
             return False
 
         if not _CLRMD_DLL.exists():
             _init_state = False
             _init_error = (
-                f"ClrMD DLL not vendored at {_CLRMD_DLL}. Run "
-                "`dicom-fuzzer install-stack-trace` to fetch it from NuGet."
+                f"ClrMD DLL not vendored at {_CLRMD_DLL}. This is "
+                "unexpected -- the DLL is committed to the repo. Re-clone "
+                "or re-run `uv tool install dicom-fuzzer`."
             )
             return False
 

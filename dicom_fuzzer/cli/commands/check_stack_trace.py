@@ -2,14 +2,16 @@
 
 Runs the three checks a campaign with ``--dump-dir`` needs:
 
-1. **pythonnet** importable -- the ``pip install dicom-fuzzer[stack-trace]``
-   extra was installed (or pythonnet is on the path some other way).
-2. **ClrMD DLL** vendored -- ``dicom-fuzzer install-stack-trace`` ran
-   successfully (or the wheel bundled the DLL). We don't actually
-   *load* the DLL here because that requires a live .NET runtime;
-   we just verify the file is present and non-trivial size.
+1. **pythonnet** importable -- shipped as a base dependency so this
+   should always pass on Windows after ``uv tool install dicom-fuzzer``.
+2. **ClrMD DLL** vendored -- committed under
+   ``dicom_fuzzer/_vendor/clrmd/``, so this should pass on any clone
+   or wheel. We don't actually *load* the DLL here because that
+   requires a live .NET runtime; we just verify the file is present
+   and non-trivial size.
 3. **createdump.exe** discoverable -- a .NET 5+ runtime is installed
-   so the hang-dump path works.
+   so the hang-dump path works. Hermes is .NET 8 so the user already
+   has this; the check is here to catch host misconfigurations.
 
 Exit code 0 if all three pass, 1 otherwise. Prints a status table
 either way. Designed to fail in seconds rather than 8 hours into
@@ -67,8 +69,9 @@ def _check_pythonnet() -> bool:
         import pythonnet  # noqa: F401
     except ImportError:
         cli.error(
-            "pythonnet: NOT INSTALLED. Install with "
-            "`pip install dicom-fuzzer[stack-trace]` or `pip install pythonnet>=3.0`."
+            "pythonnet: NOT INSTALLED. This is unexpected -- pythonnet is "
+            "a base dependency. Re-run `uv tool install dicom-fuzzer` "
+            "(or `pip install pythonnet>=3.0`) and try again."
         )
         return False
     cli.success("pythonnet: installed")
@@ -80,8 +83,9 @@ def _check_clrmd_dll() -> bool:
     dll = Path(_CLRMD_DLL)
     if not dll.exists():
         cli.error(
-            f"ClrMD DLL: NOT FOUND at {dll}. Run "
-            "`dicom-fuzzer install-stack-trace` to fetch it from NuGet."
+            f"ClrMD DLL: NOT FOUND at {dll}. This is unexpected -- the "
+            "DLL is committed to the repo. Re-clone the repo or re-run "
+            "`uv tool install dicom-fuzzer`."
         )
         return False
     size = dll.stat().st_size

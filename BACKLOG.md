@@ -281,10 +281,11 @@ self-referencing ReferencedImageSequence). Build:
 - Auto-cluster crashes by stack-frame signature -- Phase 5 (in this
   PR) lands the full pipeline: `--dump-dir` sets
   `DOTNET_DbgEnableMiniDump` on Hermes so the runtime writes a .dmp
-  on every Corrupted State Exception; pythonnet + bundled ClrMD
-  symbolicate; Socorro-style hashing buckets matching crashes into
-  one signature; cluster reports embed the top frames + primary/
-  minor hashes. No external installs, no `tools/` folder.
+  on every Corrupted State Exception; pythonnet + vendored ClrMD
+  DLL (committed under `_vendor/clrmd/`) symbolicate; Socorro-style
+  hashing buckets matching crashes into one signature; cluster
+  reports embed the top frames + primary / minor hashes. Truly
+  zero-step: `uv tool install dicom-fuzzer` ships everything.
 - Auto-minimize via mutation-record replay
 - Generate per-crash markdown report from `CrashRecord` -- done in
   Phase 4 / cluster reports.
