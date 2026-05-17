@@ -6,6 +6,7 @@ after processing files, such as DICOM viewers (Hermes Affinity, MicroDicom, etc.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import time
@@ -48,6 +49,10 @@ class GUIExecutionResult:
     stdout: str = ""
     stderr: str = ""
     windows_crash_info: Any = field(default=None, repr=False)
+    # Path to per-test minidump if DOTNET_DbgEnableMiniDump fired or
+    # createdump.exe captured a hang. None when stack-trace capture
+    # was disabled (dump_dir not configured) or the test didn't crash.
+    dump_path: str | None = None
 
     def __bool__(self) -> bool:
         """Test succeeded if app didn't crash (timeout is OK for GUI apps)."""
@@ -77,6 +82,7 @@ class GUITargetRunner:
         memory_limit_mb: int | None = None,
         startup_delay: float = 3.0,
         warmup_seconds: float = 60.0,
+        dump_dir: str | None = None,
     ):
         """Initialize GUI target runner.
 
@@ -89,6 +95,13 @@ class GUITargetRunner:
             warmup_seconds: Seconds for one-time warmup launch before campaign.
                 Caches DLLs and runtime libraries in memory for faster subsequent
                 launches. Set to 0 to disable.
+            dump_dir: When set, enables stack-trace capture. The runner sets
+                DOTNET_DbgEnableMiniDump=1 + companion env vars on the target
+                subprocess so the .NET runtime writes a minidump on any
+                Corrupted State Exception (stack overflow, access violation).
+                .dmp files appear in this directory and are attributed back
+                to the test that produced them via set-diff snapshotting.
+                Requires the target to be a .NET 5+ app.
 
         Raises:
             FileNotFoundError: If target executable doesn't exist
@@ -110,6 +123,14 @@ class GUITargetRunner:
         self.memory_limit_mb = memory_limit_mb
         self.startup_delay = startup_delay
         self.warmup_seconds = warmup_seconds
+        self.dump_dir: Path | None = None
+        if dump_dir is not None:
+            self.dump_dir = Path(dump_dir).resolve()
+            self.dump_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(
+                "Stack-trace capture enabled; dumps will land in %s",
+                self.dump_dir,
+            )
 
         # Windows crash handler for NTSTATUS classification
         self.windows_crash_handler: WindowsCrashHandler | None = None
@@ -217,6 +238,60 @@ class GUITargetRunner:
         except psutil.NoSuchProcess:
             return None
 
+    def _build_target_env(self) -> dict[str, str] | None:
+        """Return the env dict the target should be launched with.
+
+        Returns None when no env tweaks are needed (no dump capture
+        requested) — Popen treats env=None as "inherit current
+        environment", which is what we want in the no-op case.
+
+        When dump capture is enabled we set the three DOTNET_Dbg vars
+        documented at https://learn.microsoft.com/en-us/dotnet/core/diagnostics/collect-dumps-crash.
+        These cause the .NET runtime to invoke createdump.exe on any
+        Corrupted State Exception (StackOverflowException,
+        AccessViolationException) — exactly the crash classes that
+        WPF's DispatcherUnhandledException cannot intercept.
+        """
+        if self.dump_dir is None:
+            return None
+        env = os.environ.copy()
+        env["DOTNET_DbgEnableMiniDump"] = "1"
+        env["DOTNET_DbgMiniDumpType"] = "2"  # Heap (good for stack walk)
+        # %p = pid, %t = unix timestamp. These name templates are
+        # resolved by createdump itself, so the resulting filenames are
+        # unique even if multiple test processes overlap briefly.
+        env["DOTNET_DbgMiniDumpName"] = str(self.dump_dir / "hermes.%p.%t.dmp")
+        return env
+
+    def _snapshot_dump_dir(self) -> set[Path]:
+        """Return the set of .dmp paths currently in the dump dir.
+
+        Cheap (~5 ms even with hundreds of dumps). We call this before
+        and after each test so we can attribute newly-appeared dumps
+        to the test that just ran.
+        """
+        if self.dump_dir is None or not self.dump_dir.is_dir():
+            return set()
+        return {p for p in self.dump_dir.iterdir() if p.suffix.lower() == ".dmp"}
+
+    def _attribute_new_dump(self, pre: set[Path]) -> str | None:
+        """Find a .dmp written during this test, if any.
+
+        When multiple dumps land in the window (rare — would require
+        the target to spawn a child .NET process that also crashes)
+        we return the newest, since it is most likely the crash
+        triggered by the test file we just fed in.
+        """
+        if self.dump_dir is None:
+            return None
+        post = self._snapshot_dump_dir()
+        new = post - pre
+        if not new:
+            return None
+        newest = max(new, key=lambda p: p.stat().st_mtime)
+        logger.info("Attributed dump: %s", newest)
+        return str(newest)
+
     def _capture_output(self, process: subprocess.Popen[bytes]) -> tuple[str, str]:
         """Capture process stdout and stderr."""
         try:
@@ -261,6 +336,7 @@ class GUITargetRunner:
         stderr_data = ""
 
         process = None
+        dumps_before = self._snapshot_dump_dir()
         try:
             # DEVNULL (not PIPE) to avoid Windows pipe-buffer deadlock:
             # if Hermes fills the ~4-64KB pipe before we drain it, the
@@ -269,6 +345,7 @@ class GUITargetRunner:
                 [str(self.target_executable), str(test_file_path)],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                env=self._build_target_env(),
                 creationflags=(
                     getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
                     if sys.platform == "win32"
@@ -315,6 +392,8 @@ class GUITargetRunner:
                     crash_info.severity,
                 )
 
+        dump_path = self._attribute_new_dump(dumps_before) if crashed else None
+
         return GUIExecutionResult(
             test_file=test_file_path,
             status=status,
@@ -327,6 +406,7 @@ class GUITargetRunner:
             stdout=stdout_data,
             stderr=stderr_data,
             windows_crash_info=crash_info,
+            dump_path=dump_path,
         )
 
     def _kill_process_tree(self, process: subprocess.Popen[bytes]) -> None:

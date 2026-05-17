@@ -34,6 +34,11 @@ class CrashRecord(SerializableMixin):
     # Artifacts
     crash_log_path: str | None = None
     preserved_sample_path: str | None = None
+    # Path to per-crash minidump (.dmp). Populated when the target was
+    # launched with DOTNET_DbgEnableMiniDump env vars set, or when
+    # createdump.exe captured a hung process. Consumed by the
+    # pythonnet/ClrMD dump-analyzer for symbolic stack-trace extraction.
+    dump_path: str | None = None
 
     # Reproducibility
     reproduction_command: str | None = None

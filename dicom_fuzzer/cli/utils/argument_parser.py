@@ -213,6 +213,20 @@ def _add_target_args(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--dump-dir",
+        type=str,
+        default=None,
+        metavar="DIR",
+        help=(
+            "Enable per-test minidump capture into DIR. Sets "
+            "DOTNET_DbgEnableMiniDump on the target so the .NET runtime "
+            "writes a .dmp on stack overflow / access violation. The "
+            "fuzzer then attributes each dump to its triggering test for "
+            "symbolic-stack cluster signatures. Only used with --gui-mode "
+            "and a .NET 5+ target."
+        ),
+    )
+    parser.add_argument(
         "--no-auto-triage",
         action="store_true",
         help=(

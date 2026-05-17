@@ -297,12 +297,14 @@ class TargetTestingController:
                 sys.exit(1)
 
             startup_delay = getattr(args, "startup_delay", 0.0)
+            dump_dir = getattr(args, "dump_dir", None)
             runner = GUITargetRunner(
                 target_executable=args.target,
                 timeout=args.timeout,
                 crash_dir=str(output_dir / "crashes"),
                 memory_limit_mb=memory_limit,
                 startup_delay=startup_delay,
+                dump_dir=dump_dir,
             )
             logger.info("Starting GUI fuzzing campaign...")
         else:
@@ -381,6 +383,7 @@ class TargetTestingController:
                 exception_type=exception_type,
                 exception_message=exception_message,
                 viewer_path=target_path,
+                dump_path=getattr(result, "dump_path", None),
             )
 
             alert_num += 1

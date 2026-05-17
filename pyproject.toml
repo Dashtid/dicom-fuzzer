@@ -5,6 +5,15 @@ build-backend = "hatchling.build"
 [tool.hatch.build]
 directory = ".dist"
 
+[tool.hatch.build.targets.wheel]
+# Ensure vendored binaries (ClrMD DLL + runtimeconfig) ride along in
+# the wheel. Hatchling includes Python sources by default; non-.py
+# files inside the package dir need to be called out explicitly.
+artifacts = [
+    "dicom_fuzzer/_vendor/clrmd/*.dll",
+    "dicom_fuzzer/_vendor/clrmd/*.json",
+]
+
 [project]
 name = "dicom-fuzzer"
 version = "1.12.0"
@@ -47,6 +56,12 @@ dependencies = [
     "tqdm>=4.66.0",           # Progress bars for CLI
     "cryptography>=46.0.7",
     "psutil>=5.9.0",
+    # Hosts Microsoft.Diagnostics.Runtime.dll (vendored under
+    # dicom_fuzzer/_vendor/clrmd/) in-process so --dump-dir produces
+    # symbolic .NET stack traces without any extra install step.
+    # Windows-only because ClrMD and the dumps we analyze are
+    # Windows-only.
+    "pythonnet>=3.0; sys_platform == 'win32'",
 ]
 
 
