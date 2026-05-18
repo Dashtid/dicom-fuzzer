@@ -609,6 +609,7 @@ def _run_auto_triage(run_dir: Path) -> None:
                         stack_trace=c.get("stack_trace"),
                         crash_log_path=c.get("crash_log_path"),
                         preserved_sample_path=c.get("preserved_sample_path"),
+                        dump_path=c.get("dump_path"),
                         reproduction_command=c.get("reproduction_command"),
                         mutation_sequence=c.get("mutation_sequence", []),
                     )
