@@ -245,21 +245,15 @@ def _walk_faulting_thread(runtime: Any, dump: Path) -> StackResult:
     Falls back to the thread with the deepest stack when no managed
     exception is recorded (e.g. createdump captured a hung process
     rather than a crashing one).
+
+    Every metadata lookup is wrapped defensively: with PublishSingleFile
+    .NET apps (like Hermes), the assemblies are extracted to a temp dir
+    that is gone after the process exits, so ClrMD often can't load
+    them. We still want to emit *some* frames (module + IP) rather
+    than throwing the whole stack away.
     """
     threads = list(runtime.Threads)
-    faulting: Any | None = next(
-        (t for t in threads if getattr(t, "CurrentException", None) is not None),
-        None,
-    )
-    if faulting is None:
-        # Pick the deepest stack as a heuristic -- better than nothing
-        # for hang/timeout dumps with no managed exception object.
-        deepest = -1
-        for t in threads:
-            depth = sum(1 for _ in t.EnumerateStackTrace())
-            if depth > deepest:
-                deepest = depth
-                faulting = t
+    faulting: Any | None = _find_faulting_thread(threads)
     if faulting is None:
         return StackResult(
             backend="clrmd",
@@ -267,16 +261,39 @@ def _walk_faulting_thread(runtime: Any, dump: Path) -> StackResult:
             error="no threads in dump",
         )
 
+    # The faulting thread may NOT be the one carrying the exception
+    # (stack-overflow case: faulting has the bug-site frames, the
+    # exception lives on a sibling thread with a wrecked stack). Read
+    # the exception from whichever thread has it.
     exception_info: ExceptionInfo | None = None
-    exc = getattr(faulting, "CurrentException", None)
-    if exc is not None:
-        exception_info = ExceptionInfo(
-            code_hex=f"0x{int(getattr(exc, 'HResult', 0)) & 0xFFFFFFFF:08X}",
-            name=str(getattr(exc, "Type", None) and exc.Type.Name) or "<unknown>",
-            address_hex=f"0x{int(getattr(exc, 'Address', 0)):X}",
-        )
+    try:
+        for t in threads:
+            try:
+                exc = getattr(t, "CurrentException", None)
+            except Exception:
+                continue
+            if exc is None:
+                continue
+            exception_info = ExceptionInfo(
+                code_hex=f"0x{int(getattr(exc, 'HResult', 0)) & 0xFFFFFFFF:08X}",
+                name=str(getattr(exc, "Type", None) and exc.Type.Name) or "<unknown>",
+                address_hex=f"0x{int(getattr(exc, 'Address', 0)):X}",
+            )
+            break
+    except Exception as exc_e:
+        logger.debug("Exception-info extraction failed (continuing): %s", exc_e)
 
-    frames = [_to_frame(f) for f in faulting.EnumerateStackTrace()]
+    frames: list[StackFrame] = []
+    try:
+        for f in faulting.EnumerateStackTrace():
+            try:
+                frames.append(_to_frame(f))
+            except Exception as frame_e:
+                logger.debug("Skipping unresolvable frame: %s", frame_e)
+                continue
+    except Exception as walk_e:
+        # Mid-walk explosion -- keep what we already collected.
+        logger.debug("Stack walk terminated early: %s", walk_e)
 
     return StackResult(
         backend="clrmd",
@@ -284,46 +301,118 @@ def _walk_faulting_thread(runtime: Any, dump: Path) -> StackResult:
         exception=exception_info,
         faulting_thread_id=int(faulting.OSThreadId),
         frames=frames,
-        error=None,
+        error=None if frames else "stack walk produced no frames",
     )
+
+
+def _find_faulting_thread(threads: list[Any]) -> Any | None:
+    """Pick the most interesting thread for the cluster signature.
+
+    Prefer the thread carrying the current exception, UNLESS its stack
+    is wrecked (≤ 2 frames). Stack-overflow crashes destroy the
+    faulting thread's stack -- in that case the OS-recorded "exception
+    thread" gives us no signal, while the *sibling* thread running the
+    recursive parser still has intact frames pointing at the bug site.
+    Fall through to the deepest-stack thread when the exception thread
+    is unusable.
+    """
+    exc_thread: Any | None = None
+    for t in threads:
+        try:
+            if getattr(t, "CurrentException", None) is not None:
+                exc_thread = t
+                break
+        except Exception:
+            continue
+
+    if exc_thread is not None:
+        try:
+            depth = sum(1 for _ in exc_thread.EnumerateStackTrace())
+        except Exception:
+            depth = 0
+        if depth > 2:
+            return exc_thread
+
+    deepest = -1
+    chosen: Any | None = None
+    for t in threads:
+        try:
+            depth = sum(1 for _ in t.EnumerateStackTrace())
+        except Exception:
+            continue
+        if depth > deepest:
+            deepest = depth
+            chosen = t
+    return chosen
 
 
 def _to_frame(clr_frame: Any) -> StackFrame:
-    """Convert a ClrMD ClrStackFrame to our StackFrame dataclass."""
-    method = getattr(clr_frame, "Method", None)
-    module = getattr(clr_frame, "ModuleName", None) or (
-        method
-        and getattr(method, "Type", None)
-        and method.Type.Module
-        and method.Type.Module.Name
-    )
-    if module is not None:
-        # ClrMD returns full paths sometimes; reduce to basename
-        module = Path(str(module)).name
+    """Convert a ClrMD ClrStackFrame to our StackFrame dataclass.
 
-    if method is not None:
-        type_obj = getattr(method, "Type", None)
+    Resilient against missing assembly metadata: each ``method.*`` /
+    ``type.*`` lookup is wrapped, falling back to module + IP when
+    ClrMD cannot resolve a single-file-bundled DLL.
+    """
+    ip_hex = f"0x{int(getattr(clr_frame, 'InstructionPointer', 0)):X}"
+    try:
+        method = clr_frame.Method
+    except Exception:
+        method = None
+
+    module: str | None = None
+    try:
+        raw_module = getattr(clr_frame, "ModuleName", None)
+        if not raw_module and method is not None:
+            type_obj = getattr(method, "Type", None)
+            type_module = type_obj and getattr(type_obj, "Module", None)
+            raw_module = type_module and getattr(type_module, "Name", None)
+        if raw_module:
+            module = Path(str(raw_module)).name
+    except Exception:
+        module = None
+
+    if method is None:
         return StackFrame(
-            is_managed=True,
-            module=str(module) if module else None,
-            type=str(type_obj.Name) if type_obj else None,
-            method=str(method.Name),
-            signature=str(getattr(method, "Signature", None)) or None,
-            md_token=f"0x{int(getattr(method, 'MetadataToken', 0)):08X}",
-            il_offset_hex=_il_offset(clr_frame),
-            ip_hex=f"0x{int(getattr(clr_frame, 'InstructionPointer', 0)):X}",
+            is_managed=False,
+            module=module,
+            type=None,
+            method=None,
+            signature=None,
+            md_token=None,
+            il_offset_hex=None,
+            ip_hex=ip_hex,
         )
 
-    # Native frame
+    try:
+        type_obj = getattr(method, "Type", None)
+        type_name = str(type_obj.Name) if type_obj else None
+    except Exception:
+        type_name = None
+
+    try:
+        method_name = str(method.Name)
+    except Exception:
+        method_name = None
+
+    try:
+        signature = str(getattr(method, "Signature", None)) or None
+    except Exception:
+        signature = None
+
+    try:
+        md_token = f"0x{int(getattr(method, 'MetadataToken', 0)):08X}"
+    except Exception:
+        md_token = None
+
     return StackFrame(
-        is_managed=False,
-        module=str(module) if module else None,
-        type=None,
-        method=None,
-        signature=None,
-        md_token=None,
-        il_offset_hex=None,
-        ip_hex=f"0x{int(getattr(clr_frame, 'InstructionPointer', 0)):X}",
+        is_managed=True,
+        module=module,
+        type=type_name,
+        method=method_name,
+        signature=signature,
+        md_token=md_token,
+        il_offset_hex=_il_offset(clr_frame),
+        ip_hex=ip_hex,
     )
 
 
