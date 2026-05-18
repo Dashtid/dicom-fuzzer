@@ -347,7 +347,14 @@ class GUITargetRunner:
                 stderr=subprocess.DEVNULL,
                 env=self._build_target_env(),
                 creationflags=(
+                    # CREATE_NO_WINDOW also propagates to console-subsystem
+                    # children: when DOTNET_DbgEnableMiniDump fires, the
+                    # .NET runtime spawns createdump.exe (a console app),
+                    # which would otherwise pop a "Writing minidump..."
+                    # console window per crash. Suppressing it here keeps
+                    # long campaigns visually quiet.
                     getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                    | getattr(subprocess, "CREATE_NO_WINDOW", 0)
                     if sys.platform == "win32"
                     else 0
                 ),
@@ -458,6 +465,7 @@ class GUITargetRunner:
                 stderr=subprocess.DEVNULL,
                 creationflags=(
                     getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                    | getattr(subprocess, "CREATE_NO_WINDOW", 0)
                     if sys.platform == "win32"
                     else 0
                 ),
