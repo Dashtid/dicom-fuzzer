@@ -23,6 +23,7 @@ Generic fuzzers (work on any SOP class):
 - ReferenceFuzzer: Link integrity and reference chain attacks
 - SequenceFuzzer: Nested sequence and item structure attacks
 - StructureFuzzer: File structure and length field mutations
+- TSUIDMismatchFuzzer: Declared-vs-actual Transfer Syntax conflict (Hermes CWE-770 shape)
 
 Modality-specific fuzzers (require matching seed files):
 - EncapsulatedPdfFuzzer: Encapsulated PDF document payload mutations
@@ -60,6 +61,7 @@ from .secondary_capture_fuzzer import SecondaryCaptureFuzzer
 from .seg_fuzzer import SegmentationFuzzer
 from .sequence_fuzzer import SequenceFuzzer
 from .structure_fuzzer import StructureFuzzer
+from .tsuid_mismatch_fuzzer import TSUIDMismatchFuzzer
 
 __all__ = [
     "AttributeTagFuzzer",
@@ -88,4 +90,5 @@ __all__ = [
     "SegmentationFuzzer",
     "SequenceFuzzer",
     "StructureFuzzer",
+    "TSUIDMismatchFuzzer",
 ]

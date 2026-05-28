@@ -273,12 +273,24 @@ class DICOMGenerator:
             if ts is not None:
                 ts_str = str(ts)
 
-                # Force compressed TS to Explicit VR Little Endian
-                if ts_str not in {
-                    "1.2.840.10008.1.2",  # Implicit VR Little Endian
-                    "1.2.840.10008.1.2.1",  # Explicit VR Little Endian
-                    "1.2.840.10008.1.2.2",  # Explicit VR Big Endian
-                }:
+                # Compressed TSUID is preserved by default. The legacy
+                # behaviour (force-rewrite to Explicit VR Little Endian)
+                # silently produced a TSUID/payload mismatch on every
+                # encapsulated-seed file -- yielding nothing for save
+                # success (the retry-with-tag-removal loop below handles
+                # the real failures) while destroying codec diversity in
+                # the output and masking strategy attribution. Set
+                # DICOM_FUZZER_TSUID_REWRITE_LEGACY=1 only to restore the
+                # old behaviour for backward compatibility.
+                if (
+                    ts_str
+                    not in {
+                        "1.2.840.10008.1.2",  # Implicit VR Little Endian
+                        "1.2.840.10008.1.2.1",  # Explicit VR Little Endian
+                        "1.2.840.10008.1.2.2",  # Explicit VR Big Endian
+                    }
+                    and os.environ.get("DICOM_FUZZER_TSUID_REWRITE_LEGACY") == "1"
+                ):
                     file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
                     ts_str = str(ExplicitVRLittleEndian)
 
