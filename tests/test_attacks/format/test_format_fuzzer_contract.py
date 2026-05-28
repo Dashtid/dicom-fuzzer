@@ -34,6 +34,7 @@ from dicom_fuzzer.attacks.format import (
     SegmentationFuzzer,
     SequenceFuzzer,
     StructureFuzzer,
+    TSUIDMismatchFuzzer,
 )
 from dicom_fuzzer.attacks.format.base import FormatFuzzerBase
 
@@ -59,6 +60,7 @@ ALL_FUZZERS = [
     ReferenceFuzzer(),
     SequenceFuzzer(),
     StructureFuzzer(),
+    TSUIDMismatchFuzzer(),
 ]
 
 FUZZER_IDS = [type(f).__name__ for f in ALL_FUZZERS]

@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Generator no longer rewrites compressed Transfer Syntax UID on save.**
+  Previously, `_prepare_dataset_for_save` force-rewrote any compressed
+  TSUID (JPEG, JPEG 2000, JPEG-LS, RLE, etc.) to Explicit VR Little Endian
+  before serialising, while leaving the encapsulated PixelData bytes
+  untouched. The audit in `artifacts/audit_tsuid/` confirmed this provides
+  zero yield benefit (the retry-with-tag-removal loop in
+  `_save_mutated_file` is the actual yield mechanism) but destroyed codec
+  diversity in fuzzed output and silently produced a TSUID/payload
+  mismatch on every encapsulated-seed file -- the same mismatch pattern
+  that drives the Hermes CWE-770 memory amplification finding. Set
+  `DICOM_FUZZER_TSUID_REWRITE_LEGACY=1` to restore the prior behaviour.
+- As a downstream effect: `--safety-mode lenient` and `--safety-mode strict`
+  now actually preserve TransferSyntaxUID end-to-end. The mutator-side
+  snapshot/restore in `dicom_fuzzer.core.mutation.safety` was already
+  correct; the save-side rewrite had been undoing its work.
+
+### Added
+
+- **`tsuid_mismatch` format-fuzzer strategy** -- explicit, attributable
+  version of the declared-vs-actual transfer-syntax conflict that the
+  removed save-side rewrite had been producing implicitly. Three variants:
+  swap to Explicit VR Little Endian, swap to Implicit VR Little Endian,
+  and swap-plus-Rows-zero (the proven Hermes CWE-770 trigger). Skips
+  files that already declare an uncompressed transfer syntax.
+
 ## [1.12.0] - 2026-04-29 - Crash minimizer, multiframe BOT/EOT, signed releases
 
 Ships the crash minimizer (delta-debugging crash repro reduction), multiframe

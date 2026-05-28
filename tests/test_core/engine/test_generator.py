@@ -195,7 +195,7 @@ class TestFuzzerIntegration:
         output_dir = temp_dir / "output"
         generator = DICOMGenerator(output_dir=str(output_dir))
 
-        assert len(generator.mutator.strategies) == 36
+        assert len(generator.mutator.strategies) == 37
         strategy_names = [s.strategy_name for s in generator.mutator.strategies]
         expected_format = [
             "attribute_tag",
@@ -223,6 +223,7 @@ class TestFuzzerIntegration:
             "segmentation",
             "sequence",
             "structure",
+            "tsuid_mismatch",
         ]
         expected_multiframe = [
             "dimension_index_attack",
@@ -319,6 +320,81 @@ class TestFileSaving:
         for file_path in generated_files:
             assert file_path.parent == output_dir
             assert file_path.exists()
+
+
+class TestPrepareDatasetForSave:
+    """Test the save-path normalisation hook.
+
+    Pins the post-audit default: compressed transfer syntaxes are
+    preserved, and only the explicit DICOM_FUZZER_TSUID_REWRITE_LEGACY
+    escape hatch restores the prior forced-rewrite behaviour.
+    """
+
+    @staticmethod
+    def _make_dataset(tsuid: str):
+        from pydicom.dataset import Dataset, FileMetaDataset
+
+        ds = Dataset()
+        ds.file_meta = FileMetaDataset()
+        ds.file_meta.TransferSyntaxUID = tsuid
+        return ds
+
+    def test_compressed_tsuid_preserved_by_default(self, monkeypatch):
+        monkeypatch.delenv("DICOM_FUZZER_TSUID_REWRITE_LEGACY", raising=False)
+        ds = self._make_dataset("1.2.840.10008.1.2.4.90")  # JPEG 2000 Lossless
+
+        DICOMGenerator._prepare_dataset_for_save(ds)
+
+        assert str(ds.file_meta.TransferSyntaxUID) == "1.2.840.10008.1.2.4.90"
+
+    def test_legacy_env_var_restores_rewrite(self, monkeypatch):
+        monkeypatch.setenv("DICOM_FUZZER_TSUID_REWRITE_LEGACY", "1")
+        ds = self._make_dataset("1.2.840.10008.1.2.4.90")
+
+        DICOMGenerator._prepare_dataset_for_save(ds)
+
+        assert str(ds.file_meta.TransferSyntaxUID) == "1.2.840.10008.1.2.1"
+
+    def test_legacy_env_var_set_to_other_value_is_ignored(self, monkeypatch):
+        # Only the literal "1" enables legacy mode. Other truthy strings
+        # (e.g. "true", "yes", "0", "") must not silently flip behaviour.
+        for value in ["0", "true", "yes", "", "false"]:
+            monkeypatch.setenv("DICOM_FUZZER_TSUID_REWRITE_LEGACY", value)
+            ds = self._make_dataset("1.2.840.10008.1.2.4.90")
+
+            DICOMGenerator._prepare_dataset_for_save(ds)
+
+            assert str(ds.file_meta.TransferSyntaxUID) == "1.2.840.10008.1.2.4.90", (
+                f"Unexpected rewrite when env var is {value!r}"
+            )
+
+    @pytest.mark.parametrize(
+        "tsuid",
+        [
+            "1.2.840.10008.1.2",  # Implicit VR Little Endian
+            "1.2.840.10008.1.2.1",  # Explicit VR Little Endian
+            "1.2.840.10008.1.2.2",  # Explicit VR Big Endian
+        ],
+    )
+    def test_uncompressed_tsuid_always_preserved(self, monkeypatch, tsuid):
+        # Regression guard: even with the legacy rewrite enabled, the
+        # three uncompressed UIDs must be left alone.
+        monkeypatch.setenv("DICOM_FUZZER_TSUID_REWRITE_LEGACY", "1")
+        ds = self._make_dataset(tsuid)
+
+        DICOMGenerator._prepare_dataset_for_save(ds)
+
+        assert str(ds.file_meta.TransferSyntaxUID) == tsuid
+
+    def test_write_kwargs_reflect_preserved_tsuid(self, monkeypatch):
+        # When the rewrite is off, write_kwargs should still be derived
+        # from the (preserved) TSUID, not blindly defaulted to ELE.
+        monkeypatch.delenv("DICOM_FUZZER_TSUID_REWRITE_LEGACY", raising=False)
+        ds = self._make_dataset("1.2.840.10008.1.2")  # Implicit VR LE
+
+        kwargs = DICOMGenerator._prepare_dataset_for_save(ds)
+
+        assert kwargs == {"little_endian": True, "implicit_vr": True}
 
 
 class TestEdgeCases:

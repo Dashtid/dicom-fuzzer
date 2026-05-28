@@ -141,6 +141,9 @@ class DicomMutator:
         from dicom_fuzzer.attacks.format.seg_fuzzer import SegmentationFuzzer
         from dicom_fuzzer.attacks.format.sequence_fuzzer import SequenceFuzzer
         from dicom_fuzzer.attacks.format.structure_fuzzer import StructureFuzzer
+        from dicom_fuzzer.attacks.format.tsuid_mismatch_fuzzer import (
+            TSUIDMismatchFuzzer,
+        )
         from dicom_fuzzer.attacks.multiframe.dimension_index import (
             DimensionIndexStrategy,
         )
@@ -199,6 +202,7 @@ class DicomMutator:
             SegmentationFuzzer,
             SequenceFuzzer,
             StructureFuzzer,
+            TSUIDMismatchFuzzer,
             # Multi-frame strategies
             DimensionIndexStrategy,
             DimensionOverflowStrategy,
