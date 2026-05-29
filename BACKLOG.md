@@ -177,25 +177,53 @@ this is CWE-770 unbounded allocation. See follow-up item below.
 `--detect-dialogs` was used and worked; no license-dialog stalls
 observed across 720 launches.
 
-### Investigate the 8h-campaign memory-amplification candidate -- P1
+### Investigate the 8h-campaign memory-amplification candidate -- DONE (2026-05-21)
 
-The 2026-05-14 campaign produced one `MemoryLimitExceeded` (4851 MB
-peak) from a `dictionary`-strategy mutation. Whether this is a real
-CWE-770 finding or a freak amplification from a large input is
-unknown -- we can't extract the exact input because the campaign
-hit the `preserved_sample_path` collision bug (now fixed) and the
-preserved .dcm was overwritten 70 times by the stack-overflow
-crashes that finalized later.
+Reproduced, isolated, and disclosed. The `MemoryLimitExceeded`
+case from the 8h campaign was a real CWE-770 finding with an
+amplification ratio of ~4.4 million-to-one (6 KB input -> >25 GB
+peak RAM). Minimum trigger is **two tags** on an otherwise valid
+encapsulated DICOM file:
 
-Repro plan:
+- `(0002,0010)` Transfer Syntax UID set to `1.2.840.10008.1.2.1`
+  (Explicit VR Little Endian -- declares uncompressed)
+- `(0028,0010)` Rows set to `0`
 
-- Re-run with `--seed 12345 --strategy dictionary` (need to wire
-  this through if not already exposed) against the same 16-seed
-  corpus, OR re-run the full campaign now that preserved-sample
-  paths are unique per crash.
-- If reproduced, minimize the input and check whether the seed
-  size is small enough that the 4.85GB peak is a true amplification
-  (>100x) rather than legitimate large-data processing.
+Pixel-data bytes left as encapsulated JPEG 2000 fragments. Each
+mutation alone is harmless (~380 MB peak); the pair selects
+Hermes's uncompressed pixel-data reader (mutation 1) and poisons
+its sizing math (mutation 2). Verified deterministic across n=5
+independent runs.
+
+Disclosure package + repro file:
+`artifacts/findings/cwe770_memory_amplification/disclosure/` (gitignored).
+Disclosed to Hermes PM 2026-05-21 as courtesy notification (no fixed
+timer, no CVE intent). **Fixed by vendor (2026-05-29 per user); no
+CVE, no advisory, silent fix.**
+
+### Validate post-PR-346 fuzzer (rewrite-off + tsuid_mismatch) -- P1
+
+PR #346 (merged 2026-05-28) dropped the implicit save-side TSUID
+rewrite that had been silently producing the BD-style mismatch on
+every encapsulated-seed file, and added an explicit
+`tsuid_mismatch` named strategy as the attributable replacement.
+
+Run a fresh long-form campaign with the new code to:
+
+- Surface bugs that the implicit rewrite was masking, especially
+  codec-internal bugs that now reach Hermes with intact compressed
+  payloads (JPEG, JPEG-LS, JPEG 2000, RLE)
+- Re-measure strategy hit-rates and crash-attribution -- the 8h
+  campaign's 71 CWE-674 crashes were reported via 22 strategies,
+  but each fuzzed file was also carrying the latent TSUID mismatch;
+  attribution now becomes meaningful
+- Confirm `tsuid_mismatch` is producing well-formed mismatched files
+  (the original Hermes CWE-770 it would have triggered is now fixed
+  by the vendor, so the strategy needs a different validation target)
+
+Suggested command: same as the 2026-05-14 campaign
+(`-c 45 --startup-delay 10 --detect-dialogs --seed 12345`) so the
+results are directly comparable to the historical baseline.
 
 ### Atheris fuzz coverage -- DONE (closed 2026-05-05)
 
@@ -399,3 +427,6 @@ Earlier completed items collapsed; recent work below.
 | Nested-SQ recursion bomb in SequenceFuzzer.mutate_bytes                                                              | (current)                     |
 | AT VR pointer-semantics attacks (AttributeTagFuzzer, 3 strategies)                                                   | (current)                     |
 | Length-field corruption helper extracted; HeaderFuzzer + MetadataFuzzer + PrivateTagFuzzer adopt it via mutate_bytes | (current)                     |
+| CWE-770 amplification candidate isolated to 2-tag minimum trigger; courtesy disclosure to Hermes PM                  | (2026-05-21)                  |
+| Drop default TSUID rewrite + add explicit tsuid_mismatch strategy (audit showed implicit rewrite inflated signal)    | #346                          |
+| Ignore /scripts/ (formalise existing convention; one-off ad-hoc scripts dir)                                         | #347                          |
