@@ -41,7 +41,6 @@ from .base import (
 )
 from .builder import DICOMProtocolBuilder
 from .pdu_mixin import PDUFuzzingMixin
-from .tls_mixin import TLSFuzzingMixin
 
 __all__ = [
     "DICOMCommand",
@@ -56,7 +55,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-class DICOMNetworkFuzzer(PDUFuzzingMixin, TLSFuzzingMixin):
+class DICOMNetworkFuzzer(PDUFuzzingMixin):
     """DICOM Network Protocol Fuzzer.
 
     Performs network-level fuzzing of DICOM protocol implementations
