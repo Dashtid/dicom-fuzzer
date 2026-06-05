@@ -41,7 +41,6 @@ from .tls import (
     PACSQueryInjector,
     TLSSecurityTester,
 )
-from .tls_mixin import TLSFuzzingMixin
 
 __all__ = [
     # Main fuzzer
@@ -56,7 +55,6 @@ __all__ = [
     "DICOMProtocolBuilder",
     # Mixins
     "PDUFuzzingMixin",
-    "TLSFuzzingMixin",
     # TLS
     "DICOMTLSFuzzer",
     "TLSSecurityTester",

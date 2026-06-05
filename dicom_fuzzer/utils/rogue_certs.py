@@ -12,7 +12,7 @@ stack:
 - ``weak_key``          1024-bit RSA (well below 2048 minimum)
 - ``long_chain``        leaf signed by N stacked intermediates
 
-Used by :func:`dicom_fuzzer.attacks.network.tls_mixin.TLSFuzzingMixin.fuzz_tls_rogue_certs`
+Used by the TLS fuzzer (:class:`dicom_fuzzer.attacks.network.tls.DICOMTLSFuzzer`)
 to present each variant as a client cert during mTLS handshake. A
 target that accepts any of these certs has a validation bug.
 """

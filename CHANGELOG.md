@@ -34,6 +34,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and swap-plus-Rows-zero (the proven Hermes CWE-770 trigger). Skips
   files that already declare an uncompressed transfer syntax.
 
+### Removed
+
+- **`dicom_fuzzer.attacks.network.tls_mixin.TLSFuzzingMixin`** -- dead code,
+  not called by any production path. `DICOMNetworkFuzzer` inherited from it
+  but only ever used `PDUFuzzingMixin`; the real TLS work is done inline in
+  `DICOMNetworkFuzzer.__init__` and through the newer modular
+  `dicom_fuzzer.attacks.network.tls.DICOMTLSFuzzer`. Migration: use
+  `DICOMTLSFuzzer` from `dicom_fuzzer.attacks.network.tls` for any TLS
+  fuzzing logic that previously called the mixin. Removed 1,433 lines
+  (681 source + 752 test). The `TLSFuzzingMixin` symbol is no longer
+  re-exported from `dicom_fuzzer.attacks.network`.
+
 ## [1.12.0] - 2026-04-29 - Crash minimizer, multiframe BOT/EOT, signed releases
 
 Ships the crash minimizer (delta-debugging crash repro reduction), multiframe
