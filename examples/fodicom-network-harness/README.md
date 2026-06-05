@@ -49,20 +49,38 @@ Press Ctrl+C to stop. The harness blocks until SIGINT.
 
 ## Integration with dicom-fuzzer
 
-Start the harness in one terminal:
+Quickest path -- one-shot launcher:
+
+```powershell
+./start-harness.ps1            # plain DIMSE on 11112
+./start-harness.ps1 -Tls       # TLS on 11112 (self-signed cert auto-generated)
+```
+
+The script idempotently builds, generates the cert if missing, and starts the
+SCP. Pass `-Port`, `-AeTitle`, or `-Rebuild` if you need them.
+
+Manual path -- start the harness in one terminal:
 
 ```bash
 ./bin/Release/net8.0/win-x64/publish/fodicom-network-harness.exe
 ```
 
-Fire the network fuzzer in another:
+Fire the network fuzzer in another. Plain DIMSE:
 
 ```bash
 dicom-fuzzer path/to/seed.dcm --network-fuzz \
-  --host localhost --port 11112 --ae-title FUZZ_SCU
+  --host 127.0.0.1 --port 11112 --ae-title FUZZ_SCU
 ```
 
-For TLS, start the harness with `--tls` and use dicom-fuzzer's TLS network flags once they're wired through the CLI (currently `--network-fuzz` speaks plain DIMSE only; TLS path is tested via the `tls` subcommand and Python unit tests).
+TLS (start the harness with `--tls` first, then pass `--network-tls`):
+
+```bash
+dicom-fuzzer path/to/seed.dcm --network-fuzz --network-tls \
+  --host 127.0.0.1 --port 11112 --ae-title FUZZ_SCU
+```
+
+By default `--network-tls` skips chain verification (matches the self-signed
+cert). Add `--network-tls-verify` if you've configured a trusted chain.
 
 ## Caveats
 

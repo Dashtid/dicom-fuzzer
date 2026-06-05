@@ -61,6 +61,8 @@ class TestBooleanFlags:
             ("--stop-on-crash", "stop_on_crash"),
             ("--gui-mode", "gui_mode"),
             ("--network-fuzz", "network_fuzz"),
+            ("--network-tls", "network_tls"),
+            ("--network-tls-verify", "network_tls_verify"),
             ("--security-fuzz", "security_fuzz"),
             ("--response-aware", "response_aware"),
             ("--detect-dialogs", "detect_dialogs"),

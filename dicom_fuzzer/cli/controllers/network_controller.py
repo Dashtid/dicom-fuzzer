@@ -72,11 +72,19 @@ class NetworkFuzzingController:
             cli.status("Please check that dicom_fuzzer.attacks.network is installed.")
             return 1
 
+        use_tls = bool(getattr(args, "network_tls", False))
+        verify_ssl = bool(getattr(args, "network_tls_verify", False))
+
         # Display header
         cli.header("DICOM Network Protocol Fuzzing")
         cli.detail("Host", f"{args.host}:{args.port}")
         cli.detail("AE Title", args.ae_title)
         cli.detail("Strategy", args.network_strategy)
+        if use_tls:
+            cli.detail(
+                "TLS",
+                "on" + (" (verify chain)" if verify_ssl else " (no cert verification)"),
+            )
         cli.divider()
 
         try:
@@ -86,6 +94,8 @@ class NetworkFuzzingController:
                 target_port=args.port,
                 calling_ae=args.ae_title,
                 timeout=args.timeout,
+                use_tls=use_tls,
+                verify_ssl=verify_ssl,
             )
             network_fuzzer = DICOMNetworkFuzzer(network_config)
 

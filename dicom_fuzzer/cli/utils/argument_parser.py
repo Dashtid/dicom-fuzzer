@@ -329,6 +329,23 @@ def _add_network_args(parser: argparse.ArgumentParser) -> None:
         help="AE Title to use for network fuzzing (default: FUZZ_SCU)",
     )
     network_group.add_argument(
+        "--network-tls",
+        action="store_true",
+        help=(
+            "Wrap --network-fuzz connections in TLS. Use with --network-tls-verify "
+            "to enforce cert chain validation; default is no verification (matches "
+            "the self-signed cert in examples/fodicom-network-harness)."
+        ),
+    )
+    network_group.add_argument(
+        "--network-tls-verify",
+        action="store_true",
+        help=(
+            "Verify the SCP certificate chain when --network-tls is set. Off by "
+            "default because most fuzz benches use self-signed certs."
+        ),
+    )
+    network_group.add_argument(
         "--network-strategy",
         type=str,
         choices=[
