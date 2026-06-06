@@ -1137,3 +1137,189 @@ class TestBinarySqUndefinedWithHugeValue:
         fuzzer = StructureFuzzer()
         garbage = b"\x00" * 256
         assert fuzzer._binary_sq_undefined_with_huge_value(garbage) is garbage
+
+
+class TestBinarySqUndefinedTruncatedAtEof:
+    """Gap #3: SQ undefined + Item undefined, no delimiters before EOF."""
+
+    def test_returns_bytes(self):
+        fuzzer = StructureFuzzer()
+        result = fuzzer._binary_sq_undefined_truncated_at_eof(
+            _make_minimal_dicom_bytes()
+        )
+        assert isinstance(result, bytes)
+
+    def test_appends_20_bytes(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sq_undefined_truncated_at_eof(file_data)
+        # 12 SQ header + 8 item header = 20, no delimiters
+        assert len(result) == len(file_data) + 20
+
+    def test_sq_has_undefined_length(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sq_undefined_truncated_at_eof(file_data)
+        appended = result[len(file_data) :]
+        assert appended[:4] == b"\x09\x00\x13\x00"
+        assert appended[4:6] == b"SQ"
+        assert appended[8:12] == b"\xff\xff\xff\xff"
+
+    def test_item_has_undefined_length(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sq_undefined_truncated_at_eof(file_data)
+        appended = result[len(file_data) :]
+        assert appended[12:16] == b"\xfe\xff\x00\xe0"
+        assert appended[16:20] == b"\xff\xff\xff\xff"
+
+    def test_no_seq_delim_present_in_tail(self):
+        """Truncation is the attack -- no (FFFE,E0DD) anywhere in appended bytes."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sq_undefined_truncated_at_eof(file_data)
+        appended = result[len(file_data) :]
+        assert b"\xfe\xff\xdd\xe0" not in appended
+
+    def test_no_item_delim_present_in_tail(self):
+        """Truncation is the attack -- no (FFFE,E00D) anywhere in appended bytes."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_sq_undefined_truncated_at_eof(file_data)
+        appended = result[len(file_data) :]
+        assert b"\xfe\xff\x0d\xe0" not in appended
+
+    def test_non_dicom_passthrough(self):
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_sq_undefined_truncated_at_eof(garbage) is garbage
+
+
+class TestBinarySeqDelimNonZeroLength:
+    """Gap #5: (FFFE,E0DD) Sequence Delimitation Item with non-zero length."""
+
+    _VALID_BAD_LENGTHS = {0x10, 0x100, 0x7FFFFFFF, 0xFFFFFFFF}
+
+    def test_returns_bytes(self):
+        fuzzer = StructureFuzzer()
+        result = fuzzer._binary_seq_delim_non_zero_length(_make_minimal_dicom_bytes())
+        assert isinstance(result, bytes)
+
+    def test_appends_28_bytes(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_seq_delim_non_zero_length(file_data)
+        # 12 SQ + 8 empty item + 8 seq delim = 28
+        assert len(result) == len(file_data) + 28
+
+    def test_sq_tag_and_undefined_length(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_seq_delim_non_zero_length(file_data)
+        appended = result[len(file_data) :]
+        assert appended[:4] == b"\x09\x00\x14\x00"
+        assert appended[4:6] == b"SQ"
+        assert appended[8:12] == b"\xff\xff\xff\xff"
+
+    def test_empty_item_at_offset_12(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_seq_delim_non_zero_length(file_data)
+        appended = result[len(file_data) :]
+        assert appended[12:16] == b"\xfe\xff\x00\xe0"
+        assert appended[16:20] == b"\x00\x00\x00\x00"
+
+    def test_seq_delim_has_non_zero_length(self):
+        fuzzer = StructureFuzzer()
+        for _ in range(50):
+            file_data = _make_minimal_dicom_bytes()
+            result = fuzzer._binary_seq_delim_non_zero_length(file_data)
+            appended = result[len(file_data) :]
+            assert appended[20:24] == b"\xfe\xff\xdd\xe0"
+            length_value = int.from_bytes(appended[24:28], "little")
+            assert length_value in self._VALID_BAD_LENGTHS
+            assert length_value != 0
+
+    def test_all_bad_length_values_observed_across_runs(self):
+        """200 RNG iterations should sample every candidate length at least once."""
+        fuzzer = StructureFuzzer()
+        seen = set()
+        file_data = _make_minimal_dicom_bytes()
+        for _ in range(200):
+            result = fuzzer._binary_seq_delim_non_zero_length(file_data)
+            appended = result[len(file_data) :]
+            seen.add(int.from_bytes(appended[24:28], "little"))
+        assert seen == self._VALID_BAD_LENGTHS
+
+    def test_non_dicom_passthrough(self):
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_seq_delim_non_zero_length(garbage) is garbage
+
+
+class TestBinaryItemDelimNonZeroLength:
+    """Gap #6: (FFFE,E00D) Item Delimitation Item with non-zero length."""
+
+    _VALID_BAD_LENGTHS = {0x4, 0x10, 0x7FFFFFFF, 0xFFFFFFFF}
+
+    def test_returns_bytes(self):
+        fuzzer = StructureFuzzer()
+        result = fuzzer._binary_item_delim_non_zero_length(_make_minimal_dicom_bytes())
+        assert isinstance(result, bytes)
+
+    def test_appends_36_bytes(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_item_delim_non_zero_length(file_data)
+        # 12 SQ + 8 item + 8 item-delim + 8 seq-delim = 36
+        assert len(result) == len(file_data) + 36
+
+    def test_sq_tag_and_undefined_length(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_item_delim_non_zero_length(file_data)
+        appended = result[len(file_data) :]
+        assert appended[:4] == b"\x09\x00\x15\x00"
+        assert appended[4:6] == b"SQ"
+        assert appended[8:12] == b"\xff\xff\xff\xff"
+
+    def test_item_has_undefined_length(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_item_delim_non_zero_length(file_data)
+        appended = result[len(file_data) :]
+        assert appended[12:16] == b"\xfe\xff\x00\xe0"
+        assert appended[16:20] == b"\xff\xff\xff\xff"
+
+    def test_item_delim_has_non_zero_length(self):
+        fuzzer = StructureFuzzer()
+        for _ in range(50):
+            file_data = _make_minimal_dicom_bytes()
+            result = fuzzer._binary_item_delim_non_zero_length(file_data)
+            appended = result[len(file_data) :]
+            assert appended[20:24] == b"\xfe\xff\x0d\xe0"
+            length_value = int.from_bytes(appended[24:28], "little")
+            assert length_value in self._VALID_BAD_LENGTHS
+            assert length_value != 0
+
+    def test_ends_with_zero_length_seq_delim(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_item_delim_non_zero_length(file_data)
+        assert result.endswith(b"\xfe\xff\xdd\xe0\x00\x00\x00\x00")
+
+    def test_all_bad_length_values_observed_across_runs(self):
+        """200 RNG iterations should sample every candidate length at least once."""
+        fuzzer = StructureFuzzer()
+        seen = set()
+        file_data = _make_minimal_dicom_bytes()
+        for _ in range(200):
+            result = fuzzer._binary_item_delim_non_zero_length(file_data)
+            appended = result[len(file_data) :]
+            seen.add(int.from_bytes(appended[24:28], "little"))
+        assert seen == self._VALID_BAD_LENGTHS
+
+    def test_non_dicom_passthrough(self):
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_item_delim_non_zero_length(garbage) is garbage

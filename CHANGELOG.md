@@ -33,6 +33,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   swap to Explicit VR Little Endian, swap to Implicit VR Little Endian,
   and swap-plus-Rows-zero (the proven Hermes CWE-770 trigger). Skips
   files that already declare an uncompressed transfer syntax.
+- **Three new `StructureFuzzer.mutate_bytes` delim-length attacks** from
+  the 2026-06-06 Phase 1 gap audit. All probe distinct DICOM PS3.5
+  parser code paths that prior strategies left uncovered:
+  - `_binary_sq_undefined_truncated_at_eof` -- appends an SQ with
+    undefined length containing one undefined-length Item, then EOF
+    with NO delimiters. Forces the parser's `find-delimiter` loop past
+    the end of the buffer (classic missing-bounds-check shape).
+  - `_binary_seq_delim_non_zero_length` -- emits a (FFFE,E0DD)
+    Sequence Delimitation Item with a non-zero length value sampled
+    from {0x10, 0x100, 0x7FFFFFFF, 0xFFFFFFFF}. PS3.5 7.5 mandates
+    length=0; parsers that trust the value advance the read cursor by
+    N bytes past the delimiter.
+  - `_binary_item_delim_non_zero_length` -- sibling of the above for
+    (FFFE,E00D) Item Delimitation Item. Length sampled from
+    {0x4, 0x10, 0x7FFFFFFF, 0xFFFFFFFF}. Distinct parser code path at
+    a different nesting level.
 
 ### Removed
 

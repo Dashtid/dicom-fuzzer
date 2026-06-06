@@ -468,6 +468,9 @@ class StructureFuzzer(FormatFuzzerBase):
             self._binary_sq_zero_length,
             self._binary_sv_uv_wrong_length,
             self._binary_sq_undefined_with_huge_value,
+            self._binary_sq_undefined_truncated_at_eof,
+            self._binary_seq_delim_non_zero_length,
+            self._binary_item_delim_non_zero_length,
         ]
         num = random.randint(1, 2)
         selected = random.sample(binary_attacks, num)
@@ -934,3 +937,102 @@ class StructureFuzzer(FormatFuzzerBase):
         )
         seq_delim = b"\xfe\xff\xdd\xe0\x00\x00\x00\x00"  # (FFFE,E0DD) length=0
         return file_data + sq_header + item_with_lying_length + seq_delim
+
+    def _binary_sq_undefined_truncated_at_eof(self, file_data: bytes) -> bytes:
+        """Append SQ + Item with undefined lengths and NO delimiters before EOF.
+
+        Classic missing-bounds-check shape in recursive-descent DICOM
+        parsers. Sibling of ``_binary_sq_undefined_with_huge_value``
+        but with the delimiters removed entirely -- the truncation IS
+        the attack. The parser sees an SQ with undefined length,
+        descends into the first Item (also undefined length), then
+        walks past the end of the buffer looking for a delimiter that
+        never arrives.
+
+        Appended structure (all explicit VR LE):
+          (0009,0013) SQ reserved=0 length=0xFFFFFFFF
+          (FFFE,E000) Item length=0xFFFFFFFF
+          <EOF>
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        sq_header = (
+            b"\x09\x00\x13\x00"  # tag (0009,0013)
+            + b"SQ"
+            + b"\x00\x00"  # reserved
+            + b"\xff\xff\xff\xff"  # undefined length
+        )
+        item_undefined = (
+            b"\xfe\xff\x00\xe0"  # (FFFE,E000) Item
+            + b"\xff\xff\xff\xff"  # length = undefined
+        )
+        # No item-delim, no seq-delim. Truncation is the attack.
+        return file_data + sq_header + item_undefined
+
+    def _binary_seq_delim_non_zero_length(self, file_data: bytes) -> bytes:
+        """Append SQ with a Sequence Delimitation Item carrying non-zero length.
+
+        PS3.5 7.5 mandates length=0 for (FFFE,E0DD). Parsers that
+        trust the value advance the read cursor by N bytes past the
+        delimiter, consuming subsequent real elements as if they were
+        part of the sequence. The generic length corruptor explicitly
+        skips group 0xFFFE, and every other (FFFE,E0DD) emission in
+        this fuzzer uses length=0 -- so this strategy exercises a
+        distinct parser code path with a 4-byte patch.
+
+        Appended structure (all explicit VR LE):
+          (0009,0014) SQ reserved=0 length=0xFFFFFFFF
+          (FFFE,E000) Item length=0  (empty defined-length item)
+          (FFFE,E0DD) Seq Delim length=N
+            where N in {0x10, 0x100, 0x7FFFFFFF, 0xFFFFFFFF}
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        sq_header = (
+            b"\x09\x00\x14\x00"  # tag (0009,0014)
+            + b"SQ"
+            + b"\x00\x00"  # reserved
+            + b"\xff\xff\xff\xff"  # undefined length
+        )
+        empty_item = (
+            b"\xfe\xff\x00\xe0"  # (FFFE,E000) Item
+            + b"\x00\x00\x00\x00"  # length = 0
+        )
+        bad_length = random.choice([0x10, 0x100, 0x7FFFFFFF, 0xFFFFFFFF])
+        seq_delim = b"\xfe\xff\xdd\xe0" + bad_length.to_bytes(4, "little")
+        return file_data + sq_header + empty_item + seq_delim
+
+    def _binary_item_delim_non_zero_length(self, file_data: bytes) -> bytes:
+        """Append SQ with an Item Delimitation Item carrying non-zero length.
+
+        PS3.5 7.5 mandates length=0 for (FFFE,E00D). Sibling of
+        ``_binary_seq_delim_non_zero_length`` but probes the
+        item-delim handler rather than the seq-delim handler --
+        distinct parser code path at a different nesting level.
+        Parsers that advance past the item delimiter by N bytes eat
+        into the trailing (FFFE,E0DD) Sequence Delim or the next
+        real element.
+
+        Appended structure (all explicit VR LE):
+          (0009,0015) SQ reserved=0 length=0xFFFFFFFF
+          (FFFE,E000) Item length=0xFFFFFFFF  (undefined-length item)
+          (FFFE,E00D) Item Delim length=N
+            where N in {0x4, 0x10, 0x7FFFFFFF, 0xFFFFFFFF}
+          (FFFE,E0DD) Seq Delim length=0
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        sq_header = (
+            b"\x09\x00\x15\x00"  # tag (0009,0015)
+            + b"SQ"
+            + b"\x00\x00"  # reserved
+            + b"\xff\xff\xff\xff"  # undefined length
+        )
+        item_undefined = (
+            b"\xfe\xff\x00\xe0"  # (FFFE,E000) Item
+            + b"\xff\xff\xff\xff"  # length = undefined
+        )
+        bad_length = random.choice([0x4, 0x10, 0x7FFFFFFF, 0xFFFFFFFF])
+        item_delim = b"\xfe\xff\x0d\xe0" + bad_length.to_bytes(4, "little")
+        seq_delim = b"\xfe\xff\xdd\xe0\x00\x00\x00\x00"  # (FFFE,E0DD) length=0
+        return file_data + sq_header + item_undefined + item_delim + seq_delim

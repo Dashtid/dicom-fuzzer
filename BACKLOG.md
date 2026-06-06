@@ -6,23 +6,42 @@ exact tags, values, and CVE/issue references for implementation.
 
 ---
 
-## Scope policy (2026-04-13)
+## Scope policy (2026-06-06 update)
 
-Format fuzzers are only worth adding when a matching seed exists in
-`dicom-seeds/`. Current seed corpus modalities: CT, DX, MR, NM, PET,
-RT-Dose, RT-Struct, SEG, encapsulated-PDF (9 modalities). Fuzzers for
-SOP classes outside this set produce no crashes against the actual
-target (Hermes.exe with these seeds) because `can_mutate()` returns
-False for every campaign input.
+**Target scope:** fo-dicom (primary upstream) and pydicom (secondary
+upstream) are the **only** open-source targets we pursue actively.
+Other DICOM stacks (Orthanc, DCMTK, dcm4che, GDCM) are not in scope
+even when bugs would be welcome upstream -- contribution ergonomics
+or low GitHub-PR signal rules them out. See `## Open-source target
+adoption -- P1` for the rationale.
+
+**Hermes scope filter:** Hermes parse-crash findings are out of
+scope. Vendor's deployment is single-process so parse crashes are
+trivially recoverable; only CWE-770-class amplification findings get
+escalated to the vendor. This is encoded as a project memory rule
+(`feedback_hermes_scope.md`) so future Claude sessions apply it
+without being re-prompted. Format/network strategies still target
+Hermes implicitly via the seed corpus, but Hermes is no longer the
+disclosure target.
+
+**Format strategy policy:** Format fuzzers are only worth adding
+when (a) a matching seed exists in `dicom-seeds/` AND (b) the
+mutation maps to a known fo-dicom OR pydicom bug class (or a
+plausible parser-internal failure mode). Current seed corpus
+modalities: CT, DX, MR, NM, PET, RT-Dose, RT-Struct, SEG,
+encapsulated-PDF (9 modalities). Gap-audit-driven additions are
+prioritised over speculative ones.
 
 Going forward:
 
-1. Format work focuses on **CVE gap coverage within the 9 seed modalities**.
-2. New modality fuzzers (US, MG, XA, MRS, PM, SC, PR, VL, SR, Waveform,
-   etc.) require seed corpus expansion first.
+1. Format work focuses on **gap-audit-verified attack patterns**
+   that fo-dicom and pydicom would actually crash on.
+2. New modality fuzzers (US, MG, XA, MRS, PM, SC, PR, VL, SR,
+   Waveform, etc.) require seed corpus expansion AND a target-side
+   bug pattern first.
 3. Non-format work (campaign tooling, crash triage automation,
    coverage-guided fuzzing, network/DIMSE deepening) is the
-   higher-leverage track.
+   higher-leverage track when no audit-verified gap is queued.
 
 ---
 
@@ -74,7 +93,140 @@ add new format-architecture work here when it surfaces.)
 
 ---
 
-## Open-source target adoption -- P1
+## Upstream-PR pipeline -- P1 (2026-06-06)
+
+The harnesses, strategies, and network module exist. What's missing
+is a deterministic pipeline from "we have a fuzzer" to "merged
+upstream PR". This section IS that pipeline. Success metric: **3-5
+merged upstream PRs across fo-dicom + pydicom over the next
+4 weeks**.
+
+Each phase is sized for one focused session. Phases 4-7 run on
+wall-clock timers (campaign + triage) and overlap heavily.
+
+### Phase 1 -- Gap audit -- DONE (2026-06-06)
+
+Workflow-driven fan-out audit across 5 axes (PS3.5, PS3.7/3.8,
+fo-dicom issues, pydicom issues, public CVEs). 41 agents, 13min,
+66 raw gaps -> 28 verified after adversarial refutation.
+
+Full report (not in git): `artifacts/audit/gap_audit_2026-06-06.md`.
+
+**Top 10 verified gaps (input to Phase 2):**
+
+| #   | Title                                           | Module  | Effort | Yield |
+| --- | ----------------------------------------------- | ------- | ------ | ----- |
+| 1   | file-meta-group-length-binary-rewrite           | format  | S      | high  |
+| 2   | big-endian-tsuid-le-bytes-binary                | format  | S      | high  |
+| 3   | sq-undefined-truncated-at-eof                   | format  | S      | high  |
+| 4   | definite-length-sq-lies                         | format  | S      | high  |
+| 5   | seq-delim-non-zero-length                       | format  | S      | high  |
+| 6   | item-delim-non-zero-length                      | format  | S      | high  |
+| 7   | max-length-subitem-0x51-edge-values             | network | S      | high  |
+| 8   | multiple-and-empty-transfer-syntaxes-per-pc     | network | S      | high  |
+| 9   | duplicate-and-overflow-presentation-context-ids | network | S      | high  |
+| 10  | dimse-command-set-illegal-data-set-type         | network | M      | high  |
+
+Two thematic clusters:
+
+- **Format binary length-field attacks** (#1-6): post-serialization
+  rewrites pydicom cannot express because it recomputes lengths on
+  `dcmwrite`. All target distinct parser code paths.
+- **Network A-ASSOCIATE sub-item attacks** (#7-9) + DIMSE command-set
+  rewrites (#10): the User Information sub-item family is almost
+  entirely uncovered (only 0x58 User Identity has a fuzzer); PC list
+  shape is hardcoded.
+
+18 additional verified gaps are queued as backlog candidates after
+the top-10 lands. See the audit report for the full list.
+
+### Phase 2 -- Gap selection (~30min, P1)
+
+Read the audit report. Pick top 3-5 strategies to implement,
+biased toward (a) fo-dicom-evidenced bugs, (b) novel attack
+patterns not in any current strategy, (c) S-effort first to keep
+PR cadence high.
+
+### Phase 3 -- Strategy implementation (~3-5 PRs, P1)
+
+One PR per selected strategy. Standard add-strategy loop:
+
+- New `<name>_fuzzer.py` in `dicom_fuzzer/attacks/format/` (or
+  appropriate subpackage)
+- `BaseFuzzer` subclass: `strategy_name`, `can_mutate`, `mutate`
+- Tests in `tests/test_attacks/format/test_<name>_fuzzer.py`
+- Register in `dicom_fuzzer/attacks/format/__init__.py` +
+  `dicom_fuzzer/core/mutation/mutator.py::_register_default_strategies`
+- Update strategy count in `tests/test_core/engine/test_generator.py`
+- CHANGELOG entry under `### Added`
+
+### Phase 4 -- fo-dicom file harness campaign (~1 day wall, P1)
+
+Run a sustained campaign with the full strategy set (post-Phase 3)
+against `examples/fodicom-file-harness/` (PR #276). This **folds
+in the post-PR-346 validation** -- the campaign exercises the
+rewrite-off default + `tsuid_mismatch` strategy and the file
+harness gives us a non-Hermes crash channel. Cluster crashes by
+stack signature. Filter for novel findings (not the CWE-674
+recursion bomb we already know about).
+
+Suggested command (`-c N` semantics: per-seed-file with `-r`):
+
+```
+dicom-fuzzer "C:\code-two\dicom-fuzzer\dicom-seeds" -r -c 45 \
+  -o ./artifacts/campaigns/fodicom-file \
+  -t "examples\fodicom-file-harness\bin\Release\net8.0\fodicom-file-harness.exe" \
+  --timeout 30 --seed 12345
+```
+
+### Phase 5 -- fo-dicom network harness campaign (~1 day wall, P1)
+
+Use `examples/fodicom-network-harness/start-harness.ps1` (PR #350)
+to spin up the SCP, then drive it with `--network-fuzz` (plain) and
+`--network-fuzz --network-tls` (TLS path). Same crash-cluster
+analysis. The network module's stateful + DIMSE + TLS paths all
+exercise here.
+
+Suggested driver:
+
+```powershell
+.\examples\fodicom-network-harness\start-harness.ps1 -Port 11315
+dicom-fuzzer --network-fuzz --network-target 127.0.0.1:11315 ...
+.\examples\fodicom-network-harness\start-harness.ps1 -Port 11316 -Tls
+dicom-fuzzer --network-fuzz --network-tls --network-target 127.0.0.1:11316 ...
+```
+
+### Phase 6 -- Per-finding upstream PR loop (ongoing, P1)
+
+For each cluster from Phase 4/5:
+
+1. Reproduce with minimal DICOM (delta-debug the seed +
+   mutation chain).
+2. Read fo-dicom source to identify the failing parse / decode /
+   negotiate path.
+3. File GitHub issue at `fo-dicom/fo-dicom` with: minimal repro
+   file, stack trace, root-cause summary.
+4. File fix PR (defensive bound check, explicit length validation,
+   sane defaults, etc.). Match fo-dicom's existing code style.
+5. Track in `artifacts/upstream/fodicom_prs.md`.
+
+### Phase 7 -- pydicom natural-yield triage (parallel to 4-6, P1)
+
+pydicom is already in our parse pipeline -- every fuzzed file is
+loaded by pydicom before being passed to the target. Parse
+exceptions are already captured in campaign artifacts. Phase 7
+work:
+
+1. Triage existing parse-exception logs from campaigns: which are
+   _unintended_ pydicom bugs vs _intended_ well-formed rejections?
+2. For unintended: minimal repro, file issue + PR at
+   `pydicom/pydicom`.
+3. Track in `artifacts/upstream/pydicom_prs.md`.
+
+This is "free" velocity -- no extra harness, just better triage of
+data we already have.
+
+---
 
 Current target is `Hermes.exe` (proprietary). Crash reports stay
 local; no upstream contribution path. Primary open-source target:
@@ -201,29 +353,15 @@ Disclosed to Hermes PM 2026-05-21 as courtesy notification (no fixed
 timer, no CVE intent). **Fixed by vendor (2026-05-29 per user); no
 CVE, no advisory, silent fix.**
 
-### Validate post-PR-346 fuzzer (rewrite-off + tsuid_mismatch) -- P1
+### Validate post-PR-346 fuzzer -- FOLDED into Phase 4
 
-PR #346 (merged 2026-05-28) dropped the implicit save-side TSUID
-rewrite that had been silently producing the BD-style mismatch on
-every encapsulated-seed file, and added an explicit
-`tsuid_mismatch` named strategy as the attributable replacement.
-
-Run a fresh long-form campaign with the new code to:
-
-- Surface bugs that the implicit rewrite was masking, especially
-  codec-internal bugs that now reach Hermes with intact compressed
-  payloads (JPEG, JPEG-LS, JPEG 2000, RLE)
-- Re-measure strategy hit-rates and crash-attribution -- the 8h
-  campaign's 71 CWE-674 crashes were reported via 22 strategies,
-  but each fuzzed file was also carrying the latent TSUID mismatch;
-  attribution now becomes meaningful
-- Confirm `tsuid_mismatch` is producing well-formed mismatched files
-  (the original Hermes CWE-770 it would have triggered is now fixed
-  by the vendor, so the strategy needs a different validation target)
-
-Suggested command: same as the 2026-05-14 campaign
-(`-c 45 --startup-delay 10 --detect-dialogs --seed 12345`) so the
-results are directly comparable to the historical baseline.
+This item is now subsumed by **Phase 4 (fo-dicom file harness
+campaign)** of the Upstream-PR pipeline above. The post-PR-346
+fuzzer (rewrite-off default + `tsuid_mismatch` strategy) is what
+Phase 4 runs by default, against fo-dicom rather than Hermes,
+since Hermes parse-crash findings are now out of scope. A Hermes
+validation run is unnecessary -- the only signal that mattered
+there (CWE-770 amplification) has been fixed by the vendor.
 
 ### Atheris fuzz coverage -- DONE (closed 2026-05-05)
 
