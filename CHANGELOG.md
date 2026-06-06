@@ -49,6 +49,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (FFFE,E00D) Item Delimitation Item. Length sampled from
     {0x4, 0x10, 0x7FFFFFFF, 0xFFFFFFFF}. Distinct parser code path at
     a different nesting level.
+- **Two new file-meta binary attacks** from the 2026-06-06 Phase 1
+  gap audit. Both operate post-serialization to rewrite bytes pydicom
+  would normally recompute or re-encode:
+  - `StructureFuzzer._binary_file_meta_group_length` -- overwrites the
+    4-byte UL value of (0002,0000) FileMetaInformationGroupLength at
+    file offset 140 with one of {0xFFFFFFFF, 0x00000000, original+64,
+    original-32}. Parsers that trust the value either consume dataset
+    bytes as FMI elements (overshoot) or read TransferSyntaxUID from
+    garbage (undershoot).
+  - `TSUIDMismatchFuzzer.mutate_bytes` -- post-serialization swap of
+    (0002,0010) Transfer Syntax UID to Explicit VR Big Endian
+    (`1.2.840.10008.1.2.2`) AFTER pydicom has serialised the dataset
+    in LE. Result: every US/UL/SS/SL/OW value is byte-order-swapped
+    relative to the declared TSUID, producing parser desync on the
+    first numeric value. Distinct from the existing dataset-level
+    swap variants which take effect before pydicom re-serialises.
 
 ### Removed
 

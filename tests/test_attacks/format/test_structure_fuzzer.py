@@ -1323,3 +1323,97 @@ class TestBinaryItemDelimNonZeroLength:
         fuzzer = StructureFuzzer()
         garbage = b"\x00" * 256
         assert fuzzer._binary_item_delim_non_zero_length(garbage) is garbage
+
+
+class TestBinaryFileMetaGroupLength:
+    """Gap #1: post-serialization rewrite of (0002,0000) FileMetaInformationGroupLength."""
+
+    _CANDIDATES_MASK_FFFFFFFF = 0xFFFFFFFF
+    _CANDIDATES_ZERO = 0x00000000
+
+    def test_returns_bytes(self):
+        fuzzer = StructureFuzzer()
+        result = fuzzer._binary_file_meta_group_length(_make_minimal_dicom_bytes())
+        assert isinstance(result, bytes)
+
+    def test_output_same_length_as_input(self):
+        """Patch is in-place: total file size must not change."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_file_meta_group_length(file_data)
+        assert len(result) == len(file_data)
+
+    def test_preamble_and_dicm_magic_preserved(self):
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_file_meta_group_length(file_data)
+        assert result[:_DATA_OFFSET] == file_data[:_DATA_OFFSET]
+
+    def test_group_length_element_header_preserved(self):
+        """Bytes 132-140 (tag + VR + declared length) must be untouched."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_file_meta_group_length(file_data)
+        assert result[132:140] == file_data[132:140]
+
+    def test_value_bytes_at_140_are_modified(self):
+        """Bytes 140-144 hold the UL value; at least one of the candidate
+        rewrites differs from the original. Across 200 runs we should
+        observe the value being rewritten."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        original_value = file_data[140:144]
+        # At least one run should produce a value different from the original
+        # (probability of all 200 matching original by chance: candidate set
+        # has 4 entries, one of which COULD equal original-32 if original >= 32;
+        # the 0/0xFFFFFFFF cases are guaranteed-different).
+        observed_different = False
+        for _ in range(200):
+            result = fuzzer._binary_file_meta_group_length(file_data)
+            if result[140:144] != original_value:
+                observed_different = True
+                break
+        assert observed_different
+
+    def test_candidate_values_observed_across_runs(self):
+        """200 RNG iterations should hit both 0x00000000 and 0xFFFFFFFF."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        seen_values = set()
+        for _ in range(200):
+            result = fuzzer._binary_file_meta_group_length(file_data)
+            seen_values.add(int.from_bytes(result[140:144], "little"))
+        assert self._CANDIDATES_MASK_FFFFFFFF in seen_values
+        assert self._CANDIDATES_ZERO in seen_values
+
+    def test_rest_of_fmi_unchanged(self):
+        """Bytes after the (0002,0000) UL value must be untouched."""
+        fuzzer = StructureFuzzer()
+        file_data = _make_minimal_dicom_bytes()
+        result = fuzzer._binary_file_meta_group_length(file_data)
+        assert result[144:] == file_data[144:]
+
+    def test_non_dicom_passthrough(self):
+        fuzzer = StructureFuzzer()
+        garbage = b"\x00" * 256
+        assert fuzzer._binary_file_meta_group_length(garbage) is garbage
+
+    def test_short_file_passthrough(self):
+        """File shorter than 144 bytes is returned unchanged."""
+        fuzzer = StructureFuzzer()
+        short = b"\x00" * 128 + b"DICM" + b"\x00" * 8  # 140 bytes, < 144
+        assert fuzzer._binary_file_meta_group_length(short) is short
+
+    def test_wrong_first_tag_passthrough(self):
+        """If (0002,0000) is not the first FMI element, return unchanged."""
+        fuzzer = StructureFuzzer()
+        # Build a file with junk at offset 132 instead of (0002,0000)
+        broken = (
+            b"\x00" * 128
+            + b"DICM"
+            + b"\x99\x99\x99\x99"  # wrong tag
+            + b"UL"
+            + b"\x04\x00"
+            + b"\x00\x00\x00\x00"
+        )
+        assert fuzzer._binary_file_meta_group_length(broken) is broken
