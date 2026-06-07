@@ -471,6 +471,7 @@ class StructureFuzzer(FormatFuzzerBase):
             self._binary_sq_undefined_truncated_at_eof,
             self._binary_seq_delim_non_zero_length,
             self._binary_item_delim_non_zero_length,
+            self._binary_file_meta_group_length,
         ]
         num = random.randint(1, 2)
         selected = random.sample(binary_attacks, num)
@@ -906,6 +907,59 @@ class StructureFuzzer(FormatFuzzerBase):
             + b"\x01\x02\x03\x04\x05\x06\x07\x08"  # 8-byte value
         )
         return file_data + elem
+
+    def _binary_file_meta_group_length(self, file_data: bytes) -> bytes:
+        """Overwrite (0002,0000) FileMetaInformationGroupLength with a lying value.
+
+        (0002,0000) is the single most load-bearing pointer in PS3.10:
+        every Part 10 reader trusts it to find where File Meta
+        Information ends and the dataset starts. Parsers that read it
+        without sanity-checking against the actual FMI end either
+        consume dataset bytes as FMI elements (overshoot) or truncate
+        FMI mid-element and read TransferSyntaxUID from garbage
+        (undershoot).
+
+        pydicom recomputes this value on ``dcmwrite``, so dataset-level
+        assignment cannot reach disk. A post-serialization byte patch
+        is the only entry point.
+
+        File Meta Information is always Explicit VR LE, so (0002,0000)
+        always lives at a fixed offset right after the DICM magic:
+
+          [offset 128] DICM magic (4 bytes)
+          [offset 132] tag (0002,0000)              -- 4 bytes
+          [offset 136] VR "UL"                       -- 2 bytes
+          [offset 138] length 0x0004                 -- 2 bytes
+          [offset 140] UL value (group length)       -- 4 bytes  <-- TARGET
+
+        The 4-byte UL value at offset 140 is rewritten to one of:
+          {0xFFFFFFFF, 0x00000000, original+64, original-32}
+        chosen at random. ``original-32`` is signed-clipped at 0.
+        """
+        if not self._is_valid_dicom(file_data):
+            return file_data
+        # Bounds check + header validation. The first FMI element MUST
+        # be (0002,0000) UL by PS3.10 7.1; bail if the file does not
+        # conform to that shape so we never patch the wrong bytes.
+        if len(file_data) < 144:
+            return file_data
+        if file_data[132:136] != b"\x02\x00\x00\x00":  # tag (0002,0000)
+            return file_data
+        if file_data[136:138] != b"UL":
+            return file_data
+        if file_data[138:140] != b"\x04\x00":  # declared value-length = 4
+            return file_data
+        original = int.from_bytes(file_data[140:144], "little")
+        candidates = [
+            0xFFFFFFFF,
+            0x00000000,
+            (original + 64) & 0xFFFFFFFF,
+            max(0, original - 32),
+        ]
+        new_value = random.choice(candidates)
+        result = bytearray(file_data)
+        result[140:144] = new_value.to_bytes(4, "little")
+        return bytes(result)
 
     def _binary_sq_undefined_with_huge_value(self, file_data: bytes) -> bytes:
         """Append SQ with undefined length and an item that lies about its size.
