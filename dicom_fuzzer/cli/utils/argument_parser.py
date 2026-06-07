@@ -16,8 +16,8 @@ except PackageNotFoundError:
 VERSION = f"DICOM Fuzzer v{_PKG_VERSION}"
 
 
-def _parse_crash_exit_codes(value: str) -> set[int]:
-    """Parse a comma-separated list of integers for ``--crash-exit-codes``.
+def _parse_exit_code_set(value: str, flag_name: str) -> set[int]:
+    """Parse a comma-separated list of integers for an exit-code CLI flag.
 
     Empty or whitespace-only entries are ignored so ``"1,,11 "`` -> ``{1, 11}``.
     Raises ``argparse.ArgumentTypeError`` on any non-integer token.
@@ -26,8 +26,18 @@ def _parse_crash_exit_codes(value: str) -> set[int]:
         return {int(token.strip()) for token in value.split(",") if token.strip()}
     except ValueError as exc:
         raise argparse.ArgumentTypeError(
-            f"crash-exit-codes must be comma-separated integers, got {value!r}: {exc}"
+            f"{flag_name} must be comma-separated integers, got {value!r}: {exc}"
         ) from exc
+
+
+def _parse_crash_exit_codes(value: str) -> set[int]:
+    """Parse the ``--crash-exit-codes`` flag value."""
+    return _parse_exit_code_set(value, "crash-exit-codes")
+
+
+def _parse_expected_exit_codes(value: str) -> set[int]:
+    """Parse the ``--expected-exit-codes`` flag value."""
+    return _parse_exit_code_set(value, "expected-exit-codes")
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -258,6 +268,22 @@ def _add_target_args(parser: argparse.ArgumentParser) -> None:
             "harness pass '1,11' so untyped library exceptions (rc=1 parse, "
             "rc=11 decode) are recorded; typed library rejections at rc=10/12 "
             "are intentionally NOT in the recommended set."
+        ),
+    )
+    parser.add_argument(
+        "--expected-exit-codes",
+        type=_parse_expected_exit_codes,
+        default=None,
+        metavar="N1,N2,...",
+        help=(
+            "Comma-separated non-zero exit codes that indicate the target "
+            "rejected malformed input AS DESIGNED -- not a finding, not a "
+            "failure. Treated as success for circuit-breaker accounting so "
+            "rejection-rich harnesses do not trip the breaker. Use with "
+            "harnesses that emit specific 'I refused this input' exit codes "
+            "-- e.g. for the fo-dicom file harness pass '10,12' (rc=10 = "
+            "DicomFileException, rc=12 = typed DicomException, both 'library "
+            "correctly rejected malformed input')."
         ),
     )
 

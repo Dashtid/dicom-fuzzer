@@ -403,6 +403,106 @@ class TestErrorClassification:
         assert runner._classify_error("Out of memory", 1) == ExecutionStatus.OOM
 
 
+class TestExpectedExitCodes:
+    """Designed-rejection exit codes should count as success."""
+
+    def _make_runner(self, tmp_path, expected_exit_codes=None):
+        exe = tmp_path / "target.exe"
+        exe.touch()
+        return TargetRunner(
+            target_executable=str(exe),
+            crash_dir=str(tmp_path),
+            expected_exit_codes=expected_exit_codes,
+            max_retries=0,  # disable retries to keep failure counts deterministic
+        )
+
+    def test_expected_exit_code_classified_as_success(self, tmp_path):
+        """rc in expected_exit_codes -> SUCCESS via subprocess.run path."""
+        runner = self._make_runner(tmp_path, expected_exit_codes={10, 12})
+        test_file = tmp_path / "test.dcm"
+        test_file.touch()
+
+        with patch("subprocess.run") as mock_run:
+            mock_result = Mock()
+            mock_result.returncode = 10
+            mock_result.stdout = ""
+            mock_result.stderr = "DicomFileException: malformed"
+            mock_run.return_value = mock_result
+
+            result = runner.execute_test(test_file)
+
+        assert result.result == ExecutionStatus.SUCCESS
+        assert result.exit_code == 10
+
+    def test_expected_exit_code_does_not_trip_circuit_breaker(self, tmp_path):
+        """Many consecutive expected-exit-code returns must not open the breaker."""
+        runner = self._make_runner(tmp_path, expected_exit_codes={10, 12})
+        test_file = tmp_path / "test.dcm"
+        test_file.touch()
+
+        with patch("subprocess.run") as mock_run:
+            mock_result = Mock()
+            mock_result.returncode = 10
+            mock_result.stdout = ""
+            mock_result.stderr = "ok"
+            mock_run.return_value = mock_result
+
+            for _ in range(10):
+                runner.execute_test(test_file)
+
+        # No consecutive-failure accumulation: breaker stays closed.
+        assert runner.circuit_breaker.is_open is False
+        assert runner.circuit_breaker.consecutive_failures == 0
+        assert runner.circuit_breaker.success_count == 10
+
+    def test_unexpected_non_zero_still_increments_failures(self, tmp_path):
+        """Non-zero exit NOT in expected set must still count as failure."""
+        runner = self._make_runner(tmp_path, expected_exit_codes={10})
+        test_file = tmp_path / "test.dcm"
+        test_file.touch()
+
+        with patch("subprocess.run") as mock_run:
+            mock_result = Mock()
+            mock_result.returncode = 7  # not in {10}
+            mock_result.stdout = ""
+            mock_result.stderr = "something else"
+            mock_run.return_value = mock_result
+
+            runner.execute_test(test_file)
+
+        assert runner.circuit_breaker.failure_count == 1
+        assert runner.circuit_breaker.consecutive_failures == 1
+
+    def test_default_no_expected_codes_preserves_strict_behaviour(self, tmp_path):
+        """Without expected_exit_codes, any non-zero -> failure as before."""
+        runner = self._make_runner(tmp_path)
+        test_file = tmp_path / "test.dcm"
+        test_file.touch()
+
+        with patch("subprocess.run") as mock_run:
+            mock_result = Mock()
+            mock_result.returncode = 10  # no longer treated as success without opt-in
+            mock_result.stdout = ""
+            mock_result.stderr = "ok"
+            mock_run.return_value = mock_result
+
+            result = runner.execute_test(test_file)
+
+        assert result.result != ExecutionStatus.SUCCESS
+        assert runner.circuit_breaker.consecutive_failures == 1
+
+    def test_expected_exit_codes_stored_as_frozenset(self, tmp_path):
+        """The attribute is stored as a frozenset for immutability."""
+        runner = self._make_runner(tmp_path, expected_exit_codes={10, 12})
+        assert runner.expected_exit_codes == frozenset({10, 12})
+        assert isinstance(runner.expected_exit_codes, frozenset)
+
+    def test_expected_exit_codes_default_is_empty_frozenset(self, tmp_path):
+        """None -> empty frozenset so membership checks always work."""
+        runner = self._make_runner(tmp_path)
+        assert runner.expected_exit_codes == frozenset()
+
+
 class TestExecuteTest:
     """Test suite for execute_test method."""
 
