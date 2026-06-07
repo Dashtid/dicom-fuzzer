@@ -44,17 +44,25 @@ mean fo-dicom did its job and rejected malformed input cleanly.
 dicom-fuzzer ./dicom-seeds -r -c 200 \
   -t ./examples/fodicom-file-harness/bin/Release/net8.0/win-x64/publish/fodicom-file-harness.exe \
   --timeout 10 \
-  --crash-exit-codes 1,11
+  --crash-exit-codes 1,11 \
+  --expected-exit-codes 10,12
 ```
 
 `--crash-exit-codes 1,11` tells the dicom-fuzzer target runner to record the
 **untyped-escape** exit codes as crashes. Without it, rc=1 and rc=11 fall to
 `ExecutionStatus.ERROR` and are silently dropped from findings -- which means
-real candidate library bugs would never be reported. Codes 10 and 12 are
-deliberately omitted: those are typed `DicomException` rejections (library
-doing its job, not a finding). Native runtime crashes (`StackOverflowException`
-etc.) are recorded automatically by the existing Windows / negative-signal
-classifier and don't need to be listed.
+real candidate library bugs would never be reported.
+
+`--expected-exit-codes 10,12` tells the runner that rc=10 and rc=12 are
+designed rejections, NOT failures. Without it, the harness's normal rejection
+rate (~25-30% for a structurally aggressive fuzzer) trips the circuit breaker
+after 5 consecutive non-zero exits and skips the rest of the campaign. Codes
+10 (DicomFileException) and 12 (typed DicomException) mean "library doing its
+job, not a finding," so they're classified as `ExecutionStatus.SUCCESS`.
+
+Native runtime crashes (`StackOverflowException` etc.) are recorded
+automatically by the existing Windows / negative-signal classifier and don't
+need to be listed.
 
 ## What the harness does NOT do
 

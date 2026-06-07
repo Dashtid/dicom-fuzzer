@@ -108,6 +108,7 @@ class TargetRunner:
         idle_threshold: float = 5.0,
         memory_limit_mb: float | None = None,
         crash_exit_codes: set[int] | None = None,
+        expected_exit_codes: set[int] | None = None,
     ):
         """Initialize target runner.
 
@@ -133,6 +134,18 @@ class TargetRunner:
                 conservative classifier (only Windows native crash codes and
                 Unix negative signals count as crashes), which is correct for
                 arbitrary CLI targets that may legitimately return 1.
+            expected_exit_codes: Non-zero exit codes that mean the target
+                rejected malformed input *as designed* -- NOT a finding and
+                NOT a failure. Treated as success for circuit-breaker
+                accounting and classified as
+                ``ExecutionStatus.SUCCESS``. Use for target harnesses with
+                rejection-rich exit-code conventions -- e.g. pass
+                ``{10, 12}`` for ``examples/fodicom-file-harness`` where
+                rc=10 (DicomFileException) and rc=12 (typed DicomException)
+                signal "library correctly rejected malformed input". Without
+                this, high rejection rates from a working harness rapidly
+                trip the circuit breaker. Default ``None`` keeps the prior
+                strict any-non-zero-is-failure behaviour.
 
         Raises:
             FileNotFoundError: If target executable doesn't exist
@@ -153,6 +166,7 @@ class TargetRunner:
         self.idle_threshold = idle_threshold
         self.memory_limit_mb = memory_limit_mb
         self.crash_exit_codes: frozenset[int] = frozenset(crash_exit_codes or ())
+        self.expected_exit_codes: frozenset[int] = frozenset(expected_exit_codes or ())
 
         # Initialize crash analyzer for crash reporting
         self.crash_analyzer = CrashAnalyzer(crash_dir=str(self.crash_dir))
@@ -342,14 +356,15 @@ class TargetRunner:
         crash_info: Any,
     ) -> ExecutionResult:
         """Build ExecutionResult for completed subprocess."""
+        rc = result.returncode
+        if rc == 0 or rc in self.expected_exit_codes:
+            status = ExecutionStatus.SUCCESS
+        else:
+            status = self._classify_error(result.stderr, rc)
         return ExecutionResult(
             test_file=test_file,
-            result=(
-                ExecutionStatus.SUCCESS
-                if result.returncode == 0
-                else self._classify_error(result.stderr, result.returncode)
-            ),
-            exit_code=result.returncode,
+            result=status,
+            exit_code=rc,
             execution_time=execution_time,
             stdout=result.stdout if self.collect_stdout else "",
             stderr=result.stderr if self.collect_stderr else "",
@@ -389,6 +404,14 @@ class TargetRunner:
             execution_time = time.time() - start_time
 
             if result.returncode == 0:
+                self._update_circuit_breaker(success=True)
+                return self._build_success_result(
+                    test_file_path, result, execution_time, retry_count, None
+                )
+
+            if result.returncode in self.expected_exit_codes:
+                # Designed rejection: target signalled malformed input
+                # via a known-good exit code. Not a finding, not a failure.
                 self._update_circuit_breaker(success=True)
                 return self._build_success_result(
                     test_file_path, result, execution_time, retry_count, None
@@ -533,7 +556,10 @@ class TargetRunner:
         exit_code = monitor_result.exit_code
         windows_crash_info = None
 
-        if exit_code == 0:
+        if exit_code == 0 or exit_code in self.expected_exit_codes:
+            # exit_code == 0 -> clean parse
+            # exit_code in expected_exit_codes -> designed rejection
+            # Both healthy from the target's POV; not findings.
             test_result = ExecutionStatus.SUCCESS
             self._update_circuit_breaker(success=True)
         else:

@@ -79,6 +79,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     list of Presentation Contexts as a whole. Cases: empty list,
     256 PCs with sequential odd ctx_ids, duplicate ctx_id, even
     ctx_ids (illegal per PS3.8 7.1.1.13).
+- **`--expected-exit-codes N1,N2,...` CLI flag** + matching
+  `expected_exit_codes` parameter on `TargetRunner`. Non-zero exit
+  codes listed here are treated as "target rejected malformed input
+  as designed" -- classified as `ExecutionStatus.SUCCESS` and NOT
+  counted as failures for circuit-breaker accounting. Recommended
+  invocation for the fo-dicom file harness:
+  `--crash-exit-codes 1,11 --expected-exit-codes 10,12` (rc=1/11 =
+  untyped library exceptions = findings; rc=10/12 = typed library
+  rejections = healthy). Without this flag, rejection-rich harnesses
+  trip the circuit breaker after 5 consecutive rejections and skip
+  the remainder of the campaign.
 
 ### Removed
 

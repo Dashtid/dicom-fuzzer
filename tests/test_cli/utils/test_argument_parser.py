@@ -11,6 +11,7 @@ import pytest
 from dicom_fuzzer.cli.utils.argument_parser import (
     VERSION,
     _parse_crash_exit_codes,
+    _parse_expected_exit_codes,
     create_parser,
 )
 
@@ -256,6 +257,47 @@ class TestCrashExitCodesParser:
         parser = create_parser()
         args = parser.parse_args(["input.dcm"])
         assert args.crash_exit_codes is None
+
+
+class TestExpectedExitCodesParser:
+    """Tests for the --expected-exit-codes flag and its parser callable."""
+
+    def test_simple(self) -> None:
+        assert _parse_expected_exit_codes("10,12") == {10, 12}
+
+    def test_handles_whitespace_and_empty_tokens(self) -> None:
+        assert _parse_expected_exit_codes(" 10 , , 12 ") == {10, 12}
+
+    def test_invalid_token_raises(self) -> None:
+        with pytest.raises(argparse.ArgumentTypeError) as excinfo:
+            _parse_expected_exit_codes("10,not-an-int")
+        # Error message should name THIS flag, not crash-exit-codes
+        assert "expected-exit-codes" in str(excinfo.value)
+
+    def test_flag_via_parser(self) -> None:
+        parser = create_parser()
+        args = parser.parse_args(["input.dcm", "--expected-exit-codes", "10,12"])
+        assert args.expected_exit_codes == {10, 12}
+
+    def test_flag_default_is_none(self) -> None:
+        parser = create_parser()
+        args = parser.parse_args(["input.dcm"])
+        assert args.expected_exit_codes is None
+
+    def test_both_flags_independent(self) -> None:
+        """--crash-exit-codes and --expected-exit-codes parse independently."""
+        parser = create_parser()
+        args = parser.parse_args(
+            [
+                "input.dcm",
+                "--crash-exit-codes",
+                "1,11",
+                "--expected-exit-codes",
+                "10,12",
+            ]
+        )
+        assert args.crash_exit_codes == {1, 11}
+        assert args.expected_exit_codes == {10, 12}
 
 
 class TestCombinedArgs:
