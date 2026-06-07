@@ -362,6 +362,72 @@ class TestDICOMNetworkFuzzer:
             assert "pres_ctx" in result.test_name
 
     @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_fuzz_transfer_syntax_list(self, mock_send_receive: MagicMock) -> None:
+        """Gap #8: Transfer Syntax list shape fuzzing."""
+        mock_send_receive.return_value = (b"\x03\x00\x00\x00", 0.1)
+
+        fuzzer = DICOMNetworkFuzzer()
+        results = fuzzer.fuzz_transfer_syntax_list()
+
+        assert len(results) == 4
+        names = [r.test_name for r in results]
+        assert "pres_ctx_ts_list_ts_empty_list" in names
+        assert "pres_ctx_ts_list_ts_duplicate" in names
+        assert "pres_ctx_ts_list_ts_app_context_uid_as_ts" in names
+        assert "pres_ctx_ts_list_ts_mixed_uncompressed_and_compressed" in names
+        for result in results:
+            assert result.strategy.value == "malformed_pdu"
+            assert "pres_ctx_ts_list" in result.test_name
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_fuzz_presentation_context_list_shape(
+        self, mock_send_receive: MagicMock
+    ) -> None:
+        """Gap #9: Presentation Context list shape fuzzing."""
+        mock_send_receive.return_value = (b"\x03\x00\x00\x00", 0.1)
+
+        fuzzer = DICOMNetworkFuzzer()
+        results = fuzzer.fuzz_presentation_context_list_shape()
+
+        assert len(results) == 4
+        names = [r.test_name for r in results]
+        assert "pres_ctx_pcs_empty_list" in names
+        assert "pres_ctx_pcs_256_items" in names
+        assert "pres_ctx_pcs_duplicate_ctx_id" in names
+        assert "pres_ctx_pcs_even_ids" in names
+        for result in results:
+            assert result.strategy.value == "malformed_pdu"
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_fuzz_transfer_syntax_list_handles_exceptions(
+        self, mock_send_receive: MagicMock
+    ) -> None:
+        """Per-case exception isolation: one socket failure does not stop the loop."""
+        mock_send_receive.side_effect = ConnectionError("simulated socket failure")
+
+        fuzzer = DICOMNetworkFuzzer()
+        results = fuzzer.fuzz_transfer_syntax_list()
+
+        assert len(results) == 4
+        for result in results:
+            assert result.success is False
+            assert "simulated socket failure" in (result.error or "")
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
+    def test_fuzz_pc_list_shape_handles_exceptions(
+        self, mock_send_receive: MagicMock
+    ) -> None:
+        """Sibling exception-isolation test for the PC list shape fuzzer."""
+        mock_send_receive.side_effect = ConnectionError("simulated socket failure")
+
+        fuzzer = DICOMNetworkFuzzer()
+        results = fuzzer.fuzz_presentation_context_list_shape()
+
+        assert len(results) == 4
+        for result in results:
+            assert result.success is False
+
+    @patch.object(DICOMNetworkFuzzer, "_send_receive")
     def test_fuzz_random_bytes(self, mock_send_receive: MagicMock) -> None:
         """Test random bytes fuzzing."""
         mock_send_receive.return_value = (b"", 0.1)

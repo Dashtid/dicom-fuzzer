@@ -304,6 +304,12 @@ class DICOMNetworkFuzzer(PDUFuzzingMixin):
             logger.info("Fuzzing presentation contexts...")
             results.extend(self.fuzz_presentation_context())
 
+            logger.info("Fuzzing transfer syntax list shape...")
+            results.extend(self.fuzz_transfer_syntax_list())
+
+            logger.info("Fuzzing presentation context list shape...")
+            results.extend(self.fuzz_presentation_context_list_shape())
+
             logger.info("Sending random bytes...")
             results.extend(self.fuzz_random_bytes())
 
