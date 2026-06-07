@@ -65,6 +65,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     relative to the declared TSUID, producing parser desync on the
     first numeric value. Distinct from the existing dataset-level
     swap variants which take effect before pydicom re-serialises.
+- **Two new A-ASSOCIATE-RQ list-shape attacks** in `PDUFuzzingMixin`,
+  wired into `DICOMNetworkFuzzer.run_campaign` under the
+  `MALFORMED_PDU` strategy. From the 2026-06-06 Phase 1 gap audit:
+  - `fuzz_transfer_syntax_list` (gap #8) -- varies the list of
+    Transfer Syntax sub-items WITHIN a single Presentation Context.
+    Cases: empty list, duplicate UID, Application Context UID
+    (`1.2.840.10008.3.1.1.1`) misused as a TS, mixed
+    uncompressed+compressed list. Existing
+    `fuzz_presentation_context` only varied `context_id` and
+    hardcoded a single-TS list.
+  - `fuzz_presentation_context_list_shape` (gap #9) -- varies the
+    list of Presentation Contexts as a whole. Cases: empty list,
+    256 PCs with sequential odd ctx_ids, duplicate ctx_id, even
+    ctx_ids (illegal per PS3.8 7.1.1.13).
 
 ### Removed
 
