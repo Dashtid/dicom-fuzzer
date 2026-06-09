@@ -179,36 +179,54 @@ dicom-fuzzer "C:\code-two\dicom-fuzzer\dicom-seeds" -r -c 45 \
   --timeout 30 --seed 12345
 ```
 
-### Phase 5 -- fo-dicom network harness campaign (~1 day wall, P1)
+### Phase 5 -- fo-dicom network harness campaign (DONE 2026-06-07)
 
-Use `examples/fodicom-network-harness/start-harness.ps1` (PR #350)
-to spin up the SCP, then drive it with `--network-fuzz` (plain) and
-`--network-fuzz --network-tls` (TLS path). Same crash-cluster
-analysis. The network module's stateful + DIMSE + TLS paths all
-exercise here.
+Plain DIMSE + TLS sweeps against the bundled harness on
+fo-dicom 5.2.6 surfaced TWO novel code-quality findings, both with
+root cause traced to upstream source. Both reported upstream
+2026-06-07 as issue + PR pairs:
 
-Suggested driver:
+- **Finding A** -- `DicomServer.cs:327` `ContinueWith` never reads
+  `t.Exception`, so every malformed-PDU disconnect leaks an unobserved
+  Task. Default .NET 8 swallows it; `<ThrowUnobservedTaskExceptions>`
+  hosts crash. Upstream: issue [fo-dicom#2148](https://github.com/fo-dicom/fo-dicom/issues/2148)
+  - PR [fo-dicom#2149](https://github.com/fo-dicom/fo-dicom/pull/2149)
+    (OPEN). Artifact: `artifacts/findings/fodicom_unobserved_pdu_20260607/`.
+- **Finding B** -- `PDU.cs:185` `Pdu[type={Type:X2}, ...]` interpolates
+  `RawPduType` enum with `X2` format spec, rejected by .NET 8's
+  stricter `Enum.TryFormat`. Masks the intended `DicomNetworkException`
+  from `CheckOffset` as a generic `FormatException`. One-line fix.
+  Upstream: issue [fo-dicom#2146](https://github.com/fo-dicom/fo-dicom/issues/2146)
+  - PR [fo-dicom#2147](https://github.com/fo-dicom/fo-dicom/pull/2147)
+    (OPEN). Artifact: `artifacts/findings/fodicom_format_exception_pdu_20260607/`.
 
-```powershell
-.\examples\fodicom-network-harness\start-harness.ps1 -Port 11315
-dicom-fuzzer --network-fuzz --network-target 127.0.0.1:11315 ...
-.\examples\fodicom-network-harness\start-harness.ps1 -Port 11316 -Tls
-dicom-fuzzer --network-fuzz --network-tls --network-target 127.0.0.1:11316 ...
-```
+Neither is security-class (no DoS, no GHSA needed) -- mergeable as
+code-quality PRs. Memory: `memory/fodicom_phase5_findings.md`.
+
+Harness side-improvement (2026-06-07): `CStoreProvider.cs:OnConnectionClosed`
+now uses `ExceptionDispatchInfo.Capture(e).Throw()` instead of `throw e`,
+preserving the original stack through the bubble-up shim. Without this,
+Finding B's actual fo-dicom call site was invisible.
 
 ### Phase 6 -- Per-finding upstream PR loop (ongoing, P1)
 
-For each cluster from Phase 4/5:
+**First PR landed 2026-06-07** -- pydicom issue #2330 + PR #2331,
+both OPEN at pydicom/pydicom. Adds `config.settings.max_sequence_depth`
+(default 100) + a `_depth` counter threaded through the SQ-reader path
+that raises `InvalidDicomError` instead of `RecursionError` on
+adversarial input. See `memory/pydicom_disclosure_state.md`.
+
+Loop for future findings:
 
 1. Reproduce with minimal DICOM (delta-debug the seed +
    mutation chain).
-2. Read fo-dicom source to identify the failing parse / decode /
+2. Read upstream source to identify the failing parse / decode /
    negotiate path.
-3. File GitHub issue at `fo-dicom/fo-dicom` with: minimal repro
+3. File GitHub issue at the target repo with: minimal repro
    file, stack trace, root-cause summary.
 4. File fix PR (defensive bound check, explicit length validation,
-   sane defaults, etc.). Match fo-dicom's existing code style.
-5. Track in `artifacts/upstream/fodicom_prs.md`.
+   sane defaults, etc.). Match upstream's existing code style.
+5. Track in `memory/<target>_disclosure_state.md`.
 
 ### Phase 7 -- pydicom natural-yield triage (parallel to 4-6, P1)
 
