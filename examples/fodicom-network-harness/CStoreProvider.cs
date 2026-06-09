@@ -10,6 +10,7 @@
 // designed error reports. Anything else falls through to the
 // AppDomain-level handler in Program.cs, which exits the process.
 
+using System.Runtime.ExceptionServices;
 using System.Text;
 using FellowOakDicom;
 using FellowOakDicom.Network;
@@ -53,6 +54,8 @@ internal sealed class CStoreProvider
     public void OnConnectionClosed(Exception? exception)
     {
         // Bubble non-DICOM exceptions up so AppDomain handler catches them.
+        // ExceptionDispatchInfo preserves the original throw site, which would
+        // otherwise be lost if we used `throw exception;`.
         if (exception is not null
             && exception is not DicomNetworkException
             && exception is not DicomDataException
@@ -60,7 +63,7 @@ internal sealed class CStoreProvider
             && exception is not IOException
             && exception is not System.Net.Sockets.SocketException)
         {
-            throw exception;
+            ExceptionDispatchInfo.Capture(exception).Throw();
         }
     }
 
@@ -89,7 +92,7 @@ internal sealed class CStoreProvider
         // is a fo-dicom bug candidate.
         if (e is not DicomFileException && e is not DicomDataException && e is not IOException)
         {
-            throw e;
+            ExceptionDispatchInfo.Capture(e).Throw();
         }
         return Task.CompletedTask;
     }
