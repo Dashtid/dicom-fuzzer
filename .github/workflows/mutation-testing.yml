@@ -37,7 +37,7 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
@@ -270,7 +270,7 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
         with:
           fetch-depth: 0
 

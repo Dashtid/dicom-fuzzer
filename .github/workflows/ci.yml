@@ -19,7 +19,7 @@ jobs:
     name: Lint & Format (Ruff)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
@@ -44,7 +44,7 @@ jobs:
     name: Security Scan (Bandit)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
@@ -66,7 +66,7 @@ jobs:
     name: Type Check (mypy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
@@ -97,7 +97,7 @@ jobs:
         python-version: ['3.11', '3.12', '3.13', '3.14']
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
@@ -155,7 +155,7 @@ jobs:
     # Don't block the whole pipeline if Codecov has an outage.
     if: always() && needs.test.result != 'cancelled'
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
 
       - name: Download coverage XML
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v4
@@ -164,7 +164,7 @@ jobs:
           path: .
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2  # v6.0.0
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
         with:
           files: ./coverage.xml
           flags: unittests
@@ -176,7 +176,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint-and-format, security-scan, test]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
