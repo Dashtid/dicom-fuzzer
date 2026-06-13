@@ -201,10 +201,41 @@ jobs:
           name: dist-packages
           path: dist/
 
+  fodicom-harness-smoke:
+    name: fo-dicom Harness Smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9  # v4.3.1
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@374b9305c53f17cee51e793c1234cdb1897489d5  # v7
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install Python dependencies
+        run: uv sync --all-extras
+
+      - name: Run harness smoke tests
+        env:
+          DICOM_FUZZER_TEST_FODICOM_HARNESS: '1'
+        run: |
+          uv run pytest tests/test_examples/test_fodicom_file_harness.py \
+            -o "addopts=" -v --no-header --timeout=120
+
   all-checks-pass:
     name: All Checks Passed
     if: always()
-    needs: [lint-and-format, security-scan, type-check, test, build]
+    needs: [lint-and-format, security-scan, type-check, test, build, fodicom-harness-smoke]
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs
@@ -213,7 +244,8 @@ jobs:
              [ "${{ needs.security-scan.result }}" != "success" ] || \
              [ "${{ needs.type-check.result }}" != "success" ] || \
              [ "${{ needs.test.result }}" != "success" ] || \
-             [ "${{ needs.build.result }}" != "success" ]; then
+             [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.fodicom-harness-smoke.result }}" != "success" ]; then
             echo "One or more checks failed"
             exit 1
           fi
