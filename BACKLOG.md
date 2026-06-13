@@ -244,6 +244,64 @@ work:
 This is "free" velocity -- no extra harness, just better triage of
 data we already have.
 
+**Runs to date:** 2026-06-09 (915 files, surfaced pydicom #2332/#2333);
+2026-06-11 v2 (554 files, only known clusters); 2026-06-11 v3 with
+seed=67890 (1142 files, surfaced pydicom #2336 -- NotImplementedError
+on unknown VR, issue-only filing). Helper script:
+`scripts/pydicom_natural_yield_sweep.py` (gitignored).
+
+---
+
+## Fuzzer reliability / cleanup -- P1 (added 2026-06-11)
+
+These two surfaced during the 2026-06-11 v3 campaign that produced
+pydicom #2336. Both are bounded scope.
+
+### Test-phase OOM at ~1140-entry mutation map
+
+`dicom-fuzzer` exits code 4 immediately after `Loaded mutation map:
+N entries` at the start of target testing when `N` is around 1140
+(seen with `-c 100` over 16 seeds). Generation phase completes;
+testing phase never runs. See
+`memory/fuzzer_oom_at_1140_mutation_map.md`. Workaround: keep `-c`
+at 40-50 per seed (or skip target test and run the Phase 7 sweep
+directly on the `fuzzed/` directory -- that is what produced
+pydicom #2336).
+
+Triage steps:
+
+1. Bisect `-c` (or total file count) downward until target-test
+   phase starts successfully. Identify the threshold.
+2. Profile peak RSS just before `Loaded mutation map` and after.
+   The map is a JSON/pickle on disk and likely deserialised eagerly.
+3. Inspect `dicom_fuzzer.core.harness.target_runner` for the test
+   loop preamble and `dicom_fuzzer.core.session.session` for the
+   map writer.
+4. Likely fix: stream the map instead of full deserialise, or
+   sharded per-input-file load.
+
+### Zero-hit strategy cleanup
+
+`encapsulated_pdf`, `nuclear_medicine`, `pet`, `rt_structure_set`,
+`secondary_capture`, `segmentation` are at 0% across both 2026-06-11
+campaigns (seed=12345 and seed=67890). `pixel_reencoding`,
+`rt_dose`, `frame_increment_invalid` are sub-1%. Modalities exist
+in `dicom-seeds/`, so the cause is `can_mutate` predicate or
+implementation, not missing seeds. See
+`memory/strategy_zero_hits_2026_06_11.md`.
+
+Triage steps:
+
+1. Instrument `can_mutate` for each zero-hit strategy. Run a
+   one-shot generation against the matching-modality seed only and
+   log which condition returns False.
+2. Per strategy decide: fix predicate (a), add representative seed
+   (b), or delete strategy (c). One strategy per PR -- atomic
+   commits matter here because each fix changes the strategy hit
+   table and downstream campaign reports.
+3. Update `tests/test_core/engine/test_generator.py` strategy count
+   if deletions land.
+
 ---
 
 Current target is `Hermes.exe` (proprietary). Crash reports stay

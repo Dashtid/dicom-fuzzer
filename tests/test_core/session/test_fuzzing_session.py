@@ -494,6 +494,83 @@ class TestFuzzingSession:
         with pytest.raises(RuntimeError, match="No active file fuzzing session"):
             session.record_mutation(strategy_name="Test", mutation_type="test")
 
+    def test_start_file_fuzzing_skips_metadata_when_flag_disabled(
+        self, temp_dirs, monkeypatch
+    ):
+        """``extract_metadata=False`` must skip the pydicom parse so bulk
+        pre-registration over thousands of fuzz inputs cannot trip OOM or
+        re-raise adversarial parser bugs the corpus already contains.
+        """
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(temp_dirs["output"]),
+            reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
+        )
+
+        calls: list[Path] = []
+        monkeypatch.setattr(
+            session,
+            "_extract_metadata",
+            lambda p: calls.append(p) or {},
+        )
+
+        test_file = temp_dirs["output"] / "fuzzed.dcm"
+        test_file.write_bytes(b"not really DICOM")
+
+        file_id = session.start_file_fuzzing(
+            source_file=test_file,
+            output_file=test_file,
+            severity="unknown",
+            extract_metadata=False,
+        )
+        session.end_file_fuzzing(test_file, extract_metadata=False)
+
+        assert calls == [], "_extract_metadata must not be called"
+        record = session.fuzzed_files[file_id]
+        assert record.source_metadata == {}
+        assert record.fuzzed_metadata == {}
+        assert record.file_hash == ""
+
+    def test_start_file_fuzzing_extracts_metadata_by_default(
+        self, temp_dirs, monkeypatch
+    ):
+        """Default ``extract_metadata=True`` preserves the previous
+        behaviour so non-bulk callers (mutator-driven generation) still
+        capture source and fuzzed metadata for the session report.
+        """
+        session = FuzzingSession(
+            session_name="test",
+            output_dir=str(temp_dirs["output"]),
+            reports_dir=str(temp_dirs["reports"]),
+            crashes_dir=str(temp_dirs["crashes"]),
+        )
+
+        calls: list[Path] = []
+        monkeypatch.setattr(
+            session,
+            "_extract_metadata",
+            lambda p: calls.append(p) or {"Modality": "CT"},
+        )
+
+        test_file = temp_dirs["output"] / "fuzzed.dcm"
+        test_file.write_bytes(b"placeholder")
+
+        file_id = session.start_file_fuzzing(
+            source_file=test_file,
+            output_file=test_file,
+            severity="unknown",
+        )
+        session.end_file_fuzzing(test_file)
+
+        assert len(calls) == 2, (
+            "_extract_metadata expected on both start and end (source + fuzzed)"
+        )
+        record = session.fuzzed_files[file_id]
+        assert record.source_metadata == {"Modality": "CT"}
+        assert record.fuzzed_metadata == {"Modality": "CT"}
+        assert record.file_hash  # SHA256 computed
+
     def test_end_file_fuzzing_without_active_file(self, temp_dirs):
         """Test ending file fuzzing without starting it first."""
         session = FuzzingSession(
