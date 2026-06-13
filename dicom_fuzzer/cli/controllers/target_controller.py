@@ -89,7 +89,13 @@ class TargetTestingController:
             campaign_seed = TargetTestingController._load_seed_from_map(files)
             session.seed = campaign_seed
 
-            # Register all test files with the session
+            # Register all test files with the session. The files are
+            # already on disk from the generation phase, so skip pydicom
+            # parsing here -- the previous behaviour re-parsed every input
+            # (twice: once in start_file_fuzzing, once in end_file_fuzzing)
+            # and re-hashed them on a ~1000-file corpus, blowing memory
+            # before target testing even began. The pre-walk only needs
+            # to map file paths to file_ids for later crash recording.
             file_id_map: dict[Path, str] = {}
             for f in files:
                 resolved = f.resolve()
@@ -101,6 +107,7 @@ class TargetTestingController:
                     source_file=resolved,
                     output_file=resolved,
                     severity="unknown",
+                    extract_metadata=False,
                 )
                 if strategy:
                     session.record_mutation(
@@ -109,7 +116,7 @@ class TargetTestingController:
                         variant=variant,
                         binary_mutations=binary_mutations or None,
                     )
-                session.end_file_fuzzing(resolved)
+                session.end_file_fuzzing(resolved, extract_metadata=False)
                 file_id_map[resolved] = file_id
 
             # Run campaign

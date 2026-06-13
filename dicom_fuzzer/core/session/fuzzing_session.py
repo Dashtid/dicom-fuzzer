@@ -155,6 +155,7 @@ class FuzzingSession:
         source_file: Path,
         output_file: Path,
         severity: str,
+        extract_metadata: bool = True,
     ) -> str:
         """Start tracking a new fuzzed file.
 
@@ -162,6 +163,13 @@ class FuzzingSession:
             source_file: Path to original DICOM file
             output_file: Path where fuzzed file will be saved
             severity: Mutation severity level
+            extract_metadata: Parse ``source_file`` with pydicom to capture
+                identifying tags. Set ``False`` when bulk-registering
+                already-generated fuzz inputs (e.g. the target-testing
+                pre-walk), where parsing every file just to populate
+                duplicated source/fuzzed metadata triggered OOM on
+                ~1000-input corpora and re-tripped adversarial parser bugs
+                already known to fail (RecursionError, NotImplementedError).
 
         Returns:
             File ID for tracking
@@ -171,7 +179,9 @@ class FuzzingSession:
         file_id = generate_file_id()
 
         # Extract source metadata
-        source_metadata = self._extract_metadata(source_file)
+        source_metadata = (
+            self._extract_metadata(source_file) if extract_metadata else {}
+        )
 
         # Create file record
         self.current_file_record = FuzzedFileRecord(
@@ -246,12 +256,16 @@ class FuzzingSession:
         self,
         output_file: Path | str,
         success: bool = True,
+        extract_metadata: bool = True,
     ) -> None:
         """Finish tracking current fuzzed file.
 
         Args:
             output_file: Path to saved fuzzed file (str or Path)
             success: Whether file was successfully created
+            extract_metadata: SHA256-hash and parse ``output_file``. Set
+                ``False`` to skip both for bulk pre-registration -- see the
+                matching note on :meth:`start_file_fuzzing`.
 
         """
         if not self.current_file_record:
@@ -263,7 +277,7 @@ class FuzzingSession:
         )
 
         # Calculate file hash
-        if success and output_file_path.exists():
+        if extract_metadata and success and output_file_path.exists():
             self.current_file_record.file_hash = self._calculate_file_hash(
                 output_file_path
             )
